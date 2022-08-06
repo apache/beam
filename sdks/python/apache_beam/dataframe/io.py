@@ -15,6 +15,7 @@
 # limitations under the License.
 
 """Sources and sinks for the Beam DataFrame API.
+
 Sources
 #######
 This module provides analogs for pandas ``read`` methods, like
@@ -23,9 +24,12 @@ create a Beam :class:`~apache_beam.PTransform`, and return a
 :class:`~apache_beam.dataframe.frames.DeferredDataFrame` or
 :class:`~apache_beam.dataframe.frames.DeferredSeries` representing the contents
 of the referenced file(s) or data source.
+
 The result of these methods must be applied to a :class:`~apache_beam.Pipeline`
 object, for example::
+
     df = p | beam.dataframe.io.read_csv(...)
+
 Sinks
 #####
 This module also defines analogs for pandas sink, or ``to``, methods that
