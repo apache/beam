@@ -17,7 +17,6 @@ package components
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -326,7 +325,7 @@ func savePCObjs(exampleId string) {
 	for _, pcType := range pcTypes {
 		_, _ = datastoreDb.Client.Put(
 			ctx,
-			utils.GetPCObjectKey(fmt.Sprintf("%s_%s", exampleId, pcType)),
+			utils.GetPCObjectKey(exampleId, pcType),
 			&entity.PrecompiledObjectEntity{Content: "MOCK_CONTENT_" + pcType})
 	}
 }

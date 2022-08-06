@@ -805,7 +805,7 @@ func saveExample(name, sdk string) {
 		Cats:       []string{"MOCK_CATEGORY"},
 		Complexity: "MEDIUM",
 		Path:       "MOCK_PATH",
-		Type:       "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
+		Type:       pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
 		Origin:     constants.ExampleOrigin,
 		SchVer:     utils.GetSchemaVerKey("MOCK_VERSION"),
 	})
