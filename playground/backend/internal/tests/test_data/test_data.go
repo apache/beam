@@ -58,13 +58,11 @@ func RemoveCatalogsWithMockData(ctx context.Context) {
 	client, closeClientFunc := createDatastoreClient(ctx)
 	defer closeClientFunc()
 
-	sdkKeys, _ := createSDKEntities()
 	exampleKeys, examples := createExampleEntities()
 	snippetKeys, _ := createSnippetEntities(examples)
 	fileKeys, _ := createFileEntities(examples)
 	objKeys, _ := createPCObjEntities(examples)
 
-	deleteEntities(ctx, client, sdkKeys)
 	deleteEntities(ctx, client, exampleKeys)
 	deleteEntities(ctx, client, snippetKeys)
 	deleteEntities(ctx, client, fileKeys)
@@ -98,7 +96,7 @@ func createExampleEntities() ([]*datastore.Key, []*entity.ExampleEntity) {
 			continue
 		}
 		for _, name := range names {
-			key := utils.GetExampleKey(sdk + "_" + name)
+			key := utils.GetExampleKey(sdk, name)
 			keys = append(keys, key)
 			example := createExampleEntity(name, sdk)
 			examples = append(examples, example)
@@ -116,8 +114,8 @@ func createExampleEntity(name, sdk string) *entity.ExampleEntity {
 		Cats:       []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
 		Complexity: "MEDIUM",
 		Path:       "MOCK_PATH",
-		Type:       "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
-		Origin:     "PG_EXAMPLES",
+		Type:       pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
+		Origin:     constants.ExampleOrigin,
 		SchVer:     utils.GetSchemaVerKey("MOCK_VERSION"),
 	}
 }
@@ -127,7 +125,7 @@ func createSnippetEntities(examples []*entity.ExampleEntity) ([]*datastore.Key, 
 	snippets := make([]*entity.SnippetEntity, 0)
 	now := time.Now()
 	for _, example := range examples {
-		key := utils.GetSnippetKey(example.Sdk.Name + "_" + example.Name)
+		key := utils.GetSnippetKey(example.Sdk.Name, example.Name)
 		snippet := &entity.SnippetEntity{
 			Sdk:           example.Sdk,
 			PipeOpts:      "MOCK_P_OPTS",
@@ -147,7 +145,7 @@ func createFileEntities(examples []*entity.ExampleEntity) ([]*datastore.Key, []*
 	keys := make([]*datastore.Key, 0)
 	files := make([]*entity.FileEntity, 0)
 	for _, example := range examples {
-		key := utils.GetFileKey(example.Sdk.Name + "_" + example.Name + "_" + "0")
+		key := utils.GetFileKey(example.Sdk.Name, example.Name, 0)
 		file := &entity.FileEntity{
 			Name:     "MOCK_NAME",
 			Content:  "MOCK_CONTENT",
@@ -166,7 +164,7 @@ func createPCObjEntities(examples []*entity.ExampleEntity) ([]*datastore.Key, []
 	for _, example := range examples {
 		types := []string{constants.PCLogType, constants.PCGraphType, constants.PCOutputType}
 		for _, typeVal := range types {
-			key := utils.GetPCObjectKey(example.Sdk.Name + "_" + example.Name + "_" + typeVal)
+			key := utils.GetPCObjectKey(example.Sdk.Name, example.Name, typeVal)
 			obj := &entity.PrecompiledObjectEntity{Content: "MOCK_CONTENT_" + typeVal}
 			keys = append(keys, key)
 			objs = append(objs, obj)
@@ -190,7 +188,7 @@ func saveEntities(ctx context.Context, client *datastore.Client, keys []*datasto
 }
 
 func createDatastoreClient(ctx context.Context) (*datastore.Client, func()) {
-	projectId := getEnv("GOOGLE_CLOUD_PROJECT", "test")
+	projectId := getEnv("GOOGLE_CLOUD_PROJECT", constants.EmulatorProjectId)
 	client, err := datastore.NewClient(ctx, projectId)
 	if err != nil {
 		fmt.Println(err.Error())
