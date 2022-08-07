@@ -476,6 +476,15 @@ class ReadGbqTransformTests(unittest.TestCase):
       pipeline = p | beam.dataframe.transforms.ReadGbq(table=res)
       pipeline
 
+  def test_ReadGbq_unsupported_param(self):
+    with self.assertRaisesRegex(ValueError,
+                                "Unsupported parameter entered in ReadGbq. "
+                                "Please enter only supported parameters."):
+      p = beam.Pipeline()
+      pipeline = p | beam.dataframe.transforms.ReadGbq(
+          table="table", reauth="true_config")
+      pipeline
+
 
 if __name__ == '__main__':
   unittest.main()

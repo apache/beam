@@ -673,7 +673,26 @@ class ReadGbq(beam.PTransform):
       progress_bar_type=None):
 
     self.table = table
+    self.index_col = index_col
+    self.col_order = col_order
+    self.reauth = reauth
+    self.auth_local_webserver = auth_local_webserver
+    self.dialect = dialect
+    self.location = location
+    self.configuration = configuration
+    self.credentials = credentials
     self.use_bqstorage_api = use_bqstorage_api
+    self.max_results = max_results
+    self.progress_bar_type = progress_bar_type
+
+    if (self.index_col is not None or self.col_order is not None or
+        self.reauth is not None or self.auth_local_webserver is not None or
+        self.dialect is not None or self.location is not None or
+        self.configuration is not None or self.credentials is not None or
+        self.max_results is not None or self.progress_bar_type) is not None:
+      raise ValueError(
+          "Unsupported parameter entered in ReadGbq. "
+          "Please enter only supported parameters.")
 
   def expand(self, root):
     from apache_beam.dataframe import convert  # avoid circular import
