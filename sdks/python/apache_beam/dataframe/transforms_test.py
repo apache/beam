@@ -18,7 +18,8 @@ import typing
 import warnings
 import mock
 import pandas as pd
-import unittest.mock
+import unittest
+import apache_beam.io.gcp.bigquery
 
 import apache_beam as beam
 from apache_beam.io.gcp.internal.clients import bigquery
@@ -32,6 +33,11 @@ from apache_beam.dataframe import transforms
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
 
 
 def check_correct(expected, actual):
@@ -427,6 +433,7 @@ class TransformPartsTest(unittest.TestCase):
           label='CheckValuesB')
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class ReadGbqTransformTests(unittest.TestCase):
   def test_without_specifying_table(self):
     with self.assertRaisesRegex(
@@ -436,22 +443,22 @@ class ReadGbqTransformTests(unittest.TestCase):
       pipeline
 
   @mock.patch.object(BigQueryWrapper, 'get_table')
-  def test_bad_schema_public_api_direct_readgbq(self, get_table):
+  def test_bad_schema_public_api_direct_read(self, get_table):
     fields = [
         bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
         bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
         bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
     ]
     schema = bigquery.TableSchema(fields=fields)
-    table = beam.io.gcp.internal.clients.bigquery. \
+    table = apache_beam.io.gcp.internal.clients.bigquery. \
         bigquery_v2_messages.Table(
         schema=schema)
     get_table.return_value = table
 
     with self.assertRaisesRegex(ValueError,
                                 "Encountered an unsupported type: 'DOUBLE'"):
-      p = beam.Pipeline()
-      pipeline = p | beam.dataframe.transforms.ReadGbq(
+      p = apache_beam.Pipeline()
+      pipeline = p | apache_beam.dataframe.transforms.ReadGbq(
           table="dataset.sample_table", use_bqstorage_api=True)
       pipeline
 
