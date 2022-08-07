@@ -15,21 +15,22 @@
 # limitations under the License.
 
 import typing
+import unittest
 import warnings
+
 import mock
 import pandas as pd
-import unittest
-import apache_beam.io.gcp.bigquery
 
 import apache_beam as beam
-from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+import apache_beam.io.gcp.bigquery
 from apache_beam import coders
 from apache_beam import metrics
 from apache_beam.dataframe import convert
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import transforms
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
