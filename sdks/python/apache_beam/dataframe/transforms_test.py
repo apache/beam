@@ -15,12 +15,14 @@
 # limitations under the License.
 
 import typing
-import unittest
 import warnings
-
+import mock
 import pandas as pd
+import unittest.mock
 
 import apache_beam as beam
+from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam import coders
 from apache_beam import metrics
 from apache_beam.dataframe import convert
@@ -431,6 +433,39 @@ class ReadGbqTransformTests(unittest.TestCase):
         ValueError, "A table must be specified to Read from BigQuery."):
       p = beam.Pipeline()
       pipeline = p | beam.dataframe.transforms.ReadGbq()
+      pipeline
+
+  @mock.patch.object(BigQueryWrapper, 'get_table')
+  def test_bad_schema_public_api_direct_readgbq(self, get_table):
+    fields = [
+        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    table = beam.io.gcp.internal.clients.bigquery. \
+        bigquery_v2_messages.Table(
+        schema=schema)
+    get_table.return_value = table
+
+    with self.assertRaisesRegex(ValueError,
+                                "Encountered an unsupported type: 'DOUBLE'"):
+      p = beam.Pipeline()
+      pipeline = p | apache_beam.dataframe.transforms.ReadGbq(
+          table="dataset.sample_table", use_bqstorage_api=True)
+      pipeline
+
+  def test_unsupported_callable(self):
+    def filterTable(table):
+      if table is not None:
+        return table
+
+    res = filterTable
+    with self.assertRaisesRegex(TypeError,
+                                'ReadFromBigQuery: table must be of type string'
+                                '; got a callable instead'):
+      p = apache_beam.Pipeline()
+      pipeline = p | apache_beam.dataframe.transforms.ReadGbq(table=res)
       pipeline
 
 
