@@ -16061,7 +16061,22 @@ Javadoc
 answer using &lt;code>ApproximateUnique&lt;/code>, which also allows for determining distinct
 values for each key.&lt;/p>
 &lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>See &lt;a href="https://issues.apache.org/jira/browse/BEAM-7703">BEAM-7703&lt;/a> for updates.&lt;/p>
+&lt;p>&lt;strong>Example 1&lt;/strong> Find the distinct element from a &lt;code>PCollection&lt;/code> of &lt;code>String&lt;/code>.&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">static&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">[]&lt;/span> &lt;span class="n">WORDS_ARRAY&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">[]{&lt;/span>
+&lt;span class="s">&amp;#34;hi&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;hi&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;sue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;sue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;bob&amp;#34;&lt;/span>
+&lt;span class="o">};&lt;/span>
+&lt;span class="kd">static&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">WORDS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Arrays&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">asList&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">WORDS_ARRAY&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">input&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">WORDS&lt;/span>&lt;span class="o">)).&lt;/span>&lt;span class="na">withCoder&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">StringUtf8Coder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">distinctWords&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">input&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Distinct&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">create&lt;/span>&lt;span class="o">());&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/transforms/java/aggregation/count">Count&lt;/a>
