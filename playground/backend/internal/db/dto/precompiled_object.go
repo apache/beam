@@ -32,6 +32,7 @@ type ObjectInfo struct {
 	ContextLine     int32
 	DefaultExample  bool
 	Sdk             pb.Sdk
+	Complexity      pb.Complexity
 }
 
 type PrecompiledObjects []ObjectInfo
@@ -84,4 +85,8 @@ func (e *ExampleDTO) GetContextLine() int32 {
 
 func (e *ExampleDTO) GetSDK() pb.Sdk {
 	return pb.Sdk(pb.Sdk_value[e.Example.Sdk.Name])
+}
+
+func (e *ExampleDTO) GetComplexity() pb.Complexity {
+	return pb.Complexity(pb.Complexity_value[e.Example.Complexity])
 }

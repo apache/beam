@@ -52,6 +52,12 @@ enum PrecompiledObjectType {
   PRECOMPILED_OBJECT_TYPE_UNIT_TEST = 3;
 }
 
+enum Complexity {
+  BASIC = 0;
+  MEDIUM = 1;
+  ADVANCED = 2;
+}
+
 // RunCodeRequest represents a code text and options of SDK which executes the code.
 message RunCodeRequest {
   string code = 1;
@@ -167,6 +173,7 @@ message PrecompiledObject{
   int32 context_line = 8;
   bool default_example = 9;
   Sdk sdk = 10;
+  Complexity complexity = 11;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk
