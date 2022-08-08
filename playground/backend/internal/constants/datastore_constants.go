@@ -17,11 +17,12 @@ package constants
 
 //Cloud Datastore constants
 const (
-	Namespace          = "Playground"
-	IDDelimiter        = "_"
-	CloudPathDelimiter = "/"
-	UserSnippetOrigin  = "PG_USER"
-	ExampleOrigin      = "PG_EXAMPLES"
+	Namespace             = "Playground"
+	DatastoreNamespaceKey = "DATASTORE_NAMESPACE"
+	IDDelimiter           = "_"
+	CloudPathDelimiter    = "/"
+	UserSnippetOrigin     = "PG_USER"
+	ExampleOrigin         = "PG_EXAMPLES"
 
 	SnippetKind  = "pg_snippets"
 	SchemaKind   = "pg_schema_versions"
