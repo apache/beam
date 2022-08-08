@@ -59,6 +59,11 @@ public class MetricsEnvironment {
   private static final AtomicReference<@Nullable MetricsContainer> PROCESS_WIDE_METRICS_CONTAINER =
       new AtomicReference<>();
 
+  /** Returns the container holder for the current thread. */
+  public static MetricsEnvironmentState getMetricsEnvironmentStateForCurrentThread() {
+    return CONTAINER_FOR_THREAD.get();
+  }
+
   /**
    * Set the {@link MetricsContainer} for the current thread.
    *
@@ -149,7 +154,24 @@ public class MetricsEnvironment {
     return PROCESS_WIDE_METRICS_CONTAINER.get();
   }
 
-  private static class MetricsContainerHolder {
-    public @Nullable MetricsContainer container = null;
+  public static class MetricsContainerHolder implements MetricsEnvironmentState {
+    private @Nullable MetricsContainer container = null;
+
+    @Override
+    public @Nullable MetricsContainer activate(@Nullable MetricsContainer metricsContainer) {
+      MetricsContainer old = container;
+      container = metricsContainer;
+      return old;
+    }
+  }
+
+  /**
+   * Set the {@link MetricsContainer} for the associated {@link MetricsEnvironment}.
+   *
+   * @return The previous container for the associated {@link MetricsEnvironment}.
+   */
+  public interface MetricsEnvironmentState {
+    @Nullable
+    MetricsContainer activate(@Nullable MetricsContainer metricsContainer);
   }
 }

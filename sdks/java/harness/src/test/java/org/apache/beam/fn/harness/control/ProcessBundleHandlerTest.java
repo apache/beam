@@ -74,6 +74,7 @@ import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTr
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
+import org.apache.beam.fn.harness.control.ProcessBundleHandler.MetricsEnvironmentStateForBundle;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
@@ -292,6 +293,11 @@ public class ProcessBundleHandlerTest {
     @Override
     MetricsContainerStepMap getMetricsContainerRegistry() {
       return wrappedBundleProcessor.getMetricsContainerRegistry();
+    }
+
+    @Override
+    MetricsEnvironmentStateForBundle getMetricsEnvironmentStateForBundle() {
+      return wrappedBundleProcessor.getMetricsEnvironmentStateForBundle();
     }
 
     @Override
@@ -742,6 +748,7 @@ public class ProcessBundleHandlerTest {
             splitListener,
             pCollectionConsumerRegistry,
             metricsContainerRegistry,
+            new MetricsEnvironmentStateForBundle(),
             stateTracker,
             beamFnStateClient,
             bundleFinalizationCallbacks,
