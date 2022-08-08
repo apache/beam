@@ -122,6 +122,20 @@ NOINDEX_DF_TESTS = [(NICE_TYPES_DF, DF_RESULT, BEAM_SCHEMA)]
 PD_VERSION = tuple(int(n) for n in pd.__version__.split('.'))
 
 
+def test_name_func(testcase_func, param_num, params):
+  df_or_series, _, _ = params.args
+  if isinstance(df_or_series, pd.Series):
+    return f"{testcase_func.__name__}_Series[{df_or_series.dtype}]"
+  elif isinstance(df_or_series, pd.DataFrame):
+    return (
+        f"{testcase_func.__name__}_DataFrame"
+        f"[{','.join(str(dtype) for dtype in df_or_series.dtypes)}]")
+  else:
+    raise ValueError(
+        f"Encountered unsupported param in {testcase_func.__name__}. "
+        "Expected Series or DataFrame, got:\n" + str(df_or_series))
+
+
 class SchemasTest(unittest.TestCase):
   def test_simple_df(self):
     expected = pd.DataFrame({
@@ -230,7 +244,8 @@ class SchemasTest(unittest.TestCase):
     else:
       self.assertEqual(left, right)
 
-  @parameterized.expand(SERIES_TESTS + NOINDEX_DF_TESTS)
+  @parameterized.expand(
+      SERIES_TESTS + NOINDEX_DF_TESTS, name_func=test_name_func)
   def test_unbatch_no_index(self, df_or_series, rows, beam_type):
     proxy = df_or_series[:0]
 
@@ -247,7 +262,7 @@ class SchemasTest(unittest.TestCase):
 
       assert_that(res, equal_to(rows))
 
-  @parameterized.expand(SERIES_TESTS + INDEX_DF_TESTS)
+  @parameterized.expand(SERIES_TESTS + INDEX_DF_TESTS, name_func=test_name_func)
   def test_unbatch_with_index(self, df_or_series, rows, _):
     proxy = df_or_series[:0]
 
