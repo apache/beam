@@ -1,10 +1,13 @@
-package storage
+package service
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"path"
 	"runtime"
+
+	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 )
 
 func getSamplesPath() string {
@@ -12,18 +15,18 @@ func getSamplesPath() string {
 	return path.Join(path.Dir(filepath), "..", "..", "samples")
 }
 
-type MockDb struct{}
+type Mock struct{}
 
 // check if the interface is implemented
-var _ Iface = &MockDb{}
+var _ IContent = &Mock{}
 
-func (d *MockDb) GetContentTree(sdk string, userId *string) (ct ContentTree) {
+func (d *Mock) GetContentTree(_ context.Context, sdk tob.Sdk, userId *string) (ct tob.ContentTree, err error) {
 	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "content_tree.json"))
 	_ = json.Unmarshal(content, &ct)
-	return ct
+	return ct, nil
 }
 
-func (d *MockDb) GetUnitContent(unitId string, userId *string) (u UnitContent) {
+func (d *Mock) GetUnitContent(_ context.Context, unitId string, userId *string) (u tob.UnitContent) {
 	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "unit.json"))
 	_ = json.Unmarshal(content, &u)
 	return u

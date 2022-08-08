@@ -1,26 +1,36 @@
 package storage
 
-type Unit struct {
-	Id          string `json:"unitId"`
-	Name        string `json:"name"`
-	IsCompleted bool   `json:"completed"`
+const (
+	TbLearningPathKind   = "tb_learning_path"
+	TbLearningModuleKind = "tb_learning_module"
+	TbLearningUnitKind   = "tb_learning_unit"
+)
+
+// tb_learning_path
+type TbLearningPath struct {
+	Sdk     string              `datastore:"sdk"`
+	Modules []*TbLearningModule `datastore:"-"`
 }
 
-type Module struct {
-	Id    string `json:"moduleId"`
-	Name  string `json:"name"`
-	Units []Unit `json:"units"`
+// tb_learning_modules
+type TbLearningModule struct {
+	Id    string            `datastore:"id"`
+	Name  string            `datastore:"name"`
+	Order int               `datastore:"order"`
+	Units []*TbLearningUnit `datastore:"-"`
 }
 
-type ContentTree struct {
-	Modules []Module `json:"modules"`
-}
+// tb_learning_units
+type TbLearningUnit struct {
+	Id    string `datastore:"id"`
+	Name  string `datastore:"name"`
+	Order int    `datastore:"order"`
 
-type UnitContent struct {
-	Unit
-	Description         string `json:"description"`
-	Hint                string `json:"hint"`
-	AssignmentSnippetId string `json:"assignment"`
-	SolutionSnippetId   string `json:"solution"`
-	UserSnippetId       string `json:"userSnippet"`
+	Description string `datastore:"description,noindex"`
+	Hint        string `datastore:"hint,noindex"`
+
+	TaskSnippetId     string `datastore:"taskSnippetId`
+	SolutionSnippetId string `datastore:"solutionSnippetId`
+
+	Complexity int `datastore:"complexity"`
 }
