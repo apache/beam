@@ -295,7 +295,7 @@ python -m apache_beam.examples.inference.sklearn_japanese_housing_regression.py 
 For example:
 ```sh
 python -m apache_beam.examples.inference.sklearn_japanese_housing_regression.py \
-  --input_file mnist_data.csv \
+  --input_file housing_examples.csv \
   --output predictions.txt \
   --model_path https://storage.cloud.google.com/apache-beam-ml/models/japanese_housing/
 ```
