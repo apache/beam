@@ -136,6 +136,19 @@ def dtype_to_fieldtype(dtype):
     return Any
 
 
+@BatchConverter.register
+def create_pandas_batch_converter(
+    element_type: type, batch_type: type) -> BatchConverter:
+  if batch_type == pd.DataFrame:
+    return DataFrameBatchConverter.from_typehints(
+        element_type=element_type, batch_type=batch_type)
+  elif batch_type == pd.Series:
+    return SeriesBatchConverter.from_typehints(
+        element_type=element_type, batch_type=batch_type)
+
+  return None
+
+
 class DataFrameBatchConverter(BatchConverter):
   def __init__(
       self,
@@ -145,7 +158,6 @@ class DataFrameBatchConverter(BatchConverter):
     self._columns = [name for name, _ in element_type._fields]
 
   @staticmethod
-  @BatchConverter.register
   def from_typehints(element_type,
                      batch_type) -> Optional['DataFrameBatchConverter']:
     if not batch_type == pd.DataFrame:
@@ -261,16 +273,12 @@ class SeriesBatchConverter(BatchConverter):
     self.explode_batch = unbatch
 
   @staticmethod
-  @BatchConverter.register
   def from_typehints(element_type,
                      batch_type) -> Optional['SeriesBatchConverter']:
     if not batch_type == pd.Series:
       return None
 
     dtype = dtype_from_typehint(element_type)
-    if dtype == np.object:
-      # Don't create Any <-> Series[np.object] mapping
-      return None
 
     return SeriesBatchConverter(element_type, dtype)
 
