@@ -105,12 +105,14 @@ public class UnboundedReaderImplTest {
 
   @Test
   public void startAdvances() throws Exception {
-    SequencedMessage message = messageWith("abc", 2, Instant.now());
+    Instant ts = Instant.now();
+    SequencedMessage message = messageWith("abc", 2, ts);
     doReturn(Optional.of(message)).when(subscriber).peek();
     assertTrue(reader.start());
     verify(subscriber).startAsync();
     verify(subscriber).awaitRunning(1, TimeUnit.MINUTES);
     assertEquals(reader.getCurrent(), message);
+    assertEquals(reader.getWatermark(), ts);
   }
 
   @Test
@@ -120,6 +122,7 @@ public class UnboundedReaderImplTest {
     verify(subscriber).startAsync();
     verify(subscriber).awaitRunning(1, TimeUnit.MINUTES);
     assertThrows(NoSuchElementException.class, reader::getCurrent);
+    assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, reader.getWatermark());
   }
 
   @Test
@@ -142,7 +145,7 @@ public class UnboundedReaderImplTest {
     assertTrue(reader.advance());
     assertEquals(reader.getCurrent(), message1);
     assertEquals(reader.getCurrentTimestamp(), ts1);
-    assertEquals(reader.getWatermark(), BoundedWindow.TIMESTAMP_MIN_VALUE);
+    assertEquals(reader.getWatermark(), ts1);
     doAnswer(
             (Answer<Void>)
                 args -> {

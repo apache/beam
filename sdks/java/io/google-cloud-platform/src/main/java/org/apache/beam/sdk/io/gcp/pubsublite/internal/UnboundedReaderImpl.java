@@ -102,15 +102,18 @@ public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
       throw new IOException("Subscriber failed: ", subscriber.failureCause());
     }
     if (advanced) {
-      SequencedMessage peeked = subscriber.peek().get();
-      Offset nextOffset = Offset.of(peeked.getCursor().getOffset() + 1);
-      checkState(nextOffset.value() > fetchOffset.value());
-      fetchOffset = nextOffset;
-      lastMessageTimestamp = Optional.of(getTimestamp(peeked));
       subscriber.pop();
     }
-    advanced = subscriber.peek().isPresent();
-    return advanced;
+    Optional<SequencedMessage> next = subscriber.peek();
+    advanced = next.isPresent();
+    if (!advanced) {
+      return false;
+    }
+    Offset nextOffset = Offset.of(next.get().getCursor().getOffset() + 1);
+    checkState(nextOffset.value() > fetchOffset.value());
+    fetchOffset = nextOffset;
+    lastMessageTimestamp = Optional.of(getTimestamp(next.get()));
+    return true;
   }
 
   @Override
