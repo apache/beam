@@ -41,4 +41,6 @@ dependencies {
     compileOnly "org.scala-lang:scala-library:2.11.12"
     testImplementation project(path: ":sdks:java:io:cdap", configuration: "testRuntimeMigration")
     testImplementation library.java.junit
+    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation project(path: ":examples:java", configuration: "testRuntimeMigration")
 }

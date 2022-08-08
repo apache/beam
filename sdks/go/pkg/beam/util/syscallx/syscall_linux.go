@@ -38,6 +38,7 @@ func FreeDiskSpace(path string) (uint64, error) {
 	return stat.Bavail * uint64(stat.Bsize), nil
 }
 
+// SetProcessMemoryCeiling sets current and max process memory limit.
 func SetProcessMemoryCeiling(softCeiling, hardCeiling uint64) error {
 	var rLimit unix.Rlimit
 

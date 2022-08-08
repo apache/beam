@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	register.DoFn4x0[context.Context, string, func(string), func(string)]((*readResourceFn)(nil))
+	register.DoFn4x0[context.Context, []byte, func(string), func(string)]((*readResourceFn)(nil))
 	register.Emitter1[string]()
 }
 
@@ -44,7 +44,7 @@ func (fn *readResourceFn) Setup() {
 	fn.fnCommonVariables.setup(fn.String())
 }
 
-func (fn *readResourceFn) ProcessElement(ctx context.Context, resourcePath string, emitResource, emitDeadLetter func(string)) {
+func (fn *readResourceFn) ProcessElement(ctx context.Context, resourcePath []byte, emitResource, emitDeadLetter func(string)) {
 	response, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
 		return fn.client.readResource(resourcePath)
 	})

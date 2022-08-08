@@ -54,7 +54,7 @@ func TestExecuteBundles(t *testing.T) {
 		},
 	}
 
-	testBundles := [][]byte{[]byte("foo"), []byte("bar")}
+	testBundles := []string{"foo", "bar"}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			p, s, bundles := ptest.CreateList(testBundles)
