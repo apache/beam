@@ -328,7 +328,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
 
 class _MetricsCollector:
-  """A metrics collector that tracks ML related performance and memory usage."""
+  """A metrics collector that tracks ML related performance and memory usag."""
   def __init__(self, namespace: str):
     # Metrics
     self._inference_counter = beam.metrics.Metrics.counter(
