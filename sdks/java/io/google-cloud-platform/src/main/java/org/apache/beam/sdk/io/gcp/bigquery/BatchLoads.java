@@ -354,7 +354,7 @@ class BatchLoads<DestinationT, ElementT>
                             rowWriterFactory))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
-    PCollection<KV<TableDestination, WriteTables.Result>> tempTables =
+    PCollection<KV<DestinationT, WriteTables.Result>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), tempLoadJobIdPrefixView);
 
     List<PCollectionView<?>> sideInputsForUpdateSchema =
@@ -366,7 +366,7 @@ class BatchLoads<DestinationT, ElementT>
             // Now that the load job has happened, we want the rename to happen immediately.
             .apply(
                 "Window Into Global Windows",
-                Window.<KV<TableDestination, WriteTables.Result>>into(new GlobalWindows())
+                Window.<KV<DestinationT, WriteTables.Result>>into(new GlobalWindows())
                     .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
             .apply("Add Void Key", WithKeys.of((Void) null))
             .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
@@ -374,7 +374,7 @@ class BatchLoads<DestinationT, ElementT>
             .apply("Extract Values", Values.create())
             .apply(
                 ParDo.of(
-                        new UpdateSchemaDestination(
+                        new UpdateSchemaDestination<DestinationT>(
                             bigQueryServices,
                             tempLoadJobIdPrefixView,
                             loadJobProjectId,
@@ -473,7 +473,7 @@ class BatchLoads<DestinationT, ElementT>
             .apply("ReifyRenameInput", new ReifyAsIterable<>())
             .apply(
                 ParDo.of(
-                        new UpdateSchemaDestination(
+                        new UpdateSchemaDestination<DestinationT>(
                             bigQueryServices,
                             tempLoadJobIdPrefixView,
                             loadJobProjectId,
@@ -708,7 +708,7 @@ class BatchLoads<DestinationT, ElementT>
   }
 
   // Take in a list of files and write them to temporary tables.
-  private PCollection<KV<TableDestination, WriteTables.Result>> writeTempTables(
+  private PCollection<KV<DestinationT, WriteTables.Result>> writeTempTables(
       PCollection<KV<ShardedKey<DestinationT>, WritePartition.Result>> input,
       PCollectionView<String> jobIdTokenView) {
     List<PCollectionView<?>> sideInputs = Lists.newArrayList(jobIdTokenView);
@@ -718,9 +718,6 @@ class BatchLoads<DestinationT, ElementT>
         KvCoder.of(
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             WritePartition.ResultCoder.INSTANCE);
-
-    Coder<TableDestination> tableDestinationCoder =
-        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
 
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
     // DEFAULT_MAX_BYTES_PER_PARTITION bytes, then
@@ -752,7 +749,7 @@ class BatchLoads<DestinationT, ElementT>
                 // https://github.com/apache/beam/issues/21105 for additional details.
                 schemaUpdateOptions,
                 tempDataset))
-        .setCoder(KvCoder.of(tableDestinationCoder, WriteTables.ResultCoder.INSTANCE));
+        .setCoder(KvCoder.of(destinationCoder, WriteTables.ResultCoder.INSTANCE));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -771,7 +768,7 @@ class BatchLoads<DestinationT, ElementT>
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             WritePartition.ResultCoder.INSTANCE);
     // Write single partition to final table
-    PCollection<KV<TableDestination, WriteTables.Result>> successfulWrites =
+    PCollection<KV<DestinationT, WriteTables.Result>> successfulWrites =
         input
             .setCoder(partitionsCoder)
             // Reshuffle will distribute this among multiple workers, and also guard against
@@ -795,9 +792,20 @@ class BatchLoads<DestinationT, ElementT>
                     useAvroLogicalTypes,
                     schemaUpdateOptions,
                     null))
-            .setCoder(KvCoder.of(tableDestinationCoder, WriteTables.ResultCoder.INSTANCE));
+            .setCoder(KvCoder.of(destinationCoder, WriteTables.ResultCoder.INSTANCE));
 
-    return successfulWrites.apply(Keys.create());
+    return successfulWrites
+        .apply(Keys.create())
+        .apply(
+            ParDo.of(
+                new DoFn<DestinationT, TableDestination>() {
+                  @ProcessElement
+                  public void processElement(
+                      @Element DestinationT dest, OutputReceiver<TableDestination> o) {
+                    o.output(dynamicDestinations.getTable(dest));
+                  }
+                }))
+        .setCoder(tableDestinationCoder);
   }
 
   private WriteResult writeResult(Pipeline p, PCollection<TableDestination> successfulWrites) {

@@ -27,6 +27,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -43,9 +44,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings({"nullness", "rawtypes"})
-public class UpdateSchemaDestination
+public class UpdateSchemaDestination<DestinationT>
     extends DoFn<
-        Iterable<KV<TableDestination, WriteTables.Result>>,
+        Iterable<KV<DestinationT, WriteTables.Result>>,
         Iterable<KV<TableDestination, WriteTables.Result>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UpdateSchemaDestination.class);
@@ -116,12 +117,12 @@ public class UpdateSchemaDestination
 
   @ProcessElement
   public void processElement(
-      @Element Iterable<KV<TableDestination, WriteTables.Result>> element,
+      @Element Iterable<KV<DestinationT, WriteTables.Result>> element,
       ProcessContext context,
       BoundedWindow window)
       throws IOException {
     Object destination = null;
-    for (KV<TableDestination, WriteTables.Result> entry : element) {
+    for (KV<DestinationT, WriteTables.Result> entry : element) {
       destination = entry.getKey();
       if (destination != null) {
         break;
@@ -153,8 +154,12 @@ public class UpdateSchemaDestination
       if (updateSchemaDestinationJob != null) {
         pendingJobs.add(new PendingJobData(updateSchemaDestinationJob, tableDestination, window));
       }
-      context.output(element);
     }
+    List<KV<TableDestination, WriteTables.Result>> tableDestinations = new ArrayList<>();
+    for (KV<DestinationT, WriteTables.Result> entry : element) {
+      tableDestinations.add(KV.of(dynamicDestinations.getTable(entry.getKey()), entry.getValue()));
+    }
+    context.output(tableDestinations);
   }
 
   @Teardown

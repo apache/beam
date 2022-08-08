@@ -2209,6 +2209,8 @@ public class BigQueryIOWriteTest implements Serializable {
         p.apply("CreateJobId", Create.of("jobId")).apply(View.asSingleton());
     List<PCollectionView<?>> sideInputs = ImmutableList.of(jobIdTokenView);
 
+    DynamicDestinations<String, String> dynamicDestinations = new IdentityDynamicTables();
+
     fakeJobService.setNumFailuresExpected(3);
     WriteTables<String> writeTables =
         new WriteTables<>(
@@ -2218,7 +2220,7 @@ public class BigQueryIOWriteTest implements Serializable {
             BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
             BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
             sideInputs,
-            new IdentityDynamicTables(),
+            dynamicDestinations,
             null,
             4,
             false,
@@ -2228,24 +2230,25 @@ public class BigQueryIOWriteTest implements Serializable {
             Collections.emptySet(),
             null);
 
-    PCollection<KV<TableDestination, WriteTables.Result>> writeTablesOutput =
+    PCollection<KV<String, WriteTables.Result>> writeTablesOutput =
         writeTablesInput
             .apply(writeTables)
-            .setCoder(KvCoder.of(TableDestinationCoderV3.of(), WriteTables.ResultCoder.INSTANCE));
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), WriteTables.ResultCoder.INSTANCE));
 
     PAssert.thatMultimap(writeTablesOutput)
         .satisfies(
             input -> {
               assertEquals(input.keySet(), expectedTempTables.keySet());
-              for (Map.Entry<TableDestination, Iterable<WriteTables.Result>> entry :
-                  input.entrySet()) {
+              for (Map.Entry<String, Iterable<WriteTables.Result>> entry : input.entrySet()) {
                 Iterable<String> tableNames =
                     StreamSupport.stream(entry.getValue().spliterator(), false)
                         .map(Result::getTableName)
                         .collect(Collectors.toList());
                 @SuppressWarnings("unchecked")
                 String[] expectedValues =
-                    Iterables.toArray(expectedTempTables.get(entry.getKey()), String.class);
+                    Iterables.toArray(
+                        expectedTempTables.get(dynamicDestinations.getTable(entry.getKey())),
+                        String.class);
                 assertThat(tableNames, containsInAnyOrder(expectedValues));
               }
               return null;
