@@ -144,11 +144,9 @@ jobs:
         working-directory: ./sdks/python
         run: unzip dist/$(ls dist | grep .zip | head -n 1)
       - name: Rename RC source directory
-        if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
         run: mv $(ls | grep apache-beam) apache-beam-source-rc
       - name: Upload RC source as artifact
-        if: steps.is_rc.outputs.is_rc == 1
         uses: actions/upload-artifact@v2
         with:
           name: source_rc${{ steps.get_rc_version.outputs.RC_NUM }}
@@ -222,7 +220,6 @@ jobs:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
-      if: ${{ needs.build_source.outputs.is_rc == 1 }}
       uses: actions/download-artifact@v2
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
@@ -259,15 +256,13 @@ jobs:
         name: wheelhouse-${{ matrix.os_python.os }}
         path: apache-beam-source/wheelhouse/
     - name: Build RC wheels
-      if: ${{ needs.build_source.outputs.is_rc == 1 }}
       working-directory: apache-beam-source-rc
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
-        CIBW_BEFORE_BUILD: pip install cython && && pip install --upgrade setuptools
+        CIBW_BEFORE_BUILD: pip install cython && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: Add RC checksums
-      if: ${{ needs.build_source.outputs.is_rc == 1 }}
       working-directory: apache-beam-source-rc/wheelhouse/
       run: |
         for file in *.whl; do
