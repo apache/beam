@@ -16,6 +16,7 @@
 package mapper
 
 import (
+	"context"
 	"time"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
@@ -26,12 +27,13 @@ import (
 )
 
 type DatastoreMapper struct {
+	ctx    context.Context
 	appEnv *environment.ApplicationEnvs
 	props  *environment.Properties
 }
 
-func NewDatastoreMapper(appEnv *environment.ApplicationEnvs, props *environment.Properties) *DatastoreMapper {
-	return &DatastoreMapper{appEnv: appEnv, props: props}
+func NewDatastoreMapper(ctx context.Context, appEnv *environment.ApplicationEnvs, props *environment.Properties) *DatastoreMapper {
+	return &DatastoreMapper{ctx: ctx, appEnv: appEnv, props: props}
 }
 
 func (m *DatastoreMapper) ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet {
@@ -40,8 +42,8 @@ func (m *DatastoreMapper) ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet
 		IDMeta: &entity.IDMeta{Salt: m.props.Salt, IdLength: m.props.IdLength},
 		//OwnerId property will be used in Tour of Beam project
 		Snippet: &entity.SnippetEntity{
-			SchVer:        utils.GetSchemaVerKey(m.appEnv.SchemaVersion()),
-			Sdk:           utils.GetSdkKey(info.Sdk.String()),
+			SchVer:        utils.GetSchemaVerKey(m.ctx, m.appEnv.SchemaVersion()),
+			Sdk:           utils.GetSdkKey(m.ctx, info.Sdk.String()),
 			PipeOpts:      info.PipelineOptions,
 			Created:       nowDate,
 			LVisited:      nowDate,

@@ -16,6 +16,7 @@
 package utils
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
@@ -47,34 +48,34 @@ func ID(salt, content string, length int8) (string, error) {
 	return string(b)[:hashLen], nil
 }
 
-func GetExampleKey(values ...interface{}) *datastore.Key {
+func GetExampleKey(ctx context.Context, values ...interface{}) *datastore.Key {
 	id := GetIDWithDelimiter(values...)
-	return getNameKey(constants.ExampleKind, id, constants.Namespace, nil)
+	return getNameKey(ctx, constants.ExampleKind, id, nil)
 }
 
-func GetSdkKey(values ...interface{}) *datastore.Key {
+func GetSdkKey(ctx context.Context, values ...interface{}) *datastore.Key {
 	id := GetIDWithDelimiter(values...)
-	return getNameKey(constants.SdkKind, id, constants.Namespace, nil)
+	return getNameKey(ctx, constants.SdkKind, id, nil)
 }
 
-func GetFileKey(values ...interface{}) *datastore.Key {
+func GetFileKey(ctx context.Context, values ...interface{}) *datastore.Key {
 	id := GetIDWithDelimiter(values...)
-	return getNameKey(constants.FileKind, id, constants.Namespace, nil)
+	return getNameKey(ctx, constants.FileKind, id, nil)
 }
 
-func GetSchemaVerKey(values ...interface{}) *datastore.Key {
+func GetSchemaVerKey(ctx context.Context, values ...interface{}) *datastore.Key {
 	id := GetIDWithDelimiter(values...)
-	return getNameKey(constants.SchemaKind, id, constants.Namespace, nil)
+	return getNameKey(ctx, constants.SchemaKind, id, nil)
 }
 
-func GetSnippetKey(values ...interface{}) *datastore.Key {
+func GetSnippetKey(ctx context.Context, values ...interface{}) *datastore.Key {
 	id := GetIDWithDelimiter(values...)
-	return getNameKey(constants.SnippetKind, id, constants.Namespace, nil)
+	return getNameKey(ctx, constants.SnippetKind, id, nil)
 }
 
-func GetPCObjectKey(values ...interface{}) *datastore.Key {
+func GetPCObjectKey(ctx context.Context, values ...interface{}) *datastore.Key {
 	id := GetIDWithDelimiter(values...)
-	return getNameKey(constants.PCObjectKind, id, constants.Namespace, nil)
+	return getNameKey(ctx, constants.PCObjectKind, id, nil)
 }
 
 func GetExampleID(cloudPath string) (string, error) {
@@ -108,11 +109,19 @@ func GetIDWithDelimiter(values ...interface{}) string {
 }
 
 // getNameKey returns the datastore key
-func getNameKey(kind, id, namespace string, parentId *datastore.Key) *datastore.Key {
+func getNameKey(ctx context.Context, kind, id string, parentId *datastore.Key) *datastore.Key {
 	key := datastore.NameKey(kind, id, nil)
 	if parentId != nil {
 		key.Parent = parentId
 	}
-	key.Namespace = namespace
+	key.Namespace = getNamespace(ctx)
 	return key
+}
+
+func getNamespace(ctx context.Context) string {
+	namespace, ok := ctx.Value(constants.EmulatorHostKey).(string)
+	if !ok {
+		return constants.Namespace
+	}
+	return namespace
 }

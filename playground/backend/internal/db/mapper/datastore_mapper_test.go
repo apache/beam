@@ -16,6 +16,7 @@
 package mapper
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -27,12 +28,13 @@ import (
 )
 
 var testable *DatastoreMapper
+var datastoreMapperCtx = context.Background()
 
 func TestMain(m *testing.M) {
 	appEnv := environment.NewApplicationEnvs("/app", "", "", "", "", "", "../../../.", nil, 0)
 	appEnv.SetSchemaVersion("MOCK_SCHEMA")
 	props, _ := environment.NewProperties(appEnv.PropertyPath())
-	testable = NewDatastoreMapper(appEnv, props)
+	testable = NewDatastoreMapper(datastoreMapperCtx, appEnv, props)
 	exitValue := m.Run()
 	os.Exit(exitValue)
 }
@@ -56,8 +58,8 @@ func TestEntityMapper_ToSnippet(t *testing.T) {
 					IdLength: 11,
 				},
 				Snippet: &entity.SnippetEntity{
-					SchVer:        utils.GetSchemaVerKey("MOCK_SCHEMA"),
-					Sdk:           utils.GetSdkKey(pb.Sdk_SDK_JAVA.String()),
+					SchVer:        utils.GetSchemaVerKey(datastoreMapperCtx, "MOCK_SCHEMA"),
+					Sdk:           utils.GetSdkKey(datastoreMapperCtx, pb.Sdk_SDK_JAVA.String()),
 					PipeOpts:      "MOCK_OPTIONS",
 					Origin:        constants.UserSnippetOrigin,
 					NumberOfFiles: 1,
