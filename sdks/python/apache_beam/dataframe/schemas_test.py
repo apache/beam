@@ -164,7 +164,7 @@ class SchemasTest(unittest.TestCase):
         'max_speed': pd.Series(dtype=np.float64)
     })
 
-    self.assertTrue(schemas.generate_proxy(Animal).equals(expected))
+    pd.testing.assert_frame_equal(schemas.generate_proxy(Animal), expected)
 
   def test_nice_types_proxy_roundtrip(self):
     roundtripped = schemas.generate_proxy(
