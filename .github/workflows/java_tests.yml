@@ -23,19 +23,19 @@ on:
     inputs:
       runDataflow:
         description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
-        default: false
+        default: 'false'
+        required: true
   schedule:
     - cron: '10 2 * * *'
   push:
     branches: ['master', 'release-*']
     tags: ['v*']
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: ['v*']
     paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**',
             'examples/kotlin/**', 'release/**', 'buildSrc/**']
-
-
+permissions: read-all
 jobs:
   check_gcp_variables:
     timeout-minutes: 5
@@ -44,9 +44,10 @@ jobs:
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-#      - name: Clean GitHub workspace
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
-      - uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -66,14 +67,12 @@ jobs:
       matrix:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
     steps:
-#      - name: Clean GitHub workspace
-#        if: contains(matrix.os, 'ubuntu-20.04')
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
         with:
           persist-credentials: false
           submodules: recursive
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install Java
         uses: actions/setup-java@v2
         with:
@@ -128,14 +127,12 @@ jobs:
       matrix:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
     steps:
-#      - name: Clean GitHub workspace
-#        if: contains(matrix.os, 'ubuntu-20.04')
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
         with:
           persist-credentials: false
           submodules: recursive
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install Java
         uses: actions/setup-java@v2
         with:
@@ -178,14 +175,12 @@ jobs:
       matrix:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
     steps:
-#      - name: Clean GitHub workspace
-#        if: contains(matrix.os, 'ubuntu-20.04')
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
         with:
           persist-credentials: false
           submodules: recursive
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install go
         uses: actions/setup-go@v2
         with:
@@ -204,7 +199,7 @@ jobs:
           java-version: '8'
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
-        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # gradle-command-action plugin and github's provided maven
         # settings.xml file
         run: rm ~/.m2/settings.xml
       - name: Run WordCount

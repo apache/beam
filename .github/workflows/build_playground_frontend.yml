@@ -19,10 +19,11 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-  pull_request:
+  pull_request_target:
     paths: ['playground/backend/**']
     branches: ['playground-staging']
   workflow_dispatch:
+permissions: read-all
 jobs:
   build_playground_frontend_docker_image:
     name: Build Playground Frontend App
@@ -35,17 +36,15 @@ jobs:
       STAND_SUFFIX: ''
       GOOGLE_DOMAIN: '-dot-apache-beam-testing.appspot.com'
     steps:
-#      - name: Clean GitHub Workspace
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Check out the repo
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Set up Java
         uses: actions/setup-java@v2
         with:
           distribution: 'zulu'
           java-version: '8'
-#      - name: Clean Flutter Directory
-#        run: if [ -d "/opt/flutter" ]; then sudo rm -rf /opt/flutter ; fi
       - name: Install Flutter
         run: |
             wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION.tar.xz &&\

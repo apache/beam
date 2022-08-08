@@ -14,12 +14,11 @@
 # limitations under the License.
 
 name: pr-bot-pr-updates
-
 on:
   pull_request_target:
     types: ["synchronize"] # Synchronize is the action that runs after pushes to the user branch
   issue_comment:
-
+permissions: read-all
 jobs:
   process-pr-update:
     # Give GITHUB_TOKEN permissions to write pull request comments and to the state branch, and read PR related info

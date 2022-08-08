@@ -16,16 +16,14 @@
 # under the License.
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
-
 name: Python tests
-
 on:
   schedule:
     - cron: '10 2 * * *'
   push:
     branches: ['master', 'release-*']
     tags: ['v*']
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: ['v*']
     paths: ['sdks/python/**', 'model/**']
@@ -34,10 +32,9 @@ on:
       runDataflow:
         description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
         default: 'false'
-        required: true 
-
+        required: true
+permissions: read-all
 jobs:
-
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
@@ -45,9 +42,10 @@ jobs:
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-#      - name: Clean GitHub workspace
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
-      - uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -70,10 +68,10 @@ jobs:
       - check_gcp_variables
     runs-on: [self-hosted, ubuntu-20.04]
     steps:
-#      - name: Clean GitHub workspace
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python
         uses: actions/setup-python@v2
         with:
@@ -106,11 +104,10 @@ jobs:
           {"py_ver": "3.9", "tox_env": "py39"},
         ]
     steps:
-#      - name: Clean GitHub workspace
-#        if: contains(matrix.os, 'ubuntu-20.04')
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python
         uses: actions/setup-python@v2
         with:
@@ -145,11 +142,10 @@ jobs:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
         python: [3.7, 3.8, 3.9]
     steps:
-#      - name: Clean GitHub workspace
-#        if: contains(matrix.os, 'ubuntu-20.04')
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python
         uses: actions/setup-python@v2
         with:
@@ -176,11 +172,10 @@ jobs:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
         python: [3.7, 3.8, 3.9]
     steps:
-#      - name: Clean GitHub workspace
-#        if: contains(matrix.os, 'ubuntu-20.04')
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python
         uses: actions/setup-python@v2
         with:

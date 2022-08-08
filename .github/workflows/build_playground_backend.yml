@@ -19,10 +19,11 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-  pull_request:
+  pull_request_target:
     paths: ['playground/backend/**']
     branches: ['playground-staging']
   workflow_dispatch:
+permissions: read-all
 jobs:
   build_playground_backend_docker_image:
     name: Build Playground Backend App
@@ -36,6 +37,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Set up Java
         uses: actions/setup-java@v2
         with:

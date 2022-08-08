@@ -25,16 +25,14 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: ['v*']
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: ['v*']
     paths: ['sdks/python/**', 'model/**', 'release/**']
   workflow_dispatch:
-
 env:
   GCP_PATH: "gs://${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
-
-
+permissions: read-all
 jobs:
 
   check_gcp_variables:
@@ -44,9 +42,10 @@ jobs:
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-#      - name: Clean GitHub workspace
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
-      - uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -65,10 +64,10 @@ jobs:
       is_rc: ${{ steps.is_rc.outputs.is_rc }}
       rc_num: ${{ steps.get_rc_version.outputs.RC_NUM }}
     steps:
-#      - name: Clean GitHub workspace
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python
         uses: actions/setup-python@v2
         with:
@@ -357,13 +356,12 @@ jobs:
     timeout-minutes: 60
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
-#      - name: Clean GitHub workspace
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code on master branch
         uses: actions/checkout@v2
         with:
           persist-credentials: false
           submodules: recursive
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Branch commit
         run: |
           BRANCH_NAME=${GITHUB_REF##*/}

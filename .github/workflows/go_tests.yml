@@ -25,21 +25,19 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: ['v*']
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: ['v*']
     paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum']
-
+permissions: read-all
 jobs:
   build:
     runs-on: [self-hosted, ubuntu-20.04]
     name: Go Build
     steps:
-#      - name: Clean GitHub workspace
-#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 2
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-go@v2
         with:
           go-version: '1.18'
