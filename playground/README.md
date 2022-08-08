@@ -74,6 +74,13 @@ cd beam
 ./gradlew playground:backend:containers:router:dockerComposeLocalDown
 ```
 
+## Run playground tests without cache
+
+```
+cd beam
+ ./gradlew playground:backend:testWithoutCache
+```
+
 # Deployment
 
 See [terraform](./terraform/README.md) for details on how to build and deploy
