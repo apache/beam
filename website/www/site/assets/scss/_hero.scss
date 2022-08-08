@@ -116,12 +116,8 @@
 
        h2 {
          width: 300px;
-         margin: 0 auto;
        }
 
-       button {
-         display: none;
-       }
      }
    }
  }
@@ -130,4 +126,10 @@
   .hero-desktop {
     display: none;
   }
+}
+
+.hero-desktop-svg {
+  width: auto !important;
+  transform: translate3d(-50%, 0px, 0px) !important;
+  margin-left: 50% !important;
 }

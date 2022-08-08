@@ -18,4 +18,7 @@ var animation = bodymovin.loadAnimation({
   loop: false,
   autoplay: true,
   animationData: animationData,
+  rendererSettings: {
+    className: "hero-desktop-svg",
+  }
 });
