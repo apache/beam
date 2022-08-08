@@ -232,7 +232,7 @@ jobs:
       if: ${{matrix.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel
-      run: pip install cibuildwheel==1.11.0
+      run: pip install cibuildwheel
     - name: Build wheel
       working-directory: apache-beam-source
       env:
