@@ -19,11 +19,11 @@
 import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/components/summit_banner/banner_description.dart';
+import 'package:playground/components/banner/banner_description.dart';
 import 'package:playground/constants/assets.dart';
 
-class SummitBanner extends StatelessWidget {
-  const SummitBanner({Key? key}) : super(key: key);
+class BannerButton extends StatelessWidget {
+  const BannerButton({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +38,7 @@ class SummitBanner extends StatelessWidget {
           barrierColor: Colors.transparent,
         );
       },
-      child: SvgPicture.asset(kSummitBannerAsset),
+      child: SvgPicture.asset(kBeamIconAsset),
     );
   }
 }
