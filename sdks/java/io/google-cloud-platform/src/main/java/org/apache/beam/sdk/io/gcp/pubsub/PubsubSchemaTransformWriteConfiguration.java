@@ -21,7 +21,6 @@ import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
 /**
@@ -35,9 +34,6 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class PubsubSchemaTransformWriteConfiguration {
-
-  /** The expected schema of the Pub/Sub message. */
-  public abstract Schema getDataSchema();
 
   /**
    * The topic to which to write Pub/Sub messages.
@@ -55,18 +51,6 @@ public abstract class PubsubSchemaTransformWriteConfiguration {
    */
   @Nullable
   public abstract String getFormat();
-
-  /** Used by the ProtoPayloadSerializerProvider when serializing to a Pub/Sub message. */
-  @Nullable
-  public abstract String getProtoClass();
-
-  /** Used by the ThriftPayloadSerializerProvider when serializing to Pub/Sub message. */
-  @Nullable
-  public abstract String getThriftClass();
-
-  /** Used by the ThriftPayloadSerializerProvider when serializing to Pub/Sub message. */
-  @Nullable
-  public abstract String getThriftProtocolFactoryClass();
 
   /**
    * When writing to Cloud Pub/Sub where record timestamps are configured as Pub/Sub message
@@ -86,9 +70,6 @@ public abstract class PubsubSchemaTransformWriteConfiguration {
   @AutoValue.Builder
   public abstract static class Builder {
 
-    /** The expected schema of the Pub/Sub message. */
-    public abstract Builder setDataSchema(Schema value);
-
     /**
      * The topic to which to write Pub/Sub messages.
      *
@@ -104,15 +85,6 @@ public abstract class PubsubSchemaTransformWriteConfiguration {
      * from {@link org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers}.
      */
     public abstract Builder setFormat(String value);
-
-    /** Used by the ProtoPayloadSerializerProvider when serializing to a Pub/Sub message. */
-    public abstract Builder setProtoClass(String value);
-
-    /** Used by the ThriftPayloadSerializerProvider when serializing to Pub/Sub message. */
-    public abstract Builder setThriftClass(String value);
-
-    /** Used by the ThriftPayloadSerializerProvider when serializing to Pub/Sub message. */
-    public abstract Builder setThriftProtocolFactoryClass(String value);
 
     /**
      * When writing to Cloud Pub/Sub where record timestamps are configured as Pub/Sub message
