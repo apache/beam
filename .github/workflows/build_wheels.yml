@@ -259,11 +259,10 @@ jobs:
         name: wheelhouse-${{ matrix.os_python.os }}
         path: apache-beam-source/wheelhouse/
     - name: Build RC wheels
-      if: ${{ needs.build_source.outputs.is_rc == 1 }}
       working-directory: apache-beam-source-rc
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
-        CIBW_BEFORE_BUILD: pip install cython
+        CIBW_BEFORE_BUILD: pip install cython && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: Add RC checksums
