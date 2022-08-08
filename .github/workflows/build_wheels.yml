@@ -235,7 +235,7 @@ jobs:
       if: ${{matrix.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel
-      run: pip install cibuildwheel==1.11.0
+      run: pip install cibuildwheel==2.8.1
     - name: Build wheel
       working-directory: apache-beam-source
       env:
@@ -263,7 +263,7 @@ jobs:
       working-directory: apache-beam-source-rc
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
-        CIBW_BEFORE_BUILD: pip install cython
+        CIBW_BEFORE_BUILD: pip install cython && && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: Add RC checksums
