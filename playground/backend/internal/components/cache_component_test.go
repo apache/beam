@@ -17,7 +17,6 @@ package components
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -53,6 +52,7 @@ func setup() {
 		}
 	}
 	ctx = context.Background()
+	context.WithValue(ctx, constants.DatastoreNamespaceKey, "components")
 	cacheService = local.New(ctx)
 	datastoreDb, _ = db.New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	cacheComponent = NewService(cacheService, datastoreDb)
@@ -287,16 +287,16 @@ func getCatalog() []*pb.Categories {
 }
 
 func saveExample(name, sdk string) {
-	_, _ = datastoreDb.Client.Put(ctx, utils.GetExampleKey(sdk, name), &entity.ExampleEntity{
+	_, _ = datastoreDb.Client.Put(ctx, utils.GetExampleKey(ctx, sdk, name), &entity.ExampleEntity{
 		Name:       name,
-		Sdk:        utils.GetSdkKey(sdk),
+		Sdk:        utils.GetSdkKey(ctx, sdk),
 		Descr:      "MOCK_DESCR",
 		Cats:       []string{"MOCK_CATEGORY"},
 		Complexity: "MEDIUM",
 		Path:       "MOCK_PATH",
 		Type:       "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
 		Origin:     constants.ExampleOrigin,
-		SchVer:     utils.GetSchemaVerKey("MOCK_VERSION"),
+		SchVer:     utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 	})
 }
 
@@ -307,7 +307,7 @@ func saveSnippet(snipId, sdk string) {
 			IdLength: 11,
 		},
 		Snippet: &entity.SnippetEntity{
-			Sdk:           utils.GetSdkKey(sdk),
+			Sdk:           utils.GetSdkKey(ctx, sdk),
 			PipeOpts:      "MOCK_OPTIONS",
 			Origin:        constants.ExampleOrigin,
 			NumberOfFiles: 1,
@@ -326,7 +326,7 @@ func savePCObjs(exampleId string) {
 	for _, pcType := range pcTypes {
 		_, _ = datastoreDb.Client.Put(
 			ctx,
-			utils.GetPCObjectKey(fmt.Sprintf("%s_%s", exampleId, pcType)),
+			utils.GetPCObjectKey(ctx, exampleId, pcType),
 			&entity.PrecompiledObjectEntity{Content: "MOCK_CONTENT_" + pcType})
 	}
 }
