@@ -2683,7 +2683,13 @@ class ReadFromBigQuery(PTransform):
       to run queries with INTERACTIVE priority. This option is ignored when
       reading from a table rather than a query. To learn more about query
       priority, see: https://cloud.google.com/bigquery/docs/running-queries
-   """
+    output_type (str): By default, this source yields Python dictionaries
+      (`PYTHON_DICT`). There is experimental support for producing a
+      PCollection with a schema and yielding Beam Rows via the option
+      `BEAM_ROW`. For more information on schemas, see
+      https://beam.apache.org/documentation/programming-guide/\
+      #what-is-a-schema)
+      """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.
     DIRECT_READ = 'DIRECT_READ'
@@ -2695,10 +2701,14 @@ class ReadFromBigQuery(PTransform):
       gcs_location=None,
       method=None,
       use_native_datetime=False,
+      output_type=None,
       *args,
       **kwargs):
     self.method = method or ReadFromBigQuery.Method.EXPORT
     self.use_native_datetime = use_native_datetime
+    self.output_type = output_type
+    self._args = args
+    self._kwargs = kwargs
 
     if self.method is ReadFromBigQuery.Method.EXPORT \
         and self.use_native_datetime is True:
@@ -2716,22 +2726,51 @@ class ReadFromBigQuery(PTransform):
       if isinstance(gcs_location, str):
         gcs_location = StaticValueProvider(str, gcs_location)
 
+    if self.output_type == 'BEAM_ROW' and self._kwargs.get('query',
+                                                           None) is not None:
+      raise ValueError(
+          "Both a query and an output type of 'BEAM_ROW' were specified. "
+          "'BEAM_ROW' is not currently supported with queries.")
+
     self.gcs_location = gcs_location
     self.bigquery_dataset_labels = {
         'type': 'bq_direct_read_' + str(uuid.uuid4())[0:10]
     }
-    self._args = args
-    self._kwargs = kwargs
 
   def expand(self, pcoll):
     if self.method is ReadFromBigQuery.Method.EXPORT:
-      return self._expand_export(pcoll)
+      output_pcollection = self._expand_export(pcoll)
     elif self.method is ReadFromBigQuery.Method.DIRECT_READ:
-      return self._expand_direct_read(pcoll)
+      output_pcollection = self._expand_direct_read(pcoll)
+
     else:
       raise ValueError(
           'The method to read from BigQuery must be either EXPORT'
           'or DIRECT_READ.')
+    return self._expand_output_type(output_pcollection)
+
+  def _expand_output_type(self, output_pcollection):
+    if self.output_type == 'PYTHON_DICT' or self.output_type is None:
+      return output_pcollection
+    elif self.output_type == 'BEAM_ROW':
+      table_details = bigquery_tools.parse_table_reference(
+          table=self._kwargs.get("table", None),
+          dataset=self._kwargs.get("dataset", None),
+          project=self._kwargs.get("project", None))
+      if isinstance(self._kwargs['table'], ValueProvider):
+        raise TypeError(
+            '%s: table must be of type string'
+            '; got ValueProvider instead' % self.__class__.__name__)
+      elif callable(self._kwargs['table']):
+        raise TypeError(
+            '%s: table must be of type string'
+            '; got a callable instead' % self.__class__.__name__)
+      return output_pcollection | beam.io.gcp.bigquery_schema_tools.\
+            convert_to_usertype(
+            beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
+                project_id=table_details.projectId,
+                dataset_id=table_details.datasetId,
+                table_id=table_details.tableId).schema)
 
   def _expand_export(self, pcoll):
     # TODO(https://github.com/apache/beam/issues/20683): Make ReadFromBQ rely

@@ -21,10 +21,10 @@
 
 {{ $scssMain := "scss/main.scss"}}
 {{ if .Site.IsServer }}
-    {{ $css := resources.Get $scssMain | toCSS (dict "enableSourceMap" true) | postCSS }}
+    {{ $css := resources.Get $scssMain | toCSS (dict "enableSourceMap" true) | resources.ExecuteAsTemplate "scss/main.css" . | postCSS }}
     <link href="{{ $css.RelPermalink }}" rel="stylesheet">
 {{ else }}
-    {{ $css := resources.Get $scssMain | toCSS (dict "enableSourceMap" false) | postCSS | minify | fingerprint }}
+    {{ $css := resources.Get $scssMain | toCSS (dict "enableSourceMap" false) | resources.ExecuteAsTemplate "scss/main.css" . | postCSS | minify | fingerprint }}
     <link rel="preload" href="{{ $css.RelPermalink }}" as="style">
     <link href="{{ $css.RelPermalink }}" rel="stylesheet" integrity="{{ $css.Data.integrity }}">
 {{ end }}
@@ -48,17 +48,20 @@
 {{ $sectionNav := resources.Get "js/section-nav.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $sectionNav.RelPermalink }}" defer></script>
 
-{{ $pageNav := resources.Get "js/page-nav.js" | minify | fingerprint }}
+{{ $pageNav := resources.Get "js/page-nav.js" | resources.ExecuteAsTemplate "js/page-nav.js" . | minify | fingerprint }}
 <script type="text/javascript" src="{{ $pageNav.RelPermalink }}" defer></script>
 
 {{ $expandableList := resources.Get "js/expandable-list.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $expandableList.RelPermalink }}" defer></script>
 
-{{ $copyToClipboard := resources.Get "js/copy-to-clipboard.js" | minify | fingerprint }}
+{{ $copyToClipboard := resources.Get "js/copy-to-clipboard.js" |  resources.ExecuteAsTemplate "js/copy-to-clipboard.js" . |minify | fingerprint }}
 <script type="text/javascript" src="{{ $copyToClipboard.RelPermalink }}" defer></script>
 
 {{ $calendar := resources.Get "js/calendar.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $calendar.RelPermalink }}" defer></script>
+
+{{ $fixPlaygroundNestedScroll := resources.Get "js/fix-playground-nested-scroll.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $fixPlaygroundNestedScroll.RelPermalink }}" defer></script>
 
 <link rel="alternate" type="application/rss+xml" title="{{ .Site.Title }}" href="/feed.xml">
 <link rel="canonical" href="{{ .Site.Params.hostName }}{{ .Permalink | absURL }}" data-proofer-ignore>

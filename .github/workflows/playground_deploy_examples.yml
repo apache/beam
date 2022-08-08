@@ -16,11 +16,10 @@
 name: Collect And Deploy Playground Examples
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
   pull_request:
-  workflow_dispatch:
+    types:
+      - closed
+    branches: ['master']
 env:
   BEAM_ROOT_DIR: ../../
   BEAM_EXAMPLE_CATEGORIES: ../categories.yaml
@@ -56,7 +55,8 @@ jobs:
         name: get Difference
         id: check_file_changed
         run: |
-          $diff = git diff --name-only origin/master
+          $diff = git diff --name-only ${{ github.event.before }} ${{ github.event.after }}
+          echo "$diff"
           Write-Host "::set-output name=example_diff::$diff"
       - name: has Examples
         run: |
@@ -83,14 +83,14 @@ jobs:
           java-version: '8'
       - name: Install kubectl
         run: |
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" &&\
-          chmod +x kubectl &&\
-          sudo mv kubectl /usr/local/bin/
+             curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" &&\
+             chmod +x kubectl &&\
+             mv kubectl /usr/local/bin/
       - name: Install helm
         run: |
-          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 &&\
-          chmod 700 get_helm.sh &&\
-          ./get_helm.sh
+             curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 &&\
+             chmod 700 get_helm.sh &&\
+             ./get_helm.sh
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v0
       - name: install deps
@@ -103,7 +103,7 @@ jobs:
         run: |
              echo "${{ secrets.GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
              which gcloud
-             gcloud auth activate-service-account --project=apache-beam-testing --key-file=/tmp/gcp_access.json
+             gcloud auth activate-service-account --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }} --key-file=/tmp/gcp_access.json
       - name: Set Docker Tag
         run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
       - name: Set Docker Tag If Github Tag was trigger

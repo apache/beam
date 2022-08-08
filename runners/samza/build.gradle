@@ -54,6 +54,7 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.args4j
   implementation library.java.commons_io
+  implementation library.java.commons_collections
   runtimeOnly "org.rocksdb:rocksdbjni:6.15.2"
   runtimeOnly "org.scala-lang:scala-library:2.11.8"
   implementation "org.apache.samza:samza-api:$samza_version"

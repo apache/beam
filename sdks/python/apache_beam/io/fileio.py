@@ -118,6 +118,7 @@ from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
+from apache_beam.utils.annotations import experimental
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
@@ -257,9 +258,7 @@ class _ReadMatchesFn(beam.DoFn):
     yield ReadableFile(metadata, self._compression)
 
 
-# TODO(BEAM-14401) experimental() decoration causes docstring not rendering when
-# docstring contains constructor argument documentation.
-# @experimental()
+@experimental()
 class MatchContinuously(beam.PTransform):
   """Checks for new files for a given pattern every interval.
 
@@ -488,9 +487,7 @@ class FileResult(_FileResult):
   pass
 
 
-# TODO(BEAM-14401) experimental() decoration causes docstring not rendering when
-# docstring contains constructor argument documentation.
-# @experimental()
+@experimental()
 class WriteToFiles(beam.PTransform):
   r"""Write the incoming PCollection to a set of output files.
 
@@ -692,9 +689,8 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       yield FileResult(
           final_file_name, i, len(file_results), r.window, r.pane, destination)
 
-    _LOGGER.info(
-        'Checking orphaned temporary files for'
-        ' destination %s and window %s',
+    _LOGGER.debug(
+        'Checking orphaned temporary files for destination %s and window %s',
         destination,
         w)
     writer_key = (destination, w)
@@ -707,9 +703,10 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       match_result = filesystems.FileSystems.match(['%s*' % prefix])
       orphaned_files = [m.path for m in match_result[0].metadata_list]
 
-      _LOGGER.info(
-          'Some files may be left orphaned in the temporary folder: %s',
-          orphaned_files)
+      if len(orphaned_files) > 0:
+        _LOGGER.info(
+            'Some files may be left orphaned in the temporary folder: %s',
+            orphaned_files)
     except BeamIOError as e:
       _LOGGER.info('Exceptions when checking orphaned files: %s', e)
 

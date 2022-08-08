@@ -247,7 +247,7 @@ jobs:
       working-directory: apache-beam-source
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
-        CIBW_BEFORE_BUILD: pip install cython
+        CIBW_BEFORE_BUILD: pip install cython && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: Install sha512sum on MacOS
