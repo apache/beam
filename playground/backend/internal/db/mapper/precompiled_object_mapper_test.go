@@ -16,6 +16,7 @@
 package mapper
 
 import (
+	"context"
 	"testing"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
@@ -26,6 +27,7 @@ import (
 )
 
 var pcObjMapper = NewPrecompiledObjectMapper()
+var pcObjMapperCtx = context.Background()
 
 func TestPrecompiledObjectMapper_ToObjectInfo(t *testing.T) {
 	actualResult := pcObjMapper.ToObjectInfo(getExampleDTO("MOCK_NAME", "MOCK_DEFAULT_EXAMPLE", pb.Sdk_SDK_JAVA.String()))
@@ -116,20 +118,20 @@ func getExampleDTO(name, defaultName, sdk string) *dto.ExampleDTO {
 	return &dto.ExampleDTO{
 		Example: &entity.ExampleEntity{
 			Name:       name,
-			Sdk:        utils.GetSdkKey(sdk),
+			Sdk:        utils.GetSdkKey(pcObjMapperCtx, sdk),
 			Descr:      "MOCK_DESCR",
 			Cats:       []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
 			Complexity: "MEDIUM",
 			Path:       "MOCK_PATH",
 			Type:       "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
 			Origin:     constants.ExampleOrigin,
-			SchVer:     utils.GetSchemaVerKey("MOCK_VERSION"),
+			SchVer:     utils.GetSchemaVerKey(pcObjMapperCtx, "MOCK_VERSION"),
 		},
 		Snippet: &entity.SnippetEntity{
-			Sdk:           utils.GetSdkKey(sdk),
+			Sdk:           utils.GetSdkKey(pcObjMapperCtx, sdk),
 			PipeOpts:      "MOCK_OPTIONS",
 			Origin:        constants.ExampleOrigin,
-			SchVer:        utils.GetSchemaVerKey("MOCK_VERSION"),
+			SchVer:        utils.GetSchemaVerKey(pcObjMapperCtx, "MOCK_VERSION"),
 			NumberOfFiles: 1,
 		},
 		Files: []*entity.FileEntity{{

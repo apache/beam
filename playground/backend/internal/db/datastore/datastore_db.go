@@ -57,7 +57,7 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 		logger.Errorf("Datastore: PutSnippet(): snippet is nil")
 		return nil
 	}
-	snipKey := utils.GetSnippetKey(snipId)
+	snipKey := utils.GetSnippetKey(ctx, snipId)
 	tx, err := d.Client.NewTransaction(ctx)
 	if err != nil {
 		logger.Errorf("Datastore: PutSnippet(): error during the transaction creating, err: %s\n", err.Error())
@@ -73,7 +73,7 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 
 	var fileKeys []*datastore.Key
 	for index := range snip.Files {
-		fileKeys = append(fileKeys, utils.GetFileKey(snipId, index))
+		fileKeys = append(fileKeys, utils.GetFileKey(ctx, snipId, index))
 	}
 
 	if _, err = tx.PutMulti(fileKeys, snip.Files); err != nil {
@@ -94,7 +94,7 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 
 // GetSnippet returns the snippet entity by identifier
 func (d *Datastore) GetSnippet(ctx context.Context, id string) (*entity.SnippetEntity, error) {
-	key := utils.GetSnippetKey(id)
+	key := utils.GetSnippetKey(ctx, id)
 	snip := new(entity.SnippetEntity)
 	tx, err := d.Client.NewTransaction(ctx)
 	if err != nil {
@@ -130,7 +130,7 @@ func (d *Datastore) PutSchemaVersion(ctx context.Context, id string, schema *ent
 		logger.Errorf("Datastore: PutSchemaVersion(): schema version is nil")
 		return nil
 	}
-	key := utils.GetSchemaVerKey(id)
+	key := utils.GetSchemaVerKey(ctx, id)
 	if _, err := d.Client.Put(ctx, key, schema); err != nil {
 		logger.Errorf("Datastore: PutSchemaVersion(): error during entity saving, err: %s\n", err.Error())
 		return err
@@ -146,7 +146,7 @@ func (d *Datastore) PutSDKs(ctx context.Context, sdks []*entity.SDKEntity) error
 	}
 	var keys []*datastore.Key
 	for _, sdk := range sdks {
-		keys = append(keys, utils.GetSdkKey(sdk.Name))
+		keys = append(keys, utils.GetSdkKey(ctx, sdk.Name))
 	}
 	if _, err := d.Client.PutMulti(ctx, keys, sdks); err != nil {
 		logger.Errorf("Datastore: PutSDK(): error during entity saving, err: %s\n", err.Error())
@@ -170,7 +170,7 @@ func (d *Datastore) GetFiles(ctx context.Context, snipId string, numberOfFiles i
 	}
 	var fileKeys []*datastore.Key
 	for fileIndx := 0; fileIndx < numberOfFiles; fileIndx++ {
-		fileKeys = append(fileKeys, utils.GetFileKey(snipId, fileIndx))
+		fileKeys = append(fileKeys, utils.GetFileKey(ctx, snipId, fileIndx))
 	}
 	var files = make([]*entity.FileEntity, numberOfFiles)
 	if err = tx.GetMulti(fileKeys, files); err != nil {
@@ -185,7 +185,7 @@ func (d *Datastore) GetSDKs(ctx context.Context) ([]*entity.SDKEntity, error) {
 	var sdkKeys []*datastore.Key
 	for sdkName := range pb.Sdk_value {
 		if sdkName != pb.Sdk_SDK_UNSPECIFIED.String() {
-			sdkKeys = append(sdkKeys, utils.GetSdkKey(sdkName))
+			sdkKeys = append(sdkKeys, utils.GetSdkKey(ctx, sdkName))
 		}
 	}
 	var sdks = make([]*entity.SDKEntity, len(sdkKeys))
@@ -213,7 +213,7 @@ func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEnti
 	//Retrieving snippets
 	var snippetKeys []*datastore.Key
 	for _, exampleKey := range exampleKeys {
-		snippetKeys = append(snippetKeys, utils.GetSnippetKey(exampleKey.Name))
+		snippetKeys = append(snippetKeys, utils.GetSnippetKey(ctx, exampleKey.Name))
 	}
 	snippets := make([]*entity.SnippetEntity, len(snippetKeys))
 	if err = d.Client.GetMulti(ctx, snippetKeys, snippets); err != nil {
@@ -225,7 +225,7 @@ func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEnti
 	var fileKeys []*datastore.Key
 	for snpIndx, snippet := range snippets {
 		for fileIndx := 0; fileIndx < snippet.NumberOfFiles; fileIndx++ {
-			fileKey := utils.GetFileKey(exampleKeys[snpIndx].Name, fileIndx)
+			fileKey := utils.GetFileKey(ctx, exampleKeys[snpIndx].Name, fileIndx)
 			fileKeys = append(fileKeys, fileKey)
 		}
 	}

@@ -16,10 +16,13 @@
 package utils
 
 import (
+	"context"
 	"testing"
 
 	"beam.apache.org/playground/backend/internal/constants"
 )
+
+var ctx = context.Background()
 
 func TestID(t *testing.T) {
 	type args struct {
@@ -58,7 +61,7 @@ func TestID(t *testing.T) {
 }
 
 func TestGetExampleKey(t *testing.T) {
-	exampleKey := GetExampleKey("MOCK_ID")
+	exampleKey := GetExampleKey(ctx, "MOCK_ID")
 	if exampleKey.Namespace != constants.Namespace ||
 		exampleKey.Parent != nil ||
 		exampleKey.Kind != constants.ExampleKind ||
@@ -68,7 +71,7 @@ func TestGetExampleKey(t *testing.T) {
 }
 
 func TestGetSdkKey(t *testing.T) {
-	sdkKey := GetSdkKey("MOCK_ID")
+	sdkKey := GetSdkKey(ctx, "MOCK_ID")
 	if sdkKey.Namespace != constants.Namespace ||
 		sdkKey.Parent != nil ||
 		sdkKey.Kind != constants.SdkKind ||
@@ -78,7 +81,7 @@ func TestGetSdkKey(t *testing.T) {
 }
 
 func TestGetFileKey(t *testing.T) {
-	sdkKey := GetFileKey("MOCK_ID")
+	sdkKey := GetFileKey(ctx, "MOCK_ID")
 	if sdkKey.Namespace != constants.Namespace ||
 		sdkKey.Parent != nil ||
 		sdkKey.Kind != constants.FileKind ||
@@ -88,7 +91,7 @@ func TestGetFileKey(t *testing.T) {
 }
 
 func TestGetSchemaVerKey(t *testing.T) {
-	sdkKey := GetSchemaVerKey("MOCK_ID")
+	sdkKey := GetSchemaVerKey(ctx, "MOCK_ID")
 	if sdkKey.Namespace != constants.Namespace ||
 		sdkKey.Parent != nil ||
 		sdkKey.Kind != constants.SchemaKind ||
@@ -98,7 +101,7 @@ func TestGetSchemaVerKey(t *testing.T) {
 }
 
 func TestGetSnippetKey(t *testing.T) {
-	sdkKey := GetSnippetKey("MOCK_ID")
+	sdkKey := GetSnippetKey(ctx, "MOCK_ID")
 	if sdkKey.Namespace != constants.Namespace ||
 		sdkKey.Parent != nil ||
 		sdkKey.Kind != constants.SnippetKind ||
@@ -108,7 +111,7 @@ func TestGetSnippetKey(t *testing.T) {
 }
 
 func TestGetPCObjectKey(t *testing.T) {
-	sdkKey := GetPCObjectKey("MOCK_ID")
+	sdkKey := GetPCObjectKey(ctx, "MOCK_ID")
 	if sdkKey.Namespace != constants.Namespace ||
 		sdkKey.Parent != nil ||
 		sdkKey.Kind != constants.PCObjectKind ||
