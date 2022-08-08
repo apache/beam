@@ -75,6 +75,7 @@ func TestMain(m *testing.M) {
 
 func setup() *grpc.Server {
 	ctx = context.Background()
+	context.WithValue(ctx, constants.DatastoreNamespaceKey, "main")
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer()
 
@@ -161,8 +162,8 @@ func setup() *grpc.Server {
 	// download test data to the Datastore Emulator
 	test_data.DownloadCatalogsWithMockData(ctx)
 
-	entityMapper := mapper.NewDatastoreMapper(appEnv, props)
 	cacheComponent := components.NewService(cacheService, dbClient)
+	entityMapper := mapper.NewDatastoreMapper(ctx, appEnv, props)
 
 	pb.RegisterPlaygroundServiceServer(s, &playgroundController{
 		env:            environment.NewEnvironment(*networkEnv, *sdkEnv, *appEnv),
@@ -925,7 +926,7 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 				_ = dbClient.PutSnippet(ctx, "MOCK_ID",
 					&entity.Snippet{
 						Snippet: &entity.SnippetEntity{
-							Sdk:           utils.GetSdkKey(pb.Sdk_SDK_JAVA.String()),
+							Sdk:           utils.GetSdkKey(ctx, pb.Sdk_SDK_JAVA.String()),
 							PipeOpts:      "MOCK_OPTIONS",
 							Created:       nowDate,
 							Origin:        constants.UserSnippetOrigin,
