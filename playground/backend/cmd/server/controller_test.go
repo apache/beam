@@ -72,6 +72,7 @@ func TestMain(m *testing.M) {
 
 func setup() *grpc.Server {
 	ctx = context.Background()
+	context.WithValue(ctx, constants.DatastoreNamespaceKey, "main")
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer()
 
@@ -155,7 +156,7 @@ func setup() *grpc.Server {
 	}
 	appEnv.SetSchemaVersion(actualSchemaVersion)
 
-	entityMapper := mapper.NewDatastoreMapper(appEnv, props)
+	entityMapper := mapper.NewDatastoreMapper(ctx, appEnv, props)
 
 	pb.RegisterPlaygroundServiceServer(s, &playgroundController{
 		env:          environment.NewEnvironment(*networkEnv, *sdkEnv, *appEnv),
@@ -916,7 +917,7 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 					&entity.Snippet{
 						Snippet: &entity.SnippetEntity{
 							OwnerId:       "",
-							Sdk:           utils.GetSdkKey(pb.Sdk_SDK_JAVA.String()),
+							Sdk:           utils.GetSdkKey(ctx, pb.Sdk_SDK_JAVA.String()),
 							PipeOpts:      "MOCK_OPTIONS",
 							Created:       nowDate,
 							Origin:        constants.UserSnippetOrigin,

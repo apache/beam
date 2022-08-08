@@ -82,7 +82,7 @@ func runServer() error {
 			return err
 		}
 
-		entityMapper = mapper.NewDatastoreMapper(&envService.ApplicationEnvs, props)
+		entityMapper = mapper.NewDatastoreMapper(ctx, &envService.ApplicationEnvs, props)
 	}
 
 	pb.RegisterPlaygroundServiceServer(grpcServer, &playgroundController{
