@@ -30,8 +30,9 @@ import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
-from apache_beam.dataframe import schemas
 from apache_beam.dataframe import transforms
+from apache_beam.dataframe.schemas import element_typehint_from_dataframe_proxy
+from apache_beam.dataframe.schemas import generate_proxy
 from apache_beam.typehints.pandas_type_compatibility import dtype_to_fieldtype
 
 if TYPE_CHECKING:
@@ -71,7 +72,7 @@ def to_dataframe(
       # Attempt to come up with a reasonable, stable label by retrieving
       # the name of these variables in the calling context.
       label = 'BatchElements(%s)' % _var_name(pcoll, 2)
-    proxy = schemas.generate_proxy(pcoll.element_type)
+    proxy = generate_proxy(pcoll.element_type)
 
     shim_dofn: beam.DoFn
     if isinstance(proxy, pd.DataFrame):
@@ -152,7 +153,7 @@ class DataFrameToRowsFn(beam.DoFn):
     yield element
 
   def infer_output_type(self, input_element_type):
-    return schemas.element_typehint_from_dataframe_proxy(
+    return element_typehint_from_dataframe_proxy(
         self._proxy, self._include_indexes)
 
 

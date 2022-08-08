@@ -34,6 +34,7 @@ from apache_beam.dataframe import transforms
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 
@@ -52,10 +53,7 @@ def matches_df(expected):
         drop=True)
     sorted_expected = expected.sort_values(
         by=list(expected.columns)).reset_index(drop=True)
-    if not sorted_actual.equals(sorted_expected):
-      raise AssertionError(
-          'Dataframes not equal: \n\nActual:\n%s\n\nExpected:\n%s' %
-          (sorted_actual, sorted_expected))
+    pd.testing.assert_frame_equal(sorted_actual, sorted_expected)
 
   return check_df_pcoll_equal
 
@@ -145,6 +143,8 @@ class SchemasTest(unittest.TestCase):
     },
                             columns=['name', 'id', 'height'])
 
+    expected.name = expected.name.astype(pd.StringDtype())
+
     with TestPipeline() as p:
       res = (
           p
@@ -160,6 +160,7 @@ class SchemasTest(unittest.TestCase):
         'height': list(float(i) for i in range(5))
     },
                             columns=['name', 'id', 'height'])
+    expected.name = expected.name.astype(pd.StringDtype())
 
     with TestPipeline() as p:
       res = (
@@ -242,8 +243,14 @@ class SchemasTest(unittest.TestCase):
         assert_that(res, equal_to([('Falcon', 375.), ('Parrot', 25.)]))
 
   def assert_typehints_equal(self, left, right):
-    left = typehints.normalize(left)
-    right = typehints.normalize(right)
+    def maybe_drop_rowtypeconstraint(typehint):
+      if isinstance(typehint, row_type.RowTypeConstraint):
+        return typehint.user_type
+      else:
+        return typehint
+
+    left = maybe_drop_rowtypeconstraint(typehints.normalize(left))
+    right = maybe_drop_rowtypeconstraint(typehints.normalize(right))
 
     if match_is_named_tuple(left):
       self.assertTrue(match_is_named_tuple(right))
@@ -279,6 +286,16 @@ class SchemasTest(unittest.TestCase):
           | schemas.UnbatchPandas(proxy, include_indexes=True))
 
       assert_that(res, equal_to(rows))
+
+  @parameterized.expand(SERIES_TESTS, name_func=test_name_func)
+  def test_unbatch_series_with_index_warns(
+      self, series, unused_rows, unused_type):
+    proxy = series[:0]
+
+    with TestPipeline() as p:
+      input_pc = p | beam.Create([series[::2], series[1::2]])
+      with self.assertWarns(UserWarning):
+        _ = input_pc | schemas.UnbatchPandas(proxy, include_indexes=True)
 
   def test_unbatch_include_index_unnamed_index_raises(self):
     df = pd.DataFrame({'foo': [1, 2, 3, 4]})
