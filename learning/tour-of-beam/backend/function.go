@@ -19,6 +19,12 @@ var svc service.IContent
 
 func init() {
 	// dependencies
+	// required:
+	// * TOB_MOCK: respond with static samples
+	// OR
+	// * DATASTORE_PROJECT_ID: cloud project id
+	// optional:
+	// * DATASTORE_EMULATOR_HOST: emulator host/port (ex. 0.0.0.0:8888)
 	if os.Getenv("TOB_MOCK") > "" {
 		svc = &service.Mock{}
 	} else {
@@ -42,7 +48,7 @@ func finalizeErrResponse(w http.ResponseWriter, status int, code, message string
 }
 
 func sdkList(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, `{"names": ["Python", "Java", "Go"]}`)
+	fmt.Fprintln(w, `{"names": ["Java", "Python", "Go"]}`)
 }
 
 func getContentTree(w http.ResponseWriter, r *http.Request) {

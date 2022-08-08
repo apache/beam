@@ -1,6 +1,8 @@
 package storage
 
 const (
+	PgNamespace = "Playground"
+
 	TbLearningPathKind   = "tb_learning_path"
 	TbLearningModuleKind = "tb_learning_module"
 	TbLearningUnitKind   = "tb_learning_unit"
@@ -8,16 +10,16 @@ const (
 
 // tb_learning_path
 type TbLearningPath struct {
-	Sdk     string              `datastore:"sdk"`
-	Modules []*TbLearningModule `datastore:"-"`
+	Sdk     string             `datastore:"sdk"`
+	Modules []TbLearningModule `datastore:"-"`
 }
 
 // tb_learning_modules
 type TbLearningModule struct {
-	Id    string            `datastore:"id"`
-	Name  string            `datastore:"name"`
-	Order int               `datastore:"order"`
-	Units []*TbLearningUnit `datastore:"-"`
+	Id    string           `datastore:"id"`
+	Name  string           `datastore:"name"`
+	Order int              `datastore:"order"`
+	Units []TbLearningUnit `datastore:"-"`
 }
 
 // tb_learning_units

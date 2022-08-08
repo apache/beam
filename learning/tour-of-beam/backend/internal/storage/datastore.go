@@ -8,6 +8,12 @@ import (
 	"cloud.google.com/go/datastore"
 )
 
+func PgNameKey(kind, nameId string, parentKey *datastore.Key) (key *datastore.Key) {
+	key = datastore.NameKey(kind, nameId, parentKey)
+	key.Namespace = PgNamespace
+	return key
+}
+
 type DatastoreDb struct {
 	Client *datastore.Client
 }
@@ -15,14 +21,16 @@ type DatastoreDb struct {
 func (d *DatastoreDb) GetContentTree(ctx context.Context, sdk tob.Sdk) (tree tob.ContentTree, err error) {
 	var tbLP TbLearningPath
 
-	lpKey := datastore.NameKey(TbLearningPathKind, sdk.String(), nil)
+	lpKey := PgNameKey(TbLearningPathKind, sdk.String(), nil)
 	if err := d.Client.Get(ctx, lpKey, &tbLP); err != nil {
-		return tree, err
+		return tree, fmt.Errorf("error querying learning_path: %w", err)
 	}
-	queryModules := datastore.NewQuery(TbLearningModuleKind).Ancestor(lpKey).Order("order")
-	moduleKeys, err := d.Client.GetAll(ctx, queryModules, tbLP.Modules)
+	// index.yaml should be applied for this query to work
+	queryModules := datastore.NewQuery(TbLearningModuleKind).
+		Namespace(PgNamespace).Ancestor(lpKey).Order("order")
+	moduleKeys, err := d.Client.GetAll(ctx, queryModules, &tbLP.Modules)
 	if err != nil {
-		return tree, err
+		return tree, fmt.Errorf("error querying modules: %w", err)
 	}
 
 	if len(moduleKeys) != len(tbLP.Modules) {
@@ -30,8 +38,10 @@ func (d *DatastoreDb) GetContentTree(ctx context.Context, sdk tob.Sdk) (tree tob
 	}
 
 	for i := 0; i < len(moduleKeys); i++ {
-		queryUnits := datastore.NewQuery(TbLearningUnitKind).Ancestor(moduleKeys[i]).Order("order")
-		if _, err = d.Client.GetAll(ctx, queryUnits, tbLP.Modules[i].Units); err != nil {
+		// index.yaml should be applied for this query to work
+		queryUnits := datastore.NewQuery(TbLearningUnitKind).
+			Namespace(PgNamespace).Ancestor(moduleKeys[i]).Order("order")
+		if _, err = d.Client.GetAll(ctx, queryUnits, &tbLP.Modules[i].Units); err != nil {
 			return tree, fmt.Errorf("getting units of module %v: %w", moduleKeys[i], err)
 		}
 	}

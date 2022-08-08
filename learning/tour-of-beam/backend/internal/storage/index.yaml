@@ -1,0 +1,10 @@
+indexes:
+- kind: tb_learning_module
+  ancestor: yes
+  properties:
+    - name: order
+
+- kind: tb_learning_unit
+  ancestor: yes
+  properties:
+    - name: order
