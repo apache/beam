@@ -256,7 +256,7 @@ func (d *Datastore) GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEn
 	//Retrieving examples
 	var exampleKeys []*datastore.Key
 	for _, sdk := range sdks {
-		exampleKeys = append(exampleKeys, utils.GetExampleKey(sdk.Name, sdk.DefaultExample))
+		exampleKeys = append(exampleKeys, utils.GetExampleKey(ctx, sdk.Name, sdk.DefaultExample))
 	}
 	var examplesWithNils = make([]*entity.ExampleEntity, len(exampleKeys))
 	examples := make([]*entity.ExampleEntity, 0)
@@ -287,7 +287,7 @@ func (d *Datastore) GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEn
 	//Retrieving snippets
 	var snippetKeys []*datastore.Key
 	for _, exampleKey := range exampleKeys {
-		snippetKeys = append(snippetKeys, utils.GetSnippetKey(exampleKey.Name))
+		snippetKeys = append(snippetKeys, utils.GetSnippetKey(ctx, exampleKey.Name))
 	}
 	snippetsWithNils := make([]*entity.SnippetEntity, len(snippetKeys))
 	snippets := make([]*entity.SnippetEntity, 0)
@@ -314,7 +314,7 @@ func (d *Datastore) GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEn
 	var fileKeys []*datastore.Key
 	for snpIndx, snippet := range snippets {
 		for fileIndx := 0; fileIndx < snippet.NumberOfFiles; fileIndx++ {
-			fileKey := utils.GetFileKey(examples[snpIndx].Sdk.Name, examples[snpIndx].Name, fileIndx)
+			fileKey := utils.GetFileKey(ctx, examples[snpIndx].Sdk.Name, examples[snpIndx].Name, fileIndx)
 			fileKeys = append(fileKeys, fileKey)
 		}
 	}
@@ -339,7 +339,7 @@ func (d *Datastore) GetExample(ctx context.Context, id string, sdks []*entity.SD
 	}
 	defer rollback(tx)
 
-	exampleKey := utils.GetExampleKey(id)
+	exampleKey := utils.GetExampleKey(ctx, id)
 	var example = new(entity.ExampleEntity)
 	if err = tx.Get(exampleKey, example); err != nil {
 		if err == datastore.ErrNoSuchEntity {
@@ -350,14 +350,14 @@ func (d *Datastore) GetExample(ctx context.Context, id string, sdks []*entity.SD
 		return nil, err
 	}
 
-	snpKey := utils.GetSnippetKey(id)
+	snpKey := utils.GetSnippetKey(ctx, id)
 	var snippet = new(entity.SnippetEntity)
 	if err = tx.Get(snpKey, snippet); err != nil {
 		logger.Errorf("error during getting snippet by identifier, err: %s", err.Error())
 		return nil, err
 	}
 
-	fileKey := utils.GetFileKey(id, 0)
+	fileKey := utils.GetFileKey(ctx, id, 0)
 	var file = new(entity.FileEntity)
 	if err = tx.Get(fileKey, file); err != nil {
 		logger.Errorf("error during getting file by identifier, err: %s", err.Error())
@@ -385,7 +385,7 @@ func (d *Datastore) GetExampleCode(ctx context.Context, id string) (string, erro
 	}
 	defer rollback(tx)
 
-	fileKey := utils.GetFileKey(id, 0)
+	fileKey := utils.GetFileKey(ctx, id, 0)
 	var file = new(entity.FileEntity)
 	if err = tx.Get(fileKey, file); err != nil {
 		if err == datastore.ErrNoSuchEntity {
@@ -406,7 +406,7 @@ func (d *Datastore) GetExampleOutput(ctx context.Context, id string) (string, er
 	}
 	defer rollback(tx)
 
-	pcObjKey := utils.GetPCObjectKey(id, constants.PCOutputType)
+	pcObjKey := utils.GetPCObjectKey(ctx, id, constants.PCOutputType)
 	var pcObj = new(entity.PrecompiledObjectEntity)
 	if err = tx.Get(pcObjKey, pcObj); err != nil {
 		if err == datastore.ErrNoSuchEntity {
@@ -427,7 +427,7 @@ func (d *Datastore) GetExampleLogs(ctx context.Context, id string) (string, erro
 	}
 	defer rollback(tx)
 
-	pcObjKey := utils.GetPCObjectKey(id, constants.PCLogType)
+	pcObjKey := utils.GetPCObjectKey(ctx, id, constants.PCLogType)
 	var pcObj = new(entity.PrecompiledObjectEntity)
 	if err = tx.Get(pcObjKey, pcObj); err != nil {
 		if err == datastore.ErrNoSuchEntity {
@@ -448,7 +448,7 @@ func (d *Datastore) GetExampleGraph(ctx context.Context, id string) (string, err
 	}
 	defer rollback(tx)
 
-	pcObjKey := utils.GetPCObjectKey(id, constants.PCGraphType)
+	pcObjKey := utils.GetPCObjectKey(ctx, id, constants.PCGraphType)
 	var pcObj = new(entity.PrecompiledObjectEntity)
 	if err = tx.Get(pcObjKey, pcObj); err != nil {
 		if err == datastore.ErrNoSuchEntity {
