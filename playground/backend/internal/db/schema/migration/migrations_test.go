@@ -29,6 +29,8 @@ import (
 
 var datastoreDb *datastore.Datastore
 var ctx context.Context
+var appEnvs *environment.ApplicationEnvs
+var props *environment.Properties
 
 func TestMain(m *testing.M) {
 	setup()
@@ -51,6 +53,11 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
+	appEnvs = environment.NewApplicationEnvs("/app", "", "", "", "../../../../../sdks-emulator.yaml", "../../../../.", nil, 0)
+	props, err = environment.NewProperties(appEnvs.PropertyPath())
+	if err != nil {
+		panic(err)
+	}
 }
 
 func teardown() {
@@ -60,11 +67,6 @@ func teardown() {
 }
 
 func TestInitialStructure_InitiateData(t *testing.T) {
-	appEnvs := environment.NewApplicationEnvs("/app", "", "", "", "../../../../../sdks-emulator.yaml", "../../../../.", nil, 0)
-	props, err := environment.NewProperties(appEnvs.PropertyPath())
-	if err != nil {
-		t.Errorf("InitiateData(): error during properties initialization, err: %s", err.Error())
-	}
 	tests := []struct {
 		name    string
 		dbArgs  *schema.DBArgs
@@ -81,14 +83,42 @@ func TestInitialStructure_InitiateData(t *testing.T) {
 			wantErr: false,
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			is := new(InitialStructure)
-			err = is.InitiateData(tt.dbArgs)
+			err := is.InitiateData(tt.dbArgs)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InitiateData(): error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
+}
+
+func TestAddingComplexityProperty_InitiateData(t *testing.T) {
+	tests := []struct {
+		name    string
+		dbArgs  *schema.DBArgs
+		wantErr bool
+	}{
+		{
+			name: "Test migration with version 0.0.2 in the usual case",
+			dbArgs: &schema.DBArgs{
+				Ctx:    ctx,
+				Db:     datastoreDb,
+				AppEnv: appEnvs,
+				Props:  props,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			is := new(AddingComplexityProperty)
+			err := is.InitiateData(tt.dbArgs)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("InitiateData(): error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+
 }

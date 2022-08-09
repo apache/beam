@@ -153,6 +153,7 @@ func setup() *grpc.Server {
 	// setup initial data
 	versions := []schema.Version{
 		new(migration.InitialStructure),
+		new(migration.AddingComplexityProperty),
 	}
 	dbSchema := schema.New(ctx, dbClient, appEnv, props, versions)
 	actualSchemaVersion, err := dbSchema.InitiateData()
