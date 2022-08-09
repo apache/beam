@@ -47,7 +47,7 @@ func setup() {
 		}
 	}
 	ctx = context.Background()
-	context.WithValue(ctx, constants.DatastoreNamespaceKey, "datastore")
+	ctx = context.WithValue(ctx, constants.DatastoreNamespaceKey, "datastore")
 	var err error
 	datastoreDb, err = New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	if err != nil {
@@ -94,8 +94,8 @@ func TestDatastore_PutSnippet(t *testing.T) {
 			}},
 			wantErr: false,
 			cleanData: func() {
-				test_cleaner.CleanFiles(t, "MOCK_ID", 1)
-				test_cleaner.CleanSnippet(t, "MOCK_ID")
+				test_cleaner.CleanFiles(ctx, t, "MOCK_ID", 1)
+				test_cleaner.CleanSnippet(ctx, t, "MOCK_ID")
 			},
 		},
 	}
@@ -156,8 +156,8 @@ func TestDatastore_GetSnippet(t *testing.T) {
 			args:    args{ctx: ctx, id: "MOCK_ID"},
 			wantErr: false,
 			cleanData: func() {
-				test_cleaner.CleanFiles(t, "MOCK_ID", 1)
-				test_cleaner.CleanSnippet(t, "MOCK_ID")
+				test_cleaner.CleanFiles(ctx, t, "MOCK_ID", 1)
+				test_cleaner.CleanSnippet(ctx, t, "MOCK_ID")
 			},
 		},
 	}
@@ -243,7 +243,7 @@ func TestDatastore_PutSchemaVersion(t *testing.T) {
 			},
 			wantErr: false,
 			cleanData: func() {
-				test_cleaner.CleanSchemaVersion(t, "MOCK_ID")
+				test_cleaner.CleanSchemaVersion(ctx, t, "MOCK_ID")
 			},
 		},
 		{
@@ -295,8 +295,8 @@ func TestDatastore_GetFiles(t *testing.T) {
 			args:    args{ctx: ctx, snipId: "MOCK_ID", numberOfFiles: 1},
 			wantErr: false,
 			cleanData: func() {
-				test_cleaner.CleanFiles(t, "MOCK_ID", 1)
-				test_cleaner.CleanSnippet(t, "MOCK_ID")
+				test_cleaner.CleanFiles(ctx, t, "MOCK_ID", 1)
+				test_cleaner.CleanSnippet(ctx, t, "MOCK_ID")
 			},
 		},
 	}
@@ -391,10 +391,10 @@ func TestDatastore_GetCatalog(t *testing.T) {
 			wantErr: false,
 			cleanData: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				test_cleaner.CleanPCObjs(t, exampleId)
-				test_cleaner.CleanFiles(t, exampleId, 1)
-				test_cleaner.CleanSnippet(t, exampleId)
-				test_cleaner.CleanExample(t, exampleId)
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}
@@ -462,10 +462,10 @@ func TestDatastore_GetDefaultExamples(t *testing.T) {
 			clean: func() {
 				for sdk := range pb.Sdk_value {
 					exampleId := utils.GetIDWithDelimiter(sdk, "MOCK_DEFAULT_EXAMPLE")
-					test_cleaner.CleanPCObjs(t, exampleId)
-					test_cleaner.CleanFiles(t, exampleId, 1)
-					test_cleaner.CleanSnippet(t, exampleId)
-					test_cleaner.CleanExample(t, exampleId)
+					test_cleaner.CleanPCObjs(ctx, t, exampleId)
+					test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+					test_cleaner.CleanSnippet(ctx, t, exampleId)
+					test_cleaner.CleanExample(ctx, t, exampleId)
 				}
 			},
 		},
@@ -529,10 +529,10 @@ func TestDatastore_GetExample(t *testing.T) {
 			wantErr: false,
 			clean: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				test_cleaner.CleanPCObjs(t, exampleId)
-				test_cleaner.CleanFiles(t, exampleId, 1)
-				test_cleaner.CleanSnippet(t, exampleId)
-				test_cleaner.CleanExample(t, exampleId)
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}
@@ -589,10 +589,10 @@ func TestDatastore_GetExampleCode(t *testing.T) {
 			wantErr: false,
 			clean: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				test_cleaner.CleanPCObjs(t, exampleId)
-				test_cleaner.CleanFiles(t, exampleId, 1)
-				test_cleaner.CleanSnippet(t, exampleId)
-				test_cleaner.CleanExample(t, exampleId)
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}
@@ -641,10 +641,10 @@ func TestDatastore_GetExampleOutput(t *testing.T) {
 			wantErr: false,
 			clean: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				test_cleaner.CleanPCObjs(t, exampleId)
-				test_cleaner.CleanFiles(t, exampleId, 1)
-				test_cleaner.CleanSnippet(t, exampleId)
-				test_cleaner.CleanExample(t, exampleId)
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}
@@ -693,10 +693,10 @@ func TestDatastore_GetExampleLogs(t *testing.T) {
 			wantErr: false,
 			clean: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				test_cleaner.CleanPCObjs(t, exampleId)
-				test_cleaner.CleanFiles(t, exampleId, 1)
-				test_cleaner.CleanSnippet(t, exampleId)
-				test_cleaner.CleanExample(t, exampleId)
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}
@@ -745,10 +745,10 @@ func TestDatastore_GetExampleGraph(t *testing.T) {
 			wantErr: false,
 			clean: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				test_cleaner.CleanPCObjs(t, exampleId)
-				test_cleaner.CleanFiles(t, exampleId, 1)
-				test_cleaner.CleanSnippet(t, exampleId)
-				test_cleaner.CleanExample(t, exampleId)
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}

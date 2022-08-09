@@ -75,7 +75,6 @@ func TestMain(m *testing.M) {
 
 func setup() *grpc.Server {
 	ctx = context.Background()
-	context.WithValue(ctx, constants.DatastoreNamespaceKey, "main")
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer()
 
@@ -126,6 +125,9 @@ func setup() *grpc.Server {
 		panic(err)
 	}
 	if err = os.Setenv("PROPERTY_PATH", "../../."); err != nil {
+		panic(err)
+	}
+	if err = os.Setenv(constants.DatastoreNamespaceKey, "main"); err != nil {
 		panic(err)
 	}
 
@@ -878,8 +880,8 @@ func TestPlaygroundController_SaveSnippet(t *testing.T) {
 				if len(got.Id) != 11 || got.Id != tt.wantId {
 					t.Errorf("PlaygroundController_SaveSnippet() unexpected generated ID")
 				}
-				test_cleaner.CleanFiles(t, got.Id, 1)
-				test_cleaner.CleanSnippet(t, got.Id)
+				test_cleaner.CleanFiles(ctx, t, got.Id, 1)
+				test_cleaner.CleanSnippet(ctx, t, got.Id)
 			}
 		})
 	}
@@ -941,8 +943,8 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 			},
 			wantErr: false,
 			cleanData: func() {
-				test_cleaner.CleanFiles(t, "MOCK_ID", 1)
-				test_cleaner.CleanSnippet(t, "MOCK_ID")
+				test_cleaner.CleanFiles(ctx, t, "MOCK_ID", 1)
+				test_cleaner.CleanSnippet(ctx, t, "MOCK_ID")
 			},
 		},
 	}
@@ -950,7 +952,7 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			got, err := client.GetSnippet(ctx, tt.args.info)
+			got, err := client.GetSnippet(tt.args.ctx, tt.args.info)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PlaygroundController_GetSnippet() error = %v, wantErr %v", err, tt.wantErr)
 			}

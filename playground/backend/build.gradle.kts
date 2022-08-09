@@ -71,7 +71,7 @@ val test by tasks.registering {
     doLast {
         exec {
             executable("go")
-            args("test", "./...", "-p=1")
+            args("test", "./...")
         }
     }
 }
@@ -88,7 +88,7 @@ val testWithoutCache by tasks.registering {
     doLast {
         exec {
             executable("go")
-            args("test", "./...", "-p=1")
+            args("test", "./...")
         }
     }
 }

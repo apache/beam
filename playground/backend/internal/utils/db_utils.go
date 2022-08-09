@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 
@@ -114,14 +115,18 @@ func getNameKey(ctx context.Context, kind, id string, parentId *datastore.Key) *
 	if parentId != nil {
 		key.Parent = parentId
 	}
-	key.Namespace = getNamespace(ctx)
+	key.Namespace = GetNamespace(ctx)
 	return key
 }
 
-func getNamespace(ctx context.Context) string {
-	namespace, ok := ctx.Value(constants.EmulatorHostKey).(string)
+func GetNamespace(ctx context.Context) string {
+	namespace, ok := ctx.Value(constants.DatastoreNamespaceKey).(string)
 	if !ok {
-		return constants.Namespace
+		namespace, ok = os.LookupEnv(constants.DatastoreNamespaceKey)
+		if !ok {
+			return constants.Namespace
+		}
+		return namespace
 	}
 	return namespace
 }
