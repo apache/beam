@@ -37,6 +37,10 @@ public class BlockingCommitterImpl implements BlockingCommitter {
 
   @Override
   public void commitOffset(Offset offset) {
+    if (!committer.isRunning()) {
+      throw new IllegalStateException(
+          "Committer not running when commitOffset called.", committer.failureCause());
+    }
     try {
       committer.commitOffset(offset).get(1, TimeUnit.MINUTES);
     } catch (Exception e) {

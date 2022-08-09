@@ -28,8 +28,12 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CheckpointMarkImpl implements CheckpointMark {
+
+  private final Logger logger = LoggerFactory.getLogger(CheckpointMarkImpl.class);
 
   final Offset offset;
 
@@ -62,7 +66,11 @@ public class CheckpointMarkImpl implements CheckpointMark {
 
   @Override
   public void finalizeCheckpoint() {
-    checkState(committer.isPresent());
-    committer.get().commitOffset(offset);
+    try {
+      checkState(committer.isPresent());
+      committer.get().commitOffset(offset);
+    } catch (Exception e) {
+      logger.warn("Failed to finalize checkpoint.", e);
+    }
   }
 }
