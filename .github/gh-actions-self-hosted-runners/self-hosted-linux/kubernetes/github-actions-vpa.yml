@@ -23,6 +23,6 @@ spec:
   targetRef:
     apiVersion: "apps/v1"
     kind:       Deployment
-    name:       github-actions-runners-deployment
+    name:       ubuntu-runners
   updatePolicy:
     updateMode: "Auto"
