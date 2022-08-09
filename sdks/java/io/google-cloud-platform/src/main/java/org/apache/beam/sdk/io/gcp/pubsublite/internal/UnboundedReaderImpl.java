@@ -99,7 +99,9 @@ public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
   @Override
   public boolean advance() throws IOException {
     if (!subscriber.state().equals(State.RUNNING)) {
-      throw new IOException("Subscriber failed: ", subscriber.failureCause());
+      throw new IOException(
+          "Subscriber failed. If the runner recently resized, and the error contains `A second subscriber connected`, this can be ignored.",
+          subscriber.failureCause());
     }
     if (advanced) {
       subscriber.pop();
@@ -123,6 +125,9 @@ public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
 
   @Override
   public CheckpointMarkImpl getCheckpointMark() {
+    // By checkpointing, the runtime indicates it has finished processing all data it has already
+    // pulled. This means we can ask Pub/Sub Lite to refill our in-memory buffer without causing
+    // unbounded memory usage.
     subscriber.rebuffer();
     return new CheckpointMarkImpl(fetchOffset, committer);
   }

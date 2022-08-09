@@ -29,7 +29,8 @@ public class BlockingCommitterImpl implements BlockingCommitter {
 
   BlockingCommitterImpl(Committer committer) {
     if (!committer.isRunning()) {
-      throw new RuntimeException(committer.failureCause());
+      throw new IllegalStateException(
+          "Committer passed to BlockingCommitter which is not running.", committer.failureCause());
     }
     this.committer = committer;
   }
