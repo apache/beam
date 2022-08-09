@@ -38,19 +38,19 @@ func DownloadCatalogsWithMockData(ctx context.Context) {
 	client, closeClientFunc := createDatastoreClient(ctx)
 	defer closeClientFunc()
 
-	sdkKeys, sdks := createSDKEntities()
+	sdkKeys, sdks := createSDKEntities(ctx)
 	saveEntities(ctx, client, sdkKeys, sdks)
 
-	exampleKeys, examples := createExampleEntities()
+	exampleKeys, examples := createExampleEntities(ctx)
 	saveEntities(ctx, client, exampleKeys, examples)
 
-	snippetKeys, snippets := createSnippetEntities(examples)
+	snippetKeys, snippets := createSnippetEntities(ctx, examples)
 	saveEntities(ctx, client, snippetKeys, snippets)
 
-	fileKeys, files := createFileEntities(examples)
+	fileKeys, files := createFileEntities(ctx, examples)
 	saveEntities(ctx, client, fileKeys, files)
 
-	objKeys, objs := createPCObjEntities(examples)
+	objKeys, objs := createPCObjEntities(ctx, examples)
 	saveEntities(ctx, client, objKeys, objs)
 }
 
@@ -58,10 +58,10 @@ func RemoveCatalogsWithMockData(ctx context.Context) {
 	client, closeClientFunc := createDatastoreClient(ctx)
 	defer closeClientFunc()
 
-	exampleKeys, examples := createExampleEntities()
-	snippetKeys, _ := createSnippetEntities(examples)
-	fileKeys, _ := createFileEntities(examples)
-	objKeys, _ := createPCObjEntities(examples)
+	exampleKeys, examples := createExampleEntities(ctx)
+	snippetKeys, _ := createSnippetEntities(ctx, examples)
+	fileKeys, _ := createFileEntities(ctx, examples)
+	objKeys, _ := createPCObjEntities(ctx, examples)
 
 	deleteEntities(ctx, client, exampleKeys)
 	deleteEntities(ctx, client, snippetKeys)
@@ -69,7 +69,7 @@ func RemoveCatalogsWithMockData(ctx context.Context) {
 	deleteEntities(ctx, client, objKeys)
 }
 
-func createSDKEntities() ([]*datastore.Key, []*entity.SDKEntity) {
+func createSDKEntities(ctx context.Context) ([]*datastore.Key, []*entity.SDKEntity) {
 	sdks := make([]*entity.SDKEntity, 0)
 	for _, sdk := range pb.Sdk_name {
 		if sdk == pb.Sdk_SDK_UNSPECIFIED.String() {
@@ -82,12 +82,12 @@ func createSDKEntities() ([]*datastore.Key, []*entity.SDKEntity) {
 	}
 	keys := make([]*datastore.Key, 0, len(sdks))
 	for _, sdk := range sdks {
-		keys = append(keys, utils.GetSdkKey(sdk.Name))
+		keys = append(keys, utils.GetSdkKey(ctx, sdk.Name))
 	}
 	return keys, sdks
 }
 
-func createExampleEntities() ([]*datastore.Key, []*entity.ExampleEntity) {
+func createExampleEntities(ctx context.Context) ([]*datastore.Key, []*entity.ExampleEntity) {
 	names := []string{"MOCK_DEFAULT_EXAMPLE", "MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3"}
 	keys := make([]*datastore.Key, 0)
 	examples := make([]*entity.ExampleEntity, 0)
@@ -96,19 +96,19 @@ func createExampleEntities() ([]*datastore.Key, []*entity.ExampleEntity) {
 			continue
 		}
 		for _, name := range names {
-			key := utils.GetExampleKey(sdk, name)
+			key := utils.GetExampleKey(ctx, sdk, name)
 			keys = append(keys, key)
-			example := createExampleEntity(name, sdk)
+			example := createExampleEntity(ctx, name, sdk)
 			examples = append(examples, example)
 		}
 	}
 	return keys, examples
 }
 
-func createExampleEntity(name, sdk string) *entity.ExampleEntity {
+func createExampleEntity(ctx context.Context, name, sdk string) *entity.ExampleEntity {
 	return &entity.ExampleEntity{
 		Name:       name,
-		Sdk:        utils.GetSdkKey(sdk),
+		Sdk:        utils.GetSdkKey(ctx, sdk),
 		Descr:      "MOCK_DESCR",
 		Tags:       []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
 		Cats:       []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
@@ -116,22 +116,22 @@ func createExampleEntity(name, sdk string) *entity.ExampleEntity {
 		Path:       "MOCK_PATH",
 		Type:       pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
 		Origin:     constants.ExampleOrigin,
-		SchVer:     utils.GetSchemaVerKey("MOCK_VERSION"),
+		SchVer:     utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 	}
 }
 
-func createSnippetEntities(examples []*entity.ExampleEntity) ([]*datastore.Key, []*entity.SnippetEntity) {
+func createSnippetEntities(ctx context.Context, examples []*entity.ExampleEntity) ([]*datastore.Key, []*entity.SnippetEntity) {
 	keys := make([]*datastore.Key, 0)
 	snippets := make([]*entity.SnippetEntity, 0)
 	now := time.Now()
 	for _, example := range examples {
-		key := utils.GetSnippetKey(example.Sdk.Name, example.Name)
+		key := utils.GetSnippetKey(ctx, example.Sdk.Name, example.Name)
 		snippet := &entity.SnippetEntity{
 			Sdk:           example.Sdk,
 			PipeOpts:      "MOCK_P_OPTS",
 			Created:       now,
 			Origin:        constants.ExampleOrigin,
-			SchVer:        utils.GetSchemaVerKey("MOCK_VERSION"),
+			SchVer:        utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 			NumberOfFiles: 1,
 		}
 		keys = append(keys, key)
@@ -141,11 +141,11 @@ func createSnippetEntities(examples []*entity.ExampleEntity) ([]*datastore.Key, 
 	return keys, snippets
 }
 
-func createFileEntities(examples []*entity.ExampleEntity) ([]*datastore.Key, []*entity.FileEntity) {
+func createFileEntities(ctx context.Context, examples []*entity.ExampleEntity) ([]*datastore.Key, []*entity.FileEntity) {
 	keys := make([]*datastore.Key, 0)
 	files := make([]*entity.FileEntity, 0)
 	for _, example := range examples {
-		key := utils.GetFileKey(example.Sdk.Name, example.Name, 0)
+		key := utils.GetFileKey(ctx, example.Sdk.Name, example.Name, 0)
 		file := &entity.FileEntity{
 			Name:     "MOCK_NAME",
 			Content:  "MOCK_CONTENT",
@@ -158,13 +158,13 @@ func createFileEntities(examples []*entity.ExampleEntity) ([]*datastore.Key, []*
 	return keys, files
 }
 
-func createPCObjEntities(examples []*entity.ExampleEntity) ([]*datastore.Key, []*entity.PrecompiledObjectEntity) {
+func createPCObjEntities(ctx context.Context, examples []*entity.ExampleEntity) ([]*datastore.Key, []*entity.PrecompiledObjectEntity) {
 	keys := make([]*datastore.Key, 0)
 	objs := make([]*entity.PrecompiledObjectEntity, 0)
 	for _, example := range examples {
 		types := []string{constants.PCLogType, constants.PCGraphType, constants.PCOutputType}
 		for _, typeVal := range types {
-			key := utils.GetPCObjectKey(example.Sdk.Name, example.Name, typeVal)
+			key := utils.GetPCObjectKey(ctx, example.Sdk.Name, example.Name, typeVal)
 			obj := &entity.PrecompiledObjectEntity{Content: "MOCK_CONTENT_" + typeVal}
 			keys = append(keys, key)
 			objs = append(objs, obj)
