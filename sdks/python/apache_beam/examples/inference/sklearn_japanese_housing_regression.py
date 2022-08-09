@@ -79,7 +79,7 @@ def sort_by_features(dataframe, max_size):
     required_features = dataframe[model['required_features']]
     # A model can only make a prediction if all required features
     # are present.
-    # required_features is 2D single row, so all must be called twice.
+    # required_features is 2D single row, so all() must be called twice.
     if required_features.notnull().all().all():
       return i
   return -1
