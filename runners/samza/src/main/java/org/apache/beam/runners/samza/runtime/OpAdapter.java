@@ -18,14 +18,14 @@
 package org.apache.beam.runners.samza.runtime;
 
 import java.io.Serializable;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
-import org.apache.beam.runners.samza.util.SamzaExceptionListener;
+import org.apache.beam.runners.samza.util.SamzaPipelineExceptionListener;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
@@ -59,6 +59,7 @@ public class OpAdapter<InT, OutT, K>
   private transient OpEmitter<OutT> emitter;
   private transient Config config;
   private transient Context context;
+  private transient List<SamzaPipelineExceptionListener.Registrar> exceptionListeners;
 
   public static <InT, OutT, K> AsyncFlatMapFunction<OpMessage<InT>, OpMessage<OutT>> adapt(
       Op<InT, OutT, K> op) {
@@ -75,6 +76,10 @@ public class OpAdapter<InT, OutT, K>
     this.emitter = new OpEmitterImpl();
     this.config = context.getJobContext().getConfig();
     this.context = context;
+    this.exceptionListeners = new ArrayList<>();
+    ServiceLoader.load(SamzaPipelineExceptionListener.Registrar.class)
+        .iterator()
+        .forEachRemaining(exceptionListeners::add);
   }
 
   @Override
@@ -108,8 +113,10 @@ public class OpAdapter<InT, OutT, K>
       e.addSuppressed(
           new RuntimeException(
               String.format("Op %s threw an exception during processing", op.getFullOpName()), e));
-      SamzaExceptionListener.getInstance()
-          .setException(new AbstractMap.SimpleEntry<>(op.getFullOpName(), e));
+      exceptionListeners.forEach(
+          listener -> {
+            listener.getExceptionListener().onException(op.getFullOpName(), e);
+          });
       throw UserCodeException.wrap(e);
     }
 
