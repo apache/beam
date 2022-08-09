@@ -37,6 +37,9 @@ RUN tar xzf ./actions-runner-linux-x64-$RUNNER_VERSION.tar.gz
 RUN curl -fsSL https://get.docker.com -o get-docker.sh
 RUN sudo sh get-docker.sh
 
+# Install docker-compose
+RUN sudo apt-get update && sudo apt-get install docker-compose-plugin
+
 # Install gcloud
 # Make sure that your operating system meets the requirements
 RUN sudo apt-get install apt-transport-https ca-certificates gnupg

@@ -18,9 +18,14 @@
 # Chmod of docker.sock
 sudo chmod 666 /var/run/docker.sock
 
-# Verify gcloud installation and activate the mounted Service Account
-gcloud version
+# Verify gcloud and docker-compose installation
+gcloud version && docker compose version
+
+# Activate the mounted Service Account.
 gcloud auth activate-service-account --key-file="${GOOGLE_APPLICATION_CREDENTIALS}" --no-user-output-enabled
+
+# Create gcloud docker config
+gcloud auth configure-docker -q --no-user-output-enabled >& /dev/null
 
 # Register the Runner Token in the given Organization.
 CLOUD_FUNCTION_URL="https://$GCP_REGION-$GCP_PROJECT_ID.cloudfunctions.net/$CLOUD_FUNCTION_NAME"
