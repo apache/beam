@@ -25,33 +25,32 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
-func CleanExample(t *testing.T, exampleId string) {
-	cleanData(t, constants.ExampleKind, exampleId, nil)
+func CleanExample(ctx context.Context, t *testing.T, exampleId string) {
+	cleanData(ctx, t, constants.ExampleKind, exampleId, nil)
 }
 
-func CleanSnippet(t *testing.T, snippetId string) {
-	cleanData(t, constants.SnippetKind, snippetId, nil)
+func CleanSnippet(ctx context.Context, t *testing.T, snippetId string) {
+	cleanData(ctx, t, constants.SnippetKind, snippetId, nil)
 }
 
-func CleanPCObjs(t *testing.T, exampleId string) {
+func CleanPCObjs(ctx context.Context, t *testing.T, exampleId string) {
 	pcTypes := []string{constants.PCOutputType, constants.PCLogType, constants.PCGraphType}
 	for _, pcType := range pcTypes {
-		cleanData(t, constants.PCObjectKind, utils.GetIDWithDelimiter(exampleId, pcType), nil)
+		cleanData(ctx, t, constants.PCObjectKind, utils.GetIDWithDelimiter(exampleId, pcType), nil)
 	}
 }
 
-func CleanFiles(t *testing.T, snippetId string, numberOfFiles int) {
+func CleanFiles(ctx context.Context, t *testing.T, snippetId string, numberOfFiles int) {
 	for fileIndx := 0; fileIndx < numberOfFiles; fileIndx++ {
-		cleanData(t, constants.FileKind, utils.GetIDWithDelimiter(snippetId, fileIndx), nil)
+		cleanData(ctx, t, constants.FileKind, utils.GetIDWithDelimiter(snippetId, fileIndx), nil)
 	}
 }
 
-func CleanSchemaVersion(t *testing.T, schemaId string) {
-	cleanData(t, constants.SchemaKind, schemaId, nil)
+func CleanSchemaVersion(ctx context.Context, t *testing.T, schemaId string) {
+	cleanData(ctx, t, constants.SchemaKind, schemaId, nil)
 }
 
-func cleanData(t *testing.T, kind, id string, parentId *datastore.Key) {
-	ctx := context.Background()
+func cleanData(ctx context.Context, t *testing.T, kind, id string, parentId *datastore.Key) {
 	client, err := datastore.NewClient(ctx, constants.EmulatorProjectId)
 	if err != nil {
 		t.Errorf("Error during datastore client creating, err: %s\n", err.Error())
@@ -67,7 +66,7 @@ func cleanData(t *testing.T, kind, id string, parentId *datastore.Key) {
 	if parentId != nil {
 		key.Parent = parentId
 	}
-	key.Namespace = constants.Namespace
+	key.Namespace = utils.GetNamespace(ctx)
 	if err = client.Delete(ctx, key); err != nil {
 		t.Errorf("Error during data cleaning, err: %s", err.Error())
 	}
