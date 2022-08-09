@@ -38,8 +38,18 @@ import apache_beam as beam
 from apache_beam.dataframe import convert
 from apache_beam.dataframe import io
 from apache_beam.io import restriction_trackers
+import apache_beam.io.gcp.bigquery
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+import mock
+
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
 
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
@@ -408,6 +418,51 @@ X     , c1, c2
                           set(self.read_all_lines(output + 'out1.csv*')))
     self.assertCountEqual(['value', '3', '4'],
                           set(self.read_all_lines(output + 'out2.csv*')))
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class ReadGbqTransformTests(unittest.TestCase):
+  @mock.patch.object(BigQueryWrapper, 'get_table')
+  def test_bad_schema_public_api_direct_read(self, get_table):
+    fields = [
+        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    table = apache_beam.io.gcp.internal.clients.bigquery. \
+        bigquery_v2_messages.Table(
+        schema=schema)
+    get_table.return_value = table
+
+    with self.assertRaisesRegex(ValueError,
+                                "Encountered an unsupported type: 'DOUBLE'"):
+      p = apache_beam.Pipeline()
+      pipeline = p | apache_beam.dataframe.io.read_gbq(
+          table="dataset.sample_table", use_bqstorage_api=True)
+      pipeline
+
+  def test_unsupported_callable(self):
+    def filterTable(table):
+      if table is not None:
+        return table
+
+    res = filterTable
+    with self.assertRaisesRegex(TypeError,
+                                'ReadFromBigQuery: table must be of type string'
+                                '; got a callable instead'):
+      p = beam.Pipeline()
+      pipeline = p | beam.dataframe.io.read_gbq(table=res)
+      pipeline
+
+  def test_ReadGbq_unsupported_param(self):
+    with self.assertRaisesRegex(ValueError,
+                                "Unsupported parameter entered in ReadGbq. "
+                                "Please enter only supported parameters."):
+      p = beam.Pipeline()
+      pipeline = p | beam.dataframe.io.read_gbq(
+          table="table", reauth="true_config")
+      pipeline
 
 
 if __name__ == '__main__':

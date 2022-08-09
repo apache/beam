@@ -270,9 +270,8 @@ class ReadUsingReadGbqTests(BigQueryReadIntegrationTests):
               "beam_bigquery_io_test."
               "dfsqltable_3c7d6fd5_16e0460dfd0",
               output_type='BEAM_ROW'))
-      # expected_df = convert.to_pcollection(expected_df)
     with beam.Pipeline(argv=self.args) as p:
-      actual_df = p | apache_beam.dataframe.transforms.ReadGbq(
+      actual_df = p | apache_beam.dataframe.io.read_gbq(
           table="apache-beam-testing:"
           "beam_bigquery_io_test."
           "dfsqltable_3c7d6fd5_16e0460dfd0")
@@ -288,9 +287,8 @@ class ReadUsingReadGbqTests(BigQueryReadIntegrationTests):
               "beam_bigquery_io_test."
               "dfsqltable_3c7d6fd5_16e0460dfd0",
               output_type='BEAM_ROW'))
-      # expected_df = convert.to_pcollection(expected_df)
     with beam.Pipeline(argv=self.args) as p:
-      actual_df = p | apache_beam.dataframe.transforms.ReadGbq(
+      actual_df = p | apache_beam.dataframe.io.read_gbq(
           table="apache-beam-testing:"
           "beam_bigquery_io_test."
           "dfsqltable_3c7d6fd5_16e0460dfd0",

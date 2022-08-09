@@ -59,6 +59,17 @@ _DEFAULT_BYTES_CHUNKSIZE = 1 << 20
 
 
 @frame_base.with_docs_from(pd)
+def read_gbq(table, *args, **kwargs):
+  """If you would like to use the 'DIRECT_READ' method ins ReadFromBigQuery,
+    please set use_bq_storage_api to True.
+    Otherwise, if you would like to use the 'EXPORT' method, please set
+    use_bq_storage_api to False, or leave it unspecified."""
+  if table is None:
+    raise ValueError("Please specify a BigQuery table to read from.")
+  return _ReadGbq(table=table, *args, **kwargs)
+
+
+@frame_base.with_docs_from(pd)
 def read_csv(path, *args, splittable=False, **kwargs):
   """If your files are large and records do not contain quoted newlines, you may
   pass the extra argument ``splittable=True`` to enable dynamic splitting for
@@ -756,3 +767,81 @@ class WriteViaPandas(beam.PTransform):
         | beam.Map(lambda file_result: file_result.file_name).with_output_types(
             str)
     }
+
+
+class _ReadGbq(beam.PTransform):
+  """Read data from BigQuery with output type 'BEAM_ROW',
+  then convert it into a deferred dataframe.
+
+    This PTransform wraps the Python ReadFromBigQuery PTransform,
+    and sets the output_type as 'BEAM_ROW' to convert
+    into a Beam Schema. Once applied to a pipeline object,
+    it is passed into the to_dataframe() function to convert the
+    PCollection into a deferred dataframe.
+
+    This PTransform currently does not support queries.
+    Note that all Python ReadFromBigQuery args can be passed in
+    to this PTransform, in addition to the args listed below.
+
+  Args:
+    table (str): The ID of the table. The ID must contain only
+    letters ``a-z``, ``A-Z``,
+      numbers ``0-9``, underscores ``_`` or white spaces.
+      Note that the table argument must contain the entire table
+      reference specified as: ``'PROJECT:DATASET.TABLE'``.
+    use_bq_storage_api (bool): The method to use to read from BigQuery.
+    It may be 'EXPORT' or
+      'DIRECT_READ'. EXPORT invokes a BigQuery export request
+      (https://cloud.google.com/bigquery/docs/exporting-data).
+      'DIRECT_READ' reads
+      directly from BigQuery storage using the BigQuery Read API
+      (https://cloud.google.com/bigquery/docs/reference/storage). If
+      unspecified or set to false, the default is currently utilized (EXPORT).
+      If the flag is set to true,
+      'DIRECT_READ' will be utilized."""
+  def __init__(
+      self,
+      table=None,
+      index_col=None,
+      col_order=None,
+      reauth=None,
+      auth_local_webserver=None,
+      dialect=None,
+      location=None,
+      configuration=None,
+      credentials=None,
+      use_bqstorage_api=False,
+      max_results=None,
+      progress_bar_type=None):
+
+    self.table = table
+    self.index_col = index_col
+    self.col_order = col_order
+    self.reauth = reauth
+    self.auth_local_webserver = auth_local_webserver
+    self.dialect = dialect
+    self.location = location
+    self.configuration = configuration
+    self.credentials = credentials
+    self.use_bqstorage_api = use_bqstorage_api
+    self.max_results = max_results
+    self.progress_bar_type = progress_bar_type
+
+    if (self.index_col is not None or self.col_order is not None or
+        self.reauth is not None or self.auth_local_webserver is not None or
+        self.dialect is not None or self.location is not None or
+        self.configuration is not None or self.credentials is not None or
+        self.max_results is not None or self.progress_bar_type) is not None:
+      raise ValueError(
+          "Unsupported parameter entered in ReadGbq. "
+          "Please enter only supported parameters.")
+
+  def expand(self, root):
+    from apache_beam.dataframe import convert  # avoid circular import
+    if self.use_bqstorage_api:
+      return convert.to_dataframe(
+          root | beam.io.ReadFromBigQuery(
+              table=self.table, method='DIRECT_READ', output_type='BEAM_ROW'))
+    return convert.to_dataframe(
+        root
+        | beam.io.ReadFromBigQuery(table=self.table, output_type='BEAM_ROW'))
