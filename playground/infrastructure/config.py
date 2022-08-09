@@ -19,7 +19,7 @@ Configuration for CI/CD steps
 
 import os
 from dataclasses import dataclass
-from typing import Literal, List
+from typing import Literal
 
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
     STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
