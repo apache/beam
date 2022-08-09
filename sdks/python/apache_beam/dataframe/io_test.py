@@ -27,6 +27,7 @@ from datetime import datetime
 from io import BytesIO
 from io import StringIO
 
+import mock
 import pandas as pd
 import pandas.testing
 import pyarrow
@@ -35,16 +36,14 @@ from pandas.testing import assert_frame_equal
 from parameterized import parameterized
 
 import apache_beam as beam
+import apache_beam.io.gcp.bigquery
 from apache_beam.dataframe import convert
 from apache_beam.dataframe import io
 from apache_beam.io import restriction_trackers
-import apache_beam.io.gcp.bigquery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-
-import mock
 
 try:
   from apitools.base.py.exceptions import HttpError
