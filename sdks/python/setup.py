@@ -229,6 +229,7 @@ if __name__ == '__main__':
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
+        'regex>=2020.6.8',
         'requests>=2.24.0,<3.0.0',
         'typing-extensions>=3.7.0',
         'zstandard>=0.18.0,<1',
