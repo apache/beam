@@ -47,12 +47,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports, unused-import
-try:
-  from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
-except ImportError:
-  raise unittest.SkipTest('GCP dependencies are not installed')
-
 
 def _compare_prediction_result(a, b):
   example_equal = numpy.array_equal(a.example, b.example)
