@@ -104,8 +104,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -2230,25 +2232,31 @@ public class BigQueryIOWriteTest implements Serializable {
             Collections.emptySet(),
             null);
 
-    PCollection<KV<String, WriteTables.Result>> writeTablesOutput =
+    PCollection<KV<TableDestination, WriteTables.Result>> writeTablesOutput =
         writeTablesInput
             .apply(writeTables)
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), WriteTables.ResultCoder.INSTANCE));
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), WriteTables.ResultCoder.INSTANCE))
+            .apply(ParDo.of(new DoFn<KV<String, WriteTables.Result>, KV<TableDestination, WriteTables.Result>>() {
+              @ProcessElement
+              public void processElement(@Element KV<String, WriteTables.Result> e, OutputReceiver<KV<TableDestination, WriteTables.Result>> o) {
+                o.output(KV.of(dynamicDestinations.getTable(e.getKey()), e.getValue()));
+              }
+            }));
+
+
 
     PAssert.thatMultimap(writeTablesOutput)
         .satisfies(
             input -> {
-              assertEquals(input.keySet(), expectedTempTables.keySet());
-              for (Map.Entry<String, Iterable<WriteTables.Result>> entry : input.entrySet()) {
+              assertEquals(expectedTempTables.keySet(), input.keySet());
+              for (Map.Entry<TableDestination, Iterable<WriteTables.Result>> entry : input.entrySet()) {
                 Iterable<String> tableNames =
                     StreamSupport.stream(entry.getValue().spliterator(), false)
                         .map(Result::getTableName)
                         .collect(Collectors.toList());
                 @SuppressWarnings("unchecked")
                 String[] expectedValues =
-                    Iterables.toArray(
-                        expectedTempTables.get(dynamicDestinations.getTable(entry.getKey())),
-                        String.class);
+                    Iterables.toArray(expectedTempTables.get(entry.getKey()), String.class);
                 assertThat(tableNames, containsInAnyOrder(expectedValues));
               }
               return null;
