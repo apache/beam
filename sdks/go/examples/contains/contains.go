@@ -26,6 +26,8 @@ package main
 //     - Options
 //     - Debugging
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"context"

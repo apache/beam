@@ -28,6 +28,8 @@ package main
 //     - IO
 //     - Side Input
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"context"

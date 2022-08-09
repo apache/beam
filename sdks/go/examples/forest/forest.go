@@ -41,6 +41,8 @@ package main
 //     - Flatten
 //     - Branching
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"context"

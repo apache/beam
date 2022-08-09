@@ -23,6 +23,8 @@ package beam_test
 //   categories:
 //     - Combiners
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"reflect"

@@ -25,6 +25,8 @@ package org.apache.beam.sdk.testing;
 //   categories:
 //     - Streaming
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import static org.apache.beam.sdk.transforms.windowing.Window.into;
 import static org.hamcrest.MatcherAssert.assertThat;

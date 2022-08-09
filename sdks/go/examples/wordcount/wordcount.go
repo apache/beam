@@ -66,6 +66,8 @@ package main
 //     - Options
 //     - Quickstart
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"context"

@@ -45,6 +45,8 @@ package main
 //     - Debugging
 //     - Flatten
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"context"

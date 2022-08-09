@@ -22,6 +22,8 @@
 #   categories:
 #     - Streaming
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import datetime
 import pytz

@@ -25,6 +25,8 @@
 #   categories:
 #   - Metrics
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import unittest
 

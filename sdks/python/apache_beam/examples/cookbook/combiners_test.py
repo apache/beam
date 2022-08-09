@@ -33,6 +33,8 @@ checked directly on the last PCollection produced.
 #   categories:
 #     - Combiners
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import logging
 import unittest

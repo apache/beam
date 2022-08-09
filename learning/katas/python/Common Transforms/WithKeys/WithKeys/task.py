@@ -22,6 +22,8 @@
 #   categories:
 #     - Core Transforms
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import apache_beam as beam
 

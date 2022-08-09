@@ -22,6 +22,8 @@
 #   categories:
 #     - Side Input
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import apache_beam as beam
 

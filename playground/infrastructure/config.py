@@ -19,7 +19,7 @@ Configuration for CI/CD steps
 
 import os
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, List
 
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
     STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
@@ -72,6 +72,7 @@ class TagFields:
     default_example: str = "default_example"
     context_line: int = "context_line"
     complexity: str = "complexity"
+    tags: str = "tags"
 
 
 @dataclass(frozen=True)

@@ -31,6 +31,8 @@ package main
 //     - Branching
 //     - Multiple Outputs
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"context"

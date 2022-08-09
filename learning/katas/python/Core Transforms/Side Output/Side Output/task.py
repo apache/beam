@@ -23,6 +23,8 @@
 #     - Filtering
 #     - Multiple Outputs
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import apache_beam as beam
 from apache_beam import pvalue

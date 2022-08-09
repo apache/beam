@@ -26,6 +26,8 @@ package org.apache.beam.examples.complete.game;
 //     - Testing
 //     - Filtering
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import java.io.Serializable;
 import java.util.Arrays;

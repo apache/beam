@@ -23,6 +23,8 @@ package filter_test
 //   categories:
 //     - Filtering
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"testing"

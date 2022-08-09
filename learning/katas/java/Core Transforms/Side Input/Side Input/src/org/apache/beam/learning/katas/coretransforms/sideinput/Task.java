@@ -26,6 +26,8 @@ package org.apache.beam.learning.katas.coretransforms.sideinput;
 //    categories:
 //      - Side Input
 //    complexity: MEDIUM
+//    tags:
+//      - Example
 
 import java.util.Map;
 import org.apache.beam.learning.katas.util.Log;

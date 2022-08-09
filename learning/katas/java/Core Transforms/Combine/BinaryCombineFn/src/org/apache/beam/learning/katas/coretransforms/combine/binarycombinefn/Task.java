@@ -27,6 +27,8 @@ package org.apache.beam.learning.katas.coretransforms.combine.binarycombinefn;
 //     - Combiners
 //     - Core Transforms
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import java.math.BigInteger;
 import org.apache.beam.learning.katas.util.Log;

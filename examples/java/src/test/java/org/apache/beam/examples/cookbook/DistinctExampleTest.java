@@ -26,6 +26,8 @@ package org.apache.beam.examples.cookbook;
 //     - Core Transforms
 //     - Filtering
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import java.util.Arrays;
 import java.util.List;

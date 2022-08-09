@@ -46,6 +46,8 @@ package main
 //     - Combiners
 //     - Quickstart
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"context"

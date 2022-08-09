@@ -46,9 +46,10 @@ Tag = namedtuple(
         TagFields.categories,
         TagFields.pipeline_options,
         TagFields.default_example,
-        TagFields.context_line
+        TagFields.context_line,
+        TagFields.tags
     ],
-    defaults=(None, None, None, False, None, None, False, None))
+    defaults=(None, None, None, False, None, None, False, None, None))
 
 
 @dataclass

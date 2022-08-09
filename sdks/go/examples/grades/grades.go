@@ -25,6 +25,8 @@ package main
 //     - Combiners
 //     - Filtering
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"context"

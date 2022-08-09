@@ -30,6 +30,8 @@ package org.apache.beam.examples;
 //     - Windowing
 //     - Quickstart
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;

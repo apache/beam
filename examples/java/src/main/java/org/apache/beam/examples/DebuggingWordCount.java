@@ -30,6 +30,8 @@ package org.apache.beam.examples;
 //     - Options
 //     - Quickstart
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import java.util.Arrays;
 import java.util.List;

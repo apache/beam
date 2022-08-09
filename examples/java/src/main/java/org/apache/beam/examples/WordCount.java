@@ -28,6 +28,8 @@ package org.apache.beam.examples;
 //     - Options
 //     - Quickstart
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;

@@ -22,6 +22,8 @@
 #   categories:
 #     - Filtering
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import apache_beam as beam
 

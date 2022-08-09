@@ -29,6 +29,8 @@ package org.apache.beam.examples.complete;
 //     - Options
 //     - Joins
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import java.io.File;
 import java.io.IOException;

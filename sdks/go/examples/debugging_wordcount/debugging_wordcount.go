@@ -53,6 +53,8 @@ package main
 //     - Debugging
 //     - Quickstart
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"context"

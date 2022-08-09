@@ -69,6 +69,8 @@ python user_score.py \
 #     - Combiners
 #     - Options
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import argparse
 import csv

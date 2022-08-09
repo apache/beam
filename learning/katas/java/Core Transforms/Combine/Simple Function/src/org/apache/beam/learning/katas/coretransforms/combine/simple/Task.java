@@ -27,6 +27,8 @@ package org.apache.beam.learning.katas.coretransforms.combine.simple;
 //     - Combiners
 //     - Core Transforms
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

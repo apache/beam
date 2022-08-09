@@ -24,6 +24,8 @@ package filter_test
 //     - Filtering
 //     - Core Transforms
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"testing"

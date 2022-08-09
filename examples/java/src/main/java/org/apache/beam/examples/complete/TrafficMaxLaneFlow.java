@@ -30,6 +30,8 @@ package org.apache.beam.examples.complete;
 //     - Options
 //     - Windowing
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;

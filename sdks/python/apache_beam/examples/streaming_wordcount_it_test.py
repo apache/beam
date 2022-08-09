@@ -28,6 +28,8 @@
 #     - Streaming
 #     - IO
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import logging
 import unittest

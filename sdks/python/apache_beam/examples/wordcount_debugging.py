@@ -57,6 +57,8 @@ and an output prefix on GCS::
 #     - Filtering
 #     - Quickstart
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import argparse
 import logging

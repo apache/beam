@@ -23,6 +23,8 @@
 #     - Windowing
 #     - Combiners
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 from datetime import datetime
 import pytz

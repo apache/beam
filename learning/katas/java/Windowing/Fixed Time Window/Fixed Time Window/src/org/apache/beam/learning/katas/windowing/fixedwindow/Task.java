@@ -27,6 +27,8 @@ package org.apache.beam.learning.katas.windowing.fixedwindow;
 //     - Combiners
 //     - Streaming
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

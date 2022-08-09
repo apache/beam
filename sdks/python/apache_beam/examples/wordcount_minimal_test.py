@@ -28,6 +28,8 @@
 #     - IO
 #     - Combiners
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import collections
 import logging

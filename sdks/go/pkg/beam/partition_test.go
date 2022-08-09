@@ -23,6 +23,8 @@ package beam_test
 //   categories:
 //     - Core Transforms
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"testing"

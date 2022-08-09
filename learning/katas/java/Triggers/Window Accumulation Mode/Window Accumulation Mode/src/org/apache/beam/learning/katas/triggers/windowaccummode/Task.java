@@ -26,6 +26,8 @@ package org.apache.beam.learning.katas.triggers.windowaccummode;
 //   categories:
 //     - Streaming
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

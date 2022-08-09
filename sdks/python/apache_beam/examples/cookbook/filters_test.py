@@ -27,6 +27,8 @@
 #   categories:
 #     - Filtering
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import logging
 import time

@@ -30,6 +30,8 @@
 #     - Options
 #     - Quickstart
 #   complexity: MEDIUM
+#   tags:
+#     - Example
 
 import argparse
 import logging

@@ -50,6 +50,8 @@ package main
 //     - Core Transforms
 //     - Quickstart
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import (
 	"context"

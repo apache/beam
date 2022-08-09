@@ -30,6 +30,8 @@ package org.apache.beam.examples;
 //     - Core Transforms
 //     - Quickstart
 //   complexity: MEDIUM
+//   tags:
+//     - Example
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
