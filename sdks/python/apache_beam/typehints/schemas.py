@@ -197,6 +197,19 @@ def typing_from_runner_api(
   return SchemaTranslation(
       schema_registry=schema_registry).typing_from_runner_api(fieldtype_proto)
 
+def option_to_runner_api(
+    option: Tuple[str, Any],
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY
+) -> schema_pb2.Option:
+  return SchemaTranslation(
+      schema_registry=schema_registry).option_to_runner_api(option)
+
+
+def option_from_runner_api(
+    option_proto: schema_pb2.Option,
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> type:
+  return SchemaTranslation(
+      schema_registry=schema_registry).option_from_runner_api(option_proto)
 
 class SchemaTranslation(object):
   def __init__(self, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY):
