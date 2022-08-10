@@ -34,7 +34,7 @@ jobs:
       example_has_changed: ${{ steps.check_has_example.outputs.example_has_changed }}
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v4
@@ -65,7 +65,7 @@ jobs:
     if: needs.check_examples.outputs.example_has_changed == 'True'
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
           python-version: '3.8'
