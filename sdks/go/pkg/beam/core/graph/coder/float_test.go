@@ -35,8 +35,8 @@ func TestEncodeDecodeSinglePrecisionFloat(t *testing.T) {
 		}
 		t.Logf("Encoded %v to %v", test, buf.Bytes())
 
-		if len(buf.Bytes()) != 8 {
-			t.Errorf("len(EncodeSinglePrecisionFloat(%v)) = %v, want 8", test, len(buf.Bytes()))
+		if len(buf.Bytes()) != 4 {
+			t.Errorf("len(EncodeSinglePrecisionFloat(%v)) = %v, want 4", test, len(buf.Bytes()))
 		}
 
 		actual, err := DecodeSinglePrecisionFloat(&buf)
