@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.core.ApiService.State;
 import com.google.cloud.pubsublite.Offset;
+import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.util.Timestamps;
 import java.io.IOException;
@@ -33,13 +34,8 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
-
-  private final Logger logger = LoggerFactory.getLogger(UnboundedReaderImpl.class);
-
   private final UnboundedSource<SequencedMessage, CheckpointMarkImpl> source;
   private final MemoryBufferedSubscriber subscriber;
   private final TopicBacklogReader backlogReader;
@@ -81,13 +77,12 @@ public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
   }
 
   @Override
-  public void close() {
+  public void close() throws IOException {
     try (AutoCloseable c1 = backlogReader;
         AutoCloseable c2 = committer;
         AutoCloseable c3 = asCloseable(subscriber)) {
     } catch (Exception e) {
-      logger.info(
-          "Failed to close reader. If the runner recently resized, this can be ignored.", e);
+      throw new IOException("Failed when closing reader.", e);
     }
   }
 
@@ -102,15 +97,15 @@ public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
   }
 
   @Override
-  public boolean advance() {
+  public boolean advance() throws IOException {
     if (!subscriber.state().equals(State.RUNNING)) {
-      Throwable error =
-          subscriber.state().equals(State.FAILED)
-              ? subscriber.failureCause()
-              : new IllegalStateException(
-                  "Subscriber is in non-running state: " + subscriber.state());
-      logger.info("Subscriber failed. If the runner recently resized, this can be ignored.", error);
-      return false;
+      Throwable t = subscriber.failureCause();
+      if ("DUPLICATE_SUBSCRIBER_CONNECTIONS".equals(
+          ExtractStatus.getErrorInfoReason(ExtractStatus.toCanonical(t)))) {
+        throw new IOException(
+            "Partition reassigned to a different worker- this is expected and can be ignored.", t);
+      }
+      throw new IOException("Subscriber failed when trying to advance.", t);
     }
     if (advanced) {
       subscriber.pop();
