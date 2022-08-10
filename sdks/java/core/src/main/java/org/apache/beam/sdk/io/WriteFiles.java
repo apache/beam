@@ -949,15 +949,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         writeOrClose(writer, getDynamicDestinations().formatRecord(input));
       }
 
-      // Clean-up any prior writers that were being closed as part of this bundle before
-      // we add more to clean-up. This allows us to perform the writes in parallel with the
-      // prior elements close calls and bounds the amount of data buffered to limit the number
-      // of OOMs.
-      try {
-        MoreFutures.get(MoreFutures.allAsList(closeFutures));
-      } finally {
-        closeFutures.clear();
-      }
+      // Ensure that we clean-up any prior writers that were being closed as part of this bundle
+      // before we return from this processElement call. This allows us to perform the writes/closes
+      // in parallel with the prior elements close calls and bounds the amount of data buffered to
+      // limit the number of OOMs.
+      CompletionStage<List<Void>> pastCloseFutures = MoreFutures.allAsList(closeFutures);
+      closeFutures.clear();
 
       // Close all writers in the background
       for (Map.Entry<DestinationT, Writer<DestinationT, OutputT>> entry : writers.entrySet()) {
@@ -973,6 +970,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 new FileResult<>(writer.getOutputFile(), shard, window, c.pane(), entry.getKey())));
         closeWriterInBackground(writer);
       }
+
+      // Ensure that the past closes happen before returning and after we started the closes
+      // from this processElement call so they can happen in parallel.
+      MoreFutures.get(pastCloseFutures);
     }
 
     private void closeWriterInBackground(Writer<DestinationT, OutputT> writer) {
