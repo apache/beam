@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLoc
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Collections;
 import java.util.List;
@@ -794,15 +795,26 @@ class BatchLoads<DestinationT, ElementT>
                     null))
             .setCoder(KvCoder.of(destinationCoder, WriteTables.ResultCoder.INSTANCE));
 
+    BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+    String defaultProjectId = options.getBigQueryProject() == null
+        ? options.getProject()
+        : options.getBigQueryProject();
+
     return successfulWrites
         .apply(Keys.create())
-        .apply(
-            ParDo.of(
-                new DoFn<DestinationT, TableDestination>() {
-                  @ProcessElement
-                  public void processElement(
-                      @Element DestinationT dest, OutputReceiver<TableDestination> o) {
-                    o.output(dynamicDestinations.getTable(dest));
+        .apply("Convert to TableDestinations", MapElements.via(
+                new SimpleFunction<DestinationT, TableDestination>() {
+                  @Override
+                  public TableDestination apply(DestinationT dest) {
+                    TableDestination tableDestination = dynamicDestinations.getTable(dest);
+                    TableReference tableReference = tableDestination.getTableReference();
+
+                    // get project ID from options if it's not included in the table reference
+                    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+                      tableReference.setProjectId(defaultProjectId);
+                      tableDestination = tableDestination.withTableReference(tableReference);
+                    }
+                    return tableDestination;
                   }
                 }))
         .setCoder(tableDestinationCoder);

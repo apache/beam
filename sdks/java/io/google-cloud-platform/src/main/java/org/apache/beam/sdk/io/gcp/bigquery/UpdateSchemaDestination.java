@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.client.http.ByteArrayContent;
+import com.google.api.client.util.Strings;
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
@@ -115,13 +116,29 @@ public class UpdateSchemaDestination<DestinationT>
     pendingJobs.clear();
   }
 
+  TableDestination getTableWithDefaultProject(DestinationT destination, BigQueryOptions options) {
+    TableDestination tableDestination = dynamicDestinations.getTable(destination);
+    TableReference tableReference = tableDestination.getTableReference();
+
+    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+      tableReference.setProjectId(
+          options.getBigQueryProject() == null
+              ? options.getProject()
+              : options.getBigQueryProject());
+      tableDestination = tableDestination.withTableReference(tableReference);
+    }
+
+    return tableDestination;
+  }
+
   @ProcessElement
   public void processElement(
       @Element Iterable<KV<DestinationT, WriteTables.Result>> element,
       ProcessContext context,
       BoundedWindow window)
       throws IOException {
-    Object destination = null;
+    DestinationT destination = null;
+    BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
     for (KV<DestinationT, WriteTables.Result> entry : element) {
       destination = entry.getKey();
       if (destination != null) {
@@ -129,7 +146,7 @@ public class UpdateSchemaDestination<DestinationT>
       }
     }
     if (destination != null) {
-      TableDestination tableDestination = dynamicDestinations.getTable(destination);
+      TableDestination tableDestination = getTableWithDefaultProject(destination, options);
       TableSchema schema = dynamicDestinations.getSchema(destination);
       TableReference tableReference = tableDestination.getTableReference();
       String jobIdPrefix =
@@ -157,7 +174,7 @@ public class UpdateSchemaDestination<DestinationT>
     }
     List<KV<TableDestination, WriteTables.Result>> tableDestinations = new ArrayList<>();
     for (KV<DestinationT, WriteTables.Result> entry : element) {
-      tableDestinations.add(KV.of(dynamicDestinations.getTable(entry.getKey()), entry.getValue()));
+      tableDestinations.add(KV.of(getTableWithDefaultProject(destination, options), entry.getValue()));
     }
     context.output(tableDestinations);
   }
