@@ -16,7 +16,6 @@
 package fhirio
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -43,8 +42,9 @@ import (
 )
 
 const (
-	datasetPathFmt = "projects/%s/locations/%s/datasets/apache-beam-integration-testing"
-	testDataDir    = "../../../../data/fhir_bundles/"
+	datasetPathFmt  = "projects/%s/locations/%s/datasets/apache-beam-integration-testing"
+	tempStoragePath = "gs://temp-storage-for-end-to-end-tests"
+	testDataDir     = "../../../../data/fhir_bundles/"
 )
 
 var (
@@ -54,7 +54,7 @@ var (
 
 type fhirStoreInfo struct {
 	path           string
-	resourcesPaths []string
+	resourcesPaths [][]byte
 }
 
 func checkFlags(t *testing.T) {
@@ -94,7 +94,7 @@ func setupFhirStore(t *testing.T, shouldPopulateStore bool) (fhirStoreInfo, func
 	}
 	createdFhirStorePath := createdFhirStore.Name
 
-	var resourcePaths []string
+	var resourcePaths [][]byte
 	if shouldPopulateStore {
 		resourcePaths = populateStore(createdFhirStorePath)
 		if len(resourcePaths) == 0 {
@@ -127,10 +127,10 @@ func deleteStore(storePath string) (*healthcare.Empty, error) {
 
 // Populates fhir store with data. Note that failure to populate some data is not
 // detrimental to the tests, so it is fine to ignore.
-func populateStore(storePath string) []string {
-	resourcePaths := make([]string, 0)
+func populateStore(storePath string) [][]byte {
+	resourcePaths := make([][]byte, 0)
 	for _, bundle := range readPrettyBundles() {
-		response, err := storeService.ExecuteBundle(storePath, bytes.NewReader(bundle)).Do()
+		response, err := storeService.ExecuteBundle(storePath, strings.NewReader(bundle)).Do()
 		if err != nil {
 			continue
 		}
@@ -164,32 +164,33 @@ func populateStore(storePath string) []string {
 	return resourcePaths
 }
 
-func readPrettyBundles() [][]byte {
+func readPrettyBundles() []string {
 	files, _ := os.ReadDir(testDataDir)
-	bundles := make([][]byte, len(files))
+	bundles := make([]string, len(files))
 	for i, file := range files {
-		bundles[i], _ = os.ReadFile(testDataDir + file.Name())
+		bundle, _ := os.ReadFile(testDataDir + file.Name())
+		bundles[i] = string(bundle)
 	}
 	return bundles
 }
 
-func extractResourcePathFrom(resourceLocationURL string) (string, error) {
+func extractResourcePathFrom(resourceLocationURL string) ([]byte, error) {
 	// The resource location url is in the following format:
 	// https://healthcare.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/fhirStores/STORE_ID/fhir/RESOURCE_NAME/RESOURCE_ID/_history/HISTORY_ID
 	// But the API calls use this format: projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/fhirStores/STORE_ID/fhir/RESOURCE_NAME/RESOURCE_ID
 	startIdx := strings.Index(resourceLocationURL, "projects/")
 	endIdx := strings.Index(resourceLocationURL, "/_history")
 	if startIdx == -1 || endIdx == -1 {
-		return "", errors.New("resource location url is invalid")
+		return nil, errors.New("resource location url is invalid")
 	}
-	return resourceLocationURL[startIdx:endIdx], nil
+	return []byte(resourceLocationURL[startIdx:endIdx]), nil
 }
 
 func readTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo) func() {
 	t.Helper()
 
 	s = s.Scope("fhirio_test.readTestTask")
-	testResources := append(testStoreInfo.resourcesPaths, testStoreInfo.path+"/fhir/Patient/invalid")
+	testResources := append(testStoreInfo.resourcesPaths, []byte(testStoreInfo.path+"/fhir/Patient/invalid"))
 	resourcePathsPCollection := beam.CreateList(s, testResources)
 	resources, failedReads := fhirio.Read(s, resourcePathsPCollection)
 	passert.Count(s, resources, "", len(testStoreInfo.resourcesPaths))
@@ -197,7 +198,7 @@ func readTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo) func(
 	return nil
 }
 
-func executeBundlesTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo) func() {
+func executeBundlesTestTask(t *testing.T, s beam.Scope, _ fhirStoreInfo) func() {
 	t.Helper()
 
 	s = s.Scope("fhirio_test.executeBundlesTestTask")
@@ -244,6 +245,24 @@ func deidentifyTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo)
 	return teardownDstFhirStore
 }
 
+func importTestTask(t *testing.T, s beam.Scope, _ fhirStoreInfo) func() {
+	t.Helper()
+
+	s = s.Scope("fhirio_test.importTestTask")
+
+	fhirStorePath, teardownFhirStore := setupEmptyFhirStore(t)
+
+	patientTestResource := `{"resourceType":"Patient","id":"c1q34623-b02c-3f8b-92ea-873fc4db60da","name":[{"use":"official","family":"Smith","given":["Alice"]}],"gender":"female","birthDate":"1970-01-01"}`
+	practitionerTestResource := `{"resourceType":"Practitioner","id":"b0e04623-b02c-3f8b-92ea-943fc4db60da","name":[{"family":"Tillman293","given":["Franklin857"],"prefix":["Dr."]}],"address":[{"line":["295 VARNUM AVENUE"],"city":"LOWELL","state":"MA","postalCode":"01854","country":"US"}],"gender":"male"}`
+	testResources := beam.Create(s, patientTestResource, practitionerTestResource)
+
+	failedResources, deadLetter := fhirio.Import(s, fhirStorePath, tempStoragePath, tempStoragePath, fhirio.ContentStructureResource, testResources)
+	passert.Empty(s, failedResources)
+	passert.Empty(s, deadLetter)
+
+	return teardownFhirStore
+}
+
 func TestFhirIO(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
@@ -259,6 +278,7 @@ func TestFhirIO(t *testing.T) {
 		executeBundlesTestTask,
 		searchTestTask,
 		deidentifyTestTask,
+		importTestTask,
 	}
 	teardownTasks := make([]func(), len(testTasks))
 	for i, testTaskCallable := range testTasks {

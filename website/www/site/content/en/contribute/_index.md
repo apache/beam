@@ -76,6 +76,16 @@ Here’s a list of things you can do to get started contributing:
     </td>
   </tr>
   <tr>
+    <td>Fix an open issue</td>
+    <td class="list-text-size-md">
+      <ul>
+        <li>Comment “.take-issue” on the <a href="https://github.com/apache/beam/issues">issue you'd like to work on</a>. This will cause the issue to be assigned to you.</li>
+        <li>If appropriate, make your change and open a <a href=https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork>Pull Request</a>.</li>
+        <li>Comment “.close-issue” to close the issue once all work has been completed.</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
     <td>Improve documentation</td>
     <td>
       Click the edit icon in our documentation and it’ll take you to our <a href="https://github.com/apache/beam/">GitHub</a>, where you can automatically make the change you want and send a Pull Request.

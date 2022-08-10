@@ -41,6 +41,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -357,7 +358,7 @@ public class MultimapUserState<K, V> {
 
   private ByteString encodeValues(Iterable<V> values) {
     try {
-      ByteString.Output output = ByteString.newOutput();
+      ByteStringOutputStream output = new ByteStringOutputStream();
       for (V value : values) {
         valueCoder.encode(value, output);
       }
@@ -373,7 +374,7 @@ public class MultimapUserState<K, V> {
 
   private StateRequest createUserStateRequest(K key) {
     try {
-      ByteString.Output output = ByteString.newOutput();
+      ByteStringOutputStream output = new ByteStringOutputStream();
       mapKeyCoder.encode(key, output);
       StateRequest.Builder request = userStateRequest.toBuilder();
       request.getStateKeyBuilder().getMultimapUserStateBuilder().setMapKey(output.toByteString());
