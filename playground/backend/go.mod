@@ -15,7 +15,7 @@
 
 module beam.apache.org/playground/backend
 
-go 1.18
+go 1.16
 
 require (
 	cloud.google.com/go/datastore v1.6.0
