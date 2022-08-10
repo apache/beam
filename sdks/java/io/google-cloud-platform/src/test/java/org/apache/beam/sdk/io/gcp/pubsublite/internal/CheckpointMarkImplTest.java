@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.verify;
 
 import com.google.cloud.pubsublite.Offset;
