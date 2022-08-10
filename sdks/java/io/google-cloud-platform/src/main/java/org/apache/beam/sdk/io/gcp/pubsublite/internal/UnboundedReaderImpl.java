@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 
 public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
 
-  private final Logger logger = LoggerFactory.getLogger(ServiceCache.class);
+  private final Logger logger = LoggerFactory.getLogger(UnboundedReaderImpl.class);
 
   private final UnboundedSource<SequencedMessage, CheckpointMarkImpl> source;
   private final MemoryBufferedSubscriber subscriber;
