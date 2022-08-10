@@ -99,7 +99,8 @@ async function generateReport() {
     }
 
     if (shouldSend) {
-        sendReport("Beam High Priority Issue Report", report);
+        const totalCount = unassignedP1Issues.length + oldP1Issues.length + unassignedP0Issues.length + oldP0Issues.length
+        sendReport(`Beam High Priority Issue Report (${totalCount})`, report);
     }
 }
 
