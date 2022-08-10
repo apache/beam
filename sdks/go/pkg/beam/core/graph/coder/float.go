@@ -31,7 +31,7 @@ func EncodeSinglePrecisionFloat(value float32, w io.Writer) error {
 	return err
 }
 
-// DecodeSinglePrecisionFloat decodes a float64 in big endian format.
+// DecodeSinglePrecisionFloat decodes a float32 in big endian format.
 func DecodeSinglePrecisionFloat(r io.Reader) (float32, error) {
 	var data [4]byte
 	if err := ioutilx.ReadNBufUnsafe(r, data[:]); err != nil {
