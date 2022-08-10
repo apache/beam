@@ -35,7 +35,8 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04]
     name: Go Build
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-go@v2

@@ -17,9 +17,42 @@
     under the License.
 -->
 
-> **PLEASE update this file if you add new github action or change name/trigger phrase of a github action.**
+> **PLEASE update this file if you add new GitHub Action or change name/trigger phrase of a GitHub Action.**
 
-## Beam Github Actions
+## Beam GitHub Actions 
+
+Currently, we have both GitHub-hosted and self-hosted (GCP cloud) runners for running the GitHub Actions workflows. The majority of our workflows that run in Ubuntu and Windows run in self-hosted runners, except for those that runs on MacOS and the `Monitor Self-Hosted Runners Status` workflow that monitors our GCP self-hosted runners. 
+
+### Getting Started with self-hosted runners
+* The steps for creating your own self-hosted runners for testing your workflows in: `.github/gh-actions-self-hosted-runners/README.md`
+* Depending on your workflow's needs, it must specify the following `runs-on` tags to run in the specified operating system:
+  * Ubuntu 20.04 self-hosted runner: `[self-hosted, ubuntu-20.04]`
+  * Windows 2019 self-hosted runner: `[self-hosted,windows-server-2019]` 
+  * MacOS GitHub-hosted runner: `macos-latest`
+* Every workflow that tests the source code, needs to have the workflow trigger `pull_request_target` instead of `pull_request`.
+* For those workflows that have the `pull_request_target` trigger, in the checkout step must be added a ref to `${{ github.event.pull_request.head.sha }}` 
+``` yaml
+    - name: Checkout code
+      uses: actions/checkout@v#
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+```
+* If your workflow runs successfully in a GitHub-hosted runner but not in the self-hosted runner, it might need a new installation step. 
+```yaml
+  - name: Setup Node
+    uses: actions/setup-node@v3
+    with:
+      node-version: 16
+```
+
+* You can find the GitHub-hosted runner installations in the following links:
+  * [Ubuntu-20.04](https://github.com/actions/runner-images/blob/main/images/linux/Ubuntu2004-Readme.md#installed-apt-packages)
+  * [Windows-2019](https://github.com/actions/runner-images/blob/main/images/win/Windows2019-Readme.md)
+
+#### IMPORTANT for Committers
+* A **detailed review** for changes in the workflows is needed due to important **security concerns**.
+* **DO NOT** Approve and Run changes in the workflows in the PR Conversation tab, under "Workflow(s) awaiting approval".
+* For approving the updates in the workflows, you should go to the Repository Actions and filter All Workflows by `action_required`. The search will display the workflows that need to be reviewed before running. **Please make sure reviewing the file that is referenced by the workflow.**
 
 ### Issue Management
 

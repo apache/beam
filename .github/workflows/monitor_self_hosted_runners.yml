@@ -21,7 +21,7 @@ on:
     - cron: "0 */12 * * *"
   workflow_dispatch:
 jobs:
-  assign:
+  monitor-runners:
     name: Monitor Self-hosted Runners Status
     runs-on: ubuntu-latest
     steps:

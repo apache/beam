@@ -18,6 +18,7 @@ name: Mark and close stale pull requests
 on:
   schedule:
   - cron: '33 12 * * *'
+permissions: read-all
 jobs:
   stale:
     runs-on: [self-hosted, ubuntu-20.04]
