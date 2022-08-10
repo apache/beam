@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 
 /**
  * {@link DataStreamDecoder} treats multiple {@link ByteString}s as a single input stream decoding

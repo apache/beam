@@ -19,7 +19,7 @@ package org.apache.beam.runners.jobsubmission;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
 
 /** A job that has been prepared, but not invoked. */
 @AutoValue
