@@ -73,6 +73,7 @@ describe("JavaScript native coders", function () {
         obj: { any: "any" },
         null: null,
         bool: true,
+        array: [1, 2, 3],
         // 'undef': undefined,  // TODO(pabloem): Figure out how to support undefined encoding/decoding.
         bigint: Number.MAX_SAFE_INTEGER + 100,
       };

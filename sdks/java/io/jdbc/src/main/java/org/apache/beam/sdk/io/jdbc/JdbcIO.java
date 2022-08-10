@@ -44,8 +44,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.sql.DataSource;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -305,7 +303,6 @@ import org.slf4j.LoggerFactory;
  * Consider using <a href="https://en.wikipedia.org/wiki/Merge_(SQL)">MERGE ("upsert")
  * statements</a> supported by your database instead.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -327,7 +324,6 @@ public class JdbcIO {
   }
 
   /** Read Beam {@link Row}s from a JDBC data source. */
-  @Experimental(Kind.SCHEMAS)
   public static ReadRows readRows() {
     return new AutoValue_JdbcIO_ReadRows.Builder()
         .setFetchSize(DEFAULT_FETCH_SIZE)
@@ -594,7 +590,6 @@ public class JdbcIO {
 
   /** Implementation of {@link #readRows()}. */
   @AutoValue
-  @Experimental(Kind.SCHEMAS)
   public abstract static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
 
     abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
