@@ -405,7 +405,12 @@ environment. See the Developers&amp;rsquo; wiki for tips, guides, and FAQs on:&l
 &lt;li>&lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips">Jenkins&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ">FAQ&lt;/a>&lt;/li>
 &lt;/ul>
+&lt;a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false" aria-controls="collapseContributing">
+&lt;figure>
+&lt;img src="/images/arrow-icon_list.svg"/>
+&lt;/figure>
 &lt;h2 id="contribute-code">Contribute Code&lt;/h2>
+&lt;/a>
 &lt;div class="collapse dont-collapse-sm" id="collapseContributing">
 &lt;h3 id="create-a-pull-request">Create a Pull Request&lt;/h3>
 &lt;ol>
