@@ -59,6 +59,7 @@ public class CheckpointMarkImplTest {
     CheckpointMarkImpl impl =
         CheckpointMarkImpl.coder().decode(new ByteArrayInputStream(stream.toByteArray()));
     assertEquals(impl.offset, OFFSET);
-    assertThrows(IllegalStateException.class, impl::finalizeCheckpoint);
+    // No exception thrown despite throw to work around DirectRunner issue.
+    impl.finalizeCheckpoint();
   }
 }
