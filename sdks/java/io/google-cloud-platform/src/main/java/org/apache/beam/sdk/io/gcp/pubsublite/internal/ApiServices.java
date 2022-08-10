@@ -17,23 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import com.google.api.gax.rpc.ApiException;
-import com.google.cloud.pubsublite.Offset;
-import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
+import com.google.api.core.ApiService;
+import java.util.concurrent.TimeUnit;
 
-/**
- * The TopicBacklogReader uses the TopicStats API to aggregate the backlog, or the distance between
- * the current cursor and HEAD for a single {subscription, partition} pair.
- */
-interface TopicBacklogReader extends AutoCloseable {
+class ApiServices {
 
-  /**
-   * Compute and aggregate message statistics for message between the provided start offset and
-   * HEAD. This method is blocking.
-   *
-   * @param offset The current offset of the subscriber.
-   * @return A ComputeMessageStatsResponse with the aggregated statistics for messages in the
-   *     backlog.
-   */
-  ComputeMessageStatsResponse computeMessageStats(Offset offset) throws ApiException;
+  private ApiServices() {}
+
+  static AutoCloseable asCloseable(ApiService service) {
+    return () -> service.stopAsync().awaitTerminated(1, TimeUnit.MINUTES);
+  }
 }
