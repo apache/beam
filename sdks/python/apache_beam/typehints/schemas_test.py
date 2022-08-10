@@ -30,7 +30,10 @@ from typing import Optional
 from typing import Sequence
 
 import numpy as np
+import dill
+import cloudpickle
 from parameterized import parameterized
+from parameterized import parameterized_class
 
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
@@ -529,20 +532,6 @@ class SchemaTest(unittest.TestCase):
         expected.row_type.schema.fields,
         typing_to_runner_api(MyCuteClass).row_type.schema.fields)
 
-  def test_generated_class_pickle(self):
-    schema = schema_pb2.Schema(
-        id="some-uuid",
-        fields=[
-            schema_pb2.Field(
-                name='name',
-                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
-            )
-        ])
-    user_type = named_tuple_from_schema(schema)
-    instance = user_type(name="test")
-
-    self.assertEqual(instance, pickle.loads(pickle.dumps(instance)))
-
   def test_user_type_annotated_with_id_after_conversion(self):
     MyCuteClass = NamedTuple('MyCuteClass', [
         ('name', str),
@@ -571,6 +560,46 @@ class SchemaTest(unittest.TestCase):
             # bypass schema cache
             schema_registry=SchemaTypeRegistry()))
 
+@parameterized_class([
+    {'pickler': pickle,},
+    {'pickler': dill,},
+    {'pickler': cloudpickle,},
+])
+class PickleTest(unittest.TestCase):
+  def test_generated_class_pickle_instance(self):
+    schema = schema_pb2.Schema(
+        id="some-uuid",
+        fields=[
+            schema_pb2.Field(
+                name='name',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            )
+        ])
+    user_type = named_tuple_from_schema(schema)
+    instance = user_type(name="test")
+
+    self.assertEqual(instance, self.pickler.loads(self.pickler.dumps(instance)))
+
+  def test_generated_class_row_type_pickle(self):
+    row_proto = schema_pb2.FieldType(
+        row_type=schema_pb2.RowType(schema=schema_pb2.Schema(
+        id="some-other-uuid",
+        fields=[
+            schema_pb2.Field(
+                name='name',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            )
+        ])
+                                    )
+    )
+    row_type_constraint = typing_from_runner_api(
+        row_proto, schema_registry=SchemaTypeRegistry())
+
+    self.assertIsInstance(row_type_constraint, row_type.RowTypeConstraint)
+
+    self.assertEqual(row_type_constraint,
+                     self.pickler.loads(self.pickler.dumps(
+                         row_type_constraint)))
 
 if __name__ == '__main__':
   unittest.main()
