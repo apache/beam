@@ -149,32 +149,35 @@ PRIMITIVE_TO_ATOMIC_TYPE.update({
 
 def named_fields_to_schema(
     names_and_types: Union[Dict[str, type], Sequence[Tuple[str, type]]],
+    schema_id: Optional[str] = None,
     schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
-    field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None):
+    field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None,
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY,
+):
   schema_options = schema_options or []
   field_options = field_options or {}
 
   if isinstance(names_and_types, dict):
     names_and_types = names_and_types.items()
+
+  if schema_id is None:
+    schema_id = schema_registry.generate_new_id()
+
   return schema_pb2.Schema(
       fields=[
           schema_pb2.Field(
               name=name,
               type=typing_to_runner_api(type),
               options=[
-                  SchemaTranslation(
-                      schema_registry=SCHEMA_REGISTRY).option_to_runner_api(
-                          option_tuple)
+                  option_to_runner_api(option_tuple)
                   for option_tuple in field_options.get(name, [])
               ],
           ) for (name, type) in names_and_types
       ],
       options=[
-          SchemaTranslation(
-              schema_registry=SCHEMA_REGISTRY).option_to_runner_api(
-                  option_tuple) for option_tuple in schema_options
+          option_to_runner_api(option_tuple) for option_tuple in schema_options
       ],
-      id=SCHEMA_REGISTRY.generate_new_id())
+      id=schema_id)
 
 
 def named_fields_from_schema(
@@ -429,41 +432,15 @@ class SchemaTranslation(object):
       if user_type is None:
         # If not in SDK options (the coder likely came from another SDK),
         # generate a NamedTuple type to use.
-        from apache_beam import coders
 
-        type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
-
-        subfields = []
-        for field in schema.fields:
-          try:
-            field_py_type = self.typing_from_runner_api(field.type)
-            if isinstance(field_py_type, row_type.RowTypeConstraint):
-              field_py_type = field_py_type.user_type
-          except ValueError as e:
-            raise ValueError(
-                "Failed to decode schema due to an issue with Field proto:\n\n"
-                f"{text_format.MessageToString(field)}") from e
-
-          subfields.append((field.name, field_py_type))
-
-        user_type = NamedTuple(type_name, subfields)
-
-        # Define a reduce function, otherwise these types can't be pickled
-        # (See BEAM-9574)
-        def __reduce__(self):
-          return (
-              _hydrate_namedtuple_instance,
-              (schema.SerializeToString(), tuple(self)))
-
-        setattr(user_type, '__reduce__', __reduce__)
-
-        self.schema_registry.add(user_type, schema)
-        coders.registry.register_coder(user_type, coders.RowCoder)
-        result = row_type.RowTypeConstraint.from_user_type(
-            user_type,
+        fields = named_fields_from_schema(schema)
+        result = row_type.RowTypeConstraint.from_fields(
+            fields=fields,
+            schema_id=schema.id,
             schema_options=schema_options,
-            field_options=field_options)
-        result.set_schema_id(schema.id)
+            field_options=field_options,
+            schema_registry=self.schema_registry,
+        )
         return result
       else:
         return row_type.RowTypeConstraint.from_user_type(
@@ -481,6 +458,41 @@ class SchemaTranslation(object):
     else:
       raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
+  def named_tuple_from_schema(self, schema: schema_pb2.Schema) -> type:
+    from apache_beam import coders
+
+    assert schema.id
+    type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
+
+    subfields = []
+    for field in schema.fields:
+      try:
+        field_py_type = self.typing_from_runner_api(field.type)
+        if isinstance(field_py_type, row_type.RowTypeConstraint):
+          field_py_type = field_py_type.user_type
+      except ValueError as e:
+        raise ValueError(
+            "Failed to decode schema due to an issue with Field proto:\n\n"
+            f"{text_format.MessageToString(field)}") from e
+
+      subfields.append((field.name, field_py_type))
+
+    user_type = NamedTuple(type_name, subfields)
+
+    # Define a reduce function, otherwise these types can't be pickled
+    # (See BEAM-9574)
+    def __reduce__(self):
+      return (
+          _hydrate_namedtuple_instance,
+          (schema.SerializeToString(), tuple(self)))
+
+    setattr(user_type, '__reduce__', __reduce__)
+
+    self.schema_registry.add(user_type, schema)
+    coders.registry.register_coder(user_type, coders.RowCoder)
+
+    return user_type
+
 
 def _hydrate_namedtuple_instance(encoded_schema, values):
   return named_tuple_from_schema(
@@ -489,11 +501,8 @@ def _hydrate_namedtuple_instance(encoded_schema, values):
 
 def named_tuple_from_schema(
     schema, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> type:
-  row_type_constraint = typing_from_runner_api(
-      schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema)),
-      schema_registry=schema_registry)
-  assert isinstance(row_type_constraint, row_type.RowTypeConstraint)
-  return row_type_constraint.user_type
+  return SchemaTranslation(
+      schema_registry=schema_registry).named_tuple_from_schema(schema)
 
 
 def named_tuple_to_schema(
