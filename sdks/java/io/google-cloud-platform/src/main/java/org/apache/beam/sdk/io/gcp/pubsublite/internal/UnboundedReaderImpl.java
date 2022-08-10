@@ -33,8 +33,12 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
+
+  private final Logger logger = LoggerFactory.getLogger(ServiceCache.class);
 
   private final UnboundedSource<SequencedMessage, CheckpointMarkImpl> source;
   private final MemoryBufferedSubscriber subscriber;
@@ -77,12 +81,13 @@ public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     try (AutoCloseable c1 = backlogReader;
         AutoCloseable c2 = committer;
         AutoCloseable c3 = asCloseable(subscriber)) {
     } catch (Exception e) {
-      throw new IOException(e);
+      logger.info(
+          "Failed to close reader. If the runner recently resized, this can be ignored.", e);
     }
   }
 
@@ -97,11 +102,15 @@ public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
   }
 
   @Override
-  public boolean advance() throws IOException {
+  public boolean advance() {
     if (!subscriber.state().equals(State.RUNNING)) {
-      throw new IOException(
-          "Subscriber failed. If the runner recently resized, and the error contains `A second subscriber connected`, this can be ignored.",
-          subscriber.failureCause());
+      Throwable error =
+          subscriber.state().equals(State.FAILED)
+              ? subscriber.failureCause()
+              : new IllegalStateException(
+                  "Subscriber is in non-running state: " + subscriber.state());
+      logger.info("Subscriber failed. If the runner recently resized, this can be ignored.", error);
+      return false;
     }
     if (advanced) {
       subscriber.pop();
