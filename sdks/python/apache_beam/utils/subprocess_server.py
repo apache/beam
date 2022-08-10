@@ -115,11 +115,11 @@ class SubprocessServer(object):
       endpoint = 'localhost:%s' % port
       _LOGGER.info("Starting service with %s", str(cmd).replace("',", "'"))
 
-      with tempfile.NamedTemporaryFile(delete=False) as stdout_file:
-        self._stdout_file_name = stdout_file.name
+      stdout_file = tempfile.NamedTemporaryFile(delete=False)
+      self._stdout_file_name = stdout_file.name
       self._process = subprocess.Popen(
           cmd,
-          stdout=open(self._stdout_file_name, 'wb'),
+          stdout=stdout_file,
           stderr=subprocess.STDOUT)
 
       # Emit the output of this command as info level logging.
