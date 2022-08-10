@@ -40,7 +40,7 @@ jobs:
         with:
             distribution: 'zulu'
             java-version: '8'
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
             go-version: '${{ env.GO_VERSION }}'
       - name: Remove default github maven configuration
