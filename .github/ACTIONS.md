@@ -30,6 +30,7 @@ Currently, we have both GitHub-hosted and self-hosted (GCP cloud) runners for ru
   * Windows 2019 self-hosted runner: `[self-hosted,windows-server-2019]` 
   * MacOS GitHub-hosted runner: `macos-latest`
 * Every workflow that tests the source code, needs to have the workflow trigger `pull_request_target` instead of `pull_request`.
+* The workflow must have set read permissions for all the available scopes and jobs: `permissions: read-all`. It must be set at the top of the `jobs` directive.
 * For those workflows that have the `pull_request_target` trigger, in the checkout step must be added a ref to `${{ github.event.pull_request.head.sha }}` 
 ``` yaml
     - name: Checkout code
@@ -44,10 +45,39 @@ Currently, we have both GitHub-hosted and self-hosted (GCP cloud) runners for ru
     with:
       node-version: 16
 ```
-
 * You can find the GitHub-hosted runner installations in the following links:
   * [Ubuntu-20.04](https://github.com/actions/runner-images/blob/main/images/linux/Ubuntu2004-Readme.md#installed-apt-packages)
   * [Windows-2019](https://github.com/actions/runner-images/blob/main/images/win/Windows2019-Readme.md)
+
+#### GitHub Actions Example
+```yaml
+name: GitHub Actions Example
+on:
+  pull_request_target:
+    branches: ['master']
+permissions: read-all
+jobs:
+  github-actions-example:
+    runs-on: [self-hosted, ubuntu-20.04]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - run: echo "This job is now running on a ubuntu server hosted by Apache Beam!"
+      - name: Setup Node
+          uses: actions/setup-node@v3
+          with:
+            node-version: 16
+          - name: Install npm dependencies
+            run: npm ci
+            working-directory: 'scripts/ci/your-path'
+          - name: Run Node.js code
+            run: npm run functionName
+            env:
+              VAR_1: my-var
+            working-directory: 'scripts/ci/your-path'
+```
 
 #### IMPORTANT for Committers
 * A **detailed review** for changes in the workflows is needed due to important **security concerns**.
