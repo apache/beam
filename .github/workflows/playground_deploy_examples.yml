@@ -16,7 +16,7 @@
 name: Collect And Deploy Playground Examples
 
 on:
-  workflow_dispatch:
+  push:
   pull_request:
     types:
       - closed
