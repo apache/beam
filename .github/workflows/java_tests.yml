@@ -168,7 +168,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
       - name: Set Java Version
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v3
         with:
           java-version: 8
       - name: Remove default github maven configuration
