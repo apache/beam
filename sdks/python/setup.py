@@ -219,7 +219,7 @@ if __name__ == '__main__':
         'dill>=0.3.1.1,<0.3.2',
         'cloudpickle>=2.1.0,<3',
         'fastavro>=0.23.6,<2',
-        'grpcio>=1.33.1,<2',
+        'grpcio>=1.33.1,!=1.48.0,<2',
         'hdfs>=2.1.0,<3.0.0',
         'httplib2>=0.8,<0.21.0',
         'numpy>=1.14.3,<1.23.0',
@@ -229,8 +229,10 @@ if __name__ == '__main__':
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
+        'regex>=2020.6.8',
         'requests>=2.24.0,<3.0.0',
         'typing-extensions>=3.7.0',
+        'zstandard>=0.18.0,<1',
       # Dynamic dependencies must be specified in a separate list, otherwise
       # Dependabot won't be able to parse the main list. Any dynamic
       # dependencies will not receive updates from Dependabot.
@@ -254,9 +256,9 @@ if __name__ == '__main__':
             'pyyaml>=3.12,<7.0.0',
             'requests_mock>=1.7,<2.0',
             'tenacity>=5.0.2,<6.0',
-            'pytest>=4.4.0,<5.0',
-            'pytest-xdist>=1.29.0,<2',
-            'pytest-timeout>=1.3.3,<2',
+            'pytest>=7.1.2,<8.0',
+            'pytest-xdist>=2.5.0,<3',
+            'pytest-timeout>=2.1.0,<3',
             'scikit-learn>=0.20.0',
             'sqlalchemy>=1.3,<2.0',
             'psycopg2-binary>=2.8.5,<3.0.0',

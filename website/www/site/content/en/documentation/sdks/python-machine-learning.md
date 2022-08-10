@@ -18,6 +18,8 @@ limitations under the License.
 
 # Machine Learning
 
+{{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
+
 You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation.
 
 ## Why use the RunInference API?
@@ -161,6 +163,10 @@ For more information, see the [`PredictionResult` documentation](https://github.
 For detailed instructions explaining how to build and run a pipeline that uses ML models, see the
 [Example RunInference API pipelines](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference) on GitHub.
 
+## Beam Java SDK support
+
+RunInference API is available to Beam Java SDK 2.41.0 and later through Apache Beam [Multi-language Pipelines framework](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines). Please see [here](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java) for the Java wrapper transform to use and please see [here](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/test/java/org/apache/beam/sdk/extensions/python/transforms/RunInferenceTransformTest.java) for some example pipelines.
+
 ## Troubleshooting
 
 If you run into problems with your pipeline or job, this section lists issues that you might encounter and provides suggestions for how to fix them.
@@ -198,4 +204,5 @@ Disable batching by overriding the `batch_elements_kwargs` function in your Mode
 
 * [RunInference transforms](/documentation/transforms/python/elementwise/runinference)
 * [RunInference API pipeline examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference)
-* [apache_beam.ml.inference package](/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference)
+
+{{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}

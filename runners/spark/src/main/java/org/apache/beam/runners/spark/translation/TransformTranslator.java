@@ -363,10 +363,19 @@ public final class TransformTranslator {
           ParDo.MultiOutput<InputT, OutputT> transform, EvaluationContext context) {
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
+        DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);
+
         checkState(
-            !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+            !signature.processElement().isSplittable(),
             "Not expected to directly translate splittable DoFn, should have been overridden: %s",
             doFn);
+
+        // https://github.com/apache/beam/issues/22524
+        checkState(
+            signature.onWindowExpiration() == null,
+            "onWindowExpiration is not supported: %s",
+            doFn);
+
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
@@ -376,7 +385,6 @@ public final class TransformTranslator {
         Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all;
 
-        DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
         boolean stateful =
             signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
 

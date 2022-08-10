@@ -42,8 +42,9 @@ import (
 )
 
 const (
-	datasetPathFmt = "projects/%s/locations/%s/datasets/apache-beam-integration-testing"
-	testDataDir    = "../../../../data/fhir_bundles/"
+	datasetPathFmt  = "projects/%s/locations/%s/datasets/apache-beam-integration-testing"
+	tempStoragePath = "gs://temp-storage-for-end-to-end-tests"
+	testDataDir     = "../../../../data/fhir_bundles/"
 )
 
 var (
@@ -197,7 +198,7 @@ func readTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo) func(
 	return nil
 }
 
-func executeBundlesTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo) func() {
+func executeBundlesTestTask(t *testing.T, s beam.Scope, _ fhirStoreInfo) func() {
 	t.Helper()
 
 	s = s.Scope("fhirio_test.executeBundlesTestTask")
@@ -244,6 +245,24 @@ func deidentifyTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo)
 	return teardownDstFhirStore
 }
 
+func importTestTask(t *testing.T, s beam.Scope, _ fhirStoreInfo) func() {
+	t.Helper()
+
+	s = s.Scope("fhirio_test.importTestTask")
+
+	fhirStorePath, teardownFhirStore := setupEmptyFhirStore(t)
+
+	patientTestResource := `{"resourceType":"Patient","id":"c1q34623-b02c-3f8b-92ea-873fc4db60da","name":[{"use":"official","family":"Smith","given":["Alice"]}],"gender":"female","birthDate":"1970-01-01"}`
+	practitionerTestResource := `{"resourceType":"Practitioner","id":"b0e04623-b02c-3f8b-92ea-943fc4db60da","name":[{"family":"Tillman293","given":["Franklin857"],"prefix":["Dr."]}],"address":[{"line":["295 VARNUM AVENUE"],"city":"LOWELL","state":"MA","postalCode":"01854","country":"US"}],"gender":"male"}`
+	testResources := beam.Create(s, patientTestResource, practitionerTestResource)
+
+	failedResources, deadLetter := fhirio.Import(s, fhirStorePath, tempStoragePath, tempStoragePath, fhirio.ContentStructureResource, testResources)
+	passert.Empty(s, failedResources)
+	passert.Empty(s, deadLetter)
+
+	return teardownFhirStore
+}
+
 func TestFhirIO(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
@@ -259,6 +278,7 @@ func TestFhirIO(t *testing.T) {
 		executeBundlesTestTask,
 		searchTestTask,
 		deidentifyTestTask,
+		importTestTask,
 	}
 	teardownTasks := make([]func(), len(testTasks))
 	for i, testTaskCallable := range testTasks {

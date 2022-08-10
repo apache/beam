@@ -26,13 +26,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 const kBannerTopPadding = 60.0;
 const kDescriptionLineHeight = 1.5;
-const kBannerTitle = 'Beam Summit';
-const kBannerDescription1 =
-    'Join the Apache Beam community July 18th-20th for ';
-const kBannerDescription2 = 'Beam Summit 2022';
-const kBannerDescription3 =
-    ' to learn more about Beam and share your expertise.';
-const kSummitUrl = 'https://2022.beamsummit.org';
+const kBannerTitle = '';
+const kBannerDescription1 = '';
+const kHyperlinkText = '';
+const kBannerDescription2 = '';
+const kBannerUrl = '';
 
 class BannerDescription extends StatelessWidget {
   const BannerDescription({Key? key}) : super(key: key);
@@ -76,10 +74,10 @@ class BannerDescription extends StatelessWidget {
                               mouseCursor: SystemMouseCursors.click,
                               recognizer: TapGestureRecognizer()
                                 ..onTap = () async {
-                                  launchUrl(Uri.parse(kSummitUrl));
+                                  launchUrl(Uri.parse(kBannerUrl));
                                 }),
                           TextSpan(
-                            text: kBannerDescription3,
+                            text: kHyperlinkText,
                             style: TextStyle(
                               color: ThemeColors.of(context).textColor,
                               height: kDescriptionLineHeight,
