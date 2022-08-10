@@ -20,14 +20,12 @@ package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 import java.io.Serializable;
 
 /**
- * A ManagedBacklogReaderFactory produces TopicBacklogReaders and tears down any produced readers
- * when it is itself closed.
+ * A ManagedFactory produces instances and tears down any produced instances when it is itself
+ * closed.
  *
- * <p>close() should never be called on produced readers.
+ * <p>close() should never be called on produced instances.
  */
-public interface ManagedBacklogReaderFactory extends AutoCloseable, Serializable {
-  TopicBacklogReader newReader(SubscriptionPartition subscriptionPartition);
+public interface ManagedFactory<T extends AutoCloseable> extends AutoCloseable, Serializable {
 
-  @Override
-  void close();
+  T create(SubscriptionPartition subscriptionPartition);
 }
