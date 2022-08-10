@@ -118,9 +118,7 @@ class SubprocessServer(object):
       stdout_file = tempfile.NamedTemporaryFile(delete=False)
       self._stdout_file_name = stdout_file.name
       self._process = subprocess.Popen(
-          cmd,
-          stdout=stdout_file,
-          stderr=subprocess.STDOUT)
+          cmd, stdout=stdout_file, stderr=subprocess.STDOUT)
 
       # Emit the output of this command as info level logging.
       def log_stdout():
