@@ -32,7 +32,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
   implementation project(":runners:core-construction-java")
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   implementation library.java.slf4j_api
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation library.java.joda_time
