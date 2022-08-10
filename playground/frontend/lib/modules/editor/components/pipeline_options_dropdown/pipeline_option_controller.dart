@@ -15,19 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import java.io.Serializable;
+import 'package:flutter/widgets.dart';
 
-/**
- * A ManagedBacklogReaderFactory produces TopicBacklogReaders and tears down any produced readers
- * when it is itself closed.
- *
- * <p>close() should never be called on produced readers.
- */
-public interface ManagedBacklogReaderFactory extends AutoCloseable, Serializable {
-  TopicBacklogReader newReader(SubscriptionPartition subscriptionPartition);
+class PipelineOptionController {
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController valueController = TextEditingController();
 
-  @Override
-  void close();
+  PipelineOptionController({String name = '', String value = ''}) {
+    nameController.text = name;
+    valueController.text = value;
+  }
+
+  void dispose() {
+    nameController.dispose();
+    valueController.dispose();
+  }
 }

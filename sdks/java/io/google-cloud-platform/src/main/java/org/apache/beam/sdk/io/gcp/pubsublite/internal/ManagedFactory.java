@@ -15,15 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import 'package:flutter/cupertino.dart';
+import java.io.Serializable;
 
-class PipelineOptionController {
-  final TextEditingController name = TextEditingController();
-  final TextEditingController value = TextEditingController();
+/**
+ * A ManagedFactory produces instances and tears down any produced instances when it is itself
+ * closed.
+ *
+ * <p>close() should never be called on produced instances.
+ */
+public interface ManagedFactory<T extends AutoCloseable> extends AutoCloseable, Serializable {
 
-  PipelineOptionController({String name = '', String value = ''}) {
-    this.name.text = name;
-    this.value.text = value;
-  }
+  T create(SubscriptionPartition subscriptionPartition);
 }

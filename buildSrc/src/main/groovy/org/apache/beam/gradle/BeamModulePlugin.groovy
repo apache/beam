@@ -2510,6 +2510,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // specific binary here could make gradle delete it while pip will believe
         // the package is fully installed.
         outputs.dirs(project.ext.envdir)
+        outputs.upToDateWhen { false }
       }
 
       project.ext.pythonSdkDeps = project.files(

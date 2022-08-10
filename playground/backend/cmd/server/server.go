@@ -45,11 +45,6 @@ func runServer() error {
 		return err
 	}
 
-	props, err := environment.NewProperties(envService.ApplicationEnvs.PropertyPath())
-	if err != nil {
-		return err
-	}
-
 	logger.SetupLogger(ctx, envService.ApplicationEnvs.LaunchSite(), envService.ApplicationEnvs.GoogleProjectId())
 
 	grpcServer := grpc.NewServer()
@@ -61,11 +56,17 @@ func runServer() error {
 
 	var dbClient db.Database
 	var entityMapper mapper.EntityMapper
+	var props *environment.Properties
 
 	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	// Database setup only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	if envService.BeamSdkEnvs.ApacheBeamSdk == pb.Sdk_SDK_UNSPECIFIED {
 		err = setupExamplesCatalog(ctx, cacheService, envService.ApplicationEnvs.BucketName())
+		if err != nil {
+			return err
+		}
+
+		props, err = environment.NewProperties(envService.ApplicationEnvs.PropertyPath())
 		if err != nil {
 			return err
 		}
