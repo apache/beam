@@ -40,7 +40,8 @@ async function monitorRunnerStatus() {
         });
 
         let runners = await octokit.request(`GET /orgs/${process.env.ORG}/actions/runners`, {
-            org: process.env.ORG
+            org: process.env.ORG,
+            per_page: 100,
         });
 
 
