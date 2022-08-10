@@ -26,8 +26,8 @@ from typing import Sequence
 from typing import Tuple
 
 from apache_beam.typehints import typehints
-from apache_beam.typehints.schema_registry import SchemaTypeRegistry
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
+from apache_beam.typehints.schema_registry import SchemaTypeRegistry
 
 # Name of the attribute added to user types (existing and generated) to store
 # the corresponding schema ID
@@ -116,11 +116,12 @@ class RowTypeConstraint(typehints.TypeConstraint):
       field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None,
       schema_registry: SchemaTypeRegistry = None,
   ) -> RowTypeConstraint:
-    return GeneratedClassRowTypeConstraint(fields,
-                                           schema_id=schema_id,
-                                           schema_options=schema_options,
-                                           field_options=field_options,
-                                           schema_registry=schema_registry)
+    return GeneratedClassRowTypeConstraint(
+        fields,
+        schema_id=schema_id,
+        schema_options=schema_options,
+        field_options=field_options,
+        schema_registry=schema_registry)
 
   @property
   def user_type(self):
@@ -191,21 +192,26 @@ class GeneratedClassRowTypeConstraint(RowTypeConstraint):
     else:
       kwargs = {'schema_registry': schema_registry}
 
-    schema = named_fields_to_schema(fields,
-                                    schema_id=schema_id,
-                                    schema_options=schema_options,
-                                    field_options=field_options,
-                                    **kwargs)
+    schema = named_fields_to_schema(
+        fields,
+        schema_id=schema_id,
+        schema_options=schema_options,
+        field_options=field_options,
+        **kwargs)
     user_type = named_tuple_from_schema(schema, **kwargs)
     setattr(user_type, _BEAM_SCHEMA_ID, schema_id)
 
-    super().__init__(fields,
-                     user_type,
-                     schema_options=schema_options,
-                     field_options=field_options)
+    super().__init__(
+        fields,
+        user_type,
+        schema_options=schema_options,
+        field_options=field_options)
 
   def __reduce__(self):
     return (
         RowTypeConstraint.from_fields,
-        (self._fields, self._schema_id, self._schema_options,
-         self._field_options))
+        (
+            self._fields,
+            self._schema_id,
+            self._schema_options,
+            self._field_options))

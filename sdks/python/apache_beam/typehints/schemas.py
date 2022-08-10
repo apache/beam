@@ -73,14 +73,14 @@ from google.protobuf import text_format
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
-from apache_beam.typehints.schema_registry import SchemaTypeRegistry
-from apache_beam.typehints.schema_registry import SCHEMA_REGISTRY
 from apache_beam.typehints.native_type_compatibility import _get_args
 from apache_beam.typehints.native_type_compatibility import _match_is_exactly_mapping
 from apache_beam.typehints.native_type_compatibility import _match_is_optional
 from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
+from apache_beam.typehints.schema_registry import SCHEMA_REGISTRY
+from apache_beam.typehints.schema_registry import SchemaTypeRegistry
 from apache_beam.utils import proto_utils
 from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
@@ -167,10 +167,10 @@ def typing_from_runner_api(
   return SchemaTranslation(
       schema_registry=schema_registry).typing_from_runner_api(fieldtype_proto)
 
+
 def option_to_runner_api(
     option: Tuple[str, Any],
-    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY
-) -> schema_pb2.Option:
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> schema_pb2.Option:
   return SchemaTranslation(
       schema_registry=schema_registry).option_to_runner_api(option)
 
@@ -180,6 +180,7 @@ def option_from_runner_api(
     schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> type:
   return SchemaTranslation(
       schema_registry=schema_registry).option_from_runner_api(option_proto)
+
 
 class SchemaTranslation(object):
   def __init__(self, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY):

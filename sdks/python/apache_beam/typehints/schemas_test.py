@@ -29,9 +29,9 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 
-import numpy as np
-import dill
 import cloudpickle
+import dill
+import numpy as np
 from parameterized import parameterized
 from parameterized import parameterized_class
 
@@ -562,10 +562,17 @@ class SchemaTest(unittest.TestCase):
             # bypass schema cache
             schema_registry=SchemaTypeRegistry()))
 
+
 @parameterized_class([
-    {'pickler': pickle,},
-    {'pickler': dill,},
-    {'pickler': cloudpickle,},
+    {
+        'pickler': pickle,
+    },
+    {
+        'pickler': dill,
+    },
+    {
+        'pickler': cloudpickle,
+    },
 ])
 class PickleTest(unittest.TestCase):
   def test_generated_class_pickle_instance(self):
@@ -584,24 +591,25 @@ class PickleTest(unittest.TestCase):
 
   def test_generated_class_row_type_pickle(self):
     row_proto = schema_pb2.FieldType(
-        row_type=schema_pb2.RowType(schema=schema_pb2.Schema(
-        id="some-other-uuid",
-        fields=[
-            schema_pb2.Field(
-                name='name',
-                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
-            )
-        ])
-                                    )
-    )
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(
+                id="some-other-uuid",
+                fields=[
+                    schema_pb2.Field(
+                        name='name',
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.STRING),
+                    )
+                ])))
     row_type_constraint = typing_from_runner_api(
         row_proto, schema_registry=SchemaTypeRegistry())
 
     self.assertIsInstance(row_type_constraint, row_type.RowTypeConstraint)
 
-    self.assertEqual(row_type_constraint,
-                     self.pickler.loads(self.pickler.dumps(
-                         row_type_constraint)))
+    self.assertEqual(
+        row_type_constraint,
+        self.pickler.loads(self.pickler.dumps(row_type_constraint)))
+
 
 if __name__ == '__main__':
   unittest.main()
