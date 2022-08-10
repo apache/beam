@@ -16,12 +16,29 @@
  * limitations under the License.
  */
 
-class SelectorPositionModel {
-  final double xAlignment;
-  final double yAlignment;
+import 'package:flutter/material.dart';
+import 'package:playground/constants/sizes.dart';
 
-  const SelectorPositionModel({
-    required this.xAlignment,
-    required this.yAlignment,
+class ShareTabBody extends StatelessWidget {
+  final List<Widget> children;
+
+  const ShareTabBody({
+    super.key,
+    required this.children,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: kXlSpacing,
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: children,
+        ),
+      ),
+    );
+  }
 }
