@@ -181,21 +181,6 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
                 this::newPartitionProcessor)));
   }
 
-  private static final class SdfTransform
-      extends PTransform<PBegin, PCollection<SequencedMessage>> {
-
-    private final SubscribeTransform impl;
-
-    private SdfTransform(SubscribeTransform impl) {
-      this.impl = impl;
-    }
-
-    @Override
-    public PCollection<SequencedMessage> expand(PBegin input) {
-      return impl.expandSdf(input);
-    }
-  }
-
   private PCollection<SequencedMessage> expandSource(PBegin input) {
     return input.apply(
         Read.from(
@@ -219,16 +204,17 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
 
   public static final PTransformOverride V1_READ_OVERRIDE =
       PTransformOverride.of(
-          PTransformMatchers.classEqualTo(SdfTransform.class), new ReadOverrideFactory());
+          PTransformMatchers.classEqualTo(SubscribeTransform.class), new ReadOverrideFactory());
 
   private static class ReadOverrideFactory
-      implements PTransformOverrideFactory<PBegin, PCollection<SequencedMessage>, SdfTransform> {
+      implements PTransformOverrideFactory<
+          PBegin, PCollection<SequencedMessage>, SubscribeTransform> {
 
     @Override
     public PTransformReplacement<PBegin, PCollection<SequencedMessage>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<SequencedMessage>, SdfTransform> transform) {
+        AppliedPTransform<PBegin, PCollection<SequencedMessage>, SubscribeTransform> transform) {
       return PTransformReplacement.of(
-          transform.getPipeline().begin(), new SourceTransform(transform.getTransform().impl));
+          transform.getPipeline().begin(), new SourceTransform(transform.getTransform()));
     }
 
     @Override
@@ -240,6 +226,6 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
 
   @Override
   public PCollection<SequencedMessage> expand(PBegin input) {
-    return input.apply(new SdfTransform(this));
+    return expandSdf(input);
   }
 }
