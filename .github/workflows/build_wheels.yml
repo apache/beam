@@ -66,7 +66,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.7
       - name: Get build dependencies
@@ -228,7 +228,7 @@ jobs:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
     - name: Install Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.7
     - uses: docker/setup-qemu-action@v1
