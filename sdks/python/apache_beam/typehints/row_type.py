@@ -26,6 +26,7 @@ from typing import Sequence
 from typing import Tuple
 
 from apache_beam.typehints import typehints
+from apache_beam.typehints.schema_registry import SchemaTypeRegistry
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 
 # Name of the attribute added to user types (existing and generated) to store

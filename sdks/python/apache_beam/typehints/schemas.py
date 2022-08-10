@@ -73,6 +73,8 @@ from google.protobuf import text_format
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
+from apache_beam.typehints.schema_registry import SchemaTypeRegistry
+from apache_beam.typehints.schema_registry import SCHEMA_REGISTRY
 from apache_beam.typehints.native_type_compatibility import _get_args
 from apache_beam.typehints.native_type_compatibility import _match_is_exactly_mapping
 from apache_beam.typehints.native_type_compatibility import _match_is_optional
@@ -84,41 +86,6 @@ from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
 
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
-
-
-# Registry of typings for a schema by UUID
-class SchemaTypeRegistry(object):
-  def __init__(self):
-    self.by_id = {}
-    self.by_typing = {}
-
-  def generate_new_id(self):
-    # Import uuid locally to guarantee we don't actually generate a uuid
-    # elsewhere in this file.
-    from uuid import uuid4
-    for _ in range(100):
-      schema_id = str(uuid4())
-      if schema_id not in self.by_id:
-        return schema_id
-
-    raise AssertionError(
-        "Failed to generate a unique UUID for schema after "
-        f"100 tries! Registry contains {len(self.by_id)} "
-        "schemas.")
-
-  def add(self, typing, schema):
-    self.by_id[schema.id] = (typing, schema)
-
-  def get_typing_by_id(self, unique_id):
-    result = self.by_id.get(unique_id, None)
-    return result[0] if result is not None else None
-
-  def get_schema_by_id(self, unique_id):
-    result = self.by_id.get(unique_id, None)
-    return result[1] if result is not None else None
-
-
-SCHEMA_REGISTRY = SchemaTypeRegistry()
 
 # Bi-directional mappings
 _PRIMITIVES = (
