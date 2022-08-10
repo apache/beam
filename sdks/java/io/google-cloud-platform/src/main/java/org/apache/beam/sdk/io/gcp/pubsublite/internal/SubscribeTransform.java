@@ -240,6 +240,6 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
 
   @Override
   public PCollection<SequencedMessage> expand(PBegin input) {
-    return input.apply(new SdfTransform());
+    return input.apply(new SdfTransform(this));
   }
 }
