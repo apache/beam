@@ -25,7 +25,7 @@ package org.apache.beam.learning.katas.coretransforms.map.mapelements;
 //   context_line: 38
 //   categories:
 //     - Core Transforms
-//   complexity: MEDIUM
+//   complexity: BASIC
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

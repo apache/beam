@@ -56,7 +56,7 @@ and an output prefix on GCS::
 #     - Combiners
 #     - Filtering
 #     - Quickstart
-#   complexity: MEDIUM
+#   complexity: ADVANCED
 
 import argparse
 import logging

@@ -29,7 +29,7 @@ package org.apache.beam.examples.complete;
 //     - Streaming
 //     - Options
 //     - Windowing
-//   complexity: MEDIUM
+//   complexity: ADVANCED
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;

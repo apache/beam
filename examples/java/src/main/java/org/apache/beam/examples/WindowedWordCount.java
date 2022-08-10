@@ -29,7 +29,7 @@ package org.apache.beam.examples;
 //     - Options
 //     - Windowing
 //     - Quickstart
-//   complexity: MEDIUM
+//   complexity: ADVANCED
 
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;

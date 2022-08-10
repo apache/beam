@@ -22,7 +22,7 @@
 #   categories:
 #     - Filtering
 #     - Multiple Outputs
-#   complexity: MEDIUM
+#   complexity: BASIC
 
 import apache_beam as beam
 from apache_beam import pvalue

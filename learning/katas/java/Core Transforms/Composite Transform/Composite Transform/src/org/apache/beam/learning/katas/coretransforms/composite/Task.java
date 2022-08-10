@@ -28,7 +28,7 @@ package org.apache.beam.learning.katas.coretransforms.composite;
 //     - Combiners
 //     - Flatten
 //     - Core Transforms
-//   complexity: MEDIUM
+//   complexity: BASIC
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 

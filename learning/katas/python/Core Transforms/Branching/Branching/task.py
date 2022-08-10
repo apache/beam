@@ -23,7 +23,7 @@
 #   categories:
 #     - Branching
 #     - Multiple Outputs
-#   complexity: MEDIUM
+#   complexity: BASIC
 
 import apache_beam as beam
 

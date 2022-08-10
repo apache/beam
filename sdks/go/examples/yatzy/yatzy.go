@@ -27,7 +27,7 @@ package main
 //   categories:
 //     - IO
 //     - Side Input
-//   complexity: MEDIUM
+//   complexity: ADVANCED
 
 import (
 	"context"
