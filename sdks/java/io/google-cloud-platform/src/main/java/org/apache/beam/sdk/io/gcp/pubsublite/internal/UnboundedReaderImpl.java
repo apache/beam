@@ -100,8 +100,8 @@ public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
   public boolean advance() throws IOException {
     if (!subscriber.state().equals(State.RUNNING)) {
       Throwable t = subscriber.failureCause();
-      if ("DUPLICATE_SUBSCRIBER_CONNECTIONS".equals(
-          ExtractStatus.getErrorInfoReason(ExtractStatus.toCanonical(t)))) {
+      if ("DUPLICATE_SUBSCRIBER_CONNECTIONS"
+          .equals(ExtractStatus.getErrorInfoReason(ExtractStatus.toCanonical(t)))) {
         throw new IOException(
             "Partition reassigned to a different worker- this is expected and can be ignored.", t);
       }
