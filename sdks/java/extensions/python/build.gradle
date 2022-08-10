@@ -25,7 +25,7 @@ evaluationDependsOn(":runners:core-construction-java")
 
 dependencies {
     implementation library.java.vendored_guava_26_0_jre
-    implementation library.java.vendored_grpc_1_43_2
+    implementation library.java.vendored_grpc_1_48_1
     implementation library.java.slf4j_api
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":runners:core-construction-java")

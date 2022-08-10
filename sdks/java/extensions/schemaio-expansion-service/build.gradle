@@ -38,7 +38,7 @@ dependencies {
     permitUnusedDeclared library.java.postgres // BEAM-11761
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation library.java.vendored_grpc_1_43_2
+    implementation library.java.vendored_grpc_1_48_1
     implementation library.java.vendored_guava_26_0_jre
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
