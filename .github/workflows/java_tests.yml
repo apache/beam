@@ -170,6 +170,7 @@ jobs:
       - name: Set Java Version
         uses: actions/setup-java@v3
         with:
+          distribution: 'zulu'
           java-version: 8
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
