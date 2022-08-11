@@ -89,14 +89,12 @@ At first glance we considered implementing Windows runners using K8s, however th
 ![Diagram](diagrams/self-hosted-runners-architecture.png)
 
 
-## Monitor Self-hosted Runners
+## GitHub Actions Workflow - Monitor Self-hosted Runners 
 
-In order to monitor the Self-hosted Runners status, we have a separate workflow using GitHub Hosted Runners, this workflow calls periodically a Cloud Function that serves data about the number of active and offline runners, in case of failure this workflow will send an email 
-alert to the dev distribution.
+In order to monitor the Self-hosted Runners status, we have implemented a separate GitHub Actions workflow using GitHub-hosted runners, this workflow periodically calls a Cloud Function that serves data regarding the number of `active` and `offline` runners. In case of failure this workflow will send an email 
+alert to the dev distribution email `dev@beam.apache.org`.
 
-The Cloud Function uses the endpoints provided by the installed GitHub App to retrieve  information about the runners.
-
-
+The Cloud Function uses the endpoints provided by the installed GitHub App to retrieve information about the runners.
 
 ## Cronjob - Delete Unused Self-hosted Runners
 
