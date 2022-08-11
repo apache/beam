@@ -186,7 +186,7 @@ jobs:
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: source_zip
           path: source/
@@ -217,13 +217,13 @@ jobs:
             arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
@@ -295,7 +295,7 @@ jobs:
         os : [ubuntu-latest, macos-latest, windows-latest]
     steps:
     - name: Download wheels from artifacts
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: wheelhouse-${{ matrix.os }}
         path: wheelhouse/
