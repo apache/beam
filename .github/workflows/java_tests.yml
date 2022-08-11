@@ -76,7 +76,7 @@ jobs:
         with:
           arguments: -p sdks/java/core/ test
       - name: Upload test logs for :sdks:java:core:test
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: java_unit_tests-sdks-java-core-test-${{ matrix.os }}
@@ -88,7 +88,7 @@ jobs:
           arguments: -p sdks/java/harness/ test
         if: always()
       - name: Upload test logs for :sdks:java:harness:test
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: java_unit_tests-sdks-java-harness-test-${{ matrix.os }}
@@ -100,7 +100,7 @@ jobs:
           arguments: -p runners/core-java/ test
         if: always()
       - name: Upload test logs for :runners:core-java:test
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: java_unit_tests-runners-core-java-test-${{ matrix.os }}
@@ -130,7 +130,7 @@ jobs:
             -DintegrationTestRunner=direct
             -DintegrationTestPipelineOptions=["--runner=DirectRunner","--tempRoot=./tmp"]
       - name: Upload test logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: java_wordcount_direct_runner-${{matrix.os}}
@@ -183,7 +183,7 @@ jobs:
             -DintegrationTestPipelineOptions=["--runner=DataflowRunner","--project=${{ secrets.GCP_PROJECT_ID }}","--tempRoot=gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/"]
             -DintegrationTestRunner=dataflow
       - name: Upload test logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: java_wordcount_dataflow-${{matrix.os}}
