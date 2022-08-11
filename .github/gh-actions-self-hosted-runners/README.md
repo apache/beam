@@ -18,7 +18,7 @@
 # GitHub Actions - Self-hosted Runners
 The current GitHub Actions workflows are being tested on multiple operating systems, such as Ubuntu, Windows and MacOS. The way to migrate these runners from GitHub to GCP is by implementing self-hosted runners, so we implemented them in both Ubuntu and Windows environments, going with Google Kubernetes Engine and Google Cloud Compute VMs instances respectively.
 
-On the other hand, we will rely on GitHub-hosted runners for MacOS builds until a straightforward implementation approach comes out. 
+On the other hand, we will rely on GitHub-hosted runners for MacOS builds until a straightforward implementation approach comes out.
 
 ## Ubuntu
 Ubuntu Self-hosted runners are stored in Artifact Registry and implemented using Google Kubernetes Engine with the following specifications:
@@ -43,11 +43,11 @@ Ubuntu Self-hosted runners are stored in Artifact Registry and implemented using
 * Image: $LOCAL_IMAGE_NAME LOCATION-docker.pkg.dev/PROJECT-ID/REPOSITORY/IMAGE:latest
 * CPU: 2
 * Memory: 1028 Mi
-* Volumes 
+* Volumes
   * docker-sock
   * gcloud-key
 * Secret env variables
-  * Kubernetes Secrets 
+  * Kubernetes Secrets
     * github-actions-secrets
     * gcloud-key
 
@@ -58,7 +58,7 @@ Ubuntu Self-hosted runners are stored in Artifact Registry and implemented using
     * Min replicas: 10
     * Max replicas: 20
     * CPU utilization: 70%
-* Vertical Pod Autoscaling 
+* Vertical Pod Autoscaling
   * updateMode: "Auto"
 
 
@@ -89,9 +89,9 @@ At first glance we considered implementing Windows runners using K8s, however th
 ![Diagram](diagrams/self-hosted-runners-architecture.png)
 
 
-## GitHub Actions Workflow - Monitor Self-hosted Runners 
+## GitHub Actions Workflow - Monitor Self-hosted Runners
 
-In order to monitor the Self-hosted Runners status, we have implemented a separate GitHub Actions workflow using GitHub-hosted runners, this workflow periodically calls a Cloud Function that serves data regarding the number of `active` and `offline` runners. In case of failure this workflow will send an email 
+In order to monitor the Self-hosted Runners status, we have implemented a separate GitHub Actions workflow using GitHub-hosted runners, this workflow periodically calls a Cloud Function that serves data regarding the number of `active` and `offline` runners. In case of failure this workflow will send an email
 alert to the dev distribution email `dev@beam.apache.org`.
 
 The Cloud Function uses the endpoints provided by the installed GitHub App to retrieve information about the runners.
