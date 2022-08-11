@@ -75,8 +75,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Install Java
         uses: actions/setup-java@v3
-        distribution: 'temurin'
-        java-version: '8'
+        with:
+          distribution: 'temurin'
+          java-version: '8'
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
@@ -194,7 +195,7 @@ jobs:
       - name: Install Java
         uses: actions/setup-java@v3
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: '8'
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
