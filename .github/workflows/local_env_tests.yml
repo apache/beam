@@ -52,6 +52,11 @@ jobs:
           java-version: '8'
       - name: Install python3 venv
         run: sudo apt install python3.8-venv -y
+      - name: Remove default GitHub maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # settings.xml file
+        run: rm ~/.m2/settings.xml
       - name: "Gradle check"
         run: "./gradlew checkSetup"
         id: local_env_install_gradle_check_ubuntu
