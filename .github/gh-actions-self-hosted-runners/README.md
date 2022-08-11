@@ -88,6 +88,16 @@ At first glance we considered implementing Windows runners using K8s, however th
 ## Self-Hosted Runners Architecture
 ![Diagram](diagrams/self-hosted-runners-architecture.png)
 
+
+## Monitor Self-hosted Runners
+
+In order to monitor the Self-hosted Runners status, we have a separate workflow using GitHub Hosted Runners, this workflow calls periodically a Cloud Function that serves data about the number of active and offline runners, in case of failure this workflow will send an email 
+alert to the dev distribution.
+
+The Cloud Function uses the endpoints provided by the installed GitHub App to retrieve  information about the runners.
+
+
+
 ## Cronjob - Delete Unused Self-hosted Runners
 
 Depending on the termination event, sometimes the removal script for offline runners is not triggered correctly from inside the VMs or K8s pod, because of that an additional pipeline was created in order to clean up the list of GitHub runners in the group.

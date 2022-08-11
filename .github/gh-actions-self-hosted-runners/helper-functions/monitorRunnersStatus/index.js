@@ -39,7 +39,7 @@ async function monitorRunnerStatus() {
         });
         let runners = await octokit.request(`GET /orgs/${process.env.ORG}/actions/runners`, {
             org: process.env.ORG,
-            per_page: 100,
+            per_page: 100, // In order to avoid cropped results we are explicitly setting this option in combination with a daily cleanup
         });
 
         //Filtering BEAM runners
