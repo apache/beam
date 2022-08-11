@@ -176,7 +176,7 @@ jobs:
         with:
           go-version: '1.18'
       - name: Download source from artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: python_sdk_source
           path: apache-beam-source
