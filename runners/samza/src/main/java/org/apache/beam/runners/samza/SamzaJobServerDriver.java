@@ -30,13 +30,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server for the Samza runner. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SamzaJobServerDriver extends JobServerDriver {
 
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobServerDriver.class);
 
   /** Samza runner-specific Configuration for the jobServer. */
   public static class SamzaServerConfiguration extends ServerConfiguration {
-    @Option(name = "--job-non-logged-store-base-dir", usage = "The job server host name")
+    @Option(
+        name = "--job-non-logged-store-base-dir",
+        usage =
+            "Base dir for non logger store, job name will be automatically "
+                + "appended after job submission.")
     private String jobNonLoggedStoreBaseDir = null;
 
     @Nullable
@@ -44,7 +51,11 @@ public class SamzaJobServerDriver extends JobServerDriver {
       return jobNonLoggedStoreBaseDir;
     }
 
-    @Option(name = "--job-logged-store-base-dir", usage = "The job server host name")
+    @Option(
+        name = "--job-logged-store-base-dir",
+        usage =
+            "Base dir for logger store, job name will be automatically "
+                + "appended after job submission.")
     private String jobLoggedStoreBaseDir = null;
 
     @Nullable
