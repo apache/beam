@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.tpcds;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -379,7 +380,13 @@ public class SqlTransformRunner {
     return schemaResults;
   }
 
+  @SuppressWarnings({"nullness"})
   private static InfluxDBSettings getInfluxSettings(final TpcdsOptions options) {
+    checkStateNotNull(options.getInfluxHost(), "InfluxHost cannot be null");
+    checkStateNotNull(options.getInfluxDatabase(), "InfluxDatabase cannot be null");
+    checkStateNotNull(options.getBaseInfluxMeasurement(), "BaseInfluxMeasurement cannot be null");
+    checkStateNotNull(options.getInfluxRetentionPolicy(), "InfluxRetentionPolicy cannot be null");
+
     return InfluxDBSettings.builder()
         .withHost(options.getInfluxHost())
         .withDatabase(options.getInfluxDatabase())
