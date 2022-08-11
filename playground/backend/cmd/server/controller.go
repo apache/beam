@@ -367,7 +367,7 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, info *p
 	}
 	if controller.db == nil {
 		logger.Error("SaveSnippet(): the runner is trying to save the snippet")
-		return nil, errors.NotFoundError(errorTitleSaveSnippet, "The runner is not able to save the snippet")
+		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "The runner is not able to save the snippet")
 	}
 	if info.Files == nil || len(info.Files) == 0 {
 		logger.Error("SaveSnippet(): files are empty")
@@ -407,7 +407,7 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, info *p
 func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb.GetSnippetRequest) (*pb.GetSnippetResponse, error) {
 	if controller.db == nil {
 		logger.Error("GetSnippet(): the runner is trying to read the snippet")
-		return nil, errors.NotFoundError(errorTitleGetSnippet, "The runner is not able to read the snippet")
+		return nil, errors.InvalidArgumentError(errorTitleGetSnippet, "The runner is not able to read the snippet")
 	}
 	snippet, err := controller.db.GetSnippet(ctx, info.GetId())
 	if err != nil {
