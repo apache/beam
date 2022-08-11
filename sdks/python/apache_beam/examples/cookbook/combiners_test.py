@@ -34,7 +34,8 @@ checked directly on the last PCollection produced.
 #     - Combiners
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - combine
+#     - test
 
 import logging
 import unittest

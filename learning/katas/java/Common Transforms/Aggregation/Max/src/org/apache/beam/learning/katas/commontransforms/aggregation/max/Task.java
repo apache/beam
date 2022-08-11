@@ -27,7 +27,8 @@ package org.apache.beam.learning.katas.commontransforms.aggregation.max;
 //     - Combiners
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - count
+//     - numbers
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

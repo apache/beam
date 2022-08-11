@@ -46,7 +46,9 @@ package main
 //     - Flatten
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - pipeline
+//     - split
+//     - runner
 
 import (
 	"context"

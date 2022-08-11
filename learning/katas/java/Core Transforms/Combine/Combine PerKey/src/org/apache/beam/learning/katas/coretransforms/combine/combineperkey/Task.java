@@ -28,7 +28,9 @@ package org.apache.beam.learning.katas.coretransforms.combine.combineperkey;
 //     - Core Transforms
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - count
+//     - transforms
+//     - numbers
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

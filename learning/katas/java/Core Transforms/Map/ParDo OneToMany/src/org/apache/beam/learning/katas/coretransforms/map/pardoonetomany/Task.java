@@ -28,7 +28,8 @@ package org.apache.beam.learning.katas.coretransforms.map.pardoonetomany;
 //     - Core Transforms
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - transform
+//     - strings
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

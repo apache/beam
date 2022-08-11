@@ -28,7 +28,8 @@ package org.apache.beam.learning.katas.coretransforms.combine.binarycombinefnlam
 //     - Core Transforms
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - transform
+//     - numbers
 
 import java.math.BigInteger;
 import org.apache.beam.learning.katas.util.Log;

@@ -28,7 +28,9 @@ package org.apache.beam.learning.katas.coretransforms.groupbykey;
 //     - Core Transforms
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - transform
+//     - map
+//     - strings
 
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;

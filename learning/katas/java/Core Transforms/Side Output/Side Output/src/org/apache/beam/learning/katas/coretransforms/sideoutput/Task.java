@@ -29,7 +29,9 @@ package org.apache.beam.learning.katas.coretransforms.sideoutput;
 //     - Multiple Outputs
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - transform
+//     - numbers
+//     - output
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

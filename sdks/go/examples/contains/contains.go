@@ -27,7 +27,9 @@ package main
 //     - Debugging
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - count
+//     - io
+//     - strings
 
 import (
 	"context"

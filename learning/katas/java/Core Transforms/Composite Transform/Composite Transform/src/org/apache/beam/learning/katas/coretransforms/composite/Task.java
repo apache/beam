@@ -30,7 +30,10 @@ package org.apache.beam.learning.katas.coretransforms.composite;
 //     - Core Transforms
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - count
+//     - map
+//     - transforms
+//     - numbers
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 

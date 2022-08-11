@@ -42,7 +42,8 @@ package main
 //     - Branching
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - pipeline
+//     - branch
 
 import (
 	"context"

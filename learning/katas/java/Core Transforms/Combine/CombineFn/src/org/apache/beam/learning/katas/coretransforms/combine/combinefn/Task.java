@@ -28,7 +28,9 @@ package org.apache.beam.learning.katas.coretransforms.combine.combinefn;
 //     - Core Transforms
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - count
+//     - transforms
+//     - numbers
 
 import java.io.Serializable;
 import java.util.Objects;

@@ -27,7 +27,8 @@ package org.apache.beam.examples.complete.game;
 //     - Filtering
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - tfidf
+//     - test
 
 import java.io.Serializable;
 import java.util.Arrays;

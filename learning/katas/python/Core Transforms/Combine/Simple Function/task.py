@@ -23,7 +23,9 @@
 #     - Combiners
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - count
+#     - combine
+#     - numbers
 
 import apache_beam as beam
 

@@ -29,7 +29,8 @@ package org.apache.beam.examples;
 //     - Quickstart
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - count
+//     - strings
 
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;

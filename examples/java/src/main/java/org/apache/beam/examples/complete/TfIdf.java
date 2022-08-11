@@ -30,7 +30,9 @@ package org.apache.beam.examples.complete;
 //     - Joins
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - tfidf
+//     - count
+//     - strings
 
 import java.io.File;
 import java.io.IOException;

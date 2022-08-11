@@ -27,7 +27,8 @@ package org.apache.beam.learning.katas.commontransforms.filter.pardo;
 //     - Filtering
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - filter
+//     - numbers
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

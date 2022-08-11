@@ -31,7 +31,9 @@ package org.apache.beam.examples;
 //     - Quickstart
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - filter
+//     - flatmap
+//     - strings
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;

@@ -29,7 +29,9 @@ package main
 //     - Side Input
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - pipeline
+//     - random
+//     - numbers
 
 import (
 	"context"

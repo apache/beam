@@ -29,7 +29,9 @@ package org.apache.beam.learning.katas.coretransforms.flatten;
 //     - Core Transforms
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - transform
+//     - join
+//     - strings
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

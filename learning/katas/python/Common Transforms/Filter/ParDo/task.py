@@ -23,7 +23,8 @@
 #     - Filtering
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - filter
+#     - numbers
 
 import apache_beam as beam
 

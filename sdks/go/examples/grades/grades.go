@@ -26,7 +26,10 @@ package main
 //     - Filtering
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - combine
+//     - map
+//     - strings
+//     - numbers
 
 import (
 	"context"

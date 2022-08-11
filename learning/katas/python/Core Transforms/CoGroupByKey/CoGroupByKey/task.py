@@ -24,7 +24,10 @@
 #     - Combiners
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - join
+#     - map
+#     - group
+#     - strings
 
 import apache_beam as beam
 

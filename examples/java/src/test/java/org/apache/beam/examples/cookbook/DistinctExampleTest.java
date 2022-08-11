@@ -27,7 +27,8 @@ package org.apache.beam.examples.cookbook;
 //     - Filtering
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - distinct
+//     - test
 
 import java.util.Arrays;
 import java.util.List;

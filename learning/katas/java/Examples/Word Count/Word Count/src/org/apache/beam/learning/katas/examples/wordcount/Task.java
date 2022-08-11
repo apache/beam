@@ -27,7 +27,9 @@ package org.apache.beam.learning.katas.examples.wordcount;
 //     - Combiners
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - count
+//     - transform
+//     - numbers
 
 import java.util.Arrays;
 import org.apache.beam.learning.katas.util.Log;

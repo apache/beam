@@ -24,7 +24,10 @@
 #     - Multiple Outputs
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - transform
+#     - map
+#     - output
+#     - strings
 
 import apache_beam as beam
 from apache_beam import pvalue

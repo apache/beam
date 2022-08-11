@@ -61,7 +61,9 @@ pipeline. You can see the results in your output bucket in the GCS browser.
 #     - Quickstart
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - count
+#     - strings
+#     - hellobeam
 
 import argparse
 import logging

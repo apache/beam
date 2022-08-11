@@ -23,7 +23,8 @@
 #     - Core Transforms
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - map
+#     - strings
 
 import apache_beam as beam
 

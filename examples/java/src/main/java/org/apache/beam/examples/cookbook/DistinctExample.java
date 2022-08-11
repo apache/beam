@@ -31,7 +31,8 @@ package org.apache.beam.examples.cookbook;
 //     - Core Transforms
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - distinct
+//     - strings
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;

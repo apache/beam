@@ -47,7 +47,11 @@ package main
 //     - Quickstart
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - count
+//     - stream
+//     - windowing
+//     - io
+//     - strings
 
 import (
 	"context"

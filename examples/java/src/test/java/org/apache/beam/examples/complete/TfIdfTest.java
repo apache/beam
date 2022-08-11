@@ -27,7 +27,8 @@ package org.apache.beam.examples.complete;
 //     - Flatten
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - tfidf
+//     - test
 
 import java.net.URI;
 import java.util.Arrays;

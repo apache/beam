@@ -31,7 +31,8 @@ package org.apache.beam.examples.complete;
 //     - Windowing
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - count
+//     - timestamp
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;

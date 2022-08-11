@@ -29,7 +29,9 @@ package org.apache.beam.learning.katas.coretransforms.branching;
 //     - Core Transforms
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - branch
+//     - transform
+//     - numbers
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 

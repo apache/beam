@@ -24,7 +24,7 @@
 #     - Quickstart
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - hellobeam
 
 import apache_beam as beam
 

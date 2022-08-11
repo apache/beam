@@ -29,7 +29,9 @@
 #     - IO
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - streaming
+#     - count
+#     - test
 
 import logging
 import unittest

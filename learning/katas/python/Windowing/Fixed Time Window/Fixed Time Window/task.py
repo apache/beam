@@ -24,7 +24,10 @@
 #     - Combiners
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - windowing
+#     - combine
+#     - count
+#     - event
 
 from datetime import datetime
 import pytz

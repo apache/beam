@@ -25,7 +25,11 @@
 #     - Streaming
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - windowing
+#     - triggers
+#     - count
+#     - accumulation
+#     - event
 
 import apache_beam as beam
 from generate_event import GenerateEvent

@@ -23,7 +23,8 @@
 #     - Core Transforms
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - transform
+#     - numbers
 
 import apache_beam as beam
 

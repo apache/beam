@@ -23,7 +23,9 @@
 #     - Combiners
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - map
+#     - group
+#     - strings
 
 import apache_beam as beam
 

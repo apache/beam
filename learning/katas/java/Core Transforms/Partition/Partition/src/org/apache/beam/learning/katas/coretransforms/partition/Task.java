@@ -29,7 +29,9 @@ package org.apache.beam.learning.katas.coretransforms.partition;
 //     - Multiple Outputs
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - split
+//     - transform
+//     - numbers
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

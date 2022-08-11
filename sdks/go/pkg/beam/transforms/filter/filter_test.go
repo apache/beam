@@ -24,7 +24,8 @@ package filter_test
 //     - Filtering
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - filter
+//     - test
 
 import (
 	"testing"
