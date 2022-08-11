@@ -48,24 +48,34 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * SparkStructuredStreamingRunner is based on spark structured streaming framework and is no more
- * based on RDD/DStream API. See
- * https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html It is still
- * experimental, its coverage of the Beam model is partial. The SparkStructuredStreamingRunner
- * translate operations defined on a pipeline to a representation executable by Spark, and then
- * submitting the job to Spark to be executed. If we wanted to run a Beam pipeline with the default
- * options of a single threaded spark instance in local mode, we would do the following:
+ * A Spark runner build on top of Spark's SQL Engine (<a
+ * href="https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html">Structured
+ * Streaming framework</a>).
  *
- * <p>{@code Pipeline p = [logic for pipeline creation] SparkStructuredStreamingPipelineResult
- * result = (SparkStructuredStreamingPipelineResult) p.run(); }
+ * <p><b>This runner is experimental, its coverage of the Beam model is still partial. Due to
+ * limitations of the Structured Streaming framework (e.g. lack of support for multiple stateful
+ * operators), streaming mode is not yet supported by this runner. </b>
+ *
+ * <p>The runner translates transforms defined on a Beam pipeline to Spark `Dataset` transformations
+ * (leveraging the high level Dataset API) and then submits these to Spark to be executed.
+ *
+ * <p>To run a Beam pipeline with the default options using Spark's local mode, we would do the
+ * following:
+ *
+ * <pre>{@code
+ * Pipeline p = [logic for pipeline creation]
+ * PipelineResult result = p.run();
+ * }</pre>
  *
  * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
  * we would do the following:
  *
- * <p>{@code Pipeline p = [logic for pipeline creation] SparkStructuredStreamingPipelineOptions
- * options = SparkPipelineOptionsFactory.create(); options.setSparkMaster("spark://host:port");
- * SparkStructuredStreamingPipelineResult result = (SparkStructuredStreamingPipelineResult) p.run();
- * }
+ * <pre>{@code
+ * Pipeline p = [logic for pipeline creation]
+ * SparkCommonPipelineOptions options = p.getOptions.as(SparkCommonPipelineOptions.class);
+ * options.setSparkMaster("spark://host:port");
+ * PipelineResult result = p.run();
+ * }</pre>
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

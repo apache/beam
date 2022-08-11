@@ -27,6 +27,7 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -43,10 +44,6 @@ import org.slf4j.LoggerFactory;
  * Base class that gives a context for {@link PTransform} translation: keeping track of the
  * datasets, the {@link SparkSession}, the current transform being translated.
  */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class TranslationContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
@@ -81,17 +78,13 @@ public class TranslationContext {
     return serializablePipelineOptions;
   }
 
-  // --------------------------------------------------------------------------------------------
-  //  Datasets methods
-  // --------------------------------------------------------------------------------------------
-
   public <T> Encoder<T> encoderOf(Coder<T> coder, Function<Coder<T>, Encoder<T>> loadFn) {
     return (Encoder<T>) encoders.computeIfAbsent(coder, (Function) loadFn);
   }
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // can't be avoided
   public <T> Dataset<WindowedValue<T>> getDataset(PCollection<T> pCollection) {
-    Dataset<?> dataset = datasets.get(pCollection);
+    Dataset<?> dataset = Preconditions.checkStateNotNull(datasets.get(pCollection));
     // assume that the Dataset is used as an input if retrieved here. So it is not a leaf anymore
     leaves.remove(dataset);
     return (Dataset<WindowedValue<T>>) dataset;
@@ -111,16 +104,16 @@ public class TranslationContext {
     }
   }
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // can't be avoided
   public <T> Dataset<T> getSideInputDataSet(PCollectionView<?> value) {
-    return (Dataset<T>) broadcastDataSets.get(value);
+    return (Dataset<T>) Preconditions.checkStateNotNull(broadcastDataSets.get(value));
   }
 
-  // --------------------------------------------------------------------------------------------
-  //  Pipeline methods
-  // --------------------------------------------------------------------------------------------
-
-  /** Starts the batch pipeline, streaming is not supported. */
+  /**
+   * Starts the batch pipeline, streaming is not supported.
+   *
+   * @see org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner
+   */
   public void startPipeline() {
     encoders.clear();
 
@@ -141,7 +134,7 @@ public class TranslationContext {
     // cannot use dataset.show because dataset schema is binary so it will print binary
     // code.
     List<WindowedValue<T>> windowedValues = dataset.collectAsList();
-    for (WindowedValue windowedValue : windowedValues) {
+    for (WindowedValue<?> windowedValue : windowedValues) {
       System.out.println(windowedValue);
     }
   }

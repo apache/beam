@@ -509,9 +509,8 @@ public class EncoderHelpers {
     return new GetColumnByOrdinal(0, dt);
   }
 
-  @SuppressWarnings("nullness") // Literal null is fine to use
   private static Expression nullSafe(Expression in, Expression out) {
-    return new If(new IsNull(in), new Literal(null, out.dataType()), out);
+    return new If(new IsNull(in), lit(null, out.dataType()), out);
   }
 
   private static Expression ifNotNull(Expression expr, Expression otherwise) {
@@ -522,7 +521,7 @@ public class EncoderHelpers {
     return Literal$.MODULE$.apply(t);
   }
 
-  @SuppressWarnings("nullness") // literal null is allowed
+  @SuppressWarnings("nullness") // literal NULL is allowed
   private static <T> Expression lit(@Nullable T t, DataType dataType) {
     return new Literal(t, dataType);
   }

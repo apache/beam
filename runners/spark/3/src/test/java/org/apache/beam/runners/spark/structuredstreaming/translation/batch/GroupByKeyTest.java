@@ -167,7 +167,6 @@ public class GroupByKeyTest implements Serializable {
     pipeline.run();
   }
 
-  @SuppressWarnings("rawtypes")
   static class AssertContains<K, V> extends DoFn<KV<K, Iterable<V>>, Void> {
     private final Map<K, List<SerializableMatcher<Iterable<? extends V>>>> byKey;
 

@@ -273,7 +273,7 @@ class GroupByKeyTranslatorBatch<K, V>
     return Literal$.MODULE$.apply(t);
   }
 
-  @SuppressWarnings("nullness")
+  @SuppressWarnings("nullness") // NULL literal
   private static Expression litNull(DataType dataType) {
     return new Literal(null, dataType);
   }
