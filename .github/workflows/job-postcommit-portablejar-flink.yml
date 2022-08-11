@@ -25,7 +25,7 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: '^sdks/python/test-suites/portable/*'
+  #  paths: '^sdks/python/test-suites/portable/*'
 
 jobs:
   java_vr_dataflow_v2:
