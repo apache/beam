@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 #Dokerfile to set up the Beam Go SDK
-ARG BASE_IMAGE=golang:1.16-bullseye
+ARG BASE_IMAGE=golang:1.18-bullseye
 FROM $BASE_IMAGE
 
 # Setup Go Environment
@@ -29,7 +29,7 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1 &&\
 # Prepare Application
 COPY src /go/src/playground/backend
 
-ARG BEAM_VERSION=2.39.0
+ARG BEAM_VERSION=2.40.0
 ENV PREPARED_MOD_DIR=/opt/playground/prepared_folder/
 ENV PIPELINES_FOLDER_NAME="executable_files"
 RUN mkdir -p /opt/playground/ $PREPARED_MOD_DIR
