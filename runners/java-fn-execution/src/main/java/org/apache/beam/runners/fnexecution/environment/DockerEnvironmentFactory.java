@@ -182,7 +182,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     // TODO(https://github.com/apache/beam/issues/19061): Allow this to be disabled manually.
     if (Files.exists(Paths.get(localGcloudConfig))) {
       return ImmutableList.of(
-          "--mount",
+          "-v",
           String.format("type=bind,src=%s,dst=%s", localGcloudConfig, dockerGcloudConfig));
     } else {
       return ImmutableList.of();
