@@ -15,19 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import java.io.Serializable;
+import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart';
+import 'package:playground/modules/examples/models/example_origin.dart';
 
-/**
- * A ManagedBacklogReaderFactory produces TopicBacklogReaders and tears down any produced readers
- * when it is itself closed.
- *
- * <p>close() should never be called on produced readers.
- */
-public interface ManagedBacklogReaderFactory extends AutoCloseable, Serializable {
-  TopicBacklogReader newReader(SubscriptionPartition subscriptionPartition);
+class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  final String snippetId;
 
-  @Override
-  void close();
+  const UserSharedExampleLoadingDescriptor({
+    required this.snippetId,
+  });
+
+  @override
+  ExampleOrigin get origin => ExampleOrigin.userShared;
+
+  @override
+  String toString() => '$origin-$snippetId';
+
+  @override
+  int get hashCode => snippetId.hashCode;
+
+  @override
+  bool operator ==(Object other) {
+    return other is UserSharedExampleLoadingDescriptor &&
+        snippetId == other.snippetId;
+  }
 }

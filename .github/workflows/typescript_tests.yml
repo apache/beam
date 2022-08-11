@@ -41,13 +41,13 @@ jobs:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Install node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: '16'
       - run: npm ci

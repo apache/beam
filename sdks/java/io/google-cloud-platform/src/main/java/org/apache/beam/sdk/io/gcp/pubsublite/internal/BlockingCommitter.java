@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import com.google.cloud.pubsublite.Offset;
 
-interface BlockingCommitter {
+interface BlockingCommitter extends AutoCloseable {
+
   void commitOffset(Offset offset);
 }

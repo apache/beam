@@ -42,8 +42,8 @@ jobs:
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Check out code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: "Check are GCP variables set"
@@ -68,12 +68,12 @@ jobs:
       - check_gcp_variables
     runs-on: [self-hosted, ubuntu-20.04]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Check out code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.7
       - name: Get build dependencies
@@ -104,12 +104,12 @@ jobs:
           {"py_ver": "3.9", "tox_env": "py39"},
         ]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Check out code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.params.py_ver }}
       - name: Get build dependencies
@@ -141,12 +141,12 @@ jobs:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
         python: [3.7, 3.8, 3.9]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Check out code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
       - name: Get build dependencies
@@ -171,16 +171,16 @@ jobs:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
         python: [3.7, 3.8, 3.9]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Check out code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
       - name: Install go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: '1.18'
       - name: Download source from artifacts

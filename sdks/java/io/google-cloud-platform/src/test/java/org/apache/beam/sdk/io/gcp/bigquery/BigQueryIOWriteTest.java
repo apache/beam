@@ -2610,7 +2610,7 @@ public class BigQueryIOWriteTest implements Serializable {
           e.getMessage(),
           is(
               "Cannot use getFailedInsertsWithErr as this WriteResult "
-                  + "does not use extended errors. Use getFailedInserts instead"));
+                  + "does not use extended errors. Use getFailedInserts or getFailedStorageApiInserts instead"));
     }
 
     try {
@@ -2623,7 +2623,7 @@ public class BigQueryIOWriteTest implements Serializable {
           e.getMessage(),
           is(
               "Cannot use getFailedInserts as this WriteResult "
-                  + "uses extended errors information. Use getFailedInsertsWithErr instead"));
+                  + "uses extended errors information. Use getFailedInsertsWithErr or getFailedStorageApiInserts instead"));
     }
 
     try {
