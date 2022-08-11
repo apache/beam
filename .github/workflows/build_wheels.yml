@@ -110,12 +110,12 @@ jobs:
         working-directory: ./sdks/python
         run: mv $(ls | grep apache-beam) apache-beam-source
       - name: Upload source as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: source
           path: sdks/python/apache-beam-source
       - name: Upload compressed sources as artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: source_zip
           path: sdks/python/dist
@@ -152,13 +152,13 @@ jobs:
         run: mv $(ls | grep apache-beam) apache-beam-source-rc
       - name: Upload RC source as artifact
         if: steps.is_rc.outputs.is_rc == 1
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: source_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/apache-beam-source-rc
       - name: Upload compressed RC sources as artifacts
         if: steps.is_rc.outputs.is_rc == 1
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: source_zip_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/dist
@@ -189,7 +189,7 @@ jobs:
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: source_zip
           path: source/
@@ -223,13 +223,13 @@ jobs:
       if: contains(matrix.os_python.os, 'windows-server-2019')
       run: if ((Test-Path C:\actionsDir\_work\beam\beam\apache-beam-source\wheelhouse)) { Get-ChildItem -Path C:\actionsDir\_work\beam\beam\apache-beam-source\wheelhouse -Include *.* -File -Recurse | foreach { $_.Delete()}}
     - name: Download python source distribution from artifacts
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
@@ -261,7 +261,7 @@ jobs:
         done
       shell: bash
     - name: Upload wheels as artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse-${{ matrix.os_python.os }}
         path: apache-beam-source/wheelhouse/
@@ -284,7 +284,7 @@ jobs:
       shell: bash
     - name: Upload RC wheels as artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.os_python.os }}
         path: apache-beam-source-rc/wheelhouse/
@@ -301,7 +301,7 @@ jobs:
         os : [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
     steps:
     - name: Download wheels from artifacts
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: wheelhouse-${{ matrix.os }}
         path: wheelhouse/
