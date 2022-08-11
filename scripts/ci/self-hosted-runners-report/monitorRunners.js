@@ -31,9 +31,7 @@ async function getRunnersStatus() {
 
 async function sendAlertEmail(status) {
     statusTables = {}
-
     //Creating status tables
-
     for (let OS of ["Linux", "Windows"]) {
         statusTables[OS] = `
         <h3> ${OS} </h3>
@@ -78,7 +76,6 @@ async function sendAlertEmail(status) {
 }
 
 async function monitorRunnersStatus() {
-
     const status = await getRunnersStatus().catch(console.error);
     console.log(status);
     if (status.Linux.onlineRunners == 0 || status.Windows.onlineRunners == 0) {
@@ -101,6 +98,4 @@ validateEnvSet('IDENTITY_TOKEN')
 validateEnvSet('ISSUE_REPORT_SENDER_EMAIL_SERVICE')
 validateEnvSet('ENDPOINT')
 
-
 monitorRunnersStatus();
-

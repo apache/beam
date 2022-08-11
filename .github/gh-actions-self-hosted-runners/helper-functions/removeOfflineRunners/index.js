@@ -33,18 +33,13 @@ async function removeOfflineRunners() {
             clientSecret: process.env.CLIENT_NAME,
             installationId: process.env.APP_INSTALLATION_ID
         }
-        
         const octokit = new Octokit({
             authStrategy: createAppAuth,
             auth: authOptions
         });
-
         let runners = await octokit.request(`GET /orgs/${process.env.ORG}/actions/runners`, {
             org: process.env.ORG
         });
-
-
-
 
         //Filtering BEAM runners
         let beamRunners = runners.data.runners.filter(runner => {
@@ -54,7 +49,6 @@ async function removeOfflineRunners() {
                 }
             }
             return false;
-
         });
 
         //Getting offline runners only
@@ -72,11 +66,8 @@ async function removeOfflineRunners() {
     }
 }
 
-
 functions.http('removeOfflineRunners', (req, res) => {
     removeOfflineRunners().then((status) => {
         res.status(200).send(status);
     });
 });
-
-

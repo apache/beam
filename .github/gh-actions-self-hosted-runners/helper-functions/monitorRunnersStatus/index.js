@@ -33,19 +33,14 @@ async function monitorRunnerStatus() {
             clientSecret: process.env.CLIENT_NAME,
             installationId: process.env.APP_INSTALLATION_ID
         }
-
         const octokit = new Octokit({
             authStrategy: createAppAuth,
             auth: authOptions
         });
-
         let runners = await octokit.request(`GET /orgs/${process.env.ORG}/actions/runners`, {
             org: process.env.ORG,
             per_page: 100,
         });
-
-
-
 
         //Filtering BEAM runners
         let beamRunners = runners.data.runners.filter(runner => {
@@ -55,7 +50,6 @@ async function monitorRunnerStatus() {
                 }
             }
             return false;
-
         });
 
         //Dividing status for each runner OS    
@@ -70,19 +64,15 @@ async function monitorRunnerStatus() {
                 }
                 return false;
             });
-
             let onlineRunners = osRunners.filter(runner => {
                 return runner.status == "online";
             });
-            
             status[os] = {
                 "totalRunners": osRunners.length,
                 "onlineRunners": onlineRunners.length,
                 "offlineRunners": osRunners.length - onlineRunners.length
             }
-
         }
-
         return status;
     } catch (error) {
         console.error(error);
@@ -90,11 +80,7 @@ async function monitorRunnerStatus() {
 }
 
 functions.http('monitorRunnerStatus', (req, res) => {
-
     monitorRunnerStatus().then((status) => {
         res.status(200).send(status);
     });
-
 });
-
-

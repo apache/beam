@@ -15,10 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Chmod of docker.sock
+# Change the access permissions of docker.sock
 sudo chmod 666 /var/run/docker.sock
 
-# Verify gcloud and docker-compose installation
+# Verify gcloud and docker compose installation
 gcloud version && docker compose version
 
 # Activate the mounted Service Account.

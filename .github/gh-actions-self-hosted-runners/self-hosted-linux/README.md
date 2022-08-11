@@ -59,7 +59,7 @@ These folders contain the required resources to deploy the GitHub Actions self-h
 
 * Run the container
 
-`docker-compose up`
+`docker compose up`
 
 * You will be able to see the self-hosted runner in the Settings of your GitHub repository
 
