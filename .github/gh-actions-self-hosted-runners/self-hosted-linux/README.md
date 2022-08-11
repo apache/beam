@@ -44,6 +44,8 @@ These folders contain the required resources to deploy the GitHub Actions self-h
 
 `docker push LOCATION-docker.pkg.dev/PROJECT-ID/REPOSITORY/IMAGE:latest`
 
+* _**Important: Please add the commit hash as a tag when a new image is uploaded.**_
+
 #### How to run a self-hosted locally?
 
 * Create a `.var.env` file from the `example.var.env` file and replace the corresponding values:
@@ -52,7 +54,7 @@ These folders contain the required resources to deploy the GitHub Actions self-h
   * ORG_RUNNER_GROUP: Name of the GitHub Actions Runner Group. You can find it here: https://github.com/organizations/ORG_NAME/settings/actions/runner-groups
   * ORG_NAME: Name of the Organization
   * GCP_REGION: GCP Region where your Cloud Function is deployed
-  * GCP_PROJECT_ID: GCP Project Id where your Cloud Function is deployed
+  * GCP_PROJECT_ID: GCP Project ID where your Cloud Function is deployed
 
 
 * Run the container

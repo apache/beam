@@ -16,15 +16,15 @@
     limitations under the License.
 -->
 # GitHub Actions - Self-hosted Runners
-The current GitHub Actions workflows are being tested on multiple operating systems, such as Ubuntu, Windows and MacOS. The way to migrate these runners from GitHub to GCP is by implementing self-hosted runners, so we have started implementing them in both Ubuntu and Windows environments, going with Google Kubernetes Engine and Google Cloud Compute VMs instances respectively.
+The current GitHub Actions workflows are being tested on multiple operating systems, such as Ubuntu, Windows and MacOS. The way to migrate these runners from GitHub to GCP is by implementing self-hosted runners, so we implemented them in both Ubuntu and Windows environments, going with Google Kubernetes Engine and Google Cloud Compute VMs instances respectively.
 
-In addition, we are working on researching the best way to implement the MacOS self-hosted runners.
+On the other hand, we will rely on GitHub-hosted runners for MacOS builds until a straightforward implementation approach comes out. 
 
 ## Ubuntu
 Ubuntu Self-hosted runners are stored in Artifact Registry and implemented using Google Kubernetes Engine with the following specifications:
 
 #### Cluster
-* Cluster: [github-actions-linux-runners](https://console.cloud.google.com/kubernetes/clusters/details/us-central1-a/github-actions-linux-runners/details?project=apache-beam-testing)
+* Cluster: [gh-actions-linux-runners](https://console.cloud.google.com/kubernetes/clusters/details/us-central1-a/gh-actions-linux-runners/details?project=apache-beam-testing)
 * Image: [linux-github-actions-runner](https://console.cloud.google.com/artifacts/docker/apache-beam-testing/us-central1/beam-github-actions/linux-github-actions-runner?project=apache-beam-testing)
 
 #### Pool
