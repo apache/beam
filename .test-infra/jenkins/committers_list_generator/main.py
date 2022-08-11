@@ -35,7 +35,7 @@ _FILENAME = "Committers.groovy"
 _PEOPLE_DN = "ou=people,dc=apache,dc=org"
 _BEAM_DN = "cn=beam,ou=project,ou=groups,dc=apache,dc=org"
 _GITHUB_USERNAME_ATTR = "githubUsername"
-_DEFAULT_LDAP_URIS = "ldaps://ldap-us-ro.apache.org:636 ldaps://ldap-eu-ro.apache.org:636"
+_DEFAULT_LDAP_URIS = "ldaps://ldap-us.apache.org:636 ldaps://ldap-eu.apache.org:636"
 _DEFAULT_CERT_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "cert.pem")
 
 
