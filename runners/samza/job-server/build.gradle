@@ -58,16 +58,12 @@ runShadow {
 
 def portableValidatesRunnerTask(String name, boolean docker) {
   def tempDir = File.createTempDir()
-  def pipelineOptions = [
-      "--configOverride={\"job.non-logged.store.base.dir\":\"" + tempDir + "\"}"
-  ]
   createPortableValidatesRunnerTask(
       name: "validatesPortableRunner${name}",
       jobServerDriver: "org.apache.beam.runners.samza.SamzaJobServerDriver",
-      jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
+      jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0,--job-non-logged-store-base-dir=" + tempDir,
       testClasspathConfiguration: configurations.validatesPortableRunner,
       numParallelTests: 1,
-      pipelineOpts: pipelineOptions,
       environment: docker ? BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.DOCKER : BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
       testCategories: {
             if (docker) {

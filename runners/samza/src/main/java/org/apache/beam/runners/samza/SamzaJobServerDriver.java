@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza;
 
+import javax.annotation.Nullable;
 import org.apache.beam.runners.jobsubmission.JobServerDriver;
 import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.io.FileSystems;
@@ -24,6 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +35,23 @@ public class SamzaJobServerDriver extends JobServerDriver {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobServerDriver.class);
 
   /** Samza runner-specific Configuration for the jobServer. */
-  public static class SamzaServerConfiguration extends ServerConfiguration {}
+  public static class SamzaServerConfiguration extends ServerConfiguration {
+    @Option(name = "--job-non-logged-store-base-dir", usage = "The job server host name")
+    private String jobNonLoggedStoreBaseDir = null;
+
+    @Nullable
+    String getJobNonLoggedStoreBaseDir() {
+      return jobNonLoggedStoreBaseDir;
+    }
+
+    @Option(name = "--job-logged-store-base-dir", usage = "The job server host name")
+    private String jobLoggedStoreBaseDir = null;
+
+    @Nullable
+    String getJobLoggedStoreBaseDir() {
+      return jobLoggedStoreBaseDir;
+    }
+  }
 
   public static void main(String[] args) {
     // TODO: Expose the fileSystem related options.

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.samza;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -26,9 +28,11 @@ import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.runners.jobsubmission.JobInvoker;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarCreator;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.samza.config.JobConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,17 +43,23 @@ public class SamzaJobInvoker extends JobInvoker {
 
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobInvoker.class);
 
+  private final String nonLoggedStoreBaseDir;
+  private final String loggedStoreBaseDir;
+
   public static SamzaJobInvoker create(
       SamzaJobServerDriver.SamzaServerConfiguration configuration) {
-    return new SamzaJobInvoker();
+    return new SamzaJobInvoker(configuration);
   }
 
-  private SamzaJobInvoker() {
-    this("samza-runner-job-invoker-%d");
+  private SamzaJobInvoker(SamzaJobServerDriver.SamzaServerConfiguration configuration) {
+    this("samza-runner-job-invoker-%d", configuration);
   }
 
-  protected SamzaJobInvoker(String name) {
+  protected SamzaJobInvoker(
+      String name, SamzaJobServerDriver.SamzaServerConfiguration configuration) {
     super(name);
+    nonLoggedStoreBaseDir = configuration.getJobNonLoggedStoreBaseDir();
+    loggedStoreBaseDir = configuration.getJobLoggedStoreBaseDir();
   }
 
   @Override
@@ -60,7 +70,8 @@ public class SamzaJobInvoker extends JobInvoker {
       ListeningExecutorService executorService) {
     LOG.trace("Parsing pipeline options");
     final SamzaPortablePipelineOptions samzaOptions =
-        PipelineOptionsTranslation.fromProto(options).as(SamzaPortablePipelineOptions.class);
+        updateOptions(
+            PipelineOptionsTranslation.fromProto(options).as(SamzaPortablePipelineOptions.class));
 
     final PortablePipelineRunner pipelineRunner;
     if (Strings.isNullOrEmpty(samzaOptions.getOutputExecutablePath())) {
@@ -78,5 +89,30 @@ public class SamzaJobInvoker extends JobInvoker {
     final JobInfo jobInfo =
         JobInfo.create(invocationId, samzaOptions.getJobName(), retrievalToken, options);
     return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
+  }
+
+  private SamzaPortablePipelineOptions updateOptions(SamzaPortablePipelineOptions options) {
+    final SamzaPortablePipelineOptions samzaOptions =
+        PipelineOptionsValidator.validate(SamzaPortablePipelineOptions.class, options);
+    final Map<String, String> config = new HashMap<>();
+
+    if (samzaOptions.getConfigOverride() != null) {
+      config.putAll(samzaOptions.getConfigOverride());
+    }
+
+    if (nonLoggedStoreBaseDir != null) {
+      config.put(
+          JobConfig.JOB_NON_LOGGED_STORE_BASE_DIR,
+          nonLoggedStoreBaseDir + "/" + samzaOptions.getJobName());
+    }
+
+    if (loggedStoreBaseDir != null) {
+      config.put(
+          JobConfig.JOB_LOGGED_STORE_BASE_DIR,
+          loggedStoreBaseDir + "/" + samzaOptions.getJobName());
+    }
+
+    samzaOptions.setConfigOverride(config);
+    return samzaOptions;
   }
 }
