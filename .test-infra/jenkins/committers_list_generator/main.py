@@ -141,5 +141,5 @@ if __name__ == "__main__":
         args = _parse_args()
         generate_groovy(args.output_dir, args.ldap_uris, args.cert_path)
     except CommittersGeneratorException as e:
-        logging.exception("Couldn't generate the list of committers")
+        logging.exception(f'Couldnt generate the list of committers with ldap uris: {args.ldap_uris}')
         sys.exit(1)
