@@ -114,7 +114,7 @@ class RowTypeConstraint(typehints.TypeConstraint):
       schema_id: Optional[str] = None,
       schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
       field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None,
-      schema_registry: SchemaTypeRegistry = None,
+      schema_registry: Optional[SchemaTypeRegistry] = None,
   ) -> RowTypeConstraint:
     return GeneratedClassRowTypeConstraint(
         fields,
@@ -182,15 +182,12 @@ class GeneratedClassRowTypeConstraint(RowTypeConstraint):
       schema_id: Optional[str] = None,
       schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
       field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None,
-      schema_registry: SchemaTypeRegistry = None,
+      schema_registry: Optional[SchemaTypeRegistry] = None,
   ):
     from apache_beam.typehints.schemas import named_fields_to_schema
     from apache_beam.typehints.schemas import named_tuple_from_schema
 
-    if schema_registry is None:
-      kwargs = {}
-    else:
-      kwargs = {'schema_registry': schema_registry}
+    kwargs = {'schema_registry': schema_registry} if schema_registry else {}
 
     schema = named_fields_to_schema(
         fields,
