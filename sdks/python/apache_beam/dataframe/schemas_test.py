@@ -117,7 +117,8 @@ INDEX_DF_TESTS = [(
 
 NOINDEX_DF_TESTS = [(NICE_TYPES_DF, DF_RESULT, BEAM_SCHEMA)]
 
-PD_VERSION = tuple(int(n) for n in pd.__version__.split('.'))
+# Get major, minor, bugfix version
+PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:3]))
 
 
 def test_name_func(testcase_func, param_num, params):
@@ -279,6 +280,12 @@ class SchemasTest(unittest.TestCase):
   @parameterized.expand(SERIES_TESTS + INDEX_DF_TESTS, name_func=test_name_func)
   def test_unbatch_with_index(self, df_or_series, rows, _):
     proxy = df_or_series[:0]
+
+    if (PD_VERSION < (1, 2) and
+        set(['i32_nullable', 'i64_nullable']).intersection(proxy.index.names)):
+      self.skipTest(
+          "pandas<1.2 incorrectly changes Int64Dtype to int64 when "
+          "moved to index.")
 
     with TestPipeline() as p:
       res = (
