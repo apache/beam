@@ -41,6 +41,7 @@ BEAM_CONTAINER_VERSION = 'beam-master-20220803'
 # requires changes to SDK harness container or SDK harness launcher.
 BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20220803'
 
+
 DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
 
 
