@@ -141,19 +141,6 @@ public abstract class KafkaSchemaTransformReadConfiguration {
      */
     public abstract Builder setDynamicReadMillisecondsDuration(Long value);
 
-    /**
-     * Reads a bounded amount of data from the unbounded Kafka topic resource. The bound is
-     * specified as a number of records to read.
-     */
-    public abstract Builder setMaxNumRecords(Long value);
-
-    /**
-     * Reads a bounded amount of data from the unbounded Kafka topic resource. The bound is
-     * specified as an amount of time to read for. Each split of the source will read for this much
-     * time.
-     */
-    public abstract Builder setMaxReadMillisecondsDuration(Long value);
-
     /** Additional configuration for the backend offset consumer. */
     public abstract Builder setOffsetConsumerConfiguration(Map<String, Object> value);
 
