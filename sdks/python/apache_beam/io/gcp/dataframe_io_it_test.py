@@ -22,16 +22,14 @@
 
 import datetime
 import logging
-
 import unittest
 from functools import wraps
 
 import pytest
 
-from apache_beam.io.gcp import bigquery_read_it_test
-
 import apache_beam as beam
 import apache_beam.io.gcp.bigquery
+from apache_beam.io.gcp import bigquery_read_it_test
 from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.testing.util import assert_that
