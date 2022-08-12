@@ -79,6 +79,15 @@ val test by tasks.registering {
 test { dependsOn(startDatastoreEmulator) }
 test { finalizedBy(stopDatastoreEmulator) }
 
+task("removeUnusedSnippet") {
+    doLast {
+      exec {
+         executable("go")
+         args("run", "cmd/remove_unused_snippets.go", System.getProperty("dayDiff"), System.getProperty("projectId"))
+      }
+    }
+}
+
 task("benchmarkPrecompiledObjects") {
   group = "verification"
   description = "Run benchmarks for precompiled objects"
@@ -121,7 +130,7 @@ task("runLint") {
   doLast {
     exec {
       executable("golangci-lint")
-      args("run", "cmd/server/...")      
+      args("run", "cmd/server/...")
     }
   }
 }

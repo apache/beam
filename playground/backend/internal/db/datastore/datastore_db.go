@@ -16,13 +16,16 @@
 package datastore
 
 import (
-	"beam.apache.org/playground/backend/internal/db/entity"
-	"beam.apache.org/playground/backend/internal/logger"
-	"beam.apache.org/playground/backend/internal/utils"
-	"cloud.google.com/go/datastore"
 	"context"
 	"fmt"
 	"time"
+
+	"beam.apache.org/playground/backend/internal/db/dto"
+	"cloud.google.com/go/datastore"
+
+	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/utils"
 )
 
 const (
@@ -193,4 +196,39 @@ func (d *Datastore) GetSDK(ctx context.Context, id string) (*entity.SDKEntity, e
 		return nil, err
 	}
 	return sdk, nil
+}
+
+//DeleteUnusedSnippets deletes all unused snippets
+func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int32) error {
+	var hoursDiff = dayDiff * 24
+	boundaryDate := time.Now().Add(-time.Hour * time.Duration(hoursDiff))
+	snippetQuery := datastore.NewQuery(SnippetKind).
+		Namespace(Namespace).
+		Filter("lVisited <= ", boundaryDate).
+		Filter("origin =", "PG_USER").
+		Project("numberOfFiles")
+	var snpDtos []*dto.SnippetDeleteDTO
+	snpKeys, err := d.Client.GetAll(ctx, snippetQuery, &snpDtos)
+	if err != nil {
+		logger.Errorf("Datastore: DeleteUnusedSnippets(): error during deleting unused snippets, err: %s\n", err.Error())
+		return err
+	}
+	var fileKeys []*datastore.Key
+	for snpIndex, snpKey := range snpKeys {
+		for fileIndex := 0; fileIndex < snpDtos[snpIndex].NumberOfFiles; fileIndex++ {
+			fileId := fmt.Sprintf("%s_%d", snpKey.Name, fileIndex)
+			fileKey := utils.GetNameKey(FileKind, fileId, Namespace, nil)
+			fileKeys = append(fileKeys, fileKey)
+		}
+	}
+	_, err = d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+		err = tx.DeleteMulti(fileKeys)
+		err = tx.DeleteMulti(snpKeys)
+		return err
+	})
+	if err != nil {
+		logger.Errorf("Datastore: DeleteUnusedSnippets(): error during deleting unused snippets, err: %s\n", err.Error())
+		return err
+	}
+	return nil
 }

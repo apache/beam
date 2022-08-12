@@ -25,6 +25,7 @@ require (
 	github.com/go-redis/redismock/v8 v8.0.6
 	github.com/google/uuid v1.3.0
 	github.com/improbable-eng/grpc-web v0.14.1
+	github.com/procyon-projects/chrono v1.1.0
 	github.com/rs/cors v1.8.0
 	github.com/spf13/viper v1.12.0
 	go.uber.org/goleak v1.1.12
