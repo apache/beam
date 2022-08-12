@@ -211,4 +211,6 @@ class GeneratedClassRowTypeConstraint(RowTypeConstraint):
             self._fields,
             self._schema_id,
             self._schema_options,
-            self._field_options))
+            self._field_options,
+            None,
+        ))
