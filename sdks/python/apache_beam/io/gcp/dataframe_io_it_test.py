@@ -20,10 +20,8 @@
 """Unit tests for Dataframe sources and sinks."""
 # pytype: skip-file
 
-import datetime
 import logging
 import unittest
-from functools import wraps
 
 import pytest
 
@@ -40,36 +38,6 @@ from apache_beam.testing.util import equal_to
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def skip(runners):
-  if not isinstance(runners, list):
-    runners = [runners]
-
-  def inner(fn):
-    @wraps(fn)
-    def wrapped(self):
-      if self.runner_name in runners:
-        self.skipTest(
-            'This test doesn\'t work on these runners: {}'.format(runners))
-      else:
-        return fn(self)
-
-    return wrapped
-
-  return inner
-
-
-def datetime_to_utc(element):
-  for k, v in element.items():
-    if isinstance(v, (datetime.time, datetime.date)):
-      element[k] = str(v)
-    if isinstance(v, datetime.datetime) and v.tzinfo:
-      # For datetime objects, we'll
-      offset = v.utcoffset()
-      utc_dt = (v - offset).strftime('%Y-%m-%d %H:%M:%S.%f UTC')
-      element[k] = utc_dt
-  return element
 
 
 class ReadUsingReadGbqTests(bigquery_read_it_test.BigQueryReadIntegrationTests):
