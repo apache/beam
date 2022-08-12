@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE=openjdk:8
-FROM golang:1.18-bullseye AS build
+FROM golang:1.17-bullseye AS build
 
 # Setup Go Environment
 ENV GOPATH /go

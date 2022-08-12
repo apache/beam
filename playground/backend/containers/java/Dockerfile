@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE=apache/beam_java8_sdk:latest
-FROM golang:1.18-bullseye AS build
+FROM golang:1.17-bullseye AS build
 
 # Setup Go Environment
 ENV GOPATH /go
@@ -37,7 +37,7 @@ RUN go mod download &&\
     go build -o /go/bin/server_java_backend
 
 FROM $BASE_IMAGE
-ARG BEAM_VERSION=2.40.0
+ARG BEAM_VERSION=2.33.0
 ARG HAMCREST_VERSION=1.3
 ARG JUNIT_VERSION=4.13
 #ENV BEAM_VERSION=${BEAM_VERSION_ARG}
