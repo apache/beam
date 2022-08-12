@@ -102,6 +102,7 @@ __all__ = [
     'ProtoCoder',
     'ProtoPlusCoder',
     'ShardedKeyCoder',
+    'SinglePrecisionFloatCoder',
     'SingletonCoder',
     'StrUtf8Coder',
     'TimestampCoder',
@@ -678,8 +679,33 @@ class VarIntCoder(FastCoder):
 Coder.register_structured_urn(common_urns.coders.VARINT.urn, VarIntCoder)
 
 
+class SinglePrecisionFloatCoder(FastCoder):
+  """A coder used for single-precision floating-point values."""
+  def _create_impl(self):
+    return coder_impl.SinglePrecisionFloatCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return float
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
 class FloatCoder(FastCoder):
-  """A coder used for floating-point values."""
+  """A coder used for **double-precision** floating-point values.
+
+  Note that the name "FloatCoder" is in reference to Python's ``float`` built-in
+  which is generally implemented using C doubles. See
+  :class:`SinglePrecisionFloatCoder` for a single-precision version of this
+  coder.
+  """
   def _create_impl(self):
     return coder_impl.FloatCoderImpl()
 
