@@ -42,7 +42,7 @@ public class KvToKeyedWorkItemOp<K, V> implements Op<KV<K, V>, KeyedWorkItem<K, 
   }
 
   @Override
-  public String getFullOpName() {
+  public String getFullName() {
     return this.transformFullName;
   }
 }

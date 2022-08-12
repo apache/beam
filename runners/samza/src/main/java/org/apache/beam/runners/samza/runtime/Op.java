@@ -62,7 +62,7 @@ public interface Op<InT, OutT, K> extends Serializable {
 
   default void close() {}
 
-  default String getFullOpName() {
+  default String getFullName() {
     return this.getClass().getName();
   }
 }

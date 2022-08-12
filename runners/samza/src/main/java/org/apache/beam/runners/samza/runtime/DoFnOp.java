@@ -409,7 +409,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   @Override
-  public String getFullOpName() {
+  public String getFullName() {
     return this.transformFullName;
   }
 

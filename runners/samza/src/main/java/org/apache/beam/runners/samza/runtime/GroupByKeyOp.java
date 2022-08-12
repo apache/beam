@@ -225,7 +225,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   }
 
   @Override
-  public String getFullOpName() {
+  public String getFullName() {
     return this.transformFullName;
   }
 

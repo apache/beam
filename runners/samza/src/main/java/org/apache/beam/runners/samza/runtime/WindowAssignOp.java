@@ -53,7 +53,7 @@ public class WindowAssignOp<T, W extends BoundedWindow> implements Op<T, T, Void
   }
 
   @Override
-  public String getFullOpName() {
+  public String getFullName() {
     return this.transformFullName;
   }
 }

@@ -249,7 +249,7 @@ public class SplittableParDoProcessKeyedElementsOp<
   }
 
   @Override
-  public String getFullOpName() {
+  public String getFullName() {
     return this.transformFullName;
   }
 

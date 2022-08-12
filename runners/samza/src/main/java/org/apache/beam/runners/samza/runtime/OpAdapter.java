@@ -109,13 +109,13 @@ public class OpAdapter<InT, OutT, K>
               String.format("Unexpected input type: %s", message.getType()));
       }
     } catch (Exception e) {
-      LOG.error("Op {} threw an exception during processing", op.getFullOpName(), e);
+      LOG.error("Op {} threw an exception during processing", op.getFullName(), e);
       e.addSuppressed(
           new RuntimeException(
-              String.format("Op %s threw an exception during processing", op.getFullOpName()), e));
+              String.format("Op %s threw an exception during processing", op.getFullName()), e));
       exceptionListeners.forEach(
           listener -> {
-            listener.getExceptionListener().onException(op.getFullOpName(), e);
+            listener.getExceptionListener().onException(op.getFullName(), e);
           });
       throw UserCodeException.wrap(e);
     }
