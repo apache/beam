@@ -42,7 +42,7 @@ public class SamzaJobServerDriver extends JobServerDriver {
     @Option(
         name = "--job-non-logged-store-base-dir",
         usage =
-            "Base dir for non logger store, job name will be automatically "
+            "Base dir for non logged store, job name will be automatically "
                 + "appended after job submission.")
     private String jobNonLoggedStoreBaseDir = null;
 
@@ -54,7 +54,7 @@ public class SamzaJobServerDriver extends JobServerDriver {
     @Option(
         name = "--job-logged-store-base-dir",
         usage =
-            "Base dir for logger store, job name will be automatically "
+            "Base dir for logged store, job name will be automatically "
                 + "appended after job submission.")
     private String jobLoggedStoreBaseDir = null;
 
