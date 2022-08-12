@@ -589,6 +589,21 @@ class PickleTest(unittest.TestCase):
 
     self.assertEqual(instance, self.pickler.loads(self.pickler.dumps(instance)))
 
+  @unittest.skip("https://github.com/apache/beam/issues/22714")
+  def test_generated_class_pickle(self):
+    schema = schema_pb2.Schema(
+        id="some-uuid",
+        fields=[
+            schema_pb2.Field(
+                name='name',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            )
+        ])
+    user_type = named_tuple_from_schema(schema)
+
+    self.assertEqual(
+        user_type, self.pickler.loads(self.pickler.dumps(user_type)))
+
   def test_generated_class_row_type_pickle(self):
     row_proto = schema_pb2.FieldType(
         row_type=schema_pb2.RowType(
