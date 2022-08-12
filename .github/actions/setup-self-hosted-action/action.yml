@@ -1,0 +1,32 @@
+name: 'Setup environment for self-hosted runners'
+description: 'Setup action to run jobs in a self-hosted runner'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install python 3.7
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.7"
+    - name: Install python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.8"
+    - name: Install python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.9"
+    - name: Set Java Version
+      uses: actions/setup-java@v1
+      with:
+        java-version: 8
+    - name: Set Go Version
+      uses: actions/setup-go@v3
+      with:
+        go-version: '>=1.16.0'
+    - name: Remove default github maven configuration
+      # This step is a workaround to avoid a decryption issue of Beam's
+      # gradle-command-action plugin and github's provided maven
+      # settings.xml file
+      shell: bash
+      run: rm ~/.m2/settings.xml
