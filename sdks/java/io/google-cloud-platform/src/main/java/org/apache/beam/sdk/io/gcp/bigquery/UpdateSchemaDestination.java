@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.client.http.ByteArrayContent;
-import com.google.api.client.util.Strings;
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -174,7 +174,8 @@ public class UpdateSchemaDestination<DestinationT>
     }
     List<KV<TableDestination, WriteTables.Result>> tableDestinations = new ArrayList<>();
     for (KV<DestinationT, WriteTables.Result> entry : element) {
-      tableDestinations.add(KV.of(getTableWithDefaultProject(destination, options), entry.getValue()));
+      tableDestinations.add(
+          KV.of(getTableWithDefaultProject(destination, options), entry.getValue()));
     }
     context.output(tableDestinations);
   }

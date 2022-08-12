@@ -2236,20 +2236,25 @@ public class BigQueryIOWriteTest implements Serializable {
         writeTablesInput
             .apply(writeTables)
             .setCoder(KvCoder.of(StringUtf8Coder.of(), WriteTables.ResultCoder.INSTANCE))
-            .apply(ParDo.of(new DoFn<KV<String, WriteTables.Result>, KV<TableDestination, WriteTables.Result>>() {
-              @ProcessElement
-              public void processElement(@Element KV<String, WriteTables.Result> e, OutputReceiver<KV<TableDestination, WriteTables.Result>> o) {
-                o.output(KV.of(dynamicDestinations.getTable(e.getKey()), e.getValue()));
-              }
-            }));
-
-
+            .apply(
+                ParDo.of(
+                    new DoFn<
+                        KV<String, WriteTables.Result>,
+                        KV<TableDestination, WriteTables.Result>>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<String, WriteTables.Result> e,
+                          OutputReceiver<KV<TableDestination, WriteTables.Result>> o) {
+                        o.output(KV.of(dynamicDestinations.getTable(e.getKey()), e.getValue()));
+                      }
+                    }));
 
     PAssert.thatMultimap(writeTablesOutput)
         .satisfies(
             input -> {
               assertEquals(expectedTempTables.keySet(), input.keySet());
-              for (Map.Entry<TableDestination, Iterable<WriteTables.Result>> entry : input.entrySet()) {
+              for (Map.Entry<TableDestination, Iterable<WriteTables.Result>> entry :
+                  input.entrySet()) {
                 Iterable<String> tableNames =
                     StreamSupport.stream(entry.getValue().spliterator(), false)
                         .map(Result::getTableName)
