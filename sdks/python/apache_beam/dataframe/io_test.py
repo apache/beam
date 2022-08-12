@@ -431,8 +431,9 @@ class ReadGbqTransformTests(unittest.TestCase):
     with self.assertRaisesRegex(ValueError,
                                 "Encountered an unsupported type: 'DOUBLE'"):
       p = apache_beam.Pipeline()
-      _ = p | apache_beam.dataframe.io.read_gbq(
+      pcoll = p | apache_beam.dataframe.io.read_gbq(
           table="dataset.sample_table", use_bqstorage_api=True)
+      pcoll
 
   def test_unsupported_callable(self):
     def filterTable(table):
@@ -444,7 +445,8 @@ class ReadGbqTransformTests(unittest.TestCase):
                                 'ReadFromBigQuery: table must be of type string'
                                 '; got a callable instead'):
       p = beam.Pipeline()
-      _ = p | beam.dataframe.io.read_gbq(table=res)
+      pcoll = p | beam.dataframe.io.read_gbq(table=res)
+      pcoll
 
   def test_ReadGbq_unsupported_param(self):
     with self.assertRaisesRegex(
