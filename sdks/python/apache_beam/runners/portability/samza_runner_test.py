@@ -108,6 +108,8 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
           '0',
           '--expansion-port',
           str(expansion_port),
+          '--job-non-logged-store-base-dir',
+          tmp_dir,
       ]
     finally:
       rmtree(tmp_dir)
