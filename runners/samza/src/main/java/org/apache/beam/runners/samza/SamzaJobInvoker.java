@@ -92,8 +92,7 @@ public class SamzaJobInvoker extends JobInvoker {
   }
 
   private SamzaPortablePipelineOptions updateOptions(SamzaPortablePipelineOptions options) {
-    final SamzaPortablePipelineOptions samzaOptions =
-        PipelineOptionsValidator.validate(SamzaPortablePipelineOptions.class, options);
+    final SamzaPortablePipelineOptions samzaOptions = options.as(SamzaPortablePipelineOptions.class);
     final Map<String, String> config = new HashMap<>();
 
     if (samzaOptions.getConfigOverride() != null) {
