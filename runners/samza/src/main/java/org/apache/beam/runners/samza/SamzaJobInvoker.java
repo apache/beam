@@ -28,7 +28,6 @@ import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.runners.jobsubmission.JobInvoker;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarCreator;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
-import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
@@ -92,7 +91,8 @@ public class SamzaJobInvoker extends JobInvoker {
   }
 
   private SamzaPortablePipelineOptions updateOptions(SamzaPortablePipelineOptions options) {
-    final SamzaPortablePipelineOptions samzaOptions = options.as(SamzaPortablePipelineOptions.class);
+    final SamzaPortablePipelineOptions samzaOptions =
+        options.as(SamzaPortablePipelineOptions.class);
     final Map<String, String> config = new HashMap<>();
 
     if (samzaOptions.getConfigOverride() != null) {
