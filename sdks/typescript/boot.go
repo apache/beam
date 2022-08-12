@@ -169,6 +169,5 @@ func main() {
 		args = append(args, "--status_endpoint="+info.GetStatusEndpoint().GetUrl())
 	}
 
-	log.Printf("User program exited: %v", execx.Execute("npx", args...))
-	log.Printf("SDK exited cleanly.")
+	log.Fatalf("User program exited: %v", execx.Execute("npx", args...))
 }
