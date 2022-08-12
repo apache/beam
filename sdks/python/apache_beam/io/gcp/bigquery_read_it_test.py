@@ -259,43 +259,6 @@ class ReadTests(BigQueryReadIntegrationTests):
           ]))
 
 
-class ReadUsingReadGbqTests(BigQueryReadIntegrationTests):
-  @pytest.mark.it_postcommit
-  def test_ReadGbq(self):
-    with beam.Pipeline(argv=self.args) as p:
-      expected_df = (
-          p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
-              method=beam.io.ReadFromBigQuery.Method.EXPORT,
-              table="apache-beam-testing:"
-              "beam_bigquery_io_test."
-              "dfsqltable_3c7d6fd5_16e0460dfd0",
-              output_type='BEAM_ROW'))
-    with beam.Pipeline(argv=self.args) as p:
-      actual_df = p | apache_beam.dataframe.io.read_gbq(
-          table="apache-beam-testing:"
-          "beam_bigquery_io_test."
-          "dfsqltable_3c7d6fd5_16e0460dfd0")
-    assert_that(expected_df, equal_to(actual_df))
-
-  @pytest.mark.it_postcommit
-  def test_ReadGbq_direct_read(self):
-    with beam.Pipeline(argv=self.args) as p:
-      expected_df = (
-          p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
-              method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
-              table="apache-beam-testing:"
-              "beam_bigquery_io_test."
-              "dfsqltable_3c7d6fd5_16e0460dfd0",
-              output_type='BEAM_ROW'))
-    with beam.Pipeline(argv=self.args) as p:
-      actual_df = p | apache_beam.dataframe.io.read_gbq(
-          table="apache-beam-testing:"
-          "beam_bigquery_io_test."
-          "dfsqltable_3c7d6fd5_16e0460dfd0",
-          use_bqstorage_api=True)
-    assert_that(expected_df, equal_to(actual_df))
-
-
 class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
   TABLE_DATA = [{
       'number': 1,

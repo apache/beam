@@ -45,11 +45,6 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-try:
-  from apitools.base.py.exceptions import HttpError
-except ImportError:
-  HttpError = None
-
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
 PYARROW_VERSION = tuple(map(int, pyarrow.__version__.split('.')[0:2]))
@@ -419,7 +414,6 @@ X     , c1, c2
                           set(self.read_all_lines(output + 'out2.csv*')))
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class ReadGbqTransformTests(unittest.TestCase):
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_direct_read(self, get_table):
@@ -437,9 +431,8 @@ class ReadGbqTransformTests(unittest.TestCase):
     with self.assertRaisesRegex(ValueError,
                                 "Encountered an unsupported type: 'DOUBLE'"):
       p = apache_beam.Pipeline()
-      pipeline = p | apache_beam.dataframe.io.read_gbq(
+      _ = p | apache_beam.dataframe.io.read_gbq(
           table="dataset.sample_table", use_bqstorage_api=True)
-      pipeline
 
   def test_unsupported_callable(self):
     def filterTable(table):
@@ -451,17 +444,17 @@ class ReadGbqTransformTests(unittest.TestCase):
                                 'ReadFromBigQuery: table must be of type string'
                                 '; got a callable instead'):
       p = beam.Pipeline()
-      pipeline = p | beam.dataframe.io.read_gbq(table=res)
-      pipeline
+      _ = p | beam.dataframe.io.read_gbq(table=res)
 
   def test_ReadGbq_unsupported_param(self):
-    with self.assertRaisesRegex(ValueError,
-                                "Unsupported parameter entered in ReadGbq. "
-                                "Please enter only supported parameters."):
+    with self.assertRaisesRegex(
+        ValueError,
+        "Unsupported parameter entered in read_gbq. "
+        "Please enter only supported parameters 'table', "
+        "'dataset', 'project_id', 'use_bqstorage_api'."):
       p = beam.Pipeline()
-      pipeline = p | beam.dataframe.io.read_gbq(
-          table="table", reauth="true_config")
-      pipeline
+      _ = p | beam.dataframe.io.read_gbq(
+          table="table", use_bqstorage_api=False, reauth="true_config")
 
 
 if __name__ == '__main__':

@@ -58,15 +58,26 @@ _DEFAULT_LINES_CHUNKSIZE = 10_000
 _DEFAULT_BYTES_CHUNKSIZE = 1 << 20
 
 
-@frame_base.with_docs_from(pd)
-def read_gbq(table, *args, **kwargs):
-  """If you would like to use the 'DIRECT_READ' method ins ReadFromBigQuery,
+def read_gbq(
+    table, dataset=None, project_id=None, use_bqstorage_api=False, **kwargs):
+  """This function reads data from a BigQuery source and outputs it into
+  a Beam deferred dataframe
+  (https://beam.apache.org/documentation/dsls/dataframes/overview/)
+  Please specify a table in the format 'PROJECT:dataset.table'
+  or use the table, dataset, and project_id args
+  to specify the table. If you would like to utilize the BigQuery
+  Storage API in ReadFromBigQuery,
     please set use_bq_storage_api to True.
-    Otherwise, if you would like to use the 'EXPORT' method, please set
-    use_bq_storage_api to False, or leave it unspecified."""
+    Otherwise, please set the flag to false or
+    leave it unspecified."""
   if table is None:
     raise ValueError("Please specify a BigQuery table to read from.")
-  return _ReadGbq(table=table, *args, **kwargs)
+  elif len(kwargs) > 0:
+    raise ValueError(
+        "Unsupported parameter entered in read_gbq. Please enter only "
+        "supported parameters 'table', 'dataset', "
+        "'project_id', 'use_bqstorage_api'.")
+  return _ReadGbq(table, dataset, project_id, use_bqstorage_api)
 
 
 @frame_base.with_docs_from(pd)
@@ -780,8 +791,6 @@ class _ReadGbq(beam.PTransform):
     PCollection into a deferred dataframe.
 
     This PTransform currently does not support queries.
-    Note that all Python ReadFromBigQuery args can be passed in
-    to this PTransform, in addition to the args listed below.
 
   Args:
     table (str): The ID of the table. The ID must contain only
@@ -802,46 +811,26 @@ class _ReadGbq(beam.PTransform):
   def __init__(
       self,
       table=None,
-      index_col=None,
-      col_order=None,
-      reauth=None,
-      auth_local_webserver=None,
-      dialect=None,
-      location=None,
-      configuration=None,
-      credentials=None,
-      use_bqstorage_api=False,
-      max_results=None,
-      progress_bar_type=None):
+      dataset_id=None,
+      project_id=None,
+      use_bqstorage_api=None):
 
     self.table = table
-    self.index_col = index_col
-    self.col_order = col_order
-    self.reauth = reauth
-    self.auth_local_webserver = auth_local_webserver
-    self.dialect = dialect
-    self.location = location
-    self.configuration = configuration
-    self.credentials = credentials
+    self.dataset_id = dataset_id
+    self.project_id = project_id
     self.use_bqstorage_api = use_bqstorage_api
-    self.max_results = max_results
-    self.progress_bar_type = progress_bar_type
-
-    if (self.index_col is not None or self.col_order is not None or
-        self.reauth is not None or self.auth_local_webserver is not None or
-        self.dialect is not None or self.location is not None or
-        self.configuration is not None or self.credentials is not None or
-        self.max_results is not None or self.progress_bar_type) is not None:
-      raise ValueError(
-          "Unsupported parameter entered in ReadGbq. "
-          "Please enter only supported parameters.")
 
   def expand(self, root):
     from apache_beam.dataframe import convert  # avoid circular import
     if self.use_bqstorage_api:
-      return convert.to_dataframe(
-          root | beam.io.ReadFromBigQuery(
-              table=self.table, method='DIRECT_READ', output_type='BEAM_ROW'))
+      method = 'DIRECT_READ'
+    else:
+      method = 'EXPORT'
     return convert.to_dataframe(
         root
-        | beam.io.ReadFromBigQuery(table=self.table, output_type='BEAM_ROW'))
+        | beam.io.ReadFromBigQuery(
+            table=self.table,
+            dataset=self.dataset_id,
+            project=self.project_id,
+            method=method,
+            output_type='BEAM_ROW'))
