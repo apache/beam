@@ -1032,11 +1032,10 @@ class _CustomBigQueryStorageSource(BoundedSource):
   """A base class for BoundedSource implementations which read from BigQuery
   using the BigQuery Storage API.
   Args:
-    table (str, TableReference): The ID of the table. The ID must contain only
-      letters ``a-z``, ``A-Z``, numbers ``0-9``, underscores ``_`` or white
-      spaces. If **dataset** argument is :data:`None` then the table
-      argument must contain the entire table reference specified as:
-      ``'PROJECT:DATASET.TABLE'`` or must specify a TableReference.
+    table (str, TableReference): The ID of the table. If **dataset** argument is
+      :data:`None` then the table argument must contain the entire table
+      reference specified as: ``'PROJECT:DATASET.TABLE'`` or must specify a
+      TableReference.
     dataset (str): Optional ID of the dataset containing this table or
       :data:`None` if the table argument specifies a TableReference.
     project (str): Optional ID of the project containing this table or
@@ -1437,11 +1436,9 @@ class BigQuerySink(dataflow_io.NativeSink):
     """Initialize a BigQuerySink.
 
     Args:
-      table (str): The ID of the table. The ID must contain only letters
-        ``a-z``, ``A-Z``, numbers ``0-9``, underscores ``_`` or or white
-        spaces. If **dataset** argument is :data:`None` then the table
-        argument must contain the entire table reference specified
-        as: ``'DATASET.TABLE'`` or ``'PROJECT:DATASET.TABLE'``.
+      table (str): The ID of the table. If **dataset** argument is :data:`None`
+        then the table argument must contain the entire table reference
+        specified as: ``'DATASET.TABLE'`` or ``'PROJECT:DATASET.TABLE'``.
       dataset (str): The ID of the dataset containing this table or
         :data:`None` if the table reference is specified entirely by the table
         argument.
@@ -2612,13 +2609,12 @@ class ReadFromBigQuery(PTransform):
       be returned as native Python datetime objects. This can only be used when
       'method' is 'DIRECT_READ'.
     table (str, callable, ValueProvider): The ID of the table, or a callable
-      that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
-      numbers ``0-9``, underscores ``_`` or white spaces. If dataset argument is
-      :data:`None` then the table argument must contain the entire table
-      reference specified as: ``'DATASET.TABLE'``
-      or ``'PROJECT:DATASET.TABLE'``. If it's a callable, it must receive one
-      argument representing an element to be written to BigQuery, and return
-      a TableReference, or a string table name as specified above.
+      that returns it. If dataset argument is :data:`None` then the table
+      argument must contain the entire table reference specified as:
+      ``'DATASET.TABLE'`` or ``'PROJECT:DATASET.TABLE'``. If it's a callable,
+      it must receive one argument representing an element to be written to
+      BigQuery, and return a TableReference, or a string table name as specified
+      above.
     dataset (str): The ID of the dataset containing this table or
       :data:`None` if the table reference is specified entirely by the table
       argument.
@@ -2870,9 +2866,7 @@ class ReadFromBigQueryRequest:
       the query will use BigQuery's legacy SQL dialect.
       This parameter is ignored for table inputs.
     :param table:
-      The ID of the table to read. The ID must contain only letters
-      ``a-z``, ``A-Z``, numbers ``0-9``, underscores ``_`` or white spaces.
-      Table should define project and dataset
+      The ID of the table to read. Table should define project and dataset
       (ex.: ``'PROJECT:DATASET.TABLE'``).
     :param flatten_results:
       Flattens all nested and repeated fields in the query results.

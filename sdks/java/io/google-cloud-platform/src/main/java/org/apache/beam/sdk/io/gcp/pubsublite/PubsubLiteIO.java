@@ -52,6 +52,9 @@ public final class PubsubLiteIO {
    * retried, which the PubsubLiteIO write method will do. Use the dedupe transform to remove these
    * duplicates.
    *
+   * <p>Note that this will not pick up newly added partitions. To pick up new partitions, drain and
+   * restart the pipeline.
+   *
    * <pre>{@code
    * Pipeline p = ...;
    *

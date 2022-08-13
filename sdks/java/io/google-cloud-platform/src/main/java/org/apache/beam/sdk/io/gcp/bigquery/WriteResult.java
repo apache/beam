@@ -169,11 +169,11 @@ public final class WriteResult implements POutput {
     Preconditions.checkArgumentNotNull(
         failedInsertsTag,
         "Cannot use getFailedInserts as this WriteResult uses extended errors"
-            + " information. Use getFailedInsertsWithErr instead");
+            + " information. Use getFailedInsertsWithErr or getFailedStorageApiInserts instead");
     return Preconditions.checkStateNotNull(
         failedInserts,
         "Cannot use getFailedInserts as this WriteResult uses extended errors"
-            + " information. Use getFailedInsertsWithErr instead");
+            + " information. Use getFailedInsertsWithErr or getFailedStorageApiInserts instead");
   }
 
   /**
@@ -187,11 +187,11 @@ public final class WriteResult implements POutput {
     Preconditions.checkArgumentNotNull(
         failedInsertsWithErrTag,
         "Cannot use getFailedInsertsWithErr as this WriteResult does not use"
-            + " extended errors. Use getFailedInserts instead");
+            + " extended errors. Use getFailedInserts or getFailedStorageApiInserts instead");
     return Preconditions.checkArgumentNotNull(
         failedInsertsWithErr,
         "Cannot use getFailedInsertsWithErr as this WriteResult does not use"
-            + " extended errors. Use getFailedInserts instead");
+            + " extended errors. Use getFailedInserts or getFailedStorageApiInserts instead");
   }
 
   public PCollection<BigQueryStorageApiInsertError> getFailedStorageApiInserts() {

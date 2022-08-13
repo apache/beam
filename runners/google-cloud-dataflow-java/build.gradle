@@ -107,7 +107,7 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
@@ -391,7 +391,10 @@ task validatesRunnerStreaming {
     ],
     excludedTests: [
       // TODO(https://github.com/apache/beam/issues/21472)
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState'
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
+      // GroupIntoBatches.withShardedKey not supported on streaming runner v1
+      // https://github.com/apache/beam/issues/22592
+      'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
     ]
   ))
 }

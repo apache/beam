@@ -2977,7 +2977,7 @@ class GroupBy(PTransform):
       expr = self._key_fields[0][1]
       return trivial_inference.infer_return_type(expr, [input_type])
     else:
-      return row_type.RowTypeConstraint([
+      return row_type.RowTypeConstraint.from_fields([
           (name, trivial_inference.infer_return_type(expr, [input_type]))
           for (name, expr) in self._key_fields
       ])
@@ -3089,7 +3089,7 @@ class Select(PTransform):
                                 for name, expr in self._fields}))
 
   def infer_output_type(self, input_type):
-    return row_type.RowTypeConstraint([
+    return row_type.RowTypeConstraint.from_fields([
         (name, trivial_inference.infer_return_type(expr, [input_type]))
         for (name, expr) in self._fields
     ])
