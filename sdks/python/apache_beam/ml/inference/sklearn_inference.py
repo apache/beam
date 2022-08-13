@@ -66,20 +66,6 @@ def _load_model(model_uri, file_type):
   raise AssertionError('Unsupported serialization type.')
 
 
-def _validate_inference_args(inference_args):
-  """Confirms that inference_args is None.
-
-  scikit-learn models do not need extra arguments in their predict() call.
-  However, since inference_args is an argument in the RunInference interface,
-  we want to make sure it is not passed here in Sklearn's implementation of
-  RunInference.
-  """
-  if inference_args:
-    raise ValueError(
-        'inference_args were provided, but should be None because scikit-learn '
-        'models do not need extra arguments in their predict() call.')
-
-
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                             PredictionResult,
                                             BaseEstimator]):
@@ -124,7 +110,6 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Returns:
       An Iterable of type PredictionResult.
     """
-    _validate_inference_args(inference_args)
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
@@ -187,7 +172,6 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     Returns:
       An Iterable of type PredictionResult.
     """
-    _validate_inference_args(inference_args)
     # sklearn_inference currently only supports single rowed dataframes.
     for dataframe in iter(batch):
       if dataframe.shape[0] != 1:

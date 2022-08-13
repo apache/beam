@@ -90,7 +90,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     MetricsAccumulator.clear();
     GlobalWatermarkHolder.clear();
 
-    LOG.info("About to run test pipeline " + options.getJobName());
+    LOG.info("About to run test pipeline {}", options.getJobName());
 
     // if the pipeline was executed in streaming mode, validate aggregators.
     if (isForceStreaming) {

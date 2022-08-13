@@ -309,10 +309,9 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
     @Override
     public Reader call() throws Exception {
       LOG.info(
-          "No cached reader found for split: ["
-              + source
-              + "]. Creating new reader at checkpoint mark "
-              + checkpointMark);
+          "No cached reader found for split: [{}]. Creating new reader at checkpoint mark {}",
+          source,
+          checkpointMark);
       return new Reader(source.createReader(options, checkpointMark));
     }
   }

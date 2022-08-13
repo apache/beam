@@ -46,10 +46,64 @@ public class StructUtilsTest {
 
   @Test
   public void testStructToBeamRow() {
-    Schema schema = getSchemaTemplate().addDateTimeField("f_date").build();
-    Row row = getRowTemplate(schema).withFieldValue("f_date", DateTime.parse("2077-10-24")).build();
+    Schema schema =
+        getSchemaTemplate()
+            .addDateTimeField("f_date")
+            .addDecimalField("f_decimal")
+            .addArrayField("f_boolean_array", Schema.FieldType.BOOLEAN)
+            .addArrayField("f_string_array", Schema.FieldType.STRING)
+            .addArrayField("f_double_array", Schema.FieldType.DOUBLE)
+            .addArrayField("f_decimal_array", Schema.FieldType.DECIMAL)
+            .addArrayField("f_date_array", Schema.FieldType.DATETIME)
+            .addArrayField("f_timestamp_array", Schema.FieldType.DATETIME)
+            .build();
+
+    Row row =
+        getRowTemplate(schema)
+            .withFieldValue("f_date", DateTime.parse("2077-10-24"))
+            .withFieldValue("f_decimal", BigDecimal.valueOf(Long.MIN_VALUE))
+            .withFieldValue("f_boolean_array", ImmutableList.of(false, true))
+            .withFieldValue("f_string_array", ImmutableList.of("donald_duck", "micky_mouse"))
+            .withFieldValue("f_double_array", ImmutableList.of(1., 2.))
+            .withFieldValue(
+                "f_decimal_array",
+                ImmutableList.of(
+                    BigDecimal.valueOf(Long.MIN_VALUE), BigDecimal.valueOf(Long.MAX_VALUE)))
+            .withFieldValue(
+                "f_date_array",
+                ImmutableList.of(DateTime.parse("2077-10-24"), DateTime.parse("2077-10-24")))
+            .withFieldValue(
+                "f_timestamp_array",
+                ImmutableList.of(DateTime.parse("2077-01-10"), DateTime.parse("2077-01-10")))
+            .build();
     Struct struct =
-        getStructTemplate().set("f_date").to(Date.fromYearMonthDay(2077, 10, 24)).build();
+        getStructTemplate()
+            .set("f_date")
+            .to(Date.fromYearMonthDay(2077, 10, 24))
+            .set("f_decimal")
+            .to(BigDecimal.valueOf(Long.MIN_VALUE))
+            .set("f_boolean_array")
+            .toBoolArray(ImmutableList.of(false, true))
+            .set("f_string_array")
+            .toStringArray(ImmutableList.of("donald_duck", "micky_mouse"))
+            .set("f_double_array")
+            .toFloat64Array(ImmutableList.of(1., 2.))
+            .set("f_decimal_array")
+            .toNumericArray(
+                ImmutableList.of(
+                    BigDecimal.valueOf(Long.MIN_VALUE), BigDecimal.valueOf(Long.MAX_VALUE)))
+            .set("f_date_array")
+            .toDateArray(
+                ImmutableList.of(
+                    Date.fromYearMonthDay(2077, 10, 24), Date.fromYearMonthDay(2077, 10, 24)))
+            .set("f_timestamp_array")
+            .toTimestampArray(
+                ImmutableList.of(
+                    Timestamp.ofTimeMicroseconds(
+                        DateTime.parse("2077-01-10").toInstant().getMillis() * 1000L),
+                    Timestamp.ofTimeMicroseconds(
+                        DateTime.parse("2077-01-10").toInstant().getMillis() * 1000L)))
+            .build();
     assertEquals(row, StructUtils.structToBeamRow(struct, schema));
   }
 
@@ -79,11 +133,40 @@ public class StructUtilsTest {
         getSchemaTemplate()
             .addIterableField("f_iterable", Schema.FieldType.INT64)
             .addDecimalField("f_decimal")
+            .addFloatField("f_float")
+            .addInt16Field("f_int16")
+            .addInt32Field("f_int32")
+            .addByteField("f_byte")
+            .addArrayField("f_double_array", Schema.FieldType.DOUBLE)
+            .addArrayField("f_decimal_array", Schema.FieldType.DECIMAL)
+            .addArrayField("f_boolean_array", Schema.FieldType.BOOLEAN)
+            .addArrayField("f_string_array", Schema.FieldType.STRING)
+            .addArrayField("f_bytes_array", Schema.FieldType.BYTES)
+            .addArrayField("f_datetime_array", Schema.FieldType.DATETIME)
             .build();
     Row row =
         getRowTemplate(schema)
             .withFieldValue("f_iterable", ImmutableList.of(20L))
             .withFieldValue("f_decimal", BigDecimal.ONE)
+            .withFieldValue("f_float", 0.0f)
+            .withFieldValue("f_int16", (short) 2)
+            .withFieldValue("f_int32", 0x7fffffff)
+            .withFieldValue("f_byte", Byte.parseByte("127"))
+            .withFieldValue("f_double_array", ImmutableList.of(1., 2.))
+            .withFieldValue(
+                "f_decimal_array",
+                ImmutableList.of(
+                    BigDecimal.valueOf(Long.MIN_VALUE), BigDecimal.valueOf(Long.MAX_VALUE)))
+            .withFieldValue("f_boolean_array", ImmutableList.of(false, true))
+            .withFieldValue("f_string_array", ImmutableList.of("donald_duck", "micky_mouse"))
+            .withFieldValue(
+                "f_bytes_array",
+                ImmutableList.of("some_bytes".getBytes(UTF_8), "some_bytes".getBytes(UTF_8)))
+            .withFieldValue(
+                "f_datetime_array",
+                ImmutableList.of(
+                    DateTime.parse("2077-10-15T00:00:00+00:00"),
+                    DateTime.parse("2077-10-15T00:00:00+00:00")))
             .build();
     Struct struct =
         getStructTemplate()
@@ -91,6 +174,34 @@ public class StructUtilsTest {
             .toInt64Array(ImmutableList.of(20L))
             .set("f_decimal")
             .to(BigDecimal.ONE)
+            .set("f_float")
+            .to(0.0f)
+            .set("f_int16")
+            .to((short) 2)
+            .set("f_int32")
+            .to(0x7fffffff)
+            .set("f_byte")
+            .to(Byte.parseByte("127"))
+            .set("f_double_array")
+            .toFloat64Array(ImmutableList.of(1., 2.))
+            .set("f_decimal_array")
+            .toNumericArray(
+                ImmutableList.of(
+                    BigDecimal.valueOf(Long.MIN_VALUE), BigDecimal.valueOf(Long.MAX_VALUE)))
+            .set("f_boolean_array")
+            .toBoolArray(ImmutableList.of(false, true))
+            .set("f_string_array")
+            .toStringArray(ImmutableList.of("donald_duck", "micky_mouse"))
+            .set("f_bytes_array")
+            .toBytesArray(
+                ImmutableList.of(
+                    ByteArray.copyFrom("some_bytes".getBytes(UTF_8)),
+                    ByteArray.copyFrom("some_bytes".getBytes(UTF_8))))
+            .set("f_datetime_array")
+            .toTimestampArray(
+                ImmutableList.of(
+                    Timestamp.parseTimestamp("2077-10-15T00:00:00Z"),
+                    Timestamp.parseTimestamp("2077-10-15T00:00:00Z")))
             .build();
     assertEquals(struct, StructUtils.beamRowToStruct(row));
   }

@@ -36,7 +36,7 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.commons_compress
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   implementation library.java.slf4j_api
   implementation library.java.args4j
   testImplementation library.java.junit
