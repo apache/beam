@@ -28,6 +28,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -96,9 +97,11 @@ class BigQueryTableSourceDef implements BigQuerySourceDef {
       String stepUuid,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn,
+      AvroSource.DatumReaderFactory<T> factory,
+      String avroSchema,
       boolean useAvroLogicalTypes) {
     return BigQueryTableSource.create(
-        stepUuid, this, bqServices, coder, parseFn, useAvroLogicalTypes);
+        stepUuid, this, bqServices, coder, parseFn, factory, avroSchema, useAvroLogicalTypes);
   }
 
   /** {@inheritDoc} */

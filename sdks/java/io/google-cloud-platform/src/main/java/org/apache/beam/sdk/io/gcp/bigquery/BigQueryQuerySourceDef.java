@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.JobStatistics;
@@ -30,6 +31,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
@@ -154,9 +156,22 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
       String stepUuid,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn,
+      AvroSource.DatumReaderFactory<T> datumReaderFactory,
+      String avroSchema,
       boolean useAvroLogicalTypes) {
-    return BigQueryQuerySource.create(
-        stepUuid, this, bqServices, coder, parseFn, useAvroLogicalTypes);
+    if (parseFn != null) {
+      return BigQueryQuerySource.create(
+          stepUuid, this, bqServices, coder, parseFn, useAvroLogicalTypes);
+    } else if (datumReaderFactory != null) {
+      checkArgument(
+          avroSchema != null,
+          "avroSchema must be specified when datumReaderFactory is used.");
+
+      return BigQueryQuerySource.create(
+          stepUuid, this, bqServices, coder, datumReaderFactory, avroSchema, useAvroLogicalTypes);
+    } else {
+      throw new IllegalArgumentException("Either parseFn or factory should be provided!");
+    }
   }
 
   /** {@inheritDoc} */

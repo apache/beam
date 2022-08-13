@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -40,6 +41,18 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
         stepUuid, queryDef, bqServices, coder, parseFn, useAvroLogicalTypes);
   }
 
+  static <T> BigQueryQuerySource<T> create(
+      String stepUuid,
+      BigQueryQuerySourceDef queryDef,
+      BigQueryServices bqServices,
+      Coder<T> coder,
+      AvroSource.DatumReaderFactory<T> factory,
+      String avroSchema,
+      boolean useAvroLogicalTypes) {
+    return new BigQueryQuerySource<>(
+        stepUuid, queryDef, bqServices, coder, factory, avroSchema, useAvroLogicalTypes);
+  }
+
   private final BigQueryQuerySourceDef queryDef;
 
   private BigQueryQuerySource(
@@ -50,6 +63,18 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       SerializableFunction<SchemaAndRecord, T> parseFn,
       boolean useAvroLogicalTypes) {
     super(stepUuid, bqServices, coder, parseFn, useAvroLogicalTypes);
+    this.queryDef = queryDef;
+  }
+
+  private BigQueryQuerySource(
+      String stepUuid,
+      BigQueryQuerySourceDef queryDef,
+      BigQueryServices bqServices,
+      Coder<T> coder,
+      AvroSource.DatumReaderFactory<T> factory,
+      String avroSchema,
+      boolean useAvroLogicalTypes) {
+    super(stepUuid, bqServices, coder, factory, avroSchema, useAvroLogicalTypes);
     this.queryDef = queryDef;
   }
 

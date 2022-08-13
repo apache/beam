@@ -49,6 +49,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.google.common.reflect.TypeToken;
+import java.lang.reflect.Type;
+import com.google.common.reflect.TypeToken;
+import java.lang.reflect.Type;
 
 /**
  * An abstract {@link BoundedSource} to read a table from BigQuery.
@@ -75,6 +79,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
 
   private transient @Nullable List<BoundedSource<T>> cachedSplitResult = null;
   private SerializableFunction<SchemaAndRecord, T> parseFn;
+  private AvroSource.DatumReaderFactory<T> factory;
+  private String avroSchema;
   private Coder<T> coder;
   private final boolean useAvroLogicalTypes;
 
@@ -88,6 +94,21 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     this.bqServices = checkArgumentNotNull(bqServices, "bqServices");
     this.coder = checkArgumentNotNull(coder, "coder");
     this.parseFn = checkArgumentNotNull(parseFn, "parseFn");
+    this.useAvroLogicalTypes = useAvroLogicalTypes;
+  }
+
+  BigQuerySourceBase(
+      String stepUuid,
+      BigQueryServices bqServices,
+      Coder<T> coder,
+      AvroSource.DatumReaderFactory<T> factory,
+      String avroSchema,
+      boolean useAvroLogicalTypes) {
+    this.stepUuid = checkNotNull(stepUuid, "stepUuid");
+    this.bqServices = checkNotNull(bqServices, "bqServices");
+    this.coder = checkNotNull(coder, "coder");
+    this.factory = checkNotNull(factory, "datumReaderFactory");
+    this.avroSchema = checkNotNull(avroSchema, "avroSchema");
     this.useAvroLogicalTypes = useAvroLogicalTypes;
   }
 
@@ -252,28 +273,54 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       throws IOException, InterruptedException {
 
     final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(schema);
-    SerializableFunction<GenericRecord, T> fnWrapper =
-        new SerializableFunction<GenericRecord, T>() {
-          private Supplier<TableSchema> schema =
-              Suppliers.memoize(
-                  Suppliers.compose(new TableSchemaFunction(), Suppliers.ofInstance(jsonSchema)));
 
-          @Override
-          public T apply(GenericRecord input) {
-            return parseFn.apply(new SchemaAndRecord(input, schema.get()));
-          }
-        };
+    if(parseFn == null && factory == null) {
+      throw new IllegalArgumentException("Either parseFn or factory should be provided!");
+    }
+
+    SerializableFunction<GenericRecord, T> fnWrapper = null;
+
+    if (parseFn != null) {
+      fnWrapper =
+          new SerializableFunction<GenericRecord, T>() {
+            private Supplier<TableSchema> schema =
+                Suppliers.memoize(
+                    Suppliers.compose(new TableSchemaFunction(), Suppliers.ofInstance(jsonSchema)));
+
+            @Override
+            public T apply(GenericRecord input) {
+              return parseFn.apply(new SchemaAndRecord(input, schema.get()));
+            }
+          };
+    }
 
     List<BoundedSource<T>> avroSources = Lists.newArrayList();
     // If metadata is available, create AvroSources with said metadata in SINGLE_FILE_OR_SUBRANGE
     // mode.
     if (metadata != null) {
       for (MatchResult.Metadata file : metadata) {
-        avroSources.add(AvroSource.from(file).withParseFn(fnWrapper, getOutputCoder()));
+        if (fnWrapper != null) {
+          avroSources.add(AvroSource.from(file).withParseFn(fnWrapper, getOutputCoder()));
+        } else {
+          avroSources.add(
+              (AvroSource<T>)
+                  AvroSource.from(file)
+                      .withSchema(avroSchema)
+                      .withDatumReaderFactory(factory));
+        }
       }
     } else {
       for (ResourceId file : files) {
-        avroSources.add(AvroSource.from(file.toString()).withParseFn(fnWrapper, getOutputCoder()));
+        if (fnWrapper != null) {
+          avroSources.add(
+              AvroSource.from(file.toString()).withParseFn(fnWrapper, getOutputCoder()));
+        } else {
+          avroSources.add(
+              (AvroSource<T>)
+                  AvroSource.from(file.toString())
+                      .withSchema(avroSchema)
+                      .withDatumReaderFactory(factory));
+        }
       }
     }
     return ImmutableList.copyOf(avroSources);

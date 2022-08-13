@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -39,9 +40,18 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn,
+      AvroSource.DatumReaderFactory<T> factory,
+      String avroSchema,
       boolean useAvroLogicalTypes) {
-    return new BigQueryTableSource<>(
-        stepUuid, tableDef, bqServices, coder, parseFn, useAvroLogicalTypes);
+    if (parseFn != null) {
+      return new BigQueryTableSource<>(
+          stepUuid, tableDef, bqServices, coder, parseFn, useAvroLogicalTypes);
+    } else if (factory != null) {
+      return new BigQueryTableSource<>(
+          stepUuid, tableDef, bqServices, coder, factory, avroSchema, useAvroLogicalTypes);
+    } else {
+      throw new IllegalArgumentException("Either parseFn or factory should be provided!");
+    }
   }
 
   private final BigQueryTableSourceDef tableDef;
@@ -55,6 +65,19 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       SerializableFunction<SchemaAndRecord, T> parseFn,
       boolean useAvroLogicalTypes) {
     super(stepUuid, bqServices, coder, parseFn, useAvroLogicalTypes);
+    this.tableDef = tableDef;
+    this.tableSizeBytes = new AtomicReference<>();
+  }
+
+  private BigQueryTableSource(
+      String stepUuid,
+      BigQueryTableSourceDef tableDef,
+      BigQueryServices bqServices,
+      Coder<T> coder,
+      AvroSource.DatumReaderFactory<T> factory,
+      String avroSchema,
+      boolean useAvroLogicalTypes) {
+    super(stepUuid, bqServices, coder, factory, avroSchema, useAvroLogicalTypes);
     this.tableDef = tableDef;
     this.tableSizeBytes = new AtomicReference<>();
   }

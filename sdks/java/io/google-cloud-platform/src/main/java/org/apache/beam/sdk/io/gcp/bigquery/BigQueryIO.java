@@ -69,6 +69,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
+import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MoveOptions;
@@ -606,6 +607,28 @@ public class BigQueryIO {
         .build();
   }
 
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result, where the custom {@link org.apache.avro.io.DatumReader}
+   * implementation is used to parse from the BigQuery AVRO format.
+   *
+   * <p> This API allows direct deserialization of AVRO data to the target class.
+   */
+  public static <T> TypedRead<T> readWithDatumReader(
+      AvroSource.DatumReaderFactory<T> factory, org.apache.avro.Schema readerSchema) {
+    return new AutoValue_BigQueryIO_TypedRead.Builder<T>()
+        .setValidate(true)
+        .setWithTemplateCompatibility(false)
+        .setBigQueryServices(new BigQueryServicesImpl())
+        .setReaderDatumFactory(factory)
+        .setAvroSchema(readerSchema.toString())
+        .setMethod(TypedRead.Method.DEFAULT)
+        .setUseAvroLogicalTypes(false)
+        .setFormat(DataFormat.AVRO)
+        .setProjectionPushdownApplied(false)
+        .build();
+  }
+
   @VisibleForTesting
   static class TableRowParser implements SerializableFunction<SchemaAndRecord, TableRow> {
 
@@ -804,6 +827,10 @@ public class BigQueryIO {
 
       abstract Builder<T> setParseFn(SerializableFunction<SchemaAndRecord, T> parseFn);
 
+      abstract Builder<T> setReaderDatumFactory(AvroSource.DatumReaderFactory<T> factory);
+
+      abstract Builder<T> setAvroSchema(String avroSchema);
+
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setKmsKey(String kmsKey);
@@ -836,7 +863,11 @@ public class BigQueryIO {
 
     abstract BigQueryServices getBigQueryServices();
 
-    abstract SerializableFunction<SchemaAndRecord, T> getParseFn();
+    abstract @Nullable SerializableFunction<SchemaAndRecord, T> getParseFn();
+
+    abstract AvroSource.@Nullable DatumReaderFactory<T> getReaderDatumFactory();
+
+    abstract @Nullable String getAvroSchema();
 
     abstract @Nullable QueryPriority getQueryPriority();
 
@@ -1065,7 +1096,10 @@ public class BigQueryIO {
             getFlattenResults() != null, "flattenResults should not be null if query is set");
         checkArgument(getUseLegacySql() != null, "useLegacySql should not be null if query is set");
       }
-      checkArgument(getParseFn() != null, "A parseFn is required");
+
+      checkArgument(
+          getParseFn() != null || getReaderDatumFactory() != null,
+          "Either a parseFn or readerDatumFactory is required");
 
       // if both toRowFn and fromRowFn values are set, enable Beam schema support
       Pipeline p = input.getPipeline();
@@ -1108,7 +1142,12 @@ public class BigQueryIO {
             p.apply(
                 org.apache.beam.sdk.io.Read.from(
                     sourceDef.toSource(
-                        staticJobUuid, coder, getParseFn(), getUseAvroLogicalTypes())));
+                        staticJobUuid,
+                        coder,
+                        getParseFn(),
+                        getReaderDatumFactory(),
+                        getAvroSchema(),
+                        getUseAvroLogicalTypes())));
       } else {
         // Create a singleton job ID token at execution time.
         jobIdTokenCollection =
@@ -1136,7 +1175,12 @@ public class BigQueryIO {
                             String jobUuid = c.element();
                             BigQuerySourceBase<T> source =
                                 sourceDef.toSource(
-                                    jobUuid, coder, getParseFn(), getUseAvroLogicalTypes());
+                                    jobUuid,
+                                    coder,
+                                    getParseFn(),
+                                    getReaderDatumFactory(),
+                                    getAvroSchema(),
+                                    getUseAvroLogicalTypes());
                             BigQueryOptions options =
                                 c.getPipelineOptions().as(BigQueryOptions.class);
                             ExtractResult res = source.extractFiles(options);
@@ -1169,7 +1213,12 @@ public class BigQueryIO {
                                 String jobUuid = c.sideInput(jobIdTokenView);
                                 BigQuerySourceBase<T> source =
                                     sourceDef.toSource(
-                                        jobUuid, coder, getParseFn(), getUseAvroLogicalTypes());
+                                        jobUuid,
+                                        coder,
+                                        getParseFn(),
+                                        getReaderDatumFactory(),
+                                        getAvroSchema(),
+                                        getUseAvroLogicalTypes());
                                 List<BoundedSource<T>> sources =
                                     source.createSources(
                                         ImmutableList.of(
