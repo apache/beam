@@ -76,10 +76,12 @@ RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-1_48_1/
     mv beam-vendor-grpc-1_48_1-0.1.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-guava-26_0-jre/0.1/beam-vendor-guava-26_0-jre-0.1.jar &&\
     mv beam-vendor-guava-26_0-jre-0.1.jar /opt/apache/beam/jars/beam-vendor-guava.jar
-#RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-sdks-java-extensions-protobuf/2.28.0/beam-vendor-sdks-java-extensions-protobuf-2.28.0.jar &&\
-#    mv beam-vendor-sdks-java-extensions-protobuf-2.28.0.jar /opt/apache/beam/jars/beam-vendor-sdks-java-extensions-protobuf.jar
-#RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-1_26_0/0.3/beam-vendor-grpc-1_26_0-0.3.jar &&\
-#    mv beam-vendor-grpc-1_26_0-0.3.jar /opt/apache/beam/jars/beam-vendor-grpc-v1p26p0.jar
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-sdks-java-extensions-protobuf/2.28.0/beam-vendor-sdks-java-extensions-protobuf-2.28.0.jar &&\
+    mv beam-vendor-sdks-java-extensions-protobuf-2.28.0.jar /opt/apache/beam/jars/beam-vendor-sdks-java-extensions-protobuf.jar
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-bytebuddy-1_11_0/0.1/beam-vendor-bytebuddy-1_11_0-0.1.jar &&\
+    mv beam-vendor-bytebuddy-1_11_0-0.1.jar /opt/apache/beam/jars/beam-vendor-bytebuddy.jar
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-calcite-1_28_0/0.2/beam-vendor-calcite-1_28_0-0.2.jar &&\
+    mv beam-vendor-calcite-1_28_0-0.2.jar /opt/apache/beam/jars/beam-vendor-calcite.jar
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\
