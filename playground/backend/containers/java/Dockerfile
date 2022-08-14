@@ -71,6 +71,9 @@ RUN wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/$HAMCREST_VERS
 # Install JUnit
 RUN wget https://repo1.maven.org/maven2/junit/junit/$JUNIT_VERSION/junit-$JUNIT_VERSION.jar &&\
     mv junit-$JUNIT_VERSION.jar /opt/apache/beam/jars/junit.jar
+# Install Beam Vendor GRPC
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-1_43_2/0.1/beam-vendor-grpc-1_43_2-0.1.jar &&\
+    mv beam-vendor-grpc-1_43_2-0.1.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\
