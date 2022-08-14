@@ -211,8 +211,7 @@ func main() {
 	for _, workerId := range workerIds {
 		go func(workerId string) {
 			log.Printf("Executing: python %v", strings.Join(args, " "))
-			log.Printf("Python exited: %v", execx.ExecuteEnv(map[string]string{"WORKER_ID": workerId}, "python", args...))
-			wg.Done()
+			log.Fatalf("Python exited: %v", execx.ExecuteEnv(map[string]string{"WORKER_ID": workerId}, "python", args...))
 		}(workerId)
 	}
 	wg.Wait()
