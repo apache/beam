@@ -25,7 +25,6 @@ import time
 import unittest
 
 import grpc
-import pytest
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
@@ -263,9 +262,6 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     return options
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="[https://github.com/apache/beam/issues/20427]")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_subprocesses = True
 

@@ -23,6 +23,7 @@ import os
 import queue
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -184,7 +185,11 @@ class SubprocessSdkWorker(object):
       control_address,
       provision_info,
       worker_id=None):
-    self._worker_command_line = worker_command_line
+    if sys.platform == 'win32' and isinstance(worker_command_line, bytes):
+      # Fix subprocess.Popen not support bytes args
+      self._worker_command_line = worker_command_line.decode()
+    else:
+      self._worker_command_line = worker_command_line
     self._control_address = control_address
     self._provision_info = provision_info
     self._worker_id = worker_id
