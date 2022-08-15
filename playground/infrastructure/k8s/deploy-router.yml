@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: playground-router
+  labels:
+    app: backend-router
+    type: backend
+spec:
+  template:
+    metadata:
+     name: playground
+     labels: 
+       app: backend-router
+       type: backend
+    spec:
+     containers: 
+     - name: playground-backend-router
+       image: us-central1-docker.pkg.dev/apache-beam-testing/playground-repository/beam_playground-backend-router:beta-version-v4
+  replicas: 1
+  selector:
+    matchLabels:
+     app: backend-router

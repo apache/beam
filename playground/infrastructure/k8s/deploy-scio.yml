@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: playground-scio
+  labels:
+    app: backend-scio
+    type: backend
+spec:
+  template:
+    metadata:
+     name: playground
+     labels: 
+       app: backend-scio
+       type: backend
+    spec:
+     containers: 
+     - name: playground-backend-scio
+       image: us-central1-docker.pkg.dev/apache-beam-testing/playground-repository/beam_playground-backend-scio:beta-version-v4
+  replicas:1
+  selector:
+    matchLabels:
+     app: backend-scio
