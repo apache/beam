@@ -60,16 +60,22 @@ _DEFAULT_BYTES_CHUNKSIZE = 1 << 20
 
 def read_gbq(
     table, dataset=None, project_id=None, use_bqstorage_api=False, **kwargs):
-  """This function reads data from a BigQuery source and outputs it into
-  a Beam deferred dataframe
-  (https://beam.apache.org/documentation/dsls/dataframes/overview/)
-  Please specify a table in the format 'PROJECT:dataset.table'
-  or use the table, dataset, and project_id args
-  to specify the table. If you would like to utilize the BigQuery
-  Storage API in ReadFromBigQuery,
-    please set use_bq_storage_api to True.
-    Otherwise, please set the flag to false or
-    leave it unspecified."""
+  """This function reads data from a BigQuery table and produces a
+  :class:`~apache_beam.dataframe.frames.DeferredDataFrame.
+
+  Args:
+    table (str): Please specify a table. This can be done in the format
+      'PROJECT:dataset.table' if one would not wish to utilize
+      the parameters below.
+    dataset (str): Please specify the dataset
+      (can omit if table was specified as 'PROJECT:dataset.table').
+    project_id (str): Please specify the project ID
+      (can omit if table was specified as 'PROJECT:dataset.table').
+    use_bqstorage_api (bool): If you would like to utilize
+      the BigQuery Storage API in ReadFromBigQuery, please set
+      this flag to true. Otherwise, please set flag
+      to false or leave it unspecified.
+      """
   if table is None:
     raise ValueError("Please specify a BigQuery table to read from.")
   elif len(kwargs) > 0:
