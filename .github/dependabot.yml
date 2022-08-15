@@ -42,3 +42,11 @@ updates:
     - dependency-name: "com.google.api.grpc:grpc-*"
     - dependency-name: "com.google.http-client:*"
     - dependency-name: "com.google.apis:google-api-services-*"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    allow:
+      # Allow only automatic updates for official github actions
+      # Other github-actions require approval from INFRA
+      - dependency-name: "actions/*"

@@ -51,6 +51,7 @@ var unimplementedCoders = map[string]bool{
 var filteredCases = []struct{ filter, reason string }{
 	{"logical", "BEAM-9615: Support logical types"},
 	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "https://github.com/apache/beam/issues/21206: Support encoding position."},
+	{"8c97b6c5-69e5-4733-907b-26cd8edae612", "https://github.com/apache/beam/issues/22629: Support single-precision float."},
 }
 
 // Coder is a representation a serialized beam coder.

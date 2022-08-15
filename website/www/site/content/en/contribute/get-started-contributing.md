@@ -280,7 +280,12 @@ Execute:
   - [Jenkins](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips)
   - [FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
 
+<a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false"        aria-controls="collapseContributing">
+   {{< figure src="/images/arrow-icon_list.svg">}}
+
 ## Contribute Code
+
+</a>
 
 <div class="collapse dont-collapse-sm" id="collapseContributing">
 
