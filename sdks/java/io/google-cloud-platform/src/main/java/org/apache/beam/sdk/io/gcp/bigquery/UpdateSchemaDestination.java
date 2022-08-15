@@ -53,17 +53,13 @@ public class UpdateSchemaDestination
   private final PCollectionView<String> loadJobIdPrefixView;
   private final ValueProvider<String> loadJobProjectId;
   private transient @Nullable DatasetService datasetService;
-
   private final int maxRetryJobs;
   private final @Nullable String kmsKey;
-  private final String sourceFormat;
-  private final boolean useAvroLogicalTypes;
   private @Nullable BigQueryServices.JobService jobService;
-  private final boolean ignoreUnknownValues;
   private final Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions;
-  private BigQueryIO.Write.WriteDisposition writeDisposition;
-  private BigQueryIO.Write.CreateDisposition createDisposition;
-  private DynamicDestinations dynamicDestinations;
+  private final BigQueryIO.Write.WriteDisposition writeDisposition;
+  private final BigQueryIO.Write.CreateDisposition createDisposition;
+  private final DynamicDestinations dynamicDestinations;
 
   private static class PendingJobData {
     final BigQueryHelpers.PendingJob retryJob;
@@ -80,7 +76,7 @@ public class UpdateSchemaDestination
     }
   }
 
-  private List<UpdateSchemaDestination.PendingJobData> pendingJobs = Lists.newArrayList();
+  private final List<UpdateSchemaDestination.PendingJobData> pendingJobs = Lists.newArrayList();
 
   public UpdateSchemaDestination(
       BigQueryServices bqServices,
@@ -89,20 +85,14 @@ public class UpdateSchemaDestination
       BigQueryIO.Write.WriteDisposition writeDisposition,
       BigQueryIO.Write.CreateDisposition createDisposition,
       int maxRetryJobs,
-      boolean ignoreUnknownValues,
       @Nullable String kmsKey,
-      String sourceFormat,
-      boolean useAvroLogicalTypes,
       Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions,
       DynamicDestinations dynamicDestinations) {
     this.loadJobProjectId = loadJobProjectId;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
     this.bqServices = bqServices;
     this.maxRetryJobs = maxRetryJobs;
-    this.ignoreUnknownValues = ignoreUnknownValues;
     this.kmsKey = kmsKey;
-    this.sourceFormat = sourceFormat;
-    this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.schemaUpdateOptions = schemaUpdateOptions;
     this.createDisposition = createDisposition;
     this.writeDisposition = writeDisposition;
@@ -217,14 +207,10 @@ public class UpdateSchemaDestination
             .setSchema(schema)
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
-            .setSourceFormat(sourceFormat)
-            .setIgnoreUnknownValues(ignoreUnknownValues)
-            .setUseAvroLogicalTypes(useAvroLogicalTypes);
+            .setSourceFormat("NEWLINE_DELIMITED_JSON");
     if (schemaUpdateOptions != null) {
       List<String> options =
-          schemaUpdateOptions.stream()
-              .map(Enum<BigQueryIO.Write.SchemaUpdateOption>::name)
-              .collect(Collectors.toList());
+          schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
       loadConfig.setSchemaUpdateOptions(options);
     }
     if (!loadConfig
@@ -235,7 +221,7 @@ public class UpdateSchemaDestination
             .equals(BigQueryIO.Write.WriteDisposition.WRITE_APPEND.toString())) {
       return null;
     }
-    Table destinationTable = null;
+    final Table destinationTable;
     try {
       destinationTable = datasetService.getTable(tableReference);
       if (destinationTable == null) {
