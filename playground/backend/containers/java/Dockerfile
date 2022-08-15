@@ -72,8 +72,8 @@ RUN wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/$HAMCREST_VERS
 RUN wget https://repo1.maven.org/maven2/junit/junit/$JUNIT_VERSION/junit-$JUNIT_VERSION.jar &&\
     mv junit-$JUNIT_VERSION.jar /opt/apache/beam/jars/junit.jar
 # Install Beam Vendor GRPC
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-1_48_1/0.1/beam-vendor-grpc-1_48_1-0.1.jar &&\
-    mv beam-vendor-grpc-1_48_1-0.1.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-1_26_0/0.1/beam-vendor-grpc-1_26_0-0.1.jar &&\
+    mv beam-vendor-grpc-1_26_0-0.1.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-guava-26_0-jre/0.1/beam-vendor-guava-26_0-jre-0.1.jar &&\
     mv beam-vendor-guava-26_0-jre-0.1.jar /opt/apache/beam/jars/beam-vendor-guava.jar
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-sdks-java-extensions-protobuf/2.28.0/beam-vendor-sdks-java-extensions-protobuf-2.28.0.jar &&\
