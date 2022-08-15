@@ -35,6 +35,7 @@ import numpy as np
 from hypothesis import strategies as st
 from hypothesis import assume
 from hypothesis import given
+from hypothesis import settings
 from pytz import utc
 
 from apache_beam.coders import FloatCoder
@@ -88,6 +89,7 @@ class ProperyTestingCoders(unittest.TestCase):
     else:
       self.assertEqual(coder.decode(coder.encode(num)), num)
 
+  @settings(deadline=None)
   @given(st.data())
   def test_row_coder(self, data: st.DataObject):
     """Generate rows and schemas, and test their encoding/decoding.
