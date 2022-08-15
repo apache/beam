@@ -107,7 +107,7 @@ public class PubSubPayloadTranslation {
 
     @Override
     public String getUrn(PubsubUnboundedSink.PubsubSink transform) {
-      return PTransformTranslation.PUBSUB_WRITE;
+      return PTransformTranslation.PUBSUB_WRITE_V2;
     }
 
     @Override

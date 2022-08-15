@@ -22,6 +22,7 @@ import static org.apache.beam.runners.dataflow.util.Structs.getString;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
@@ -140,27 +141,37 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
 
   /** The SinkWriter for a PubsubSink. */
   class PubsubWriter implements SinkWriter<WindowedValue<T>> {
-    private Windmill.PubSubMessageBundle.Builder outputBuilder;
+    private Map<String, Windmill.PubSubMessageBundle.Builder> perTopicBuilder = new HashMap();
 
     private PubsubWriter(String topic) {
+      // Include default topic in the topic builder
+      Windmill.PubSubMessageBundle.Builder outputBuilder;
       outputBuilder =
           Windmill.PubSubMessageBundle.newBuilder()
               .setTopic(topic)
               .setTimestampLabel(timestampLabel)
               .setIdLabel(idLabel)
               .setWithAttributes(withAttributes);
+      perTopicBuilder.put(topic, outputBuilder);
     }
 
     @Override
     public long add(WindowedValue<T> data) throws IOException {
       ByteString byteString = null;
+      String defaultTopic = topic;
       if (formatFn != null) {
         PubsubMessage formatted = formatFn.apply(data.getValue());
         Pubsub.PubsubMessage.Builder pubsubMessageBuilder =
             Pubsub.PubsubMessage.newBuilder().setData(ByteString.copyFrom(formatted.getPayload()));
+        String overrideTopic = formatted.getTopicPath();
+        if (overrideTopic != null) {
+          defaultTopic = overrideTopic;
+        }
+
         if (formatted.getAttributeMap() != null) {
           pubsubMessageBuilder.putAllAttributes(formatted.getAttributeMap());
         }
+
         ByteStringOutputStream output = new ByteStringOutputStream();
         pubsubMessageBuilder.build().writeTo(output);
         byteString = output.toByteString();
@@ -168,6 +179,19 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
         ByteStringOutputStream stream = new ByteStringOutputStream();
         coder.encode(data.getValue(), stream, Coder.Context.OUTER);
         byteString = stream.toByteString();
+      }
+
+      Windmill.PubSubMessageBundle.Builder outputBuilder;
+      if (!perTopicBuilder.containsKey(defaultTopic)) {
+        outputBuilder =
+            Windmill.PubSubMessageBundle.newBuilder()
+                .setTopic(defaultTopic)
+                .setTimestampLabel(timestampLabel)
+                .setIdLabel(idLabel)
+                .setWithAttributes(withAttributes);
+        perTopicBuilder.put(defaultTopic, outputBuilder);
+      } else {
+        outputBuilder = perTopicBuilder.get(defaultTopic);
       }
 
       outputBuilder.addMessages(
@@ -181,11 +205,14 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
 
     @Override
     public void close() throws IOException {
-      Windmill.PubSubMessageBundle pubsubMessages = outputBuilder.build();
-      if (pubsubMessages.getMessagesCount() > 0) {
-        context.getOutputBuilder().addPubsubMessages(pubsubMessages);
+      for (Windmill.PubSubMessageBundle.Builder outputBuilder : perTopicBuilder.values()) {
+        Windmill.PubSubMessageBundle pubsubMessages = outputBuilder.build();
+        if (pubsubMessages.getMessagesCount() > 0) {
+          context.getOutputBuilder().addPubsubMessages(pubsubMessages);
+        }
+        outputBuilder.clear();
       }
-      outputBuilder.clear();
+      perTopicBuilder.clear();
     }
 
     @Override
