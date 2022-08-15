@@ -44,6 +44,7 @@ The Java SDK has the following extensions:
 - [join-library](/documentation/sdks/java-extensions/#join-library) provides inner join, outer left join, and outer right join functions.
 - [sorter](/documentation/sdks/java-extensions/#sorter) is an efficient and scalable sorter for large iterables.
 - [Nexmark](/documentation/sdks/java/testing/nexmark) is a benchmark suite that runs in batch and streaming modes.
+- [TPC-DS](/documentation/sdks/java/testing/tpcds) is a SQL benchmark suite that runs in batch mode.
 - [euphoria](/documentation/sdks/java/euphoria) is easy to use Java 8 DSL for BEAM.
 
 In addition several [3rd party Java libraries](/documentation/sdks/java-thirdparty/) exist.

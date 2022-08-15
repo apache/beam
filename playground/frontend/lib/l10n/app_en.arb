@@ -226,5 +226,25 @@
   "result": "Result",
   "@result": {
     "description": "Name for the output tab"
+  },
+  "shareMyCode": "Share my code",
+  "@shareMyCode": {
+    "description": "Text for the share button"
+  },
+  "link": "Link",
+  "@link": {
+    "description": "Name of the Link tab in Share dropdown"
+  },
+  "embed": "Embed",
+  "@embed": {
+    "description": "Name of the Embed tab in Share dropdown"
+  },
+  "linkReady": "Link is ready! Anyone with this link can view your example.",
+  "@linkReady": {
+    "description": "Text that appears when user sees link to code sample"
+  },
+  "iframeCodeReady": "With this code you can embed Playground to your website.",
+  "@iframeCodeReady": {
+    "description": "Text that appears when user sees Playground iframe code"
   }
 }

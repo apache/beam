@@ -98,6 +98,9 @@ cdef class OutputStream(object):
   cpdef write_bigendian_double(self, double d):
     self.write_bigendian_int64((<libc.stdint.int64_t*><char*>&d)[0])
 
+  cpdef write_bigendian_float(self, float f):
+    self.write_bigendian_int32((<libc.stdint.int32_t*><char*>&f)[0])
+
   cpdef bytes get(self):
     return self.data[:self.pos]
 
@@ -223,6 +226,10 @@ cdef class InputStream(object):
   cpdef double read_bigendian_double(self) except? -1:
     cdef libc.stdint.int64_t as_long = self.read_bigendian_int64()
     return (<double*><char*>&as_long)[0]
+
+  cpdef float read_bigendian_float(self) except? -1:
+    cdef libc.stdint.int32_t as_int = self.read_bigendian_int32()
+    return (<float*><char*>&as_int)[0]
 
 cpdef libc.stdint.int64_t get_varint_size(libc.stdint.int64_t value):
   """Returns the size of the given integer value when encode as a VarInt."""

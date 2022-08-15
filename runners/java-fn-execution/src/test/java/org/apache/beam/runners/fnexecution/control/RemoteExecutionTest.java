@@ -130,13 +130,14 @@ import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -819,7 +820,7 @@ public class RemoteExecutionTest implements Serializable {
   }
 
   private static ByteString encode(String value) throws Exception {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     StringUtf8Coder.of().encode(value, output);
     return output.toByteString();
   }
@@ -1524,7 +1525,7 @@ public class RemoteExecutionTest implements Serializable {
 
     // 3 Requests expected: state read, state2 read, and state2 clear
     assertEquals(3, stateRequestHandler.getRequestCount());
-    ByteString.Output out = ByteString.newOutput();
+    ByteStringOutputStream out = new ByteStringOutputStream();
     StringUtf8Coder.of().encode("X", out);
 
     assertEquals(

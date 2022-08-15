@@ -172,6 +172,7 @@ cluster runs. The word count job won't be able to read the data otherwise.
 
 ## Pipeline Options for the Jet Runner
 
+<div class="table-container-wrapper">
 <table class="table table-bordered">
 <tr>
   <th>Field</th>
@@ -227,3 +228,4 @@ cluster runs. The word count job won't be able to read the data otherwise.
   <td><code>false</code></td>
 </tr>
 </table>
+</div>

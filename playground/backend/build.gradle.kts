@@ -40,15 +40,52 @@ task("tidy") {
   }
 }
 
-task("test") {
-  group = "verification"
-  description = "Test the backend"
-  doLast {
-    exec {
-      executable("go")
-      args("test", "./...")
+val startDatastoreEmulator by tasks.registering {
+    doFirst {
+        val process = ProcessBuilder()
+            .directory(projectDir)
+            .inheritIO()
+            .command("sh", "start_datastore_emulator.sh")
+            .start()
+            .waitFor()
+        if (process == 0) {
+            println("Datastore emulator started")
+        } else {
+            println("Failed to start datastore emulator")
+        }
     }
-  }
+}
+
+val stopDatastoreEmulator by tasks.registering {
+    doLast {
+        exec {
+            executable("sh")
+            args("stop_datastore_emulator.sh")
+        }
+    }
+}
+
+val test by tasks.registering {
+    group = "verification"
+    description = "Test the backend"
+    doLast {
+        exec {
+            executable("go")
+            args("test", "./...")
+        }
+    }
+}
+
+test { dependsOn(startDatastoreEmulator) }
+test { finalizedBy(stopDatastoreEmulator) }
+
+task("removeUnusedSnippet") {
+    doLast {
+      exec {
+         executable("go")
+         args("run", "cmd/remove_unused_snippets.go", System.getProperty("dayDiff"), System.getProperty("projectId"))
+      }
+    }
 }
 
 task("benchmarkPrecompiledObjects") {
@@ -93,7 +130,7 @@ task("runLint") {
   doLast {
     exec {
       executable("golangci-lint")
-      args("run", "cmd/server/...")      
+      args("run", "cmd/server/...")
     }
   }
 }

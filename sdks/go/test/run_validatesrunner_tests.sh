@@ -91,6 +91,7 @@ SIMULTANEOUS=3
 
 # Where to store integration test outputs.
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
+GCS_SUBFOLDER="test$RANDOM"
 
 # Project for the container and integration test
 PROJECT=apache-beam-testing
@@ -409,8 +410,8 @@ ARGS="$ARGS --project=$DATAFLOW_PROJECT"
 ARGS="$ARGS --region=$REGION"
 ARGS="$ARGS --environment_type=DOCKER"
 ARGS="$ARGS --environment_config=$CONTAINER:$TAG"
-ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test"
-ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test"
+ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test/$GCS_SUBFOLDER"
+ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test/$GCS_SUBFOLDER"
 ARGS="$ARGS --dataflow_worker_jar=$DATAFLOW_WORKER_JAR"
 ARGS="$ARGS --endpoint=$ENDPOINT"
 if [[ -n "$TEST_EXPANSION_ADDR" ]]; then

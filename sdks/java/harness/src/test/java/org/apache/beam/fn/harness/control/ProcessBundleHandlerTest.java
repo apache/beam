@@ -137,12 +137,13 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerFamilyDeclarati
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.DoFnWithExecutionInformation;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -1095,9 +1096,9 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
 
-    ByteString.Output encodedData = ByteString.newOutput();
+    ByteStringOutputStream encodedData = new ByteStringOutputStream();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
-    ByteString.Output encodedTimer = ByteString.newOutput();
+    ByteStringOutputStream encodedTimer = new ByteStringOutputStream();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
         .encode(
             Timer.of(
@@ -1160,7 +1161,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
 
-    ByteString.Output encodedData = ByteString.newOutput();
+    ByteStringOutputStream encodedData = new ByteStringOutputStream();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
 
     assertThrows(
@@ -1216,7 +1217,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
 
-    ByteString.Output encodedTimer = ByteString.newOutput();
+    ByteStringOutputStream encodedTimer = new ByteStringOutputStream();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
         .encode(
             Timer.of(
@@ -1310,7 +1311,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, true);
 
-    ByteString.Output encodedTimer = ByteString.newOutput();
+    ByteStringOutputStream encodedTimer = new ByteStringOutputStream();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
         .encode(
             Timer.of(
@@ -1446,7 +1447,7 @@ public class ProcessBundleHandlerTest {
 
     Mockito.doAnswer(
             (invocation) -> {
-              ByteString.Output encodedData = ByteString.newOutput();
+              ByteStringOutputStream encodedData = new ByteStringOutputStream();
               StringUtf8Coder.of().encode("A", encodedData);
               String instructionId = invocation.getArgument(0, String.class);
               CloseableFnDataReceiver<BeamFnApi.Elements> data =

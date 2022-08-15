@@ -78,7 +78,9 @@ describe("primitives module", function () {
     it("runs a map with singleton side input", async function () {
       await new DirectRunner().run((root) => {
         const input = root.apply(beam.create([1, 2, 1]));
-        const sideInput = root.apply(beam.create([4]));
+        const sideInput = root.apply(
+          beam.withName("createSide", beam.create([4]))
+        );
         input
           .map((e, context) => e / context.side.lookup(), {
             side: pardo.singletonSideInput(sideInput),
