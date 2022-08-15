@@ -89,7 +89,7 @@ class ProperyTestingCoders(unittest.TestCase):
     else:
       self.assertEqual(coder.decode(coder.encode(num)), num)
 
-  @settings(deadline=None)
+  @settings(deadline=None, print_blob=True)
   @given(st.data())
   def test_row_coder(self, data: st.DataObject):
     """Generate rows and schemas, and test their encoding/decoding.
