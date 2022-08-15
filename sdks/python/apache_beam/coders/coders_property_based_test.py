@@ -51,11 +51,11 @@ SCHEMA_TYPES_TO_STRATEGY = {
     bytes: st.binary(),
     Timestamp: st.datetimes().map(
         lambda dt: Timestamp.from_utc_datetime(dt.astimezone(utc))),
-    int: st.integers(min_value=-(1 << 64 - 1), max_value=1 << 64 - 1),
+    int: st.integers(min_value=-(1 << 63 - 1), max_value=1 << 63 - 1),
     np.int32: st.integers(min_value=-(1 << 31 - 1), max_value=1 << 31 - 1),
-    np.int64: st.integers(min_value=-(1 << 64 - 1), max_value=1 << 64 - 1),
+    np.int64: st.integers(min_value=-(1 << 63 - 1), max_value=1 << 63 - 1),
     np.uint32: st.integers(min_value=0, max_value=1 << 32 - 1),
-    np.uint64: st.integers(min_value=0, max_value=1 << 65 - 1),
+    np.uint64: st.integers(min_value=0, max_value=1 << 64 - 1),
     bool: st.booleans()
 }
 
