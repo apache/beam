@@ -588,9 +588,9 @@ class BlobStorageIO(object):
     start_time = time.time()
 
     if with_metadata:
-      logging.info("Starting the file information of the input")
+      logging.debug("Starting the file information of the input")
     else:
-      logging.info("Starting the size estimation of the input")
+      logging.debug("Starting the size estimation of the input")
     container_client = self.client.get_container_client(container)
 
     while True:
@@ -612,7 +612,9 @@ class BlobStorageIO(object):
             logging.info("Finished computing size of: %s files", len(file_info))
       break
 
-    logging.info(
+    logging.log(
+        # do not spam logs when list_prefix is likely used to check empty folder
+        logging.INFO if counter > 0 else logging.DEBUG,
         "Finished listing %s files in %s seconds.",
         counter,
         time.time() - start_time)

@@ -243,6 +243,39 @@ func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEnti
 	}), nil
 }
 
+//DeleteUnusedSnippets deletes all unused snippets
+func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int32) error {
+	var hoursDiff = dayDiff * 24
+	boundaryDate := time.Now().Add(-time.Hour * time.Duration(hoursDiff))
+	snippetQuery := datastore.NewQuery(constants.SnippetKind).
+		Namespace(constants.Namespace).
+		Filter("lVisited <= ", boundaryDate).
+		Filter("origin =", constants.UserSnippetOrigin).
+		Project("numberOfFiles")
+	var snpDtos []*dto.SnippetDeleteDTO
+	snpKeys, err := d.Client.GetAll(ctx, snippetQuery, &snpDtos)
+	if err != nil {
+		logger.Errorf("Datastore: DeleteUnusedSnippets(): error during deleting unused snippets, err: %s\n", err.Error())
+		return err
+	}
+	var fileKeys []*datastore.Key
+	for snpIndex, snpKey := range snpKeys {
+		for fileIndex := 0; fileIndex < snpDtos[snpIndex].NumberOfFiles; fileIndex++ {
+			fileKeys = append(fileKeys, utils.GetFileKey(ctx, snpKey.Name, fileIndex))
+		}
+	}
+	_, err = d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+		err = tx.DeleteMulti(fileKeys)
+		err = tx.DeleteMulti(snpKeys)
+		return err
+	})
+	if err != nil {
+		logger.Errorf("Datastore: DeleteUnusedSnippets(): error during deleting unused snippets, err: %s\n", err.Error())
+		return err
+	}
+	return nil
+}
+
 func rollback(tx *datastore.Transaction) {
 	err := tx.Rollback()
 	if err != nil {

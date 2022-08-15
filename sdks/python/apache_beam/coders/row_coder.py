@@ -30,6 +30,7 @@ from apache_beam.coders.coders import FloatCoder
 from apache_beam.coders.coders import IterableCoder
 from apache_beam.coders.coders import MapCoder
 from apache_beam.coders.coders import NullableCoder
+from apache_beam.coders.coders import SinglePrecisionFloatCoder
 from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns
@@ -133,6 +134,8 @@ class RowCoder(FastCoder):
 
 
 typecoders.registry.register_coder(row_type.RowTypeConstraint, RowCoder)
+typecoders.registry.register_coder(
+    row_type.GeneratedClassRowTypeConstraint, RowCoder)
 
 
 def _coder_from_type(field_type):
@@ -148,6 +151,8 @@ def _nonnull_coder_from_type(field_type):
   if type_info == "atomic_type":
     if field_type.atomic_type in (schema_pb2.INT32, schema_pb2.INT64):
       return VarIntCoder()
+    elif field_type.atomic_type == schema_pb2.FLOAT:
+      return SinglePrecisionFloatCoder()
     elif field_type.atomic_type == schema_pb2.DOUBLE:
       return FloatCoder()
     elif field_type.atomic_type == schema_pb2.STRING:

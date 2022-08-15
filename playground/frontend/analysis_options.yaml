@@ -100,7 +100,6 @@ linter:
     use_if_null_to_convert_nulls_to_bools: true
     use_is_even_rather_than_modulo: true
     use_raw_strings: true
-    use_setters_to_change_properties: true
     use_to_and_as_if_applicable: true
 
     #Turn off those on by default:

@@ -141,7 +141,7 @@ dependencies {
   implementation library.java.protobuf_java
   implementation library.java.protobuf_java_util
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   implementation library.java.vendored_guava_26_0_jre
   implementation library.java.arrow_memory_core
   implementation library.java.arrow_vector
@@ -171,7 +171,6 @@ configurations.implementation {
     force library.java.checker_qual
   }
 }
-
 
 /**
  * These are integration tests with the real Pubsub service and the DirectRunner.
@@ -229,6 +228,63 @@ task integrationTestKms(type: Test) {
     includeCategories "org.apache.beam.sdk.testing.UsesKms"
   }
 }
+
+// path(s) for Cloud Spanner related classes
+def spannerIncludes = [
+        '**/org/apache/beam/sdk/io/gcp/spanner/**',
+]
+
+// exclude auto-generated classes and integration tests
+def jacocoExcludes = [
+        '**/AutoValue_*',
+        '**/*IT*',
+]
+
+task spannerCodeCoverageReport(type: JacocoReport, dependsOn: test) {
+  group = "Reporting"
+  description = "Generates code coverage report for Cloud Spanner related classes"
+  classDirectories.setFrom(files(files(project.sourceSets.main.output).collect {
+            project.fileTree(
+                    dir: it,
+                    includes: spannerIncludes,
+                    excludes: jacocoExcludes)
+  }))
+  sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
+  executionData.setFrom(file("${buildDir}/jacoco/test.exec"))
+  reports {
+    html.enabled true
+    html.destination file("${buildDir}/reports/jacoco/spanner/")
+  }
+}
+
+task spannerCodeCoverageVerification(type: JacocoCoverageVerification, dependsOn: spannerCodeCoverageReport) {
+  group = "Verification"
+  description = "Enforces code coverage verification for Cloud Spanner related classes"
+  classDirectories.setFrom(files(files(project.sourceSets.main.output).collect {
+    project.fileTree(
+            dir: it,
+            includes: spannerIncludes,
+            excludes: jacocoExcludes)
+  }))
+  sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
+  executionData.setFrom(file("${buildDir}/jacoco/test.exec"))
+  violationRules {
+    failOnViolation = true
+    rule {
+      element = 'BUNDLE'
+
+      limit {
+        value = 'COVEREDRATIO'
+        counter = 'INSTRUCTION'
+        minimum = 0.60
+      }
+    }
+  }
+}
+
+// make the check task depend on spannerCodeCoverageVerification so that the build
+// fails when the code coverage threshold is violated.
+project.check.dependsOn "spannerCodeCoverageVerification"
 
 task postCommit {
   group = "Verification"

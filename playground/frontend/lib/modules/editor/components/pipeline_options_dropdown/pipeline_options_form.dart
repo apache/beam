@@ -22,8 +22,8 @@ import 'package:collection/collection.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/colors.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_controller.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_label.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_model.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_text_field.dart';
 
 const kSpace = SizedBox(width: kMdSpacing);
@@ -53,19 +53,23 @@ class PipelineOptionsForm extends StatelessWidget {
           ],
         ),
         ...options.mapIndexed(
-          (index, option) => Row(
+          (index, controller) => Row(
             children: [
               Expanded(
                 child: SizedBox(
                   height: kTextFieldHeight,
-                  child: PipelineOptionsTextField(controller: option.name),
+                  child: PipelineOptionsTextField(
+                    controller: controller.nameController,
+                  ),
                 ),
               ),
               kSpace,
               Expanded(
                 child: SizedBox(
                   height: kTextFieldHeight,
-                  child: PipelineOptionsTextField(controller: option.value),
+                  child: PipelineOptionsTextField(
+                    controller: controller.valueController,
+                  ),
                 ),
               ),
               SizedBox(

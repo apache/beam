@@ -21,16 +21,16 @@ from ci_cd import _ci_step, _cd_step, _check_envs
 
 @mock.patch("ci_helper.CIHelper.verify_examples")
 def test_ci_step(mock_verify_examples):
-  _ci_step([])
-  mock_verify_examples.assert_called_once_with([])
+    _ci_step([])
+    mock_verify_examples.assert_called_once_with([])
 
 
 @mock.patch("cd_helper.CDHelper.store_examples")
 def test_cd_step(mock_store_examples):
-  _cd_step([])
-  mock_store_examples.assert_called_once_with([])
+    _cd_step([])
+    mock_store_examples.assert_called_once_with([])
 
 
 def test__check_envs():
-  with pytest.raises(KeyError):
-    _check_envs()
+    with pytest.raises(KeyError):
+        _check_envs()

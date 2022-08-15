@@ -70,11 +70,11 @@ class PlaygroundPageBody extends StatelessWidget {
 
   Widget getVerticalSeparator(BuildContext context) => Container(
         width: kMdSpacing,
-        color: ThemeColors.of(context).greyColor,
+        color: ThemeColors.of(context).divider,
       );
 
   Widget getHorizontalSeparator(BuildContext context) => Container(
         height: kMdSpacing,
-        color: ThemeColors.of(context).greyColor,
+        color: ThemeColors.of(context).divider,
       );
 }
