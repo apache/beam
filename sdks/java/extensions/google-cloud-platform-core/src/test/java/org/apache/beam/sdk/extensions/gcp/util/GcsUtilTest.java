@@ -1099,6 +1099,8 @@ public class GcsUtilTest {
                 GoogleJsonError error = new GoogleJsonError();
                 error.setCode(HttpStatusCodes.STATUS_CODE_NOT_FOUND);
                 cb.onFailure(error, null);
+              } catch (GoogleJsonResponseException e) {
+                cb.onFailure(e.getDetails(), null);
               } catch (Exception e) {
                 System.out.println("Propagating exception as server error " + e);
                 e.printStackTrace();
@@ -1257,6 +1259,82 @@ public class GcsUtilTest {
                 Collections.singletonList("gs://bucket/source"),
                 Collections.singletonList("gs://different_bucket/dest"),
                 StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS));
+  }
+
+  @Test
+  public void testThrowRetentionPolicyNotMetErrorWhenUnequalChecksum() throws IOException {
+    // ./gradlew sdks:java:extensions:google-cloud-platform-core:test --tests
+    // org.apache.beam.sdk.extensions.gcp.util.GcsUtilTest.testHanRetentionPolicyNotMetError
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Get mockGetRequest1 = Mockito.mock(Storage.Objects.Get.class);
+    Storage.Objects.Get mockGetRequest2 = Mockito.mock(Storage.Objects.Get.class);
+    Storage.Objects.Rewrite mockStorageRewrite = Mockito.mock(Storage.Objects.Rewrite.class);
+
+    // Gcs object to be used when checking the hash of the files during rewrite fail.
+    StorageObject srcObject = new StorageObject().setMd5Hash("a");
+    StorageObject destObject = new StorageObject().setMd5Hash("b");
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.rewrite("bucket", "s0", "bucket", "d0", null))
+        .thenReturn(mockStorageRewrite);
+    when(mockStorageRewrite.execute())
+        .thenThrow(googleJsonResponseException(403, "retentionPolicyNotMet", "Too soon"));
+    when(mockStorageObjects.get("bucket", "s0")).thenReturn(mockGetRequest1);
+    when(mockGetRequest1.execute()).thenReturn(srcObject);
+    when(mockStorageObjects.get("bucket", "d0")).thenReturn(mockGetRequest2);
+    when(mockGetRequest2.execute()).thenReturn(destObject);
+
+    assertThrows(IOException.class, () -> gcsUtil.rename(makeStrings("s", 1), makeStrings("d", 1)));
+
+    verify(mockStorageRewrite, times(1)).execute();
+  }
+
+  @Test
+  public void testIgnoreRetentionPolicyNotMetErrorWhenEqualChecksum() throws IOException {
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Get mockGetRequest = Mockito.mock(Storage.Objects.Get.class);
+    Storage.Objects.Rewrite mockStorageRewrite1 = Mockito.mock(Storage.Objects.Rewrite.class);
+    Storage.Objects.Rewrite mockStorageRewrite2 = Mockito.mock(Storage.Objects.Rewrite.class);
+    Storage.Objects.Delete mockStorageDelete = Mockito.mock(Storage.Objects.Delete.class);
+
+    // Gcs object to be used when checking the hash of the files during rewrite fail.
+    StorageObject gcsObject = new StorageObject().setMd5Hash("a");
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    // First rewrite with retentionPolicyNotMet error.
+    when(mockStorageObjects.rewrite("bucket", "s0", "bucket", "d0", null))
+        .thenReturn(mockStorageRewrite1);
+    when(mockStorageRewrite1.execute())
+        .thenThrow(googleJsonResponseException(403, "retentionPolicyNotMet", "Too soon"));
+    when(mockStorageObjects.get(any(), any())) // to access object hash during error handling
+        .thenReturn(mockGetRequest);
+    when(mockGetRequest.execute())
+        .thenReturn(gcsObject); // both source and destination will get the same hash
+    when(mockStorageObjects.delete("bucket", "s0")).thenReturn(mockStorageDelete);
+
+    // Second rewrite should not be affected.
+    when(mockStorageObjects.rewrite("bucket", "s1", "bucket", "d1", null))
+        .thenReturn(mockStorageRewrite2);
+    when(mockStorageRewrite2.execute()).thenReturn(new RewriteResponse().setDone(true));
+    when(mockStorageObjects.delete("bucket", "s1")).thenReturn(mockStorageDelete);
+
+    gcsUtil.rename(makeStrings("s", 2), makeStrings("d", 2));
+
+    verify(mockStorageRewrite1, times(1)).execute();
+    verify(mockStorageRewrite2, times(1)).execute();
+    verify(mockStorageDelete, times(2)).execute();
   }
 
   @Test

@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/colors.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_model.dart';
+import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_controller.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_input.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_separator.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_form.dart';
@@ -29,19 +29,16 @@ import 'package:playground/modules/editor/parsers/run_options_parser.dart';
 const kOptionsTabIndex = 0;
 const kRawTabIndex = 1;
 
-final kDefaultOption = [PipelineOptionController()];
-
 class PipelineOptionsDropdownBody extends StatefulWidget {
   final String pipelineOptions;
   final void Function(String) setPipelineOptions;
   final void Function() close;
 
-  const PipelineOptionsDropdownBody({
-    Key? key,
+  PipelineOptionsDropdownBody({
     required this.pipelineOptions,
     required this.setPipelineOptions,
     required this.close,
-  }) : super(key: key);
+  }) : super(key: ValueKey(pipelineOptions));
 
   @override
   State<PipelineOptionsDropdownBody> createState() =>
@@ -54,7 +51,7 @@ class _PipelineOptionsDropdownBodyState
   late final TabController tabController;
   final TextEditingController pipelineOptionsController =
       TextEditingController();
-  List<PipelineOptionController> pipelineOptionsList = kDefaultOption;
+  List<PipelineOptionController> pipelineOptionsList = [];
   int selectedTab = kOptionsTabIndex;
   bool showError = false;
 
@@ -65,7 +62,7 @@ class _PipelineOptionsDropdownBodyState
     pipelineOptionsController.text = widget.pipelineOptions;
     pipelineOptionsList = _pipelineOptionsMapToList(widget.pipelineOptions);
     if (pipelineOptionsList.isEmpty) {
-      pipelineOptionsList = kDefaultOption;
+      pipelineOptionsList = [PipelineOptionController()];
     }
     super.initState();
   }
@@ -74,6 +71,12 @@ class _PipelineOptionsDropdownBodyState
   void dispose() {
     tabController.removeListener(onTabChange);
     tabController.dispose();
+    pipelineOptionsController.dispose();
+
+    for (final controller in pipelineOptionsList) {
+      controller.dispose();
+    }
+
     super.dispose();
   }
 
@@ -155,8 +158,8 @@ class _PipelineOptionsDropdownBodyState
                     appLocale.pipelineOptionsError,
                     style: Theme.of(context)
                         .textTheme
-                        .caption
-                        !.copyWith(color: kErrorNotificationColor),
+                        .caption!
+                        .copyWith(color: kErrorNotificationColor),
                     softWrap: true,
                   ),
                 ),
@@ -169,10 +172,14 @@ class _PipelineOptionsDropdownBodyState
 
   Map<String, String> get pipelineOptionsListValue {
     final notEmptyOptions = pipelineOptionsList
-        .where((option) =>
-            option.name.text.isNotEmpty && option.value.text.isNotEmpty)
+        .where((controller) =>
+            controller.nameController.text.isNotEmpty &&
+            controller.valueController.text.isNotEmpty)
         .toList();
-    return {for (var item in notEmptyOptions) item.name.text: item.value.text};
+    return {
+      for (final controller in notEmptyOptions)
+        controller.nameController.text: controller.valueController.text
+    };
   }
 
   String get pipelineOptionsValue {

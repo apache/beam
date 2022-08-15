@@ -34,6 +34,8 @@ type SnippetDatabase interface {
 	GetSnippet(ctx context.Context, id string) (*entity.SnippetEntity, error)
 
 	GetFiles(ctx context.Context, snipId string, numberOfFiles int) ([]*entity.FileEntity, error)
+
+	DeleteUnusedSnippets(ctx context.Context, dayDiff int32) error
 }
 
 type CatalogDatabase interface {

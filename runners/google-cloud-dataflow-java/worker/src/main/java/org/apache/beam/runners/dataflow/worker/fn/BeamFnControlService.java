@@ -28,9 +28,9 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.fn.grpc.BeamFnService;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.sdk.fn.server.HeaderAccessor;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

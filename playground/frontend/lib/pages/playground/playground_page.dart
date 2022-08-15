@@ -18,7 +18,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/components/logo/logo_component.dart';
-import 'package:playground/components/summit_banner/summit_banner_button.dart';
 import 'package:playground/components/toggle_theme_button/toggle_theme_button.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/actions/components/new_example_action.dart';
@@ -34,7 +33,6 @@ import 'package:playground/pages/playground/components/close_listener_nonweb.dar
 import 'package:playground/pages/playground/components/more_actions.dart';
 import 'package:playground/pages/playground/components/playground_page_body.dart';
 import 'package:playground/pages/playground/components/playground_page_footer.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
@@ -56,14 +54,10 @@ class PlaygroundPage extends StatelessWidget {
                   spacing: kXlSpacing,
                   children: [
                     const Logo(),
-                    Consumer<ExampleState>(
-                      builder: (context, state, child) {
-                        return ExampleSelector(
-                          changeSelectorVisibility:
-                              state.changeSelectorVisibility,
-                          isSelectorOpened: state.isSelectorOpened,
-                        );
-                      },
+                    ExampleSelector(
+                      changeSelectorVisibility:
+                          state.exampleState.changeSelectorVisibility,
+                      isSelectorOpened: state.exampleState.isSelectorOpened,
                     ),
                     SDKSelector(
                       sdk: state.sdk,
@@ -84,7 +78,7 @@ class PlaygroundPage extends StatelessWidget {
                 );
               },
             ),
-            actions: const [SummitBanner(), ToggleThemeButton(), MoreActions()],
+            actions: const [ToggleThemeButton(), MoreActions()],
           ),
           body: Column(
             children: [
