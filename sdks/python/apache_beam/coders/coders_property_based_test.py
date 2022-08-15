@@ -104,7 +104,7 @@ class ProperyTestingCoders(unittest.TestCase):
     assume(
         len({n[0]
              for n, _, _ in schema}.intersection(set(digits + '_'))) == 0)
-    RowType = typing.NamedTuple(
+    RowType = typing.NamedTuple(  # type: ignore
         'RandomRowType',
         [(name, type_ if not nullable else typing.Optional[type_]) for name,
          type_,
@@ -112,7 +112,7 @@ class ProperyTestingCoders(unittest.TestCase):
     coders_registry.register_coder(RowType, RowCoder)
 
     # TODO(pabloem): Also apply nullability for these schemas.
-    row = RowType(
+    row = RowType(  # type: ignore
         **{
             name: data.draw(SCHEMA_TYPES_TO_STRATEGY[type_])
             for name,
