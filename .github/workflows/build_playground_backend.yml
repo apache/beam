@@ -87,7 +87,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
       - name: DB Index creation
         run: |
-         gcloud auth activate-service-account --project=${{ secrets.S3D_GCP_PLAYGROUND_PROJECT_ID }} --key-file=/tmp/gcp_access.json
-         gcloud app deploy playground/index.yaml --project=${{ secrets.S3D_GCP_PLAYGROUND_PROJECT_ID }}
+         gcloud auth activate-service-account --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }} --key-file=/tmp/gcp_access.json
+         gcloud app deploy playground/index.yaml --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
