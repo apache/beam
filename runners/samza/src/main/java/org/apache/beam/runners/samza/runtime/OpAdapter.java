@@ -25,6 +25,7 @@ import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.runners.samza.util.SamzaPipelineExceptionListener;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -76,10 +77,11 @@ public class OpAdapter<InT, OutT, K>
     this.emitter = new OpEmitterImpl();
     this.config = context.getJobContext().getConfig();
     this.context = context;
-    this.exceptionListeners = new ArrayList<>();
-    ServiceLoader.load(SamzaPipelineExceptionListener.Registrar.class)
-        .iterator()
-        .forEachRemaining(exceptionListeners::add);
+    this.exceptionListeners =
+        StreamSupport.stream(
+                ServiceLoader.load(SamzaPipelineExceptionListener.Registrar.class).spliterator(),
+                false)
+            .collect(Collectors.toList());
   }
 
   @Override
