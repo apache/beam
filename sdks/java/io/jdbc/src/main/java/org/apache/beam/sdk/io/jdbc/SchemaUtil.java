@@ -311,6 +311,7 @@ class SchemaUtil {
   /** Convert SQL date type to Beam DateTime. */
   private static ResultSetFieldExtractor createDateExtractor() {
     return (rs, i) -> {
+      // TODO(https://github.com/apache/beam/issues/19215) import when joda LocalDate is removed.
       java.time.LocalDate date = rs.getObject(i, java.time.LocalDate.class);
       if (date == null) {
         return null;
