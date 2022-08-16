@@ -83,7 +83,7 @@ jobs:
 * A **detailed review** for changes in the workflows is needed due to important **security concerns**.
 * **DO NOT** Approve and Run changes in the workflows in the PR Conversation tab, under "Workflow(s) awaiting approval".
 * For approving the updates in the workflows, you should go to the Repository Actions and filter All Workflows by `action_required`. The search will display the workflows that need to be reviewed before running. **Please make sure reviewing the file that is referenced by the workflow.**
-
+* Seed job will be emulated using the `Approve and Run` built-in feature of GitHub Actions, since the workflows will use the `pull_request_target` directive; no modifications would be allowed either for new or existent jobs unless a committer explicitly approves the job from GitHub Actions UI.
 ### Issue Management
 
 Phrases self-assign, close, or manage labels on an issue:
