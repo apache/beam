@@ -52,8 +52,11 @@ SCHEMA_TYPES_TO_STRATEGY = {
     str: st.text(),
     bytes: st.binary(),
     # Maximum datetime on year 3000 to conform to Windows OS limits.
-    Timestamp: st.datetimes(max_value=datetime(3000, 1, 1, 0, 0)).map(
-        lambda dt: Timestamp.from_utc_datetime(dt.astimezone(utc))),
+    Timestamp: st.datetimes(
+        min_value=datetime(1970, 1, 1, 1, 1),
+        max_value=datetime(
+            3000, 1, 1, 0,
+            0)).map(lambda dt: Timestamp.from_utc_datetime(dt.astimezone(utc))),
     int: st.integers(min_value=-(1 << 63 - 1), max_value=1 << 63 - 1),
     np.int32: st.integers(min_value=-(1 << 31 - 1), max_value=1 << 31 - 1),
     np.int64: st.integers(min_value=-(1 << 63 - 1), max_value=1 << 63 - 1),
