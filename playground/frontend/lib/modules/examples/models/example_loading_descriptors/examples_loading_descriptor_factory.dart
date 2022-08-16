@@ -152,7 +152,9 @@ class ExamplesLoadingDescriptorFactory {
   }
 
   static Map<SDK, List<ExampleLoadingDescriptor>> _getLazyLoadDescriptors() {
-    if (isEmbedded()) {}
+    if (isEmbedded()) {
+      return _emptyLazyLoadDescriptors;
+    }
 
     return _defaultLazyLoadDescriptors;
   }
