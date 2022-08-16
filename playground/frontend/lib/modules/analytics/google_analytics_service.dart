@@ -24,18 +24,14 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:usage/usage_html.dart';
 
 class GoogleAnalyticsService implements AnalyticsService {
-  late final Analytics _analytics;
-
-  GoogleAnalyticsService() {
-    _analytics = AnalyticsHtml(kAnalyticsUA, 'beam', '1.0');
-  }
+  final _analytics = AnalyticsHtml(kAnalyticsUA, 'beam', '1.0');
 
   @override
-  void trackSelectSdk(SDK oldSdk, SDK newSdk) {
+  void trackSelectSdk(SDK? oldSdk, SDK newSdk) {
     safeSendEvent(
       kSdkCategory,
       kSelectSdkEvent,
-      label: '${oldSdk.displayName}_${newSdk.displayName}',
+      label: '${oldSdk?.displayName}_${newSdk.displayName}',
     );
   }
 

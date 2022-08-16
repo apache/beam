@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:playground/components/loading_indicator/loading_indicator.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
@@ -41,6 +42,13 @@ class CodeTextAreaWrapper extends StatelessWidget {
           _handleError(context, state);
         });
       }
+
+      final controller = state.snippetEditingController;
+
+      if (controller == null) {
+        return const LoadingIndicator(size: kLgLoadingIndicatorSize);
+      }
+
       return Column(
         children: [
           Expanded(
@@ -48,10 +56,10 @@ class CodeTextAreaWrapper extends StatelessWidget {
               children: [
                 Positioned.fill(
                   child: EditorTextArea(
-                    codeController: state.codeController,
+                    codeController: controller.codeController,
                     enabled: !(state.selectedExample?.isMultiFile ?? false),
                     example: state.selectedExample,
-                    sdk: state.sdk,
+                    sdk: controller.sdk,
                     isEditable: true,
                   ),
                 ),

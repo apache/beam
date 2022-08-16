@@ -55,6 +55,18 @@ enum SDK {
 
     return null;
   }
+
+  static SDK? tryParse(Object? value) {
+    if (value is! String) {
+      return null;
+    }
+
+    try {
+      return values.byName(value);
+    } catch (ex) {
+      return null;
+    }
+  }
 }
 
 extension SDKToString on SDK {

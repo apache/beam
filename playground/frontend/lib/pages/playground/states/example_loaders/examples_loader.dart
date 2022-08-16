@@ -43,12 +43,23 @@ class ExamplesLoader {
     }
 
     _descriptor = descriptor;
-    await Future.wait(descriptor.descriptors.map(_loadOne));
+    await Future.wait(
+      descriptor.descriptors.map(
+        (one) => loadOne(group: descriptor, one: one),
+      ),
+    );
   }
 
-  Future<void> _loadOne(ExampleLoadingDescriptor descriptor) async {
-    final example = await _getOneLoader(descriptor).future;
-    _playgroundState!.setExample(example);
+  Future<void> loadOne({
+    required ExamplesLoadingDescriptor group,
+    required ExampleLoadingDescriptor one,
+  }) async {
+    final example = await _getOneLoader(one).future;
+    _playgroundState!.setExample(
+      example,
+      setCurrentSdk:
+          example.sdk == group.initialSdk || group.initialSdk == null,
+    );
   }
 
   ExampleLoader _getOneLoader(ExampleLoadingDescriptor descriptor) {

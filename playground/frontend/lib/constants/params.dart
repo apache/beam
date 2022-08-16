@@ -17,7 +17,9 @@
  */
 
 const kExampleParam = 'example';
+const kExamplesParam = 'examples';
 const kIsEditableParam = 'editable';
+const kSdkParam = 'sdk';
 const kContextLine = 'line';
 
 const kQuickStartCategoryName = 'quick start';

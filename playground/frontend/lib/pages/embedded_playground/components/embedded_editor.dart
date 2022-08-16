@@ -17,6 +17,8 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/components/loading_indicator/loading_indicator.dart';
+import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
@@ -29,11 +31,17 @@ class EmbeddedEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<PlaygroundState>(context);
+    final controller = state.snippetEditingController;
+
+    if (controller == null) {
+      return const LoadingIndicator(size: kLgLoadingIndicatorSize);
+    }
+
     return EditorTextArea(
-      codeController: state.codeController,
+      codeController: controller.codeController,
       key: ValueKey(state.selectedExample),
       enabled: true,
-      sdk: state.sdk,
+      sdk: controller.sdk,
       example: state.selectedExample,
       isEditable: isEditable,
       isEmbedded: true,

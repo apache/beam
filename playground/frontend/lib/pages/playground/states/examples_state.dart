@@ -61,7 +61,7 @@ class ExampleState with ChangeNotifier {
     _allExamplesCompleter.complete();
   }
 
-  List<CategoryModel>? getCategories(SDK sdk) {
+  List<CategoryModel> getCategories(SDK? sdk) {
     return sdkCategories?[sdk] ?? [];
   }
 
