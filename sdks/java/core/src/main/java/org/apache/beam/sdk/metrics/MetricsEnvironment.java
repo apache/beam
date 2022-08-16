@@ -53,11 +53,17 @@ public class MetricsEnvironment {
   private static final AtomicBoolean METRICS_SUPPORTED = new AtomicBoolean(false);
   private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
 
-  private static final ThreadLocal<@Nullable MetricsContainerHolder> CONTAINER_FOR_THREAD =
+  @SuppressWarnings("type.argument.type.incompatible") // object guaranteed to be non-null
+  private static final ThreadLocal<@NonNull MetricsContainerHolder> CONTAINER_FOR_THREAD =
       ThreadLocal.withInitial(MetricsContainerHolder::new);
 
   private static final AtomicReference<@Nullable MetricsContainer> PROCESS_WIDE_METRICS_CONTAINER =
       new AtomicReference<>();
+
+  /** Returns the container holder for the current thread. */
+  public static MetricsEnvironmentState getMetricsEnvironmentStateForCurrentThread() {
+    return CONTAINER_FOR_THREAD.get();
+  }
 
   /**
    * Set the {@link MetricsContainer} for the current thread.
@@ -66,8 +72,6 @@ public class MetricsEnvironment {
    */
   public static @Nullable MetricsContainer setCurrentContainer(
       @Nullable MetricsContainer container) {
-    @SuppressWarnings("nullness") // Non-null due to withInitialValue
-    @NonNull
     MetricsContainerHolder holder = CONTAINER_FOR_THREAD.get();
     @Nullable MetricsContainer previous = holder.container;
     holder.container = container;
@@ -108,7 +112,6 @@ public class MetricsEnvironment {
     private final MetricsContainerHolder holder;
     private final @Nullable MetricsContainer oldContainer;
 
-    @SuppressWarnings("nullness") // Non-null due to withInitialValue
     private ScopedContainer(MetricsContainer newContainer) {
       // It is safe to cache the thread-local holder because it never changes for the thread.
       holder = CONTAINER_FOR_THREAD.get();
@@ -130,7 +133,6 @@ public class MetricsEnvironment {
    * diagnostic message.
    */
   public static @Nullable MetricsContainer getCurrentContainer() {
-    @SuppressWarnings("nullness") // Non-null due to withInitialValue
     MetricsContainer container = CONTAINER_FOR_THREAD.get().container;
     if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
       if (isMetricsSupported()) {
@@ -149,7 +151,24 @@ public class MetricsEnvironment {
     return PROCESS_WIDE_METRICS_CONTAINER.get();
   }
 
-  private static class MetricsContainerHolder {
-    public @Nullable MetricsContainer container = null;
+  public static class MetricsContainerHolder implements MetricsEnvironmentState {
+    private @Nullable MetricsContainer container = null;
+
+    @Override
+    public @Nullable MetricsContainer activate(@Nullable MetricsContainer metricsContainer) {
+      MetricsContainer old = container;
+      container = metricsContainer;
+      return old;
+    }
+  }
+
+  /**
+   * Set the {@link MetricsContainer} for the associated {@link MetricsEnvironment}.
+   *
+   * @return The previous container for the associated {@link MetricsEnvironment}.
+   */
+  public interface MetricsEnvironmentState {
+    @Nullable
+    MetricsContainer activate(@Nullable MetricsContainer metricsContainer);
   }
 }
