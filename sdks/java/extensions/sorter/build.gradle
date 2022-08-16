@@ -26,8 +26,8 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
 def hadoopVersions = [
     "285": "2.8.5",
     "292": "2.9.2",
-    "2101": "2.10.1",
-    "321": "3.2.1",
+    "2102": "2.10.2",
+    "324": "3.2.4",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
