@@ -79,8 +79,8 @@ def excluded_dependencies = [
 ]
 
 applyJavaNature(
+        automaticModuleName: 'org.apache.beam.runners.dataflow.worker',
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
-        publish: false,
         classesTriggerCheckerBugs: [
           'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
           'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
