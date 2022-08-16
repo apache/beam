@@ -52,9 +52,9 @@ limitations under the License. See accompanying LICENSE file.
         </a>
     </div>
     <h2 class="case-study-h2">Also used by</h2>
-    <div class="case-study-list">
+    <div class="case-study-list case-study-list--additional">
         {{ range where $pages "Params.category" "ne" "study" }}
-        <div class="case-study-used-by-card">
+        <div class="case-study-used-by-card case-study-used-by-card--responsive">
             <div class="case-study-used-by-card-img">
                 <img src="{{.Params.icon}}"></i>
             </div>
