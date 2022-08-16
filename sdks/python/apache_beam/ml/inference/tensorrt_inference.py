@@ -266,7 +266,6 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
             inputs[0]['size'],
             stream))
     context.execute_async_v2(gpu_allocations, stream)
-    _assign_or_fail(cuda.cuStreamSynchronize(stream))
     for output in range(len(cpu_allocations)):
       _assign_or_fail(
           cuda.cuMemcpyDtoHAsync(
@@ -274,6 +273,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
               outputs[output]['allocation'],
               outputs[output]['size'],
               stream))
+    _assign_or_fail(cuda.cuStreamSynchronize(stream))
 
     return [
         PredictionResult(
