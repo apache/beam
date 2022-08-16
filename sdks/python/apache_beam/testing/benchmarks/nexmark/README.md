@@ -23,22 +23,28 @@
 
 For batch mode, a file needs to be generated first by running java suite and writing events to a file.
 
-```shell script
-./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":runners:direct-java"
-    -Pnexmark.args=" --query=1 --runner=DirectRunner --streaming=false --suite=SMOKE --numEvents=100000  --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true --generateEventFilePathPrefix=YOUR_FILE_PREFIX"
-```
-
 ### Direct Runner
 
 ```shell script
-python nexmark_launcher.py --query 5 --num_events 10000 --runner DirectRunner --input PATH_TO_INPUT_FILE
+./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=":runners:direct-java" \
+    -Pnexmark.args="--query=0 --runner=DirectRunner --numEvents=100000 --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true --generateEventFilePathPrefix=/tmp/eventfile"
+
+./gradlew :sdks:python:apache_beam:testing:benchmarks:nexmark:run \
+    -Pnexmark.args="--query=0 --num_events=100000 --runner=DirectRunner --input=/tmp/eventfile\*"
 ```
 
 ### Dataflow Runner
 
 ```shell script
-python nexmark_launcher.py --query 5 --num_events 100000 --runner DataflowRunner --project PROJECT_NAME --region YOUR_REGION --temp_location TEMP_LOCATION --staging_location STAGING_LOCATION --sdk_location SDK_LOCATION --input PATH_TO_INPUT_FILE_ON_GS
+RUN_DATA=$(uuidgen)
+
+./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=":runners:direct-java" \
+    -Pnexmark.args="--query=0 --runner=DirectRunner --numEvents=100000 --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true --generateEventFilePathPrefix=gs://temp-storage-for-perf-tests/nexmark/eventfile/$RUN_DATA"
+
+./gradlew :sdks:python:apache_beam:testing:benchmarks:nexmark:run \
+    -Pnexmark.args="--query=0 --num_events=1000000 --runner=DataflowRunner --project=apache-beam-testing --region=us-central1 --temp_location=gs://temp-storage-for-perf-tests/nexmark/PythonQuery0/ --staging_location=gs://temp-storage-for-perf-tests/nexmark/PythonQuery0/ --input=gs://temp-storage-for-perf-tests/nexmark/eventfile/$RUN_DATA\*"
 ```
 
 ## Streaming mode
