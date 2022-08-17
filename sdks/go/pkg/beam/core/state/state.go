@@ -50,6 +50,8 @@ type Provider interface {
 	WriteValueState(val Transaction) error
 }
 
+// PipelineState is an interface representing different kinds of PipelineState (currently just state.Value).
+// It is primarily meant for Beam packages to use and is probably not useful for most pipeline authors.
 type PipelineState interface {
 	StateKey() string
 	CoderType() reflect.Type
@@ -104,6 +106,7 @@ func (s Value[T]) StateKey() string {
 	return s.Key
 }
 
+// CoderType returns the type of the value state which should be used for a coder.
 func (s Value[T]) CoderType() reflect.Type {
 	var t T
 	return reflect.TypeOf(t)
