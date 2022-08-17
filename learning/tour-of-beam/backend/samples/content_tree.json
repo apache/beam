@@ -1,4 +1,5 @@
 {
+    "sdk": "Java",
     "modules": [
       {
         "moduleId": "1",

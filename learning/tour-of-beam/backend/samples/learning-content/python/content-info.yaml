@@ -1,0 +1,5 @@
+sdk: Python
+content:
+  - module 1
+  - module_empty
+  - module-missing

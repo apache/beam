@@ -14,6 +14,8 @@ func (s Sdk) String() string {
 	return string(s)
 }
 
+// Parse sdk from string names, f.e. "Java" -> Sdk.GO_JAVA
+// Returns SDK_UNDEFINED on error
 func FromString(s string) Sdk {
 	switch s {
 	case "Go":

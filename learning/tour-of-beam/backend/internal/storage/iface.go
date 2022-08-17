@@ -8,4 +8,5 @@ import (
 
 type Iface interface {
 	GetContentTree(ctx context.Context, sdk tob.Sdk) (tob.ContentTree, error)
+	SaveContentTrees(ctx context.Context, trees []tob.ContentTree) error
 }

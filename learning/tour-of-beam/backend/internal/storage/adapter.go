@@ -2,14 +2,14 @@ package storage
 
 import tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 
-func (lm *TbLearningUnit) ToEntity() tob.Unit {
-	return tob.Unit{Id: lm.Id, Name: lm.Name}
+func (lm *TbLearningUnit) ToEntity() tob.UnitContent {
+	return tob.UnitContent{Unit: tob.Unit{Id: lm.Id, Name: lm.Name}}
 }
 
 func (lm *TbLearningModule) ToEntity() (mod tob.Module) {
 	mod.Id = lm.Id
 	mod.Name = lm.Name
-	mod.Units = make([]tob.Unit, len(lm.Units))
+	mod.Units = make([]tob.UnitContent, len(lm.Units))
 	for i, tbUnit := range lm.Units {
 		mod.Units[i] = tbUnit.ToEntity()
 	}

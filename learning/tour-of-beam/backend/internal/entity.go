@@ -7,9 +7,9 @@ type Unit struct {
 }
 
 type Module struct {
-	Id    string `json:"moduleId"`
-	Name  string `json:"name"`
-	Units []Unit `json:"units"`
+	Id    string        `json:"moduleId"`
+	Name  string        `json:"name"`
+	Units []UnitContent `json:"units"`
 }
 
 type ContentTree struct {
@@ -19,11 +19,15 @@ type ContentTree struct {
 
 type UnitContent struct {
 	Unit
-	Description         string `json:"description"`
-	Hint                string `json:"hint"`
-	AssignmentSnippetId string `json:"assignment"`
-	SolutionSnippetId   string `json:"solution"`
-	UserSnippetId       string `json:"userSnippet"`
+	Complexity        string `json:"complexity,omitempty"`
+	Description       string `json:"description,omitempty"`
+	Hint              string `json:"hint"`
+	TaskSnippetId     string `json:"taskSnippetId"`
+	SolutionSnippetId string `json:"solutionSnippetId"`
+	UserSnippetId     string `json:"userSnippetId"`
+
+	TaskName     string `json:"-"`
+	SolutionName string `json:"-"`
 }
 
 type CodeMessage struct {
