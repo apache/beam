@@ -18,8 +18,8 @@ package test
 import (
 	"beam.apache.org/learning/katas/windowing/fixed_time_window/fixed_time_window/pkg/common"
 	"beam.apache.org/learning/katas/windowing/fixed_time_window/fixed_time_window/pkg/task"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/google/go-cmp/cmp"
 	"testing"
 	"time"
@@ -29,7 +29,7 @@ func TestApplyTransform(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	tests := []struct {
 		input beam.PCollection
-		want []interface{}
+		want  []interface{}
 	}{
 		{
 			input: common.CreateLines(s),
