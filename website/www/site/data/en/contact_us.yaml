@@ -91,7 +91,7 @@
           link: "https://app.slack.com/client/T4S1WH2J3/C9H0YNP3P",
         },
         {
-          action: " and browse other available channels. Don’t ask Beam questions in #general. We don’t monitor it."
+          action: " and browse other available channels."
         },
       ]
     - purpose: Firehose of commits, bugs, pull requests, etc.
