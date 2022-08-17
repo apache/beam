@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	errFake = errors.New("Fake error")
+	errFake = errors.New("fake error")
 )
 
 type fakeProvider struct {
