@@ -528,11 +528,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					u = &LiftedCombine{Combine: cn, KeyCoder: ec.Components[0], WindowCoder: wc}
 				case urnPerKeyCombineMerge:
 					ma := &MergeAccumulators{Combine: cn}
-					if eo, ok := ma.Out.(*PCollection).Out.(*ExtractOutput); ok {
-						// Strip PCollections from between MergeAccumulators and ExtractOutputs
-						// as it's a synthetic PCollection.
-						b.units = b.units[:len(b.units)-1]
-						ma.Out = eo
+					if pc, ok := ma.Out.(*PCollection); ok {
+						if eo, ok := pc.Out.(*ExtractOutput); ok {
+							// Strip PCollections from between MergeAccumulators and ExtractOutputs
+							// as it's a synthetic PCollection.
+							b.units = b.units[:len(b.units)-1]
+							ma.Out = eo
+						}
 					}
 					u = ma
 				case urnPerKeyCombineExtract:
