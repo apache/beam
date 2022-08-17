@@ -98,7 +98,7 @@ func (s *Value[T]) Read(p Provider) (T, bool, error) {
 // StateKey returns the key for this pipeline state entry.
 func (s Value[T]) StateKey() string {
 	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name, either here or during pipeline construction.
+		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
 		panic("Value state exists on struct but has not been initialized with a key.")
 	}
 	return s.Key

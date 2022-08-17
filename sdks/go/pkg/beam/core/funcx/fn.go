@@ -514,7 +514,7 @@ var (
 	errReflectTypePrecedence             = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
 	errRTrackerPrecedence                = errors.New("may only have a single sdf.RTracker parameter and it must precede the main input parameter")
 	errBundleFinalizationPrecedence      = errors.New("may only have a single BundleFinalization parameter and it must precede the main input parameter")
-	errStateProviderPrecedence           = errors.New("may only have a single StateProvider parameter and it must precede the main input parameter")
+	errStateProviderPrecedence           = errors.New("may only have a single state.Provider parameter and it must precede the main input parameter")
 	errInputPrecedence                   = errors.New("inputs parameters must precede emit function parameters")
 )
 

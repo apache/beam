@@ -1253,10 +1253,7 @@ func validateStatefulWatermarkSig(fn *Fn, numMainIn int) error {
 func validateState(fn *DoFn, numIn mainInputs) error {
 	ps := fn.PipelineState()
 
-	processFn := fn.methods[processElementName]
-	_, hasSp := processFn.StateProvider()
-
-	if hasSp {
+	if _, hasSp := fn.methods[processElementName].StateProvider(); hasSp {
 		if numIn == MainSingle {
 			err := errors.Errorf("ProcessElement uses a StateProvider, but is not keyed")
 			return errors.SetTopLevelMsgf(err, "ProcessElement uses a StateProvider, but is not keyed. "+
