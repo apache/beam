@@ -184,7 +184,10 @@ class SubprocessSdkWorker(object):
       control_address,
       provision_info,
       worker_id=None):
-    self._worker_command_line = worker_command_line
+    # worker_command_line is of bytes type received from grpc. It was encoded in
+    # apache_beam.transforms.environments.SubprocessSDKEnvironment earlier.
+    # decode it back as subprocess.Popen does not support bytes args in win32.
+    self._worker_command_line = worker_command_line.decode('utf-8')
     self._control_address = control_address
     self._provision_info = provision_info
     self._worker_id = worker_id
