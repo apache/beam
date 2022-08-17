@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -39,7 +40,7 @@ public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
   private final UnboundedSource<SequencedMessage, CheckpointMarkImpl> source;
   private final MemoryBufferedSubscriber subscriber;
   private final TopicBacklogReader backlogReader;
-  private final BlockingCommitter committer;
+  private final Supplier<BlockingCommitter> committer;
 
   private Offset fetchOffset;
   private Optional<Instant> lastMessageTimestamp = Optional.empty();
@@ -49,7 +50,7 @@ public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
       UnboundedSource<SequencedMessage, CheckpointMarkImpl> source,
       MemoryBufferedSubscriber subscriber,
       TopicBacklogReader backlogReader,
-      BlockingCommitter committer,
+      Supplier<BlockingCommitter> committer,
       Offset initialOffset) {
     checkArgument(initialOffset.equals(subscriber.fetchOffset()));
     this.source = source;
@@ -79,7 +80,6 @@ public class UnboundedReaderImpl extends UnboundedReader<SequencedMessage> {
   @Override
   public void close() throws IOException {
     try (AutoCloseable c1 = backlogReader;
-        AutoCloseable c2 = committer;
         AutoCloseable c3 = asCloseable(subscriber)) {
     } catch (Exception e) {
       throw new IOException("Failed when closing reader.", e);
