@@ -361,6 +361,22 @@ public class GcsUtil {
    * GcsPath GcsPaths}.
    */
   public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths) throws IOException {
+    if (gcsPaths.isEmpty()) {
+      return ImmutableList.of();
+    } else if (gcsPaths.size() == 1) {
+      GcsPath path = gcsPaths.get(0);
+      try {
+        StorageObject object = getObject(path);
+        return ImmutableList.of(StorageObjectOrIOException.create(object));
+      } catch (IOException e) {
+        return ImmutableList.of(StorageObjectOrIOException.create(e));
+      } catch (Exception e) {
+        IOException ioException =
+            new IOException(String.format("Error trying to get %s: %s", path, e));
+        return ImmutableList.of(StorageObjectOrIOException.create(ioException));
+      }
+    }
+
     List<StorageObjectOrIOException[]> results = new ArrayList<>();
     executeBatches(makeGetBatches(gcsPaths, results));
     ImmutableList.Builder<StorageObjectOrIOException> ret = ImmutableList.builder();
@@ -749,7 +765,7 @@ public class GcsUtil {
 
     List<CompletionStage<Void>> futures = new ArrayList<>();
     for (final BatchInterface batch : batches) {
-      futures.add(MoreFutures.runAsync(() -> batch.execute(), executor));
+      futures.add(MoreFutures.runAsync(batch::execute, executor));
     }
 
     try {
