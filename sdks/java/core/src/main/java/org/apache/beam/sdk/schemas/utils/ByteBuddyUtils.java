@@ -1444,7 +1444,7 @@ public class ByteBuddyUtils {
                   + paramName
                   + " Doesn't correspond to a schema field."
                   + " Make sure that you are compiling with -parameters parameter to include"
-                  + " constructor parameter information in class files..");
+                  + " constructor parameter information in class files.");
         }
         fieldMapping.put(i, index);
       }
