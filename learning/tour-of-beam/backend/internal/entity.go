@@ -7,14 +7,16 @@ type Unit struct {
 }
 
 type Module struct {
-	Id    string        `json:"moduleId"`
-	Name  string        `json:"name"`
-	Units []UnitContent `json:"units"`
+	Id         string        `json:"moduleId"`
+	Name       string        `json:"name"`
+	Complexity string        `json:"complexity"`
+	Units      []UnitContent `json:"units"`
 }
 
 type ContentTree struct {
-	Sdk     Sdk      `json:"sdk"`
-	Modules []Module `json:"modules"`
+	Sdk         Sdk      `json:"sdk"`
+	Modules     []Module `json:"modules"`
+	ModuleNames []string `json:"-"`
 }
 
 type UnitContent struct {

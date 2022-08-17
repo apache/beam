@@ -4,7 +4,6 @@ import (
 	"io/fs"
 	"log"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
@@ -17,19 +16,18 @@ const (
 )
 
 type learningPathInfo struct {
-	Sdk     string
-	Modules []string `yaml:"content"`
+	Sdk         string
+	ModuleNames []string `yaml:"content"`
 }
 
 type learningModuleInfo struct {
 	Name       string
 	Complexity string
-	Units      []string `yaml:"content"`
+	UnitNames  []string `yaml:"content"`
 }
 
 type learningUnitInfo struct {
 	Name         string
-	Complexity   string
 	TaskName     string
 	SolutionName string
 }
@@ -45,26 +43,6 @@ func path2Id(path, parent string) string {
 	return path
 }
 
-func (info *learningPathInfo) ToEntity() tob.ContentTree {
-	sdk := tob.FromString(info.Sdk)
-	if sdk == tob.SDK_UNDEFINED {
-		log.Panicf("Undefined sdk %s", info.Sdk)
-	}
-	return tob.ContentTree{Sdk: sdk}
-}
-
-func (info *learningModuleInfo) ToEntity(id string) tob.Module {
-	return tob.Module{Id: id, Name: info.Name}
-}
-
-func (info *learningModuleInfo) finalizeModule(mod *tob.Module) {
-	if len(mod.Units) != len(info.Units) {
-		log.Panicf("Module %s units number mismatch (expected %s)", mod.Name, len(info.Units))
-	}
-
-	sort.Sort()
-}
-
 func (info *learningUnitInfo) ToEntity(id string) tob.UnitContent {
 	return tob.UnitContent{
 		Unit: tob.Unit{
@@ -73,7 +51,6 @@ func (info *learningUnitInfo) ToEntity(id string) tob.UnitContent {
 		},
 		// TODO: description, hints
 
-		Complexity:   info.Complexity,
 		TaskName:     info.TaskName,
 		SolutionName: info.SolutionName,
 	}
@@ -85,8 +62,8 @@ func (info *learningUnitInfo) ToEntity(id string) tob.UnitContent {
 func CollectLearningTree(rootpath string) (trees []tob.ContentTree, err error) {
 
 	var (
-		currentTree   *tob.ContentTree
-		currentModule *tob.Module
+		treeBuilder   ContentTreeBuilder
+		moduleBuilder ModuleBuilder
 	)
 
 	err = filepath.WalkDir(rootpath, func(path string, d fs.DirEntry, err error) error {
@@ -101,34 +78,38 @@ func CollectLearningTree(rootpath string) (trees []tob.ContentTree, err error) {
 		switch fname {
 		case contentInfoYaml:
 			info := loadLearningPathInfo(path)
-			trees = append(trees, info.ToEntity())
-			if err := info.finalizeTree(currentTree); err != nil {
-				return err
+			if treeBuilder.IsInitialized() {
+				trees = append(trees, treeBuilder.Build())
 			}
-			currentTree = &trees[len(trees)-1]
+			treeBuilder = NewContentTreeBuilder(info)
+
 		case moduleInfoYaml:
 			info := loadLearningModuleInfo(path)
-			if currentTree == nil {
+			if !treeBuilder.IsInitialized() {
 				log.Panicf("Module outside of sdk at %s", path)
 			}
-			id := path2Id(dirname, rootpath)
-			mods := &currentTree.Modules
-			*mods = append(*mods, info.ToEntity(id))
-			if err := finalizeModule(currentModule); err != nil {
-				return err
+			// save previous module
+			if moduleBuilder.IsInitialized() {
+				treeBuilder.AddModule(moduleBuilder.Build())
 			}
-			currentModule = &(*mods)[len(*mods)-1]
+			id := path2Id(dirname, rootpath)
+			moduleBuilder = NewModuleBuilder(id, info)
 		case unitInfoYaml:
 			info := loadLearningUnitInfo(path)
-			if currentModule == nil {
+			if !moduleBuilder.IsInitialized() {
 				log.Panicf("Unit outside of a module at %s", path)
 			}
 			id := path2Id(dirname, rootpath)
-			units := &currentModule.Units
-			*units = append(*units, info.ToEntity(id))
+			moduleBuilder.AddUnit(BuildUnitContent(id, info))
 		}
 		return nil
 	})
+	if moduleBuilder.IsInitialized() {
+		treeBuilder.AddModule(moduleBuilder.Build())
+	}
+	if treeBuilder.IsInitialized() {
+		trees = append(trees, treeBuilder.Build())
+	}
 
 	return trees, err
 }
