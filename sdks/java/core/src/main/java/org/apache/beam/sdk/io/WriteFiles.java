@@ -923,6 +923,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     private transient List<KV<Instant, FileResult<DestinationT>>> deferredOutput =
         new ArrayList<>();
 
+    @Setup
+    public void setup() {
+      closeFutures = new ArrayList<>();
+      deferredOutput = new ArrayList<>();
+    }
+
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
@@ -971,8 +977,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         closeWriterInBackground(writer);
       }
 
-      // Ensure that the past closes happen before returning and after we started the closes
-      // from this processElement call so they can happen in parallel.
+      // Block on completing the past closes before returning. We do so after starting the current
+      // closes in the background so that they can happen in parallel.
       MoreFutures.get(pastCloseFutures);
     }
 
@@ -1005,14 +1011,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         deferredOutput.clear();
         closeFutures.clear();
       }
-    }
-
-    // Ensure that transient fields are initialized.
-    private void readObject(java.io.ObjectInputStream in)
-        throws IOException, ClassNotFoundException {
-      in.defaultReadObject();
-      closeFutures = new ArrayList<>();
-      deferredOutput = new ArrayList<>();
     }
   }
 
