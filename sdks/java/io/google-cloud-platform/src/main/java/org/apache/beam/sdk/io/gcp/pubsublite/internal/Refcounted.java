@@ -42,19 +42,28 @@ class Refcounted<T extends AutoCloseable> implements Supplier<T> {
     this.object = object;
   }
 
+  private static class Closer implements Runnable {
+
+    private final AutoCloseable object;
+
+    private Closer(AutoCloseable object) {
+      this.object = object;
+    }
+
+    @Override
+    public void run() {
+      try {
+        object.close();
+      } catch (Exception e) {
+        logger.warn(
+            "Failed to close resource with class: " + object.getClass().getCanonicalName(), e);
+      }
+    }
+  }
+
   @SuppressWarnings("deprecation")
   @Override
   protected void finalize() {
-    SystemExecutors.getFuturesExecutor()
-        .execute(
-            () -> {
-              try {
-                object.close();
-              } catch (Exception e) {
-                logger.warn(
-                    "Failed to close resource with class: " + object.getClass().getCanonicalName(),
-                    e);
-              }
-            });
+    SystemExecutors.getFuturesExecutor().execute(new Closer(object));
   }
 }
