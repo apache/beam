@@ -278,6 +278,10 @@ public class TestStructMapper {
         .to(record.getNumberOfRecordsInTransaction())
         .set("number_of_partitions_in_transaction")
         .to(record.getNumberOfPartitionsInTransaction())
+        .set("transaction_tag")
+        .to(record.getTransactionTag())
+        .set("is_system_transaction")
+        .to(record.isSystemTransaction())
         .build();
   }
 

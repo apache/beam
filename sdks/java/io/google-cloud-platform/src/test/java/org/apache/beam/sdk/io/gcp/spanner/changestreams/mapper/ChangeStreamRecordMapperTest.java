@@ -99,6 +99,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
@@ -130,6 +132,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
@@ -161,6 +165,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
@@ -192,6 +198,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.UNKNOWN,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct struct = recordsWithUnknownModTypeAndValueCaptureType(dataChangeRecord);
 
