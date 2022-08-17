@@ -429,7 +429,6 @@ class SchemaTranslation(object):
   def named_tuple_from_schema(self, schema: schema_pb2.Schema) -> type:
     from apache_beam import coders
 
-    assert schema.id
     type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
 
     subfields = []
