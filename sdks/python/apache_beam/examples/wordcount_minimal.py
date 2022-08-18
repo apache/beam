@@ -83,46 +83,29 @@ def main(argv=None, save_main_session=True):
   parser.add_argument(
       '--output',
       dest='output',
-      # CHANGE 1/6: The Google Cloud Storage path is required
+      # CHANGE 1/6: (OPTIONAL) The Google Cloud Storage path is required
       # for outputting the results.
       default='gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX',
       help='Output file to write results to.')
-  parser.add_argument(
-      '--runner',
-      # CHANGE 2/6: (OPTIONAL) Change this to DataflowRunner to
-      # run your pipeline on the Google Cloud Dataflow Service.
-      default='DirectRunner',
-      help='Pipeline runner.')
-  parser.add_argument(
-      '--project',
-      # CHANGE 3/6: (OPTIONAL) Your project ID is required in order to
-      # run your pipeline on the Google Cloud Dataflow Service.
-      default='SET_YOUR_PROJECT_ID_HERE',
-      help='Project ID to run the pipeline.')
-  parser.add_argument(
-      '--region',
-      # CHANGE 4/6: (OPTIONAL) The Google Cloud region (e.g. us-central1)
-      # is required in order to run your pipeline on the Google Cloud
-      # Dataflow Service.
-      default='SET_REGION_HERE',
-      help='Google Cloud region to run the pipeline.')
-  parser.add_argument(
-      '--staging_location',
-      # CHANGE 5/6: (OPTIONAL) Your Google Cloud Storage path is required for staging local
-      # files.
-      default='gs://YOUR_BUCKET_NAME/AND_STAGING_DIRECTORY',
-      help='Google Cloud Storage path for staging local files.')
-  parser.add_argument(
-      '--temp_location',
-      # CHANGE 6/6: (OPTIONAL) Your Google Cloud Storage path is required for temporary
-      # files.
-      default='gs://YOUR_BUCKET_NAME/AND_TEMP_DIRECTORY',
-      help='Google Cloud Storage path for staging temporary files.')
-  parser.add_argument(
-      '--job_name',
-      dest='job_name',
-      default='your-wordcount-job',
-      help='Google Cloud Dataflow job name.')
+
+  # If you use DataflowRunner, below options can be passed:
+  #   CHANGE 2/6: (OPTIONAL) Change this to DataflowRunner to
+  #   run your pipeline on the Google Cloud Dataflow Service.
+  #   '--runner=DirectRunner',
+  #   CHANGE 3/6: (OPTIONAL) Your project ID is required in order to
+  #   run your pipeline on the Google Cloud Dataflow Service.
+  #   '--project=SET_YOUR_PROJECT_ID_HERE',
+  #   CHANGE 4/6: (OPTIONAL) The Google Cloud region (e.g. us-central1)
+  #   is required in order to run your pipeline on the Google Cloud
+  #   Dataflow Service.
+  #   '--region=SET_REGION_HERE',
+  #   CHANGE 5/6: Your Google Cloud Storage path is required for staging local
+  #   files.
+  #   '--staging_location=gs://YOUR_BUCKET_NAME/AND_STAGING_DIRECTORY',
+  #   CHANGE 6/6: Your Google Cloud Storage path is required for temporary
+  #   files.
+  #   '--temp_location=gs://YOUR_BUCKET_NAME/AND_TEMP_DIRECTORY',
+  #   '--job_name=your-wordcount-job',
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   # We use the save_main_session option because one or more DoFn's in this
