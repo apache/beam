@@ -21,6 +21,11 @@ limitations under the License.
 
 This page provides links to some of our favorite videos and podcasts that will help you get started and learn more about Apache Beam.
 
+<ul><li><a href="">Introduction</a></li></ul>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt" frameborder="0" allowfullscreen></iframe>
+<br>
+
 {{< toc >}}
 
 ## General
