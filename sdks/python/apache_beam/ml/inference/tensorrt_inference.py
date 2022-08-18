@@ -83,20 +83,6 @@ def _build_engine(network, builder):
   return engine
 
 
-def _validate_inference_args(inference_args):
-  """Confirms that inference_args is None.
-
-  TensorRT engines do not need extra arguments in their execute_v2() call.
-  However, since inference_args is an argument in the RunInference interface,
-  we want to make sure it is not passed here in TensorRT's implementation of
-  RunInference.
-  """
-  if inference_args:
-    raise ValueError(
-        'inference_args were provided, but should be None because TensorRT '
-        'engines do not need extra arguments in their execute_v2() call.')
-
-
 def _assign_or_fail(args):
   """CUDA error checking."""
   from cuda import cuda
@@ -249,7 +235,6 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       An Iterable of type PredictionResult.
     """
     from cuda import cuda
-    _validate_inference_args(inference_args)
     (
         engine,
         context,
