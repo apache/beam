@@ -350,7 +350,7 @@ class WindmillStateInternals<K> implements StateInternals {
   @VisibleForTesting
   static ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
     try {
-      // Use ByteString.Output rather than concatenation and String.format. We build these keys
+      // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
       // a lot, and this leads to better performance results. See associated benchmarks.
       ByteStringOutputStream stream = new ByteStringOutputStream();
       OutputStreamWriter writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
