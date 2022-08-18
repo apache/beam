@@ -257,7 +257,7 @@ public class CdapIOTest {
                 Plugin.create(
                     EmployeeBatchSink.class,
                     EmployeeOutputFormat.class,
-                    EmployeeInputFormatProvider.class))
+                    EmployeeOutputFormatProvider.class))
             .withPluginConfig(pluginConfig)
             .withKeyClass(String.class)
             .withValueClass(String.class)

@@ -34,8 +34,10 @@ import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormat;
 import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormatProvider;
 
+/** Util class for mapping plugins. */
 public class MappingUtils {
 
+  /** Gets a {@link Plugin} by its class. */
   public static Plugin getPluginByClass(Class<?> pluginClass) {
     checkArgument(pluginClass != null, "Plugin class can not be null!");
     if (pluginClass.equals(SalesforceBatchSource.class)) {
