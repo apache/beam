@@ -141,6 +141,7 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
   /** The SinkWriter for a PubsubSink. */
   class PubsubWriter implements SinkWriter<WindowedValue<T>> {
     private Windmill.PubSubMessageBundle.Builder outputBuilder;
+    private ByteStringOutputStream stream;
 
     private PubsubWriter(String topic) {
       outputBuilder =
@@ -149,6 +150,7 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
               .setTimestampLabel(timestampLabel)
               .setIdLabel(idLabel)
               .setWithAttributes(withAttributes);
+      stream = new ByteStringOutputStream();
     }
 
     @Override
@@ -161,13 +163,11 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
         if (formatted.getAttributeMap() != null) {
           pubsubMessageBuilder.putAllAttributes(formatted.getAttributeMap());
         }
-        ByteStringOutputStream output = new ByteStringOutputStream();
-        pubsubMessageBuilder.build().writeTo(output);
-        byteString = output.toByteString();
+        pubsubMessageBuilder.build().writeTo(stream);
+        byteString = stream.toByteStringAndReset();
       } else {
-        ByteStringOutputStream stream = new ByteStringOutputStream();
         coder.encode(data.getValue(), stream, Coder.Context.OUTER);
-        byteString = stream.toByteString();
+        byteString = stream.toByteStringAndReset();
       }
 
       outputBuilder.addMessages(

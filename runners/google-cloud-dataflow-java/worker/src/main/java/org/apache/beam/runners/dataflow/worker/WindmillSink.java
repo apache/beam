@@ -129,16 +129,17 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   class WindmillStreamWriter implements SinkWriter<WindowedValue<T>> {
     private Map<ByteString, Windmill.KeyedMessageBundle.Builder> productionMap;
     private final String destinationName;
+    private final ByteStringOutputStream stream;
 
     private WindmillStreamWriter(String destinationName) {
       this.destinationName = destinationName;
       productionMap = new HashMap<>();
+      stream = new ByteStringOutputStream();
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
-      ByteStringOutputStream stream = new ByteStringOutputStream();
       coder.encode(object, stream, Coder.Context.OUTER);
-      return stream.toByteString();
+      return stream.toByteStringAndReset();
     }
 
     @Override
