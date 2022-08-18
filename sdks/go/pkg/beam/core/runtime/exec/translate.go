@@ -404,6 +404,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		urnTruncateSizedRestrictions:
 		var data string
 		var sides map[string]*pipepb.SideInput
+		var userState map[string]*pipepb.StateSpec
 		switch urn {
 		case graphx.URNParDo,
 			urnPairWithRestriction,
@@ -416,6 +417,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			data = string(pardo.GetDoFn().GetPayload())
 			sides = pardo.GetSideInputs()
+			userState = pardo.GetStateSpecs()
 		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 			var cmb pipepb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
@@ -462,6 +464,20 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					n.PID = transform.GetUniqueName()
 
 					input := unmarshalKeyedValues(transform.GetInputs())
+
+					if len(userState) > 0 {
+						stateIdToCoder := make(map[string]*coder.Coder)
+						for key, spec := range userState {
+							// TODO(#22736) - this will eventually need to be aware of which type of state its modifying to support non-Value state types.
+							cID := spec.GetReadModifyWriteSpec().CoderId
+							c, err := b.coders.Coder(cID)
+							if err != nil {
+								return nil, err
+							}
+							stateIdToCoder[key] = c
+						}
+					}
+
 					for i := 1; i < len(input); i++ {
 						// TODO(https://github.com/apache/beam/issues/18602) Handle ViewFns for side inputs
 
