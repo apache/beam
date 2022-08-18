@@ -3,6 +3,7 @@ title:  "Apache Beam 2.26.0"
 date:   2020-12-11 12:00:00 -0800
 categories:
   - blog
+  - release
 authors:
   - lostluck
 ---

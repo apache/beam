@@ -3,6 +3,7 @@ title:  "Apache Beam 2.28.0"
 date:   2021-02-22 12:00:00 -0800
 categories:
   - blog
+  - release
 authors:
   - chamikara
 ---
