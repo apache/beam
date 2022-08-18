@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -141,7 +142,7 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
   /** The SinkWriter for a PubsubSink. */
   class PubsubWriter implements SinkWriter<WindowedValue<T>> {
     private Windmill.PubSubMessageBundle.Builder outputBuilder;
-    private ByteStringOutputStream stream;
+    private ByteStringOutputStream stream; // Kept across adds for buffer reuse.
 
     private PubsubWriter(String topic) {
       outputBuilder =
@@ -155,6 +156,10 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
 
     @Override
     public long add(WindowedValue<T> data) throws IOException {
+      checkState(
+          stream.size() == 0,
+          "Expected output stream to be empty but had %s",
+          stream.toByteString());
       ByteString byteString = null;
       if (formatFn != null) {
         PubsubMessage formatted = formatFn.apply(data.getValue());
