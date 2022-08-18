@@ -1,1 +1,0 @@
-Given a list of integers ```PCollection```. The ```applyTransform()``` function return minimum number from ```PCollection```.

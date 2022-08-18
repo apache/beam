@@ -1,1 +1,0 @@
-You can use the data in various transformations, since they do not change the original data. At the input of integers, you can create two "PCollection" based on them, one of which is a multiple of 5, the second is a multiple of 10.

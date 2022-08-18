@@ -1,1 +1,0 @@
-At the input, the `PCollection` elements are in the form of numbers. The `applyTransform()` function uses `MapElements` and returns elements multiplied by 5.

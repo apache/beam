@@ -1,1 +1,0 @@
-Given a list of integers ```PCollection```. The ```applyTransform()``` function return mean of number from ```PCollection```.

@@ -1,1 +1,0 @@
-Given a list of integers ```PCollection```. The ```applyTransform()``` function return sum of numbers from ```PCollection```.

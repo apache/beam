@@ -1,1 +1,0 @@
-Given a list of integers ```PCollection```. The ```applyTransform()``` function return count of numbers from ```PCollection```.

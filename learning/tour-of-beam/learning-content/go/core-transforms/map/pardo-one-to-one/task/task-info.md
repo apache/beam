@@ -1,1 +1,0 @@
-There are "PCollection" elements at the input. The `applyTransform()` function will return elements multiplied by 10.

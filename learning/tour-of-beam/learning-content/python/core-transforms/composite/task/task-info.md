@@ -1,1 +1,0 @@
-The class `ExtractAndMultiplyNumbers()` consists of two operations. Parsing integers and multiplication by 10.

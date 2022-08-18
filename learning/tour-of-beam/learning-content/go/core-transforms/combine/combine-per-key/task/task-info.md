@@ -1,1 +1,0 @@
-At the input we have 3 keys with different values, `CombinePerKey` creates a combination of sums, sums up all the values.

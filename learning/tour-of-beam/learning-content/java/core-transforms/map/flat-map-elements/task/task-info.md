@@ -1,1 +1,0 @@
-At the input, the elements of the `PCollection` are represented as strings. The `applyTransform()` function uses `FlatMapElements` and returns a list of words that make up the sentence.

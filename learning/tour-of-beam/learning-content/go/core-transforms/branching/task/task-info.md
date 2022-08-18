@@ -1,1 +1,0 @@
-Accepts a string `PCollection`. Without changing it returns the new `PCollection`. In this case, one `PCollection` includes elements in uppercase. The other `PCollection` stores reversed elements.

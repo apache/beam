@@ -1,1 +1,0 @@
-There are integers at the input. "applyTransform()" accepts a list of integers in the output additionally in addition to one "PCollection", returns a second "PCollection".
