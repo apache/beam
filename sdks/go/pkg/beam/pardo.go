@@ -92,6 +92,19 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 		return nil, addParDoCtx(err, s)
 	}
 
+	pipelineState := fn.PipelineState()
+	if len(pipelineState) > 0 {
+		edge.StateCoders = make(map[string]*coder.Coder)
+		for _, ps := range pipelineState {
+			sT := typex.New(ps.CoderType())
+			c, err := inferCoder(sT)
+			if err != nil {
+				return nil, addParDoCtx(err, s)
+			}
+			edge.StateCoders[ps.StateKey()] = c
+		}
+	}
+
 	var ret []PCollection
 	for _, out := range edge.Output {
 		c := PCollection{out.To}

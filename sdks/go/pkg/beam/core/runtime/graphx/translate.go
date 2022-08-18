@@ -70,6 +70,7 @@ const (
 
 	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
 	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
+	URNRequiresStatefulProcessing = "beam:requirement:pardo:stateful:v1"
 	URNTruncate                   = "beam:transform:sdf_truncate_sized_restrictions:v1"
 
 	// Deprecated: Determine worker binary based on GoWorkerBinary Role instead.
@@ -456,6 +457,29 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 		}
 		if _, ok := edge.Edge.DoFn.ProcessElementFn().BundleFinalization(); ok {
 			m.requirements[URNRequiresBundleFinalization] = true
+		}
+		if _, ok := edge.Edge.DoFn.ProcessElementFn().StateProvider(); ok {
+			m.requirements[URNRequiresStatefulProcessing] = true
+			stateSpecs := make(map[string]*pipepb.StateSpec)
+			for _, ps := range edge.Edge.DoFn.PipelineState() {
+				coderId, err := m.coders.Add(edge.Edge.StateCoders[ps.StateKey()])
+				if err != nil {
+					return handleErr(err)
+				}
+				stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+					// TODO (#22736) - make spec type and protocol conditional on type of State. Right now, assumes ValueState.
+					// See https://github.com/apache/beam/blob/54b0784da7ccba738deff22bd83fbc374ad21d2e/sdks/go/pkg/beam/model/pipeline_v1/beam_runner_api.pb.go#L2635
+					Spec: &pipepb.StateSpec_ReadModifyWriteSpec{
+						ReadModifyWriteSpec: &pipepb.ReadModifyWriteStateSpec{
+							CoderId: coderId,
+						},
+					},
+					Protocol: &pipepb.FunctionSpec{
+						Urn: "beam:user_state:bag:v1",
+					},
+				}
+			}
+			payload.StateSpecs = stateSpecs
 		}
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 		annotations = edge.Edge.DoFn.Annotations()
