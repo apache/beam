@@ -40,6 +40,7 @@ FROM $BASE_IMAGE
 ARG BEAM_VERSION=2.40.0
 ARG HAMCREST_VERSION=1.3
 ARG JUNIT_VERSION=4.13.2
+ARG BEAM_VENDOR_GRPC_VERSION=0.1
 #ENV BEAM_VERSION=${BEAM_VERSION_ARG}
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
@@ -71,17 +72,9 @@ RUN wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/$HAMCREST_VERS
 # Install JUnit
 RUN wget https://repo1.maven.org/maven2/junit/junit/$JUNIT_VERSION/junit-$JUNIT_VERSION.jar &&\
     mv junit-$JUNIT_VERSION.jar /opt/apache/beam/jars/junit.jar
-# Install Beam Vendor GRPC
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-1_26_0/0.1/beam-vendor-grpc-1_26_0-0.1.jar &&\
-    mv beam-vendor-grpc-1_26_0-0.1.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-guava-26_0-jre/0.1/beam-vendor-guava-26_0-jre-0.1.jar &&\
-    mv beam-vendor-guava-26_0-jre-0.1.jar /opt/apache/beam/jars/beam-vendor-guava.jar
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-sdks-java-extensions-protobuf/2.28.0/beam-vendor-sdks-java-extensions-protobuf-2.28.0.jar &&\
-    mv beam-vendor-sdks-java-extensions-protobuf-2.28.0.jar /opt/apache/beam/jars/beam-vendor-sdks-java-extensions-protobuf.jar
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-bytebuddy-1_11_0/0.1/beam-vendor-bytebuddy-1_11_0-0.1.jar &&\
-    mv beam-vendor-bytebuddy-1_11_0-0.1.jar /opt/apache/beam/jars/beam-vendor-bytebuddy.jar
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-calcite-1_28_0/0.2/beam-vendor-calcite-1_28_0-0.2.jar &&\
-    mv beam-vendor-calcite-1_28_0-0.2.jar /opt/apache/beam/jars/beam-vendor-calcite.jar
+# Install Beam Vendor gRPC
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-1_26_0/$BEAM_VENDOR_GRPC_VERSION/beam-vendor-grpc-1_26_0-$BEAM_VENDOR_GRPC_VERSION.jar &&\
+    mv beam-vendor-grpc-1_26_0-$BEAM_VENDOR_GRPC_VERSION.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\
