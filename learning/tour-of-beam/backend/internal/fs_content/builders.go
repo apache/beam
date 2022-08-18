@@ -27,7 +27,8 @@ func (b *ContentTreeBuilder) AddModule(mod tob.Module) {
 // sort learning_path's modules in the order corresponding to content-info.yaml/content
 func (b *ContentTreeBuilder) sortModules() {
 	if len(b.modules) != len(b.info.ModuleNames) {
-		log.Panicf("Tree %v modules number mismatch (expected %v)", b.info.Sdk, len(b.info.ModuleNames))
+		log.Panicf("Tree %v modules number mismatch: %v (expected %v)",
+			b.info.Sdk, len(b.modules), len(b.info.ModuleNames))
 	}
 
 	newModules := make([]tob.Module, len(b.modules))
@@ -51,38 +52,45 @@ func (b *ContentTreeBuilder) Build() tob.ContentTree {
 }
 
 type ModuleBuilder struct {
-	id          string
+	dirName     string
 	initialized bool
 	info        learningModuleInfo
 	units       []tob.UnitContent
 }
 
-func NewModuleBuilder(id string, info learningModuleInfo) ModuleBuilder {
-	return ModuleBuilder{id: id, initialized: true, info: info}
+func NewModuleBuilder(dirname string, info learningModuleInfo) ModuleBuilder {
+	return ModuleBuilder{initialized: true, info: info, dirName: dirname}
 }
 
 func (b *ModuleBuilder) IsInitialized() bool {
 	return b.initialized
 }
 
-func (b *ModuleBuilder) AddUnit(unit tob.UnitContent) {
+func (b *ModuleBuilder) AddUnit(unit tob.UnitContent, unitDir string) {
 	b.units = append(b.units, unit)
+	b.unitDirs = append(b.unitDirs, unitDir)
 }
 
 // sort module's units in the order corresponding to module-info.yaml/content
 func (b *ModuleBuilder) sortUnits() {
-	if len(b.units) != len(b.info.UnitNames) {
-		log.Panicf("Module %v units number mismatch (expected %v)", b.info.Name, len(b.info.UnitNames))
+	if len(b.units) != len(b.info.UnitDirs) {
+		log.Panicf("Module %v units number mismatch: %v (expected %v)",
+			b.info.Name, len(b.units), len(b.info.UnitDirs))
 	}
 
-	newUnits := make([]tob.UnitContent, len(b.units))
-	for i, unitName := range b.info.UnitNames {
+	newUnits := make([]tob.UnitContent, 0, len(b.units))
+	for _, unitDir := range b.info.UnitDirs {
 		for _, unit := range b.units {
-			if unit.Name == unitName {
-				newUnits[i] = unit
+			if unit. == unitName {
+				newUnits = append(newUnits, unit)
 			}
 		}
 	}
+	if len(b.units) != len(newUnits) {
+		log.Panicf("Module %v units number mismatch: %v (expected %v)",
+			b.info.Name, len(newUnits), len(b.units))
+	}
+
 	b.units = newUnits
 }
 
@@ -96,13 +104,16 @@ func (b *ModuleBuilder) Build() tob.Module {
 	}
 }
 
-// Make a Builder
-func BuildUnitContent(id string, info learningUnitInfo) tob.UnitContent {
+type UnitBuilder struct {
+	info learningUnitInfo
+
+	dirName string
+}
+
+func BuildUnitContent(dirname string, info learningUnitInfo) tob.UnitContent {
 	return tob.UnitContent{
-		Unit: tob.Unit{
-			Id:   id,
-			Name: info.Name,
-		},
+		Id:   info.Id,
+		Name: info.Name,
 		// TODO: description, hints
 
 		TaskName:     info.TaskName,

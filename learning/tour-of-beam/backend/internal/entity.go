@@ -14,14 +14,13 @@ type Module struct {
 }
 
 type ContentTree struct {
-	Sdk         Sdk      `json:"sdk"`
-	Modules     []Module `json:"modules"`
-	ModuleNames []string `json:"-"`
+	Sdk     Sdk      `json:"sdk"`
+	Modules []Module `json:"modules"`
 }
 
 type UnitContent struct {
-	Unit
-	Complexity        string `json:"complexity,omitempty"`
+	Id                string `json:"unitId"`
+	Name              string `json:"name"`
 	Description       string `json:"description,omitempty"`
 	Hint              string `json:"hint"`
 	TaskSnippetId     string `json:"taskSnippetId"`

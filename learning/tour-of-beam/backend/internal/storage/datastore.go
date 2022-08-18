@@ -78,7 +78,7 @@ func (d *DatastoreDb) clearContentTree(ctx context.Context, tx *datastore.Transa
 
 // Create a learning content tree with given revision
 func (d *DatastoreDb) saveContentTree(ctx context.Context, tree tob.ContentTree, revision int) error {
-	d.Client.DeleteMulti()
+	d.Client.P
 	return nil
 }
 
