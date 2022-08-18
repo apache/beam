@@ -923,8 +923,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     private transient List<KV<Instant, FileResult<DestinationT>>> deferredOutput =
         new ArrayList<>();
 
-    @Setup
-    public void setup() {
+    // Ensure that transient fields are initialized.
+    private void readObject(java.io.ObjectInputStream in)
+        throws IOException, ClassNotFoundException {
+      in.defaultReadObject();
       closeFutures = new ArrayList<>();
       deferredOutput = new ArrayList<>();
     }
