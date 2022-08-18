@@ -1,0 +1,1 @@
+The input is integers . Inside `applyTransform()` compares each element with 100. Numbers that are larger than one `PCollection` array, if smaller in another `PCollection` array.

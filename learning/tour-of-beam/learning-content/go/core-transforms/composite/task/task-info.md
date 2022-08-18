@@ -1,0 +1,1 @@
+When entering a sentence of words. The `applyTransform()` implements the main operation and invokes nested logic. In nested logic, we collect characters from a sentence, in the main function return their count.

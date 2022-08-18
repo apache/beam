@@ -1,0 +1,1 @@
+A list of strings is provided. The `applyTransform()` method implements grouping by the first letter of words, which will be a list of words.

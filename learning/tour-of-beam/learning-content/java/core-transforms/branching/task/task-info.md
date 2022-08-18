@@ -1,0 +1,1 @@
+Accepts integers `PCollection`. Without changing it returns the new `PCollection`. In this case, one `PCollection` includes elements in multiply 5. The other `PCollection` stores multiply 10 elements.

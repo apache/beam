@@ -1,0 +1,1 @@
+At the input, the elements of the `PCollection` are represented as strings. The `beam.FlatMap()` returns a list of words that make up the sentence.

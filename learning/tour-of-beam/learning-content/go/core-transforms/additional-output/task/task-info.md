@@ -1,0 +1,1 @@
+At the input is integers. The `applyTransform()` accepts a list of integers at the output two `PCollection` one `PCollection` above 100 and second below 100

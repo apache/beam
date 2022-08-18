@@ -1,0 +1,1 @@
+The class `ExtractAndMultiplyNumbers()` is inherited from `PTransform`. It consists of two operations. Parsing integers and multiplication by 10.

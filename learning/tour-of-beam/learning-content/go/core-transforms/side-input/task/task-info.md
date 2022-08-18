@@ -1,0 +1,1 @@
+At the entrance we have a map whose key is the city of the country value. And we also have a `Person` structure with his name and city. We can compare cities and embed countries in Person

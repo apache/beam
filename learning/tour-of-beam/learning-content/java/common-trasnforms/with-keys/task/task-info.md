@@ -1,0 +1,1 @@
+Given a list of strings, the output consists of a map with a key that is the first letter of the word , and whose value is the word itself.

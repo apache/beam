@@ -1,0 +1,1 @@
+Given a list of integers , printing even numbers using ```Filter```. The ```applyTransform()``` method implements a filter in which the logic determines the numbers are even.

@@ -1,0 +1,7 @@
+content:
+  - filter
+  - aggregation/count
+  - aggregation/sum
+  - aggregation/max
+  - aggregation/min
+  - aggregation/mean
