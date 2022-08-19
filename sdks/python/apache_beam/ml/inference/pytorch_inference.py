@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+import logging
 from collections import defaultdict
 from typing import Any
 from typing import Callable
@@ -40,11 +41,30 @@ __all__ = [
 def _load_model(
     model_class: torch.nn.Module, state_dict_path, device, **model_params):
   model = model_class(**model_params)
+
+  if device == torch.device('cuda') and not torch.cuda.is_available():
+    logging.warning(
+        "Specified 'GPU', but could not find device. Switching to CPU.")
+    device = torch.device('cpu')
+
+  try:
+    logging.info("Reading state_dict_path %s onto %s", state_dict_path, device)
+    file = FileSystems.open(state_dict_path, 'rb')
+    state_dict = torch.load(file, map_location=device)
+  except RuntimeError as e:
+    message = "Setting to CPU due to an exception while deserializing" \
+      f" state_dict_path. Exception: {e}."
+    logging.warning(message)
+
+    device = torch.device('cpu')
+    file = FileSystems.open(state_dict_path, 'rb')
+    state_dict = torch.load(file, map_location=device)
+
+  model.load_state_dict(state_dict)
   model.to(device)
-  file = FileSystems.open(state_dict_path, 'rb')
-  model.load_state_dict(torch.load(file))
   model.eval()
-  return model
+  logging.info("Finished loading PyTorch model.")
+  return (model, device)
 
 
 def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
@@ -88,20 +108,24 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     for details
     """
     self._state_dict_path = state_dict_path
-    if device == 'GPU' and torch.cuda.is_available():
+    if device == 'GPU':
+      logging.info("Device is set to CUDA")
       self._device = torch.device('cuda')
     else:
+      logging.info("Device is set to CPU")
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_params = model_params
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
-    return _load_model(
+    model, device = _load_model(
         self._model_class,
         self._state_dict_path,
         self._device,
         **self._model_params)
+    self._device = device
+    return model
 
   def run_inference(
       self,
@@ -131,10 +155,11 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """
     inference_args = {} if not inference_args else inference_args
 
-    batched_tensors = torch.stack(batch)
-    batched_tensors = _convert_to_device(batched_tensors, self._device)
-    predictions = model(batched_tensors, **inference_args)
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    with torch.no_grad():
+      batched_tensors = torch.stack(batch)
+      batched_tensors = _convert_to_device(batched_tensors, self._device)
+      predictions = model(batched_tensors, **inference_args)
+      return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -188,20 +213,24 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         Otherwise, it will be CPU.
     """
     self._state_dict_path = state_dict_path
-    if device == 'GPU' and torch.cuda.is_available():
+    if device == 'GPU':
+      logging.info("Device is set to CUDA")
       self._device = torch.device('cuda')
     else:
+      logging.info("Device is set to CPU")
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_params = model_params
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
-    return _load_model(
+    model, device = _load_model(
         self._model_class,
         self._state_dict_path,
         self._device,
         **self._model_params)
+    self._device = device
+    return model
 
   def run_inference(
       self,
@@ -234,16 +263,17 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     # If elements in `batch` are provided as a dictionaries from key to Tensors,
     # then iterate through the batch list, and group Tensors to the same key
     key_to_tensor_list = defaultdict(list)
-    for example in batch:
-      for key, tensor in example.items():
-        key_to_tensor_list[key].append(tensor)
-    key_to_batched_tensors = {}
-    for key in key_to_tensor_list:
-      batched_tensors = torch.stack(key_to_tensor_list[key])
-      batched_tensors = _convert_to_device(batched_tensors, self._device)
-      key_to_batched_tensors[key] = batched_tensors
-    predictions = model(**key_to_batched_tensors, **inference_args)
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    with torch.no_grad():
+      for example in batch:
+        for key, tensor in example.items():
+          key_to_tensor_list[key].append(tensor)
+      key_to_batched_tensors = {}
+      for key in key_to_tensor_list:
+        batched_tensors = torch.stack(key_to_tensor_list[key])
+        batched_tensors = _convert_to_device(batched_tensors, self._device)
+        key_to_batched_tensors[key] = batched_tensors
+      predictions = model(**key_to_batched_tensors, **inference_args)
+      return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """

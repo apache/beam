@@ -373,6 +373,40 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
         # pylint: disable=expression-not-assigned
         pcoll | RunInference(model_handler)
 
+  def test_gpu_convert_to_cpu(self):
+    with self.assertLogs() as log:
+      with TestPipeline() as pipeline:
+        examples = torch.from_numpy(
+            np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
+
+        state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                                  ('linear.bias', torch.Tensor([0.5]))])
+        path = os.path.join(self.tmpdir, 'my_state_dict_path')
+        torch.save(state_dict, path)
+
+        model_handler = PytorchModelHandlerTensor(
+            state_dict_path=path,
+            model_class=PytorchLinearRegression,
+            model_params={
+                'input_dim': 1, 'output_dim': 1
+            },
+            device='GPU')
+        # Upon initialization, device is cuda
+        self.assertEqual(model_handler._device, torch.device('cuda'))
+
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        # pylint: disable=expression-not-assigned
+        pcoll | RunInference(model_handler)
+
+        # During model loading, device converted to cuda
+        self.assertEqual(model_handler._device, torch.device('cuda'))
+
+      self.assertIn("INFO:root:Device is set to CUDA", log.output)
+      self.assertIn(
+          "WARNING:root:Specified 'GPU', but could not find device. " \
+          "Switching to CPU.",
+          log.output)
+
 
 if __name__ == '__main__':
   unittest.main()
