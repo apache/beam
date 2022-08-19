@@ -62,7 +62,7 @@ func GetFileName(name, content string, sdk pb.Sdk) (string, error) {
 // getCorrectFileName returns the correct file name.
 func getCorrectFileName(name, content string, sdk pb.Sdk) (string, error) {
 	ext := getExtOrExtBasedOnContent(filepath.Ext(name), content)
-	if !isValidFileExtensionAndSDK(ext, sdk) {
+	if ext != "" && !isValidFileExtensionAndSDK(ext, sdk) {
 		return "", errors.New(mismatchExtAndSDKErrMsg)
 	}
 	switch sdk {
@@ -91,7 +91,7 @@ func isValidFileExtensionAndSDK(ext string, sdk pb.Sdk) bool {
 	case scioExt:
 		return sdk == pb.Sdk_SDK_SCIO
 	default:
-		return true
+		return false
 	}
 }
 
@@ -114,7 +114,7 @@ func getExtBasedOnContent(content string) string {
 	if strings.Contains(content, pythonMainMethod) {
 		return pythonExt
 	}
-	if strings.Contains(content, goMainMethod) {
+	if strings.Contains(content, scioMainMethod) {
 		return scioExt
 	}
 	return ""

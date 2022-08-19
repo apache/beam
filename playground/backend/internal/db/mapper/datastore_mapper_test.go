@@ -94,9 +94,10 @@ func TestEntityMapper_ToFileEntity(t *testing.T) {
 		file *pb.SnippetFile
 	}
 	tests := []struct {
-		name     string
-		args     args
-		expected *entity.FileEntity
+		name        string
+		args        args
+		expected    *entity.FileEntity
+		expectedErr bool
 	}{
 		{
 			name: "File entity mapper in the usual case",
@@ -119,16 +120,38 @@ func TestEntityMapper_ToFileEntity(t *testing.T) {
 				IsMain:   true,
 			},
 		},
+		{
+			name: "File entity mapper when file name and sdk are invalid",
+			args: args{
+				info: &pb.SaveSnippetRequest{
+					Files:           []*pb.SnippetFile{{Name: "MOCK_NAME.scio", Content: "MOCK_CONTENT"}},
+					Sdk:             pb.Sdk_SDK_JAVA,
+					PipelineOptions: "MOCK_OPTIONS",
+				},
+				file: &pb.SnippetFile{
+					Name:    "MOCK_NAME.scio",
+					Content: "MOCK_CONTENT",
+					IsMain:  true,
+				},
+			},
+			expectedErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, _ := testable.ToFileEntity(tt.args.info, tt.args.file)
-			if result.IsMain != tt.expected.IsMain ||
-				result.Name != tt.expected.Name ||
-				result.Content != tt.expected.Content ||
-				result.CntxLine != tt.expected.CntxLine {
-				t.Error("Unexpected result")
+			result, err := testable.ToFileEntity(tt.args.info, tt.args.file)
+			if (err != nil) != tt.expectedErr {
+				t.Errorf("Unexpected error")
+				return
+			}
+			if err == nil {
+				if result.IsMain != tt.expected.IsMain ||
+					result.Name != tt.expected.Name ||
+					result.Content != tt.expected.Content ||
+					result.CntxLine != tt.expected.CntxLine {
+					t.Error("Unexpected result")
+				}
 			}
 		})
 	}
