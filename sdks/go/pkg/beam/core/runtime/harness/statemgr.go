@@ -31,11 +31,11 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-type writeType_Enum int32
+type writeTypeEnum int32
 
 const (
-	writeType_Append writeType_Enum = 0
-	writeType_Clear  writeType_Enum = 1
+	writeTypeAppend writeTypeEnum = 0
+	writeTypeClear  writeTypeEnum = 1
 )
 
 // ScopedStateReader scopes the global gRPC state manager to a single instruction
@@ -179,7 +179,7 @@ type stateKeyReader struct {
 type stateKeyWriter struct {
 	instID    instructionID
 	key       *fnpb.StateKey
-	writeType writeType_Enum
+	writeType writeTypeEnum
 
 	ch *StateChannel
 	mu sync.Mutex
@@ -269,7 +269,7 @@ func newBagUserStateAppender(ch *StateChannel, id exec.StreamID, instID instruct
 		instID:    instID,
 		key:       key,
 		ch:        ch,
-		writeType: writeType_Append,
+		writeType: writeTypeAppend,
 	}
 }
 
@@ -288,7 +288,7 @@ func newBagUserStateClearer(ch *StateChannel, id exec.StreamID, instID instructi
 		instID:    instID,
 		key:       key,
 		ch:        ch,
-		writeType: writeType_Clear,
+		writeType: writeTypeClear,
 	}
 }
 
@@ -373,7 +373,7 @@ func (r *stateKeyWriter) Write(buf []byte) (int, error) {
 
 	var req *fnpb.StateRequest
 	switch r.writeType {
-	case writeType_Append:
+	case writeTypeAppend:
 		req = &fnpb.StateRequest{
 			// Id: set by StateChannel
 			InstructionId: string(r.instID),
@@ -384,7 +384,7 @@ func (r *stateKeyWriter) Write(buf []byte) (int, error) {
 				},
 			},
 		}
-	case writeType_Clear:
+	case writeTypeClear:
 		req = &fnpb.StateRequest{
 			// Id: set by StateChannel
 			InstructionId: string(r.instID),

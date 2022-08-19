@@ -18,17 +18,14 @@ package exec
 import (
 	"context"
 	"fmt"
-	"io"
 	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
@@ -68,122 +65,6 @@ func (bf *bundleFinalizer) RegisterCallback(t time.Duration, cb func() error) {
 	bf.callbacks = append(bf.callbacks, callback)
 	if bf.lastValidCallback.Before(callback.validUntil) {
 		bf.lastValidCallback = callback.validUntil
-	}
-}
-
-type stateProvider struct {
-	ctx        context.Context
-	sr         StateReader
-	SID        StreamID
-	elementKey []byte
-	window     []byte
-
-	transactionsByKey map[string][]state.Transaction
-	initialValueByKey map[string]interface{}
-	readersByKey      map[string]io.ReadCloser
-	appendersByKey    map[string]io.Writer
-	clearersByKey     map[string]io.Writer
-	codersByKey       map[string]*coder.Coder
-}
-
-// ReadValueState reads a value state from the State API
-func (s *stateProvider) ReadValueState(userStateID string) (interface{}, []state.Transaction, error) {
-	initialValue, ok := s.initialValueByKey[userStateID]
-	if !ok {
-		rw, err := s.getReader(userStateID)
-		if err != nil {
-			return nil, nil, err
-		}
-		// TODO(now) - move this to userstate.go and store the encoder/decoders by key
-		dec := MakeElementDecoder(s.codersByKey[userStateID])
-		resp, err := dec.Decode(rw)
-		if err != nil && err != io.EOF {
-			return nil, nil, err
-		}
-		if resp == nil {
-			return nil, []state.Transaction{}, nil
-		}
-		initialValue = resp.Elm
-	}
-
-	transactions, ok := s.transactionsByKey[userStateID]
-	if !ok {
-		transactions = []state.Transaction{}
-	}
-
-	return initialValue, transactions, nil
-}
-
-// WriteValueState writes a value state to the State API
-// For value states, this is done by clearing a bag state and writing a value to it.
-func (s *stateProvider) WriteValueState(val state.Transaction) error {
-	cl, err := s.getClearer(val.Key)
-	if err != nil {
-		return err
-	}
-	cl.Write([]byte{})
-
-	ap, err := s.getAppender(val.Key)
-	if err != nil {
-		return err
-	}
-	fv := FullValue{Elm: val.Val}
-	// TODO - move this to userstate.go so we only do it once.
-	enc := MakeElementEncoder(s.codersByKey[val.Key])
-	err = enc.Encode(&fv, ap)
-	if err != nil {
-		return err
-	}
-
-	// TODO(#22736) - optimize this a bit once all state types are added. In the case of sets/clears,
-	// we can remove the transactions. We can also consider combining other transactions on read (or sooner)
-	// so that we don't need to use as much memory/time replaying transactions.
-	if transactions, ok := s.transactionsByKey[val.Key]; ok {
-		transactions = append(transactions, val)
-		s.transactionsByKey[val.Key] = transactions
-	} else {
-		s.transactionsByKey[val.Key] = []state.Transaction{val}
-	}
-
-	return nil
-}
-
-func (s *stateProvider) getReader(userStateId string) (io.ReadCloser, error) {
-	if r, ok := s.readersByKey[userStateId]; ok {
-		return r, nil
-	} else {
-		r, err := s.sr.OpenBagUserStateReader(s.ctx, s.SID, userStateId, s.elementKey, s.window)
-		if err != nil {
-			return nil, err
-		}
-		s.readersByKey[userStateId] = r
-		return s.readersByKey[userStateId], nil
-	}
-}
-
-func (s *stateProvider) getAppender(userStateId string) (io.Writer, error) {
-	if w, ok := s.appendersByKey[userStateId]; ok {
-		return w, nil
-	} else {
-		w, err := s.sr.OpenBagUserStateAppender(s.ctx, s.SID, userStateId, s.elementKey, s.window)
-		if err != nil {
-			return nil, err
-		}
-		s.appendersByKey[userStateId] = w
-		return s.appendersByKey[userStateId], nil
-	}
-}
-
-func (s *stateProvider) getClearer(userStateId string) (io.Writer, error) {
-	if w, ok := s.clearersByKey[userStateId]; ok {
-		return w, nil
-	} else {
-		w, err := s.sr.OpenBagUserStateClearer(s.ctx, s.SID, userStateId, s.elementKey, s.window)
-		if err != nil {
-			return nil, err
-		}
-		s.clearersByKey[userStateId] = w
-		return s.clearersByKey[userStateId], nil
 	}
 }
 
