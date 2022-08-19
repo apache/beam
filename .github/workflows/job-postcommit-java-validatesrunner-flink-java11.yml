@@ -60,4 +60,4 @@ jobs:
         with:
           gradle-command: :runners:flink:${{ matrix.flink-versions }}:validatesRunner
           arguments: -x shadowJar -x shadowTestJar -x compileJava -x compleTestJava -x jar -x testJar -x classes -x testClasses
-          max-workers: --max-workers=${{ steps.get_available_processors.outputs.BALANCE_CORES }}
+          max-workers: ${{ steps.get_available_processors.outputs.BALANCE_CORES }}
