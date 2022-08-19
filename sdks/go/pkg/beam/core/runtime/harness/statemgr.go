@@ -82,25 +82,25 @@ func (s *ScopedStateReader) OpenIterable(ctx context.Context, id exec.StreamID, 
 }
 
 // OpenBagUserStateReader opens a byte stream for reading user bag state.
-func (s *ScopedStateReader) OpenBagUserStateReader(ctx context.Context, id exec.StreamID, userStateId string, key []byte, w []byte) (io.ReadCloser, error) {
+func (s *ScopedStateReader) OpenBagUserStateReader(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error) {
 	rw, err := s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
-		return newBagUserStateReader(ch, id, s.instID, userStateId, key, w)
+		return newBagUserStateReader(ch, id, s.instID, userStateID, key, w)
 	})
 	return rw, err
 }
 
 // OpenBagUserStateAppender opens a byte stream for appending user bag state.
-func (s *ScopedStateReader) OpenBagUserStateAppender(ctx context.Context, id exec.StreamID, userStateId string, key []byte, w []byte) (io.Writer, error) {
+func (s *ScopedStateReader) OpenBagUserStateAppender(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
 	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
-		return newBagUserStateAppender(ch, id, s.instID, userStateId, key, w)
+		return newBagUserStateAppender(ch, id, s.instID, userStateID, key, w)
 	})
 	return wr, err
 }
 
 // OpenBagUserStateClearer opens a byte stream for clearing user bag state.
-func (s *ScopedStateReader) OpenBagUserStateClearer(ctx context.Context, id exec.StreamID, userStateId string, key []byte, w []byte) (io.Writer, error) {
+func (s *ScopedStateReader) OpenBagUserStateClearer(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
 	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
-		return newBagUserStateClearer(ch, id, s.instID, userStateId, key, w)
+		return newBagUserStateClearer(ch, id, s.instID, userStateID, key, w)
 	})
 	return wr, err
 }
@@ -236,12 +236,12 @@ func newRunnerReader(ch *StateChannel, instID instructionID, k []byte) *stateKey
 	}
 }
 
-func newBagUserStateReader(ch *StateChannel, id exec.StreamID, instID instructionID, userStateId string, k []byte, w []byte) *stateKeyReader {
+func newBagUserStateReader(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte) *stateKeyReader {
 	key := &fnpb.StateKey{
 		Type: &fnpb.StateKey_BagUserState_{
 			BagUserState: &fnpb.StateKey_BagUserState{
 				TransformId: id.PtransformID,
-				UserStateId: userStateId,
+				UserStateId: userStateID,
 				Window:      w,
 				Key:         k,
 			},
@@ -254,12 +254,12 @@ func newBagUserStateReader(ch *StateChannel, id exec.StreamID, instID instructio
 	}
 }
 
-func newBagUserStateAppender(ch *StateChannel, id exec.StreamID, instID instructionID, userStateId string, k []byte, w []byte) *stateKeyWriter {
+func newBagUserStateAppender(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte) *stateKeyWriter {
 	key := &fnpb.StateKey{
 		Type: &fnpb.StateKey_BagUserState_{
 			BagUserState: &fnpb.StateKey_BagUserState{
 				TransformId: id.PtransformID,
-				UserStateId: userStateId,
+				UserStateId: userStateID,
 				Window:      w,
 				Key:         k,
 			},
@@ -273,12 +273,12 @@ func newBagUserStateAppender(ch *StateChannel, id exec.StreamID, instID instruct
 	}
 }
 
-func newBagUserStateClearer(ch *StateChannel, id exec.StreamID, instID instructionID, userStateId string, k []byte, w []byte) *stateKeyWriter {
+func newBagUserStateClearer(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte) *stateKeyWriter {
 	key := &fnpb.StateKey{
 		Type: &fnpb.StateKey_BagUserState_{
 			BagUserState: &fnpb.StateKey_BagUserState{
 				TransformId: id.PtransformID,
-				UserStateId: userStateId,
+				UserStateId: userStateID,
 				Window:      w,
 				Key:         k,
 			},
@@ -386,7 +386,7 @@ func (r *stateKeyWriter) Write(buf []byte) (int, error) {
 		}
 	case writeTypeClear:
 		req = &fnpb.StateRequest{
-			// Id: set by StateChannel
+			// ID: set by StateChannel
 			InstructionId: string(r.instID),
 			StateKey:      r.key,
 			Request: &fnpb.StateRequest_Clear{

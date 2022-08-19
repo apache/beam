@@ -72,11 +72,11 @@ type StateReader interface {
 	// OpenIterable opens a byte stream for reading unwindowed iterables from the runner.
 	OpenIterable(ctx context.Context, id StreamID, key []byte) (io.ReadCloser, error)
 	// OpenBagUserStateReader opens a byte stream for reading user bag state.
-	OpenBagUserStateReader(ctx context.Context, id StreamID, userStateId string, key []byte, w []byte) (io.ReadCloser, error)
+	OpenBagUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error)
 	// OpenBagUserStateAppender opens a byte stream for appending user bag state.
-	OpenBagUserStateAppender(ctx context.Context, id StreamID, userStateId string, key []byte, w []byte) (io.Writer, error)
+	OpenBagUserStateAppender(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error)
 	// OpenBagUserStateClearer opens a byte stream for clearing user bag state.
-	OpenBagUserStateClearer(ctx context.Context, id StreamID, userStateId string, key []byte, w []byte) (io.Writer, error)
+	OpenBagUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error)
 	// GetSideInputCache returns the SideInputCache being used at the harness level.
 	GetSideInputCache() SideCache
 }
