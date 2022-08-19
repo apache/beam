@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.junit.Assert.assertEquals;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
@@ -29,32 +34,26 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-
 /** Tests for {@link JsonUtils}. */
 @RunWith(JUnit4.class)
 public class JsonUtilsTest {
   private static final JavaBeanSchema JAVA_BEAN_SCHEMA = new JavaBeanSchema();
   private static final Gson GSON = new Gson();
 
-  final List<TestCase<? extends RowEncodable>> testCases = Arrays.asList(
+  final List<TestCase<? extends RowEncodable>> testCases =
+      Arrays.asList(
           testCase(Cat.of("Figaro", 12.3, 8, true)),
           testCase(NestedCat.of(Cat.of("QuantumCat", -100.123, 999, false))),
-          testCase(ArrayOfCats.of(Arrays.asList(
-                  Cat.of("Chill Cat", 1903.1514, 1, true),
-                  Cat.of("Toasty Cat", 5.9, 4, true),
-                  Cat.of("Hangry Cat", 3.14, 3, true)
-          )))
-  );
+          testCase(
+              ArrayOfCats.of(
+                  Arrays.asList(
+                      Cat.of("Chill Cat", 1903.1514, 1, true),
+                      Cat.of("Toasty Cat", 5.9, 4, true),
+                      Cat.of("Hangry Cat", 3.14, 3, true)))));
 
   @Test
   public void testGetJsonBytesToRowFunction() {
-    for(TestCase<? extends RowEncodable> caze : testCases) {
+    for (TestCase<? extends RowEncodable> caze : testCases) {
       Row expected = caze.row;
       Row actual = JsonUtils.getJsonBytesToRowFunction(expected.getSchema()).apply(caze.jsonBytes);
       assertEquals(caze.userT.toString(), expected, actual);
@@ -63,16 +62,17 @@ public class JsonUtilsTest {
 
   @Test
   public void testGetJsonStringToRowFunction() {
-    for(TestCase<? extends RowEncodable> caze : testCases) {
+    for (TestCase<? extends RowEncodable> caze : testCases) {
       Row expected = caze.row;
-      Row actual = JsonUtils.getJsonStringToRowFunction(expected.getSchema()).apply(caze.jsonString);
+      Row actual =
+          JsonUtils.getJsonStringToRowFunction(expected.getSchema()).apply(caze.jsonString);
       assertEquals(caze.userT.toString(), expected, actual);
     }
   }
 
   @Test
   public void testGetRowToJsonBytesFunction() {
-    for(TestCase<? extends RowEncodable> caze : testCases) {
+    for (TestCase<? extends RowEncodable> caze : testCases) {
       byte[] expected = caze.jsonBytes;
       byte[] actual = JsonUtils.getRowToJsonBytesFunction(caze.row.getSchema()).apply(caze.row);
       assertJsonEquals(caze.userT.toString(), expected, actual);
@@ -81,7 +81,7 @@ public class JsonUtilsTest {
 
   @Test
   public void testGetRowToJsonStringsFunction() {
-    for(TestCase<? extends RowEncodable> caze : testCases) {
+    for (TestCase<? extends RowEncodable> caze : testCases) {
       String expected = caze.jsonString;
       String actual = JsonUtils.getRowToJsonStringsFunction(caze.row.getSchema()).apply(caze.row);
       assertJsonEquals(caze.userT.toString(), expected, actual);
@@ -90,7 +90,7 @@ public class JsonUtilsTest {
 
   @Test
   public void testGetToJsonBytesFunction() {
-    for(TestCase<? extends RowEncodable> caze : testCases) {
+    for (TestCase<? extends RowEncodable> caze : testCases) {
       byte[] expected = caze.jsonBytes;
       byte[] actual = JsonUtils.getToJsonBytesFunction().apply(caze.userT);
       assertJsonEquals(caze.userT.toString(), expected, actual);
@@ -99,7 +99,7 @@ public class JsonUtilsTest {
 
   @Test
   public void testGetToJsonStringsFunction() {
-    for(TestCase<? extends RowEncodable> caze : testCases) {
+    for (TestCase<? extends RowEncodable> caze : testCases) {
       String expected = caze.jsonString;
       String actual = JsonUtils.getToJsonStringsFunction().apply(caze.userT);
       assertJsonEquals(caze.userT.toString(), expected, actual);
@@ -108,18 +108,20 @@ public class JsonUtilsTest {
 
   @Test
   public void testGetFromJsonBytesFunction() {
-    for(TestCase<? extends RowEncodable> caze : testCases) {
+    for (TestCase<? extends RowEncodable> caze : testCases) {
       Object expected = caze.userT;
-      Object actual = JsonUtils.getFromJsonBytesFunction(caze.userT.getClass()).apply(caze.jsonBytes);
+      Object actual =
+          JsonUtils.getFromJsonBytesFunction(caze.userT.getClass()).apply(caze.jsonBytes);
       assertEquals(caze.userT.toString(), expected, actual);
     }
   }
 
   @Test
   public void testGetFromJsonStringFunction() {
-    for(TestCase<? extends RowEncodable> caze : testCases) {
+    for (TestCase<? extends RowEncodable> caze : testCases) {
       Object expected = caze.userT;
-      Object actual = JsonUtils.getFromJsonStringFunction(caze.userT.getClass()).apply(caze.jsonString);
+      Object actual =
+          JsonUtils.getFromJsonStringFunction(caze.userT.getClass()).apply(caze.jsonString);
       assertEquals(caze.userT.toString(), expected, actual);
     }
   }
@@ -148,7 +150,9 @@ public class JsonUtilsTest {
   @DefaultSchema(JavaBeanSchema.class)
   private static class Cat implements RowEncodable {
     private static final TypeDescriptor<Cat> TYPE_DESCRIPTOR = TypeDescriptor.of(Cat.class);
-    private static final SerializableFunction<Cat, Row> TO_ROW_FUNCTION = JAVA_BEAN_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
+    private static final SerializableFunction<Cat, Row> TO_ROW_FUNCTION =
+        JAVA_BEAN_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
+
     static Cat of(String name, double weight, int age, boolean spayNeutered) {
       return new Cat(name, weight, age, spayNeutered);
     }
@@ -189,20 +193,32 @@ public class JsonUtilsTest {
 
     @Override
     public String toString() {
-      return "Cat{" +
-              "name='" + name + '\'' +
-              ", weight=" + weight +
-              ", age=" + age +
-              ", spayNeutered=" + spayNeutered +
-              '}';
+      return "Cat{"
+          + "name='"
+          + name
+          + '\''
+          + ", weight="
+          + weight
+          + ", age="
+          + age
+          + ", spayNeutered="
+          + spayNeutered
+          + '}';
     }
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       Cat cat = (Cat) o;
-      return Double.compare(cat.weight, weight) == 0 && age == cat.age && spayNeutered == cat.spayNeutered && name.equals(cat.name);
+      return Double.compare(cat.weight, weight) == 0
+          && age == cat.age
+          && spayNeutered == cat.spayNeutered
+          && name.equals(cat.name);
     }
 
     @Override
@@ -217,8 +233,11 @@ public class JsonUtilsTest {
     static NestedCat of(Cat cat) {
       return new NestedCat(cat);
     }
-    private static final TypeDescriptor<NestedCat> TYPE_DESCRIPTOR = TypeDescriptor.of(NestedCat.class);
-    private static final SerializableFunction<NestedCat, Row> TO_ROW_FUNCTION = JAVA_BEAN_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
+
+    private static final TypeDescriptor<NestedCat> TYPE_DESCRIPTOR =
+        TypeDescriptor.of(NestedCat.class);
+    private static final SerializableFunction<NestedCat, Row> TO_ROW_FUNCTION =
+        JAVA_BEAN_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
     private final Cat catWithACat;
 
@@ -238,15 +257,17 @@ public class JsonUtilsTest {
 
     @Override
     public String toString() {
-      return "NestedCat{" +
-              "catWithACat=" + catWithACat +
-              '}';
+      return "NestedCat{" + "catWithACat=" + catWithACat + '}';
     }
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       NestedCat nestedCat = (NestedCat) o;
       return Objects.equals(catWithACat, nestedCat.catWithACat);
     }
@@ -263,8 +284,10 @@ public class JsonUtilsTest {
       return new ArrayOfCats(cats);
     }
 
-    private static final TypeDescriptor<ArrayOfCats> TYPE_DESCRIPTOR = TypeDescriptor.of(ArrayOfCats.class);
-    private static final SerializableFunction<ArrayOfCats, Row> TO_ROW_FUNCTION = JAVA_BEAN_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
+    private static final TypeDescriptor<ArrayOfCats> TYPE_DESCRIPTOR =
+        TypeDescriptor.of(ArrayOfCats.class);
+    private static final SerializableFunction<ArrayOfCats, Row> TO_ROW_FUNCTION =
+        JAVA_BEAN_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
     private final List<Cat> list;
 
@@ -284,15 +307,17 @@ public class JsonUtilsTest {
 
     @Override
     public String toString() {
-      return "ArrayOfCats{" +
-              "list=" + list +
-              '}';
+      return "ArrayOfCats{" + "list=" + list + '}';
     }
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       ArrayOfCats that = (ArrayOfCats) o;
       return list.equals(that.list);
     }

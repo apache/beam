@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.schemas.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -27,13 +28,11 @@ import org.apache.beam.sdk.util.RowJsonUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.gson.Gson;
 
-import java.nio.charset.StandardCharsets;
-
-/** Utils to convert AVRO records to Beam rows. */
+/** Utils to convert JSON records to Beam {@link Row}. */
 @Experimental(Kind.SCHEMAS)
 public class JsonUtils {
 
-  /** Returns a function mapping JSON UTF-8 encoded byte[] to Beam Rows. */
+  /** Returns a {@link SimpleFunction} mapping JSON byte[] arrays to Beam {@link Row}s. */
   public static SimpleFunction<byte[], Row> getJsonBytesToRowFunction(Schema beamSchema) {
     return new JsonToRowFn<byte[]>(beamSchema) {
       @Override
@@ -44,6 +43,7 @@ public class JsonUtils {
     };
   }
 
+  /** Returns a {@link SimpleFunction} mapping JSON {@link String}s to Beam {@link Row}s. */
   public static SimpleFunction<String, Row> getJsonStringToRowFunction(Schema beamSchema) {
     return new JsonToRowFn<String>(beamSchema) {
       @Override
@@ -53,7 +53,7 @@ public class JsonUtils {
     };
   }
 
-  /** Returns a function mapping Beam Rows to JSON UTF-8 encoded byte[] arrays. */
+  /** Returns a {@link SimpleFunction} mapping Beam {@link Row}s to JSON byte[] arrays. */
   public static SimpleFunction<Row, byte[]> getRowToJsonBytesFunction(Schema beamSchema) {
     return new RowToJsonFn<byte[]>(beamSchema) {
       @Override
@@ -64,7 +64,7 @@ public class JsonUtils {
     };
   }
 
-  /** Returns a function mapping Beam Rows to JSON UTF-8 encoded strings. */
+  /** Returns a {@link SimpleFunction} mapping Beam {@link Row}s to JSON {@link String}s. */
   public static SimpleFunction<Row, String> getRowToJsonStringsFunction(Schema beamSchema) {
     return new RowToJsonFn<String>(beamSchema) {
       @Override
@@ -74,6 +74,7 @@ public class JsonUtils {
     };
   }
 
+  /** Returns a {@link SimpleFunction} mapping a {@param T} to byte[] arrays. */
   public static <T> SimpleFunction<T, byte[]> getToJsonBytesFunction() {
     return new ToJsonFn<T, byte[]>() {
       @Override
@@ -84,6 +85,7 @@ public class JsonUtils {
     };
   }
 
+  /** Returns a {@link SimpleFunction} mapping a {@param T} to {@link String}s. */
   public static <T> SimpleFunction<T, String> getToJsonStringsFunction() {
     return new ToJsonFn<T, String>() {
       @Override
@@ -93,6 +95,7 @@ public class JsonUtils {
     };
   }
 
+  /** Returns a {@link SimpleFunction} mapping byte[] arrays to {@param T}. */
   public static <T> SimpleFunction<byte[], T> getFromJsonBytesFunction(Class<T> convertFromClass) {
     return new FromJsonFn<byte[], T>() {
       @Override
@@ -103,6 +106,7 @@ public class JsonUtils {
     };
   }
 
+  /** Returns a {@link SimpleFunction} mapping {@link String}s to {@param T}. */
   public static <T> SimpleFunction<String, T> getFromJsonStringFunction(Class<T> convertFromClass) {
     return new FromJsonFn<String, T>() {
       @Override
@@ -144,7 +148,7 @@ public class JsonUtils {
     return jsonString.getBytes(StandardCharsets.UTF_8);
   }
 
-  static String  byteArrayToJsonString(byte[] jsonBytes) {
+  static String byteArrayToJsonString(byte[] jsonBytes) {
     return new String(jsonBytes, StandardCharsets.UTF_8);
   }
 }
