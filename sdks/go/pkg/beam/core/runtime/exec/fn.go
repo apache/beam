@@ -18,11 +18,13 @@ package exec
 import (
 	"context"
 	"fmt"
+	"io"
 	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
@@ -70,37 +72,138 @@ func (bf *bundleFinalizer) RegisterCallback(t time.Duration, cb func() error) {
 }
 
 type stateProvider struct {
+	ctx        context.Context
+	sr         StateReader
+	SID        StreamID
+	elementKey []byte
+	window     []byte
+
+	transactionsByKey map[string][]state.Transaction
+	initialValueByKey map[string]interface{}
+	readersByKey      map[string]io.ReadCloser
+	appendersByKey    map[string]io.Writer
+	clearersByKey     map[string]io.Writer
+	codersByKey       map[string]*coder.Coder
 }
 
 // ReadValueState reads a value state from the State API
 func (s *stateProvider) ReadValueState(userStateId string) (interface{}, []state.Transaction, error) {
-	// TODO(#22736) - read from the state api.
-	return nil, nil, errors.New("Stateful DoFns are not supported yet.")
+	initialValue, ok := s.initialValueByKey[userStateId]
+	if !ok {
+		rw, err := s.getReader(userStateId)
+		if err != nil {
+			return nil, nil, err
+		}
+		// TODO(now) - move this to userstate.go and store the encoder/decoders by key
+		dec := MakeElementDecoder(s.codersByKey[userStateId])
+		resp, err := dec.Decode(rw)
+		if err != nil && err != io.EOF {
+			return nil, nil, err
+		}
+		if resp == nil {
+			return nil, []state.Transaction{}, nil
+		}
+		initialValue = resp.Elm
+	}
+
+	transactions, ok := s.transactionsByKey[userStateId]
+	if !ok {
+		transactions = []state.Transaction{}
+	}
+
+	return initialValue, transactions, nil
 }
 
 // WriteValueState writes a value state to the State API
+// For value states, this is done by clearing a bag state and writing a value to it.
 func (s *stateProvider) WriteValueState(val state.Transaction) error {
-	// TODO(#22736) - read from the state api.
-	return errors.New("Stateful DoFns are not supported yet.")
+	cl, err := s.getClearer(val.Key)
+	if err != nil {
+		return err
+	}
+	cl.Write([]byte{})
+
+	ap, err := s.getAppender(val.Key)
+	if err != nil {
+		return err
+	}
+	fv := FullValue{Elm: val.Val}
+	// TODO - move this to userstate.go so we only do it once.
+	enc := MakeElementEncoder(s.codersByKey[val.Key])
+	err = enc.Encode(&fv, ap)
+	if err != nil {
+		return err
+	}
+
+	// TODO(#22736) - optimize this a bit once all state types are added. In the case of sets/clears,
+	// we can remove the transactions. We can also consider combining other transactions on read (or sooner)
+	// so that we don't need to use as much memory/time replaying transactions.
+	if transactions, ok := s.transactionsByKey[val.Key]; ok {
+		transactions = append(transactions, val)
+		s.transactionsByKey[val.Key] = transactions
+	} else {
+		s.transactionsByKey[val.Key] = []state.Transaction{val}
+	}
+
+	return nil
+}
+
+func (s *stateProvider) getReader(userStateId string) (io.ReadCloser, error) {
+	if r, ok := s.readersByKey[userStateId]; ok {
+		return r, nil
+	} else {
+		r, err := s.sr.OpenBagUserStateReader(s.ctx, s.SID, userStateId, s.elementKey, s.window)
+		if err != nil {
+			return nil, err
+		}
+		s.readersByKey[userStateId] = r
+		return s.readersByKey[userStateId], nil
+	}
+}
+
+func (s *stateProvider) getAppender(userStateId string) (io.Writer, error) {
+	if w, ok := s.appendersByKey[userStateId]; ok {
+		return w, nil
+	} else {
+		w, err := s.sr.OpenBagUserStateAppender(s.ctx, s.SID, userStateId, s.elementKey, s.window)
+		if err != nil {
+			return nil, err
+		}
+		s.appendersByKey[userStateId] = w
+		return s.appendersByKey[userStateId], nil
+	}
+}
+
+func (s *stateProvider) getClearer(userStateId string) (io.Writer, error) {
+	if w, ok := s.clearersByKey[userStateId]; ok {
+		return w, nil
+	} else {
+		w, err := s.sr.OpenBagUserStateClearer(s.ctx, s.SID, userStateId, s.elementKey, s.window)
+		if err != nil {
+			return nil, err
+		}
+		s.clearersByKey[userStateId] = w
+		return s.clearersByKey[userStateId], nil
+	}
 }
 
 // Invoke invokes the fn with the given values. The extra values must match the non-main
 // side input and emitters. It returns the direct output, if any.
-func Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, extra ...interface{}) (*FullValue, error) {
+func Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, sa UserStateAdapter, reader StateReader, extra ...interface{}) (*FullValue, error) {
 	if fn == nil {
 		return nil, nil // ok: nothing to Invoke
 	}
 	inv := newInvoker(fn)
-	return inv.Invoke(ctx, pn, ws, ts, opt, bf, we, extra...)
+	return inv.Invoke(ctx, pn, ws, ts, opt, bf, we, sa, reader, extra...)
 }
 
 // InvokeWithoutEventTime runs the given function at time 0 in the global window.
-func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, extra ...interface{}) (*FullValue, error) {
+func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, sa UserStateAdapter, reader StateReader, extra ...interface{}) (*FullValue, error) {
 	if fn == nil {
 		return nil, nil // ok: nothing to Invoke
 	}
 	inv := newInvoker(fn)
-	return inv.InvokeWithoutEventTime(ctx, opt, bf, we, extra...)
+	return inv.InvokeWithoutEventTime(ctx, opt, bf, we, sa, reader, extra...)
 }
 
 // invoker is a container struct for hot path invocations of DoFns, to avoid
@@ -173,13 +276,13 @@ func (n *invoker) Reset() {
 }
 
 // InvokeWithoutEventTime runs the function at time 0 in the global window.
-func (n *invoker) InvokeWithoutEventTime(ctx context.Context, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, extra ...interface{}) (*FullValue, error) {
-	return n.Invoke(ctx, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, opt, bf, we, extra...)
+func (n *invoker) InvokeWithoutEventTime(ctx context.Context, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, sa UserStateAdapter, reader StateReader, extra ...interface{}) (*FullValue, error) {
+	return n.Invoke(ctx, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, opt, bf, we, sa, reader, extra...)
 }
 
 // Invoke invokes the fn with the given values. The extra values must match the non-main
 // side input and emitters. It returns the direct output, if any.
-func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, extra ...interface{}) (*FullValue, error) {
+func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, sa UserStateAdapter, reader StateReader, extra ...interface{}) (*FullValue, error) {
 	// (1) Populate contexts
 	// extract these to make things easier to read.
 	args := n.args
@@ -209,8 +312,11 @@ func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Wind
 	}
 
 	if n.spIdx >= 0 {
-		// TODO(#22736) - provide this with the variable access it needs to talk to the state api.
-		n.sp = &stateProvider{}
+		sp, err := sa.NewStateProvider(ctx, reader, ws[0], opt)
+		if err != nil {
+			return nil, err
+		}
+		n.sp = &sp
 		args[n.spIdx] = n.sp
 	}
 

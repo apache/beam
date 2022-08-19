@@ -131,6 +131,18 @@ func (t *testStateReader) OpenIterable(ctx context.Context, id StreamID, key []b
 	return nil, nil
 }
 
+func (t *testStateReader) OpenBagUserStateReader(ctx context.Context, id StreamID, userStateId string, key []byte, w []byte) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+func (t *testStateReader) OpenBagUserStateAppender(ctx context.Context, id StreamID, userStateId string, key []byte, w []byte) (io.Writer, error) {
+	return nil, nil
+}
+
+func (t *testStateReader) OpenBagUserStateClearer(ctx context.Context, id StreamID, userStateId string, key []byte, w []byte) (io.Writer, error) {
+	return nil, nil
+}
+
 func (t *testStateReader) GetSideInputCache() SideCache {
 	return &testSideCache{}
 }

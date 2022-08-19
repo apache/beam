@@ -31,6 +31,13 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+type writeType_Enum int32
+
+const (
+	writeType_Append writeType_Enum = 0
+	writeType_Clear  writeType_Enum = 1
+)
+
 // ScopedStateReader scopes the global gRPC state manager to a single instruction
 // for side input use. The indirection makes it easier to control access.
 type ScopedStateReader struct {
@@ -74,6 +81,30 @@ func (s *ScopedStateReader) OpenIterable(ctx context.Context, id exec.StreamID, 
 	})
 }
 
+// OpenBagUserStateReader opens a byte stream for reading user bag state.
+func (s *ScopedStateReader) OpenBagUserStateReader(ctx context.Context, id exec.StreamID, userStateId string, key []byte, w []byte) (io.ReadCloser, error) {
+	rw, err := s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newBagUserStateReader(ch, id, s.instID, userStateId, key, w)
+	})
+	return rw, err
+}
+
+// OpenBagUserStateAppender opens a byte stream for appending user bag state.
+func (s *ScopedStateReader) OpenBagUserStateAppender(ctx context.Context, id exec.StreamID, userStateId string, key []byte, w []byte) (io.Writer, error) {
+	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
+		return newBagUserStateAppender(ch, id, s.instID, userStateId, key, w)
+	})
+	return wr, err
+}
+
+// OpenBagUserStateClearer opens a byte stream for clearing user bag state.
+func (s *ScopedStateReader) OpenBagUserStateClearer(ctx context.Context, id exec.StreamID, userStateId string, key []byte, w []byte) (io.Writer, error) {
+	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
+		return newBagUserStateClearer(ch, id, s.instID, userStateId, key, w)
+	})
+	return wr, err
+}
+
 // GetSideInputCache returns a pointer to the SideInputCache being used by the SDK harness.
 func (s *ScopedStateReader) GetSideInputCache() exec.SideCache {
 	return s.cache
@@ -91,6 +122,22 @@ func (s *ScopedStateReader) openReader(ctx context.Context, id exec.StreamID, re
 		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
 	}
 	ret := readerFn(ch)
+	s.mu.Unlock()
+	return ret, nil
+}
+
+func (s *ScopedStateReader) openWriter(ctx context.Context, id exec.StreamID, writerFn func(*StateChannel) *stateKeyWriter) (*stateKeyWriter, error) {
+	ch, err := s.open(ctx, id.Port)
+	if err != nil {
+		return nil, err
+	}
+
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
+	}
+	ret := writerFn(ch)
 	s.mu.Unlock()
 	return ret, nil
 }
@@ -127,6 +174,15 @@ type stateKeyReader struct {
 	ch     *StateChannel
 	closed bool
 	mu     sync.Mutex
+}
+
+type stateKeyWriter struct {
+	instID    instructionID
+	key       *fnpb.StateKey
+	writeType writeType_Enum
+
+	ch *StateChannel
+	mu sync.Mutex
 }
 
 func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID instructionID, k, w []byte) *stateKeyReader {
@@ -177,6 +233,62 @@ func newRunnerReader(ch *StateChannel, instID instructionID, k []byte) *stateKey
 		instID: instID,
 		key:    key,
 		ch:     ch,
+	}
+}
+
+func newBagUserStateReader(ch *StateChannel, id exec.StreamID, instID instructionID, userStateId string, k []byte, w []byte) *stateKeyReader {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_BagUserState_{
+			BagUserState: &fnpb.StateKey_BagUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateId,
+				Window:      w,
+				Key:         k,
+			},
+		},
+	}
+	return &stateKeyReader{
+		instID: instID,
+		key:    key,
+		ch:     ch,
+	}
+}
+
+func newBagUserStateAppender(ch *StateChannel, id exec.StreamID, instID instructionID, userStateId string, k []byte, w []byte) *stateKeyWriter {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_BagUserState_{
+			BagUserState: &fnpb.StateKey_BagUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateId,
+				Window:      w,
+				Key:         k,
+			},
+		},
+	}
+	return &stateKeyWriter{
+		instID:    instID,
+		key:       key,
+		ch:        ch,
+		writeType: writeType_Append,
+	}
+}
+
+func newBagUserStateClearer(ch *StateChannel, id exec.StreamID, instID instructionID, userStateId string, k []byte, w []byte) *stateKeyWriter {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_BagUserState_{
+			BagUserState: &fnpb.StateKey_BagUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateId,
+				Window:      w,
+				Key:         k,
+			},
+		},
+	}
+	return &stateKeyWriter{
+		instID:    instID,
+		key:       key,
+		ch:        ch,
+		writeType: writeType_Clear,
 	}
 }
 
@@ -252,6 +364,44 @@ func (r *stateKeyReader) Close() error {
 	r.ch = nil // StateChannels might be re-used if they're ok, so don't close them here.
 	r.mu.Unlock()
 	return nil
+}
+
+func (r *stateKeyWriter) Write(buf []byte) (int, error) {
+	r.mu.Lock()
+	localChannel := r.ch
+	r.mu.Unlock()
+
+	var req *fnpb.StateRequest
+	switch r.writeType {
+	case writeType_Append:
+		req = &fnpb.StateRequest{
+			// Id: set by StateChannel
+			InstructionId: string(r.instID),
+			StateKey:      r.key,
+			Request: &fnpb.StateRequest_Append{
+				Append: &fnpb.StateAppendRequest{
+					Data: buf,
+				},
+			},
+		}
+	case writeType_Clear:
+		req = &fnpb.StateRequest{
+			// Id: set by StateChannel
+			InstructionId: string(r.instID),
+			StateKey:      r.key,
+			Request: &fnpb.StateRequest_Clear{
+				Clear: &fnpb.StateClearRequest{},
+			},
+		}
+	default:
+		return 0, errors.Errorf("Unknown write type %v", r.writeType)
+	}
+
+	_, err := localChannel.Send(req)
+	if err != nil {
+		return 0, err
+	}
+	return len(buf), nil
 }
 
 // StateChannelManager manages data channels over the State API. A fixed number of channels

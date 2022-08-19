@@ -475,6 +475,16 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 								return nil, err
 							}
 							stateIdToCoder[key] = c
+							sid := StreamID{
+								Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
+								PtransformID: id.to,
+							}
+
+							ec, wc, err := b.makeCoderForPCollection(input[0])
+							if err != nil {
+								return nil, err
+							}
+							n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIdToCoder)
 						}
 					}
 
