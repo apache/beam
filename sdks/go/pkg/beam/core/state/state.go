@@ -20,14 +20,16 @@ import (
 	"reflect"
 )
 
-type TransactionType_Enum int32
+// TransactionTypeEnum represents the type of state manipulation being done (e.g. set, clear, etc...)
+type TransactionTypeEnum int32
 
 const (
-	TransactionType_Set   TransactionType_Enum = 0
-	TransactionType_Clear TransactionType_Enum = 1
+	TransactionTypeSet   TransactionTypeEnum = 0
+	TransactionTypeClear TransactionTypeEnum = 1
 )
 
 var (
+	// ProviderType is the reflected type of state.Provider
 	ProviderType = reflect.TypeOf((*Provider)(nil)).Elem()
 )
 
@@ -37,7 +39,7 @@ var (
 // it is primarily used for implementations of the Provider interface to talk to the various State objects.
 type Transaction struct {
 	Key  string
-	Type TransactionType_Enum
+	Type TransactionTypeEnum
 	Val  interface{}
 }
 
@@ -67,7 +69,7 @@ type Value[T any] struct {
 func (s *Value[T]) Write(p Provider, val T) error {
 	return p.WriteValueState(Transaction{
 		Key:  s.Key,
-		Type: TransactionType_Set,
+		Type: TransactionTypeSet,
 		Val:  val,
 	})
 }
@@ -84,9 +86,9 @@ func (s *Value[T]) Read(p Provider) (T, bool, error) {
 	}
 	for _, t := range bufferedTransactions {
 		switch t.Type {
-		case TransactionType_Set:
+		case TransactionTypeSet:
 			cur = t.Val
-		case TransactionType_Clear:
+		case TransactionTypeClear:
 			cur = nil
 		}
 	}

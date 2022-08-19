@@ -462,7 +462,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			m.requirements[URNRequiresStatefulProcessing] = true
 			stateSpecs := make(map[string]*pipepb.StateSpec)
 			for _, ps := range edge.Edge.DoFn.PipelineState() {
-				coderId, err := m.coders.Add(edge.Edge.StateCoders[ps.StateKey()])
+				coderID, err := m.coders.Add(edge.Edge.StateCoders[ps.StateKey()])
 				if err != nil {
 					return handleErr(err)
 				}
@@ -471,7 +471,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 					// See https://github.com/apache/beam/blob/54b0784da7ccba738deff22bd83fbc374ad21d2e/sdks/go/pkg/beam/model/pipeline_v1/beam_runner_api.pb.go#L2635
 					Spec: &pipepb.StateSpec_ReadModifyWriteSpec{
 						ReadModifyWriteSpec: &pipepb.ReadModifyWriteStateSpec{
-							CoderId: coderId,
+							CoderId: coderID,
 						},
 					},
 					Protocol: &pipepb.FunctionSpec{

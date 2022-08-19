@@ -73,15 +73,15 @@ type stateProvider struct {
 }
 
 // ReadValueState reads a value state from the State API
-func (s *stateProvider) ReadValueState(userStateId string) (interface{}, []state.Transaction, error) {
+func (s *stateProvider) ReadValueState(userStateID string) (interface{}, []state.Transaction, error) {
 	// TODO(#22736) - read from the state api.
-	return nil, nil, errors.New("Stateful DoFns are not supported yet.")
+	return nil, nil, errors.New("stateful DoFns are not supported yet")
 }
 
 // WriteValueState writes a value state to the State API
 func (s *stateProvider) WriteValueState(val state.Transaction) error {
 	// TODO(#22736) - read from the state api.
-	return errors.New("Stateful DoFns are not supported yet.")
+	return errors.New("stateful DoFns are not supported yet")
 }
 
 // Invoke invokes the fn with the given values. The extra values must match the non-main
