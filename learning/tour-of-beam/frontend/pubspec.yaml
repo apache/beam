@@ -15,7 +15,39 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
-pages:
-  home:
-    screen:
-      title: 'Tour of Beam Home Screen'
+name: tour_of_beam
+description: Tour of Beam
+
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 0.1.0
+
+environment:
+  sdk: ">=2.17.6 <3.0.0"
+  flutter: ">=3.0.0 <4.0.0"
+
+dependencies:
+  easy_localization: ^3.0.1
+  easy_localization_loader: ^1.0.0
+  flutter: { sdk: flutter }
+  flutter_svg: ^1.0.3
+  get_it: ^7.2.0
+  google_fonts: ^3.0.1
+  playground_components:
+    path: ../../../playground/frontend/playground_components
+  provider: ^6.0.3
+  shared_preferences: ^2.0.15
+  url_launcher: ^6.1.5
+  url_strategy: ^0.2.0
+
+dev_dependencies:
+  flutter_test: { sdk: flutter }
+  integration_test: { sdk: flutter }
+  total_lints: ^2.17.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/translations/en.yaml
+    - assets/png/
+    - assets/svg/

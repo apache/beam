@@ -16,41 +16,28 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
-import 'package:easy_localization_loader/easy_localization_loader.dart';
 import 'package:flutter/material.dart';
-import 'package:url_strategy/url_strategy.dart';
 
-import 'locator.dart';
-import 'pages/home/screen.dart';
+class DismissibleOverlay extends StatelessWidget {
+  final void Function() close;
+  final Positioned child;
 
-void main() async {
-  setPathUrlStrategy();
-  await EasyLocalization.ensureInitialized();
-  await initializeServiceLocator();
-
-  runApp(
-    EasyLocalization(
-      supportedLocales: const [Locale('en')],
-      startLocale: const Locale('en'),
-      fallbackLocale: const Locale('en'),
-      path: 'assets/translations',
-      assetLoader: YamlAssetLoader(),
-      child: const MyApp(),
-    ),
-  );
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const DismissibleOverlay({
+    required this.close,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      localizationsDelegates: context.localizationDelegates,
-      supportedLocales: context.supportedLocales,
-      locale: context.locale,
-      home: const HomeScreen(),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: close,
+          ),
+        ),
+        child,
+      ],
     );
   }
 }

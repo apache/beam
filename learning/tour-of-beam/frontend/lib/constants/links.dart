@@ -16,19 +16,7 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/material.dart';
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('pages.home.screen.title').tr(),
-      ),
-      body: Container(),
-    );
-  }
+class TobLinks {
+  static const reportIssue = 'https://github.com/apache/beam/issues';
+  static const privacyPolicy = 'https://beam.apache.org/privacy_policy/';
 }

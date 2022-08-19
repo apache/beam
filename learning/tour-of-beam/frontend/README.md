@@ -16,3 +16,10 @@
     specific language governing permissions and limitations
     under the License.
 -->
+
+# Tour of Beam
+
+## Getting started
+
+### Tests
+The manual for running integration test: https://docs.flutter.dev/testing/integration-tests#running-in-a-browser
