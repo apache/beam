@@ -16,12 +16,13 @@
 package mapper
 
 import (
+	"time"
+
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/utils"
-	"time"
 )
 
 type DatastoreMapper struct {
@@ -51,17 +52,21 @@ func (m *DatastoreMapper) ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet
 	return &snippet
 }
 
-func (m *DatastoreMapper) ToFileEntity(info *pb.SaveSnippetRequest, file *pb.SnippetFile) *entity.FileEntity {
+func (m *DatastoreMapper) ToFileEntity(info *pb.SaveSnippetRequest, file *pb.SnippetFile) (*entity.FileEntity, error) {
 	var isMain bool
 	if len(info.Files) == 1 {
 		isMain = true
 	} else {
 		isMain = utils.IsFileMain(file.Content, info.Sdk)
 	}
+	fileName, err := utils.GetFileName(file.Name, file.Content, info.Sdk)
+	if err != nil {
+		return nil, err
+	}
 	return &entity.FileEntity{
-		Name:     utils.GetFileName(file.Name, info.Sdk),
+		Name:     fileName,
 		Content:  file.Content,
 		CntxLine: 1,
 		IsMain:   isMain,
-	}
+	}, nil
 }

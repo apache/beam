@@ -19,9 +19,10 @@ import (
 	"context"
 	"fmt"
 
-	"beam.apache.org/playground/backend/internal/tasks"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
+
+	"beam.apache.org/playground/backend/internal/tasks"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
@@ -64,10 +65,10 @@ func runServer() error {
 	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	// Database setup only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	if envService.BeamSdkEnvs.ApacheBeamSdk == pb.Sdk_SDK_UNSPECIFIED {
-		err = setupExamplesCatalog(ctx, cacheService, envService.ApplicationEnvs.BucketName())
-		if err != nil {
-			return err
-		}
+		//err = setupExamplesCatalog(ctx, cacheService, envService.ApplicationEnvs.BucketName())
+		//if err != nil {
+		//	return err
+		//}
 
 		props, err = environment.NewProperties(envService.ApplicationEnvs.PropertyPath())
 		if err != nil {
