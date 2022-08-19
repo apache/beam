@@ -30,12 +30,12 @@ type fakeProvider struct {
 	err          map[string]error
 }
 
-func (s *fakeProvider) ReadValueState(userStateId string) (interface{}, []Transaction, error) {
-	if err, ok := s.err[userStateId]; ok {
+func (s *fakeProvider) ReadValueState(userStateID string) (interface{}, []Transaction, error) {
+	if err, ok := s.err[userStateID]; ok {
 		return nil, nil, err
 	}
-	base := s.initialState[userStateId]
-	trans, ok := s.transactions[userStateId]
+	base := s.initialState[userStateID]
+	trans, ok := s.transactions[userStateID]
 	if !ok {
 		trans = []Transaction{}
 	}
@@ -58,15 +58,15 @@ func TestValueRead(t *testing.T) {
 	is["no_transactions"] = 1
 	ts["no_transactions"] = nil
 	is["basic_set"] = 1
-	ts["basic_set"] = []Transaction{{Key: "basic_set", Type: TransactionType_Set, Val: 3}}
+	ts["basic_set"] = []Transaction{{Key: "basic_set", Type: TransactionTypeSet, Val: 3}}
 	is["basic_clear"] = 1
-	ts["basic_clear"] = []Transaction{{Key: "basic_clear", Type: TransactionType_Clear, Val: nil}}
+	ts["basic_clear"] = []Transaction{{Key: "basic_clear", Type: TransactionTypeClear, Val: nil}}
 	is["set_then_clear"] = 1
-	ts["set_then_clear"] = []Transaction{{Key: "set_then_clear", Type: TransactionType_Set, Val: 3}, {Key: "set_then_clear", Type: TransactionType_Clear, Val: nil}}
+	ts["set_then_clear"] = []Transaction{{Key: "set_then_clear", Type: TransactionTypeSet, Val: 3}, {Key: "set_then_clear", Type: TransactionTypeClear, Val: nil}}
 	is["set_then_clear_then_set"] = 1
-	ts["set_then_clear_then_set"] = []Transaction{{Key: "set_then_clear_then_set", Type: TransactionType_Set, Val: 3}, {Key: "set_then_clear_then_set", Type: TransactionType_Clear, Val: nil}, {Key: "set_then_clear_then_set", Type: TransactionType_Set, Val: 4}}
+	ts["set_then_clear_then_set"] = []Transaction{{Key: "set_then_clear_then_set", Type: TransactionTypeSet, Val: 3}, {Key: "set_then_clear_then_set", Type: TransactionTypeClear, Val: nil}, {Key: "set_then_clear_then_set", Type: TransactionTypeSet, Val: 4}}
 	is["err"] = 1
-	ts["err"] = []Transaction{{Key: "err", Type: TransactionType_Set, Val: 3}}
+	ts["err"] = []Transaction{{Key: "err", Type: TransactionTypeSet, Val: 3}}
 	es["err"] = errFake
 
 	f := fakeProvider{
