@@ -149,7 +149,6 @@ type userStateAdapter struct {
 	sid            StreamID
 	wc             WindowEncoder
 	kc             ElementEncoder
-	ec             ElementDecoder
 	stateIDToCoder map[string]*coder.Coder
 	c              *coder.Coder
 }
