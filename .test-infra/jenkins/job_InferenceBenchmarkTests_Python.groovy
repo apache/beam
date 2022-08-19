@@ -49,7 +49,7 @@ def loadTestConfigurations = {
         // args defined in the performance test
         pretrained_model_name : 'resnet50',
         // args defined in the example.
-        input_file            : 'gs://apache-beam-ml/testing/inputs/imagenet_validation_inputs.txt',
+        input                 : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
         // TODO: make sure the model_state_dict_path weights are accurate.
         model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet50.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_' + now + '.txt'
@@ -66,6 +66,7 @@ def loadTestConfigurations = {
         staging_location      : 'gs://temp-storage-for-perf-tests/loadtests',
         temp_location         : 'gs://temp-storage-for-perf-tests/loadtests',
         requirements_file     : 'apache_beam/ml/inference/torch_tests_requirements.txt',
+        pickle_library       : 'cloudpickle',
         publish_to_big_query  : true,
         metrics_dataset       : 'beam_run_inference',
         metrics_table         : 'torch_language_modeling_bert_uncased',
@@ -74,7 +75,7 @@ def loadTestConfigurations = {
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
         // args defined in the example.
-        input_file            : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
+        input                 : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
         // TODO: make sure the model_state_dict_path weights are accurate.
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-base-uncased.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_' + now + '.txt'
