@@ -373,7 +373,13 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
         # pylint: disable=expression-not-assigned
         pcoll | RunInference(model_handler)
 
-  def test_gpu_convert_to_cpu(self):
+  def test_gpu_auto_convert_to_cpu(self):
+    """
+    This tests the scenario in which the user defines `device='GPU'` for the
+    PytorchModelHandlerX, but runs the pipeline on a machine without GPU, we
+    automatically detect this discrepancy and do automatic conversion to CPU.
+    A warning is also logged to inform the user.
+    """
     with self.assertLogs() as log:
       with TestPipeline() as pipeline:
         examples = torch.from_numpy(

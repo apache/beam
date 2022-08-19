@@ -47,9 +47,9 @@ def _load_model(
         "Specified 'GPU', but could not find device. Switching to CPU.")
     device = torch.device('cpu')
 
+  file = FileSystems.open(state_dict_path, 'rb')
   try:
     logging.info("Reading state_dict_path %s onto %s", state_dict_path, device)
-    file = FileSystems.open(state_dict_path, 'rb')
     state_dict = torch.load(file, map_location=device)
   except RuntimeError as e:
     message = "Setting to CPU due to an exception while deserializing" \
