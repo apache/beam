@@ -1,9 +1,13 @@
 package fs_content
 
 import (
+	"fmt"
 	"io/fs"
+	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
+	"regexp"
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 )
@@ -11,18 +15,28 @@ import (
 const (
 	contentInfoYaml = "content-info.yaml"
 	moduleInfoYaml  = "module-info.yaml"
+	groupInfoYaml   = "group-info.yaml"
 	unitInfoYaml    = "unit-info.yaml"
+
+	descriptionMd = "description.md"
+	hintMdRegexp  = "hint[0-9]*.md"
 )
 
 type learningPathInfo struct {
-	Sdk        string
-	ModuleDirs []string `yaml:"content"`
+	Sdk     string
+	Content []string `yaml:"content"`
 }
 
 type learningModuleInfo struct {
+	Id         string
 	Name       string
 	Complexity string
-	UnitDirs   []string `yaml:"content"`
+	Content    []string `yaml:"content"`
+}
+
+type learningGroupInfo struct {
+	Name    string
+	Content []string `yaml:"content"`
 }
 
 type learningUnitInfo struct {
@@ -30,8 +44,131 @@ type learningUnitInfo struct {
 	Name         string
 	TaskName     string
 	SolutionName string
+}
 
-	dirName string
+// Watch for duplicate ids. Not thread-safe!
+type IdsWatcher struct {
+	ids map[string]struct{}
+}
+
+func (w *IdsWatcher) CheckId(id string) {
+	if _, exists := w.ids[id]; exists {
+		log.Fatalf("Duplicate id: %v", id)
+	}
+	w.ids[id] = struct{}{}
+}
+
+func NewIdsWatcher() IdsWatcher {
+	return IdsWatcher{make(map[string]struct{})}
+}
+
+func collectUnit(infopath string, ids_watcher *IdsWatcher) (unit tob.Unit, err error) {
+	info := loadLearningUnitInfo(infopath)
+	log.Printf("Found Unit %v metadata at %v\n", info.Id, infopath)
+	ids_watcher.CheckId(info.Id)
+	builder := NewUnitBuilder(info)
+
+	rootpath := filepath.Join(infopath, "..")
+	err = filepath.WalkDir(rootpath,
+		func(path string, d fs.DirEntry, err error) error {
+
+			switch {
+			// skip nested dirs
+			case path > rootpath && d.IsDir():
+				return filepath.SkipDir
+
+			case d.Name() == descriptionMd:
+				content, err := ioutil.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				builder.AddDescription(content)
+
+			// Here we rely on that WalkDir entries are lexically sorted
+			case regexp.MustCompile(hintMdRegexp).MatchString(d.Name()):
+				content, err := ioutil.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				builder.AddHint(content)
+			}
+			return nil
+		})
+
+	return builder.Build(), err
+}
+
+func collectGroup(infopath string, ids_watcher *IdsWatcher) (tob.Group, error) {
+	info := loadLearningGroupInfo(infopath)
+	log.Printf("Found Group %v metadata at %v\n", info.Name, infopath)
+	group := tob.Group{Name: info.Name}
+	for _, item := range info.Content {
+		node, err := collectNode(filepath.Join(infopath, "..", item), ids_watcher)
+		if err != nil {
+			return group, err
+		}
+		group.Nodes = append(group.Nodes, node)
+	}
+
+	return group, nil
+}
+
+// Collect node which is either a unit or a group
+func collectNode(rootpath string, ids_watcher *IdsWatcher) (node tob.Node, err error) {
+	files, err := os.ReadDir(rootpath)
+	if err != nil {
+		return node, err
+	}
+	for _, f := range files {
+		switch f.Name() {
+		case unitInfoYaml:
+			node.Type = tob.NODE_UNIT
+			node.Unit, err = collectUnit(filepath.Join(rootpath, unitInfoYaml), ids_watcher)
+		case groupInfoYaml:
+			node.Type = tob.NODE_GROUP
+			node.Group, err = collectGroup(filepath.Join(rootpath, groupInfoYaml), ids_watcher)
+		}
+	}
+	if node.Type == tob.NODE_UNDEFINED {
+		return node, fmt.Errorf("node undefined at %v", rootpath)
+	}
+	return node, err
+}
+
+func collectModule(infopath string, ids_watcher *IdsWatcher) (tob.Module, error) {
+	info := loadLearningModuleInfo(infopath)
+	log.Printf("Found Module %v metadata at %v\n", info.Id, infopath)
+	ids_watcher.CheckId(info.Id)
+	module := tob.Module{Id: info.Id, Name: info.Name, Complexity: info.Complexity}
+	for _, item := range info.Content {
+		node, err := collectNode(filepath.Join(infopath, "..", item), ids_watcher)
+		if err != nil {
+			return tob.Module{}, err
+		}
+		module.Nodes = append(module.Nodes, node)
+	}
+
+	return module, nil
+}
+
+func collectSdk(infopath string) (tree tob.ContentTree, err error) {
+	ids_watcher := NewIdsWatcher()
+
+	info := loadLearningPathInfo(infopath)
+	tree.Sdk = tob.FromString(info.Sdk)
+	if tree.Sdk == tob.SDK_UNDEFINED {
+		return tree, fmt.Errorf("unknown SDK at %v", infopath)
+	}
+	log.Printf("Found Sdk %v metadata at %v\n", info.Sdk, infopath)
+	for _, item := range info.Content {
+		mod, err := collectModule(filepath.Join(infopath, "..", item, moduleInfoYaml), &ids_watcher)
+		if err != nil {
+			return tree, err
+		}
+		tree.Modules = append(tree.Modules, mod)
+	}
+
+	return tree, nil
 }
 
 // Build a content tree for each SDK
@@ -39,55 +176,22 @@ type learningUnitInfo struct {
 // content-info.yaml, module-info.yaml, unit-info.yaml
 func CollectLearningTree(rootpath string) (trees []tob.ContentTree, err error) {
 
-	var (
-		treeBuilder    ContentTreeBuilder
-		moduleBuilder  ModuleBuilder
-		dirName, fName string
-	)
-
 	err = filepath.WalkDir(rootpath, func(path string, d fs.DirEntry, err error) error {
 		// terminate walk on any error
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
-			return nil
-		}
-		dirName, fName = filepath.Split(path)
-		switch fName {
-		case contentInfoYaml:
-			info := loadLearningPathInfo(path)
-			if treeBuilder.IsInitialized() {
-				trees = append(trees, treeBuilder.Build())
+		if d.Name() == contentInfoYaml {
+			tree, err := collectSdk(path)
+			if err != nil {
+				return err
 			}
-			treeBuilder = NewContentTreeBuilder(info)
-
-		case moduleInfoYaml:
-			info := loadLearningModuleInfo(path)
-			if !treeBuilder.IsInitialized() {
-				log.Panicf("Module outside of sdk at %s", path)
-			}
-			// save previous module
-			if moduleBuilder.IsInitialized() {
-				treeBuilder.AddModule(moduleBuilder.Build(), dirName)
-			}
-			moduleBuilder = NewModuleBuilder(info)
-		case unitInfoYaml:
-			info := loadLearningUnitInfo(path)
-			if !moduleBuilder.IsInitialized() {
-				log.Panicf("Unit outside of a module at %s", path)
-			}
-			moduleBuilder.AddUnit(BuildUnitContent(info), dirName)
+			trees = append(trees, tree)
+			// don't walk into SDK subtree (already done by collectSdk)
+			return filepath.SkipDir
 		}
 		return nil
 	})
-	// finalize last tree & module
-	if treeBuilder.IsInitialized() {
-		if moduleBuilder.IsInitialized() {
-			treeBuilder.AddModule(moduleBuilder.Build(), dirName)
-		}
-		trees = append(trees, treeBuilder.Build())
-	}
 
 	return trees, err
 }

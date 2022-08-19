@@ -2,5 +2,6 @@ id: module1
 name: Module One
 complexity: BASIC
 content:
-- group
+- unit-example
+- unit-challenge
 
