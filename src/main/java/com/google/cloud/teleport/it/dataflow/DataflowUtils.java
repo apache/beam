@@ -15,6 +15,7 @@
  */
 package com.google.cloud.teleport.it.dataflow;
 
+import com.google.common.base.CaseFormat;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -37,22 +38,12 @@ public final class DataflowUtils {
    *     prefix
    */
   public static String createJobName(String prefix) {
-    StringBuilder properlyFormatted = new StringBuilder();
-    for (int i = 0; i < prefix.length(); ++i) {
-      char c = prefix.charAt(i);
-      if (Character.isUpperCase(c)) {
-        properlyFormatted.append("-");
-        properlyFormatted.append(Character.toLowerCase(c));
-      } else {
-        properlyFormatted.append(c);
-      }
-    }
-
-    return String.format(
-        "%s-%s",
-        properlyFormatted,
+    String convertedPrefix =
+        CaseFormat.UPPER_CAMEL.converterTo(CaseFormat.LOWER_HYPHEN).convert(prefix);
+    String formattedTimestamp =
         DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
             .withZone(ZoneId.of("UTC"))
-            .format(Instant.now()));
+            .format(Instant.now());
+    return String.format("%s-%s", convertedPrefix, formattedTimestamp);
   }
 }
