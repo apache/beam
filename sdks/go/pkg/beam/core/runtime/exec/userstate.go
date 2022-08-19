@@ -166,14 +166,10 @@ func NewUserStateAdapter(sid StreamID, c *coder.Coder, stateIDToCoder map[string
 	// When that happens, units should be added for this file as well as appropriate.
 	wc := MakeWindowEncoder(c.Window)
 	var kc ElementEncoder
-	var ec ElementDecoder
 	if coder.IsKV(coder.SkipW(c)) {
 		kc = MakeElementEncoder(coder.SkipW(c).Components[0])
-		ec = MakeElementDecoder(coder.SkipW(c).Components[1])
-	} else {
-		ec = MakeElementDecoder(coder.SkipW(c))
 	}
-	return &userStateAdapter{sid: sid, wc: wc, kc: kc, ec: ec, c: c, stateIDToCoder: stateIDToCoder}
+	return &userStateAdapter{sid: sid, wc: wc, kc: kc, c: c, stateIDToCoder: stateIDToCoder}
 }
 
 // NewStateProvider creates a stateProvider with the ability to talk to the state API.
