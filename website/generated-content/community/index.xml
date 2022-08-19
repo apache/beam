@@ -611,7 +611,7 @@ under the License.
 &lt;div>
 Join the
 &lt;a href=https://app.slack.com/client/T4S1WH2J3/C9H0YNP3P>#beam channel&lt;/a>
-and browse other available channels. Don’t ask Beam questions in #general. We don’t monitor it.
+and browse other available channels.
 &lt;/div>
 &lt;/td>
 &lt;/tr>
@@ -680,7 +680,7 @@ under the License.
 &lt;/td>
 &lt;td>
 &lt;span>Commits mailing list&lt;/span>
-&lt;a href=https://s.apache.org/beam-slack-channel>commits@beam.apache.org&lt;/a>
+&lt;a href=https://lists.apache.org/list.html?commits@beam.apache.org>commits@beam.apache.org&lt;/a>
 &lt;/td>
 &lt;td>
 &lt;div>
