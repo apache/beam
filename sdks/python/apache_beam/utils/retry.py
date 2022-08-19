@@ -44,7 +44,7 @@ try:
   from google.api_core.exceptions import GoogleAPICallError
 except ImportError as e:
   HttpError = None
-  GoogleAPICallError = None
+  GoogleAPICallError = None  # type: ignore
 
 # Protect against environments where aws tools are not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports

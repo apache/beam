@@ -54,9 +54,10 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
@@ -429,7 +430,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           ((UnboundedSource<?, UnboundedSource.CheckpointMark>) activeReader.getCurrentSource())
               .getCheckpointMarkCoder();
       if (checkpointCoder != null) {
-        ByteString.Output stream = ByteString.newOutput();
+        ByteStringOutputStream stream = new ByteStringOutputStream();
         try {
           checkpointCoder.encode(checkpointMark, stream, Coder.Context.OUTER);
         } catch (IOException e) {
@@ -720,6 +721,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       return StreamingModeExecutionContext.this.getSideInputNotifications();
     }
 
+    private void ensureStateful(String errorPrefix) {
+      if (stateFamily == null) {
+        throw new IllegalStateException(errorPrefix + " for stateless step: " + getNameContext());
+      }
+    }
+
     @Override
     public <T, W extends BoundedWindow> void writePCollectionViewData(
         TupleTag<?> tag,
@@ -732,16 +739,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         throw new IllegalStateException("writePCollectionViewData must follow a Combine.globally");
       }
 
-      ByteString.Output dataStream = ByteString.newOutput();
+      ByteStringOutputStream dataStream = new ByteStringOutputStream();
       dataCoder.encode(data, dataStream, Coder.Context.OUTER);
 
-      ByteString.Output windowStream = ByteString.newOutput();
+      ByteStringOutputStream windowStream = new ByteStringOutputStream();
       windowCoder.encode(window, windowStream, Coder.Context.OUTER);
 
-      if (stateFamily == null) {
-        throw new IllegalStateException(
-            "Tried to write view data for stateless step: " + getNameContext());
-      }
+      ensureStateful("Tried to write view data");
 
       Windmill.GlobalData.Builder builder =
           Windmill.GlobalData.newBuilder()
@@ -768,9 +772,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     /** Note that there is data on the current key that is blocked on the given side input. */
     @Override
     public void addBlockingSideInput(Windmill.GlobalDataRequest sideInput) {
-      checkState(
-          stateFamily != null,
-          "Tried to set global data request for stateless step: " + getNameContext());
+      ensureStateful("Tried to set global data request");
       sideInput =
           Windmill.GlobalDataRequest.newBuilder(sideInput).setStateFamily(stateFamily).build();
       outputBuilder.addGlobalDataRequests(sideInput);
@@ -787,22 +789,18 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public StateInternals stateInternals() {
-      checkState(
-          stateFamily != null, "Tried to access state for stateless step: " + getNameContext());
+      ensureStateful("Tried to access state");
       return checkNotNull(stateInternals);
     }
 
     @Override
     public TimerInternals timerInternals() {
-      checkState(
-          stateFamily != null, "Tried to access timers for stateless step: " + getNameContext());
+      ensureStateful("Tried to access timers");
       return checkNotNull(systemTimerInternals);
     }
 
     public TimerInternals userTimerInternals() {
-      checkState(
-          stateFamily != null,
-          "Tried to access user timers for stateless step: " + getNameContext());
+      ensureStateful("Tried to access user timers");
       return checkNotNull(userTimerInternals);
     }
   }

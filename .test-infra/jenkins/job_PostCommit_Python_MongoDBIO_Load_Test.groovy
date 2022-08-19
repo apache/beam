@@ -23,11 +23,10 @@ String jobName = "beam_python_mongoio_load_test"
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
   common.setAutoJob(delegate, 'H H/6 * * *')
-  // [Issue#21824] Disable trigger
-  //  common.enablePhraseTriggeringFromPullRequest(
-  //      delegate,
-  //      'Python MongoDBIO Load Test',
-  //      'Run Python MongoDBIO Load Test')
+  common.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Python MongoDBIO Load Test',
+      'Run Python MongoDBIO Load Test')
 
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)

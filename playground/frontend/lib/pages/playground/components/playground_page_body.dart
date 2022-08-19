@@ -65,17 +65,16 @@ class PlaygroundPageBody extends StatelessWidget {
 
   Widget createOutput(PlaygroundState state) => Output(
         isEmbedded: false,
-        showGraph: state.graphAvailable,
-        key: ValueKey(state.selectedExample?.path ?? state.sdk.toString()),
+        playgroundState: state,
       );
 
   Widget getVerticalSeparator(BuildContext context) => Container(
         width: kMdSpacing,
-        color: ThemeColors.of(context).greyColor,
+        color: ThemeColors.of(context).divider,
       );
 
   Widget getHorizontalSeparator(BuildContext context) => Container(
         height: kMdSpacing,
-        color: ThemeColors.of(context).greyColor,
+        color: ThemeColors.of(context).divider,
       );
 }

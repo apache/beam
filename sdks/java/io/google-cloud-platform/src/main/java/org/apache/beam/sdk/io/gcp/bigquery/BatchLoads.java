@@ -381,10 +381,7 @@ class BatchLoads<DestinationT, ElementT>
                             WriteDisposition.WRITE_APPEND,
                             CreateDisposition.CREATE_NEVER,
                             maxRetryJobs,
-                            ignoreUnknownValues,
                             kmsKey,
-                            rowWriterFactory.getSourceFormat(),
-                            useAvroLogicalTypes,
                             schemaUpdateOptions,
                             dynamicDestinations))
                     .withSideInputs(sideInputsForUpdateSchema))
@@ -480,10 +477,7 @@ class BatchLoads<DestinationT, ElementT>
                             WriteDisposition.WRITE_APPEND,
                             CreateDisposition.CREATE_NEVER,
                             maxRetryJobs,
-                            ignoreUnknownValues,
                             kmsKey,
-                            rowWriterFactory.getSourceFormat(),
-                            useAvroLogicalTypes,
                             schemaUpdateOptions,
                             dynamicDestinations))
                     .withSideInputs(sideInputsForUpdateSchema))

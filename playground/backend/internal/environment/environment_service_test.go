@@ -104,7 +104,7 @@ func TestNewEnvironment(t *testing.T) {
 		{name: "Create env service with default envs", want: &Environment{
 			NetworkEnvs:     *NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
 			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, 0),
-			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultBucketName),
+			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultBucketName, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
 		}},
 	}
 	for _, tt := range tests {
@@ -112,7 +112,7 @@ func TestNewEnvironment(t *testing.T) {
 			if got := NewEnvironment(
 				*NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
 				*NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, 0),
-				*NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultBucketName)); !reflect.DeepEqual(got, tt.want) {
+				*NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultBucketName, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEnvironment() = %v, want %v", got, tt.want)
 			}
 		})
@@ -223,7 +223,7 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 	}{
 		{
 			name:      "Working dir is provided",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultBucketName),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultBucketName, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", launchSiteKey: defaultLaunchSite, projectIdKey: defaultProjectId},
 		},
@@ -234,25 +234,25 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 		},
 		{
 			name:      "CacheKeyExpirationTimeKey is set with the correct value",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, &CacheEnvs{defaultCacheType, defaultCacheAddress, convertedTime}, defaultPipelineExecuteTimeout, defaultBucketName),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultBucketName, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, convertedTime}, defaultPipelineExecuteTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", cacheKeyExpirationTimeKey: hour},
 		},
 		{
 			name:      "CacheKeyExpirationTimeKey is set with the incorrect value",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultBucketName),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultBucketName, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", cacheKeyExpirationTimeKey: "1"},
 		},
 		{
 			name:      "CacheKeyExpirationTimeKey is set with the correct value",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, convertedTime, defaultBucketName),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultBucketName, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, convertedTime),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", pipelineExecuteTimeoutKey: hour},
 		},
 		{
 			name:      "PipelineExecuteTimeoutKey is set with the incorrect value",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultBucketName),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultBucketName, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", pipelineExecuteTimeoutKey: "1"},
 		},

@@ -20,8 +20,6 @@
 import os
 import sys
 import warnings
-from distutils.errors import DistutilsError
-from distutils.version import StrictVersion
 from pathlib import Path
 
 # Pylint and isort disagree here.
@@ -30,8 +28,15 @@ import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
 from pkg_resources import normalize_path
+from pkg_resources import parse_version
 from pkg_resources import to_filename
 from setuptools import Command
+
+# pylint: disable=wrong-import-order
+# It is recommended to import setuptools prior to importing distutils to avoid
+# using legacy behavior from distutils.
+# https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
+from distutils.errors import DistutilsError # isort:skip
 
 
 class mypy(Command):
@@ -92,7 +97,7 @@ different technologies and user communities.
 
 REQUIRED_PIP_VERSION = '7.0.0'
 _PIP_VERSION = get_distribution('pip').version
-if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
+if parse_version(_PIP_VERSION) < parse_version(REQUIRED_PIP_VERSION):
   warnings.warn(
       "You are using version {0} of pip. " \
       "However, version {1} is recommended.".format(
@@ -103,7 +108,7 @@ if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
   _CYTHON_VERSION = get_distribution('cython').version
-  if StrictVersion(_CYTHON_VERSION) < StrictVersion(REQUIRED_CYTHON_VERSION):
+  if parse_version(_CYTHON_VERSION) < parse_version(REQUIRED_CYTHON_VERSION):
     warnings.warn(
         "You are using version {0} of cython. " \
         "However, version {1} is recommended.".format(
@@ -214,7 +219,7 @@ if __name__ == '__main__':
         'dill>=0.3.1.1,<0.3.2',
         'cloudpickle>=2.1.0,<3',
         'fastavro>=0.23.6,<2',
-        'grpcio>=1.33.1,<2',
+        'grpcio>=1.33.1,!=1.48.0,<2',
         'hdfs>=2.1.0,<3.0.0',
         'httplib2>=0.8,<0.21.0',
         'numpy>=1.14.3,<1.23.0',
@@ -224,8 +229,10 @@ if __name__ == '__main__':
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
+        'regex>=2020.6.8',
         'requests>=2.24.0,<3.0.0',
         'typing-extensions>=3.7.0',
+        'zstandard>=0.18.0,<1',
       # Dynamic dependencies must be specified in a separate list, otherwise
       # Dependabot won't be able to parse the main list. Any dynamic
       # dependencies will not receive updates from Dependabot.
@@ -249,9 +256,9 @@ if __name__ == '__main__':
             'pyyaml>=3.12,<7.0.0',
             'requests_mock>=1.7,<2.0',
             'tenacity>=5.0.2,<6.0',
-            'pytest>=4.4.0,<5.0',
-            'pytest-xdist>=1.29.0,<2',
-            'pytest-timeout>=1.3.3,<2',
+            'pytest>=7.1.2,<8.0',
+            'pytest-xdist>=2.5.0,<3',
+            'pytest-timeout>=2.1.0,<3',
             'scikit-learn>=0.20.0',
             'sqlalchemy>=1.3,<2.0',
             'psycopg2-binary>=2.8.5,<3.0.0',
@@ -261,6 +268,9 @@ if __name__ == '__main__':
           'gcp': [
             'cachetools>=3.1.0,<5',
             'google-apitools>=0.5.31,<0.5.32',
+            # Transitive dep. Required for google-cloud-spanner v1.
+            # See: https://github.com/apache/beam/issues/22454
+            'google-api-core!=2.8.2,<3',
             # NOTE: Maintainers, please do not require google-auth>=2.x.x
             # Until this issue is closed
             # https://github.com/googleapis/google-cloud-python/issues/10566
@@ -271,8 +281,8 @@ if __name__ == '__main__':
             'google-cloud-pubsublite>=1.2.0,<2',
             # GCP packages required by tests
             'google-cloud-bigquery>=1.6.0,<3',
-            'google-cloud-bigquery-storage>=2.6.3',
-            'google-cloud-core>=0.28.1,<2',
+            'google-cloud-bigquery-storage>=2.6.3,<2.14',
+            'google-cloud-core>=0.28.1,<3',
             'google-cloud-bigtable>=0.31.1,<2',
             'google-cloud-spanner>=1.13.0,<2',
             'grpcio-gcp>=0.2.2,<1',
@@ -281,7 +291,7 @@ if __name__ == '__main__':
             'google-cloud-language>=1.3.0,<2',
             'google-cloud-videointelligence>=1.8.0,<2',
             'google-cloud-vision>=0.38.0,<2',
-            'google-cloud-recommendations-ai>=0.1.0,<=0.2.0'
+            'google-cloud-recommendations-ai>=0.1.0,<0.8.0'
           ],
           'interactive': [
             'facets-overview>=1.0.0,<2',

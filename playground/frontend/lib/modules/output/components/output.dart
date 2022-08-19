@@ -18,7 +18,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/modules/output/components/output_area.dart';
-import 'package:playground/modules/output/components/output_header/output_header.dart';
+import 'package:playground/modules/output/components/output_header/output_placements.dart';
+import 'package:playground/modules/output/components/output_header/output_tabs.dart';
+import 'package:playground/modules/output/components/output_header/tab_header.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
 
 const kTabsCount = 2;
 
@@ -26,8 +29,15 @@ class Output extends StatefulWidget {
   final bool isEmbedded;
   final bool showGraph;
 
-  const Output({Key? key, required this.isEmbedded, required this.showGraph})
-      : super(key: key);
+  Output({
+    required this.isEmbedded,
+    required PlaygroundState playgroundState,
+  })  : showGraph = playgroundState.graphAvailable,
+        super(
+          key: ValueKey(
+            '${playgroundState.sdk}_${playgroundState.selectedExample?.path}',
+          ),
+        );
 
   @override
   State<Output> createState() => _OutputState();
@@ -41,18 +51,18 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
   void initState() {
     final tabsCount = widget.showGraph ? kTabsCount : kTabsCount - 1;
     tabController = TabController(vsync: this, length: tabsCount);
-    tabController.addListener(onTabChange);
+    tabController.addListener(_onTabChange);
     super.initState();
   }
 
   @override
   void dispose() {
-    tabController.removeListener(onTabChange);
+    tabController.removeListener(_onTabChange);
     tabController.dispose();
     super.dispose();
   }
 
-  onTabChange() {
+  void _onTabChange() {
     setState(() {
       selectedTab = tabController.index;
     });
@@ -62,10 +72,18 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        OutputHeader(
-          tabController: tabController,
-          showOutputPlacements: !widget.isEmbedded,
-          showGraph: widget.showGraph,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TabHeader(
+              tabController: tabController,
+              tabsWidget: OutputTabs(
+                tabController: tabController,
+                showGraph: widget.showGraph,
+              ),
+            ),
+            const OutputPlacements(),
+          ],
         ),
         Expanded(
           child: OutputArea(

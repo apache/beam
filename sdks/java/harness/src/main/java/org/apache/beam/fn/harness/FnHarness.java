@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
 import org.apache.beam.fn.harness.control.HarnessMonitoringInfosInstructionHandler;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
@@ -38,7 +39,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -53,8 +53,8 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -218,6 +218,9 @@ public class FnHarness {
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     ShortIdMap metricsShortIds = new ShortIdMap();
     ExecutorService executorService = options.as(GcsOptions.class).getExecutorService();
+    ExecutionStateSampler executionStateSampler =
+        new ExecutionStateSampler(options, System::currentTimeMillis);
+
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.
     try (BeamFnLoggingClient logging =
@@ -275,6 +278,7 @@ public class FnHarness {
               beamFnStateGrpcClientCache,
               finalizeBundleHandler,
               metricsShortIds,
+              executionStateSampler,
               processWideCache);
 
       BeamFnStatusClient beamFnStatusClient = null;
@@ -325,14 +329,6 @@ public class FnHarness {
 
       JvmInitializers.runBeforeProcessing(options);
 
-      String samplingPeriodMills =
-          ExperimentalOptions.getExperimentValue(
-              options, ExperimentalOptions.STATE_SAMPLING_PERIOD_MILLIS);
-      if (samplingPeriodMills != null) {
-        ExecutionStateSampler.setSamplingPeriod(Integer.parseInt(samplingPeriodMills));
-      }
-      ExecutionStateSampler.instance().start();
-
       LOG.info("Entering instruction processing loop");
 
       // The control client immediately dispatches requests to an executor so we execute on the
@@ -351,7 +347,7 @@ public class FnHarness {
       processBundleHandler.shutdown();
     } finally {
       System.out.println("Shutting SDK harness down.");
-      ExecutionStateSampler.instance().stop();
+      executionStateSampler.stop();
       executorService.shutdown();
     }
   }

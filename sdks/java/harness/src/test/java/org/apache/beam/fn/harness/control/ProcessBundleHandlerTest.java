@@ -70,9 +70,11 @@ import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
+import org.apache.beam.fn.harness.control.ProcessBundleHandler.MetricsEnvironmentStateForBundle;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
@@ -113,7 +115,6 @@ import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.Timer;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -137,17 +138,19 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerFamilyDeclarati
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.DoFnWithExecutionInformation;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -170,11 +173,19 @@ public class ProcessBundleHandlerTest {
 
   @Rule public TestExecutorService executor = TestExecutors.from(Executors::newCachedThreadPool);
   @Mock private BeamFnDataClient beamFnDataClient;
+  private ExecutionStateSampler executionStateSampler;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     TestBundleProcessor.resetCnt = 0;
+    executionStateSampler =
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis);
+  }
+
+  @After
+  public void tearDown() {
+    executionStateSampler.stop();
   }
 
   private static class TestDoFn extends DoFn<String, String> {
@@ -285,6 +296,11 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
+    MetricsEnvironmentStateForBundle getMetricsEnvironmentStateForBundle() {
+      return wrappedBundleProcessor.getMetricsEnvironmentStateForBundle();
+    }
+
+    @Override
     public ExecutionStateTracker getStateTracker() {
       return wrappedBundleProcessor.getStateTracker();
     }
@@ -362,6 +378,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(),
             Caches.noop(),
             new BundleProcessorCache());
@@ -391,6 +408,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(),
             Caches.noop(),
             new BundleProcessorCache());
@@ -467,6 +485,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN, startFinishRecorder,
                 DATA_OUTPUT_URN, startFinishRecorder),
@@ -572,6 +591,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             urnToPTransformRunnerFactoryMap,
             Caches.noop(),
             new BundleProcessorCache());
@@ -622,6 +642,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(DATA_INPUT_URN, (context) -> null),
             Caches.noop(),
             new TestBundleProcessorCache());
@@ -727,6 +748,7 @@ public class ProcessBundleHandlerTest {
             splitListener,
             pCollectionConsumerRegistry,
             metricsContainerRegistry,
+            new MetricsEnvironmentStateForBundle(),
             stateTracker,
             beamFnStateClient,
             bundleFinalizationCallbacks,
@@ -748,10 +770,7 @@ public class ProcessBundleHandlerTest {
     assertNull(bundleProcessor.getInstructionId());
     assertNull(bundleProcessor.getCacheTokens());
     assertNull(bundleCache.peek("A"));
-    verify(startFunctionRegistry, times(1)).reset();
-    verify(finishFunctionRegistry, times(1)).reset();
     verify(splitListener, times(1)).clear();
-    verify(pCollectionConsumerRegistry, times(1)).reset();
     verify(metricsContainerRegistry, times(1)).reset();
     verify(stateTracker, times(1)).reset();
     verify(bundleFinalizationCallbacks, times(1)).clear();
@@ -787,6 +806,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (context) -> {
@@ -830,6 +850,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             mockFinalizeBundleHandler,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -886,6 +907,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -1068,6 +1090,7 @@ public class ProcessBundleHandlerTest {
         null /* beamFnStateClient */,
         null /* finalizeBundleHandler */,
         new ShortIdMap(),
+        executionStateSampler,
         urnToPTransformRunnerFactoryMap,
         Caches.noop(),
         new BundleProcessorCache());
@@ -1080,9 +1103,9 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
 
-    ByteString.Output encodedData = ByteString.newOutput();
+    ByteStringOutputStream encodedData = new ByteStringOutputStream();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
-    ByteString.Output encodedTimer = ByteString.newOutput();
+    ByteStringOutputStream encodedTimer = new ByteStringOutputStream();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
         .encode(
             Timer.of(
@@ -1145,7 +1168,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
 
-    ByteString.Output encodedData = ByteString.newOutput();
+    ByteStringOutputStream encodedData = new ByteStringOutputStream();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
 
     assertThrows(
@@ -1201,7 +1224,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
 
-    ByteString.Output encodedTimer = ByteString.newOutput();
+    ByteStringOutputStream encodedTimer = new ByteStringOutputStream();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
         .encode(
             Timer.of(
@@ -1295,7 +1318,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, true);
 
-    ByteString.Output encodedTimer = ByteString.newOutput();
+    ByteStringOutputStream encodedTimer = new ByteStringOutputStream();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
         .encode(
             Timer.of(
@@ -1390,6 +1413,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -1430,7 +1454,7 @@ public class ProcessBundleHandlerTest {
 
     Mockito.doAnswer(
             (invocation) -> {
-              ByteString.Output encodedData = ByteString.newOutput();
+              ByteStringOutputStream encodedData = new ByteStringOutputStream();
               StringUtf8Coder.of().encode("A", encodedData);
               String instructionId = invocation.getArgument(0, String.class);
               CloseableFnDataReceiver<BeamFnApi.Elements> data =
@@ -1459,6 +1483,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -1512,6 +1537,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -1594,6 +1620,7 @@ public class ProcessBundleHandlerTest {
             mockBeamFnStateGrpcClient,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {
@@ -1647,6 +1674,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {
@@ -1762,6 +1790,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(DATA_INPUT_URN, startFinishGuard),
             Caches.noop(),
             bundleProcessorCache);
@@ -1880,6 +1909,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {

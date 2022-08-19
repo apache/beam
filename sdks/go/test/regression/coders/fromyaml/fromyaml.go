@@ -338,6 +338,7 @@ var nameToType = map[string]reflect.Type{
 	"f_bool":  reflectx.Bool,
 	"f_bytes": reflect.PtrTo(reflectx.ByteSlice),
 	"f_map":   reflect.MapOf(reflectx.String, reflect.PtrTo(reflectx.Int64)),
+	"f_float": reflectx.Float32,
 }
 
 func setField(rv reflect.Value, i int, v interface{}) {
@@ -355,6 +356,12 @@ func setField(rv reflect.Value, i int, v interface{}) {
 		rf.SetString(v.(string))
 	case reflect.Int32:
 		rf.SetInt(int64(v.(int)))
+	case reflect.Float32:
+		c, err := strconv.ParseFloat(v.(string), 32)
+		if err != nil {
+			panic(err)
+		}
+		rf.SetFloat(c)
 	case reflect.Float64:
 		c, err := strconv.ParseFloat(v.(string), 64)
 		if err != nil {

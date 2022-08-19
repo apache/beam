@@ -44,8 +44,12 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  akvelon_flutter_issue_106664_workaround: ^0.1.2
   aligned_dialog: ^0.0.6
-  code_text_field: ^1.0.0
+  code_text_field:
+    git:
+      url: https://github.com/BertrandBev/code_field.git
+      ref: 9e2c9fe52a69481f038f4b6609e8a0a776429437
   collection: ^1.15.0
   expansion_widget: ^0.0.2
   flutter:

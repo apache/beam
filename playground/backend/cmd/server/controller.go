@@ -15,17 +15,26 @@
 package main
 
 import (
+	"context"
+
+	"github.com/google/uuid"
+
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/code_processing"
+	"beam.apache.org/playground/backend/internal/db"
+	"beam.apache.org/playground/backend/internal/db/mapper"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/setup_tools/life_cycle"
 	"beam.apache.org/playground/backend/internal/utils"
-	"context"
-	"github.com/google/uuid"
+)
+
+const (
+	errorTitleGetSnippet  = "Error during getting a snippet"
+	errorTitleSaveSnippet = "Error during saving a snippet"
 )
 
 // playgroundController processes `gRPC' requests from clients.
@@ -33,6 +42,10 @@ import (
 type playgroundController struct {
 	env          *environment.Environment
 	cacheService cache.Cache
+	// Database setup only if the server doesn't suppose to run code, i.e. SDK is unspecified
+	db           db.Database
+	props        *environment.Properties
+	entityMapper mapper.EntityMapper
 
 	pb.UnimplementedPlaygroundServiceServer
 }
@@ -343,5 +356,80 @@ func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.
 		return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
 	}
 	response := pb.GetDefaultPrecompiledObjectResponse{PrecompiledObject: precompiledObject}
+	return &response, nil
+}
+
+// SaveSnippet returns the generated ID
+func (controller *playgroundController) SaveSnippet(ctx context.Context, info *pb.SaveSnippetRequest) (*pb.SaveSnippetResponse, error) {
+	if info.Sdk == pb.Sdk_SDK_UNSPECIFIED {
+		logger.Errorf("SaveSnippet(): unimplemented sdk: %s\n", info.Sdk)
+		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Sdk is not implemented yet: %s", info.Sdk.String())
+	}
+	if controller.db == nil {
+		logger.Error("SaveSnippet(): the runner is trying to save the snippet")
+		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "The runner doesn't support snippets")
+	}
+	if info.Files == nil || len(info.Files) == 0 {
+		logger.Error("SaveSnippet(): files are empty")
+		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet must have files")
+	}
+
+	snippet := controller.entityMapper.ToSnippet(info)
+
+	for _, file := range info.Files {
+		if file.Content == "" {
+			logger.Error("SaveSnippet(): entity is empty")
+			return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet must have some content")
+		}
+		maxSnippetSize := controller.props.MaxSnippetSize
+		if len(file.Content) > int(maxSnippetSize) {
+			logger.Errorf("SaveSnippet(): entity is too large. Max entity size: %d symbols", maxSnippetSize)
+			return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet size is more than %d symbols", maxSnippetSize)
+		}
+		snippet.Files = append(snippet.Files, controller.entityMapper.ToFileEntity(info, file))
+	}
+
+	id, err := snippet.ID()
+	if err != nil {
+		logger.Errorf("SaveSnippet(): ID(): error during ID generation: %s", err.Error())
+		return nil, errors.InternalError(errorTitleSaveSnippet, "Failed to generate ID")
+	}
+	if err = controller.db.PutSnippet(ctx, id, snippet); err != nil {
+		logger.Errorf("SaveSnippet(): PutSnippet(): error during entity saving: %s", err.Error())
+		return nil, errors.InternalError(errorTitleSaveSnippet, "Failed to save a snippet entity")
+	}
+
+	response := pb.SaveSnippetResponse{Id: id}
+	return &response, nil
+}
+
+// GetSnippet returns the snippet entity
+func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb.GetSnippetRequest) (*pb.GetSnippetResponse, error) {
+	if controller.db == nil {
+		logger.Error("GetSnippet(): the runner is trying to read the snippet")
+		return nil, errors.InvalidArgumentError(errorTitleGetSnippet, "The runner doesn't support snippets")
+	}
+	snippet, err := controller.db.GetSnippet(ctx, info.GetId())
+	if err != nil {
+		logger.Errorf("GetSnippet(): error during getting the snippet: %s", err.Error())
+		return nil, errors.InternalError(errorTitleGetSnippet, "Failed to retrieve the snippet")
+	}
+
+	response := pb.GetSnippetResponse{
+		Sdk:             pb.Sdk(pb.Sdk_value[snippet.Sdk.Name]),
+		PipelineOptions: snippet.PipeOpts,
+	}
+	files, err := controller.db.GetFiles(ctx, info.GetId(), snippet.NumberOfFiles)
+	if err != nil {
+		logger.Errorf("GetSnippet(): GetFiles(): error during getting files: %s", err.Error())
+		return nil, errors.InternalError(errorTitleGetSnippet, "Failed to retrieve files")
+	}
+	for _, file := range files {
+		response.Files = append(response.Files, &pb.SnippetFile{
+			Name:    file.Name,
+			Content: file.Content,
+			IsMain:  file.IsMain,
+		})
+	}
 	return &response, nil
 }

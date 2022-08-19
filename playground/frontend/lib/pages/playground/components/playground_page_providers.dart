@@ -17,15 +17,14 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/params.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/analytics/google_analytics_service.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/grpc_code_client.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/repositories/example_client/grpc_example_client.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
 import 'package:playground/modules/output/models/output_placement_state.dart';
+import 'package:playground/pages/playground/states/example_loaders/examples_loader.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/feedback_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
@@ -48,31 +47,12 @@ class PlaygroundPageProviders extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<AnalyticsService>(create: (context) => GoogleAnalyticsService()),
-        ChangeNotifierProvider<ExampleState>(
-          create: (context) => ExampleState(kExampleRepository)..init(),
-        ),
-        ChangeNotifierProxyProvider<ExampleState, PlaygroundState>(
-          create: (context) => PlaygroundState(codeRepository: kCodeRepository),
-          update: (context, exampleState, playground) {
-            if (playground == null) {
-              return PlaygroundState(codeRepository: kCodeRepository);
-            }
-
-            if (playground.selectedExample == null &&
-                !Uri.base.toString().contains(kIsEmbedded)) {
-              final example = _getExample(exampleState, playground);
-              if (example != null) {
-                exampleState
-                    .loadExampleInfo(
-                      example,
-                      playground.sdk,
-                    )
-                    .then((exampleWithInfo) =>
-                        playground.setExample(exampleWithInfo));
-              }
-            }
-            return playground;
-          },
+        ChangeNotifierProvider<PlaygroundState>(
+          create: (context) => PlaygroundState(
+            examplesLoader: ExamplesLoader(),
+            exampleState: ExampleState(kExampleRepository)..init(),
+            codeRepository: kCodeRepository,
+          ),
         ),
         ChangeNotifierProvider<OutputPlacementState>(
           create: (context) => OutputPlacementState(),
@@ -82,35 +62,6 @@ class PlaygroundPageProviders extends StatelessWidget {
         ),
       ],
       child: child,
-    );
-  }
-
-  ExampleModel? _getExample(
-    ExampleState exampleState,
-    PlaygroundState playground,
-  ) {
-    final examplePath = Uri.base.queryParameters[kExampleParam];
-
-    if (exampleState.defaultExamplesMap.isEmpty) {
-      exampleState.loadDefaultExamples();
-    }
-
-    if (examplePath?.isEmpty ?? true) {
-      return exampleState.defaultExamplesMap[playground.sdk];
-    }
-
-    final allExamples = exampleState.sdkCategories?.values
-        .expand((sdkCategory) => sdkCategory.map((e) => e.examples))
-        .expand((element) => element)
-        .toList();
-
-    if (allExamples?.isEmpty ?? true) {
-      return null;
-    }
-
-    return allExamples?.firstWhere(
-      (example) => example.path == examplePath,
-      orElse: () => exampleState.defaultExample!,
     );
   }
 }

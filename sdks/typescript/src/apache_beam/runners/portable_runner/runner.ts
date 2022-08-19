@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+const childProcess = require("child_process");
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+
 import { ChannelCredentials } from "@grpc/grpc-js";
 import { GrpcTransport } from "@protobuf-ts/grpc-transport";
 import { Struct } from "../../proto/google/protobuf/struct";
@@ -34,6 +39,8 @@ import { ExternalWorkerPool } from "../../worker/external_worker_service";
 import * as environments from "../../internal/environments";
 import * as artifacts from "../artifacts";
 import { Service as JobService } from "../../utils/service";
+
+import * as serialization from "../../serialization";
 
 const TERMINAL_STATES = [
   JobState_Enum.DONE,
@@ -199,15 +206,52 @@ export class PortableRunner extends Runner {
           pipeline.components!.environments[envId] =
             environments.asExternalEnvironment(env, loopbackAddress);
         } else {
+          // Create a docker environment.
           pipeline.components!.environments[envId] =
             environments.asDockerEnvironment(
               env,
               (options as any)?.sdkContainerImage ||
                 "gcr.io/apache-beam-testing/beam_typescript_sdk:dev"
             );
+          const deps = pipeline.components!.environments[envId].dependencies;
+
+          // Package up this code as a dependency.
+          const result = childProcess.spawnSync("npm", ["pack"], {
+            encoding: "latin1",
+          });
+          if (result.status === 0) {
+            console.debug(result.stdout);
+          } else {
+            throw new Error(result.output);
+          }
+          const packFile = path.resolve(result.stdout.trim());
+          deps.push(fileArtifact(packFile, "beam:artifact:type:npm:v1"));
+
+          // If any dependencies are files, package them up as well.
+          if (fs.existsSync("package.json")) {
+            const packageData = JSON.parse(fs.readFileSync("package.json"));
+            if (packageData.dependencies) {
+              for (const dep in packageData.dependencies) {
+                if (packageData.dependencies[dep].startsWith("file:")) {
+                  const path = packageData.dependencies[dep].substring(5);
+                  deps.push(
+                    fileArtifact(
+                      path,
+                      "beam:artifact:type:npm_dep:v1",
+                      new TextEncoder().encode(dep)
+                    )
+                  );
+                }
+              }
+            }
+          }
         }
       }
     }
+
+    // Note the set of modules that need to be imported in the worker.
+    (options as any).registeredNodeModules =
+      serialization.getRegisteredModules();
 
     // Inform the runner that we'd like to execute this pipeline.
     console.debug("Preparing job.");
@@ -243,7 +287,8 @@ export class PortableRunner extends Runner {
             channelCredentials: ChannelCredentials.createInsecure(),
           })
         ),
-        prepareResponse.stagingSessionToken
+        prepareResponse.stagingSessionToken,
+        "/"
       );
     }
 
@@ -261,4 +306,22 @@ export class PortableRunner extends Runner {
     // once the job has completed.
     return new PortableRunnerPipelineResult(this, jobId, completionCallbacks);
   }
+}
+
+function fileArtifact(
+  filePath: string,
+  roleUrn: string,
+  rolePayload: Uint8Array | undefined = undefined
+) {
+  const hasher = crypto.createHash("sha256");
+  hasher.update(fs.readFileSync(filePath));
+  return runnerApiProto.ArtifactInformation.create({
+    typeUrn: "beam:artifact:type:file:v1",
+    typePayload: runnerApiProto.ArtifactFilePayload.toBinary({
+      path: path.resolve(filePath),
+      sha256: hasher.digest("hex"),
+    }),
+    roleUrn: roleUrn,
+    rolePayload: rolePayload,
+  });
 }

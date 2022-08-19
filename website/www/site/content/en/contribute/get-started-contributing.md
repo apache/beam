@@ -97,7 +97,7 @@ Questions can be asked on the [#beam channel of the ASF Slack](https://beam.apac
 - Java JDK 8 installed.
 - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing changes to this website locally.
 - For SDK Development:
-  - [Go](https://golang.org) 1.12 or later installed for Go SDK development.
+  - [Go](https://golang.org) 1.16.0 or later installed for Go SDK development.
   - Python 3.x interpreters. You will need Python interpreters for all Python versions supported by Beam.
     Interpreters should be installed and available in shell via `python3.x` commands. For more information, see:
     Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
@@ -280,7 +280,12 @@ Execute:
   - [Jenkins](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips)
   - [FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
 
+<a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false"        aria-controls="collapseContributing">
+   {{< figure src="/images/arrow-icon_list.svg">}}
+
 ## Contribute Code
+
+</a>
 
 <div class="collapse dont-collapse-sm" id="collapseContributing">
 

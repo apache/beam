@@ -29,18 +29,31 @@ import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TupleTag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage>> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SubscribeTransform.class);
+
   private static final long MEBIBYTE = 1L << 20;
   private static final long SOFT_MEMORY_LIMIT = 512 * MEBIBYTE;
   private static final long MIN_PER_PARTITION_MEMORY = 4 * MEBIBYTE;
@@ -75,22 +88,6 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
     }
   }
 
-  private SubscriptionPartitionProcessor newPartitionProcessor(
-      SubscriptionPartition subscriptionPartition,
-      RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker,
-      OutputReceiver<SequencedMessage> receiver) {
-    Supplier<MemoryBufferedSubscriber> newSubscriber =
-        () ->
-            newBufferedSubscriber(
-                subscriptionPartition,
-                Offset.of(tracker.currentRestriction().getRange().getFrom()));
-    return new SubscriptionPartitionProcessorImpl(
-        subscriptionPartition,
-        tracker,
-        receiver,
-        () -> PerServerSubscriberCache.CACHE.get(subscriptionPartition, newSubscriber));
-  }
-
   private MemoryBufferedSubscriber newBufferedSubscriber(
       SubscriptionPartition subscriptionPartition, Offset startOffset) throws ApiException {
     checkSubscription(subscriptionPartition);
@@ -99,6 +96,42 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
         startOffset,
         LIMITER,
         consumer -> newSubscriber(subscriptionPartition.partition(), startOffset, consumer));
+  }
+
+  private MemoryBufferedSubscriber getCachedSubscriber(
+      SubscriptionPartition subscriptionPartition, Offset startOffset) {
+    Supplier<MemoryBufferedSubscriber> getOrCreate =
+        () ->
+            PerServerSubscriberCache.CACHE.get(
+                subscriptionPartition,
+                () -> newBufferedSubscriber(subscriptionPartition, startOffset));
+    while (true) {
+      MemoryBufferedSubscriber subscriber = getOrCreate.get();
+      Offset fetchOffset = subscriber.fetchOffset();
+      if (startOffset.equals(fetchOffset)) {
+        return subscriber;
+      }
+      LOG.info(
+          "Discarding subscriber due to mismatch, this should be rare. {}, start: {} fetch: {}",
+          subscriptionPartition,
+          startOffset,
+          fetchOffset);
+      try {
+        subscriber.stopAsync().awaitTerminated();
+      } catch (Exception ignored) {
+      }
+    }
+  }
+
+  private SubscriptionPartitionProcessor newPartitionProcessor(
+      SubscriptionPartition subscriptionPartition,
+      RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker,
+      OutputReceiver<SequencedMessage> receiver) {
+    return new SubscriptionPartitionProcessorImpl(
+        tracker,
+        receiver,
+        getCachedSubscriber(
+            subscriptionPartition, Offset.of(tracker.currentRestriction().getRange().getFrom())));
   }
 
   private TopicBacklogReader newBacklogReader(SubscriptionPartition subscriptionPartition) {
@@ -119,7 +152,7 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
 
   private BlockingCommitter newCommitter(SubscriptionPartition subscriptionPartition) {
     checkSubscription(subscriptionPartition);
-    return new SubscriberAssembler(options, subscriptionPartition.partition()).getCommitter();
+    return new SubscriberAssembler(options, subscriptionPartition.partition()).newCommitter();
   }
 
   private TopicPath getTopicPath() {
@@ -134,19 +167,65 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
     }
   }
 
-  @Override
-  public PCollection<SequencedMessage> expand(PBegin input) {
-    PCollection<SubscriptionPartition> subscriptionPartitions;
-    subscriptionPartitions =
+  @SuppressWarnings("unused")
+  private PCollection<SequencedMessage> expandSdf(PBegin input) {
+    PCollection<SubscriptionPartition> subscriptionPartitions =
         input.apply(new SubscriptionPartitionLoader(getTopicPath(), options.subscriptionPath()));
-
     return subscriptionPartitions.apply(
         ParDo.of(
             new PerSubscriptionPartitionSdf(
-                new ManagedBacklogReaderFactoryImpl(this::newBacklogReader),
+                new ManagedFactoryImpl<>(this::newBacklogReader),
+                new ManagedFactoryImpl<>(this::newCommitter),
                 this::newInitialOffsetReader,
                 this::newRestrictionTracker,
-                this::newPartitionProcessor,
-                this::newCommitter)));
+                this::newPartitionProcessor)));
+  }
+
+  private PCollection<SequencedMessage> expandSource(PBegin input) {
+    return input.apply(
+        Read.from(
+            new UnboundedSourceImpl(options, this::newBufferedSubscriber, this::newBacklogReader)));
+  }
+
+  private static final class SourceTransform
+      extends PTransform<PBegin, PCollection<SequencedMessage>> {
+
+    private final SubscribeTransform impl;
+
+    private SourceTransform(SubscribeTransform impl) {
+      this.impl = impl;
+    }
+
+    @Override
+    public PCollection<SequencedMessage> expand(PBegin input) {
+      return impl.expandSource(input);
+    }
+  }
+
+  public static final PTransformOverride V1_READ_OVERRIDE =
+      PTransformOverride.of(
+          PTransformMatchers.classEqualTo(SubscribeTransform.class), new ReadOverrideFactory());
+
+  private static class ReadOverrideFactory
+      implements PTransformOverrideFactory<
+          PBegin, PCollection<SequencedMessage>, SubscribeTransform> {
+
+    @Override
+    public PTransformReplacement<PBegin, PCollection<SequencedMessage>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<SequencedMessage>, SubscribeTransform> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(), new SourceTransform(transform.getTransform()));
+    }
+
+    @Override
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<SequencedMessage> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
+  @Override
+  public PCollection<SequencedMessage> expand(PBegin input) {
+    return expandSdf(input);
   }
 }

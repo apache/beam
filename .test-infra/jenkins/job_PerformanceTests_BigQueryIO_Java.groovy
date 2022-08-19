@@ -118,8 +118,7 @@ private void createPostCommitJob(jobConfig) {
   job(jobConfig.name) {
     description(jobConfig.description)
     common.setTopLevelMainJobProperties(delegate)
-    // [Issue#21824] Disable trigger
-    // common.enablePhraseTriggeringFromPullRequest(delegate, jobConfig.title, jobConfig.triggerPhrase)
+    common.enablePhraseTriggeringFromPullRequest(delegate, jobConfig.title, jobConfig.triggerPhrase)
     common.setAutoJob(delegate, 'H H/6 * * *')
     publishers {
       archiveJunit('**/build/test-results/**/*.xml')

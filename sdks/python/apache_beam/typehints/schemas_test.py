@@ -29,8 +29,11 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 
+import cloudpickle
+import dill
 import numpy as np
 from parameterized import parameterized
+from parameterized import parameterized_class
 
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
@@ -97,6 +100,189 @@ class ComplexSchema(NamedTuple):
   timestamp: Timestamp
 
 
+def get_test_beam_fieldtype_protos():
+  all_nonoptional_primitives = [
+      schema_pb2.FieldType(atomic_type=typ)
+      for typ in schema_pb2.AtomicType.values()
+      if typ is not schema_pb2.UNSPECIFIED
+  ]
+
+  all_optional_primitives = [
+      schema_pb2.FieldType(nullable=True, atomic_type=typ)
+      for typ in schema_pb2.AtomicType.values()
+      if typ is not schema_pb2.UNSPECIFIED
+  ]
+
+  all_primitives = all_nonoptional_primitives + all_optional_primitives
+
+  basic_array_types = [
+      schema_pb2.FieldType(array_type=schema_pb2.ArrayType(element_type=typ))
+      for typ in all_primitives
+  ]
+
+  basic_map_types = [
+      schema_pb2.FieldType(
+          map_type=schema_pb2.MapType(key_type=key_type, value_type=value_type))
+      for key_type,
+      value_type in itertools.product(all_primitives, all_primitives)
+  ]
+
+  selected_schemas = [
+      schema_pb2.FieldType(
+          row_type=schema_pb2.RowType(
+              schema=schema_pb2.Schema(
+                  id='32497414-85e8-46b7-9c90-9a9cc62fe390',
+                  fields=[
+                      schema_pb2.Field(name='field%d' % i, type=typ) for i,
+                      typ in enumerate(all_primitives)
+                  ]))),
+      schema_pb2.FieldType(
+          row_type=schema_pb2.RowType(
+              schema=schema_pb2.Schema(
+                  id='dead1637-3204-4bcb-acf8-99675f338600',
+                  fields=[
+                      schema_pb2.Field(
+                          name='id',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.INT64)),
+                      schema_pb2.Field(
+                          name='name',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.STRING)),
+                      schema_pb2.Field(
+                          name='optional_map',
+                          type=schema_pb2.FieldType(
+                              nullable=True,
+                              map_type=schema_pb2.MapType(
+                                  key_type=schema_pb2.FieldType(
+                                      atomic_type=schema_pb2.STRING),
+                                  value_type=schema_pb2.FieldType(
+                                      atomic_type=schema_pb2.DOUBLE)))),
+                      schema_pb2.Field(
+                          name='optional_array',
+                          type=schema_pb2.FieldType(
+                              nullable=True,
+                              array_type=schema_pb2.ArrayType(
+                                  element_type=schema_pb2.FieldType(
+                                      atomic_type=schema_pb2.FLOAT)))),
+                      schema_pb2.Field(
+                          name='array_optional',
+                          type=schema_pb2.FieldType(
+                              array_type=schema_pb2.ArrayType(
+                                  element_type=schema_pb2.FieldType(
+                                      nullable=True,
+                                      atomic_type=schema_pb2.BYTES)))),
+                  ]))),
+      schema_pb2.FieldType(
+          row_type=schema_pb2.RowType(
+              schema=schema_pb2.Schema(
+                  id='a-schema-with-options',
+                  fields=[
+                      schema_pb2.Field(name='field%d' % i, type=typ) for i,
+                      typ in enumerate(all_primitives)
+                  ],
+                  options=[
+                      schema_pb2.Option(name='a_flag'),
+                      schema_pb2.Option(
+                          name='a_byte',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.BYTE),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  byte=127))),
+                      schema_pb2.Option(
+                          name='a_int16',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.INT16),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  int16=255))),
+                      schema_pb2.Option(
+                          name='a_int32',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.INT32),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  int32=255))),
+                      schema_pb2.Option(
+                          name='a_int64',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.INT64),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  int64=255))),
+                      schema_pb2.Option(
+                          name='a_float',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.FLOAT),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  float=3.14))),
+                      schema_pb2.Option(
+                          name='a_double',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.DOUBLE),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  double=2.718))),
+                      schema_pb2.Option(
+                          name='a_str',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.STRING),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  string='str'))),
+                      schema_pb2.Option(
+                          name='a_bool',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.BOOLEAN),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  boolean=True))),
+                      schema_pb2.Option(
+                          name='a_bytes',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.BYTES),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  bytes=b'bytes!'))),
+                  ]))),
+      schema_pb2.FieldType(
+          row_type=schema_pb2.RowType(
+              schema=schema_pb2.Schema(
+                  id='a-schema-with-field-options',
+                  fields=[
+                      schema_pb2.Field(
+                          name='field%d' % i,
+                          type=typ,
+                          options=[
+                              schema_pb2.Option(name='a_flag'),
+                              schema_pb2.Option(
+                                  name='a_str',
+                                  type=schema_pb2.FieldType(
+                                      atomic_type=schema_pb2.STRING),
+                                  value=schema_pb2.FieldValue(
+                                      atomic_value=schema_pb2.AtomicTypeValue(
+                                          string='str'))),
+                          ]) for i,
+                      typ in enumerate(all_primitives)
+                  ]))),
+  ]
+
+  return all_primitives + \
+      basic_array_types + \
+      basic_map_types + \
+      selected_schemas
+
+
+def get_test_beam_schemas_protos():
+  return [
+      fieldtype.row_type.schema
+      for fieldtype in get_test_beam_fieldtype_protos()
+      if fieldtype.WhichOneof('type_info') == 'row_type'
+  ]
+
+
 class SchemaTest(unittest.TestCase):
   """ Tests for Runner API Schema proto to/from typing conversions
 
@@ -127,6 +313,106 @@ class SchemaTest(unittest.TestCase):
     self.assertIsInstance(roundtripped, row_type.RowTypeConstraint)
     self.assert_namedtuple_equivalent(roundtripped.user_type, user_type)
 
+  def test_row_type_constraint_to_schema(self):
+    result_type = typing_to_runner_api(
+        row_type.RowTypeConstraint.from_fields([
+            ('foo', np.int8),
+            ('bar', float),
+            ('baz', bytes),
+        ]))
+
+    self.assertIsInstance(result_type, schema_pb2.FieldType)
+    self.assertEqual(result_type.WhichOneof("type_info"), "row_type")
+
+    schema = result_type.row_type.schema
+
+    self.assertIsNotNone(schema.id)
+    expected = [
+        schema_pb2.Field(
+            name='foo', type=schema_pb2.FieldType(atomic_type=schema_pb2.BYTE)),
+        schema_pb2.Field(
+            name='bar',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.DOUBLE)),
+        schema_pb2.Field(
+            name='baz',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.BYTES)),
+    ]
+    self.assertEqual(list(schema.fields), expected)
+
+  def test_row_type_constraint_to_schema_with_options(self):
+    row_type_with_options = row_type.RowTypeConstraint.from_fields(
+        [
+            ('foo', np.int8),
+            ('bar', float),
+            ('baz', bytes),
+        ],
+        schema_options=[
+            ('some_metadata', 'foo'),
+            ('some_other_metadata', 'baz'),
+            ('some_metadata', 'bar'),
+            ('an_integer_option', np.int32(123456)),
+        ])
+    result_type = typing_to_runner_api(row_type_with_options)
+
+    self.assertIsInstance(result_type, schema_pb2.FieldType)
+    self.assertEqual(result_type.WhichOneof("type_info"), "row_type")
+
+    schema = result_type.row_type.schema
+
+    expected = [
+        schema_pb2.Option(
+            name='some_metadata',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            value=schema_pb2.FieldValue(
+                atomic_value=schema_pb2.AtomicTypeValue(string='foo'))),
+        schema_pb2.Option(
+            name='some_other_metadata',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            value=schema_pb2.FieldValue(
+                atomic_value=schema_pb2.AtomicTypeValue(string='baz'))),
+        schema_pb2.Option(
+            name='some_metadata',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            value=schema_pb2.FieldValue(
+                atomic_value=schema_pb2.AtomicTypeValue(string='bar'))),
+        schema_pb2.Option(
+            name='an_integer_option',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+            value=schema_pb2.FieldValue(
+                atomic_value=schema_pb2.AtomicTypeValue(int32=123456))),
+    ]
+    self.assertEqual(list(schema.options), expected)
+
+  def test_row_type_constraint_to_schema_with_field_options(self):
+    result_type = typing_to_runner_api(
+        row_type.RowTypeConstraint.from_fields([
+            ('foo', np.int8),
+            ('bar', float),
+            ('baz', bytes),
+        ],
+                                               field_options={
+                                                   'foo': [
+                                                       ('some_metadata', 123),
+                                                       ('some_flag', None)
+                                                   ]
+                                               }))
+
+    self.assertIsInstance(result_type, schema_pb2.FieldType)
+    self.assertEqual(result_type.WhichOneof("type_info"), "row_type")
+
+    field = result_type.row_type.schema.fields[0]
+
+    expected = [
+        schema_pb2.Option(
+            name='some_metadata',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.INT64),
+            value=schema_pb2.FieldValue(
+                atomic_value=schema_pb2.AtomicTypeValue(int64=123)),
+        ),
+        schema_pb2.Option(name='some_flag')
+    ]
+    self.assertEqual(list(field.options), expected)
+
   def assert_namedtuple_equivalent(self, actual, expected):
     # Two types are only considered equal if they are literally the same
     # object (i.e. `actual == expected` is the same as `actual is expected` in
@@ -149,93 +435,17 @@ class SchemaTest(unittest.TestCase):
     #for attr in dir(expected):
     #  self.assertEqual(getattr(actual, attr), getattr(expected, attr))
 
-  def test_proto_survives_typing_roundtrip(self):
-    all_nonoptional_primitives = [
-        schema_pb2.FieldType(atomic_type=typ)
-        for typ in schema_pb2.AtomicType.values()
-        if typ is not schema_pb2.UNSPECIFIED
-    ]
-
-    all_optional_primitives = [
-        schema_pb2.FieldType(nullable=True, atomic_type=typ)
-        for typ in schema_pb2.AtomicType.values()
-        if typ is not schema_pb2.UNSPECIFIED
-    ]
-
-    all_primitives = all_nonoptional_primitives + all_optional_primitives
-
-    basic_array_types = [
-        schema_pb2.FieldType(array_type=schema_pb2.ArrayType(element_type=typ))
-        for typ in all_primitives
-    ]
-
-    basic_map_types = [
-        schema_pb2.FieldType(
-            map_type=schema_pb2.MapType(
-                key_type=key_type, value_type=value_type)) for key_type,
-        value_type in itertools.product(all_primitives, all_primitives)
-    ]
-
-    selected_schemas = [
-        schema_pb2.FieldType(
-            row_type=schema_pb2.RowType(
-                schema=schema_pb2.Schema(
-                    id='32497414-85e8-46b7-9c90-9a9cc62fe390',
-                    fields=[
-                        schema_pb2.Field(name='field%d' % i, type=typ) for i,
-                        typ in enumerate(all_primitives)
-                    ]))),
-        schema_pb2.FieldType(
-            row_type=schema_pb2.RowType(
-                schema=schema_pb2.Schema(
-                    id='dead1637-3204-4bcb-acf8-99675f338600',
-                    fields=[
-                        schema_pb2.Field(
-                            name='id',
-                            type=schema_pb2.FieldType(
-                                atomic_type=schema_pb2.INT64)),
-                        schema_pb2.Field(
-                            name='name',
-                            type=schema_pb2.FieldType(
-                                atomic_type=schema_pb2.STRING)),
-                        schema_pb2.Field(
-                            name='optional_map',
-                            type=schema_pb2.FieldType(
-                                nullable=True,
-                                map_type=schema_pb2.MapType(
-                                    key_type=schema_pb2.FieldType(
-                                        atomic_type=schema_pb2.STRING),
-                                    value_type=schema_pb2.FieldType(
-                                        atomic_type=schema_pb2.DOUBLE)))),
-                        schema_pb2.Field(
-                            name='optional_array',
-                            type=schema_pb2.FieldType(
-                                nullable=True,
-                                array_type=schema_pb2.ArrayType(
-                                    element_type=schema_pb2.FieldType(
-                                        atomic_type=schema_pb2.FLOAT)))),
-                        schema_pb2.Field(
-                            name='array_optional',
-                            type=schema_pb2.FieldType(
-                                array_type=schema_pb2.ArrayType(
-                                    element_type=schema_pb2.FieldType(
-                                        nullable=True,
-                                        atomic_type=schema_pb2.BYTES)))),
-                    ]))),
-    ]
-
-    test_cases = all_primitives + \
-                 basic_array_types + \
-                 basic_map_types + \
-                 selected_schemas
-
-    for test_case in test_cases:
-      self.assertEqual(
-          test_case,
-          typing_to_runner_api(
-              typing_from_runner_api(
-                  test_case, schema_registry=SchemaTypeRegistry()),
-              schema_registry=SchemaTypeRegistry()))
+  @parameterized.expand([
+      (fieldtype_proto, )
+      for fieldtype_proto in get_test_beam_fieldtype_protos()
+  ])
+  def test_proto_survives_typing_roundtrip(self, fieldtype_proto):
+    self.assertEqual(
+        fieldtype_proto,
+        typing_to_runner_api(
+            typing_from_runner_api(
+                fieldtype_proto, schema_registry=SchemaTypeRegistry()),
+            schema_registry=SchemaTypeRegistry()))
 
   def test_unknown_primitive_maps_to_any(self):
     self.assertEqual(
@@ -324,20 +534,6 @@ class SchemaTest(unittest.TestCase):
         expected.row_type.schema.fields,
         typing_to_runner_api(MyCuteClass).row_type.schema.fields)
 
-  def test_generated_class_pickle(self):
-    schema = schema_pb2.Schema(
-        id="some-uuid",
-        fields=[
-            schema_pb2.Field(
-                name='name',
-                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
-            )
-        ])
-    user_type = named_tuple_from_schema(schema)
-    instance = user_type(name="test")
-
-    self.assertEqual(instance, pickle.loads(pickle.dumps(instance)))
-
   def test_user_type_annotated_with_id_after_conversion(self):
     MyCuteClass = NamedTuple('MyCuteClass', [
         ('name', str),
@@ -365,6 +561,69 @@ class SchemaTest(unittest.TestCase):
             schema_proto,
             # bypass schema cache
             schema_registry=SchemaTypeRegistry()))
+
+
+@parameterized_class([
+    {
+        'pickler': pickle,
+    },
+    {
+        'pickler': dill,
+    },
+    {
+        'pickler': cloudpickle,
+    },
+])
+class PickleTest(unittest.TestCase):
+  def test_generated_class_pickle_instance(self):
+    schema = schema_pb2.Schema(
+        id="some-uuid",
+        fields=[
+            schema_pb2.Field(
+                name='name',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            )
+        ])
+    user_type = named_tuple_from_schema(schema)
+    instance = user_type(name="test")
+
+    self.assertEqual(instance, self.pickler.loads(self.pickler.dumps(instance)))
+
+  @unittest.skip("https://github.com/apache/beam/issues/22714")
+  def test_generated_class_pickle(self):
+    schema = schema_pb2.Schema(
+        id="some-uuid",
+        fields=[
+            schema_pb2.Field(
+                name='name',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            )
+        ])
+    user_type = named_tuple_from_schema(schema)
+
+    self.assertEqual(
+        user_type, self.pickler.loads(self.pickler.dumps(user_type)))
+
+  def test_generated_class_row_type_pickle(self):
+    row_proto = schema_pb2.FieldType(
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(
+                id="some-other-uuid",
+                fields=[
+                    schema_pb2.Field(
+                        name='name',
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.STRING),
+                    )
+                ])))
+    row_type_constraint = typing_from_runner_api(
+        row_proto, schema_registry=SchemaTypeRegistry())
+
+    self.assertIsInstance(row_type_constraint, row_type.RowTypeConstraint)
+
+    self.assertEqual(
+        row_type_constraint,
+        self.pickler.loads(self.pickler.dumps(row_type_constraint)))
 
 
 if __name__ == '__main__':
