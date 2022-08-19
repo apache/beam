@@ -1,0 +1,63 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+name: Java VR FLink Java 11 PostCommit
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+  pull_request:
+    branches: ['master', 'release-*']
+
+jobs:
+  java_vr_java11:
+    name: Run Flink ValidatesRunner Java 11
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        flink-versions: ['1.13']
+    timeout-minutes: 270
+    steps:
+      - name: Get number of available processors
+        id: get_available_processors
+        run: |
+          CORES=$(grep -c ^processor /proc/cpuinfo)
+          BALANCE_CORES=$((3*CORES))
+          echo $BALANCE_CORES
+          echo "::set-output name=BALANCE_CORES::$BALANCE_CORES"
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Setup Environment
+        uses: ./.github/actions/setup-self-hosted-action
+      - name: Run Flink Test Jar
+        shell: bash
+        run: |
+            ./gradlew :runners:flink:${{ matrix.flink-versions }}:jar
+            sleep 5
+            ./gradlew :runners:flink:${{ matrix.flink-versions }}:testJar
+      - name: Run :runners:flink:${{ matrix.flink-versions }}:validatesRunner
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :runners:flink:${{ matrix.flink-versions }}:validatesRunner
+          arguments: -x shadowJar -x shadowTestJar -x compileJava -x compleTestJava -x jar -x testJar -x classes -x testClasses
+          max-workers: --max-workers=${{ steps.get_available_processors.outputs.BALANCE_CORES }}
