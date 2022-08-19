@@ -80,11 +80,14 @@
 
 # pytype: skip-file
 
+import logging
 import typing
 
+from apache_beam import PTransform
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
+from apache_beam.transforms.external import SchemaAwareExternalTransform
 
 ReadFromKafkaSchema = typing.NamedTuple(
     'ReadFromKafkaSchema',
@@ -205,7 +208,7 @@ WriteToKafkaSchema = typing.NamedTuple(
     ])
 
 
-class WriteToKafka(ExternalTransform):
+class WriteToKafka(PTransform):
   """
     An external PTransform which writes KV data to a specified Kafka topic.
     If no Kafka Serializer for key/value is provided, then key/value are
@@ -222,7 +225,7 @@ class WriteToKafka(ExternalTransform):
 
   def __init__(
       self,
-      producer_config,
+      bootstrap_servers,
       topic,
       key_serializer=byte_array_serializer,
       value_serializer=byte_array_serializer,
@@ -242,13 +245,40 @@ class WriteToKafka(ExternalTransform):
         Default: 'org.apache.kafka.common.serialization.ByteArraySerializer'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super().__init__(
-        self.URN,
-        NamedTupleBasedPayloadBuilder(
-            WriteToKafkaSchema(
-                producer_config=producer_config,
-                topic=topic,
-                key_serializer=key_serializer,
-                value_serializer=value_serializer,
-            )),
-        expansion_service or default_io_expansion_service())
+    super().__init__();
+    self._kafka_schematransform_id = self._dynamically_descover_kafka_write_schematransform(
+        expansion_service=expansion_service)
+
+    logging.error('dynamically discovered Kafka write SchemaTransform: %s',
+                  self._kafka_schematransform_id)
+
+    self._bootstrap_servers = bootstrap_servers
+    self._topic = topic
+    self._key_serializer = key_serializer
+    self._value_serializer = value_serializer
+    self._expansion_service = expansion_service
+
+  def _dynamically_descover_kafka_write_schematransform(
+      self, expansion_service):
+    matches = SchemaAwareExternalTransform.discover(
+        expansion_service=expansion_service, regex='.*kafka.*write.*')
+    kafka_write_id = None
+    for match in matches:
+      if kafka_write_id:
+        raise ValueError('Found more than one match for the Kafka Write transform')
+      kafka_write_id = match.identifier
+
+    return kafka_write_id
+
+
+  def expand(self, input):
+    external_transform = SchemaAwareExternalTransform(
+        self._kafka_schematransform_id,
+        expansion_service=self._expansion_service,
+        bootstrapServers=self._bootstrap_servers,
+        topic=self._topic,
+        keySerializer=self._key_serializer,
+        valueSerializer=self._value_serializer)
+    return (input | external_transform)
+
+

@@ -59,7 +59,7 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
   }
 
   @Override
-  public final Schema configurationSchema() {
+  public Schema configurationSchema() {
     try {
       return SchemaRegistry.createDefault().getSchema(configurationClass());
     } catch (NoSuchSchemaException e) {

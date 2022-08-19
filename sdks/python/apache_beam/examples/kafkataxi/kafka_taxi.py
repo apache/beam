@@ -29,10 +29,17 @@ import sys
 import typing
 
 import apache_beam as beam
+from apache_beam.coders import RowCoder
+from apache_beam.coders.typecoders import registry as coders_registry
 from apache_beam.io.kafka import ReadFromKafka
 from apache_beam.io.kafka import WriteToKafka
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+
+
+class KafkaWriteInput(typing.NamedTuple):
+  key: bytes
+  value: bytes
 
 
 def run(
@@ -90,17 +97,19 @@ def run(
       output['timestamp'] = record.timestamp
     return output
 
+  coders_registry.register_coder(KafkaWriteInput, RowCoder)
+
   with beam.Pipeline(options=pipeline_options) as pipeline:
     _ = (
         pipeline
         | beam.io.ReadFromPubSub(
             topic='projects/pubsub-public-data/topics/taxirides-realtime').
         with_output_types(bytes)
-        | beam.Map(lambda x: (b'', x)).with_output_types(
-            typing.Tuple[bytes, bytes])  # Kafka write transforms expects KVs.
+        | beam.Map(lambda x: KafkaWriteInput(key=b'', value=x)).with_output_types(KafkaWriteInput)
         | beam.WindowInto(beam.window.FixedWindows(window_size))
         | WriteToKafka(
-            producer_config={'bootstrap.servers': bootstrap_servers},
+            expansion_service='localhost:12345',
+            bootstrap_servers=bootstrap_servers,
             topic=topic))
 
     ride_col = (

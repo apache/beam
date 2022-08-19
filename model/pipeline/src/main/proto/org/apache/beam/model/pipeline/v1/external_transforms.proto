@@ -51,6 +51,9 @@ message ExpansionMethods {
     // Transform payload will be of type JavaClassLookupPayload.
     JAVA_CLASS_LOOKUP = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:expansion:payload:java_class_lookup:v1"];
+
+    SCHEMATRANSFORM = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:expansion:payload:schematransform:v1"];
   }
 }
 
@@ -106,4 +109,13 @@ message BuilderMethod {
   bytes payload = 3;
 }
 
+message SchemaTransformPayload {
+  // Identifier of the SchemaTransform
+  string identifier = 1;
 
+  // The config of the SchemaTransform.
+  // Should be decodable via beam:coder:row:v1.
+  // The schema of the Row should be compatible with the schema of the
+  // SchemaTransform denoted by the identifier.
+  bytes config_row = 2;
+}
