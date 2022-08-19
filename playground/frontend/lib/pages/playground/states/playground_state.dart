@@ -31,7 +31,6 @@ import 'package:playground/modules/examples/models/example_loading_descriptors/e
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/models/outputs_model.dart';
 import 'package:playground/modules/examples/repositories/models/shared_file_model.dart';
-import 'package:playground/modules/messages/listeners/message_listener.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/example_loaders/examples_loader.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
@@ -82,9 +81,9 @@ class PlaygroundState with ChangeNotifier {
     SDK sdk, {
     required bool loadDefaultIfNot,
   }) {
-    final controller = _snippetEditingControllers[sdk];
-    if (controller != null) {
-      return controller;
+    final existing = _snippetEditingControllers[sdk];
+    if (existing != null) {
+      return existing;
     }
 
     final result = SnippetEditingController(sdk: sdk);
@@ -174,8 +173,10 @@ class PlaygroundState with ChangeNotifier {
     bool notify = true,
   }) {
     _sdk = sdk;
-    _getOrCreateSnippetEditingController(sdk,
-        loadDefaultIfNot: loadDefaultIfNot);
+    _getOrCreateSnippetEditingController(
+      sdk,
+      loadDefaultIfNot: loadDefaultIfNot,
+    );
 
     if (notify) {
       notifyListeners();
