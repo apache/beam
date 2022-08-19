@@ -421,7 +421,6 @@ func TestStateKeyReader(t *testing.T) {
 }
 
 func TestStateKeyWriter(t *testing.T) {
-	const readLen = 4
 	tests := []struct {
 		name      string
 		data      []byte
