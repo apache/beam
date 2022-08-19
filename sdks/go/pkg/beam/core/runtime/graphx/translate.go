@@ -448,11 +448,11 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			SideInputs: si,
 		}
 		if edge.Edge.DoFn.IsSplittable() {
-			coderId, err := m.coders.Add(edge.Edge.RestrictionCoder)
+			coderID, err := m.coders.Add(edge.Edge.RestrictionCoder)
 			if err != nil {
 				return handleErr(err)
 			}
-			payload.RestrictionCoderId = coderId
+			payload.RestrictionCoderId = coderID
 			m.requirements[URNRequiresSplittableDoFn] = true
 		}
 		if _, ok := edge.Edge.DoFn.ProcessElementFn().BundleFinalization(); ok {
@@ -462,7 +462,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			m.requirements[URNRequiresStatefulProcessing] = true
 			stateSpecs := make(map[string]*pipepb.StateSpec)
 			for _, ps := range edge.Edge.DoFn.PipelineState() {
-				coderId, err := m.coders.Add(edge.Edge.StateCoders[ps.StateKey()])
+				coderID, err := m.coders.Add(edge.Edge.StateCoders[ps.StateKey()])
 				if err != nil {
 					return handleErr(err)
 				}
@@ -471,7 +471,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 					// See https://github.com/apache/beam/blob/54b0784da7ccba738deff22bd83fbc374ad21d2e/sdks/go/pkg/beam/model/pipeline_v1/beam_runner_api.pb.go#L2635
 					Spec: &pipepb.StateSpec_ReadModifyWriteSpec{
 						ReadModifyWriteSpec: &pipepb.ReadModifyWriteStateSpec{
-							CoderId: coderId,
+							CoderId: coderID,
 						},
 					},
 					Protocol: &pipepb.FunctionSpec{
@@ -829,11 +829,11 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 		if err != nil {
 			return handleErr(err)
 		}
-		coderId, err := makeWindowCoder(wfn)
+		coderID, err := makeWindowCoder(wfn)
 		if err != nil {
 			return handleErr(err)
 		}
-		windowCoderId, err := m.coders.AddWindowCoder(coderId)
+		windowCoderId, err := m.coders.AddWindowCoder(coderID)
 		if err != nil {
 			return handleErr(err)
 		}
@@ -1054,11 +1054,11 @@ func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 	if err != nil {
 		return nil, err
 	}
-	coderId, err := makeWindowCoder(w.Fn)
+	coderID, err := makeWindowCoder(w.Fn)
 	if err != nil {
 		return nil, err
 	}
-	windowCoderId, err := c.AddWindowCoder(coderId)
+	windowCoderId, err := c.AddWindowCoder(coderID)
 	if err != nil {
 		return nil, err
 	}
