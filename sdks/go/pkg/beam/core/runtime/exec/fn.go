@@ -87,15 +87,15 @@ type stateProvider struct {
 }
 
 // ReadValueState reads a value state from the State API
-func (s *stateProvider) ReadValueState(userStateId string) (interface{}, []state.Transaction, error) {
-	initialValue, ok := s.initialValueByKey[userStateId]
+func (s *stateProvider) ReadValueState(userStateID string) (interface{}, []state.Transaction, error) {
+	initialValue, ok := s.initialValueByKey[userStateID]
 	if !ok {
-		rw, err := s.getReader(userStateId)
+		rw, err := s.getReader(userStateID)
 		if err != nil {
 			return nil, nil, err
 		}
 		// TODO(now) - move this to userstate.go and store the encoder/decoders by key
-		dec := MakeElementDecoder(s.codersByKey[userStateId])
+		dec := MakeElementDecoder(s.codersByKey[userStateID])
 		resp, err := dec.Decode(rw)
 		if err != nil && err != io.EOF {
 			return nil, nil, err
@@ -106,7 +106,7 @@ func (s *stateProvider) ReadValueState(userStateId string) (interface{}, []state
 		initialValue = resp.Elm
 	}
 
-	transactions, ok := s.transactionsByKey[userStateId]
+	transactions, ok := s.transactionsByKey[userStateID]
 	if !ok {
 		transactions = []state.Transaction{}
 	}

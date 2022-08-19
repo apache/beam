@@ -20,16 +20,23 @@ import (
 	"reflect"
 )
 
-type TransactionType_Enum int32
-type StateType_Enum int32
+// TransactionTypeEnum represents the type of state transaction (e.g. set, clear)
+type TransactionTypeEnum int32
+
+// StateTypeEnum represents the type of a state instance (e.g. value, bag, etc...)
+type StateTypeEnum int32
 
 const (
-	TransactionType_Set   TransactionType_Enum = 0
-	TransactionType_Clear TransactionType_Enum = 1
-	StateType_Value       StateType_Enum       = 0
+	// TransactionTypeSet is the set transaction type
+	TransactionTypeSet TransactionTypeEnum = 0
+	// TransactionTypeClear is the set transaction type
+	TransactionTypeClear TransactionTypeEnum = 1
+	// StateTypeValue represents a value state
+	StateTypeValue StateTypeEnum = 0
 )
 
 var (
+	// ProviderType is the state provider type
 	ProviderType = reflect.TypeOf((*Provider)(nil)).Elem()
 )
 
@@ -39,7 +46,7 @@ var (
 // it is primarily used for implementations of the Provider interface to talk to the various State objects.
 type Transaction struct {
 	Key  string
-	Type TransactionType_Enum
+	Type TransactionTypeEnum
 	Val  interface{}
 }
 
@@ -57,7 +64,7 @@ type Provider interface {
 type PipelineState interface {
 	StateKey() string
 	CoderType() reflect.Type
-	StateType() StateType_Enum
+	StateType() StateTypeEnum
 }
 
 // Value is used to read and write global pipeline state representing a single value.
@@ -70,7 +77,7 @@ type Value[T any] struct {
 func (s *Value[T]) Write(p Provider, val T) error {
 	return p.WriteValueState(Transaction{
 		Key:  s.Key,
-		Type: TransactionType_Set,
+		Type: TransactionTypeSet,
 		Val:  val,
 	})
 }
@@ -87,9 +94,9 @@ func (s *Value[T]) Read(p Provider) (T, bool, error) {
 	}
 	for _, t := range bufferedTransactions {
 		switch t.Type {
-		case TransactionType_Set:
+		case TransactionTypeSet:
 			cur = t.Val
-		case TransactionType_Clear:
+		case TransactionTypeClear:
 			cur = nil
 		}
 	}
@@ -116,8 +123,8 @@ func (s Value[T]) CoderType() reflect.Type {
 }
 
 // StateType returns the type of the state (in this case always Value).
-func (s Value[T]) StateType() StateType_Enum {
-	return StateType_Value
+func (s Value[T]) StateType() StateTypeEnum {
+	return StateTypeValue
 }
 
 // MakeValueState is a factory function to create an instance of ValueState with the given key.

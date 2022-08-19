@@ -466,7 +466,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					input := unmarshalKeyedValues(transform.GetInputs())
 
 					if len(userState) > 0 {
-						stateIdToCoder := make(map[string]*coder.Coder)
+						stateIDToCoder := make(map[string]*coder.Coder)
 						for key, spec := range userState {
 							// TODO(#22736) - this will eventually need to be aware of which type of state its modifying to support non-Value state types.
 							cID := spec.GetReadModifyWriteSpec().CoderId
@@ -474,7 +474,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							if err != nil {
 								return nil, err
 							}
-							stateIdToCoder[key] = c
+							stateIDToCoder[key] = c
 							sid := StreamID{
 								Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
 								PtransformID: id.to,
@@ -484,7 +484,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							if err != nil {
 								return nil, err
 							}
-							n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIdToCoder)
+							n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIDToCoder)
 						}
 					}
 

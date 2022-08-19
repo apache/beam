@@ -1272,11 +1272,9 @@ func validateState(fn *DoFn, numIn mainInputs) error {
 				err := errors.Errorf("Duplicate state key %v", k)
 				return errors.SetTopLevelMsgf(err, "Duplicate state key %v used by %v and %v. Ensure that state keys are"+
 					"unique per DoFn", k, orig, s)
-			} else {
-				stateKeys[k] = s
 			}
 			t := s.StateType()
-			if t != state.StateType_Value {
+			if t != state.StateTypeValue {
 				err := errors.Errorf("Non-value state type %v for state %v", t, s)
 				return errors.SetTopLevelMsgf(err, "Non-value state type %v for state %v. Currently the only supported state"+
 					"type is state.Value", t, s)
