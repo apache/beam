@@ -26,7 +26,6 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJsonUtils;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.gson.Gson;
 
 /** Utils to convert JSON records to Beam {@link Row}. */
 @Experimental(Kind.SCHEMAS)
@@ -74,48 +73,6 @@ public class JsonUtils {
     };
   }
 
-  /** Returns a {@link SimpleFunction} mapping a {@param T} to byte[] arrays. */
-  public static <T> SimpleFunction<T, byte[]> getToJsonBytesFunction() {
-    return new ToJsonFn<T, byte[]>() {
-      @Override
-      public byte[] apply(T input) {
-        String jsonString = GSON.toJson(input);
-        return jsonStringToByteArray(jsonString);
-      }
-    };
-  }
-
-  /** Returns a {@link SimpleFunction} mapping a {@param T} to {@link String}s. */
-  public static <T> SimpleFunction<T, String> getToJsonStringsFunction() {
-    return new ToJsonFn<T, String>() {
-      @Override
-      public String apply(T input) {
-        return GSON.toJson(input);
-      }
-    };
-  }
-
-  /** Returns a {@link SimpleFunction} mapping byte[] arrays to {@param T}. */
-  public static <T> SimpleFunction<byte[], T> getFromJsonBytesFunction(Class<T> convertFromClass) {
-    return new FromJsonFn<byte[], T>() {
-      @Override
-      public T apply(byte[] input) {
-        String jsonString = byteArrayToJsonString(input);
-        return GSON.fromJson(jsonString, convertFromClass);
-      }
-    };
-  }
-
-  /** Returns a {@link SimpleFunction} mapping {@link String}s to {@param T}. */
-  public static <T> SimpleFunction<String, T> getFromJsonStringFunction(Class<T> convertFromClass) {
-    return new FromJsonFn<String, T>() {
-      @Override
-      public T apply(String input) {
-        return GSON.fromJson(input, convertFromClass);
-      }
-    };
-  }
-
   private abstract static class JsonToRowFn<T> extends SimpleFunction<T, Row> {
     final RowJson.RowJsonDeserializer deserializer;
     final ObjectMapper objectMapper;
@@ -134,14 +91,6 @@ public class JsonUtils {
       serializer = RowJson.RowJsonSerializer.forSchema(beamSchema);
       objectMapper = RowJsonUtils.newObjectMapperWith(serializer);
     }
-  }
-
-  private abstract static class ToJsonFn<UserT, JsonT> extends SimpleFunction<UserT, JsonT> {
-    static final Gson GSON = new Gson();
-  }
-
-  private abstract static class FromJsonFn<JsonT, UserT> extends SimpleFunction<JsonT, UserT> {
-    static final Gson GSON = new Gson();
   }
 
   static byte[] jsonStringToByteArray(String jsonString) {

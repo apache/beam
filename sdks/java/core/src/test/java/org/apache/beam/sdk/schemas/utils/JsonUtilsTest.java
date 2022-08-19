@@ -88,44 +88,6 @@ public class JsonUtilsTest {
     }
   }
 
-  @Test
-  public void testGetToJsonBytesFunction() {
-    for (TestCase<? extends RowEncodable> caze : testCases) {
-      byte[] expected = caze.jsonBytes;
-      byte[] actual = JsonUtils.getToJsonBytesFunction().apply(caze.userT);
-      assertJsonEquals(caze.userT.toString(), expected, actual);
-    }
-  }
-
-  @Test
-  public void testGetToJsonStringsFunction() {
-    for (TestCase<? extends RowEncodable> caze : testCases) {
-      String expected = caze.jsonString;
-      String actual = JsonUtils.getToJsonStringsFunction().apply(caze.userT);
-      assertJsonEquals(caze.userT.toString(), expected, actual);
-    }
-  }
-
-  @Test
-  public void testGetFromJsonBytesFunction() {
-    for (TestCase<? extends RowEncodable> caze : testCases) {
-      Object expected = caze.userT;
-      Object actual =
-          JsonUtils.getFromJsonBytesFunction(caze.userT.getClass()).apply(caze.jsonBytes);
-      assertEquals(caze.userT.toString(), expected, actual);
-    }
-  }
-
-  @Test
-  public void testGetFromJsonStringFunction() {
-    for (TestCase<? extends RowEncodable> caze : testCases) {
-      Object expected = caze.userT;
-      Object actual =
-          JsonUtils.getFromJsonStringFunction(caze.userT.getClass()).apply(caze.jsonString);
-      assertEquals(caze.userT.toString(), expected, actual);
-    }
-  }
-
   private static <T extends RowEncodable> TestCase<T> testCase(T cat) {
     return new TestCase<>(cat);
   }
