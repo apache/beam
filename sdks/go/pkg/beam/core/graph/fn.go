@@ -1272,9 +1272,8 @@ func validateState(fn *DoFn, numIn mainInputs) error {
 				err := errors.Errorf("Duplicate state key %v", k)
 				return errors.SetTopLevelMsgf(err, "Duplicate state key %v used by %v and %v. Ensure that state keys are"+
 					"unique per DoFn", k, orig, s)
-			} else {
-				stateKeys[k] = s
 			}
+			stateKeys[k] = s
 		}
 
 		// TODO(#22736) - Remove this once state is fully supported
