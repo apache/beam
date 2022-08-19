@@ -83,7 +83,7 @@ const (
 	FnBundleFinalization FnParamKind = 0x800
 	// FnWatermarkEstimator indicates a function input parameter that implements sdf.WatermarkEstimator
 	FnWatermarkEstimator FnParamKind = 0x1000
-	// FnState indicates a function input parameter that implements state.Provider
+	// FnStateProvider indicates a function input parameter that implements state.Provider
 	FnStateProvider FnParamKind = 0x2000
 )
 
