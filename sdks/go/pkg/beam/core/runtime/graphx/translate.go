@@ -833,7 +833,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 		if err != nil {
 			return handleErr(err)
 		}
-		windowCoderId, err := m.coders.AddWindowCoder(coderID)
+		windowCoderID, err := m.coders.AddWindowCoder(coderID)
 		if err != nil {
 			return handleErr(err)
 		}
@@ -856,7 +856,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 				// TODO(BEAM-3304): migrate to user side operations once trigger support is in.
 				EnvironmentId:   m.addDefaultEnv(),
 				MergeStatus:     pipepb.MergeStatus_NON_MERGING,
-				WindowCoderId:   windowCoderId,
+				WindowCoderId:   windowCoderID,
 				ClosingBehavior: pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
 				AllowedLateness: int64(in.From.WindowingStrategy().AllowedLateness),
 				OnTimeBehavior:  pipepb.OnTimeBehavior_FIRE_ALWAYS,
@@ -1058,7 +1058,7 @@ func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 	if err != nil {
 		return nil, err
 	}
-	windowCoderId, err := c.AddWindowCoder(coderID)
+	windowCoderID, err := c.AddWindowCoder(coderID)
 	if err != nil {
 		return nil, err
 	}
@@ -1072,7 +1072,7 @@ func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 	ws := &pipepb.WindowingStrategy{
 		WindowFn:         windowFn,
 		MergeStatus:      mergeStat,
-		WindowCoderId:    windowCoderId,
+		WindowCoderId:    windowCoderID,
 		Trigger:          makeTrigger(w.Trigger),
 		AccumulationMode: makeAccumulationMode(w.AccumulationMode),
 		OutputTime:       pipepb.OutputTime_END_OF_WINDOW,
