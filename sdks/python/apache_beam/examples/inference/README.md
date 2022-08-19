@@ -248,14 +248,14 @@ To use this transform, you need a dataset and model for language modeling.
 To run the MNIST classification pipeline locally, use the following command:
 ```sh
 python -m apache_beam.examples.inference.sklearn_mnist_classification.py \
-  --input_file INPUT \
+  --input INPUT \
   --output OUTPUT \
   --model_path MODEL_PATH
 ```
 For example:
 ```sh
 python -m apache_beam.examples.inference.sklearn_mnist_classification.py \
-  --input_file mnist_data.csv \
+  --input mnist_data.csv \
   --output predictions.txt \
   --model_path mnist_model_svm.pickle
 ```
@@ -307,3 +307,4 @@ True Price 34000000.0, Predicted Price 28648634.135857
 True Price 31000000.0, Predicted Price 25654277.256461
 ...
 ```
+
