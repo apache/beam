@@ -293,3 +293,15 @@
     color: #f2804d;
   }
 }
+
+#test-link {
+  text-decoration: underline;
+
+  &:hover {
+      color: #f2804d;
+  }
+
+  &:visited {
+    color: gray;
+  }
+}

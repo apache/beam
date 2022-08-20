@@ -10,7 +10,7 @@
  limitations under the License. See accompanying LICENSE file.
 */}}
 
-{{ $auto_data := index $.Site.Data.myjsonfile }}
+{{ $auto_data := index $.Site.Data.latest_capability_matrix }}
 {{ $cap_view := .Get "cap-view" }}
 {{ $index := .Get "cap-index" }}
 {{ $cap_data := index $.Site.Data.capability_matrix (.Get "cap-data") }}
@@ -28,72 +28,7 @@
     {{ T "capability-back" }}
 </a>
 
-{{ range $categories := $auto_data.capability_matrix.categories }}
-{{ $columns := $auto_data.capability_matrix.columns}}
 
-<h3>{{ $categories.description }}</h3>
-
-    <div class="table-container">
-        <div class="table-left big-left">
-        <table>
-            <tr>
-                <th></th>
-            </tr>
-            {{ range $row := $categories.rows }}
-                <tr>
-                    <th>{{ $row.name }}</th>
-                </tr>
-            {{ end }}
-        </table>
-        </div>
-       <div class="table-right big-right">
-        <div id="{{ $categories.description | urlize }}" class="table-headers big-headers">
-            <table>
-                <tr>
-                    {{ range $column := $columns }}
-                        <th>{{ $column.name }}</th>
-                    {{ end }}
-                </tr>
-            </table>
-        </div>
-        <div id="{{ $categories.description | urlize }}" class="table-center big-center">
-            <table>
-                {{ range $row := $categories.rows }}
-                    <tr>
-                        {{ range $val := $row.values }}
-                            <td style='height:0;word-wrap:break-word; background-color:#{{ if eq $val.l1 "Yes" }}{{ index $categories "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $categories "color-p" }}{{ else }}{{ index $categories "color-n" }}{{ end }};border-color:#{{ if eq $val.l1 "Yes" }}{{ index $categories "color-yb" }}{{ else if eq $val.l1 "Partially" }}{{ index $categories "color-pb" }}{{ else }}{{ index $categories "color-nb" }}{{ end }}'>
-                                <!-- {{ partial "documentation/capability-matrix-row" (dict "type" $cap_view "val" $val) }} -->
-                              
-                                <div style="height: 338px; overflow-y: scroll">
-                                    <p>
-                                        {{$val.l1}}: {{$val.l2}}
-                                    </p>
-                                    <br>
-                                    {{range $l3 := $val.l3}}
-                                        {{$l3.name}}
-                                            <br>
-                                        - {{$l3.status}}
-                                            <br>
-                                    {{end}}
-                                    {{range $l4 := $val.l4}}
-                                        {{$l4.name}}
-                                            <br>
-                                        - {{$l4.status}}
-                                            <br>
-                                    {{end}}
-                                </div>
-                               
-                            </td>
-                        {{ end }}
-                    </tr>
-                {{ end }}
-            </table>
-        </div>
-    </div>
-
-</div>
-{{end}}
-{{end}}
 {{ range $i, $category := $cap_data.categories }}
     {{ if eq $i $index}}
         <a class="back-button" href="/documentation/runners/capability-matrix">
@@ -143,6 +78,74 @@
     {{ end }}
 {{ end }}
 
+{{ range getJSON "https://storage.googleapis.com/beam-validates-runner-info/latest_capability_matrix.json" (.Get "capability-matrix") }}
+{{ $columns := .columns}}
+{{ range $categories := .categories}}
+<h3>{{ $categories.description }}</h3>
+<div class="table-container">
+    <div class="table-left big-left">
+    <table>
+        <tr>
+            <th></th>
+        </tr>
+        {{ range $row := $categories.rows }}
+            <tr>
+                <th>{{ $row.name }}</th>
+            </tr>
+        {{ end }}
+    </table>
+    </div>
+   <div class="table-right big-right">
+    <div id="{{ $categories.description | urlize }}" class="table-headers big-headers">
+        <table>
+            <tr>
+                {{ range $column := $columns }}
+                    <th>{{ $column.name }}</th>
+                {{ end }}
+            </tr>
+        </table>
+    </div>
+    <div id="{{ $categories.description | urlize }}" class="table-center big-center">
+        <table>
+            {{ range $row := $categories.rows }}
+                <tr>
+                    {{ range $val := $row.values }}
+                        <td style='height:0;word-wrap:break-word; background-color:#{{ if eq $val.l1 "Yes" }}{{ index $categories "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $categories "color-p" }}{{ else }}{{ index $categories "color-n" }}{{ end }};border-color:#{{ if eq $val.l1 "Yes" }}{{ index $categories "color-yb" }}{{ else if eq $val.l1 "Partially" }}{{ index $categories "color-pb" }}{{ else }}{{ index $categories "color-nb" }}{{ end }}'>
+                            <!-- {{ partial "documentation/capability-matrix-row" (dict "type" $cap_view "val" $val) }} -->
+                          
+                            <div style="height: 338px; overflow-y: scroll">
+                                <p>
+                                    {{$val.l1}}: {{$val.l2}}
+                                </p>
+                                <br>
+                                {{range $l3 := $val.l3}}
+                                    <a id="test-link" href="https://github.com/apache/beam/search?q={{$l3.name}}/">{{$l3.name }}</a>
+
+                                        <br>
+                                    - {{$l3.status}}
+                                        <br>
+                                {{end}}
+                                {{range $l4 := $val.l4}}
+                                    <a id="test-link" href="https://github.com/apache/beam/search?q={{$l4.name}}/">{{$l4.name }}</a>
+
+                                        <br>
+                                    - {{$l4.status}}
+                                        <br>
+                                {{end}}
+                            </div>
+                           
+                        </td>
+                    {{ end }}
+                </tr>
+            {{ end }}
+        </table>
+    </div>
+</div>
+</div>
+{{end}}
+{{end}}
+{{end}}
+
 <script>
     $('.table-headers').bind('wheel',function(e){
         $('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
@@ -150,4 +153,5 @@
     $('.table-center').bind('wheel',function(e){
         $('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
     });
+
 </script>

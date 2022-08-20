@@ -162,10 +162,26 @@ formattedData.capability_matrix.categories[0]['rows'] = Object.keys(
 let jsonFormatted = JSON.stringify(formattedData);
 
 fs.writeFile(
-  'website/www/site/data/myjsonfile.json',
+  'website/www/site/data/latest_capability_matrix.json',
   jsonFormatted,
   'utf8',
   () => {}
 );
+
+// import { Storage } from '@google-cloud/storage';
+
+// const gcs = new Storage({
+//   projectId: 'apache-beam-testing',
+//   keyFilename: 'website/www/site/data/latest-capability-matrix.json',
+// });
+
+// gcs.getBuckets().then((x) => console.log(x));
+
+// const up = () => {
+//   const bucket = gcs.bucket('beam-validates-runner-info');
+//   bucket.upload('./latest_capability_matrix.json', function (err, file) {
+//     if (err) throw new Error(err);
+//   });
+// };
 
 console.log('resultRows', jsonFormatted);

@@ -294,6 +294,18 @@
     }
 }
 
+#test-link {
+    text-decoration: underline;
+  
+    &:hover {
+        color: #f2804d;
+    }
+    
+    &:visited {
+      color: gray;
+    }
+  }
+
 [class*=-switcher],
 .language-switcher,
 nav.version-switcher,

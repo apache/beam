@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@google-cloud/storage": "^6.4.1"
+  },
+  "scripts": {
+    "testRun": "node --experimental-json-modules .test-infra/validate-runner/src/main/js/generate_cap_matrix.js",
+    "upload": "node --experimental-json-modules .test-infra/validate-runner/src/main/js/upload_test_results.js"
+  }
+}

@@ -10,7 +10,7 @@
  limitations under the License. See accompanying LICENSE file.
 */}}
 
-{{ $auto_data := index $.Site.Data.myjsonfile }}
+{{ $auto_data := index $.Site.Data.latest_capability_matrix }}
 {{ $cap_view := .Get "cap-view" }}
 {{ $cap_data := index $.Site.Data.capability_matrix (.Get "cap-data") }}
 {{ if eq (.Get "cap-data") "capability-matrix-snapshot" }}
@@ -54,10 +54,10 @@
     </div>
 </div>
 
-{{ range $categories := $auto_data.capability_matrix.categories }}
-{{ $columns := $auto_data.capability_matrix.columns}}
-
-<h3>{{ $categories.description }} </h3>
+{{ range getJSON "https://storage.googleapis.com/beam-validates-runner-info/latest_capability_matrix.json" (.Get "capability-matrix") }}
+{{ $columns := .columns}}
+{{ range $categories := .categories}}
+<h4>{{ $categories.description }}</h4>
 <div class="table-container">
     <div class="table-left">
         <table>
@@ -70,7 +70,7 @@
                             {{.name}}
                         </th>
                     </tr>
-                {{ end }}
+                {{end}}
         </table>
     </div>
     <div class="table-right">
@@ -86,22 +86,21 @@
         <div id="{{ $categories.description | urlize }}" class="table-center">
             <table>
                 {{ range $row := $categories.rows }}
-
-                <tr>
-                   
-                    {{ range $val := $row.values }}
+                    <tr>
+                        {{ range $val := $row.values }}
                         <td style='background-color:#{{ if eq $val.l1 "Yes" }}{{ index $categories "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $categories "color-p" }}{{ else }}{{ index $categories "color-n" }}{{ end }};border-color:#{{ if eq $val.l1 "Yes" }}{{ index $categories "color-yb" }}{{ else if eq $val.l1 "Partially" }}{{ index $categories "color-pb" }}{{ else }}{{ index $categories "color-nb" }}{{ end }}'>
-                            {{ partial "documentation/capability-matrix-row" (dict "type" $cap_view "val" $val) }}
-                        </td>
-                    {{end}}
-                </tr>
+                                {{ partial "documentation/capability-matrix-row" (dict "type" $cap_view "val" $val) }}
+                            </td>
+                        {{ end }}
+                    </tr>
                 {{ end }}
             </table>
         </div>
     </div>
 </div>
 <a id="table-link" href="/documentation/runners/capability-matrix/{{ $categories.description | urlize }}/">{{ T "capability-go-big" }}</a>
-{{ end }}
+{{end}}
+{{end}}
 
 {{ range $category := $cap_data.categories }}
 <h4>{{ $category.description }}</h4>
