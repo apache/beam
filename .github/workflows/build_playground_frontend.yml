@@ -29,8 +29,8 @@ jobs:
     name: Build Playground Frontend App
     runs-on: ubuntu-latest
     env:
-      GO_VERSION: 1.17.0
-      BEAM_VERSION: 2.33.0
+      GO_VERSION: 1.18.0
+      BEAM_VERSION: 2.40.0
       TERRAFORM_VERSION: 1.0.9
       FLUTTER_VERSION: 3.0.1-stable
       STAND_SUFFIX: ''
