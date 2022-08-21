@@ -48,8 +48,7 @@ func (s *stateProvider) ReadValueState(userStateID string) (interface{}, []state
 		if err != nil {
 			return nil, nil, err
 		}
-		// TODO(#22736) - consider making this a proprty of stateProvider when doing coder refactors
-		dec := MakeElementDecoder(s.codersByKey[userStateID])
+		dec := MakeElementDecoder(coder.SkipW(s.codersByKey[userStateID]))
 		resp, err := dec.Decode(rw)
 		if err != nil && err != io.EOF {
 			return nil, nil, err
@@ -82,8 +81,8 @@ func (s *stateProvider) WriteValueState(val state.Transaction) error {
 		return err
 	}
 	fv := FullValue{Elm: val.Val}
-	// TODO(#22736) - consider making this a proprty of stateProvider when doing coder refactors
-	enc := MakeElementEncoder(s.codersByKey[val.Key])
+	// TODO(#22736) - consider caching this a proprty of stateProvider
+	enc := MakeElementEncoder(coder.SkipW(s.codersByKey[val.Key]))
 	err = enc.Encode(&fv, ap)
 	if err != nil {
 		return err
@@ -160,9 +159,6 @@ func NewUserStateAdapter(sid StreamID, c *coder.Coder, stateIDToCoder map[string
 		panic(fmt.Sprintf("expected WV coder for user state %v: %v", sid, c))
 	}
 
-	// TODO(##22736) - the coding logic here (and elsewhere around state) needs to be revisited before fully enabling state.
-	// This doesn't work for all coder types and is a placeholder to allow other progress to continue.
-	// When that happens, units should be added for this file as well as appropriate.
 	wc := MakeWindowEncoder(c.Window)
 	var kc ElementEncoder
 	if coder.IsKV(coder.SkipW(c)) {
@@ -173,6 +169,9 @@ func NewUserStateAdapter(sid StreamID, c *coder.Coder, stateIDToCoder map[string
 
 // NewStateProvider creates a stateProvider with the ability to talk to the state API.
 func (s *userStateAdapter) NewStateProvider(ctx context.Context, reader StateReader, w typex.Window, element interface{}) (stateProvider, error) {
+	if s.kc == nil {
+		return stateProvider{}, fmt.Errorf("cannot make a state provider for an unkeyed input %v", element)
+	}
 	elementKey, err := EncodeElement(s.kc, element.(*MainInput).Key.Elm)
 	if err != nil {
 		return stateProvider{}, err

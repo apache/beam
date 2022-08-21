@@ -1282,12 +1282,6 @@ func validateState(fn *DoFn, numIn mainInputs) error {
 			}
 			stateKeys[k] = s
 		}
-		if len(ps) > 0 {
-			// TODO(#22736) - Remove this once state is fully supported
-			err := errors.Errorf("ProcessElement uses a StateProvider, but state is not supported in this release.")
-			return errors.SetTopLevelMsgf(err, "ProcessElement uses a StateProvider, but state is not supported in this release. "+
-				"Please try upgrading to a newer release if one exists or wait for state support to be released.")
-		}
 	} else {
 		if len(ps) > 0 {
 			err := errors.Errorf("ProcessElement doesn't use a StateProvider, but State structs are attached to "+
