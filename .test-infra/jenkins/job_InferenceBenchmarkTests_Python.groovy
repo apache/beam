@@ -111,7 +111,7 @@ def loadTestConfigurations = {
       ]
     ],
     [
-      title             : 'Pytorch Lanugaue Modeling using Hugging face bert-base-uncased model',
+      title             : 'Pytorch Lanugaue Modeling using Hugging face bert-large-uncased model',
       test              : 'apache_beam.testing.benchmarks.inference.pytorch_language_modeling_benchmarks',
       runner            : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
