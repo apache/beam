@@ -180,7 +180,8 @@ def run(
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
   if not model_class:
-    model_config = BertConfig(is_decoder=False, return_dict=True)
+    model_config = BertConfig.from_pretrained(
+        known_args.bert_tokenizer, is_decoder=False, return_dict=True)
     model_class = HuggingFaceStripBatchingWrapper
     model_params = {'config': model_config}
 

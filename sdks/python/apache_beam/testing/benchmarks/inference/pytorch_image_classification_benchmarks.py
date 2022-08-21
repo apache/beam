@@ -22,7 +22,6 @@ from apache_beam.examples.inference import pytorch_image_classification
 from apache_beam.testing.load_tests.load_test import LoadTest
 from torchvision import models
 
-# TODO: Decide which models we want to use
 _PERF_TEST_MODELS = ['resnet50', 'resnet101', 'resnet152']
 _PRETRAINED_MODEL_MODULE = 'torchvision.models'
 
