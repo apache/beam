@@ -39,15 +39,11 @@ func (f *valueStateFn) ProcessElement(s state.Provider, w string, c int) string 
 		panic(err)
 	}
 	if !ok {
-		err = f.State1.Write(s, 1)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		f.State1.Write(s, i+1)
-		if err != nil {
-			panic(err)
-		}
+		i = 1
+	}
+	f.State1.Write(s, i+1)
+	if err != nil {
+		panic(err)
 	}
 	return fmt.Sprintf("%s: %v", w, i)
 }
