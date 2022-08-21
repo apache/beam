@@ -105,7 +105,7 @@ def loadTestConfigurations = {
         // args defined in the example.
         input                 : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
         // TODO: make sure the model_state_dict_path weights are accurate.
-        bert_tokenizer        : 'bert-base-uncased'
+        bert_tokenizer        : 'bert-base-uncased',
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-base-uncased.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_' + now + '.txt',
       ]
@@ -132,12 +132,13 @@ def loadTestConfigurations = {
         // args defined in the example.
         input                 : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
         // TODO: make sure the model_state_dict_path weights are accurate.
-        bert_tokenizer        : 'bert-large-uncased'
+        bert_tokenizer        : 'bert-large-uncased',
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-large-uncased.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_' + now + '.txt'
       ]
     ],
   ]
+}
 
 def loadTestJob = { scope ->
   List<Map> testScenarios = loadTestConfigurations()
