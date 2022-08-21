@@ -74,7 +74,6 @@ def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--input_file',
       '--input',
       dest='input',
       required=True,

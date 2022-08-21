@@ -167,7 +167,6 @@ def parse_known_args(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--input',
-      '--input_file',
       dest='input',
       required=True,
       help='Path to the text file containing image names.')

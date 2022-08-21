@@ -76,7 +76,7 @@ class PyTorchInference(unittest.TestCase):
 
     model_state_dict_path = 'gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt'  # pylint: disable=line-too-long
     extra_opts = {
-        'input_file': file_of_image_names,
+        'input': file_of_image_names,
         'output': output_file,
         'model_state_dict_path': model_state_dict_path,
     }
