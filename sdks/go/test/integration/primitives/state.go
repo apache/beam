@@ -20,8 +20,13 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
+
+func init() {
+	register.DoFn3x1[state.Provider, string, int, string](&valueStateFn{})
+}
 
 // TruncateFn is an SDF.
 type valueStateFn struct {
