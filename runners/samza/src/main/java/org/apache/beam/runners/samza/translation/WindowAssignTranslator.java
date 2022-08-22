@@ -48,7 +48,7 @@ class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>>
 
     final MessageStream<OpMessage<T>> outputStream =
         inputStream.flatMapAsync(
-            OpAdapter.adapt(new WindowAssignOp<>(windowFn, ctx.getTransformFullName())));
+            OpAdapter.adapt(new WindowAssignOp<>(windowFn), ctx.getTransformFullName()));
 
     ctx.registerMessageStream(output, outputStream);
   }
@@ -75,7 +75,7 @@ class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>>
 
     final MessageStream<OpMessage<T>> outputStream =
         inputStream.flatMapAsync(
-            OpAdapter.adapt(new WindowAssignOp<>(windowFn, ctx.getTransformFullName())));
+            OpAdapter.adapt(new WindowAssignOp<>(windowFn), ctx.getTransformFullName()));
 
     ctx.registerMessageStream(ctx.getOutputId(transform), outputStream);
   }

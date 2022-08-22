@@ -61,8 +61,4 @@ public interface Op<InT, OutT, K> extends Serializable {
   default void processTimer(KeyedTimerData<K> keyedTimerData, OpEmitter<OutT> emitter) {}
 
   default void close() {}
-
-  default String getFullName() {
-    return this.getClass().getName();
-  }
 }

@@ -54,6 +54,7 @@ public class OpAdapter<InT, OutT, K>
   private static final Logger LOG = LoggerFactory.getLogger(OpAdapter.class);
 
   private final Op<InT, OutT, K> op;
+  private final String opName;
   private transient List<OpMessage<OutT>> outputList;
   private transient CompletionStage<Collection<OpMessage<OutT>>> outputFuture;
   private transient Instant outputWatermark;
@@ -63,12 +64,13 @@ public class OpAdapter<InT, OutT, K>
   private transient List<SamzaPipelineExceptionListener.Registrar> exceptionListeners;
 
   public static <InT, OutT, K> AsyncFlatMapFunction<OpMessage<InT>, OpMessage<OutT>> adapt(
-      Op<InT, OutT, K> op) {
-    return new OpAdapter<>(op);
+      Op<InT, OutT, K> op, String opName) {
+    return new OpAdapter<>(op, opName);
   }
 
-  private OpAdapter(Op<InT, OutT, K> op) {
+  private OpAdapter(Op<InT, OutT, K> op, String opName) {
     this.op = op;
+    this.opName = opName;
   }
 
   @Override
@@ -111,13 +113,13 @@ public class OpAdapter<InT, OutT, K>
               String.format("Unexpected input type: %s", message.getType()));
       }
     } catch (Exception e) {
-      LOG.error("Op {} threw an exception during processing", op.getFullName(), e);
+      LOG.error("Op {} threw an exception during processing", opName, e);
       e.addSuppressed(
           new RuntimeException(
-              String.format("Op %s threw an exception during processing", op.getFullName()), e));
+              String.format("Op %s threw an exception during processing", opName), e));
       exceptionListeners.forEach(
           listener -> {
-            listener.getExceptionListener().onException(op.getFullName(), e);
+            listener.getExceptionListener().onException(opName, e);
           });
       throw UserCodeException.wrap(e);
     }

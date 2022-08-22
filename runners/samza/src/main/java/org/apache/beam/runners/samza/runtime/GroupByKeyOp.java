@@ -224,11 +224,6 @@ public class GroupByKeyOp<K, InputT, OutputT>
     timerInternalsFactory.removeProcessingTimer(keyedTimerData);
   }
 
-  @Override
-  public String getFullName() {
-    return this.transformFullName;
-  }
-
   private void fireTimer(K key, TimerData timer) {
     LOG.debug("Firing timer {} for key {}", timer, key);
     fnRunner.processElement(

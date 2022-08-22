@@ -25,11 +25,9 @@ import org.apache.beam.sdk.util.WindowedValue;
 /** Samza operator for {@link org.apache.beam.sdk.transforms.windowing.Window.Assign}. */
 public class WindowAssignOp<T, W extends BoundedWindow> implements Op<T, T, Void> {
   private final WindowFn<T, W> windowFn;
-  private final String transformFullName;
 
-  public WindowAssignOp(WindowFn<T, W> windowFn, String transformFullName) {
+  public WindowAssignOp(WindowFn<T, W> windowFn) {
     this.windowFn = windowFn;
-    this.transformFullName = transformFullName;
   }
 
   @Override
@@ -50,10 +48,5 @@ public class WindowAssignOp<T, W extends BoundedWindow> implements Op<T, T, Void
                     window,
                     inputElement.getPane()))
         .forEach(outputElement -> emitter.emitElement(outputElement));
-  }
-
-  @Override
-  public String getFullName() {
-    return this.transformFullName;
   }
 }

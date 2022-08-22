@@ -24,12 +24,6 @@ import org.apache.beam.sdk.values.KV;
 /** Samza operator to map input stream of {@link KV} to {@link KeyedWorkItem}. */
 public class KvToKeyedWorkItemOp<K, V> implements Op<KV<K, V>, KeyedWorkItem<K, V>, K> {
 
-  private final String transformFullName;
-
-  public KvToKeyedWorkItemOp(String transformFullName) {
-    this.transformFullName = transformFullName;
-  }
-
   @Override
   public void processElement(
       WindowedValue<KV<K, V>> inputElement, OpEmitter<KeyedWorkItem<K, V>> emitter) {
@@ -39,10 +33,5 @@ public class KvToKeyedWorkItemOp<K, V> implements Op<KV<K, V>, KeyedWorkItem<K, 
           new SingletonKeyedWorkItem<>(kv.getKey(), windowedValue.withValue(kv.getValue()));
       emitter.emitElement(windowedValue.withValue(workItem));
     }
-  }
-
-  @Override
-  public String getFullName() {
-    return this.transformFullName;
   }
 }
