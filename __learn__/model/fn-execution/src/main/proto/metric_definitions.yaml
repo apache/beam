@@ -1,0 +1,27 @@
+# Beam metrics - see https://s.apache.org/beam-fn-api-metrics
+- annotations:
+    description: ptransform total estimated execution time
+    unit: msecs
+  labels:
+  - PTRANSFORM
+  type: beam:metrics:SumInt64
+  urn: beam:metric:ptransform_execution_time:total_msecs:v1
+- annotations:
+    description: A pardo's start bundle function's total estimated execution time
+    unit: msecs
+  labels:
+  - PTRANSFORM
+  type: beam:metrics:SumInt64
+  urn: beam:metric:pardo_execution_time:start_bundle_msecs:v1
+- annotations:
+    description: A pardo's finish bundle function's total estimated execution time
+    unit: msecs
+  - label: PTRANSFORM
+  type: beam:metrics:SumInt64
+  urn: beam:metric:pardo_execution_time:finish_bundle_msecs:v1
+- annotations:
+    description: a metric's total elements count
+  labels:
+  - PTRANSFORM
+  type: beam:metrics:SumInt64
+  urn: beam:metric:element_count:v1
