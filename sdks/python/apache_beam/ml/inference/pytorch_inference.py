@@ -44,16 +44,18 @@ def _load_model(
 
   if device == torch.device('cuda') and not torch.cuda.is_available():
     logging.warning(
-        "Specified 'GPU', but could not find device. Switching to CPU.")
+        "Model handler specified a 'GPU' device, but GPUs are not available. " \
+        "Switching to CPU.")
     device = torch.device('cpu')
 
   file = FileSystems.open(state_dict_path, 'rb')
   try:
-    logging.info("Reading state_dict_path %s onto %s", state_dict_path, device)
+    logging.info(
+        "Loading state_dict_path %s onto a %s device", state_dict_path, device)
     state_dict = torch.load(file, map_location=device)
   except RuntimeError as e:
-    message = "Setting to CPU due to an exception while deserializing" \
-      f" state_dict_path. Exception: {e}."
+    message = "Loading the model onto a GPU device failed due to an " \
+      f"exception:\n{e}\nAttempting to load onto a CPU device instead."
     logging.warning(message)
 
     device = torch.device('cpu')

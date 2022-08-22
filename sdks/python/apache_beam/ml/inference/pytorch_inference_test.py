@@ -409,8 +409,8 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
 
       self.assertIn("INFO:root:Device is set to CUDA", log.output)
       self.assertIn(
-          "WARNING:root:Specified 'GPU', but could not find device. " \
-          "Switching to CPU.",
+          "WARNING:root:Model handler specified a 'GPU' device, but GPUs " \
+          "are not available. Switching to CPU.",
           log.output)
 
 
