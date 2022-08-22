@@ -3,6 +3,7 @@ title:  "Apache Beam 2.34.0"
 date:   2021-11-11 00:11:00 -0800
 categories:
   - blog
+  - release
 authors:
   - ibzib
 ---
