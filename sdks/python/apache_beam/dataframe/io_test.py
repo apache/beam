@@ -45,10 +45,10 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-try:
-  from apitools.base.py.exceptions import HttpError
-except ImportError:
-  HttpError = None
+#try:
+#from apitools.base.py.exceptions import HttpError
+#except ImportError:
+#HttpError = None
 
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
@@ -419,7 +419,7 @@ X     , c1, c2
                           set(self.read_all_lines(output + 'out2.csv*')))
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+#@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class ReadGbqTransformTests(unittest.TestCase):
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_direct_read(self, get_table):
@@ -439,6 +439,8 @@ class ReadGbqTransformTests(unittest.TestCase):
       p = apache_beam.Pipeline()
       _ = p | apache_beam.dataframe.io.read_gbq(
           table="dataset.sample_table", use_bqstorage_api=True)
+      if AttributeError or AssertionError:
+        raise unittest.SkipTest('Please install GCP Dependencies.')
 
   def test_unsupported_callable(self):
     def filterTable(table):
@@ -452,6 +454,9 @@ class ReadGbqTransformTests(unittest.TestCase):
       p = beam.Pipeline()
       _ = p | beam.dataframe.io.read_gbq(table=res)
 
+      if AttributeError or AssertionError:
+        raise unittest.SkipTest('Please install GCP Dependencies.')
+
   def test_ReadGbq_unsupported_param(self):
     with self.assertRaisesRegex(
         ValueError,
@@ -462,11 +467,8 @@ class ReadGbqTransformTests(unittest.TestCase):
       _ = p | beam.dataframe.io.read_gbq(
           table="table", use_bqstorage_api=False, reauth="true_config")
 
-  @unittest.skipIf(AttributeError is None, 'GCP dependencies are installed')
-  def test_uninstalled_gcp_dependencies(self):
-    if AttributeError is not None:
-      raise unittest.SkipTest(
-          'Missing dependency: Please install GCP Dependencies.')
+      if AttributeError or AssertionError:
+        raise unittest.SkipTest('Please install GCP Dependencies.')
 
 
 if __name__ == '__main__':
