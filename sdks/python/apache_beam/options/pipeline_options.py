@@ -308,7 +308,9 @@ class PipelineOptions(HasDisplayData):
     # sub-classes in the main session might be repeated. Pick last unique
     # instance of each subclass to avoid conflicts.
     subset = {}
-    parser = _BeamArgumentParser()
+    # set allow_abbrev=False to avoid prefix matching while parsing.
+    # https://docs.python.org/3/library/argparse.html#partial-parsing
+    parser = _BeamArgumentParser(allow_abbrev=False)
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
