@@ -25,11 +25,11 @@ import 'sign_in/sign_in_button.dart';
 import 'toggle_theme_button.dart';
 
 class PageContainer extends StatelessWidget {
-  final Widget content;
+  final Widget child;
 
   const PageContainer({
     super.key,
-    required this.content,
+    required this.child,
   });
 
   @override
@@ -45,7 +45,7 @@ class PageContainer extends StatelessWidget {
       ),
       body: Column(
         children: [
-          Expanded(child: content),
+          Expanded(child: child),
           const Footer(),
         ],
       ),
