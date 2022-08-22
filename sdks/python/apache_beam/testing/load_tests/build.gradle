@@ -48,6 +48,9 @@ task run(type: Exec, dependsOn: installGcpTest) {
         dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
         loadTestArgs +=" --dataflow_worker_jar=${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}"
     }
+    else {
+        dependsOn ':sdks:java:io:debezium:expansion-service:shadowJar'
+    }
 
     setWorkingDir "${project.rootDir}/sdks/python"
     commandLine 'sh', '-c', "${project.ext.envdir}/bin/python -m ${mainClass} --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --ignore-files \'.*py3\\d?\\.py\$\'"
