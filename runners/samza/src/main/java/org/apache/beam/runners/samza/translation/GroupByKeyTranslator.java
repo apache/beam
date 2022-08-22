@@ -100,8 +100,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
             windowingStrategy,
             kvInputCoder,
             elementCoder,
-            ctx.getTransformFullName(),
-            ctx.getTransformId(),
+            ctx,
             outputTag,
             input.isBounded());
 
@@ -175,8 +174,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
         windowingStrategy,
         kvInputCoder,
         elementCoder,
-        ctx.getTransformFullName(),
-        ctx.getTransformId(),
+        ctx,
         outputTag,
         isBounded);
   }
@@ -188,8 +186,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
       KvCoder<K, InputT> kvInputCoder,
       Coder<WindowedValue<KV<K, InputT>>> elementCoder,
-      String transformFullName,
-      String transformId,
+      TranslationContext ctx,
       TupleTag<KV<K, OutputT>> outputTag,
       PCollection.IsBounded isBounded) {
     final MessageStream<OpMessage<KV<K, InputT>>> filteredInputStream =
@@ -207,7 +204,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
                   KVSerde.of(
                       SamzaCoders.toSerde(kvInputCoder.getKeyCoder()),
                       SamzaCoders.toSerde(elementCoder)),
-                  "gbk-" + escape(transformId))
+                  "gbk-" + escape(ctx.getTransformId()))
               .map(kv -> OpMessage.ofElement(kv.getValue()));
     }
 
@@ -219,7 +216,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
 
     final MessageStream<OpMessage<KV<K, OutputT>>> outputStream =
         partitionedInputStream
-            .flatMapAsync(OpAdapter.adapt(new KvToKeyedWorkItemOp<>(), transformFullName))
+            .flatMapAsync(OpAdapter.adapt(new KvToKeyedWorkItemOp<>(), ctx))
             .flatMapAsync(
                 OpAdapter.adapt(
                     new GroupByKeyOp<>(
@@ -228,10 +225,63 @@ class GroupByKeyTranslator<K, InputT, OutputT>
                         reduceFn,
                         windowingStrategy,
                         new DoFnOp.SingleOutputManagerFactory<>(),
-                        transformFullName,
-                        transformId,
+                        ctx.getTransformFullName(),
+                        ctx.getTransformId(),
                         isBounded),
-                    transformFullName));
+                    ctx));
+    return outputStream;
+  }
+
+  private static <K, InputT, OutputT> MessageStream<OpMessage<KV<K, OutputT>>> doTranslateGBK(
+      MessageStream<OpMessage<KV<K, InputT>>> inputStream,
+      boolean needRepartition,
+      SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn,
+      WindowingStrategy<?, BoundedWindow> windowingStrategy,
+      KvCoder<K, InputT> kvInputCoder,
+      Coder<WindowedValue<KV<K, InputT>>> elementCoder,
+      PortableTranslationContext ctx,
+      TupleTag<KV<K, OutputT>> outputTag,
+      PCollection.IsBounded isBounded) {
+    final MessageStream<OpMessage<KV<K, InputT>>> filteredInputStream =
+        inputStream.filter(msg -> msg.getType() == OpMessage.Type.ELEMENT);
+
+    final MessageStream<OpMessage<KV<K, InputT>>> partitionedInputStream;
+    if (!needRepartition) {
+      partitionedInputStream = filteredInputStream;
+    } else {
+      partitionedInputStream =
+          filteredInputStream
+              .partitionBy(
+                  msg -> msg.getElement().getValue().getKey(),
+                  msg -> msg.getElement(),
+                  KVSerde.of(
+                      SamzaCoders.toSerde(kvInputCoder.getKeyCoder()),
+                      SamzaCoders.toSerde(elementCoder)),
+                  "gbk-" + escape(ctx.getTransformId()))
+              .map(kv -> OpMessage.ofElement(kv.getValue()));
+    }
+
+    final Coder<KeyedWorkItem<K, InputT>> keyedWorkItemCoder =
+        KeyedWorkItemCoder.of(
+            kvInputCoder.getKeyCoder(),
+            kvInputCoder.getValueCoder(),
+            windowingStrategy.getWindowFn().windowCoder());
+
+    final MessageStream<OpMessage<KV<K, OutputT>>> outputStream =
+        partitionedInputStream
+            .flatMapAsync(OpAdapter.adapt(new KvToKeyedWorkItemOp<>(), ctx))
+            .flatMapAsync(
+                OpAdapter.adapt(
+                    new GroupByKeyOp<>(
+                        outputTag,
+                        keyedWorkItemCoder,
+                        reduceFn,
+                        windowingStrategy,
+                        new DoFnOp.SingleOutputManagerFactory<>(),
+                        ctx.getTransformFullName(),
+                        ctx.getTransformId(),
+                        isBounded),
+                    ctx));
     return outputStream;
   }
 

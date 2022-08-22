@@ -62,9 +62,7 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       final MessageStream<OpMessage<T>> noOpStream =
           ctx.getDummyStream()
               .flatMapAsync(
-                  OpAdapter.adapt(
-                      (Op<String, T, Void>) (inputElement, emitter) -> {},
-                      ctx.getTransformFullName()));
+                  OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}, ctx));
       ctx.registerMessageStream(output, noOpStream);
       return;
     }

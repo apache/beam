@@ -194,7 +194,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
 
     final MessageStream<OpMessage<RawUnionValue>> taggedOutputStream =
-        mergedStreams.flatMapAsync(OpAdapter.adapt(op, ctx.getTransformFullName()));
+        mergedStreams.flatMapAsync(OpAdapter.adapt(op, ctx));
 
     for (int outputIndex : tagToIndexMap.values()) {
       @SuppressWarnings("unchecked")
@@ -204,8 +204,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
                   message ->
                       message.getType() != OpMessage.Type.ELEMENT
                           || message.getElement().getValue().getUnionTag() == outputIndex)
-              .flatMapAsync(
-                  OpAdapter.adapt(new RawUnionValueToValue(), ctx.getTransformFullName()));
+              .flatMapAsync(OpAdapter.adapt(new RawUnionValueToValue(), ctx));
 
       ctx.registerMessageStream(indexToPCollectionMap.get(outputIndex), outputStream);
     }
@@ -346,7 +345,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
 
     final MessageStream<OpMessage<RawUnionValue>> taggedOutputStream =
-        mergedStreams.flatMapAsync(OpAdapter.adapt(op, ctx.getTransformFullName()));
+        mergedStreams.flatMapAsync(OpAdapter.adapt(op, ctx));
 
     for (int outputIndex : tagToIndexMap.values()) {
       @SuppressWarnings("unchecked")
@@ -356,8 +355,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
                   message ->
                       message.getType() != OpMessage.Type.ELEMENT
                           || message.getElement().getValue().getUnionTag() == outputIndex)
-              .flatMapAsync(
-                  OpAdapter.adapt(new RawUnionValueToValue(), ctx.getTransformFullName()));
+              .flatMapAsync(OpAdapter.adapt(new RawUnionValueToValue(), ctx));
 
       ctx.registerMessageStream(indexToIdMap.get(outputIndex), outputStream);
     }

@@ -26,6 +26,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import org.apache.beam.runners.samza.translation.PortableTranslationContext;
+import org.apache.beam.runners.samza.translation.TranslationContext;
 import org.apache.beam.runners.samza.util.SamzaPipelineExceptionListener;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -64,8 +66,13 @@ public class OpAdapter<InT, OutT, K>
   private transient List<SamzaPipelineExceptionListener.Registrar> exceptionListeners;
 
   public static <InT, OutT, K> AsyncFlatMapFunction<OpMessage<InT>, OpMessage<OutT>> adapt(
-      Op<InT, OutT, K> op, String opName) {
-    return new OpAdapter<>(op, opName);
+      Op<InT, OutT, K> op, PortableTranslationContext ctx) {
+    return new OpAdapter<>(op, ctx.getTransformFullName());
+  }
+
+  public static <InT, OutT, K> AsyncFlatMapFunction<OpMessage<InT>, OpMessage<OutT>> adapt(
+      Op<InT, OutT, K> op, TranslationContext ctx) {
+    return new OpAdapter<>(op, ctx.getTransformFullName());
   }
 
   private OpAdapter(Op<InT, OutT, K> op, String opName) {
