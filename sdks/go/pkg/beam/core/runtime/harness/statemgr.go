@@ -92,7 +92,7 @@ func (s *ScopedStateReader) OpenBagUserStateReader(ctx context.Context, id exec.
 // OpenBagUserStateAppender opens a byte stream for appending user bag state.
 func (s *ScopedStateReader) OpenBagUserStateAppender(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
 	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
-		return newBagUserStateAppender(ch, id, s.instID, userStateID, key, w)
+		return newBagUserStateWriter(ch, id, s.instID, userStateID, key, w, writeTypeAppend)
 	})
 	return wr, err
 }
@@ -100,7 +100,7 @@ func (s *ScopedStateReader) OpenBagUserStateAppender(ctx context.Context, id exe
 // OpenBagUserStateClearer opens a byte stream for clearing user bag state.
 func (s *ScopedStateReader) OpenBagUserStateClearer(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
 	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
-		return newBagUserStateClearer(ch, id, s.instID, userStateID, key, w)
+		return newBagUserStateWriter(ch, id, s.instID, userStateID, key, w, writeTypeClear)
 	})
 	return wr, err
 }
@@ -254,7 +254,7 @@ func newBagUserStateReader(ch *StateChannel, id exec.StreamID, instID instructio
 	}
 }
 
-func newBagUserStateAppender(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte) *stateKeyWriter {
+func newBagUserStateWriter(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, wt writeTypeEnum) *stateKeyWriter {
 	key := &fnpb.StateKey{
 		Type: &fnpb.StateKey_BagUserState_{
 			BagUserState: &fnpb.StateKey_BagUserState{
@@ -269,26 +269,7 @@ func newBagUserStateAppender(ch *StateChannel, id exec.StreamID, instID instruct
 		instID:    instID,
 		key:       key,
 		ch:        ch,
-		writeType: writeTypeAppend,
-	}
-}
-
-func newBagUserStateClearer(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte) *stateKeyWriter {
-	key := &fnpb.StateKey{
-		Type: &fnpb.StateKey_BagUserState_{
-			BagUserState: &fnpb.StateKey_BagUserState{
-				TransformId: id.PtransformID,
-				UserStateId: userStateID,
-				Window:      w,
-				Key:         k,
-			},
-		},
-	}
-	return &stateKeyWriter{
-		instID:    instID,
-		key:       key,
-		ch:        ch,
-		writeType: writeTypeClear,
+		writeType: wt,
 	}
 }
 
