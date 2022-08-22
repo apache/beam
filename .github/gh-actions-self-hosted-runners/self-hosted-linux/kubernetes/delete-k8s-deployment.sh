@@ -14,7 +14,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-kubectl delete -f github-actions-hpa.yml
-kubectl delete -f github-actions-vpa.yml
-kubectl delete -f github-actions-secrets.yml
-kubectl delete -f github-actions-deployment.yml
+kubectl delete -f github-actions-hpa.yml --namespace "$1"
+kubectl delete -f github-actions-vpa.yml --namespace "$1"
+kubectl delete -f github-actions-secrets.yml --namespace "$1"
+kubectl delete -f github-actions-deployment.yml --namespace "$1"

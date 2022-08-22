@@ -71,9 +71,13 @@ These folders contain the required resources to deploy the GitHub Actions self-h
 
 `gcloud container clusters get-credentials $GCP_CLUSTER_NAME --zone $GCP_REGION --project $GCP_PROJECT-ID`
 
+* Create the desired k8s namespace
+
+`kubectl create namespace $NAMESPACE`
+
 * Create the GKE secret from a json file
 
- `kubectl create secret generic $k8s_SECRET_NAME --from-file=key.json=$LOCAL_PATH`
+ `kubectl create secret generic $k8s_SECRET_NAME --from-file=key.json=$LOCAL_PATH --namespace $NAMESPACE`
 
 * Update the `github-actions-secrets.yml` file with its corresponding values encrypted in base64
 
@@ -85,8 +89,12 @@ These folders contain the required resources to deploy the GitHub Actions self-h
 * In case you would like to create the deployment from scratch, run the `run-k8s-deployment.sh` script to execute the Kubernetes deployment in the GKE cluster.
   * **Important: Make sure you have the GKE context selected in your local machine:** `kubectl config current-context`
 
-`./run-k8s-deployment.sh`
+`./run-k8s-deployment.sh $NAMESPACE`
 
 * Otherwise, apply only the changes. **Important: Make sure you have the GKE context selected in your local machine:** `kubectl config current-context`
 
 `kubectl apply -f github-actions-$FILE_NAME.yml`
+
+* In case you would like to delete all the Kubernetes resources, run the `delete-k8s-deployment.sh` script with its corresponding namespace value.
+
+`./delete-k8s-deployment.sh $NAMESPACE`

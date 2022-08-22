@@ -15,11 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Change the access permissions of docker.sock
-sudo chmod 666 /var/run/docker.sock
+# Verify docker and docker compose installation
+docker -v && docker compose version
 
-# Verify gcloud and docker compose installation
-gcloud version && docker compose version
+# Verify gcloud installation
+gcloud version
 
 # Activate the mounted Service Account.
 gcloud auth activate-service-account --key-file="${GOOGLE_APPLICATION_CREDENTIALS}" --no-user-output-enabled

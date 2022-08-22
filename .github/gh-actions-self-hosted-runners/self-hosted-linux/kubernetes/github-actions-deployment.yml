@@ -25,7 +25,7 @@ spec:
   selector:
     matchLabels:
       name: github-actions
-  replicas: 5
+  replicas: 10
   template:
     metadata:
       labels:
@@ -42,19 +42,35 @@ spec:
           env:
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: /var/secrets/google/key.json
+            - name: DOCKER_HOST
+              value: tcp://localhost:2376
+            - name: DOCKER_TLS_VERIFY
+              value: '1'
+            - name: DOCKER_CERT_PATH
+              value: /certs/client
           volumeMounts:
-            - name: docker-sock
-              mountPath:  /var/run/docker.sock
             - name: gcloud-key
               mountPath: /var/secrets/google
+            - name: docker-certs-client
+              mountPath: /certs/client
           resources:
             requests:
               memory: "1028Mi"
               cpu: "2"
+        - name: dind
+          image: docker:20.10.17-dind
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: dind-storage
+              mountPath: /var/lib/docker
+            - name: docker-certs-client
+              mountPath: /certs/client
       volumes:
-        - name: docker-sock
-          hostPath:
-            path: /var/run/docker.sock
         - name: gcloud-key
           secret:
-            secretName: $k8s_SECRET_NAME
+            secretName: $k8s_SECRET_NAME # Replace variable manually
+        - name: dind-storage
+          emptyDir: {}
+        - name: docker-certs-client
+          emptyDir: {}

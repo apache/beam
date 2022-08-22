@@ -40,16 +40,31 @@ Ubuntu Self-hosted runners are stored in Artifact Registry and implemented using
 * Memory : 18 GB
 
 #### Pod
+##### Container 1: gh-actions-runner
 * Image: $LOCAL_IMAGE_NAME LOCATION-docker.pkg.dev/PROJECT-ID/REPOSITORY/IMAGE:latest
 * CPU: 2
 * Memory: 1028 Mi
 * Volumes
-  * docker-sock
   * gcloud-key
-* Secret env variables
-  * Kubernetes Secrets
+  * docker-certs-client
+* Environment variables
+  * Container variables
+    * GOOGLE_APPLICATION_CREDENTIALS
+    * DOCKER_HOST
+    * DOCKER_TLS_VERIFY
+    * DOCKER_CERT_PATH
+  * Kubernetes secret env variables
     * github-actions-secrets
     * gcloud-key
+    
+##### Container 2: dind
+* Image: `docker:20.10.17-dind`
+* Volumes
+  * dind-storage
+  * docker-certs-client
+
+###### Pod Diagram
+![PodDiagram](diagrams/gh-actions-k8s-runners-pod.png)
 
 #### AutoScaling
 * Horizontal Pod Autoscaling
