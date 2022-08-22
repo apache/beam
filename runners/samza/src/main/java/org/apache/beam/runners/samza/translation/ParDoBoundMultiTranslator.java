@@ -543,9 +543,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
   }
 
   static class RawUnionValueToValue<OutT> implements Op<RawUnionValue, OutT, Void> {
-
-    public RawUnionValueToValue() {}
-
     @Override
     public void processElement(WindowedValue<RawUnionValue> inputElement, OpEmitter<OutT> emitter) {
       @SuppressWarnings("unchecked")
