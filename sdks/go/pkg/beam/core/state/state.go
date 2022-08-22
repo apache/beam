@@ -20,14 +20,19 @@ import (
 	"reflect"
 )
 
-// TransactionTypeEnum represents the type of state transaction
+// TransactionTypeEnum represents the type of state transaction (e.g. set, clear)
 type TransactionTypeEnum int32
+
+// StateTypeEnum represents the type of a state instance (e.g. value, bag, etc...)
+type StateTypeEnum int32
 
 const (
 	// TransactionTypeSet is the set transaction type
 	TransactionTypeSet TransactionTypeEnum = 0
 	// TransactionTypeClear is the set transaction type
 	TransactionTypeClear TransactionTypeEnum = 1
+	// StateTypeValue represents a value state
+	StateTypeValue StateTypeEnum = 0
 )
 
 var (
@@ -59,6 +64,7 @@ type Provider interface {
 type PipelineState interface {
 	StateKey() string
 	CoderType() reflect.Type
+	StateType() StateTypeEnum
 }
 
 // Value is used to read and write global pipeline state representing a single value.
@@ -114,6 +120,11 @@ func (s Value[T]) StateKey() string {
 func (s Value[T]) CoderType() reflect.Type {
 	var t T
 	return reflect.TypeOf(t)
+}
+
+// StateType returns the type of the state (in this case always Value).
+func (s Value[T]) StateType() StateTypeEnum {
+	return StateTypeValue
 }
 
 // MakeValueState is a factory function to create an instance of ValueState with the given key.
