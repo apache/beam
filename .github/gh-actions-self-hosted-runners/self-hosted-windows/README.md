@@ -22,7 +22,7 @@ This folder contains the required resources to deploy the GitHub Actions self-ho
 
 #### How to build a new instance template for the instance group?
 
-* Create a new VM Instance using Windows 2019 Datacenter OS with at least 70GB of disk, 2VCPUs and 8 GB of RAM.
+* Create a new VM Instance using Windows 2019 Datacenter OS with at least 70GB of disk, 2vCPUs and 8 GB of RAM.
 
 * Install the following software:
     VS Build Tools 2019

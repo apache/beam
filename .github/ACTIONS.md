@@ -19,15 +19,20 @@
 
 > **PLEASE update this file if you add new GitHub Action or change name/trigger phrase of a GitHub Action.**
 
-## Beam GitHub Actions
+## About GitHub Actions Runners and Self-hosted Runners
+According to GitHub Docs, we can define a GitHub-hosted runner and a self-hosted runner as the following: 
+* A [GitHub-hosted runner](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners) is a new virtual machine (VM) hosted by GitHub with the runner application and other tools preinstalled, and is available with Ubuntu Linux, Windows, or macOS operating systems.
+* A [self-hosted runner](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners) is a system that you deploy and manage to execute jobs from GitHub Actions on GitHub.com.
 
-Currently, we have both GitHub-hosted and self-hosted (GCP cloud) runners for running the GitHub Actions workflows. The majority of our workflows that run in Ubuntu and Windows run in self-hosted runners, except for those that runs on MacOS and the `Monitor Self-Hosted Runners Status` workflow that monitors our GCP self-hosted runners.
+## Apache Beam GitHub Actions
+
+Currently, we have both GitHub-hosted and self-hosted runners for running the GitHub Actions workflows, hosted on Google Cloud Platform(GCP) Virtual Machines and Google Kubernetes Engine(GKE). The majority of our workflows that run in Ubuntu and Windows run in self-hosted runners, except for those that runs on MacOS and the `Monitor Self-Hosted Runners Status` workflow that monitors our GCP self-hosted runners.
 
 ### Getting Started with self-hosted runners
-* The steps for creating your own self-hosted runners for testing your workflows in: `.github/gh-actions-self-hosted-runners/README.md`
+* Refer to [this README](.github/gh-actions-self-hosted-runners/README.md) for the steps for creating your own self-hosted runners for testing your workflows.
 * Depending on your workflow's needs, it must specify the following `runs-on` tags to run in the specified operating system:
   * Ubuntu 20.04 self-hosted runner: `[self-hosted, ubuntu-20.04]`
-  * Windows 2019 self-hosted runner: `[self-hosted,windows-server-2019]`
+  * Windows Server 2019 self-hosted runner: `[self-hosted,windows-server-2019]`
   * MacOS GitHub-hosted runner: `macos-latest`
 * Every workflow that tests the source code, needs to have the workflow trigger `pull_request_target` instead of `pull_request`.
 * The workflow must have set read permissions for all the available scopes and jobs: `permissions: read-all`. It must be set at the top of the `jobs` directive.
