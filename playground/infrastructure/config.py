@@ -60,6 +60,7 @@ class Config:
     CI_CD_LITERAL = Literal["CI", "CD"]
     LINK_PREFIX = "https://github.com/apache/beam/blob/master"
     GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
+    SDK_CONFIG = os.getenv("SDK_CONFIG", "../../playground/sdks.yaml")
 
 
 @dataclass(frozen=True)

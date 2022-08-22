@@ -134,6 +134,8 @@ jobs:
              BEAM_ROOT_DIR="../../"
              BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
              GOOGLE_CLOUD_PROJECT_VALUE=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+             SDK_CONFIG_VALUE="../../playground/sdks.yaml"
+             export SDK_CONFIG="$SDK_CONFIG_VALUE"
              export GOOGLE_CLOUD_PROJECT="$GOOGLE_CLOUD_PROJECT_VALUE"
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8081" && python3 ci_cd.py --step CD --sdk SDK_PYTHON
         working-directory: playground/infrastructure
@@ -152,6 +154,8 @@ jobs:
              BEAM_ROOT_DIR="../../"
              BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
              GOOGLE_CLOUD_PROJECT_VALUE=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+             SDK_CONFIG_VALUE="../../playground/sdks.yaml"
+             export SDK_CONFIG="$SDK_CONFIG_VALUE"
              export GOOGLE_CLOUD_PROJECT="$GOOGLE_CLOUD_PROJECT_VALUE"
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8082" && python3 ci_cd.py --step CD --sdk SDK_GO
         working-directory: playground/infrastructure
@@ -170,6 +174,8 @@ jobs:
              BEAM_ROOT_DIR="../../"
              BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
              GOOGLE_CLOUD_PROJECT_VALUE=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+             SDK_CONFIG_VALUE="../../playground/sdks.yaml"
+             export SDK_CONFIG="$SDK_CONFIG_VALUE"
              export GOOGLE_CLOUD_PROJECT="$GOOGLE_CLOUD_PROJECT_VALUE"
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8080" && python3 ci_cd.py --step CD --sdk SDK_JAVA
         working-directory: playground/infrastructure
