@@ -31,6 +31,7 @@ func init() {
 // TruncateFn is an SDF.
 type valueStateFn struct {
 	State1 state.Value[int]
+	State2 state.Value[string]
 }
 
 func (f *valueStateFn) ProcessElement(s state.Provider, w string, c int) string {
@@ -45,7 +46,19 @@ func (f *valueStateFn) ProcessElement(s state.Provider, w string, c int) string 
 	if err != nil {
 		panic(err)
 	}
-	return fmt.Sprintf("%s: %v", w, i)
+
+	j, ok, err := f.State2.Read(s)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		j = "I"
+	}
+	f.State2.Write(s, j+"I")
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("%s: %v, %s", w, i, j)
 }
 
 // ValueStateParDo tests a DoFn that uses value state.
@@ -56,8 +69,8 @@ func ValueStateParDo() *beam.Pipeline {
 	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
 		emit(w, 1)
 	}, in)
-	counts := beam.ParDo(s, &valueStateFn{State1: state.MakeValueState[int]("key1")}, keyed)
-	passert.Equals(s, counts, "apple: 1", "pear: 1", "peach: 1", "apple: 2", "apple: 3", "pear: 2")
+	counts := beam.ParDo(s, &valueStateFn{State1: state.MakeValueState[int]("key1"), State2: state.MakeValueState[string]("key2")}, keyed)
+	passert.Equals(s, counts, "apple: 1, I", "pear: 1, I", "peach: 1, I", "apple: 2, II", "apple: 3, III", "pear: 2, II")
 
 	return p
 }
