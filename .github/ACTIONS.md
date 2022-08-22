@@ -29,7 +29,7 @@ According to GitHub Docs, we can define a GitHub-hosted runner and a self-hosted
 Currently, we have both GitHub-hosted and self-hosted runners for running the GitHub Actions workflows, hosted on Google Cloud Platform(GCP) Virtual Machines and Google Kubernetes Engine(GKE). The majority of our workflows that run in Ubuntu and Windows run in self-hosted runners, except for those that runs on MacOS and the `Monitor Self-Hosted Runners Status` workflow that monitors our GCP self-hosted runners.
 
 ### Getting Started with self-hosted runners
-* Refer to [this README](.github/gh-actions-self-hosted-runners/README.md) for the steps for creating your own self-hosted runners for testing your workflows.
+* Refer to [this README](./gh-actions-self-hosted-runners/README.md) for the steps for creating your own self-hosted runners for testing your workflows.
 * Depending on your workflow's needs, it must specify the following `runs-on` tags to run in the specified operating system:
   * Ubuntu 20.04 self-hosted runner: `[self-hosted, ubuntu-20.04]`
   * Windows Server 2019 self-hosted runner: `[self-hosted,windows-server-2019]`
