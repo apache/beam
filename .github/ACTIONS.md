@@ -20,7 +20,7 @@
 > **PLEASE update this file if you add new GitHub Action or change name/trigger phrase of a GitHub Action.**
 
 ## About GitHub Actions Runners and Self-hosted Runners
-According to GitHub Docs, we can define a GitHub-hosted runner and a self-hosted runner as the following: 
+According to GitHub Docs, we can define a GitHub-hosted runner and a self-hosted runner as the following:
 * A [GitHub-hosted runner](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners) is a new virtual machine (VM) hosted by GitHub with the runner application and other tools preinstalled, and is available with Ubuntu Linux, Windows, or macOS operating systems.
 * A [self-hosted runner](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners) is a system that you deploy and manage to execute jobs from GitHub Actions on GitHub.com.
 

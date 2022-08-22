@@ -56,7 +56,7 @@ Ubuntu Self-hosted runners are stored in Artifact Registry and implemented using
   * Kubernetes secret env variables
     * github-actions-secrets
     * gcloud-key
-    
+
 ##### Container 2: dind
 * Image: `docker:20.10.17-dind`
 * Volumes
