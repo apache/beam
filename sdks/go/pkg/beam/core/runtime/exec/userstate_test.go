@@ -96,7 +96,6 @@ type testBagReader struct {
 }
 
 func (tbr *testBagReader) Read(buf []byte) (int, error) {
-	//TODO
 	intCoder, err := makeIntCoder()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to construct int coder with error: %v", err))
