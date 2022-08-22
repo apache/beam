@@ -1357,7 +1357,27 @@ Make sure to clean it up, as there may be duplicate or incorrect user names.&lt;
 &lt;p>&lt;strong>NOTE&lt;/strong>: Make sure to include any breaking changes, even to &lt;code>@Experimental&lt;/code> features,
 all major features and bug fixes, and all known issues.&lt;/p>
 &lt;p>&lt;strong>Template:&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>We are happy to present the new {$RELEASE_VERSION} release of Beam.
+&lt;pre>&lt;code>---
+title: &amp;quot;Apache Beam {$RELEASE_VERSION}&amp;quot;
+date: YYYY-MM-DD H:MM:00 Z
+categories:
+- blog
+- release
+authors:
+- {$RELEASE_MANAGER}
+---
+&amp;lt;!--
+Licensed under the Apache License, Version 2.0 (the &amp;quot;License&amp;quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &amp;quot;AS IS&amp;quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&amp;gt;
+We are happy to present the new {$RELEASE_VERSION} release of Beam.
 This release includes both improvements and new functionality.
 See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
 &amp;lt;{$REMOVE_FOR_VALID_SUMMARY_BREAK}!--more--&amp;gt;

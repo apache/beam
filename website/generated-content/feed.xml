@@ -184,7 +184,7 @@ Yichi Zhang
 Yi Hu
 Yiru Tang
 yixiaoshen
-zwestrick&lt;/p></description><link>/blog/beam-2.40.0/</link><pubDate>Sat, 25 Jun 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.40.0/</guid><category>blog</category></item><item><title>Apache Beam 2.39.0</title><description>
+zwestrick&lt;/p></description><link>/blog/beam-2.40.0/</link><pubDate>Sat, 25 Jun 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.40.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.39.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -354,7 +354,7 @@ rvballada,
 sachinag,
 tvalentyn,
 vachan-shetty,
-yirutang&lt;/p></description><link>/blog/beam-2.39.0/</link><pubDate>Wed, 25 May 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.39.0/</guid><category>blog</category></item><item><title>Running Beam SQL in notebooks</title><description>
+yirutang&lt;/p></description><link>/blog/beam-2.39.0/</link><pubDate>Wed, 25 May 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.39.0/</guid><category>blog</category><category>release</category></item><item><title>Running Beam SQL in notebooks</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1313,7 +1313,7 @@ Yichi Zhang
 Yi Hu
 yirutang
 Zachary Houfek
-Zoe&lt;/p></description><link>/blog/beam-2.38.0/</link><pubDate>Wed, 20 Apr 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.38.0/</guid><category>blog</category></item><item><title>Apache Beam 2.37.0</title><description>
+Zoe&lt;/p></description><link>/blog/beam-2.38.0/</link><pubDate>Wed, 20 Apr 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.38.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.37.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1430,7 +1430,7 @@ Valentyn Tymofieiev
 Victor
 Victor Chen
 Vitaly Ivanov
-Yichi Zhang&lt;/p></description><link>/blog/beam-2.37.0/</link><pubDate>Fri, 04 Mar 2022 08:30:00 -0800</pubDate><guid>/blog/beam-2.37.0/</guid><category>blog</category></item><item><title>Upcoming Events for Beam in 2022</title><description>
+Yichi Zhang&lt;/p></description><link>/blog/beam-2.37.0/</link><pubDate>Fri, 04 Mar 2022 08:30:00 -0800</pubDate><guid>/blog/beam-2.37.0/</guid><category>blog</category><category>release</category></item><item><title>Upcoming Events for Beam in 2022</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1623,7 +1623,7 @@ lam206
 laraschmidt
 mosche
 &lt;a href="mailto:msbukal@google.com">msbukal@google.com&lt;/a>
-tvalentyn&lt;/p></description><link>/blog/beam-2.36.0/</link><pubDate>Mon, 07 Feb 2022 10:11:00 -0800</pubDate><guid>/blog/beam-2.36.0/</guid><category>blog</category></item><item><title>Apache Beam 2.35.0</title><description>
+tvalentyn&lt;/p></description><link>/blog/beam-2.36.0/</link><pubDate>Mon, 07 Feb 2022 10:11:00 -0800</pubDate><guid>/blog/beam-2.36.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.35.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1768,4 +1768,4 @@ Udi Meiri
 vachan-shetty
 Valentyn Tymofieiev
 Yichi Zhang
-zhoufek&lt;/p></description><link>/blog/beam-2.35.0/</link><pubDate>Wed, 29 Dec 2021 10:11:00 -0800</pubDate><guid>/blog/beam-2.35.0/</guid><category>blog</category></item></channel></rss>
+zhoufek&lt;/p></description><link>/blog/beam-2.35.0/</link><pubDate>Wed, 29 Dec 2021 10:11:00 -0800</pubDate><guid>/blog/beam-2.35.0/</guid><category>blog</category><category>release</category></item></channel></rss>
