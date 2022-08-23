@@ -81,7 +81,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.41.0] - 2022-08-TODO
+# [2.41.0] - 2022-08-23
 
 ## I/Os
 
