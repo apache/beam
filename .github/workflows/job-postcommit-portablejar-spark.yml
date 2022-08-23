@@ -25,10 +25,9 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-  #  paths: '^sdks/python/test-suites/portable/*'
 
 jobs:
-  java_vr_dataflow_v2:
+  portablejar_spark:
     name: Run PortableJar Spark PostCommit
     runs-on: self-hosted
     steps:
@@ -37,8 +36,9 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Gradle Test Pipeline Jar Spark Runner
+      - name: Setup environment
+        uses: ./.github/actions/setup-self-hosted-action
+      - name: Run Pipeline Jar Spark Runner
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:portable:py37:testPipelineJarSparkRunner
-          gradle-switchs: --continue -Pdocker-pull-licenses

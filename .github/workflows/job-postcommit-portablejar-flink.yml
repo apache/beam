@@ -25,14 +25,11 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-  #  paths: '^sdks/python/test-suites/portable/*'
 
 jobs:
-  java_vr_dataflow_v2:
+  portablejar_flink:
     name: Run PortableJar_Flink PostCommit
     runs-on: self-hosted
-    strategy:
-      fail-fast: false
     timeout-minutes: 120
     steps:
       - name: Checkout code
@@ -40,8 +37,9 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Gradle Test Pipeline Jar Flink Runner
+      - name: Setup environment
+        uses: ./.github/actions/setup-self-hosted-action
+      - name: Run Pipeline Jar Flink Runner
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:portable:py37:testPipelineJarFlinkRunner
-          gradle-switches: --continue -Pdocker-pull-licenses
