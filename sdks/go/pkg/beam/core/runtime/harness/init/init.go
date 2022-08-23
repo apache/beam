@@ -99,6 +99,7 @@ func hook() {
 	}
 
 	if name, id := os.Getenv(cloudProfilingJobName), os.Getenv(cloudProfilingJobID); name != "" && id != "" {
+		fmt.Printf("Cloud Profiling Job Name: %v, Job ID: %v", name, id)
 		cfg := profiler.Config{
 			Service:        name,
 			ServiceVersion: id,

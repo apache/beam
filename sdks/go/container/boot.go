@@ -135,6 +135,7 @@ func main() {
 				if jobId, idExists := metadata["job_id"]; idExists {
 					os.Setenv(cloudProfilingJobName, jobName)
 					os.Setenv(cloudProfilingJobID, jobId)
+					log.Printf("Cloud Profiling Job Name: %v, Job IDL %v", jobName, jobId)
 				} else {
 					log.Println("Required job_id missing from metadata, profiling will not be enabled without it.")
 				}
