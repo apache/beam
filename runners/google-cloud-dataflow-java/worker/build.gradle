@@ -122,6 +122,7 @@ dependencies {
   shadowTest library.java.jsonassert
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
+  shadowTest library.java.powermock
 }
 
 //TODO(https://github.com/apache/beam/issues/19115): checktyle task should be enabled in the future.
