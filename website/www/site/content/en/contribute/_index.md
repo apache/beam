@@ -59,7 +59,7 @@ Here’s a list of things you can do to get started contributing:
     <td>File a bug</td>
     <td class="list-text-size-md">
       <ol class="no-bullet">
-        <li>Create a GitHub issue and mark it as a bug</li>
+        <li>Create a <a href="https://github.com/apache/beam/issues">GitHub issue</a> and mark it as a bug</li>
         <br><span class="text--active">OR</span><br><br>
         <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Bug] &lt;bug summary&gt; and include as much detail as possible.</li>
       </ol>
@@ -69,7 +69,7 @@ Here’s a list of things you can do to get started contributing:
     <td>Propose a feature</td>
     <td class="list-text-size-md">
       <ol class="no-bullet">
-        <li>Create a GitHub issue and mark it as a feature request</li>
+        <li>Create a <a href="https://github.com/apache/beam/issues">GitHub issue</a> and mark it as a feature request</li>
         <br><span class="text--active">OR</span><br><br>
         <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Feature Proposal] &lt;your idea&gt;.</li>
       </ol>

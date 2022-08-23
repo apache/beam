@@ -88,6 +88,8 @@ var directFilters = []string{
 	"TestFhirIO.*",
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
+	// The direct runner does not support user state.
+	"TestValueState",
 }
 
 var portableFilters = []string{
@@ -108,6 +110,8 @@ var portableFilters = []string{
 	"TestFhirIO.*",
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
+	// The portable runner does not support user state.
+	"TestValueState",
 }
 
 var flinkFilters = []string{
@@ -149,6 +153,8 @@ var samzaFilters = []string{
 	"TestFhirIO.*",
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
+	// The samza runner does not support user state.
+	"TestValueState",
 }
 
 var sparkFilters = []string{

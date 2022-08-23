@@ -474,7 +474,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.45.1"
     def guava_version = "31.1-jre"
-    def hadoop_version = "2.10.1"
+    def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
     def httpclient_version = "4.5.13"
@@ -543,7 +543,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_utils                         : "software.amazon.awssdk:utils:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
-        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.12.9",
+        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.11.0",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         cdap_api                                    : "io.cdap.cdap:cdap-api:$cdap_version",
@@ -562,7 +562,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_collections                         : "commons-collections:commons-collections:3.2.2",
         commons_compress                            : "org.apache.commons:commons-compress:1.21",
         commons_csv                                 : "org.apache.commons:commons-csv:1.8",
-        commons_io                                  : "commons-io:commons-io:2.6",
+        commons_io                                  : "commons-io:commons-io:2.7",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
