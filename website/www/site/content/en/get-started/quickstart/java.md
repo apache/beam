@@ -94,7 +94,7 @@ The lines might appear in a different order.
 
 ## Explore the code
 
-The main code file for this quickstart is **App.java** 
+The main code file for this quickstart is **App.java**
 ([GitHub](https://github.com/apache/beam-starter-java/blob/main/src/main/java/com/example/App.java)).
 The code performs the following steps:
 
