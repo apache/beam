@@ -108,9 +108,9 @@ func hook() {
 			fmt.Fprintf(os.Stderr, "failed to start cloud profiler, got %v", err)
 			os.Exit(1)
 		}
+		panic("happy path")
 	} else {
 		fmt.Fprint(os.Stderr, "failed to enable cloud logging, missing name or id")
-		panic("no env")
 	}
 
 	defer func() {
