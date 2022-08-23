@@ -76,7 +76,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	// Check for environment variables for cloud profiling.
 	// If both present, start running profiler.
 	if name, id := os.Getenv("CLOUD_PROF_JOB_NAME"), os.Getenv("CLOUD_PROF_JOB_ID"); name != "" && id != "" {
-		log.Debugf(ctx, "Cloud Profiling Job Name: %v, Job ID: %v", name, id)
+		log.Debugf(ctx, "enabling cloud profiling for job name: %v, job id: %v", name, id)
 		cfg := profiler.Config{
 			Service:        name,
 			ServiceVersion: id,
