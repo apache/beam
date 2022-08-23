@@ -1114,7 +1114,10 @@ class BeamModulePlugin implements Plugin<Project> {
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.7')
-          target project.fileTree(project.projectDir) { include 'src/*/java/**/*.java' }
+          target project.fileTree(project.projectDir) {
+            include 'src/*/java/**/*.java'
+            exclude '**/DefaultPackageTest.java'
+          }
         }
       }
 
