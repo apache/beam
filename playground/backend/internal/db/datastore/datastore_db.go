@@ -202,7 +202,7 @@ func (d *Datastore) GetSDKs(ctx context.Context) ([]*entity.SDKEntity, error) {
 //GetCatalog returns all examples
 func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEntity) ([]*pb.Categories, error) {
 	//Retrieving examples
-	exampleQuery := datastore.NewQuery(constants.ExampleKind).Namespace(constants.Namespace)
+	exampleQuery := datastore.NewQuery(constants.ExampleKind).Namespace(utils.GetNamespace(ctx))
 	var examples []*entity.ExampleEntity
 	exampleKeys, err := d.Client.GetAll(ctx, exampleQuery, &examples)
 	if err != nil {
@@ -248,7 +248,7 @@ func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int32) err
 	var hoursDiff = dayDiff * 24
 	boundaryDate := time.Now().Add(-time.Hour * time.Duration(hoursDiff))
 	snippetQuery := datastore.NewQuery(constants.SnippetKind).
-		Namespace(constants.Namespace).
+		Namespace(utils.GetNamespace(ctx)).
 		Filter("lVisited <= ", boundaryDate).
 		Filter("origin =", constants.UserSnippetOrigin).
 		Project("numberOfFiles")
