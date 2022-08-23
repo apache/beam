@@ -17,6 +17,7 @@ package primitives
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
@@ -26,10 +27,10 @@ import (
 
 func init() {
 	register.DoFn3x1[state.Provider, string, int, string](&valueStateFn{})
+	register.DoFn3x1[state.Provider, string, int, string](&bagStateFn{})
 	register.Emitter2[string, int]()
 }
 
-// TruncateFn is an SDF.
 type valueStateFn struct {
 	State1 state.Value[int]
 	State2 state.Value[string]
@@ -43,7 +44,7 @@ func (f *valueStateFn) ProcessElement(s state.Provider, w string, c int) string 
 	if !ok {
 		i = 1
 	}
-	f.State1.Write(s, i+1)
+	err = f.State1.Write(s, i+1)
 	if err != nil {
 		panic(err)
 	}
@@ -55,7 +56,7 @@ func (f *valueStateFn) ProcessElement(s state.Provider, w string, c int) string 
 	if !ok {
 		j = "I"
 	}
-	f.State2.Write(s, j+"I")
+	err = f.State2.Write(s, j+"I")
 	if err != nil {
 		panic(err)
 	}
@@ -72,6 +73,56 @@ func ValueStateParDo() *beam.Pipeline {
 	}, in)
 	counts := beam.ParDo(s, &valueStateFn{State1: state.MakeValueState[int]("key1"), State2: state.MakeValueState[string]("key2")}, keyed)
 	passert.Equals(s, counts, "apple: 1, I", "pear: 1, I", "peach: 1, I", "apple: 2, II", "apple: 3, III", "pear: 2, II")
+
+	return p
+}
+
+type bagStateFn struct {
+	State1 state.Bag[int]
+	State2 state.Bag[string]
+}
+
+func (f *bagStateFn) ProcessElement(s state.Provider, w string, c int) string {
+	i, ok, err := f.State1.Read(s)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		i = []int{}
+	}
+	err = f.State1.Add(s, 1)
+	if err != nil {
+		panic(err)
+	}
+
+	j, ok, err := f.State2.Read(s)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		j = []string{}
+	}
+	err = f.State2.Add(s, "I")
+	if err != nil {
+		panic(err)
+	}
+	sum := 0
+	for _, val := range i {
+		sum += val
+	}
+	return fmt.Sprintf("%s: %v, %s", w, sum, strings.Join(j, ","))
+}
+
+// ValueStateParDo tests a DoFn that uses value state.
+func BagStateParDo() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear")
+	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
+		emit(w, 1)
+	}, in)
+	counts := beam.ParDo(s, &valueStateFn{State1: state.MakeValueState[int]("key1"), State2: state.MakeValueState[string]("key2")}, keyed)
+	passert.Equals(s, counts, "apple: 0, ", "pear: 0, ", "peach: 0, ", "apple: 1, I", "apple: 2, II", "pear: 1, I")
 
 	return p
 }
