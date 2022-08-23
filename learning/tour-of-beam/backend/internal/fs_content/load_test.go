@@ -8,6 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func genUnitNode(id string) tob.Node {
+	return tob.Node{Type: tob.NODE_UNIT, Unit: &tob.Unit{
+		Id: id, Name: "Challenge Name",
+		Description: "## Challenge description\n\nbla bla bla",
+		Hints: []string{
+			"## Hint 1\n\napply yourself :)",
+			"## Hint 2\n\napply more",
+		},
+	}}
+}
+
 func TestSample(t *testing.T) {
 	trees, err := CollectLearningTree(filepath.Join("..", "..", "samples", "learning-content"))
 	assert.Nil(t, err)
@@ -17,28 +28,14 @@ func TestSample(t *testing.T) {
 		Modules: []tob.Module{
 			{Id: "module1", Name: "Module One", Complexity: "BASIC",
 				Nodes: []tob.Node{
-					{Type: tob.NODE_UNIT, Unit: tob.Unit{Id: "example1", Name: "Example Unit Name"}},
-					{Type: tob.NODE_UNIT, Unit: tob.Unit{
-						Id: "challenge1", Name: "Challenge Name",
-						Description: []byte("## Challenge description\n\nbla bla bla"),
-						Hints: [][]byte{
-							[]byte("## Hint 1\n\napply yourself :)"),
-							[]byte("## Hint 2\n\napply more"),
-						},
-					}},
+					{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "example1", Name: "Example Unit Name"}},
+					genUnitNode("challenge1"),
 				},
 			},
 			{Id: "module2", Name: "Module Two", Complexity: "MEDIUM",
 				Nodes: []tob.Node{
-					{Type: tob.NODE_UNIT, Unit: tob.Unit{Id: "example21", Name: "Example Unit Name"}},
-					{Type: tob.NODE_UNIT, Unit: tob.Unit{
-						Id: "challenge21", Name: "Challenge Name",
-						Description: []byte("## Challenge description\n\nbla bla bla"),
-						Hints: [][]byte{
-							[]byte("## Hint 1\n\napply yourself :)"),
-							[]byte("## Hint 2\n\napply more"),
-						},
-					}},
+					{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "example21", Name: "Example Unit Name"}},
+					genUnitNode("challenge21"),
 				},
 			},
 		},
@@ -48,17 +45,10 @@ func TestSample(t *testing.T) {
 		Modules: []tob.Module{
 			{Id: "module1", Name: "Module One", Complexity: "BASIC",
 				Nodes: []tob.Node{
-					{Type: tob.NODE_GROUP, Group: tob.Group{
+					{Type: tob.NODE_GROUP, Group: &tob.Group{
 						Name: "The Group", Nodes: []tob.Node{
-							{Type: tob.NODE_UNIT, Unit: tob.Unit{Id: "example1", Name: "Example Unit Name"}},
-							{Type: tob.NODE_UNIT, Unit: tob.Unit{
-								Id: "challenge1", Name: "Challenge Name",
-								Description: []byte("## Challenge description\n\nbla bla bla"),
-								Hints: [][]byte{
-									[]byte("## Hint 1\n\napply yourself :)"),
-									[]byte("## Hint 2\n\napply more"),
-								},
-							}},
+							{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "example1", Name: "Example Unit Name"}},
+							genUnitNode("challenge1"),
 						},
 					},
 					},

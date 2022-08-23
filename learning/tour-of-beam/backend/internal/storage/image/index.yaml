@@ -4,7 +4,16 @@ indexes:
   properties:
     - name: order
 
+- kind: tb_learning_group
+  ancestor: yes
+  properties:
+    - name: level
+    - name: order
+
 - kind: tb_learning_unit
   ancestor: yes
   properties:
+    - name: level
     - name: order
+    - name: id
+    - name: name

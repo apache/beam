@@ -5,8 +5,8 @@ type Unit struct {
 	Name string `json:"name"`
 
 	// optional
-	Description       []byte   `json:"description,omitempty"`
-	Hints             [][]byte `json:"hints,omitempty"`
+	Description       string   `json:"description,omitempty"`
+	Hints             []string `json:"hints,omitempty"`
 	TaskSnippetId     string   `json:"taskSnippetId,omitempty"`
 	SolutionSnippetId string   `json:"solutionSnippetId,omitempty"`
 	TaskName          string   `json:"-"`
@@ -25,34 +25,22 @@ const (
 	NODE_GROUP
 )
 
-func (t NodeType) String() string {
-	switch t {
-	case NODE_UNDEFINED:
-		return "NODE_UNDEFINED"
-	case NODE_UNIT:
-		return "NODE_UNIT"
-	case NODE_GROUP:
-		return "NODE_GROUP"
-	}
-	panic("Unknown node type")
-}
-
 type Group struct {
 	Name  string `json:"name"`
-	Nodes []Node `json:"items"`
+	Nodes []Node `json:"nodes"`
 }
 
 type Node struct {
-	Type  NodeType
-	Group Group
-	Unit  Unit
+	Type  NodeType `json:"type"`
+	Group *Group   `json:"group,omitempty"`
+	Unit  *Unit    `json:"unit,omitempty"`
 }
 
 type Module struct {
 	Id         string `json:"moduleId"`
 	Name       string `json:"name"`
 	Complexity string `json:"complexity"`
-	Nodes      []Node `json:"items"`
+	Nodes      []Node `json:"nodes"`
 }
 
 type ContentTree struct {

@@ -17,14 +17,14 @@ func NewUnitBuilder(info learningUnitInfo) UnitBuilder {
 	}}
 }
 
-func (b *UnitBuilder) AddDescription(d []byte) {
+func (b *UnitBuilder) AddDescription(d string) {
 	b.Description = d
 }
 
-func (b *UnitBuilder) AddHint(h []byte) {
+func (b *UnitBuilder) AddHint(h string) {
 	b.Hints = append(b.Hints, h)
 }
 
-func (b *UnitBuilder) Build() tob.Unit {
-	return b.Unit
+func (b *UnitBuilder) Build() *tob.Unit {
+	return &b.Unit
 }

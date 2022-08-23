@@ -1,27 +1,69 @@
 package storage
 
-import tob "beam.apache.org/learning/tour-of-beam/backend/internal"
+import (
+	"fmt"
 
-func (lm *TbLearningUnit) ToEntity() tob.UnitContent {
-	return tob.UnitContent{Unit: tob.Unit{Id: lm.Id, Name: lm.Name}}
+	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
+	"cloud.google.com/go/datastore"
+)
+
+func sdk2Key(sdk tob.Sdk) string {
+	switch sdk {
+	case tob.SDK_GO:
+		return "SDK_GO"
+	case tob.SDK_PYTHON:
+		return "SDK_PYTHON"
+	case tob.SDK_JAVA:
+		return "SDK_JAVA"
+	case tob.SDK_SCIO:
+		return "SDK_SCIO"
+	}
+	panic(fmt.Sprintf("Undefined key for sdk: %s", sdk))
 }
 
-func (lm *TbLearningModule) ToEntity() (mod tob.Module) {
-	mod.Id = lm.Id
-	mod.Name = lm.Name
-	mod.Units = make([]tob.UnitContent, len(lm.Units))
-	for i, tbUnit := range lm.Units {
-		mod.Units[i] = tbUnit.ToEntity()
-	}
-	return mod
+func pgNameKey(kind, nameId string, parentKey *datastore.Key) (key *datastore.Key) {
+	key = datastore.NameKey(kind, nameId, parentKey)
+	key.Namespace = PgNamespace
+	return key
 }
 
-func (lp *TbLearningPath) ToEntity() (tree tob.ContentTree) {
-	tree.Sdk = tob.FromString(lp.Sdk)
-	tree.Modules = make([]tob.Module, len(lp.Modules))
-	for i, tbMod := range lp.Modules {
-		tree.Modules[i] = tbMod.ToEntity()
-	}
+// Get entity key from sdk & entity ID
+// SDK_JAVA_{entityID}
+func datastoreKey(kind string, sdk tob.Sdk, id string, parent *datastore.Key) *datastore.Key {
+	name := fmt.Sprintf("%s_%s", sdk2Key(sdk), id)
+	return pgNameKey(kind, name, parent)
+}
 
-	return tree
+func MakeDatastoreUnit(unit *tob.Unit, order, level int) *TbLearningUnit {
+	return &TbLearningUnit{
+		Id:   unit.Id,
+		Name: unit.Name,
+
+		Description:       unit.Description,
+		Hints:             unit.Hints,
+		TaskSnippetId:     unit.TaskSnippetId,
+		SolutionSnippetId: unit.SolutionSnippetId,
+
+		Order: order,
+		Level: level,
+	}
+}
+
+func MakeDatastoreGroup(group *tob.Group, order, level int) *TbLearningGroup {
+	return &TbLearningGroup{
+		Name: group.Name,
+
+		Order: order,
+		Level: level,
+	}
+}
+
+func MakeDatastoreModule(mod *tob.Module, order int) *TbLearningModule {
+	return &TbLearningModule{
+		Id:         mod.Id,
+		Name:       mod.Name,
+		Complexity: mod.Complexity,
+
+		Order: order,
+	}
 }

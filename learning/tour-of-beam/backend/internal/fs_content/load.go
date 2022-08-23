@@ -62,7 +62,7 @@ func NewIdsWatcher() IdsWatcher {
 	return IdsWatcher{make(map[string]struct{})}
 }
 
-func collectUnit(infopath string, ids_watcher *IdsWatcher) (unit tob.Unit, err error) {
+func collectUnit(infopath string, ids_watcher *IdsWatcher) (unit *tob.Unit, err error) {
 	info := loadLearningUnitInfo(infopath)
 	log.Printf("Found Unit %v metadata at %v\n", info.Id, infopath)
 	ids_watcher.CheckId(info.Id)
@@ -82,7 +82,7 @@ func collectUnit(infopath string, ids_watcher *IdsWatcher) (unit tob.Unit, err e
 				if err != nil {
 					return err
 				}
-				builder.AddDescription(content)
+				builder.AddDescription(string(content))
 
 			// Here we rely on that WalkDir entries are lexically sorted
 			case regexp.MustCompile(hintMdRegexp).MatchString(d.Name()):
@@ -90,7 +90,7 @@ func collectUnit(infopath string, ids_watcher *IdsWatcher) (unit tob.Unit, err e
 				if err != nil {
 					return err
 				}
-				builder.AddHint(content)
+				builder.AddHint(string(content))
 			}
 			return nil
 		})
@@ -98,19 +98,19 @@ func collectUnit(infopath string, ids_watcher *IdsWatcher) (unit tob.Unit, err e
 	return builder.Build(), err
 }
 
-func collectGroup(infopath string, ids_watcher *IdsWatcher) (tob.Group, error) {
+func collectGroup(infopath string, ids_watcher *IdsWatcher) (*tob.Group, error) {
 	info := loadLearningGroupInfo(infopath)
 	log.Printf("Found Group %v metadata at %v\n", info.Name, infopath)
 	group := tob.Group{Name: info.Name}
 	for _, item := range info.Content {
 		node, err := collectNode(filepath.Join(infopath, "..", item), ids_watcher)
 		if err != nil {
-			return group, err
+			return &group, err
 		}
 		group.Nodes = append(group.Nodes, node)
 	}
 
-	return group, nil
+	return &group, nil
 }
 
 // Collect node which is either a unit or a group
