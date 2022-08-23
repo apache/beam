@@ -104,7 +104,9 @@ func hook() {
 			Service:        name,
 			ServiceVersion: id,
 		}
-		profiler.Start(cfg)
+		if err := profiler.Start(cfg); err != nil {
+			panic(fmt.Sprintf("failed to start cloud profiler, got %v", err))
+		}
 	}
 
 	defer func() {
