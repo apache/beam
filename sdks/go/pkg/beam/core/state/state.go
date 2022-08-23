@@ -35,7 +35,7 @@ const (
 	TransactionTypeAppend TransactionTypeEnum = 2
 	// StateTypeValue represents a value state
 	StateTypeValue StateTypeEnum = 0
-	// StateTypeValue represents a bag state
+	// StateTypeBag represents a bag state
 	StateTypeBag StateTypeEnum = 1
 )
 
