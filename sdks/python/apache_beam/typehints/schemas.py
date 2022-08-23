@@ -34,6 +34,7 @@ Imposes a mapping between common Python types and Beam portable schemas
   bytes       <-----> BYTES
   ByteString  ------> BYTES
   Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
+  Timestamp   <------ LogicalType(urn="beam:logical_type:millis_instant:v1")
   Mapping     <-----> MapType
   Sequence    <-----> ArrayType
   NamedTuple  <-----> RowType
@@ -85,7 +86,6 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
 
-DATETIME_URN = "beam:logical_type:datetime:v1"
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
 
 # Bi-directional mappings
@@ -657,8 +657,8 @@ MicrosInstantRepresentation = NamedTuple(
 
 
 @LogicalType.register_logical_type
-class DateTimeLogicalType(NoArgumentLogicalType[Timestamp, np.int64]):
-  """Datetime logical type handles values consistent with that encoded by
+class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
+  """Millis instant logical type handles values consistent with that encoded by
   InstantCoder in Java sdk.
 
   This class handles Timestamp language type as :class:`MicrosInstant`, but it
@@ -672,16 +672,16 @@ class DateTimeLogicalType(NoArgumentLogicalType[Timestamp, np.int64]):
 
   @classmethod
   def urn(cls):
-    return DATETIME_URN
+    return common_urns.millis_instant.urn
 
   @classmethod
   def language_type(cls):
     return Timestamp
 
 
-# Make sure MicrosInstant is registered after DateTimeLogicalType so that
-# it overwrites the mapping of Timestamp language type representation choice
-# and thus does not lose microsecond precision inside python sdk.
+# Make sure MicrosInstant is registered after MillisInstant so that it
+# overwrites the mapping of Timestamp language type representation choice and
+# thus does not lose microsecond precision inside python sdk.
 @LogicalType.register_logical_type
 class MicrosInstant(NoArgumentLogicalType[Timestamp,
                                           MicrosInstantRepresentation]):

@@ -391,7 +391,7 @@ examples:
 # import typing
 # import apache_beam as beam
 # class Test(typing.NamedTuple):
-#   f_map: typing.Mapping[str,int]
+#   f_map: typing.Mapping[str,typing.Optional[int]]
 # schema = beam.typehints.schemas.named_tuple_to_schema(Test)
 # coder = beam.coders.row_coder.RowCoder(schema)
 # print("payload = %s" % schema.SerializeToString())
