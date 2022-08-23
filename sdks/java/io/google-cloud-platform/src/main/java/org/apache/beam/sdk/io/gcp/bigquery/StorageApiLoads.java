@@ -171,36 +171,8 @@ public class StorageApiLoads<DestinationT, ElementT>
 
     } else {
       PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> shardedRecords =
-          result
-              .get(successfulRowsTag)
-              .apply(
-                  "AddShard",
-                  ParDo.of(
-                      new DoFn<
-                          KV<DestinationT, StorageApiWritePayload>,
-                          KV<ShardedKey<DestinationT>, StorageApiWritePayload>>() {
-                        int shardNumber;
-
-                        @Setup
-                        public void setup() {
-                          shardNumber = ThreadLocalRandom.current().nextInt(numShards);
-                        }
-
-                        @ProcessElement
-                        public void processElement(
-                            @Element KV<DestinationT, StorageApiWritePayload> element,
-                            OutputReceiver<KV<ShardedKey<DestinationT>, StorageApiWritePayload>>
-                                o) {
-                          DestinationT destination = element.getKey();
-                          ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
-                          buffer.putInt(++shardNumber % numShards);
-                          o.output(
-                              KV.of(
-                                  ShardedKey.of(destination, buffer.array()), element.getValue()));
-                        }
-                      }))
+          createShardedKeyValuePairs(result)
               .setCoder(KvCoder.of(ShardedKey.Coder.of(destinationCoder), payloadCoder));
-
       groupedRecords =
           shardedRecords.apply(
               "GroupIntoBatches",
@@ -223,6 +195,35 @@ public class StorageApiLoads<DestinationT, ElementT>
         null,
         failedRowsTag,
         result.get(failedRowsTag));
+  }
+
+  private PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload>>
+      createShardedKeyValuePairs(PCollectionTuple pCollection) {
+    return pCollection
+        .get(successfulRowsTag)
+        .apply(
+            "AddShard",
+            ParDo.of(
+                new DoFn<
+                    KV<DestinationT, StorageApiWritePayload>,
+                    KV<ShardedKey<DestinationT>, StorageApiWritePayload>>() {
+                  int shardNumber;
+
+                  @Setup
+                  public void setup() {
+                    shardNumber = ThreadLocalRandom.current().nextInt(numShards);
+                  }
+
+                  @ProcessElement
+                  public void processElement(
+                      @Element KV<DestinationT, StorageApiWritePayload> element,
+                      OutputReceiver<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> o) {
+                    DestinationT destination = element.getKey();
+                    ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+                    buffer.putInt(++shardNumber % numShards);
+                    o.output(KV.of(ShardedKey.of(destination, buffer.array()), element.getValue()));
+                  }
+                }));
   }
 
   public WriteResult expandUntriggered(

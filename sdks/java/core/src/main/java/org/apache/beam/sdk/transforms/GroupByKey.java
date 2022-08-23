@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark.AfterWatermarkEarlyAndLate;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark.FromEndOfWindow;
@@ -33,7 +35,10 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code GroupByKey<K, V>} takes a {@code PCollection<KV<K, V>>}, groups the values by key and
@@ -169,6 +174,25 @@ public class GroupByKey<K, V>
     }
   }
 
+  @Override
+  public void validate(
+      @Nullable PipelineOptions options,
+      Map<TupleTag<?>, PCollection<?>> inputs,
+      Map<TupleTag<?>, PCollection<?>> outputs) {
+    PCollection<?> input = Iterables.getOnlyElement(inputs.values());
+    KvCoder<K, V> inputCoder = getInputKvCoder(input.getCoder());
+
+    // Ensure that the output coder key and value types aren't different.
+    Coder<?> outputCoder = Iterables.getOnlyElement(outputs.values()).getCoder();
+    KvCoder<?, ?> expectedOutputCoder = getOutputKvCoder(inputCoder);
+    if (!expectedOutputCoder.equals(outputCoder)) {
+      throw new IllegalStateException(
+          String.format(
+              "the GroupByKey requires its output coder to be %s but found %s.",
+              expectedOutputCoder, outputCoder));
+    }
+  }
+
   // Note that Never trigger finishes *at* GC time so it is OK, and
   // AfterWatermark.fromEndOfWindow() finishes at end-of-window time so it is
   // OK if there is no allowed lateness.
@@ -235,7 +259,7 @@ public class GroupByKey<K, V>
    * Returns the {@code Coder} of the input to this transform, which should be a {@code KvCoder}.
    */
   @SuppressWarnings("unchecked")
-  static <K, V> KvCoder<K, V> getInputKvCoder(Coder<KV<K, V>> inputCoder) {
+  static <K, V> KvCoder<K, V> getInputKvCoder(Coder<?> inputCoder) {
     if (!(inputCoder instanceof KvCoder)) {
       throw new IllegalStateException("GroupByKey requires its input to use KvCoder");
     }
@@ -249,12 +273,12 @@ public class GroupByKey<K, V>
    * {@code Coder} of the keys of the output of this transform.
    */
   public static <K, V> Coder<K> getKeyCoder(Coder<KV<K, V>> inputCoder) {
-    return getInputKvCoder(inputCoder).getKeyCoder();
+    return GroupByKey.<K, V>getInputKvCoder(inputCoder).getKeyCoder();
   }
 
   /** Returns the {@code Coder} of the values of the input to this transform. */
   public static <K, V> Coder<V> getInputValueCoder(Coder<KV<K, V>> inputCoder) {
-    return getInputKvCoder(inputCoder).getValueCoder();
+    return GroupByKey.<K, V>getInputKvCoder(inputCoder).getValueCoder();
   }
 
   /** Returns the {@code Coder} of the {@code Iterable} values of the output of this transform. */
