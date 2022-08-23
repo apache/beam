@@ -19,3 +19,7 @@ type IDMeta struct {
 	Salt     string
 	IdLength int8
 }
+
+type DatastoreEntity interface {
+	ExampleEntity | SnippetEntity
+}

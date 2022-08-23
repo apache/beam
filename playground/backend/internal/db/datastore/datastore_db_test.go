@@ -461,10 +461,10 @@ func TestDatastore_GetDefaultExamples(t *testing.T) {
 			clean: func() {
 				for sdk := range pb.Sdk_value {
 					exampleId := utils.GetIDWithDelimiter(sdk, "MOCK_DEFAULT_EXAMPLE")
-					test_cleaner.CleanPCObjs(t, exampleId)
-					test_cleaner.CleanFiles(t, exampleId, 1)
-					test_cleaner.CleanSnippet(t, exampleId)
-					test_cleaner.CleanExample(t, exampleId)
+					test_cleaner.CleanPCObjs(ctx, t, exampleId)
+					test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+					test_cleaner.CleanSnippet(ctx, t, exampleId)
+					test_cleaner.CleanExample(ctx, t, exampleId)
 				}
 			},
 		},
@@ -528,10 +528,10 @@ func TestDatastore_GetExample(t *testing.T) {
 			wantErr: false,
 			clean: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				test_cleaner.CleanPCObjs(t, exampleId)
-				test_cleaner.CleanFiles(t, exampleId, 1)
-				test_cleaner.CleanSnippet(t, exampleId)
-				test_cleaner.CleanExample(t, exampleId)
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}
@@ -588,10 +588,10 @@ func TestDatastore_GetExampleCode(t *testing.T) {
 			wantErr: false,
 			clean: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				test_cleaner.CleanPCObjs(t, exampleId)
-				test_cleaner.CleanFiles(t, exampleId, 1)
-				test_cleaner.CleanSnippet(t, exampleId)
-				test_cleaner.CleanExample(t, exampleId)
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}
@@ -640,10 +640,10 @@ func TestDatastore_GetExampleOutput(t *testing.T) {
 			wantErr: false,
 			clean: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				test_cleaner.CleanPCObjs(t, exampleId)
-				test_cleaner.CleanFiles(t, exampleId, 1)
-				test_cleaner.CleanSnippet(t, exampleId)
-				test_cleaner.CleanExample(t, exampleId)
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}
@@ -692,10 +692,10 @@ func TestDatastore_GetExampleLogs(t *testing.T) {
 			wantErr: false,
 			clean: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				test_cleaner.CleanPCObjs(t, exampleId)
-				test_cleaner.CleanFiles(t, exampleId, 1)
-				test_cleaner.CleanSnippet(t, exampleId)
-				test_cleaner.CleanExample(t, exampleId)
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}
@@ -744,10 +744,10 @@ func TestDatastore_GetExampleGraph(t *testing.T) {
 			wantErr: false,
 			clean: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				test_cleaner.CleanPCObjs(t, exampleId)
-				test_cleaner.CleanFiles(t, exampleId, 1)
-				test_cleaner.CleanSnippet(t, exampleId)
-				test_cleaner.CleanExample(t, exampleId)
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}
@@ -786,25 +786,25 @@ func TestDatastore_DeleteUnusedSnippets(t *testing.T) {
 			args: args{ctx: ctx, dayDiff: 10},
 			prepare: func() {
 				//last visit date is now - 7 days
-				putSnippet("MOCK_ID0", "PG_USER", now.Add(-time.Hour*24*7), 2)
+				putSnippet("MOCK_ID0", constants.UserSnippetOrigin, now.Add(-time.Hour*24*7), 2)
 				//last visit date is now - 10 days
-				putSnippet("MOCK_ID1", "PG_USER", now.Add(-time.Hour*24*10), 4)
+				putSnippet("MOCK_ID1", constants.UserSnippetOrigin, now.Add(-time.Hour*24*10), 4)
 				//last visit date is now - 15 days
-				putSnippet("MOCK_ID2", "PG_USER", now.Add(-time.Hour*24*15), 8)
+				putSnippet("MOCK_ID2", constants.UserSnippetOrigin, now.Add(-time.Hour*24*15), 8)
 				//last visit date is now
-				putSnippet("MOCK_ID3", "PG_USER", now, 1)
+				putSnippet("MOCK_ID3", constants.UserSnippetOrigin, now, 1)
 				//last visit date is now + 2 days
-				putSnippet("MOCK_ID4", "PG_USER", now.Add(time.Hour*24*2), 2)
+				putSnippet("MOCK_ID4", constants.UserSnippetOrigin, now.Add(time.Hour*24*2), 2)
 				//last visit date is now + 10 days
-				putSnippet("MOCK_ID5", "PG_USER", now.Add(time.Hour*24*10), 2)
+				putSnippet("MOCK_ID5", constants.UserSnippetOrigin, now.Add(time.Hour*24*10), 2)
 				//last visit date is now - 18 days
-				putSnippet("MOCK_ID6", "PG_USER", now.Add(-time.Hour*24*18), 3)
+				putSnippet("MOCK_ID6", constants.UserSnippetOrigin, now.Add(-time.Hour*24*18), 3)
 				//last visit date is now - 18 days and origin != PG_USER
-				putSnippet("MOCK_ID7", "PG_EXAMPLES", now.Add(-time.Hour*24*18), 2)
+				putSnippet("MOCK_ID7", constants.ExampleOrigin, now.Add(-time.Hour*24*18), 2)
 				//last visit date is now - 9 days
-				putSnippet("MOCK_ID8", "PG_USER", now.Add(-time.Hour*24*9), 2)
+				putSnippet("MOCK_ID8", constants.UserSnippetOrigin, now.Add(-time.Hour*24*9), 2)
 				//last visit date is now - 11 days
-				putSnippet("MOCK_ID9", "PG_USER", now.Add(-time.Hour*24*11), 2)
+				putSnippet("MOCK_ID9", constants.UserSnippetOrigin, now.Add(-time.Hour*24*11), 2)
 			},
 			wantErr: false,
 		},
