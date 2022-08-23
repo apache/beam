@@ -18,9 +18,9 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:playground_components/dismissible_overlay.dart';
+import 'package:playground_components/constants/sizes.dart';
+import 'package:playground_components/widgets/dismissible_overlay.dart';
 
-import '../../constants/sizes.dart';
 import 'sign_in_overlay_content.dart';
 
 class SignInButton extends StatefulWidget {
@@ -47,8 +47,8 @@ class _SignInButtonState extends State<SignInButton> {
           overlay?.remove();
         },
         child: const Positioned(
-          right: TobSizes.size10,
-          top: TobSizes.appBarHeight,
+          right: BeamSizes.size10,
+          top: BeamSizes.appBarHeight,
           child: SignInOverlayContent(),
         ),
       ),

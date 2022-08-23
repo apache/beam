@@ -18,9 +18,10 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:playground_components/constants/colors.dart';
+import 'package:playground_components/constants/sizes.dart';
 
-import '../../../constants/colors.dart';
-import '../../../constants/sizes.dart';
+import '../../constants/sizes.dart';
 
 class SignInOverlayContent extends StatelessWidget {
   const SignInOverlayContent();
@@ -34,7 +35,7 @@ class SignInOverlayContent extends StatelessWidget {
             'ui.signIn',
             style: Theme.of(context).textTheme.titleLarge,
           ).tr(),
-          const SizedBox(height: TobSizes.size10),
+          const SizedBox(height: BeamSizes.size10),
           const Text(
             'dialogs.signInIf',
             textAlign: TextAlign.center,
@@ -45,7 +46,7 @@ class SignInOverlayContent extends StatelessWidget {
             onPressed: () {},
             child: const Text('ui.continueGitHub').tr(),
           ),
-          const SizedBox(height: TobSizes.size16),
+          const SizedBox(height: BeamSizes.size16),
           ElevatedButton(
             onPressed: () {},
             child: const Text('ui.continueGoogle').tr(),
@@ -63,11 +64,11 @@ class _Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      elevation: TobSizes.size10,
+      elevation: BeamSizes.size10,
       borderRadius: BorderRadius.circular(10),
       child: Container(
         width: TobSizes.authOverlayWidth,
-        padding: const EdgeInsets.all(TobSizes.size24),
+        padding: const EdgeInsets.all(BeamSizes.size24),
         child: child,
       ),
     );
@@ -81,9 +82,9 @@ class _Divider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 20),
-      width: TobSizes.size32,
-      height: TobSizes.size1,
-      color: TobColors.grey3,
+      width: BeamSizes.size32,
+      height: BeamSizes.size1,
+      color: BeamColors.grey3,
     );
   }
 }

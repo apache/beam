@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../constants/colors.dart';
+import '../constants/colors.dart';
 
 class ThemeColorsProvider extends StatelessWidget {
   final ThemeColors data;
@@ -58,27 +58,27 @@ class ThemeColors {
   }) : _background = null;
 
   Color get divider =>
-      isDark ? TobDarkThemeColors.grey : TobLightThemeColors.grey;
+      isDark ? BeamDarkThemeColors.grey : BeamLightThemeColors.grey;
 
   Color get primary =>
-      isDark ? TobDarkThemeColors.primary : TobLightThemeColors.primary;
+      isDark ? BeamDarkThemeColors.primary : BeamLightThemeColors.primary;
 
-  Color get primaryBackgroundTextColor => TobColors.white;
+  Color get primaryBackgroundTextColor => BeamColors.white;
 
-  Color get lightGreyBackgroundTextColor => TobColors.black;
+  Color get lightGreyBackgroundTextColor => BeamColors.black;
 
   Color get secondaryBackground => isDark
-      ? TobDarkThemeColors.secondaryBackground
-      : TobLightThemeColors.secondaryBackground;
+      ? BeamDarkThemeColors.secondaryBackground
+      : BeamLightThemeColors.secondaryBackground;
 
   Color get background =>
       _background ??
       (isDark
-          ? TobDarkThemeColors.primaryBackground
-          : TobLightThemeColors.primaryBackground);
+          ? BeamDarkThemeColors.primaryBackground
+          : BeamLightThemeColors.primaryBackground);
 
   Color get textColor =>
-      isDark ? TobDarkThemeColors.text : TobLightThemeColors.text;
+      isDark ? BeamDarkThemeColors.text : BeamLightThemeColors.text;
 
   Color get progressBackgroundColor =>
       // TODO(nausharipov): reuse these colors after discussion with Anna

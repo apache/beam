@@ -24,34 +24,34 @@ import '../../constants/sizes.dart';
 
 final kLightTheme = ThemeData(
   brightness: Brightness.light,
-  primaryColor: TobLightThemeColors.primary,
-  canvasColor: TobLightThemeColors.primaryBackground,
-  scaffoldBackgroundColor: TobLightThemeColors.secondaryBackground,
-  backgroundColor: TobLightThemeColors.primaryBackground,
-  textTheme: _getTextTheme(TobLightThemeColors.text),
-  textButtonTheme: _getTextButtonTheme(TobLightThemeColors.text),
+  primaryColor: BeamLightThemeColors.primary,
+  canvasColor: BeamLightThemeColors.primaryBackground,
+  scaffoldBackgroundColor: BeamLightThemeColors.secondaryBackground,
+  backgroundColor: BeamLightThemeColors.primaryBackground,
+  textTheme: _getTextTheme(BeamLightThemeColors.text),
+  textButtonTheme: _getTextButtonTheme(BeamLightThemeColors.text),
   outlinedButtonTheme: _getOutlineButtonTheme(
-    TobLightThemeColors.text,
-    TobLightThemeColors.primary,
+    BeamLightThemeColors.text,
+    BeamLightThemeColors.primary,
   ),
-  elevatedButtonTheme: _getElevatedButtonTheme(TobLightThemeColors.primary),
-  appBarTheme: _getAppBarTheme(TobLightThemeColors.secondaryBackground),
+  elevatedButtonTheme: _getElevatedButtonTheme(BeamLightThemeColors.primary),
+  appBarTheme: _getAppBarTheme(BeamLightThemeColors.secondaryBackground),
 );
 
 final kDarkTheme = ThemeData(
   brightness: Brightness.dark,
-  primaryColor: TobDarkThemeColors.primary,
-  canvasColor: TobDarkThemeColors.primaryBackground,
-  scaffoldBackgroundColor: TobDarkThemeColors.secondaryBackground,
-  backgroundColor: TobDarkThemeColors.primaryBackground,
-  textTheme: _getTextTheme(TobDarkThemeColors.text),
-  textButtonTheme: _getTextButtonTheme(TobDarkThemeColors.text),
+  primaryColor: BeamDarkThemeColors.primary,
+  canvasColor: BeamDarkThemeColors.primaryBackground,
+  scaffoldBackgroundColor: BeamDarkThemeColors.secondaryBackground,
+  backgroundColor: BeamDarkThemeColors.primaryBackground,
+  textTheme: _getTextTheme(BeamDarkThemeColors.text),
+  textButtonTheme: _getTextButtonTheme(BeamDarkThemeColors.text),
   outlinedButtonTheme: _getOutlineButtonTheme(
-    TobDarkThemeColors.text,
-    TobDarkThemeColors.primary,
+    BeamDarkThemeColors.text,
+    BeamDarkThemeColors.primary,
   ),
-  elevatedButtonTheme: _getElevatedButtonTheme(TobDarkThemeColors.primary),
-  appBarTheme: _getAppBarTheme(TobDarkThemeColors.secondaryBackground),
+  elevatedButtonTheme: _getElevatedButtonTheme(BeamDarkThemeColors.primary),
+  appBarTheme: _getAppBarTheme(BeamDarkThemeColors.secondaryBackground),
 );
 
 TextTheme _getTextTheme(Color textColor) {
@@ -105,7 +105,7 @@ TextButtonThemeData _getTextButtonTheme(Color textColor) {
   return TextButtonThemeData(
     style: TextButton.styleFrom(
       primary: textColor,
-      shape: _getButtonBorder(TobBorderRadius.large),
+      shape: _getButtonBorder(BeamBorderRadius.large),
     ),
   );
 }
@@ -119,7 +119,7 @@ OutlinedButtonThemeData _getOutlineButtonTheme(
       primary: textColor,
       side: BorderSide(color: outlineColor, width: 3),
       padding: _buttonPadding,
-      shape: _getButtonBorder(TobBorderRadius.small),
+      shape: _getButtonBorder(BeamBorderRadius.small),
     ),
   );
 }
@@ -127,10 +127,10 @@ OutlinedButtonThemeData _getOutlineButtonTheme(
 ElevatedButtonThemeData _getElevatedButtonTheme(Color color) {
   return ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
-      onPrimary: TobColors.white,
+      onPrimary: BeamColors.white,
       primary: color,
       padding: _buttonPadding,
-      elevation: TobSizes.size0,
+      elevation: BeamSizes.size0,
     ),
   );
 }
@@ -138,15 +138,15 @@ ElevatedButtonThemeData _getElevatedButtonTheme(Color color) {
 AppBarTheme _getAppBarTheme(Color backgroundColor) {
   return AppBarTheme(
     color: backgroundColor,
-    elevation: TobSizes.size1,
+    elevation: BeamSizes.size1,
     centerTitle: false,
-    toolbarHeight: TobSizes.appBarHeight,
+    toolbarHeight: BeamSizes.appBarHeight,
   );
 }
 
 const EdgeInsets _buttonPadding = EdgeInsets.symmetric(
-  vertical: TobSizes.size20,
-  horizontal: TobSizes.size40,
+  vertical: BeamSizes.size20,
+  horizontal: BeamSizes.size40,
 );
 
 RoundedRectangleBorder _getButtonBorder(double radius) {

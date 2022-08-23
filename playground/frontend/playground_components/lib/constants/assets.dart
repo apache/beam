@@ -16,7 +16,17 @@
  * limitations under the License.
  */
 
-class TobLinks {
-  static const reportIssue = 'https://github.com/apache/beam/issues';
-  static const privacyPolicy = 'https://beam.apache.org/privacy_policy/';
+String _getSvgPath(String fileName) {
+  return 'assets/svg/$fileName.svg';
+}
+
+String _getPngPath(String fileName) {
+  return 'assets/png/$fileName.png';
+}
+
+class BeamAssets {
+  static final beamLogo = _getPngPath('beam-logo');
+  static final themeMode = _getSvgPath('theme-mode');
+  static final dragHorizontal = _getSvgPath('drag-horizontal');
+  static final dragVertical = _getSvgPath('drag-vertical');
 }

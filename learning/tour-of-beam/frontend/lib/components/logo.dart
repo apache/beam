@@ -17,9 +17,8 @@
  */
 
 import 'package:flutter/material.dart';
-
-import '../constants/assets.dart';
-import '../constants/sizes.dart';
+import 'package:playground_components/constants/assets.dart';
+import 'package:playground_components/constants/sizes.dart';
 
 class Logo extends StatelessWidget {
   const Logo();
@@ -30,8 +29,8 @@ class Logo extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Image.asset(
-          TobAssets.beamLogo,
-          height: TobIconSizes.large,
+          BeamAssets.beamLogo,
+          height: BeamIconSizes.large,
         ),
         const _Text(),
       ],

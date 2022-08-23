@@ -20,13 +20,13 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:playground_components/constants/colors.dart';
+import 'package:playground_components/constants/sizes.dart';
+import 'package:playground_components/theme/color_provider.dart';
 
 import '../../components/complexity.dart';
 import '../../components/page_container.dart';
-import '../../config/theme/colors_provider.dart';
 import '../../constants/assets.dart';
-import '../../constants/colors.dart';
-import '../../constants/sizes.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen();
@@ -61,7 +61,7 @@ class _SdkSelection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
                 _IntroText(),
-                SizedBox(height: TobSizes.size32),
+                SizedBox(height: BeamSizes.size32),
                 _Buttons(),
               ],
             ),
@@ -80,7 +80,7 @@ class _TourSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        vertical: TobSizes.size20,
+        vertical: BeamSizes.size20,
         horizontal: 27,
       ),
       child: Column(
@@ -140,7 +140,7 @@ class _IntroText extends StatelessWidget {
         Container(
           margin: const EdgeInsets.symmetric(vertical: 32),
           height: 2,
-          color: TobColors.grey2,
+          color: BeamColors.grey2,
           constraints: const BoxConstraints(maxWidth: 150),
         ),
         RichText(
@@ -224,7 +224,7 @@ class _SdkButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           side: groupValue == value
               ? null
-              : const BorderSide(color: TobColors.grey1),
+              : const BorderSide(color: BeamColors.grey1),
         ),
         onPressed: () {
           onChanged(value);
@@ -268,13 +268,13 @@ class _ModuleHeader extends StatelessWidget {
           child: Row(
             children: [
               Padding(
-                padding: const EdgeInsets.all(TobSizes.size4),
+                padding: const EdgeInsets.all(BeamSizes.size4),
                 child: SvgPicture.asset(
                   TobAssets.welcomeProgress0,
                   color: ThemeColors.of(context).progressBackgroundColor,
                 ),
               ),
-              const SizedBox(width: TobSizes.size16),
+              const SizedBox(width: BeamSizes.size16),
               Expanded(
                 child: Text(
                   title,
@@ -290,7 +290,7 @@ class _ModuleHeader extends StatelessWidget {
               'complexity.medium',
               style: Theme.of(context).textTheme.headlineSmall,
             ).tr(),
-            const SizedBox(width: TobSizes.size6),
+            const SizedBox(width: BeamSizes.size6),
             const ComplexityWidget(complexity: Complexity.medium),
           ],
         ),
@@ -322,7 +322,7 @@ class _ModuleBody extends StatelessWidget {
           const Text(
             'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam velit purus, tincidunt id velit vitae, mattis dictum velit. Nunc sit amet nunc at turpis eleifend commodo ac ut libero. Aenean rutrum rutrum nulla ut efficitur. Vestibulum pulvinar eros dictum lectus volutpat dignissim vitae quis nisi. Maecenas sem erat, elementum in euismod ut, interdum ac massa.',
           ),
-          const SizedBox(height: TobSizes.size16),
+          const SizedBox(height: BeamSizes.size16),
           Divider(
             color: ThemeColors.of(context).divider,
           ),

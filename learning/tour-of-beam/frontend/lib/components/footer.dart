@@ -18,10 +18,11 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:playground_components/constants/links.dart';
+import 'package:playground_components/constants/sizes.dart';
+import 'package:playground_components/theme/color_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../config/theme/colors_provider.dart';
-import '../constants/links.dart';
 import '../constants/sizes.dart';
 
 class Footer extends StatelessWidget {
@@ -31,7 +32,7 @@ class Footer extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Body(
       child: Wrap(
-        spacing: TobSizes.size16,
+        spacing: BeamSizes.size16,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           const _ReportIssueButton(),
@@ -50,9 +51,11 @@ class _Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
+      height: TobSizes.footerHeight,
       padding: const EdgeInsets.symmetric(
-        vertical: TobSizes.size4,
-        horizontal: TobSizes.size16,
+        vertical: BeamSizes.size4,
+        horizontal: BeamSizes.size16,
       ),
       decoration: BoxDecoration(
         color: ThemeColors.of(context).secondaryBackground,
@@ -60,7 +63,6 @@ class _Body extends StatelessWidget {
           top: BorderSide(color: ThemeColors.of(context).divider),
         ),
       ),
-      width: double.infinity,
       child: child,
     );
   }
@@ -74,7 +76,7 @@ class _ReportIssueButton extends StatelessWidget {
     return TextButton(
       style: _linkButtonStyle,
       onPressed: () {
-        launchUrl(Uri.parse(TobLinks.reportIssue));
+        launchUrl(Uri.parse(BeamLinks.reportIssue));
       },
       child: const Text('ui.reportIssue').tr(),
     );
@@ -89,7 +91,7 @@ class _PrivacyPolicyButton extends StatelessWidget {
     return TextButton(
       style: _linkButtonStyle,
       onPressed: () {
-        launchUrl(Uri.parse(TobLinks.privacyPolicy));
+        launchUrl(Uri.parse(BeamLinks.privacyPolicy));
       },
       child: const Text('ui.privacyPolicy').tr(),
     );
