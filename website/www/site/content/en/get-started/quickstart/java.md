@@ -36,16 +36,26 @@ On this page:
 
 ## Set up your development environment
 
-1. Download and install the
-  [Java Development Kit (JDK)](https://www.oracle.com/technetwork/java/javase/downloads/index.html)
-  version 8, 11, or 17. Verify that the
-  [JAVA_HOME](https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/envvars001.html)
-  environment variable is set and points to your JDK installation.
-2. You can use either Gradle or Apache Maven to run this quickstart:
-    - Gradle: Install [Gradle](https://gradle.org/install/).
-    - Maven: Download [Apache Maven](https://maven.apache.org/download.cgi) and
-     follow the [installation guide](https://maven.apache.org/install.html)
-     for your operating system.
+Use [`sdkman`](https://sdkman.io/) to install the Java Development Kit (JDK).
+
+{{< highlight >}}
+# Instll sdkman
+curl -s "https://get.sdkman.io" | bash
+
+# Install Java 11
+sdk install java 11.0.12-tem
+{{< /highlight >}}
+
+You can use either [Gradle](https://gradle.org/) or
+[Apache Maven](https://maven.apache.org/) to run this quickstart:
+
+{{< highlight >}}
+# Install Gradle
+sdk install gradle
+
+# Install Maven
+sdk install maven
+{{< /highlight >}}
 
 ## Clone the GitHub repository
 
@@ -98,10 +108,10 @@ The code performs the following steps:
 The code first creates a `Pipeline` object. The `Pipeline` object builds up the
 graph of transformations to be executed.
 
-{{< highlight >}}
+```java
 var options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 var pipeline = Pipeline.create(options);
-{{< /highlight >}}
+```
 
 The `PipelineOptions` object lets you set various options for the pipeline. The
 `fromArgs` method shown in this example parses command-line arguments, which
@@ -120,10 +130,10 @@ method to create a `PCollection` from an in-memory array of strings. The
 resulting `PCollection` contains the strings "Hello", "World!", and a
 user-provided input string.
 
-{{< highlight >}}
+```java
 return pipeline
-	.apply("Create elements", Create.of(Arrays.asList("Hello", "World!", inputText)))
-{{< /highlight >}}
+    .apply("Create elements", Create.of(Arrays.asList("Hello", "World!", inputText)))
+```
 
 ### Apply a transform to the PCollection
 
@@ -132,13 +142,13 @@ elements in a `PCollection`. This example uses the
 [`MapElements`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/MapElements.html)
 transform, which maps the elements of a collection into a new collection:
 
-{{< highlight >}}
+```java
 .apply("Print elements",
-		MapElements.into(TypeDescriptors.strings()).via(x -> {
-			System.out.println(x);
-				return x;
-			}));
-{{< /highlight >}}
+        MapElements.into(TypeDescriptors.strings()).via(x -> {
+            System.out.println(x);
+            return x;
+        }));
+```
 
 where
 
@@ -154,9 +164,9 @@ original value. It also prints the value to `System.out` as a side effect.
 The code shown in the previous sections defines a pipeline, but does not
 process any data yet. To process data, you run the pipeline:
 
-{{< highlight >}}
+```java
 pipeline.run().waitUntilFinish();
-{{< /highlight >}}
+```
 
 A Beam [runner](https://beam.apache.org/documentation/basics/#runner) runs a
 Beam pipeline on a specific platform. This example uses the
