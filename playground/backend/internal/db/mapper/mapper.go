@@ -24,7 +24,7 @@ import (
 
 type EntityMapper interface {
 	ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet
-	ToFileEntity(info *pb.SaveSnippetRequest, file *pb.SnippetFile) *entity.FileEntity
+	ToFileEntity(info *pb.SaveSnippetRequest, file *pb.SnippetFile) (*entity.FileEntity, error)
 }
 
 type ResponseMapper interface {
