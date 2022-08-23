@@ -132,7 +132,7 @@ user-provided input string.
 
 ```java
 return pipeline
-    .apply("Create elements", Create.of(Arrays.asList("Hello", "World!", inputText)))
+  .apply("Create elements", Create.of(Arrays.asList("Hello", "World!", inputText)))
 ```
 
 ### Apply a transform to the PCollection
@@ -144,10 +144,10 @@ transform, which maps the elements of a collection into a new collection:
 
 ```java
 .apply("Print elements",
-        MapElements.into(TypeDescriptors.strings()).via(x -> {
-            System.out.println(x);
-            return x;
-        }));
+    MapElements.into(TypeDescriptors.strings()).via(x -> {
+      System.out.println(x);
+      return x;
+    }));
 ```
 
 where
