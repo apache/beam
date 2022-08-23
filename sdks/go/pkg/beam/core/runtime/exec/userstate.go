@@ -34,6 +34,7 @@ type stateProvider struct {
 
 	transactionsByKey map[string][]state.Transaction
 	initialValueByKey map[string]interface{}
+	initialBagByKey   map[string][]interface{}
 	readersByKey      map[string]io.ReadCloser
 	appendersByKey    map[string]io.Writer
 	clearersByKey     map[string]io.Writer
@@ -57,6 +58,7 @@ func (s *stateProvider) ReadValueState(userStateID string) (interface{}, []state
 			return nil, []state.Transaction{}, nil
 		}
 		initialValue = resp.Elm
+		s.initialValueByKey[userStateID] = initialValue
 	}
 
 	transactions, ok := s.transactionsByKey[userStateID]
@@ -91,6 +93,62 @@ func (s *stateProvider) WriteValueState(val state.Transaction) error {
 	// TODO(#22736) - optimize this a bit once all state types are added. In the case of sets/clears,
 	// we can remove the transactions. We can also consider combining other transactions on read (or sooner)
 	// so that we don't need to use as much memory/time replaying transactions.
+	if transactions, ok := s.transactionsByKey[val.Key]; ok {
+		transactions = append(transactions, val)
+		s.transactionsByKey[val.Key] = transactions
+	} else {
+		s.transactionsByKey[val.Key] = []state.Transaction{val}
+	}
+
+	return nil
+}
+
+// ReadBagState reads a ReadBagState state from the State API
+func (s *stateProvider) ReadBagState(userStateID string) ([]interface{}, []state.Transaction, error) {
+	initialValue, ok := s.initialBagByKey[userStateID]
+	if !ok {
+		initialValue = []interface{}{}
+		rw, err := s.getReader(userStateID)
+		if err != nil {
+			return nil, nil, err
+		}
+		dec := MakeElementDecoder(coder.SkipW(s.codersByKey[userStateID]))
+		for err == nil {
+			var resp *FullValue
+			resp, err = dec.Decode(rw)
+			if err == nil {
+				initialValue = append(initialValue, resp.Elm)
+			} else if err != io.EOF {
+				return nil, nil, err
+			}
+		}
+		s.initialBagByKey[userStateID] = initialValue
+	}
+
+	transactions, ok := s.transactionsByKey[userStateID]
+	if !ok {
+		transactions = []state.Transaction{}
+	}
+
+	return initialValue, transactions, nil
+}
+
+// WriteValueState writes a value state to the State API
+// For value states, this is done by clearing a bag state and writing a value to it.
+func (s *stateProvider) WriteBagState(val state.Transaction) error {
+	ap, err := s.getAppender(val.Key)
+	if err != nil {
+		return err
+	}
+	fv := FullValue{Elm: val.Val}
+	// TODO(#22736) - consider caching this a proprty of stateProvider
+	enc := MakeElementEncoder(coder.SkipW(s.codersByKey[val.Key]))
+	err = enc.Encode(&fv, ap)
+	if err != nil {
+		return err
+	}
+
+	// TODO(#22736) - optimize this a bit once all state types are added.
 	if transactions, ok := s.transactionsByKey[val.Key]; ok {
 		transactions = append(transactions, val)
 		s.transactionsByKey[val.Key] = transactions
@@ -189,6 +247,7 @@ func (s *userStateAdapter) NewStateProvider(ctx context.Context, reader StateRea
 		window:            win,
 		transactionsByKey: make(map[string][]state.Transaction),
 		initialValueByKey: make(map[string]interface{}),
+		initialBagByKey:   make(map[string][]interface{}),
 		readersByKey:      make(map[string]io.ReadCloser),
 		appendersByKey:    make(map[string]io.Writer),
 		clearersByKey:     make(map[string]io.Writer),

@@ -469,7 +469,12 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 						stateIDToCoder := make(map[string]*coder.Coder)
 						for key, spec := range userState {
 							// TODO(#22736) - this will eventually need to be aware of which type of state its modifying to support non-Value state types.
-							cID := spec.GetReadModifyWriteSpec().CoderId
+							var cID string
+							if rmw := spec.GetReadModifyWriteSpec(); rmw != nil {
+								cID = rmw.CoderId
+							} else if bs := spec.GetBagSpec(); bs != nil {
+								cID = bs.ElementCoderId
+							}
 							c, err := b.coders.Coder(cID)
 							if err != nil {
 								return nil, err

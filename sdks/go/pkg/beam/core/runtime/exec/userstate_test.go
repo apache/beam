@@ -82,6 +82,7 @@ func buildStateProvider() stateProvider {
 		window:            []byte{1},
 		transactionsByKey: make(map[string][]state.Transaction),
 		initialValueByKey: make(map[string]interface{}),
+		initialBagByKey:   make(map[string][]interface{}),
 		readersByKey:      make(map[string]io.ReadCloser),
 		appendersByKey:    make(map[string]io.Writer),
 		clearersByKey:     make(map[string]io.Writer),

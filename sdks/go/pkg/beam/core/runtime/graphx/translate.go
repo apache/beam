@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -84,6 +85,9 @@ const (
 	URNEnvProcess  = "beam:env:process:v1"
 	URNEnvExternal = "beam:env:external:v1"
 	URNEnvDocker   = "beam:env:docker:v1"
+
+	// Userstate Urns.
+	URNBagUserState = "beam:user_state:bag:v1"
 )
 
 func goCapabilities() []string {
@@ -466,17 +470,31 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 				if err != nil {
 					return handleErr(err)
 				}
-				stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
-					// TODO (#22736) - make spec type and protocol conditional on type of State. Right now, assumes ValueState.
-					// See https://github.com/apache/beam/blob/54b0784da7ccba738deff22bd83fbc374ad21d2e/sdks/go/pkg/beam/model/pipeline_v1/beam_runner_api.pb.go#L2635
-					Spec: &pipepb.StateSpec_ReadModifyWriteSpec{
-						ReadModifyWriteSpec: &pipepb.ReadModifyWriteStateSpec{
-							CoderId: coderID,
+				switch ps.StateType() {
+				case state.StateTypeValue:
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_ReadModifyWriteSpec{
+							ReadModifyWriteSpec: &pipepb.ReadModifyWriteStateSpec{
+								CoderId: coderID,
+							},
 						},
-					},
-					Protocol: &pipepb.FunctionSpec{
-						Urn: "beam:user_state:bag:v1",
-					},
+						Protocol: &pipepb.FunctionSpec{
+							Urn: URNBagUserState,
+						},
+					}
+				case state.StateTypeBag:
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_BagSpec{
+							BagSpec: &pipepb.BagStateSpec{
+								ElementCoderId: coderID,
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
+							Urn: URNBagUserState,
+						},
+					}
+				default:
+					return nil, errors.Errorf("State type %v not recognized for state %v", ps.StateKey(), ps)
 				}
 			}
 			payload.StateSpecs = stateSpecs
