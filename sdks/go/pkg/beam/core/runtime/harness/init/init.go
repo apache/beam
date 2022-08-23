@@ -29,7 +29,6 @@ import (
 
 	"runtime/debug"
 
-	"cloud.google.com/go/profiler"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
 
@@ -72,11 +71,6 @@ func init() {
 	runtime.RegisterInit(hook)
 }
 
-const (
-	cloudProfilingJobName = "CLOUD_PROF_JOB_NAME"
-	cloudProfilingJobID   = "CLOUD_PROF_JOB_ID"
-)
-
 // hook starts the harness, if in worker mode. Otherwise, is a no-op.
 func hook() {
 	if !*worker {
@@ -96,21 +90,6 @@ func hook() {
 			os.Exit(1)
 		}
 		runtime.GlobalOptions.Import(opt.Options)
-	}
-
-	if name, id := os.Getenv(cloudProfilingJobName), os.Getenv(cloudProfilingJobID); name != "" && id != "" {
-		fmt.Fprintf(os.Stderr, "Cloud Profiling Job Name: %v, Job ID: %v", name, id)
-		cfg := profiler.Config{
-			Service:        name,
-			ServiceVersion: id,
-		}
-		if err := profiler.Start(cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to start cloud profiler, got %v", err)
-			os.Exit(1)
-		}
-		panic("happy path")
-	} else {
-		fmt.Fprint(os.Stderr, "failed to enable cloud logging, missing name or id")
 	}
 
 	defer func() {
