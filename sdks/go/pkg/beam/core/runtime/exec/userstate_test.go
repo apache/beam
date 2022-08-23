@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/coderx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
@@ -86,7 +87,8 @@ func buildStateProvider() stateProvider {
 		readersByKey:      make(map[string]io.ReadCloser),
 		appendersByKey:    make(map[string]io.Writer),
 		clearersByKey:     make(map[string]io.Writer),
-		codersByKey:       make(map[string]*coder.Coder), // Each test can specify coders as needed
+		combineFnsByKey:   make(map[string]*graph.CombineFn), // Each test can specify coders as needed
+		codersByKey:       make(map[string]*coder.Coder),     // Each test can specify coders as needed
 	}
 }
 
