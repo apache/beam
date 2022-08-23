@@ -29,6 +29,7 @@ import (
 
 	"runtime/debug"
 
+	"cloud.google.com/go/profiler"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
 
@@ -71,6 +72,11 @@ func init() {
 	runtime.RegisterInit(hook)
 }
 
+const (
+	cloudProfilingJobName = "CLOUD_PROF_JOB_NAME"
+	cloudProfilingJobID   = "CLOUD_PROF_JOB_ID"
+)
+
 // hook starts the harness, if in worker mode. Otherwise, is a no-op.
 func hook() {
 	if !*worker {
@@ -90,6 +96,14 @@ func hook() {
 			os.Exit(1)
 		}
 		runtime.GlobalOptions.Import(opt.Options)
+	}
+
+	if name, id := os.Getenv(cloudProfilingJobName), os.Getenv(cloudProfilingJobID); name != "" && id != "" {
+		cfg := profiler.Config{
+			Service:        name,
+			ServiceVersion: id,
+		}
+		profiler.Start(cfg)
 	}
 
 	defer func() {

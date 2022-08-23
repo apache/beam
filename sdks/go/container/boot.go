@@ -30,6 +30,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+
 	// Import gcs filesystem so that it can be used to upload heap dumps
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -49,6 +50,12 @@ var (
 	provisionEndpoint = flag.String("provision_endpoint", "", "Local provision endpoint for FnHarness (required).")
 	controlEndpoint   = flag.String("control_endpoint", "", "Local control endpoint for FnHarness (required).")
 	semiPersistDir    = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional).")
+)
+
+const (
+	cloudProfilingJobName           = "CLOUD_PROF_JOB_NAME"
+	cloudProfilingJobID             = "CLOUD_PROF_JOB_ID"
+	enableGoogleCloudProfilerOption = "enable_google_cloud_profiler"
 )
 
 func main() {
@@ -119,6 +126,24 @@ func main() {
 
 	if len(info.GetRunnerCapabilities()) > 0 {
 		os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
+	}
+
+	enableGoogleCloudProfiler := strings.Contains(options, enableGoogleCloudProfilerOption)
+	if enableGoogleCloudProfiler {
+		if metadata := info.GetMetadata(); metadata != nil {
+			if jobName, nameExists := metadata["job_name"]; nameExists {
+				if jobId, idExists := metadata["job_id"]; idExists {
+					os.Setenv(cloudProfilingJobName, jobName)
+					os.Setenv(cloudProfilingJobID, jobId)
+				} else {
+					log.Println("Required job_id missing from metadata, profiling will not be enabled without it.")
+				}
+			} else {
+				log.Println("Required job_name missing from metadata, profiling will not be enabled without it.")
+			}
+		} else {
+			log.Println("enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled.")
+		}
 	}
 
 	err = execx.Execute(prog, args...)
