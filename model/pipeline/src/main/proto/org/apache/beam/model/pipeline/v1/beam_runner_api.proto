@@ -564,6 +564,7 @@ message StateSpec {
     MapStateSpec map_spec = 4;
     SetStateSpec set_spec = 5;
     OrderedListStateSpec ordered_list_spec = 6;
+    MultimapStateSpec multimap_spec = 8;
   }
 
   // (Required) URN of the protocol required by this state specification to present
@@ -595,6 +596,11 @@ message CombiningStateSpec {
 }
 
 message MapStateSpec {
+  string key_coder_id = 1;
+  string value_coder_id = 2;
+}
+
+message MultimapStateSpec {
   string key_coder_id = 1;
   string value_coder_id = 2;
 }

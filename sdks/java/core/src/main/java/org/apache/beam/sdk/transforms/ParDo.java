@@ -1064,6 +1064,11 @@ public class ParDo {
           public String dispatchSet(Coder<?> elementCoder) {
             return "SetState<" + elementCoder + ">";
           }
+
+          @Override
+          public String dispatchMultimap(Coder<?> keyCoder, Coder<?> valueCoder) {
+            return "MultimapState<" + keyCoder + ", " + valueCoder + ">";
+          }
         });
   }
 

@@ -87,6 +87,8 @@ public interface StateSpec<StateT extends State> extends Serializable {
 
     ResultT dispatchSet(Coder<?> elementCoder);
 
+    ResultT dispatchMultimap(Coder<?> keyCoder, Coder<?> valueCoder);
+
     /** A base class for a visitor with a default method for cases it is not interested in. */
     abstract class WithDefault<ResultT> implements Cases<ResultT> {
 
@@ -114,6 +116,11 @@ public interface StateSpec<StateT extends State> extends Serializable {
 
       @Override
       public ResultT dispatchSet(Coder<?> elementCoder) {
+        return dispatchDefault();
+      }
+
+      @Override
+      public ResultT dispatchMultimap(Coder<?> keyCoder, Coder<?> valueCoder) {
         return dispatchDefault();
       }
     }

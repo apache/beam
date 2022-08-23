@@ -42,6 +42,7 @@ import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
@@ -291,6 +292,16 @@ public class FlinkStateInternals<K> implements StateInternals {
           flinkOrderedListState.namespace.stringKey(),
           StringSerializer.INSTANCE);
       return flinkOrderedListState;
+    }
+
+    @Override
+    public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+        String id,
+        StateSpec<MultimapState<KeyT, ValueT>> spec,
+        Coder<KeyT> keyCoder,
+        Coder<ValueT> valueCoder) {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", MultimapState.class.getSimpleName()));
     }
 
     @Override
@@ -1641,6 +1652,16 @@ public class FlinkStateInternals<K> implements StateInternals {
       }
 
       return null;
+    }
+
+    @Override
+    public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+        String id,
+        StateSpec<MultimapState<KeyT, ValueT>> spec,
+        Coder<KeyT> keyCoder,
+        Coder<ValueT> valueCoder) {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", MultimapState.class.getSimpleName()));
     }
 
     @Override
