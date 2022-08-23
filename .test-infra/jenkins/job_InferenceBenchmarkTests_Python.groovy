@@ -82,7 +82,7 @@ def loadTestConfigurations = {
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_' + now + '.txt'
       ]
     ],
-    // pytorch language modeling test using HuggingFace bert models
+    // Pytorch language modeling test using HuggingFace BERT models
     [
       title             : 'Pytorch Lanugaue Modeling using Hugging face bert-base-uncased model',
       test              : 'apache_beam.testing.benchmarks.inference.pytorch_language_modeling_benchmarks',
@@ -111,7 +111,7 @@ def loadTestConfigurations = {
       ]
     ],
     [
-      title             : 'Pytorch Lanugaue Modeling using Hugging face bert-large-uncased model',
+      title             : 'Pytorch Langauge Modeling using Hugging Face bert-large-uncased model',
       test              : 'apache_beam.testing.benchmarks.inference.pytorch_language_modeling_benchmarks',
       runner            : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
