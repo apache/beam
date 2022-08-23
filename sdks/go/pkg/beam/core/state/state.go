@@ -31,8 +31,12 @@ const (
 	TransactionTypeSet TransactionTypeEnum = 0
 	// TransactionTypeClear is the set transaction type
 	TransactionTypeClear TransactionTypeEnum = 1
+	// TransactionTypeAppend is the append transaction type
+	TransactionTypeAppend TransactionTypeEnum = 2
 	// StateTypeValue represents a value state
 	StateTypeValue StateTypeEnum = 0
+	// StateTypeBag represents a bag state
+	StateTypeBag StateTypeEnum = 1
 )
 
 var (
@@ -57,6 +61,8 @@ type Transaction struct {
 type Provider interface {
 	ReadValueState(id string) (interface{}, []Transaction, error)
 	WriteValueState(val Transaction) error
+	ReadBagState(id string) ([]interface{}, []Transaction, error)
+	WriteBagState(val Transaction) error
 }
 
 // PipelineState is an interface representing different kinds of PipelineState (currently just state.Value).
@@ -130,6 +136,76 @@ func (s Value[T]) StateType() StateTypeEnum {
 // MakeValueState is a factory function to create an instance of ValueState with the given key.
 func MakeValueState[T any](k string) Value[T] {
 	return Value[T]{
+		Key: k,
+	}
+}
+
+// Bag is used to read and write global pipeline state representing a collection of values.
+// Key represents the key used to lookup this state.
+type Bag[T any] struct {
+	Key string
+}
+
+// Add is used to write append to the bag pipeline state.
+func (s *Bag[T]) Add(p Provider, val T) error {
+	return p.WriteBagState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeAppend,
+		Val:  val,
+	})
+}
+
+// Read is used to read this instance of global pipeline state representing a bag.
+// When a value is not found, returns an empty list and false.
+func (s *Bag[T]) Read(p Provider) ([]T, bool, error) {
+	// This replays any writes that have happened to this value since we last read
+	// For more detail, see "State Transactionality" below for buffered transactions
+	initialValue, bufferedTransactions, err := p.ReadBagState(s.Key)
+	if err != nil {
+		var val []T
+		return val, false, err
+	}
+	cur := []T{}
+	for _, v := range initialValue {
+		cur = append(cur, v.(T))
+	}
+	for _, t := range bufferedTransactions {
+		switch t.Type {
+		case TransactionTypeAppend:
+			cur = append(cur, t.Val.(T))
+		case TransactionTypeClear:
+			cur = []T{}
+		}
+	}
+	if len(cur) == 0 {
+		return cur, false, nil
+	}
+	return cur, true, nil
+}
+
+// StateKey returns the key for this pipeline state entry.
+func (s Bag[T]) StateKey() string {
+	if s.Key == "" {
+		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
+		panic("Value state exists on struct but has not been initialized with a key.")
+	}
+	return s.Key
+}
+
+// CoderType returns the type of the bag state which should be used for a coder.
+func (s Bag[T]) CoderType() reflect.Type {
+	var t T
+	return reflect.TypeOf(t)
+}
+
+// StateType returns the type of the state (in this case always Bag).
+func (s Bag[T]) StateType() StateTypeEnum {
+	return StateTypeBag
+}
+
+// MakeBagState is a factory function to create an instance of BagState with the given key.
+func MakeBagState[T any](k string) Bag[T] {
+	return Bag[T]{
 		Key: k,
 	}
 }
