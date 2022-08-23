@@ -84,7 +84,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		if err := profiler.Start(cfg); err != nil {
 			log.Errorf(ctx, "failed to start cloud profiler, got %v", err)
 		}
-		log.Debug(ctx, "happy path")
 	}
 
 	if tempLocation := beam.PipelineOptions.Get("temp_location"); tempLocation != "" && samplingFrequencySeconds > 0 {
