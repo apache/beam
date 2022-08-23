@@ -99,14 +99,17 @@ func hook() {
 	}
 
 	if name, id := os.Getenv(cloudProfilingJobName), os.Getenv(cloudProfilingJobID); name != "" && id != "" {
-		fmt.Printf("Cloud Profiling Job Name: %v, Job ID: %v", name, id)
+		fmt.Fprintf(os.Stderr, "Cloud Profiling Job Name: %v, Job ID: %v", name, id)
 		cfg := profiler.Config{
 			Service:        name,
 			ServiceVersion: id,
 		}
 		if err := profiler.Start(cfg); err != nil {
-			panic(fmt.Sprintf("failed to start cloud profiler, got %v", err))
+			fmt.Fprintf(os.Stderr, "failed to start cloud profiler, got %v", err)
+			os.Exit(1)
 		}
+	} else {
+		fmt.Fprint(os.Stderr, "failed to enable cloud logging, missing name or id")
 	}
 
 	defer func() {
