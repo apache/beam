@@ -31,3 +31,8 @@ func TestBagState(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.RunAndValidate(t, BagStateParDo())
 }
+
+func TestCombiningState(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, CombiningStateParDo())
+}
