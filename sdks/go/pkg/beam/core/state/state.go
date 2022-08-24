@@ -26,8 +26,8 @@ import (
 // TransactionTypeEnum represents the type of state transaction (e.g. set, clear)
 type TransactionTypeEnum int32
 
-// StateTypeEnum represents the type of a state instance (e.g. value, bag, etc...)
-type StateTypeEnum int32
+// TypeEnum represents the type of a state instance (e.g. value, bag, etc...)
+type TypeEnum int32
 
 const (
 	// TransactionTypeSet is the set transaction type
@@ -36,12 +36,12 @@ const (
 	TransactionTypeClear TransactionTypeEnum = 1
 	// TransactionTypeAppend is the append transaction type
 	TransactionTypeAppend TransactionTypeEnum = 2
-	// StateTypeValue represents a value state
-	StateTypeValue StateTypeEnum = 0
-	// StateTypeBag represents a bag state
-	StateTypeBag StateTypeEnum = 1
-	// StateTypeCombining represents a combining state
-	StateTypeCombining StateTypeEnum = 2
+	// TypeValue represents a value state
+	TypeValue TypeEnum = 0
+	// TypeBag represents a bag state
+	TypeBag TypeEnum = 1
+	// TypeCombining represents a combining state
+	TypeCombining TypeEnum = 2
 )
 
 var (
@@ -79,7 +79,7 @@ type Provider interface {
 type PipelineState interface {
 	StateKey() string
 	CoderType() reflect.Type
-	StateType() StateTypeEnum
+	StateType() TypeEnum
 }
 
 // CombiningPipelineState is an interface representing combining pipeline state.
@@ -144,8 +144,8 @@ func (s Value[T]) CoderType() reflect.Type {
 }
 
 // StateType returns the type of the state (in this case always Value).
-func (s Value[T]) StateType() StateTypeEnum {
-	return StateTypeValue
+func (s Value[T]) StateType() TypeEnum {
+	return TypeValue
 }
 
 // MakeValueState is a factory function to create an instance of ValueState with the given key.
@@ -214,8 +214,8 @@ func (s Bag[T]) CoderType() reflect.Type {
 }
 
 // StateType returns the type of the state (in this case always Bag).
-func (s Bag[T]) StateType() StateTypeEnum {
-	return StateTypeBag
+func (s Bag[T]) StateType() TypeEnum {
+	return TypeBag
 }
 
 // MakeBagState is a factory function to create an instance of BagState with the given key.
@@ -350,8 +350,8 @@ func (s Combining[T1, T2, T3]) CoderType() reflect.Type {
 }
 
 // StateType returns the type of the state (in this case always Bag).
-func (s Combining[T1, T2, T3]) StateType() StateTypeEnum {
-	return StateTypeCombining
+func (s Combining[T1, T2, T3]) StateType() TypeEnum {
+	return TypeCombining
 }
 
 func (s Combining[T1, T2, T3]) GetCombineFn() interface{} {
