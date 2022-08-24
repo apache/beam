@@ -201,6 +201,10 @@ func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.
 // setupExamplesCatalogFromDatastore saves precompiled objects catalog from the cloud datastore to the cache
 func setupExamplesCatalogFromDatastore(ctx context.Context, cacheService cache.Cache, db db.Database, sdks []*entity.SDKEntity) error {
 	catalog, err := db.GetCatalog(ctx, sdks)
+	if len(catalog) == 0 {
+		logger.Warn("example catalog is empty")
+		return nil
+	}
 	if err != nil {
 		return err
 	}
