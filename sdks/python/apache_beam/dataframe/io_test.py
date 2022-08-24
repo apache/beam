@@ -422,6 +422,10 @@ X     , c1, c2
 class ReadGbqTransformTests(unittest.TestCase):
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_direct_read(self, get_table):
+    try:
+      bigquery.TableFieldSchema
+    except AttributeError:
+      raise ValueError('Please install GCP Dependencies.')
     fields = [
         bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
         bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
@@ -435,8 +439,6 @@ class ReadGbqTransformTests(unittest.TestCase):
 
     with self.assertRaisesRegex(ValueError,
                                 "Encountered an unsupported type: 'DOUBLE'"):
-      if AttributeError or AssertionError:
-        raise unittest.SkipTest('Please install GCP Dependencies.')
       p = apache_beam.Pipeline()
       _ = p | apache_beam.dataframe.io.read_gbq(
           table="dataset.sample_table", use_bqstorage_api=True)
@@ -452,9 +454,6 @@ class ReadGbqTransformTests(unittest.TestCase):
                                 '; got a callable instead'):
       p = beam.Pipeline()
       _ = p | beam.dataframe.io.read_gbq(table=res)
-
-      if AttributeError or AssertionError:
-        raise unittest.SkipTest('Please install GCP Dependencies.')
 
   def test_ReadGbq_unsupported_param(self):
     with self.assertRaisesRegex(
