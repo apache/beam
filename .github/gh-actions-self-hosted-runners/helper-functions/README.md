@@ -19,7 +19,7 @@
 ## Helper Functions
 
 ### GCP Cloud Functions
-For the local implementation of the following three functions is required to create an `.env` file. If you'd like to reproduce this code in a GCP Cloud Functions, you will need to replace the variables in the `Variables` section either as `Runtime environment variables` or `Secrets`. 
+For the local implementation of the following three functions is required to create an `.env` file. If you'd like to reproduce this code in a GCP Cloud Functions, you will need to replace the variables in the `Variables` section either as `Runtime environment variables` or `Secrets`.
 
 ```
 APP_INSTALLATION_ID=
