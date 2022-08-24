@@ -2816,6 +2816,9 @@ your pipeline, and help make your pipeline&amp;rsquo;s code reusable.&lt;/p>
 building a pipeline. If you feel that you aren&amp;rsquo;t at that point yet, read the
 above section, &lt;a href="#minimalwordcount-example">MinimalWordCount&lt;/a>.&lt;/p>
 &lt;p>&lt;strong>To run this example in Java:&lt;/strong>&lt;/p>
+&lt;p>Set up your development environment and generate the Maven archetype as
+described in the &lt;a href="/get-started/quickstart-java/">Java WordCount quickstart&lt;/a>.
+Then run the pipeline with one of the runners:&lt;/p>
 &lt;div class='runner-direct snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
