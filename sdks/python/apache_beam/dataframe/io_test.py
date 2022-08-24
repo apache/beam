@@ -466,9 +466,6 @@ class ReadGbqTransformTests(unittest.TestCase):
       _ = p | beam.dataframe.io.read_gbq(
           table="table", use_bqstorage_api=False, reauth="true_config")
 
-      if AttributeError or AssertionError:
-        raise unittest.SkipTest('Please install GCP Dependencies.')
-
 
 if __name__ == '__main__':
   unittest.main()
