@@ -69,6 +69,10 @@ func (cp *CacheComponent) GetCatalogFromCacheOrDatastore(ctx context.Context) ([
 		if err != nil {
 			return nil, err
 		}
+		if len(catalog) == 0 {
+			logger.Warn("example catalog is empty")
+			return catalog, nil
+		}
 		if err = cp.cache.SetCatalog(ctx, catalog); err != nil {
 			logger.Errorf("SetCatalog(): cache error: %s", err.Error())
 			return nil, err

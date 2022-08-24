@@ -134,10 +134,10 @@ func TestCacheComponent_GetCatalogFromCacheOrDatastore(t *testing.T) {
 			wantErr: false,
 			clean: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				test_cleaner.CleanPCObjs(t, exampleId)
-				test_cleaner.CleanFiles(t, exampleId, 1)
-				test_cleaner.CleanSnippet(t, exampleId)
-				test_cleaner.CleanExample(t, exampleId)
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}

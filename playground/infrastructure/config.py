@@ -41,13 +41,9 @@ class Config:
         Sdk.Name(SDK_GO),
         Sdk.Name(SDK_PYTHON),
         Sdk.Name(SDK_SCIO))
-    BUCKET_NAME = "playground-precompiled-objects"
-    TEMP_FOLDER = "temp"
-    DEFAULT_PRECOMPILED_OBJECT = "defaultPrecompiledObject.info"
     SDK_TO_EXTENSION = {
         SDK_JAVA: "java", SDK_GO: "go", SDK_PYTHON: "py", SDK_SCIO: "scala"
     }
-    NO_STORE = "no-store"
     ERROR_STATUSES = [
         STATUS_VALIDATION_ERROR,
         STATUS_ERROR,
@@ -63,6 +59,8 @@ class Config:
     CD_STEP_NAME = "CD"
     CI_CD_LITERAL = Literal["CI", "CD"]
     LINK_PREFIX = "https://github.com/apache/beam/blob/master"
+    GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
+    SDK_CONFIG = os.getenv("SDK_CONFIG", "../../playground/sdks.yaml")
 
 
 @dataclass(frozen=True)
@@ -96,3 +94,16 @@ class PrecompiledExampleType:
 class OptionalTagFields:
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
+
+
+@dataclass(frozen=True)
+class DatastoreProps:
+    NAMESPACE = "Playground"
+    KEY_NAME_DELIMITER = "_"
+    ORIGIN_PROPERTY_VALUE = "PG_EXAMPLES"
+    EXAMPLE_KIND = "pg_examples"
+    SNIPPET_KIND = "pg_snippets"
+    SCHEMA_KIND = "pg_schema_versions"
+    PRECOMPILED_OBJECT_KIND = "pg_pc_objects"
+    FILED_KIND = "pg_files"
+    SDK_KIND = "pg_sdks"
