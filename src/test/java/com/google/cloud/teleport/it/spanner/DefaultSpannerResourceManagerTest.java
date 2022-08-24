@@ -46,6 +46,7 @@ import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -464,12 +465,14 @@ public final class DefaultSpannerResourceManagerTest {
   }
 
   private void prepareCreateDatabaseMock() throws ExecutionException, InterruptedException {
-    when(spanner.getDatabaseAdminClient().createDatabase(any(), any(), any()).get())
+    Mockito.lenient()
+        .when(spanner.getDatabaseAdminClient().createDatabase(any(), any(), any()).get())
         .thenReturn(database);
   }
 
   private void prepareUpdateDatabaseMock() throws ExecutionException, InterruptedException {
-    when(spanner.getDatabaseAdminClient().updateDatabaseDdl(any(), any(), any(), any()).get())
+    Mockito.lenient()
+        .when(spanner.getDatabaseAdminClient().updateDatabaseDdl(any(), any(), any(), any()).get())
         .thenReturn(null);
   }
 
