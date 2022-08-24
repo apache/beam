@@ -1274,7 +1274,7 @@ func validateState(fn *DoFn, numIn mainInputs) error {
 					"unique per DoFn", k, orig, s)
 			}
 			t := s.StateType()
-			if t != state.StateTypeValue && t != state.StateTypeBag {
+			if t != state.TypeValue && t != state.TypeBag {
 				err := errors.Errorf("Unrecognized state type %v for state %v", t, s)
 				return errors.SetTopLevelMsgf(err, "Unrecognized state type %v for state %v. Currently the only supported state"+
 					"type is state.Value and state.Bag", t, s)
