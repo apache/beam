@@ -33,7 +33,7 @@ on:
 
 
 jobs:
-  precommit-beam-examples:
+  precommit-runners-dataflow:
     name: Run PreCommit Runners DataFlow
     runs-on: self-hosted
     strategy:
