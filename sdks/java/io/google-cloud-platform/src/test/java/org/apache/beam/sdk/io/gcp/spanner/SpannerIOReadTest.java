@@ -55,6 +55,7 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -130,7 +131,7 @@ public class SpannerIOReadTest implements Serializable {
   }
 
   @Test
-  public void runBatchQueryTestWithProjectId() {
+  public void runBatchQueryTestWithSpannerConfig() {
     runBatchQueryTest(
         SpannerIO.read()
             .withSpannerConfig(spannerConfig)
@@ -595,6 +596,70 @@ public class SpannerIOReadTest implements Serializable {
   }
 
   @Test
+  public void readAllPipelineWithSpannerReadAllConfiguration() {
+    PCollectionView<Transaction> tx =
+        pipeline.apply(
+            "tx",
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    runReadAllPipeline(
+        SpannerIO.readAll()
+            .withProjectId(PROJECT_ID)
+            .withInstanceId(INSTANCE_ID)
+            .withDatabaseId(DATABASE_ID)
+            .withServiceFactory(serviceFactory)
+            .withLowPriority()
+            .withTransaction(tx));
+  }
+
+  @Test
+  public void readAllPipelineWithSpannerReadAllConfigurationAsValueProviders() {
+    PCollectionView<Transaction> tx =
+        pipeline.apply(
+            "tx",
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    runReadAllPipeline(
+        SpannerIO.readAll()
+            .withProjectId(StaticValueProvider.of(PROJECT_ID))
+            .withInstanceId(StaticValueProvider.of(INSTANCE_ID))
+            .withDatabaseId(StaticValueProvider.of(DATABASE_ID))
+            .withServiceFactory(serviceFactory)
+            .withHighPriority()
+            .withTransaction(tx));
+  }
+
+  @Test
+  public void readAllPipelineWithSpannerCreationTransactionConfiguration() {
+    PCollectionView<Transaction> tx =
+        pipeline.apply(
+            "tx",
+            SpannerIO.createTransaction()
+                .withProjectId(PROJECT_ID)
+                .withInstanceId(INSTANCE_ID)
+                .withDatabaseId(DATABASE_ID)
+                .withServiceFactory(serviceFactory)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    runReadAllPipeline(SpannerIO.readAll().withSpannerConfig(spannerConfig).withTransaction(tx));
+  }
+
+  @Test
+  public void readAllPipelineWithSpannerCreationTransactionConfigurationAsValueProviders() {
+    PCollectionView<Transaction> tx =
+        pipeline.apply(
+            "tx",
+            SpannerIO.createTransaction()
+                .withProjectId(StaticValueProvider.of(PROJECT_ID))
+                .withInstanceId(StaticValueProvider.of(INSTANCE_ID))
+                .withDatabaseId(StaticValueProvider.of(DATABASE_ID))
+                .withServiceFactory(serviceFactory)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    runReadAllPipeline(SpannerIO.readAll().withSpannerConfig(spannerConfig).withTransaction(tx));
+  }
+
+  @Test
   public void readAllPipeline() {
     PCollectionView<Transaction> tx =
         pipeline.apply(
@@ -602,16 +667,17 @@ public class SpannerIOReadTest implements Serializable {
             SpannerIO.createTransaction()
                 .withSpannerConfig(spannerConfig)
                 .withTimestampBound(TIMESTAMP_BOUND));
+    runReadAllPipeline(SpannerIO.readAll().withSpannerConfig(spannerConfig).withTransaction(tx));
+  }
 
+  private void runReadAllPipeline(SpannerIO.ReadAll readAllTransform) {
     PCollection<ReadOperation> reads =
         pipeline.apply(
             Create.of(
                 ReadOperation.create().withQuery(QUERY_STATEMENT).withQueryName(QUERY_NAME),
                 ReadOperation.create().withTable(TABLE_ID).withColumns("id", "name")));
 
-    PCollection<Struct> results =
-        reads.apply(
-            "read all", SpannerIO.readAll().withSpannerConfig(spannerConfig).withTransaction(tx));
+    PCollection<Struct> results = reads.apply("read all", readAllTransform);
 
     when(mockBatchTx.partitionQuery(
             any(PartitionOptions.class),

@@ -75,7 +75,7 @@ final class LimitingTopicBacklogReader implements TopicBacklogReader {
   }
 
   @Override
-  public void close() {
+  public void close() throws Exception {
     underlying.close();
   }
 }

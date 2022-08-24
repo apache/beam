@@ -45,8 +45,7 @@ public class Task {
     Pipeline pipeline = Pipeline.create(options);
 
     PCollection<String> words =
-        pipeline.apply(
-            Create.of("apple", "banana", "cherry", "durian", "guava", "melon"));
+        pipeline.apply(Create.of("apple", "banana", "cherry", "durian", "guava", "melon"));
 
     PCollection<KV<String, String>> output = applyTransform(words);
 

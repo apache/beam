@@ -787,7 +787,6 @@ func TestPlaygroundController_SaveSnippet(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantId  string
 		wantErr bool
 	}{
 		// Test case with calling SaveSnippet method with incorrect sdk.
@@ -828,7 +827,6 @@ func TestPlaygroundController_SaveSnippet(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			wantId:  "xHce_LOg7Zm",
 		},
 		// Test case with calling SaveSnippet method with too large entity.
 		// As a result, want to receive an error.
@@ -878,7 +876,7 @@ func TestPlaygroundController_SaveSnippet(t *testing.T) {
 				t.Errorf("PlaygroundController_SaveSnippet() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err == nil {
-				if len(got.Id) != 11 || got.Id != tt.wantId {
+				if len(got.Id) != 11 {
 					t.Errorf("PlaygroundController_SaveSnippet() unexpected generated ID")
 				}
 				test_cleaner.CleanFiles(ctx, t, got.Id, 1)

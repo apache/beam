@@ -23,7 +23,7 @@ on:
 env:
   BEAM_ROOT_DIR: ../../
   BEAM_EXAMPLE_CATEGORIES: ../categories.yaml
-  BEAM_VERSION: 2.33.0
+  BEAM_VERSION: 2.40.0
   K8S_NAMESPACE: playground-backend
   HELM_APP_NAME: playground-backend
 jobs:
@@ -34,10 +34,10 @@ jobs:
       example_has_changed: ${{ steps.check_has_example.outputs.example_has_changed }}
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.8'
       - name: install deps
@@ -50,6 +50,11 @@ jobs:
           $diff = git diff --name-only ${{ github.event.before }} ${{ github.event.after }}
           echo "$diff"
           Write-Host "::set-output name=example_diff::$diff"
+      - name: Setup GCP account
+        run: |
+             echo "${{ secrets.GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
+             which gcloud
+             gcloud auth activate-service-account --project=apache-beam-testing --key-file=/tmp/gcp_access.json
       - name: has Examples
         run: |
           output=$(python3 checker.py ${{ steps.check_file_changed.outputs.example_diff }})
@@ -65,11 +70,11 @@ jobs:
     if: needs.check_examples.outputs.example_has_changed == 'True'
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+        uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.8'
-      - uses: actions/setup-java@v2
+      - uses: actions/setup-java@v3
         with:
             distribution: 'zulu'
             java-version: '8'
@@ -133,6 +138,10 @@ jobs:
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-python" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              BEAM_ROOT_DIR="../../"
              BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
+             GOOGLE_CLOUD_PROJECT_VALUE=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+             SDK_CONFIG_VALUE="../../playground/sdks.yaml"
+             export SDK_CONFIG="$SDK_CONFIG_VALUE"
+             export GOOGLE_CLOUD_PROJECT="$GOOGLE_CLOUD_PROJECT_VALUE"
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8081" && python3 ci_cd.py --step CD --sdk SDK_PYTHON
         working-directory: playground/infrastructure
         env:
@@ -149,6 +158,10 @@ jobs:
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-go" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              BEAM_ROOT_DIR="../../"
              BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
+             GOOGLE_CLOUD_PROJECT_VALUE=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+             SDK_CONFIG_VALUE="../../playground/sdks.yaml"
+             export SDK_CONFIG="$SDK_CONFIG_VALUE"
+             export GOOGLE_CLOUD_PROJECT="$GOOGLE_CLOUD_PROJECT_VALUE"
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8082" && python3 ci_cd.py --step CD --sdk SDK_GO
         working-directory: playground/infrastructure
         env:
@@ -165,6 +178,10 @@ jobs:
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-java" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              BEAM_ROOT_DIR="../../"
              BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
+             GOOGLE_CLOUD_PROJECT_VALUE=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+             SDK_CONFIG_VALUE="../../playground/sdks.yaml"
+             export SDK_CONFIG="$SDK_CONFIG_VALUE"
+             export GOOGLE_CLOUD_PROJECT="$GOOGLE_CLOUD_PROJECT_VALUE"
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8080" && python3 ci_cd.py --step CD --sdk SDK_JAVA
         working-directory: playground/infrastructure
         env:

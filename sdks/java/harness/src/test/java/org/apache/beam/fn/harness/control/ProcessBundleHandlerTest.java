@@ -74,6 +74,7 @@ import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTr
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
+import org.apache.beam.fn.harness.control.ProcessBundleHandler.MetricsEnvironmentStateForBundle;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
@@ -142,8 +143,8 @@ import org.apache.beam.sdk.util.DoFnWithExecutionInformation;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -292,6 +293,11 @@ public class ProcessBundleHandlerTest {
     @Override
     MetricsContainerStepMap getMetricsContainerRegistry() {
       return wrappedBundleProcessor.getMetricsContainerRegistry();
+    }
+
+    @Override
+    MetricsEnvironmentStateForBundle getMetricsEnvironmentStateForBundle() {
+      return wrappedBundleProcessor.getMetricsEnvironmentStateForBundle();
     }
 
     @Override
@@ -742,6 +748,7 @@ public class ProcessBundleHandlerTest {
             splitListener,
             pCollectionConsumerRegistry,
             metricsContainerRegistry,
+            new MetricsEnvironmentStateForBundle(),
             stateTracker,
             beamFnStateClient,
             bundleFinalizationCallbacks,
