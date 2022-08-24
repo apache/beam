@@ -26,7 +26,7 @@ package org.apache.beam.learning.katas.coretransforms.groupbykey;
 //   categories:
 //     - Combiners
 //     - Core Transforms
-//   complexity: MEDIUM
+//   complexity: BASIC
 //   tags:
 //     - Example
 

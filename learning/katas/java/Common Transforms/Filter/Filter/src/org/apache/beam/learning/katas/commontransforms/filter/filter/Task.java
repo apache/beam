@@ -25,7 +25,7 @@ package org.apache.beam.learning.katas.commontransforms.filter.filter;
 //   context_line: 37
 //   categories:
 //     - Filtering
-//   complexity: MEDIUM
+//   complexity: BASIC
 //   tags:
 //     - Example
 

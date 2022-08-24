@@ -17,16 +17,28 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground/pages/playground/states/example_loaders/examples_loader.dart';
+import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 
 import 'mocks/example_mock.dart';
+import 'playground_state_test.mocks.dart';
 
+@GenerateMocks([ExamplesLoader, ExampleState])
 void main() {
   late PlaygroundState state;
+  final mockExamplesLoader = MockExamplesLoader();
+
+  when(mockExamplesLoader.load(any)).thenAnswer((_) async => 1);
 
   setUp(() {
-    state = PlaygroundState();
+    state = PlaygroundState(
+      examplesLoader: MockExamplesLoader(),
+      exampleState: MockExampleState(),
+    );
   });
 
   test('Initial value of SDK field should be java', () {
@@ -80,13 +92,12 @@ void main() {
   test(
     'Playground state setExample should update source and example and notify all listeners',
     () {
-      final state = PlaygroundState(sdk: SDK.go);
       state.addListener(() {
         expect(state.sdk, SDK.go);
-        expect(state.source, exampleMock1.source);
-        expect(state.selectedExample, exampleMock1);
+        expect(state.source, exampleMockGo.source);
+        expect(state.selectedExample, exampleMockGo);
       });
-      state.setExample(exampleMock1);
+      state.setExample(exampleMockGo);
     },
   );
 
@@ -100,8 +111,8 @@ void main() {
   test(
       'Playground state reset should reset source to example notify all listeners',
       () {
-    final state = PlaygroundState(sdk: SDK.go, selectedExample: exampleMock1);
-    state.setSource('source');
+    state.setExample(exampleMock1);
+    state.source = 'source';
     state.addListener(() {
       expect(state.source, exampleMock1.source);
     });

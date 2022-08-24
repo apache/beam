@@ -992,6 +992,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..aOB(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'multifile')
     ..a<$core.int>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'contextLine', $pb.PbFieldType.O3)
     ..aOB(9, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'defaultExample')
+    ..e<Sdk>(10, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
+    ..e<Complexity>(11, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'complexity', $pb.PbFieldType.OE, defaultOrMaker: Complexity.BASIC, valueOf: Complexity.valueOf, enumValues: Complexity.values)
     ..hasRequiredFields = false
   ;
 
@@ -1006,6 +1008,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     $core.bool? multifile,
     $core.int? contextLine,
     $core.bool? defaultExample,
+    Sdk? sdk,
+    Complexity? complexity,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -1034,6 +1038,12 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (defaultExample != null) {
       _result.defaultExample = defaultExample;
+    }
+    if (sdk != null) {
+      _result.sdk = sdk;
+    }
+    if (complexity != null) {
+      _result.complexity = complexity;
     }
     return _result;
   }
@@ -1138,6 +1148,24 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   $core.bool hasDefaultExample() => $_has(8);
   @$pb.TagNumber(9)
   void clearDefaultExample() => clearField(9);
+
+  @$pb.TagNumber(10)
+  Sdk get sdk => $_getN(9);
+  @$pb.TagNumber(10)
+  set sdk(Sdk v) { setField(10, v); }
+  @$pb.TagNumber(10)
+  $core.bool hasSdk() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearSdk() => clearField(10);
+
+  @$pb.TagNumber(11)
+  Complexity get complexity => $_getN(10);
+  @$pb.TagNumber(11)
+  set complexity(Complexity v) { setField(11, v); }
+  @$pb.TagNumber(11)
+  $core.bool hasComplexity() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearComplexity() => clearField(11);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {

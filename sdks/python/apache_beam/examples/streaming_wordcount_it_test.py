@@ -27,7 +27,7 @@
 #   categories:
 #     - Streaming
 #     - IO
-#   complexity: MEDIUM
+#   complexity: ADVANCED
 #   tags:
 #     - Example
 

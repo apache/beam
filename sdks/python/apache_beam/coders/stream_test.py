@@ -22,6 +22,8 @@ import logging
 import math
 import unittest
 
+import numpy as np
+
 from apache_beam.coders import slow_stream
 
 
@@ -98,6 +100,17 @@ class StreamTest(unittest.TestCase):
     in_s = self.InputStream(out_s.get())
     for v in values:
       self.assertEqual(v, in_s.read_bigendian_double())
+
+  def test_read_write_float(self):
+    values = 0, 1, -1, 1e20, 1.0 / 3, math.pi, float('inf')
+    # Restrict to single precision before coder roundtrip
+    values = tuple(float(np.float32(v)) for v in values)
+    out_s = self.OutputStream()
+    for v in values:
+      out_s.write_bigendian_float(v)
+    in_s = self.InputStream(out_s.get())
+    for v in values:
+      self.assertEqual(v, in_s.read_bigendian_float())
 
   def test_read_write_bigendian_int64(self):
     values = 0, 1, -1, 2**63 - 1, -2**63, int(2**61 * math.pi)

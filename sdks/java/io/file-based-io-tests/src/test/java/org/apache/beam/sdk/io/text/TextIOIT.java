@@ -203,11 +203,11 @@ public class TextIOIT {
           reader -> {
             MetricsReader actualReader =
                 reader.withNamespace("org.apache.beam.sdk.extensions.gcp.storage.GcsFileSystem");
-            long numCopies = actualReader.getCounterMetric("num_copies");
-            long copyTimeMsec = actualReader.getCounterMetric("copy_time_msec");
-            double copiesPerSec =
-                (numCopies < 0 || copyTimeMsec < 0) ? -1 : numCopies / (copyTimeMsec / 1e3);
-            return NamedTestResult.create(uuid, timestamp, "copies_per_sec", copiesPerSec);
+            long numRenames = actualReader.getCounterMetric("num_renames");
+            long renameTimeMsec = actualReader.getCounterMetric("rename_time_msec");
+            double remamePerSec =
+                (numRenames < 0 || renameTimeMsec < 0) ? -1 : numRenames / (renameTimeMsec / 1e3);
+            return NamedTestResult.create(uuid, timestamp, "rename_per_sec", remamePerSec);
           });
     }
     return metricSuppliers;

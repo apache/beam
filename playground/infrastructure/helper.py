@@ -98,6 +98,8 @@ def find_examples(work_dir: str, supported_categories: List[str],
             - category-2
         pipeline_options: --inputFile your_file --outputFile your_output_file
         complexity: MEDIUM
+        tags:
+            - example
     If some example contains beam tag with incorrect format raise an error.
 
     Args:

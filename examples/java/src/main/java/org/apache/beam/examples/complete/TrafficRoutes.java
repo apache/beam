@@ -30,7 +30,7 @@ package org.apache.beam.examples.complete;
 //     - Streaming
 //     - Options
 //     - Windowing
-//   complexity: MEDIUM
+//   complexity: ADVANCED
 //   tags:
 //     - Example
 

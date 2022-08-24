@@ -58,6 +58,7 @@ class CDHelper:
         :param sdk: specific sdk that needs to filter examples
         """
         datastore_client = DatastoreClient()
+        datastore_client.save_catalogs()
         datastore_client.save_to_cloud_datastore(examples, sdk)
 
     async def _get_outputs(self, examples: List[Example]):

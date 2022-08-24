@@ -17,15 +17,14 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:playground/modules/examples/repositories/example_repository.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 
-import 'examples_state_test.mocks.dart';
 import 'mocks/categories_mock.dart';
 import 'mocks/example_mock.dart';
+import 'mocks/example_repository_mock.dart';
+import 'mocks/example_repository_mock.mocks.dart';
 import 'mocks/request_mock.dart';
 
 final kDefaultExamplesMapMock = {
@@ -35,13 +34,12 @@ final kDefaultExamplesMapMock = {
   SDK.scio: exampleWithAllAdditionsMock,
 };
 
-@GenerateMocks([ExampleRepository])
 void main() {
   late ExampleState state;
   late MockExampleRepository mockRepo;
 
   setUp(() {
-    mockRepo = MockExampleRepository();
+    mockRepo = getMockExampleRepository();
     state = ExampleState(mockRepo);
   });
 
@@ -148,7 +146,7 @@ void main() {
       'then loadExampleInfo should return example immediately',
       () async {
         expect(
-          await state.loadExampleInfo(exampleMock1, SDK.java),
+          await state.loadExampleInfo(exampleMock1),
           exampleMock1,
         );
       },
@@ -157,19 +155,8 @@ void main() {
     test(
       'Example state loadExampleInfo should load source, output, logs, graph for given example',
       () async {
-        // stubs
-        when(mockRepo.getExampleOutput(kRequestForExampleInfo))
-            .thenAnswer((_) async => kOutputResponseMock.output);
-        when(mockRepo.getExampleSource(kRequestForExampleInfo))
-            .thenAnswer((_) async => kOutputResponseMock.output);
-        when(mockRepo.getExampleLogs(kRequestForExampleInfo))
-            .thenAnswer((_) async => kOutputResponseMock.output);
-        when(mockRepo.getExampleGraph(kRequestForExampleInfo))
-            .thenAnswer((_) async => kOutputResponseMock.output);
-
-        // test assertion
         expect(
-          await state.loadExampleInfo(exampleWithoutSourceMock, SDK.java),
+          await state.loadExampleInfo(exampleWithoutSourceMock),
           exampleWithAllAdditionsMock,
         );
       },
@@ -190,14 +177,6 @@ void main() {
       'with all additions for every Sdk',
       () async {
         // stubs
-        when(mockRepo.getDefaultExample(kRequestDefaultExampleForJava))
-            .thenAnswer((_) async => exampleWithoutSourceMock);
-        when(mockRepo.getDefaultExample(kRequestDefaultExampleForGo))
-            .thenAnswer((_) async => exampleWithoutSourceMock);
-        when(mockRepo.getDefaultExample(kRequestDefaultExampleForPython))
-            .thenAnswer((_) async => exampleWithoutSourceMock);
-        when(mockRepo.getDefaultExample(kRequestDefaultExampleForScio))
-            .thenAnswer((_) async => exampleWithoutSourceMock);
         when(mockRepo.getExampleOutput(kRequestForExampleInfo))
             .thenAnswer((_) async => kOutputResponseMock.output);
         when(mockRepo.getExampleSource(kRequestForExampleInfo))

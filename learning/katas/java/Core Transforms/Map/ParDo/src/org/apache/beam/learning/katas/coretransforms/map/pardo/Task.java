@@ -25,7 +25,7 @@ package org.apache.beam.learning.katas.coretransforms.map.pardo;
 //   context_line: 38
 //   categories:
 //     - Core Transforms
-//   complexity: MEDIUM
+//   complexity: BASIC
 //   tags:
 //     - Example
 

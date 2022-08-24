@@ -25,7 +25,7 @@ package org.apache.beam.examples.complete;
 //   categories:
 //     - Side Input
 //     - Flatten
-//   complexity: MEDIUM
+//   complexity: BASIC
 //   tags:
 //     - Example
 

@@ -404,6 +404,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		urnTruncateSizedRestrictions:
 		var data string
 		var sides map[string]*pipepb.SideInput
+		var userState map[string]*pipepb.StateSpec
 		switch urn {
 		case graphx.URNParDo,
 			urnPairWithRestriction,
@@ -416,6 +417,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			data = string(pardo.GetDoFn().GetPayload())
 			sides = pardo.GetSideInputs()
+			userState = pardo.GetStateSpecs()
 		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 			var cmb pipepb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
@@ -462,6 +464,30 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					n.PID = transform.GetUniqueName()
 
 					input := unmarshalKeyedValues(transform.GetInputs())
+
+					if len(userState) > 0 {
+						stateIDToCoder := make(map[string]*coder.Coder)
+						for key, spec := range userState {
+							// TODO(#22736) - this will eventually need to be aware of which type of state its modifying to support non-Value state types.
+							cID := spec.GetReadModifyWriteSpec().CoderId
+							c, err := b.coders.Coder(cID)
+							if err != nil {
+								return nil, err
+							}
+							stateIDToCoder[key] = c
+							sid := StreamID{
+								Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
+								PtransformID: id.to,
+							}
+
+							ec, wc, err := b.makeCoderForPCollection(input[0])
+							if err != nil {
+								return nil, err
+							}
+							n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIDToCoder)
+						}
+					}
+
 					for i := 1; i < len(input); i++ {
 						// TODO(https://github.com/apache/beam/issues/18602) Handle ViewFns for side inputs
 
@@ -528,11 +554,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					u = &LiftedCombine{Combine: cn, KeyCoder: ec.Components[0], WindowCoder: wc}
 				case urnPerKeyCombineMerge:
 					ma := &MergeAccumulators{Combine: cn}
-					if eo, ok := ma.Out.(*PCollection).Out.(*ExtractOutput); ok {
-						// Strip PCollections from between MergeAccumulators and ExtractOutputs
-						// as it's a synthetic PCollection.
-						b.units = b.units[:len(b.units)-1]
-						ma.Out = eo
+					if pc, ok := ma.Out.(*PCollection); ok {
+						if eo, ok := pc.Out.(*ExtractOutput); ok {
+							// Strip PCollections from between MergeAccumulators and ExtractOutputs
+							// as it's a synthetic PCollection.
+							b.units = b.units[:len(b.units)-1]
+							ma.Out = eo
+						}
 					}
 					u = ma
 				case urnPerKeyCombineExtract:

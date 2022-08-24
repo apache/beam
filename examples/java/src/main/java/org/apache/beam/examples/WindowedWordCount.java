@@ -29,7 +29,7 @@ package org.apache.beam.examples;
 //     - Options
 //     - Windowing
 //     - Quickstart
-//   complexity: MEDIUM
+//   complexity: ADVANCED
 //   tags:
 //     - Example
 

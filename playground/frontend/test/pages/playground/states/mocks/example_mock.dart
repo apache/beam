@@ -17,37 +17,51 @@
  */
 
 import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
 final ExampleModel exampleMock1 = ExampleModel(
+  sdk: SDK.python,
   source: 'ex1',
   name: 'Example',
   type: ExampleType.example,
   description: 'description',
-  path: 'SDK/Category/Name',
+  path: 'SDK_PYTHON/Category/Name',
 );
 
 final ExampleModel exampleMock2 = ExampleModel(
+  sdk: SDK.python,
   source: 'ex2',
   name: 'Kata',
   type: ExampleType.kata,
   description: 'description',
-  path: 'SDK/Category/Name',
+  path: 'SDK_PYTHON/Category/Name',
 );
 
 final ExampleModel exampleWithoutSourceMock = ExampleModel(
+  sdk: SDK.python,
   name: 'Test example',
   type: ExampleType.example,
   description: 'description',
-  path: 'SDK/Category/Name',
+  path: 'SDK_PYTHON/Category/Name',
 );
 
 final ExampleModel exampleWithAllAdditionsMock = ExampleModel(
+  sdk: SDK.python,
   name: 'Test example',
   type: ExampleType.example,
   description: 'description',
-  path: 'SDK/Category/Name',
+  path: 'SDK_PYTHON/Category/Name',
   source: 'test outputs',
   outputs: 'test outputs',
   logs: 'test outputs',
   graph: 'test outputs',
+);
+
+final ExampleModel exampleMockGo = ExampleModel(
+  sdk: SDK.go,
+  source: 'ex1',
+  name: 'Example',
+  type: ExampleType.example,
+  description: 'description',
+  path: 'SDK_GO/Category/Name',
 );

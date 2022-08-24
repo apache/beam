@@ -3,6 +3,7 @@ title:  "Apache Beam 2.35.0"
 date:   2021-12-29 10:11:00 -0800
 categories:
   - blog
+  - release
 authors:
   - tvalentyn
 ---

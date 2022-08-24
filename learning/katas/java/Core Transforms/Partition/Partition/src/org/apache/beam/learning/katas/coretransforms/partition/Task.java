@@ -27,7 +27,7 @@ package org.apache.beam.learning.katas.coretransforms.partition;
 //   categories:
 //     - Core Transforms
 //     - Multiple Outputs
-//   complexity: MEDIUM
+//   complexity: BASIC
 //   tags:
 //     - Example
 

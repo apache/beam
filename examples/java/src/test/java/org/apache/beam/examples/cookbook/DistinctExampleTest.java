@@ -25,7 +25,7 @@ package org.apache.beam.examples.cookbook;
 //   categories:
 //     - Core Transforms
 //     - Filtering
-//   complexity: MEDIUM
+//   complexity: BASIC
 //   tags:
 //     - Example
 

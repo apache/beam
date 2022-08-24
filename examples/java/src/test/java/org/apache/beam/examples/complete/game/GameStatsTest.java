@@ -25,7 +25,7 @@ package org.apache.beam.examples.complete.game;
 //   categories:
 //     - Testing
 //     - Filtering
-//   complexity: MEDIUM
+//   complexity: BASIC
 //   tags:
 //     - Example
 

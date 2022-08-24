@@ -27,7 +27,7 @@ package org.apache.beam.learning.katas.coretransforms.flatten;
 //     - Combiners
 //     - Flatten
 //     - Core Transforms
-//   complexity: MEDIUM
+//   complexity: BASIC
 //   tags:
 //     - Example
 

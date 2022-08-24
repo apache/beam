@@ -68,6 +68,15 @@ func extractBodyFrom(response *http.Response) (string, error) {
 	return string(bodyBytes), nil
 }
 
+type operationCounters struct {
+	successCount, errorCount beam.Counter
+}
+
+func (c *operationCounters) setup(namespace string) {
+	c.successCount = beam.NewCounter(namespace, operationSuccessCounterName)
+	c.errorCount = beam.NewCounter(namespace, operationErrorCounterName)
+}
+
 type operationResults struct {
 	Successes int64 `json:"success,string"`
 	Failures  int64 `json:"failure,string"`
@@ -78,6 +87,7 @@ type fhirStoreClient interface {
 	executeBundle(storePath string, bundle string) (*http.Response, error)
 	search(storePath, resourceType string, queries map[string]string, pageToken string) (*http.Response, error)
 	deidentify(srcStorePath, dstStorePath string, deidConfig *healthcare.DeidentifyConfig) (operationResults, error)
+	importResources(storePath, gcsURI string, contentStructure ContentStructure) (operationResults, error)
 }
 
 type fhirStoreClientImpl struct {
@@ -94,6 +104,10 @@ func newFhirStoreClient() *fhirStoreClientImpl {
 
 func (c *fhirStoreClientImpl) fhirService() *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService {
 	return c.healthcareService.Projects.Locations.Datasets.FhirStores.Fhir
+}
+
+func (c *fhirStoreClientImpl) fhirStoreService() *healthcare.ProjectsLocationsDatasetsFhirStoresService {
+	return c.healthcareService.Projects.Locations.Datasets.FhirStores
 }
 
 func (c *fhirStoreClientImpl) readResource(resourcePath []byte) (*http.Response, error) {
@@ -126,7 +140,19 @@ func (c *fhirStoreClientImpl) deidentify(srcStorePath, dstStorePath string, deid
 		Config:           deidConfig,
 		DestinationStore: dstStorePath,
 	}
-	operation, err := c.healthcareService.Projects.Locations.Datasets.FhirStores.Deidentify(srcStorePath, deidRequest).Do()
+	operation, err := c.fhirStoreService().Deidentify(srcStorePath, deidRequest).Do()
+	if err != nil {
+		return operationResults{}, err
+	}
+	return c.pollTilCompleteAndCollectResults(operation)
+}
+
+func (c *fhirStoreClientImpl) importResources(storePath, gcsURI string, contentStructure ContentStructure) (operationResults, error) {
+	importRequest := &healthcare.ImportResourcesRequest{
+		ContentStructure: contentStructure.String(),
+		GcsSource:        &healthcare.GoogleCloudHealthcareV1FhirGcsSource{Uri: gcsURI},
+	}
+	operation, err := c.fhirStoreService().Import(storePath, importRequest).Do()
 	if err != nil {
 		return operationResults{}, err
 	}

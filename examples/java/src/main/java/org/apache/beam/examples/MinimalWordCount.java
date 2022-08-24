@@ -29,7 +29,7 @@ package org.apache.beam.examples;
 //     - IO
 //     - Core Transforms
 //     - Quickstart
-//   complexity: MEDIUM
+//   complexity: BASIC
 //   tags:
 //     - Example
 

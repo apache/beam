@@ -24,7 +24,7 @@ package org.apache.beam.sdk.testing;
 //   context_line: 87
 //   categories:
 //     - Streaming
-//   complexity: MEDIUM
+//   complexity: ADVANCED
 //   tags:
 //     - Example
 

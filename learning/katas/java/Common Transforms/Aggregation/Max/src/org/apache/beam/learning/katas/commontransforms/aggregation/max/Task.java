@@ -25,7 +25,7 @@ package org.apache.beam.learning.katas.commontransforms.aggregation.max;
 //   context_line: 37
 //   categories:
 //     - Combiners
-//   complexity: MEDIUM
+//   complexity: BASIC
 //   tags:
 //     - Example
 

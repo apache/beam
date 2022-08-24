@@ -27,7 +27,7 @@
 #   categories:
 #     - Streaming
 #     - Metrics
-#   complexity: MEDIUM
+#   complexity: ADVANCED
 #   tags:
 #     - Example
 

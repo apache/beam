@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 #Dokerfile to set up the Beam Go SDK
-ARG BASE_IMAGE=golang:1.16-bullseye
+ARG BASE_IMAGE=golang:1.18-bullseye
 #Two-stage assembly
 FROM $BASE_IMAGE AS build
 
@@ -24,13 +24,13 @@ FROM $BASE_IMAGE AS build
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:$PATH
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1 &&\
-    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 
 # Prepare Application
 COPY src /go/src/playground/backend
 
-ARG BEAM_VERSION=2.33.0
+ARG BEAM_VERSION=2.40.0
 ENV PREPARED_MOD_DIR=/opt/playground/prepared_folder/
 ENV PIPELINES_FOLDER_NAME="executable_files"
 RUN mkdir -p /opt/playground/ $PREPARED_MOD_DIR
@@ -68,7 +68,6 @@ ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_UNSPECIFIED"
-ENV BUCKET_NAME="playground-precompiled-objects"
 ENV SDK_CONFIG=/opt/playground/backend/sdks.yaml
 ENV PROPERTY_PATH=/opt/playground/backend/
 
@@ -77,6 +76,7 @@ COPY --from=build /go/bin/server_go_backend /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 
 COPY sdks.yaml /opt/playground/backend/sdks.yaml
+COPY sdks-emulator.yaml /opt/playground/backend/sdks-emulator.yaml
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
 

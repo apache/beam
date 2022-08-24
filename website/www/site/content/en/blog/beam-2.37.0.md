@@ -3,6 +3,7 @@ title:  "Apache Beam 2.37.0"
 date:   2022-03-04 08:30:00 -0800
 categories:
   - blog
+  - release
 authors:
   - bhulette
 ---

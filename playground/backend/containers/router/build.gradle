@@ -51,6 +51,10 @@ task copyDockerfileDependencies(type: Copy) {
       from '../../../sdks.yaml'
       into 'build/'
    }
+   copy {
+      from '../../../sdks-emulator.yaml'
+      into 'build/'
+   }
 }
 
 docker {
@@ -63,7 +67,7 @@ docker {
   tags containerImageTags()
   buildArgs(['BASE_IMAGE': project.rootProject.hasProperty(["base-image"]) ?
                            project.rootProject["base-image"] :
-                           "golang:1.16-bullseye" ])
+                           "golang:1.18-bullseye" ])
 }
 
 task dockerComposeLocalUp() {

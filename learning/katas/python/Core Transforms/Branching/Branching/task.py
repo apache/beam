@@ -23,7 +23,7 @@
 #   categories:
 #     - Branching
 #     - Multiple Outputs
-#   complexity: MEDIUM
+#   complexity: BASIC
 #   tags:
 #     - Example
 

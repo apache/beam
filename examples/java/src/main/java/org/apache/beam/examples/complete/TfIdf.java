@@ -28,7 +28,7 @@ package org.apache.beam.examples.complete;
 //     - Combiners
 //     - Options
 //     - Joins
-//   complexity: MEDIUM
+//   complexity: ADVANCED
 //   tags:
 //     - Example
 

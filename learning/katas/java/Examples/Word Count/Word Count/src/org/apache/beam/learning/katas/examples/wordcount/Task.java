@@ -25,7 +25,7 @@ package org.apache.beam.learning.katas.examples.wordcount;
 //   context_line: 43
 //   categories:
 //     - Combiners
-//   complexity: MEDIUM
+//   complexity: BASIC
 //   tags:
 //     - Example
 

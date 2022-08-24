@@ -25,7 +25,7 @@ package org.apache.beam.sdk.transforms;
 //   categories:
 //     - Combiners
 //     - Core Transforms
-//   complexity: MEDIUM
+//   complexity: ADVANCED
 //   tags:
 //     - Example
 
