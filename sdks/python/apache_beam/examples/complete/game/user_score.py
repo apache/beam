@@ -70,7 +70,11 @@ python user_score.py \
 #     - Options
 #   complexity: ADVANCED
 #   tags:
-#     - Example
+#     - batch
+#     - combine
+#     - combine
+#     - io
+#     - strings
 
 import argparse
 import csv

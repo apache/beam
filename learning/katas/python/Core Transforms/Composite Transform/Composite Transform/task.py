@@ -24,7 +24,9 @@
 #     - Flatten
 #   complexity: BASIC
 #   tags:
-#     - Example
+#     - count
+#     - strings
+#     - numbers
 
 import apache_beam as beam
 

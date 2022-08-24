@@ -24,7 +24,8 @@
 #     - Core Transforms
 #   complexity: BASIC
 #   tags:
-#     - Example
+#     - map
+#     - strings
 
 import apache_beam as beam
 

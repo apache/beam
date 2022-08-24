@@ -30,7 +30,8 @@
 #     - Combiners
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - count
+#     - test
 
 import collections
 import logging

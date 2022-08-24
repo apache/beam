@@ -23,7 +23,11 @@
 #     - Combiners
 #   complexity: BASIC
 #   tags:
-#     - Example
+#     - count
+#     - map
+#     - combine
+#     - string
+#     - number
 
 import apache_beam as beam
 

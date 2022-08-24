@@ -24,7 +24,8 @@ package beam_test
 //     - Combiners
 //   complexity: BASIC
 //   tags:
-//     - Example
+//     - combine
+//     - test
 
 import (
 	"reflect"

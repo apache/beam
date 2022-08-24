@@ -51,7 +51,9 @@ package main
 //     - Quickstart
 //   complexity: BASIC
 //   tags:
-//     - Example
+//     - count
+//     - io
+//     - strings
 
 import (
 	"context"

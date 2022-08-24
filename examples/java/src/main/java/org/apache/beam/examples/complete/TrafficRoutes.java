@@ -32,7 +32,10 @@ package org.apache.beam.examples.complete;
 //     - Windowing
 //   complexity: ADVANCED
 //   tags:
-//     - Example
+//     - windowing
+//     - timestamp
+//     - batch
+//     - streaming
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;

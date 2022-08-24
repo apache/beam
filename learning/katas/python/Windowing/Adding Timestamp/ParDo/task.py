@@ -23,7 +23,8 @@
 #     - Streaming
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - timestamp
+#     - event
 
 import datetime
 import pytz

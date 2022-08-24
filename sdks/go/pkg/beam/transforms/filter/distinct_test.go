@@ -25,7 +25,11 @@ package filter_test
 //     - Core Transforms
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - distinct
+//     - test
+//     - strings
+//     - numbers
+
 
 import (
 	"testing"

@@ -29,7 +29,8 @@
 #     - Metrics
 #   complexity: ADVANCED
 #   tags:
-#     - Example
+#     - metrics
+#     - test
 
 import logging
 import unittest

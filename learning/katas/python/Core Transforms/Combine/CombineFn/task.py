@@ -23,7 +23,8 @@
 #     - Combiners
 #   complexity: BASIC
 #   tags:
-#     - Example
+#     - count
+#     - nunbers
 
 import apache_beam as beam
 

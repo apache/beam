@@ -24,7 +24,8 @@
 #     - Multiple Outputs
 #   complexity: BASIC
 #   tags:
-#     - Example
+#     - split
+#     - numbers
 
 import apache_beam as beam
 

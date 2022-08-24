@@ -23,7 +23,8 @@
 #     - Flatten
 #   complexity: BASIC
 #   tags:
-#     - Example
+#     - merge
+#     - strings
 
 import apache_beam as beam
 

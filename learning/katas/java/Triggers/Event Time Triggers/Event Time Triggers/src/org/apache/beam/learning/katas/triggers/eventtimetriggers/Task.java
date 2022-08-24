@@ -27,7 +27,10 @@ package org.apache.beam.learning.katas.triggers.eventtimetriggers;
 //     - Streaming
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - count
+//     - windowing
+//     - triggers
+//     - event
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

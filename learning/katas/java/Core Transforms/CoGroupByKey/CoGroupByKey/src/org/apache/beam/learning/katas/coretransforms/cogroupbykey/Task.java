@@ -28,7 +28,8 @@ package org.apache.beam.learning.katas.coretransforms.cogroupbykey;
 //     - Core Transforms
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - join
+//     - strings
 
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;

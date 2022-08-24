@@ -28,7 +28,10 @@ package org.apache.beam.learning.katas.windowing.fixedwindow;
 //     - Streaming
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - count
+//     - windowing
+//     - timestamp
+//     - event
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

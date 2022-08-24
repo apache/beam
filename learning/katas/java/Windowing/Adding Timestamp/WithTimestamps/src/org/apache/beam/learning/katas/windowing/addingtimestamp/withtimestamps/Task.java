@@ -27,7 +27,9 @@ package org.apache.beam.learning.katas.windowing.addingtimestamp.withtimestamps;
 //     - Streaming
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - timestamp
+//     - transform
+//     - event
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

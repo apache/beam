@@ -31,7 +31,10 @@
 #     - Quickstart
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - options
+#     - count
+#     - combine
+#     - strings
 
 import argparse
 import logging

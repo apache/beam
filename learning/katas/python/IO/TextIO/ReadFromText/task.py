@@ -23,7 +23,10 @@
 #     - IO
 #   complexity: BASIC
 #   tags:
-#     - Example
+#     - io
+#     - map
+#     - strings
+
 
 import apache_beam as beam
 

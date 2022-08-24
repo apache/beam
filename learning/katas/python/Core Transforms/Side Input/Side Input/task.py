@@ -23,7 +23,9 @@
 #     - Side Input
 #   complexity: MEDIUM
 #   tags:
-#     - Example
+#     - transform
+#     - map
+#     - strings
 
 import apache_beam as beam
 

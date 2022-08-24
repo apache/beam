@@ -32,7 +32,9 @@ package main
 //     - Multiple Outputs
 //   complexity: MEDIUM
 //   tags:
-//     - Example
+//     - count
+//     - io
+//     - strings
 
 import (
 	"context"

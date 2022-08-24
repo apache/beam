@@ -25,7 +25,8 @@
 #     - Multiple Outputs
 #   complexity: BASIC
 #   tags:
-#     - Example
+#     - branching
+#     - numbers
 
 import apache_beam as beam
 
