@@ -34,29 +34,64 @@ import java.security.GeneralSecurityException;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.http.annotation.Experimental;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Helpers for cloud communication. */
 public class Transport {
+
+  private static final Logger LOG = LoggerFactory.getLogger(Transport.class);
+
+  private static @Nullable HttpTransport httpTransport;
 
   private static class SingletonHelper {
     /** Global instance of the JSON factory. */
     private static final JsonFactory JSON_FACTORY;
 
     /** Global instance of the HTTP transport. */
-    private static final HttpTransport HTTP_TRANSPORT;
+    private static final HttpTransport DEFAULT_HTTP_TRANSPORT;
 
     static {
       try {
         JSON_FACTORY = JacksonFactory.getDefaultInstance();
-        HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+        DEFAULT_HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
       } catch (GeneralSecurityException | IOException e) {
         throw new RuntimeException(e);
       }
     }
   }
 
-  public static HttpTransport getTransport() {
-    return SingletonHelper.HTTP_TRANSPORT;
+  /**
+   * Get previously set instance of {@link HttpTransport}. If not set, returns the default global
+   * instance constructed from {@link GoogleNetHttpTransport#newTrustedTransport()}.
+   */
+  public static synchronized HttpTransport getTransport() {
+    if (httpTransport == null) {
+      httpTransport = SingletonHelper.DEFAULT_HTTP_TRANSPORT;
+    }
+    return httpTransport;
+  }
+
+  /**
+   * Set a customized instance of {@link HttpTransport} with trust store and mTLS settings. Refer to
+   * https://github.com/googleapis/google-auth-library-java#configuring-a-proxy for the construction
+   * of customized instance of HttpTransport. Reset to default HttpTransport by passing null to this
+   * method.
+   */
+  @Experimental
+  public static synchronized void setHttpTransport(HttpTransport transport) {
+    // TDOO(https://github.com/apache/beam/issues/22504) Support customized HttpTransport through
+    // pipeline options then remove this experimental method.
+    if (transport != null) {
+      LOG.warn(
+          "Setting customized HttpTransport to {}. Explicitly setting HttpTransport is "
+              + "experimental and will possibly be removed in a future version.",
+          transport.getClass());
+    }
+
+    httpTransport = transport;
   }
 
   public static JsonFactory getJsonFactory() {
