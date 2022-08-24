@@ -229,7 +229,7 @@ class BatchElementsTest(unittest.TestCase):
           ]))
 
   def test_global_batch_timestamps(self):
-    # Assumes a single bundle, in order...
+    # Assumes a single bundle
     with TestPipeline() as p:
       res = (
           p
