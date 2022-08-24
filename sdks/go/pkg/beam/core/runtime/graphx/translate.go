@@ -493,6 +493,38 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 							Urn: URNBagUserState,
 						},
 					}
+				case state.TypeCombining:
+					cps := ps.(state.CombiningPipelineState).GetCombineFn()
+					f, err := graph.NewFn(cps)
+					if err != nil {
+						return handleErr(err)
+					}
+					cf, err := graph.AsCombineFn(f)
+					if err != nil {
+						return handleErr(err)
+					}
+					me := graph.MultiEdge{
+						Op:        graph.Combine,
+						CombineFn: cf,
+					}
+					mustEncodeMultiEdge, err := mustEncodeMultiEdgeBase64(&me)
+					if err != nil {
+						return handleErr(err)
+					}
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_CombiningSpec{
+							CombiningSpec: &pipepb.CombiningStateSpec{
+								AccumulatorCoderId: coderID,
+								CombineFn: &pipepb.FunctionSpec{
+									Urn:     "beam:combinefn:gosdk:v1",
+									Payload: []byte(mustEncodeMultiEdge),
+								},
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
+							Urn: URNBagUserState,
+						},
+					}
 				default:
 					return nil, errors.Errorf("State type %v not recognized for state %v", ps.StateKey(), ps)
 				}
