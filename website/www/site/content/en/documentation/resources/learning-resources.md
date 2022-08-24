@@ -49,7 +49,7 @@ If you have additional material that you would like to see here, please let us k
 
 *   **[Common Use Case Patterns Part 1](https://cloud.google.com/blog/products/gcp/guide-to-common-cloud-dataflow-use-case-patterns-part-1)** - Common patterns such as writing data to multiple storage locations, slowly-changing lookup cache, calling external services, dealing with bad data, and starting jobs through a REST endpoint.
 *   **[Common Use Case Patterns Part 2](https://cloud.google.com/blog/products/gcp/guide-to-common-cloud-dataflow-use-case-patterns-part-2)** - Common patterns such as GroupBy using multiple data properties, joining two PCollections on a common key, streaming large lookup tables, merging two streams with different window lengths, and threshold detection with time-series data.
-*   **[Retry Policy](http://blog.nanthrax.net/?p=811)** - Adding a retry policy to a `DoFn`.
+*   **[Retry Policy](http://nanthrax.blogspot.com/2018/02/apache-beam-easily-implement-backoff_18.html)** - Adding a retry policy to a `DoFn`.
 
 ## Articles {#articles}
 

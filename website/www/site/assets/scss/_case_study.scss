@@ -26,6 +26,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+  gap: 2%;
   margin-bottom: 16px;
 
   @media screen and (max-width: $mobile) {
@@ -42,6 +43,12 @@
   }
 }
 
+.case-study-list--additional {
+  @media (min-width: $mobile) and (max-width: $tablet) {
+    justify-content: center;
+  }
+}
+
 .case-study-used-by-card {
   padding: 16px;
   display: flex;
@@ -50,7 +57,6 @@
   background-color: #FCFCFC;
   width: 250px;
   height: 200px;
-  margin-right: 32px;
   margin-bottom: 32px;
 
   .case-study-used-by-card-img {
@@ -80,33 +86,56 @@
   }
 }
 
+.case-study-used-by-card--responsive {
+  @media (min-width: $mobile){
+    width: 23%;
+    margin-right: 0;
+  }
+}
+
 .case-study-card {
   padding: 16px;
   display: flex;
   flex-direction: column;
   background-color: #FCFCFC;
-  width: 350px;
-  margin-right: 32px;
+  width: 32%;
   margin-bottom: 32px;
+  @media (max-width: $tablet) {
+    width: 350px;
+  }
 
   .case-study-card-description {
     height: 185px;
     overflow-y: scroll;
+    @media (min-width: $mobile) and (max-width: $tablet) {
+      font-size: 14px;
+    }
   }
 
   .case-study-card-img img {
     height: 50px;
+    @media (min-width: $mobile) and (max-width: $tablet) {
+      object-fit: contain;
+    }
   }
 
   .case-study-card-title {
-    min-height: 45px;
+    min-height: 70px;
     margin: 12px 0;
     font-size: 18px;
+    @media (min-width: $mobile) and (max-width: $tablet) {
+      min-height: 90px;
+      font-size: 16px;
+      margin: 10px 0;
+    }
   }
 
   .case-study-quote-block {
     margin-top: 8px;
     height: 55px;
+    @media (min-width: $mobile) and (max-width: $tablet) {
+      margin-bottom: 8px;
+    }
   }
 
   .case-study-card-learn-more {
@@ -174,6 +203,7 @@ h2.case-study-h2 {
     .case-study-quote-author-img img {
       height: 40px;
       width: 40px;
+      max-width: none;
       border-radius: 50%;
       margin-right: 10px;
     }

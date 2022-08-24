@@ -3,6 +3,7 @@ title:  "Apache Beam 2.40.0"
 date:   2022-06-25 9:00:00 -0700
 categories:
   - blog
+  - release
 authors:
   - pabloem
 ---

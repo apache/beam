@@ -21,17 +21,13 @@ import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 
-import 'examples_state.dart';
-
 class ExampleSelectorState with ChangeNotifier {
-  final ExampleState _exampleState;
   final PlaygroundState _playgroundState;
   ExampleType _selectedFilterType;
   String _filterText;
   List<CategoryModel> categories;
 
   ExampleSelectorState(
-    this._exampleState,
     this._playgroundState,
     this.categories, [
     this._selectedFilterType = ExampleType.all,
@@ -42,23 +38,26 @@ class ExampleSelectorState with ChangeNotifier {
 
   String get filterText => _filterText;
 
-  setSelectedFilterType(ExampleType type) {
+  void setSelectedFilterType(ExampleType type) {
     _selectedFilterType = type;
     notifyListeners();
   }
 
-  setFilterText(String text) {
+  void setFilterText(String text) {
     _filterText = text;
     notifyListeners();
   }
 
-  setCategories(List<CategoryModel>? categories) {
+  void setCategories(List<CategoryModel>? categories) {
     this.categories = categories ?? [];
     notifyListeners();
   }
 
-  sortCategories() {
-    final categories = _exampleState.getCategories(_playgroundState.sdk)!;
+  void sortCategories() {
+    final categories = _playgroundState.exampleState.getCategories(
+      _playgroundState.sdk,
+    )!;
+
     final sortedCategories = categories
         .map((category) => CategoryModel(
             name: category.name,

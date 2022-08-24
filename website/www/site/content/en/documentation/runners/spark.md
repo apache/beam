@@ -325,6 +325,7 @@ When executing your pipeline with the Spark Runner, you should consider the foll
 <br><b>For RDD/DStream based runner:</b><br>
 {{< /paragraph >}}
 
+<div class="table-container-wrapper">
 <table class="language-java table table-bordered">
 <tr>
   <th>Field</th>
@@ -362,11 +363,13 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>false</td>
 </tr>
 </table>
+</div>
 
 {{< paragraph class="language-java" >}}
 <br><b>For Structured Streaming based runner:</b><br>
 {{< /paragraph >}}
 
+<div class="table-container-wrapper">
 <table class="language-java table table-bordered">
 <tr>
   <th>Field</th>
@@ -409,7 +412,9 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>true</td>
 </tr>
 </table>
+</div>
 
+<div class="table-container-wrapper">
 <table class="language-py table table-bordered">
 <tr>
   <th>Field</th>
@@ -427,6 +432,7 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>Set to match your job service endpoint (localhost:8099 by default)</td>
 </tr>
 </table>
+</div>
 
 ## Additional notes
 

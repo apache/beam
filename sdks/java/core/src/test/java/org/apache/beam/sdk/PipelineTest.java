@@ -18,7 +18,6 @@
 package org.apache.beam.sdk;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
@@ -407,13 +406,9 @@ public class PipelineTest {
         new PipelineVisitor.Defaults() {
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
-            if (!node.isRootNode()) {
-              assertThat(
-                  node.getTransform().getClass(),
-                  not(
-                      anyOf(
-                          Matchers.equalTo(GenerateSequence.class),
-                          Matchers.equalTo(Create.Values.class))));
+            String fullName = node.getFullName();
+            if (fullName.equals("unbounded") || fullName.equals("bounded")) {
+              assertThat(node.getTransform(), Matchers.instanceOf(EmptyFlatten.class));
             }
             return CompositeBehavior.ENTER_TRANSFORM;
           }

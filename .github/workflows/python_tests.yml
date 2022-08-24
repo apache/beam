@@ -45,7 +45,7 @@ jobs:
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -69,9 +69,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.7
       - name: Get build dependencies
@@ -84,7 +84,7 @@ jobs:
         working-directory: ./sdks/python/dist
         run: mv $(ls | grep "apache-beam.*tar\.gz") apache-beam-source.tar.gz
       - name: Upload compressed sources as artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: python_sdk_source
           path: sdks/python/dist/apache-beam-source.tar.gz
@@ -103,9 +103,9 @@ jobs:
         ]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.params.py_ver }}
       - name: Get build dependencies
@@ -122,7 +122,7 @@ jobs:
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win
       - name: Upload test logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: pytest-${{matrix.os}}-${{matrix.params.py_ver}}
@@ -138,9 +138,9 @@ jobs:
         python: [3.7, 3.8, 3.9]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
       - name: Get build dependencies
@@ -166,17 +166,17 @@ jobs:
         python: [3.7, 3.8, 3.9]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
       - name: Install go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: '1.18'
       - name: Download source from artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: python_sdk_source
           path: apache-beam-source

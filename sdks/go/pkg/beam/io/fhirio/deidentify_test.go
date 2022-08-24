@@ -40,10 +40,7 @@ func TestDeidentify_Success(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	out := deidentify(s, "src", "dst", nil, &fakeFhirStoreClient{
 		fakeDeidentify: func(string, string, *healthcare.DeidentifyConfig) (operationResults, error) {
-			return operationResults{
-				Successes: 5,
-				Failures:  2,
-			}, nil
+			return testOperationResult, nil
 		},
 	})
 	passert.Count(s, out, "", 1)
@@ -51,6 +48,6 @@ func TestDeidentify_Success(t *testing.T) {
 	result := ptest.RunAndValidate(t, p)
 	validateCounter(t, result, operationErrorCounterName, 0)
 	validateCounter(t, result, operationSuccessCounterName, 1)
-	validateCounter(t, result, errorCounterName, 2)
-	validateCounter(t, result, successCounterName, 5)
+	validateCounter(t, result, errorCounterName, int(testOperationResult.Failures))
+	validateCounter(t, result, successCounterName, int(testOperationResult.Successes))
 }

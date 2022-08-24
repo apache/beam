@@ -258,7 +258,7 @@ func (d *Datastore) GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEn
 	for _, sdk := range sdks {
 		exampleKeys = append(exampleKeys, utils.GetExampleKey(ctx, sdk.Name, sdk.DefaultExample))
 	}
-	examples, err := getExampleEntities(tx, exampleKeys)
+	examples, err := getEntities[entity.ExampleEntity](tx, exampleKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +273,7 @@ func (d *Datastore) GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEn
 	for _, exampleKey := range exampleKeys {
 		snippetKeys = append(snippetKeys, utils.GetSnippetKey(ctx, exampleKey.Name))
 	}
-	snippets, err := getSnippetEntities(tx, snippetKeys)
+	snippets, err := getEntities[entity.SnippetEntity](tx, snippetKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -429,6 +429,39 @@ func (d *Datastore) GetExampleGraph(ctx context.Context, id string) (string, err
 	return pcObj.Content, nil
 }
 
+//DeleteUnusedSnippets deletes all unused snippets
+func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int32) error {
+	var hoursDiff = dayDiff * 24
+	boundaryDate := time.Now().Add(-time.Hour * time.Duration(hoursDiff))
+	snippetQuery := datastore.NewQuery(constants.SnippetKind).
+		Namespace(utils.GetNamespace(ctx)).
+		Filter("lVisited <= ", boundaryDate).
+		Filter("origin =", constants.UserSnippetOrigin).
+		Project("numberOfFiles")
+	var snpDtos []*dto.SnippetDeleteDTO
+	snpKeys, err := d.Client.GetAll(ctx, snippetQuery, &snpDtos)
+	if err != nil {
+		logger.Errorf("Datastore: DeleteUnusedSnippets(): error during deleting unused snippets, err: %s\n", err.Error())
+		return err
+	}
+	var fileKeys []*datastore.Key
+	for snpIndex, snpKey := range snpKeys {
+		for fileIndex := 0; fileIndex < snpDtos[snpIndex].NumberOfFiles; fileIndex++ {
+			fileKeys = append(fileKeys, utils.GetFileKey(ctx, snpKey.Name, fileIndex))
+		}
+	}
+	_, err = d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+		err = tx.DeleteMulti(fileKeys)
+		err = tx.DeleteMulti(snpKeys)
+		return err
+	})
+	if err != nil {
+		logger.Errorf("Datastore: DeleteUnusedSnippets(): error during deleting unused snippets, err: %s\n", err.Error())
+		return err
+	}
+	return nil
+}
+
 func rollback(tx *datastore.Transaction) {
 	err := tx.Rollback()
 	if err != nil {
@@ -436,9 +469,9 @@ func rollback(tx *datastore.Transaction) {
 	}
 }
 
-func getExampleEntities(tx *datastore.Transaction, keys []*datastore.Key) ([]*entity.ExampleEntity, error) {
-	var examplesWithNils = make([]*entity.ExampleEntity, len(keys))
-	examples := make([]*entity.ExampleEntity, 0)
+func getEntities[V entity.DatastoreEntity](tx *datastore.Transaction, keys []*datastore.Key) ([]*V, error) {
+	var examplesWithNils = make([]*V, len(keys))
+	examples := make([]*V, 0)
 	if err := tx.GetMulti(keys, examplesWithNils); err != nil {
 		if errors, ok := err.(datastore.MultiError); ok {
 			for _, errVal := range errors {
@@ -451,35 +484,11 @@ func getExampleEntities(tx *datastore.Transaction, keys []*datastore.Key) ([]*en
 				}
 			}
 		} else {
-			logger.Errorf("error during the getting default examples, err: %s\n", err.Error())
+			logger.Errorf("error during the getting entities, err: %s\n", err.Error())
 			return nil, err
 		}
 	} else {
 		examples = examplesWithNils
 	}
 	return examples, nil
-}
-
-func getSnippetEntities(tx *datastore.Transaction, keys []*datastore.Key) ([]*entity.SnippetEntity, error) {
-	snippetsWithNils := make([]*entity.SnippetEntity, len(keys))
-	snippets := make([]*entity.SnippetEntity, 0)
-	if err := tx.GetMulti(keys, snippetsWithNils); err != nil {
-		if errors, ok := err.(datastore.MultiError); ok {
-			for _, errVal := range errors {
-				if errVal == datastore.ErrNoSuchEntity {
-					for _, snipVal := range snippetsWithNils {
-						if snipVal != nil {
-							snippets = append(snippets, snipVal)
-						}
-					}
-				}
-			}
-		} else {
-			logger.Errorf("error during the getting snippets, err: %s\n", err.Error())
-			return nil, err
-		}
-	} else {
-		snippets = snippetsWithNils
-	}
-	return snippets, nil
 }

@@ -62,8 +62,8 @@ def sparkTestProperties(overrides = [:]) {
 def hadoopVersions = [
   "285" : "2.8.5",
   "292" : "2.9.2",
-  "2101": "2.10.1",
-  "321" : "3.2.1",
+  "2102": "2.10.2",
+  "324" : "3.2.4",
 ]
 
 hadoopVersions.each { kv -> configurations.create("hadoopVersion$kv.key") }
@@ -150,7 +150,7 @@ dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   implementation library.java.vendored_guava_26_0_jre
   implementation "io.dropwizard.metrics:metrics-core:3.1.5" // version used by Spark 2.4
   spark.components.each { component ->

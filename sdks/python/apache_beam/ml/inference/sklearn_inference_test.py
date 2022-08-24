@@ -317,15 +317,6 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       inference_runner = SklearnModelHandlerPandas(model_uri='unused')
       inference_runner.run_inference([data_frame_too_many_rows], fake_model)
 
-  def test_inference_args_passed(self):
-    with self.assertRaisesRegex(ValueError, r'inference_args were provided'):
-      data_frame = pandas_dataframe()
-      fake_model = FakeModel()
-      inference_runner = SklearnModelHandlerPandas(model_uri='unused')
-      inference_runner.run_inference([data_frame],
-                                     fake_model,
-                                     inference_args={'key1': 'value1'})
-
 
 if __name__ == '__main__':
   unittest.main()

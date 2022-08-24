@@ -31,12 +31,18 @@ from sklearn.base import BaseEstimator
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.utils.annotations import experimental
 
 try:
   import joblib
 except ImportError:
   # joblib is an optional dependency.
   pass
+
+__all__ = [
+    'SklearnModelHandlerNumpy',
+    'SklearnModelHandlerPandas',
+]
 
 
 class ModelFileType(enum.Enum):
@@ -58,20 +64,6 @@ def _load_model(model_uri, file_type):
       )
     return joblib.load(file)
   raise AssertionError('Unsupported serialization type.')
-
-
-def _validate_inference_args(inference_args):
-  """Confirms that inference_args is None.
-
-  scikit-learn models do not need extra arguments in their predict() call.
-  However, since inference_args is an argument in the RunInference interface,
-  we want to make sure it is not passed here in Sklearn's implementation of
-  RunInference.
-  """
-  if inference_args:
-    raise ValueError(
-        'inference_args were provided, but should be None because scikit-learn '
-        'models do not need extra arguments in their predict() call.')
 
 
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
@@ -118,7 +110,6 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Returns:
       An Iterable of type PredictionResult.
     """
-    _validate_inference_args(inference_args)
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
@@ -132,6 +123,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     return sum(sys.getsizeof(element) for element in batch)
 
 
+@experimental(extra_message="No backwards-compatibility guarantees.")
 class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
                                              PredictionResult,
                                              BaseEstimator]):
@@ -180,7 +172,6 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     Returns:
       An Iterable of type PredictionResult.
     """
-    _validate_inference_args(inference_args)
     # sklearn_inference currently only supports single rowed dataframes.
     for dataframe in iter(batch):
       if dataframe.shape[0] != 1:

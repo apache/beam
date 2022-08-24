@@ -54,7 +54,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20220525',
+    'dataflow.legacy_container_version' : 'beam-master-20220816',
     'dataflow.fnapi_container_version' : 'beam-master-20220701',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
@@ -89,9 +89,13 @@ dependencies {
   implementation library.java.avro
   implementation library.java.bigdataoss_util
   implementation library.java.commons_codec
-  implementation library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
+  // Avoids conflicts with bigdataoss_util (BEAM-11010)
+  implementation library.java.flogger_system_backend
   permitUnusedDeclared library.java.flogger_system_backend
   implementation library.java.google_api_client
+  // Ensures SequencedMessage availability for Spotless
+  implementation library.java.proto_google_cloud_pubsublite_v1
+  permitUnusedDeclared library.java.proto_google_cloud_pubsublite_v1
   implementation library.java.google_api_services_clouddebugger
   implementation library.java.google_api_services_dataflow
   implementation library.java.google_api_services_storage
@@ -107,7 +111,7 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
@@ -391,7 +395,10 @@ task validatesRunnerStreaming {
     ],
     excludedTests: [
       // TODO(https://github.com/apache/beam/issues/21472)
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState'
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
+      // GroupIntoBatches.withShardedKey not supported on streaming runner v1
+      // https://github.com/apache/beam/issues/22592
+      'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
     ]
   ))
 }
