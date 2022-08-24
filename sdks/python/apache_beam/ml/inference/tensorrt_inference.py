@@ -33,6 +33,7 @@ import numpy as np
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.utils.annotations import experimental
 
 LOGGER = logging.getLogger("TensorRTEngineHandlerNumPy")
 # This try/catch block allows users to submit jobs from a machine without
@@ -161,6 +162,7 @@ class TensorRTEngine:
         self.stream)
 
 
+@experimental(extra_message="No backwards-compatibility guarantees.")
 class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
                                               PredictionResult,
                                               TensorRTEngine]):
@@ -174,6 +176,9 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
             min_batch_size=1,
             max_batch_size=1,
             engine_path="my_uri"))
+
+    **NOTE:** This API and its implementation are under development and
+    do not provide backward compatibility guarantees.
 
     Args:
       min_batch_size: minimum accepted batch size.
