@@ -471,7 +471,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 					return handleErr(err)
 				}
 				switch ps.StateType() {
-				case state.StateTypeValue:
+				case state.TypeValue:
 					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
 						Spec: &pipepb.StateSpec_ReadModifyWriteSpec{
 							ReadModifyWriteSpec: &pipepb.ReadModifyWriteStateSpec{
@@ -482,7 +482,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 							Urn: URNBagUserState,
 						},
 					}
-				case state.StateTypeBag:
+				case state.TypeBag:
 					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
 						Spec: &pipepb.StateSpec_BagSpec{
 							BagSpec: &pipepb.BagStateSpec{
