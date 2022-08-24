@@ -192,22 +192,34 @@ func (f *combiningStateFn) ProcessElement(s state.Provider, w string, c int) str
 	if err != nil {
 		panic(err)
 	}
-	f.State0.Add(s, 1)
+	err = f.State0.Add(s, 1)
+	if err != nil {
+		panic(err)
+	}
 	i1, _, err := f.State1.Read(s)
 	if err != nil {
 		panic(err)
 	}
-	f.State1.Add(s, 1)
+	err = f.State1.Add(s, 1)
+	if err != nil {
+		panic(err)
+	}
 	i2, _, err := f.State2.Read(s)
 	if err != nil {
 		panic(err)
 	}
-	f.State2.Add(s, "1")
+	err = f.State2.Add(s, "1")
+	if err != nil {
+		panic(err)
+	}
 	i3, _, err := f.State3.Read(s)
 	if err != nil {
 		panic(err)
 	}
-	f.State3.Add(s, "1")
+	err = f.State3.Add(s, "1")
+	if err != nil {
+		panic(err)
+	}
 	i4, _, err := f.State4.Read(s)
 	if err != nil {
 		panic(err)
