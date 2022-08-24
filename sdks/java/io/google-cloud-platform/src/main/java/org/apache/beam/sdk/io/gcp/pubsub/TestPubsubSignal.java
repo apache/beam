@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.sdk.io.gcp.pubsub.TestPubsub.createTopicName;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Subscriber;
@@ -34,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.state.BagState;
@@ -93,6 +93,8 @@ public class TestPubsubSignal implements TestRule {
   private @Nullable SubscriptionAdminClient subscriptionAdmin = null;
   private @Nullable TopicPath resultTopicPath = null;
   private @Nullable TopicPath startTopicPath = null;
+  private @Nullable SubscriptionPath resultSubscriptionPath = null;
+  private @Nullable SubscriptionPath startSubscriptionPath = null;
 
   /**
    * Creates an instance of this rule.
@@ -156,45 +158,71 @@ public class TestPubsubSignal implements TestRule {
     TopicPath startTopicPathTmp =
         PubsubClient.topicPathFromName(
             pipelineOptions.getProject(), createTopicName(description, START_TOPIC_NAME));
+    SubscriptionPath resultSubscriptionPathTmp =
+        PubsubClient.subscriptionPathFromName(
+            pipelineOptions.getProject(),
+            "result-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
+    SubscriptionPath startSubscriptionPathTmp =
+        PubsubClient.subscriptionPathFromName(
+            pipelineOptions.getProject(),
+            "start-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
 
+    // Set variables after successful creation; this signals that they need teardown
     topicAdmin.createTopic(resultTopicPathTmp.getPath());
-    topicAdmin.createTopic(startTopicPathTmp.getPath());
-
-    // Set these after successful creation; this signals that they need teardown
     resultTopicPath = resultTopicPathTmp;
+    topicAdmin.createTopic(startTopicPathTmp.getPath());
     startTopicPath = startTopicPathTmp;
+    subscriptionAdmin.createSubscription(
+        resultSubscriptionPathTmp.getPath(),
+        resultTopicPath.getPath(),
+        PushConfig.getDefaultInstance(),
+        600);
+    resultSubscriptionPath = resultSubscriptionPathTmp;
+    subscriptionAdmin.createSubscription(
+        startSubscriptionPathTmp.getPath(),
+        startTopicPath.getPath(),
+        PushConfig.getDefaultInstance(),
+        600);
+    startSubscriptionPath = startSubscriptionPathTmp;
   }
 
-  private void tearDown() throws IOException {
+  private static void logIfThrows(ThrowingRunnable runnable) {
+    try {
+      runnable.run();
+    } catch (Exception e) {
+      LOG.error("Failed to clean up resource.", e);
+    }
+  }
+
+  private void tearDown() {
     if (subscriptionAdmin == null || topicAdmin == null) {
       return;
     }
 
-    try {
-      if (resultTopicPath != null) {
-        for (String subscriptionPath :
-            topicAdmin.listTopicSubscriptions(resultTopicPath.getPath()).iterateAll()) {
-          subscriptionAdmin.deleteSubscription(subscriptionPath);
-        }
-        topicAdmin.deleteTopic(resultTopicPath.getPath());
-      }
-      if (startTopicPath != null) {
-        for (String subscriptionPath :
-            topicAdmin.listTopicSubscriptions(startTopicPath.getPath()).iterateAll()) {
-          subscriptionAdmin.deleteSubscription(subscriptionPath);
-        }
-        topicAdmin.deleteTopic(startTopicPath.getPath());
-      }
-    } finally {
-      subscriptionAdmin.close();
-      topicAdmin.close();
-
-      subscriptionAdmin = null;
-      topicAdmin = null;
-
-      resultTopicPath = null;
-      startTopicPath = null;
+    if (resultSubscriptionPath != null) {
+      logIfThrows(() -> subscriptionAdmin.deleteSubscription(resultSubscriptionPath.getPath()));
     }
+    if (startSubscriptionPath != null) {
+      logIfThrows(() -> subscriptionAdmin.deleteSubscription(startSubscriptionPath.getPath()));
+    }
+    if (resultTopicPath != null) {
+      logIfThrows(() -> topicAdmin.deleteTopic(resultTopicPath.getPath()));
+    }
+    if (startTopicPath != null) {
+      logIfThrows(() -> topicAdmin.deleteTopic(startTopicPath.getPath()));
+    }
+
+    logIfThrows(subscriptionAdmin::close);
+    logIfThrows(topicAdmin::close);
+
+    subscriptionAdmin = null;
+    topicAdmin = null;
+
+    resultTopicPath = null;
+    startTopicPath = null;
+
+    resultSubscriptionPath = null;
+    startSubscriptionPath = null;
   }
 
   /** Outputs a message that the pipeline has started. */
@@ -241,18 +269,7 @@ public class TestPubsubSignal implements TestRule {
    * <p>This future must be created before running the pipeline. A subscription must exist prior to
    * the start signal being published, which occurs immediately upon pipeline startup.
    */
-  public Supplier<Void> waitForStart(Duration duration) throws IOException {
-    SubscriptionPath startSubscriptionPath =
-        PubsubClient.subscriptionPathFromName(
-            pipelineOptions.getProject(),
-            "start-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
-
-    subscriptionAdmin.createSubscription(
-        startSubscriptionPath.getPath(),
-        startTopicPath.getPath(),
-        PushConfig.getDefaultInstance(),
-        (int) duration.getStandardSeconds());
-
+  public Supplier<Void> waitForStart(Duration duration) {
     return Suppliers.memoize(
         () -> {
           try {
@@ -261,37 +278,13 @@ public class TestPubsubSignal implements TestRule {
             return null;
           } catch (IOException e) {
             throw new RuntimeException(e);
-          } finally {
-            try {
-              subscriptionAdmin.deleteSubscription(startSubscriptionPath.getPath());
-            } catch (ApiException e) {
-              LOG.error(String.format("Leaked PubSub subscription '%s'", startSubscriptionPath));
-            }
           }
         });
   }
 
   /** Wait for a success signal for {@code duration}. */
   public void waitForSuccess(Duration duration) throws IOException {
-    SubscriptionPath resultSubscriptionPath =
-        PubsubClient.subscriptionPathFromName(
-            pipelineOptions.getProject(),
-            "result-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
-
-    subscriptionAdmin.createSubscription(
-        resultSubscriptionPath.getPath(),
-        resultTopicPath.getPath(),
-        PushConfig.getDefaultInstance(),
-        (int) duration.getStandardSeconds());
-
     String result = pollForResultForDuration(resultSubscriptionPath, duration);
-
-    try {
-      subscriptionAdmin.deleteSubscription(resultSubscriptionPath.getPath());
-    } catch (ApiException e) {
-      LOG.error(String.format("Leaked PubSub subscription '%s'", resultSubscriptionPath));
-    }
-
     if (!RESULT_SUCCESS_MESSAGE.equals(result)) {
       throw new AssertionError(result);
     }

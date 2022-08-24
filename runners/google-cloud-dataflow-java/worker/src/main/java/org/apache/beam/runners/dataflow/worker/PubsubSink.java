@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -36,7 +37,7 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -141,6 +142,7 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
   /** The SinkWriter for a PubsubSink. */
   class PubsubWriter implements SinkWriter<WindowedValue<T>> {
     private Windmill.PubSubMessageBundle.Builder outputBuilder;
+    private ByteStringOutputStream stream; // Kept across adds for buffer reuse.
 
     private PubsubWriter(String topic) {
       outputBuilder =
@@ -149,10 +151,15 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
               .setTimestampLabel(timestampLabel)
               .setIdLabel(idLabel)
               .setWithAttributes(withAttributes);
+      stream = new ByteStringOutputStream();
     }
 
     @Override
     public long add(WindowedValue<T> data) throws IOException {
+      checkState(
+          stream.size() == 0,
+          "Expected output stream to be empty but had %s",
+          stream.toByteString());
       ByteString byteString = null;
       if (formatFn != null) {
         PubsubMessage formatted = formatFn.apply(data.getValue());
@@ -161,13 +168,11 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
         if (formatted.getAttributeMap() != null) {
           pubsubMessageBuilder.putAllAttributes(formatted.getAttributeMap());
         }
-        ByteStringOutputStream output = new ByteStringOutputStream();
-        pubsubMessageBuilder.build().writeTo(output);
-        byteString = output.toByteString();
+        pubsubMessageBuilder.build().writeTo(stream);
+        byteString = stream.toByteStringAndReset();
       } else {
-        ByteStringOutputStream stream = new ByteStringOutputStream();
         coder.encode(data.getValue(), stream, Coder.Context.OUTER);
-        byteString = stream.toByteString();
+        byteString = stream.toByteStringAndReset();
       }
 
       outputBuilder.addMessages(

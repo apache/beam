@@ -20,23 +20,31 @@
 // in playground/test/modules/editor/repository/example_repository/example_repository_test.dart.
 // Do not manually edit this file.
 
-import 'dart:async' as _i7;
+import 'dart:async' as _i9;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart'
     as _i5;
 import 'package:playground/modules/examples/repositories/example_client/example_client.dart'
-    as _i6;
+    as _i8;
 import 'package:playground/modules/examples/repositories/models/get_example_code_response.dart'
     as _i3;
 import 'package:playground/modules/examples/repositories/models/get_example_request.dart'
-    as _i9;
+    as _i11;
 import 'package:playground/modules/examples/repositories/models/get_example_response.dart'
     as _i4;
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart'
-    as _i8;
+    as _i10;
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_response.dart'
     as _i2;
+import 'package:playground/modules/examples/repositories/models/get_snippet_request.dart'
+    as _i12;
+import 'package:playground/modules/examples/repositories/models/get_snippet_response.dart'
+    as _i6;
+import 'package:playground/modules/examples/repositories/models/save_snippet_request.dart'
+    as _i13;
+import 'package:playground/modules/examples/repositories/models/save_snippet_response.dart'
+    as _i7;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -59,61 +67,81 @@ class _FakeGetExampleResponse_2 extends _i1.Fake
 
 class _FakeOutputResponse_3 extends _i1.Fake implements _i5.OutputResponse {}
 
+class _FakeGetSnippetResponse_4 extends _i1.Fake
+    implements _i6.GetSnippetResponse {}
+
+class _FakeSaveSnippetResponse_5 extends _i1.Fake
+    implements _i7.SaveSnippetResponse {}
+
 /// A class which mocks [ExampleClient].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockExampleClient extends _i1.Mock implements _i6.ExampleClient {
+class MockExampleClient extends _i1.Mock implements _i8.ExampleClient {
   MockExampleClient() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i7.Future<_i2.GetListOfExampleResponse> getListOfExamples(
-          _i8.GetListOfExamplesRequestWrapper? request) =>
+  _i9.Future<_i2.GetListOfExampleResponse> getListOfExamples(
+          _i10.GetListOfExamplesRequestWrapper? request) =>
       (super.noSuchMethod(Invocation.method(#getListOfExamples, [request]),
               returnValue: Future<_i2.GetListOfExampleResponse>.value(
                   _FakeGetListOfExampleResponse_0()))
-          as _i7.Future<_i2.GetListOfExampleResponse>);
+          as _i9.Future<_i2.GetListOfExampleResponse>);
   @override
-  _i7.Future<_i3.GetExampleCodeResponse> getExampleSource(
-          _i9.GetExampleRequestWrapper? request) =>
+  _i9.Future<_i3.GetExampleCodeResponse> getExampleSource(
+          _i11.GetExampleRequestWrapper? request) =>
       (super.noSuchMethod(Invocation.method(#getExampleSource, [request]),
               returnValue: Future<_i3.GetExampleCodeResponse>.value(
                   _FakeGetExampleCodeResponse_1()))
-          as _i7.Future<_i3.GetExampleCodeResponse>);
+          as _i9.Future<_i3.GetExampleCodeResponse>);
   @override
-  _i7.Future<_i4.GetExampleResponse> getDefaultExample(
-          _i9.GetExampleRequestWrapper? request) =>
+  _i9.Future<_i4.GetExampleResponse> getDefaultExample(
+          _i11.GetExampleRequestWrapper? request) =>
       (super.noSuchMethod(Invocation.method(#getDefaultExample, [request]),
               returnValue: Future<_i4.GetExampleResponse>.value(
                   _FakeGetExampleResponse_2()))
-          as _i7.Future<_i4.GetExampleResponse>);
+          as _i9.Future<_i4.GetExampleResponse>);
   @override
-  _i7.Future<_i4.GetExampleResponse> getExample(
-          _i9.GetExampleRequestWrapper? request) =>
+  _i9.Future<_i4.GetExampleResponse> getExample(
+          _i11.GetExampleRequestWrapper? request) =>
       (super.noSuchMethod(Invocation.method(#getExample, [request]),
               returnValue: Future<_i4.GetExampleResponse>.value(
                   _FakeGetExampleResponse_2()))
-          as _i7.Future<_i4.GetExampleResponse>);
+          as _i9.Future<_i4.GetExampleResponse>);
   @override
-  _i7.Future<_i5.OutputResponse> getExampleOutput(
-          _i9.GetExampleRequestWrapper? request) =>
+  _i9.Future<_i5.OutputResponse> getExampleOutput(
+          _i11.GetExampleRequestWrapper? request) =>
       (super.noSuchMethod(Invocation.method(#getExampleOutput, [request]),
               returnValue:
                   Future<_i5.OutputResponse>.value(_FakeOutputResponse_3()))
-          as _i7.Future<_i5.OutputResponse>);
+          as _i9.Future<_i5.OutputResponse>);
   @override
-  _i7.Future<_i5.OutputResponse> getExampleLogs(
-          _i9.GetExampleRequestWrapper? request) =>
+  _i9.Future<_i5.OutputResponse> getExampleLogs(
+          _i11.GetExampleRequestWrapper? request) =>
       (super.noSuchMethod(Invocation.method(#getExampleLogs, [request]),
               returnValue:
                   Future<_i5.OutputResponse>.value(_FakeOutputResponse_3()))
-          as _i7.Future<_i5.OutputResponse>);
+          as _i9.Future<_i5.OutputResponse>);
   @override
-  _i7.Future<_i5.OutputResponse> getExampleGraph(
-          _i9.GetExampleRequestWrapper? request) =>
+  _i9.Future<_i5.OutputResponse> getExampleGraph(
+          _i11.GetExampleRequestWrapper? request) =>
       (super.noSuchMethod(Invocation.method(#getExampleGraph, [request]),
               returnValue:
                   Future<_i5.OutputResponse>.value(_FakeOutputResponse_3()))
-          as _i7.Future<_i5.OutputResponse>);
+          as _i9.Future<_i5.OutputResponse>);
+  @override
+  _i9.Future<_i6.GetSnippetResponse> getSnippet(
+          _i12.GetSnippetRequestWrapper? request) =>
+      (super.noSuchMethod(Invocation.method(#getSnippet, [request]),
+              returnValue: Future<_i6.GetSnippetResponse>.value(
+                  _FakeGetSnippetResponse_4()))
+          as _i9.Future<_i6.GetSnippetResponse>);
+  @override
+  _i9.Future<_i7.SaveSnippetResponse> saveSnippet(
+          _i13.SaveSnippetRequestWrapper? request) =>
+      (super.noSuchMethod(Invocation.method(#saveSnippet, [request]),
+              returnValue: Future<_i7.SaveSnippetResponse>.value(
+                  _FakeSaveSnippetResponse_5()))
+          as _i9.Future<_i7.SaveSnippetResponse>);
 }

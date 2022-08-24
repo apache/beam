@@ -29,6 +29,7 @@ For an example implementation of :class:`FileBasedSource` see
 # pytype: skip-file
 
 from typing import Callable
+from typing import Iterable
 from typing import Tuple
 from typing import Union
 
@@ -347,7 +348,7 @@ class _ExpandIntoRanges(DoFn):
     self._compression_type = compression_type
 
   def process(self, element: Union[str, FileMetadata], *args,
-              **kwargs) -> Tuple[FileMetadata, OffsetRange]:
+              **kwargs) -> Iterable[Tuple[FileMetadata, OffsetRange]]:
     if isinstance(element, FileMetadata):
       metadata_list = [element]
     else:

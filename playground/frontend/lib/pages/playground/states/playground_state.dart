@@ -25,9 +25,12 @@ import 'package:playground/modules/editor/parsers/run_options_parser.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
+import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/models/outputs_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground/pages/playground/states/example_loaders/examples_loader.dart';
+import 'package:playground/pages/playground/states/examples_state.dart';
 
 const kTitleLength = 15;
 const kExecutionTimeUpdate = 100;
@@ -40,6 +43,9 @@ const kCachedResultsLog =
     'The results of this example are taken from the Apache Beam Playground cache.\n';
 
 class PlaygroundState with ChangeNotifier {
+  final ExampleState exampleState;
+  final ExamplesLoader examplesLoader;
+
   final CodeController codeController;
   SDK _sdk;
   CodeRepository? _codeRepository;
@@ -52,17 +58,24 @@ class PlaygroundState with ChangeNotifier {
   String? outputResult;
 
   PlaygroundState({
+    required this.exampleState,
+    required this.examplesLoader,
     SDK sdk = SDK.java,
-    ExampleModel? selectedExample,
     CodeRepository? codeRepository,
   })  : _sdk = sdk,
         codeController = CodeController(
           language: sdk.highlightMode,
           webSpaceFix: false,
         ) {
-    _selectedExample = selectedExample;
-    _pipelineOptions = selectedExample?.pipelineOptions ?? '';
-    codeController.text = _selectedExample?.source ?? '';
+    final uri = Uri.base;
+    final descriptor = ExamplesLoadingDescriptorFactory.fromUriParts(
+      path: uri.path,
+      params: uri.queryParameters,
+    );
+
+    examplesLoader.setPlaygroundState(this);
+    examplesLoader.load(descriptor);
+
     _codeRepository = codeRepository;
     selectedOutputFilterType = OutputType.all;
     outputResult = '';
@@ -101,6 +114,7 @@ class PlaygroundState with ChangeNotifier {
 
   void setExample(ExampleModel example) {
     _selectedExample = example;
+    setSdk(example.sdk, notify: false);
     _pipelineOptions = example.pipelineOptions ?? '';
     codeController.text = example.source ?? '';
     _result = null;
@@ -109,13 +123,16 @@ class PlaygroundState with ChangeNotifier {
     notifyListeners();
   }
 
-  void setSdk(SDK sdk) {
+  void setSdk(SDK sdk, {bool notify = true}) {
     _sdk = sdk;
     codeController.language = sdk.highlightMode;
-    notifyListeners();
+
+    if (notify) {
+      notifyListeners();
+    }
   }
 
-  void setSource(String source) {
+  set source(String source) {
     codeController.text = source;
   }
 
@@ -138,7 +155,7 @@ class PlaygroundState with ChangeNotifier {
     codeController.text = _selectedExample?.source ?? '';
     _pipelineOptions = selectedExample?.pipelineOptions ?? '';
     _executionTime = null;
-    setOutputResult('');
+    outputResult = '';
     notifyListeners();
   }
 
@@ -177,9 +194,7 @@ class PlaygroundState with ChangeNotifier {
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
-        String log = event.log ?? '';
-        String output = event.output ?? '';
-        setOutputResult(log + output);
+        filterOutput(selectedOutputFilterType ?? OutputType.all);
 
         if (event.isFinished && onFinish != null) {
           onFinish();
@@ -224,7 +239,7 @@ class PlaygroundState with ChangeNotifier {
       log: kCachedResultsLog + logs,
       graph: _selectedExample!.graph,
     );
-    setOutputResult(_result!.log! + _result!.output!);
+    filterOutput(selectedOutputFilterType ?? OutputType.all);
     _executionTime?.close();
     notifyListeners();
   }

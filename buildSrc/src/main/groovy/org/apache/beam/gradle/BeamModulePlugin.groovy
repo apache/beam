@@ -474,7 +474,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.45.1"
     def guava_version = "31.1-jre"
-    def hadoop_version = "2.10.1"
+    def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
     def httpclient_version = "4.5.13"
@@ -543,7 +543,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_utils                         : "software.amazon.awssdk:utils:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
-        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.12.9",
+        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.11.0",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         cdap_api                                    : "io.cdap.cdap:cdap-api:$cdap_version",
@@ -562,7 +562,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_collections                         : "commons-collections:commons-collections:3.2.2",
         commons_compress                            : "org.apache.commons:commons-compress:1.21",
         commons_csv                                 : "org.apache.commons:commons-csv:1.8",
-        commons_io                                  : "commons-io:commons-io:2.6",
+        commons_io                                  : "commons-io:commons-io:2.7",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
@@ -673,7 +673,7 @@ class BeamModulePlugin implements Plugin<Project> {
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         mockito_core                                : "org.mockito:mockito-core:3.7.7",
         mockito_inline                              : "org.mockito:mockito-inline:4.5.1",
-        mongo_java_driver                           : "org.mongodb:mongo-java-driver:3.12.10",
+        mongo_java_driver                           : "org.mongodb:mongo-java-driver:3.12.11",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
@@ -719,7 +719,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_mysql                        : "org.testcontainers:mysql:$testcontainers_version",
         testcontainers_gcloud                       : "org.testcontainers:gcloud:$testcontainers_version",
-        vendored_grpc_1_43_2                        : "org.apache.beam:beam-vendor-grpc-1_43_2:0.1",
+        vendored_grpc_1_48_1                        : "org.apache.beam:beam-vendor-grpc-1_48_1:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
@@ -2129,10 +2129,10 @@ class BeamModulePlugin implements Plugin<Project> {
           archivesBaseName: configuration.archivesBaseName,
           automaticModuleName: configuration.automaticModuleName,
           shadowJarValidationExcludes: it.shadowJarValidationExcludes,
-          shadowClosure: GrpcVendoring_1_43_2.shadowClosure() << {
+          shadowClosure: GrpcVendoring_1_48_1.shadowClosure() << {
             // We perform all the code relocations but don't include
             // any of the actual dependencies since they will be supplied
-            // by org.apache.beam:beam-vendor-grpc-v1p43p2
+            // by org.apache.beam:beam-vendor-grpc-v1p48p1
             dependencies {
               include(dependency { return false })
             }
@@ -2149,14 +2149,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_43_2.protobuf_version}" }
+          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_48_1.protobuf_version}" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:${GrpcVendoring_1_43_2.grpc_version}" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:${GrpcVendoring_1_48_1.grpc_version}" }
         }
 
         generateProtoTasks {
@@ -2170,7 +2170,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.dependencies GrpcVendoring_1_43_2.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_43_2 }
+      project.dependencies GrpcVendoring_1_48_1.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_48_1 }
     }
 
     /** ***********************************************************************************************/
@@ -2510,6 +2510,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // specific binary here could make gradle delete it while pip will believe
         // the package is fully installed.
         outputs.dirs(project.ext.envdir)
+        outputs.upToDateWhen { false }
       }
 
       project.ext.pythonSdkDeps = project.files(

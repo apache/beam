@@ -36,6 +36,7 @@ import (
 	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/tasks"
 	"beam.apache.org/playground/backend/internal/tests/test_data"
 )
 
@@ -93,6 +94,12 @@ func runServer() error {
 
 		entityMapper = mapper.NewDatastoreMapper(ctx, &envService.ApplicationEnvs, props)
 		cacheComponent = components.NewService(cacheService, dbClient)
+
+		// Since only router server has the scheduled task, the task creation is here
+		scheduledTasks := tasks.New(ctx)
+		if err = scheduledTasks.StartRemovingExtraSnippets(props.RemovingUnusedSnptsCron, props.RemovingUnusedSnptsDays, dbClient); err != nil {
+			return err
+		}
 	}
 
 	pb.RegisterPlaygroundServiceServer(grpcServer, &playgroundController{
@@ -194,6 +201,10 @@ func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.
 // setupExamplesCatalogFromDatastore saves precompiled objects catalog from the cloud datastore to the cache
 func setupExamplesCatalogFromDatastore(ctx context.Context, cacheService cache.Cache, db db.Database, sdks []*entity.SDKEntity) error {
 	catalog, err := db.GetCatalog(ctx, sdks)
+	if len(catalog) == 0 {
+		logger.Warn("example catalog is empty")
+		return nil
+	}
 	if err != nil {
 		return err
 	}

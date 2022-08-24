@@ -35,7 +35,7 @@ import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTr
 import org.apache.beam.runners.core.metrics.MonitoringInfoEncodings;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.joda.time.Duration;
 import org.junit.Rule;

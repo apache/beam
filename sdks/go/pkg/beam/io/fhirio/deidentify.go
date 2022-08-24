@@ -34,10 +34,9 @@ func init() {
 
 type deidentifyFn struct {
 	fnCommonVariables
+	operationCounters
 	SourceStorePath, DestinationStorePath string
 	DeidentifyConfig                      *healthcare.DeidentifyConfig
-	operationErrorCount                   beam.Counter
-	operationSuccessCount                 beam.Counter
 }
 
 func (fn deidentifyFn) String() string {
@@ -46,8 +45,7 @@ func (fn deidentifyFn) String() string {
 
 func (fn *deidentifyFn) Setup() {
 	fn.fnCommonVariables.setup(fn.String())
-	fn.operationErrorCount = beam.NewCounter(fn.String(), operationErrorCounterName)
-	fn.operationSuccessCount = beam.NewCounter(fn.String(), operationSuccessCounterName)
+	fn.operationCounters.setup(fn.String())
 }
 
 func (fn *deidentifyFn) ProcessElement(ctx context.Context, _ []byte, emitDstStore func(string)) {
@@ -56,11 +54,11 @@ func (fn *deidentifyFn) ProcessElement(ctx context.Context, _ []byte, emitDstSto
 	})
 	if err != nil {
 		log.Warnf(ctx, "Deidentify operation failed. Reason: %v", err)
-		fn.operationErrorCount.Inc(ctx, 1)
+		fn.operationCounters.errorCount.Inc(ctx, 1)
 		return
 	}
 
-	fn.operationSuccessCount.Inc(ctx, 1)
+	fn.operationCounters.successCount.Inc(ctx, 1)
 	fn.resourcesSuccessCount.Inc(ctx, result.Successes)
 	fn.resourcesErrorCount.Inc(ctx, result.Failures)
 	emitDstStore(fn.DestinationStorePath)

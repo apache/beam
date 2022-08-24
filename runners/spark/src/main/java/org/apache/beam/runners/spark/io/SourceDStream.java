@@ -183,7 +183,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
         proportionalDuration.isLongerThan(lowerBoundDuration)
             ? proportionalDuration
             : lowerBoundDuration;
-    LOG.info("Read duration set to: " + readDuration);
+    LOG.info("Read duration set to: {}", readDuration);
     return readDuration;
   }
 
