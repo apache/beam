@@ -43,7 +43,7 @@ func (f *valueStateFn) ProcessElement(s state.Provider, w string, c int) string 
 	if !ok {
 		i = 1
 	}
-	f.State1.Write(s, i+1)
+	err = f.State1.Write(s, i+1)
 	if err != nil {
 		panic(err)
 	}
@@ -55,7 +55,7 @@ func (f *valueStateFn) ProcessElement(s state.Provider, w string, c int) string 
 	if !ok {
 		j = "I"
 	}
-	f.State2.Write(s, j+"I")
+	err = f.State2.Write(s, j+"I")
 	if err != nil {
 		panic(err)
 	}

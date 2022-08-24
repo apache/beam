@@ -162,42 +162,40 @@ func (s *stateProvider) WriteBagState(val state.Transaction) error {
 func (s *stateProvider) getReader(userStateID string) (io.ReadCloser, error) {
 	if r, ok := s.readersByKey[userStateID]; ok {
 		return r, nil
-	} else {
-		r, err := s.sr.OpenBagUserStateReader(s.ctx, s.SID, userStateID, s.elementKey, s.window)
-		if err != nil {
-			return nil, err
-		}
-		s.readersByKey[userStateID] = r
-		return s.readersByKey[userStateID], nil
 	}
+	r, err := s.sr.OpenBagUserStateReader(s.ctx, s.SID, userStateID, s.elementKey, s.window)
+	if err != nil {
+		return nil, err
+	}
+	s.readersByKey[userStateID] = r
+	return s.readersByKey[userStateID], nil
 }
 
 func (s *stateProvider) getAppender(userStateID string) (io.Writer, error) {
 	if w, ok := s.appendersByKey[userStateID]; ok {
 		return w, nil
-	} else {
-		w, err := s.sr.OpenBagUserStateAppender(s.ctx, s.SID, userStateID, s.elementKey, s.window)
-		if err != nil {
-			return nil, err
-		}
-		s.appendersByKey[userStateID] = w
-		return s.appendersByKey[userStateID], nil
 	}
+	w, err := s.sr.OpenBagUserStateAppender(s.ctx, s.SID, userStateID, s.elementKey, s.window)
+	if err != nil {
+		return nil, err
+	}
+	s.appendersByKey[userStateID] = w
+	return s.appendersByKey[userStateID], nil
 }
 
 func (s *stateProvider) getClearer(userStateID string) (io.Writer, error) {
 	if w, ok := s.clearersByKey[userStateID]; ok {
 		return w, nil
-	} else {
-		w, err := s.sr.OpenBagUserStateClearer(s.ctx, s.SID, userStateID, s.elementKey, s.window)
-		if err != nil {
-			return nil, err
-		}
-		s.clearersByKey[userStateID] = w
-		return s.clearersByKey[userStateID], nil
 	}
+	w, err := s.sr.OpenBagUserStateClearer(s.ctx, s.SID, userStateID, s.elementKey, s.window)
+	if err != nil {
+		return nil, err
+	}
+	s.clearersByKey[userStateID] = w
+	return s.clearersByKey[userStateID], nil
 }
 
+// UserStateAdapter provides a state provider to be used for user state.
 type UserStateAdapter interface {
 	NewStateProvider(ctx context.Context, reader StateReader, w typex.Window, element interface{}) (stateProvider, error)
 }
