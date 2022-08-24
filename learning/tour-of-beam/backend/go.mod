@@ -2,7 +2,10 @@ module beam.apache.org/learning/tour-of-beam/backend
 
 go 1.18
 
-require github.com/GoogleCloudPlatform/functions-framework-go v1.5.3
+require (
+	github.com/GoogleCloudPlatform/functions-framework-go v1.5.3
+	gopkg.in/yaml.v3 v3.0.1
+)
 
 require (
 	cloud.google.com/go v0.102.1 // indirect
@@ -25,7 +28,6 @@ require (
 	google.golang.org/genproto v0.0.0-20220617124728-180714bec0ad // indirect
 	google.golang.org/grpc v1.47.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 require (
