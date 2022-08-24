@@ -59,3 +59,8 @@ jobs:
         with:
           gradle-command: :runners:direct-java:test
           arguments: -PdisableSpotlessCheck=true -PdisableCheckStyle=true --info
+      - name: Run :runners:direct-java:examplesIntegrationTest in Java-${{ matrix.java }}
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :runners:direct-java:examplesIntegrationTest
+          arguments: -PdisableSpotlessCheck=true -PdisableCheckStyle=true --info
