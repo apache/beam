@@ -20,9 +20,11 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 type stateProvider struct {
@@ -39,6 +41,7 @@ type stateProvider struct {
 	appendersByKey    map[string]io.Writer
 	clearersByKey     map[string]io.Writer
 	codersByKey       map[string]*coder.Coder
+	combineFnsByKey   map[string]*graph.CombineFn
 }
 
 // ReadValueState reads a value state from the State API
@@ -159,6 +162,40 @@ func (s *stateProvider) WriteBagState(val state.Transaction) error {
 	return nil
 }
 
+func (s *stateProvider) CreateAccumulatorFn(userStateID string) reflectx.Func {
+	a := s.combineFnsByKey[userStateID]
+	if ca := a.CreateAccumulatorFn(); ca != nil {
+		return ca.Fn
+	}
+	return nil
+}
+
+func (s *stateProvider) AddInputFn(userStateID string) reflectx.Func {
+	a := s.combineFnsByKey[userStateID]
+	if ai := a.AddInputFn(); ai != nil {
+		return ai.Fn
+	}
+
+	return nil
+}
+
+func (s *stateProvider) MergeAccumulatorsFn(userStateID string) reflectx.Func {
+	a := s.combineFnsByKey[userStateID]
+	if ma := a.MergeAccumulatorsFn(); ma != nil {
+		return ma.Fn
+	}
+
+	return nil
+}
+
+func (s *stateProvider) ExtractOutputFn(userStateID string) reflectx.Func {
+	a := s.combineFnsByKey[userStateID]
+	if eo := a.ExtractOutputFn(); eo != nil {
+		return eo.Fn
+	}
+	return nil
+}
+
 func (s *stateProvider) getReader(userStateID string) (io.ReadCloser, error) {
 	if r, ok := s.readersByKey[userStateID]; ok {
 		return r, nil
@@ -201,16 +238,17 @@ type UserStateAdapter interface {
 }
 
 type userStateAdapter struct {
-	sid            StreamID
-	wc             WindowEncoder
-	kc             ElementEncoder
-	stateIDToCoder map[string]*coder.Coder
-	c              *coder.Coder
+	sid                StreamID
+	wc                 WindowEncoder
+	kc                 ElementEncoder
+	stateIDToCoder     map[string]*coder.Coder
+	stateIDToCombineFn map[string]*graph.CombineFn
+	c                  *coder.Coder
 }
 
 // NewUserStateAdapter returns a user state adapter for the given StreamID and coder.
 // It expects a W<V> or W<KV<K,V>> coder, because the protocol requires windowing information.
-func NewUserStateAdapter(sid StreamID, c *coder.Coder, stateIDToCoder map[string]*coder.Coder) UserStateAdapter {
+func NewUserStateAdapter(sid StreamID, c *coder.Coder, stateIDToCoder map[string]*coder.Coder, stateIDToCombineFn map[string]*graph.CombineFn) UserStateAdapter {
 	if !coder.IsW(c) {
 		panic(fmt.Sprintf("expected WV coder for user state %v: %v", sid, c))
 	}
@@ -220,7 +258,7 @@ func NewUserStateAdapter(sid StreamID, c *coder.Coder, stateIDToCoder map[string
 	if coder.IsKV(coder.SkipW(c)) {
 		kc = MakeElementEncoder(coder.SkipW(c).Components[0])
 	}
-	return &userStateAdapter{sid: sid, wc: wc, kc: kc, c: c, stateIDToCoder: stateIDToCoder}
+	return &userStateAdapter{sid: sid, wc: wc, kc: kc, c: c, stateIDToCoder: stateIDToCoder, stateIDToCombineFn: stateIDToCombineFn}
 }
 
 // NewStateProvider creates a stateProvider with the ability to talk to the state API.
@@ -249,6 +287,7 @@ func (s *userStateAdapter) NewStateProvider(ctx context.Context, reader StateRea
 		readersByKey:      make(map[string]io.ReadCloser),
 		appendersByKey:    make(map[string]io.Writer),
 		clearersByKey:     make(map[string]io.Writer),
+		combineFnsByKey:   s.stateIDToCombineFn,
 		codersByKey:       s.stateIDToCoder,
 	}
 
