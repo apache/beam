@@ -32,7 +32,7 @@ Currently, we have both GitHub-hosted and self-hosted runners for running the Gi
 * Refer to [this README](./gh-actions-self-hosted-runners/README.md) for the steps for creating your own self-hosted runners for testing your workflows.
 * Depending on your workflow's needs, it must specify the following `runs-on` tags to run in the specified operating system:
   * Ubuntu 20.04 self-hosted runner: `[self-hosted, ubuntu-20.04]`
-  * Windows Server 2019 self-hosted runner: `[self-hosted,windows-server-2019]`
+  * Windows Server 2019 self-hosted runner: `[self-hosted, windows-server-2019]`
   * MacOS GitHub-hosted runner: `macos-latest`
 * Every workflow that tests the source code, needs to have the workflow trigger `pull_request_target` instead of `pull_request`.
 * The workflow must have set read permissions for all the available scopes and jobs: `permissions: read-all`. It must be set at the top of the `jobs` directive.

@@ -97,7 +97,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted, windows-server-2019]]
         params: [
           {"py_ver": "3.7", "tox_env": "py37"},
           {"py_ver": "3.8", "tox_env": "py38"},
@@ -138,7 +138,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted, windows-server-2019]]
         python: [3.7, 3.8, 3.9]
     steps:
       - name: Check out code
@@ -168,7 +168,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted, windows-server-2019]]
         python: [3.7, 3.8, 3.9]
     steps:
       - name: Check out code

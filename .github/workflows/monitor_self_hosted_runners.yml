@@ -44,7 +44,7 @@ jobs:
     - name: Run monitor script
       run: |
         npm install
-        node monitorRunners.js
+        node sendRunnersReport.js
       working-directory: 'scripts/ci/self-hosted-runners-report' 
       env:
         ISSUE_REPORT_SENDER_EMAIL_ADDRESS: "${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}"
