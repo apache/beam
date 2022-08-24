@@ -994,6 +994,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..aOB(9, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'defaultExample')
     ..e<Sdk>(10, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
     ..e<Complexity>(11, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'complexity', $pb.PbFieldType.OE, defaultOrMaker: Complexity.BASIC, valueOf: Complexity.valueOf, enumValues: Complexity.values)
+    ..pPS(12, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'tags')
     ..hasRequiredFields = false
   ;
 
@@ -1010,6 +1011,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     $core.bool? defaultExample,
     Sdk? sdk,
     Complexity? complexity,
+    $core.Iterable<$core.String>? tags,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -1044,6 +1046,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (complexity != null) {
       _result.complexity = complexity;
+    }
+    if (tags != null) {
+      _result.tags.addAll(tags);
     }
     return _result;
   }
@@ -1166,6 +1171,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   $core.bool hasComplexity() => $_has(10);
   @$pb.TagNumber(11)
   void clearComplexity() => clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.List<$core.String> get tags => $_getList(11);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {

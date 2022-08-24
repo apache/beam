@@ -33,6 +33,7 @@ type ObjectInfo struct {
 	DefaultExample  bool
 	Sdk             pb.Sdk
 	Complexity      pb.Complexity
+	Tags            []string
 }
 
 type PrecompiledObjects []ObjectInfo
