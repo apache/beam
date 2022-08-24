@@ -28,9 +28,8 @@ import com.mongodb.gridfs.GridFSInputFile;
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongodStarter;
-import de.flapdoodle.embed.mongo.config.IMongodConfig;
-import de.flapdoodle.embed.mongo.config.MongoCmdOptionsBuilder;
-import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
+import de.flapdoodle.embed.mongo.config.MongoCmdOptions;
+import de.flapdoodle.embed.mongo.config.MongodConfig;
 import de.flapdoodle.embed.mongo.config.Net;
 import de.flapdoodle.embed.mongo.config.Storage;
 import de.flapdoodle.embed.mongo.distribution.Version;
@@ -98,19 +97,19 @@ public class MongoDBGridFSIOTest {
   public static void start() throws Exception {
     port = NetworkTestHelper.getAvailableLocalPort();
     LOG.info("Starting MongoDB embedded instance on {}", port);
-    IMongodConfig mongodConfig =
-        new MongodConfigBuilder()
+    MongodConfig mongodConfig =
+        MongodConfig.builder()
             .version(Version.Main.PRODUCTION)
-            .configServer(false)
+            .isConfigServer(false)
             .replication(new Storage(MONGODB_LOCATION.getRoot().getPath(), null, 0))
             .net(new Net("localhost", port, Network.localhostIsIPv6()))
             .cmdOptions(
-                new MongoCmdOptionsBuilder()
+                MongoCmdOptions.builder()
                     .syncDelay(10)
                     .useNoPrealloc(true)
                     .useSmallFiles(true)
                     .useNoJournal(true)
-                    .verbose(false)
+                    .isVerbose(false)
                     .build())
             .build();
     mongodExecutable = mongodStarter.prepare(mongodConfig);

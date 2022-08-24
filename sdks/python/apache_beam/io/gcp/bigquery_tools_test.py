@@ -30,6 +30,7 @@ import unittest
 import fastavro
 import mock
 import pytz
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
@@ -125,38 +126,25 @@ class TestTableReferenceParser(unittest.TestCase):
     parsed_ref = parse_table_reference(value_provider_ref)
     self.assertIs(value_provider_ref, parsed_ref)
 
-  def test_calling_with_fully_qualified_table_ref(self):
-    projectId = 'test_project'
-    datasetId = 'test_dataset'
-    tableId = 'test_table'
-    fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
+  @parameterized.expand([
+      ('project:dataset.test_table', 'project', 'dataset', 'test_table'),
+      ('project:dataset.test-table', 'project', 'dataset', 'test-table'),
+      ('project:dataset.test- table', 'project', 'dataset', 'test- table'),
+      ('project.dataset. test_table', 'project', 'dataset', ' test_table'),
+      ('project.dataset.test$table', 'project', 'dataset', 'test$table'),
+  ])
+  def test_calling_with_fully_qualified_table_ref(
+      self,
+      fully_qualified_table: str,
+      project_id: str,
+      dataset_id: str,
+      table_id: str,
+  ):
     parsed_ref = parse_table_reference(fully_qualified_table)
     self.assertIsInstance(parsed_ref, bigquery.TableReference)
-    self.assertEqual(parsed_ref.projectId, projectId)
-    self.assertEqual(parsed_ref.datasetId, datasetId)
-    self.assertEqual(parsed_ref.tableId, tableId)
-
-  def test_calling_with_hyphened_table_ref(self):
-    projectId = 'test_project'
-    datasetId = 'test_dataset'
-    tableId = 'test-table'
-    fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
-    parsed_ref = parse_table_reference(fully_qualified_table)
-    self.assertIsInstance(parsed_ref, bigquery.TableReference)
-    self.assertEqual(parsed_ref.projectId, projectId)
-    self.assertEqual(parsed_ref.datasetId, datasetId)
-    self.assertEqual(parsed_ref.tableId, tableId)
-
-  def test_calling_with_spaced_table_ref(self):
-    projectId = 'test_project'
-    datasetId = 'test_dataset'
-    tableId = 'test- -table 1'
-    fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
-    parsed_ref = parse_table_reference(fully_qualified_table)
-    self.assertIsInstance(parsed_ref, bigquery.TableReference)
-    self.assertEqual(parsed_ref.projectId, projectId)
-    self.assertEqual(parsed_ref.datasetId, datasetId)
-    self.assertEqual(parsed_ref.tableId, tableId)
+    self.assertEqual(parsed_ref.projectId, project_id)
+    self.assertEqual(parsed_ref.datasetId, dataset_id)
+    self.assertEqual(parsed_ref.tableId, table_id)
 
   def test_calling_with_partially_qualified_table_ref(self):
     datasetId = 'test_dataset'
@@ -266,10 +254,10 @@ class TestBigQueryWrapper(unittest.TestCase):
     client = mock.Mock()
     client.datasets.Get.return_value = bigquery.Dataset(
         datasetReference=bigquery.DatasetReference(
-            projectId='project_id', datasetId='dataset_id'))
+            projectId='project-id', datasetId='dataset_id'))
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     with self.assertRaises(RuntimeError):
-      wrapper.create_temporary_dataset('project_id', 'location')
+      wrapper.create_temporary_dataset('project-id', 'location')
     self.assertTrue(client.datasets.Get.called)
 
   @mock.patch('time.sleep', return_value=None)
@@ -281,7 +269,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     request_mock = mock.Mock()
     wrapper.client._http.request = request_mock
     try:
-      wrapper.create_temporary_dataset('project_id', 'location')
+      wrapper.create_temporary_dataset('project-id', 'location')
     except:  # pylint: disable=bare-except
       # Ignore errors. The errors come from the fact that we did not mock
       # the response from the API, so the overall create_dataset call fails
@@ -296,18 +284,18 @@ class TestBigQueryWrapper(unittest.TestCase):
         response={'status': '404'}, url='', content='')
     client.datasets.Insert.return_value = bigquery.Dataset(
         datasetReference=bigquery.DatasetReference(
-            projectId='project_id', datasetId='dataset_id'))
+            projectId='project-id', datasetId='dataset_id'))
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
-    new_dataset = wrapper.get_or_create_dataset('project_id', 'dataset_id')
+    new_dataset = wrapper.get_or_create_dataset('project-id', 'dataset_id')
     self.assertEqual(new_dataset.datasetReference.datasetId, 'dataset_id')
 
   def test_get_or_create_dataset_fetched(self):
     client = mock.Mock()
     client.datasets.Get.return_value = bigquery.Dataset(
         datasetReference=bigquery.DatasetReference(
-            projectId='project_id', datasetId='dataset_id'))
+            projectId='project-id', datasetId='dataset_id'))
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
-    new_dataset = wrapper.get_or_create_dataset('project_id', 'dataset_id')
+    new_dataset = wrapper.get_or_create_dataset('project-id', 'dataset_id')
     self.assertEqual(new_dataset.datasetReference.datasetId, 'dataset_id')
 
   def test_get_or_create_table(self):
@@ -316,7 +304,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     client.tables.Get.side_effect = [None, 'table_id']
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     new_table = wrapper.get_or_create_table(
-        'project_id',
+        'project-id',
         'dataset_id',
         'table_id',
         bigquery.TableSchema(
@@ -335,7 +323,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     client.tables.Get.side_effect = [None, 'table_id']
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     new_table = wrapper.get_or_create_table(
-        'project_id',
+        'project-id',
         'dataset_id',
         'table_id',
         bigquery.TableSchema(
@@ -355,7 +343,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     client.tables.Get.side_effect = [None, 'table_id']
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     new_table = wrapper.get_or_create_table(
-        'project_id',
+        'project-id',
         'dataset_id',
         'table_id',
         bigquery.TableSchema(
@@ -367,26 +355,25 @@ class TestBigQueryWrapper(unittest.TestCase):
         False)
     self.assertEqual(new_table, 'table_id')
 
-  def test_get_or_create_table_invalid_tablename(self):
-    invalid_names = ['big-query', 'table name', 'a' * 1025]
-    for table_id in invalid_names:
-      client = mock.Mock()
-      client.tables.Get.side_effect = [None]
-      wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+  @parameterized.expand(['', 'a' * 1025])
+  def test_get_or_create_table_invalid_tablename(self, table_id):
+    client = mock.Mock()
+    client.tables.Get.side_effect = [None]
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
 
-      self.assertRaises(
-          ValueError,
-          wrapper.get_or_create_table,
-          'project_id',
-          'dataset_id',
-          table_id,
-          bigquery.TableSchema(
-              fields=[
-                  bigquery.TableFieldSchema(
-                      name='b', type='BOOLEAN', mode='REQUIRED')
-              ]),
-          False,
-          False)
+    self.assertRaises(
+        ValueError,
+        wrapper.get_or_create_table,
+        'project-id',
+        'dataset_id',
+        table_id,
+        bigquery.TableSchema(
+            fields=[
+                bigquery.TableFieldSchema(
+                    name='b', type='BOOLEAN', mode='REQUIRED')
+            ]),
+        False,
+        False)
 
   def test_wait_for_job_returns_true_when_job_is_done(self):
     def make_response(state):

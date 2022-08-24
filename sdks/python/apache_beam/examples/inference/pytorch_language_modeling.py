@@ -25,6 +25,7 @@ file in which users can then compare against the original sentence.
 """
 
 import argparse
+import logging
 from typing import Dict
 from typing import Iterable
 from typing import Tuple
@@ -37,6 +38,7 @@ from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.runner import PipelineResult
 from transformers import BertConfig
 from transformers import BertForMaskedLM
 from transformers import BertTokenizer
@@ -147,7 +149,12 @@ def parse_known_args(argv):
   return parser.parse_known_args(argv)
 
 
-def run(argv=None, model_class=None, model_params=None, save_main_session=True):
+def run(
+    argv=None,
+    model_class=None,
+    model_params=None,
+    save_main_session=True,
+    test_pipeline=None) -> PipelineResult:
   """
   Args:
     argv: Command line arguments defined for this example.
@@ -156,6 +163,8 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
     model_params: Parameters passed to the constructor of the model_class.
                   These will be used to instantiate the model object in the
                   RunInference API.
+    save_main_session: Used for internal testing.
+    test_pipeline: Used for internal testing.
   """
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
@@ -186,36 +195,44 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
       model_class=model_class,
       model_params=model_params)
 
-  with beam.Pipeline(options=pipeline_options) as p:
-    if not known_args.input:
-      text = (p | 'CreateSentences' >> beam.Create([
-        'The capital of France is Paris .',
-        'It is raining cats and dogs .',
-        'He looked up and saw the sun and stars .',
-        'Today is Monday and tomorrow is Tuesday .',
-        'There are 5 coconuts on this palm tree .',
-        'The richest person in the world is not here .',
-        'Malls are amazing places to shop because you can find everything you need under one roof .', # pylint: disable=line-too-long
-        'This audiobook is sure to liquefy your brain .',
-        'The secret ingredient to his wonderful life was gratitude .',
-        'The biggest animal in the world is the whale .',
-      ]))
-    else:
-      text = (p | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
-    text_and_tokenized_text_tuple = (
-        text
-        | 'AddMask' >> beam.Map(add_mask_to_last_word)
-        | 'TokenizeSentence' >> beam.Map(tokenize_sentence))
-    output = (
-        text_and_tokenized_text_tuple
-        |
-        'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
-        | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
-    output | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
-      known_args.output,
-      shard_name_template='',
-      append_trailing_newlines=True)
+  pipeline = test_pipeline
+  if not test_pipeline:
+    pipeline = beam.Pipeline(options=pipeline_options)
+
+  if not known_args.input:
+    text = (pipeline | 'CreateSentences' >> beam.Create([
+      'The capital of France is Paris .',
+      'It is raining cats and dogs .',
+      'He looked up and saw the sun and stars .',
+      'Today is Monday and tomorrow is Tuesday .',
+      'There are 5 coconuts on this palm tree .',
+      'The richest person in the world is not here .',
+      'Malls are amazing places to shop because you can find everything you need under one roof .', # pylint: disable=line-too-long
+      'This audiobook is sure to liquefy your brain .',
+      'The secret ingredient to his wonderful life was gratitude .',
+      'The biggest animal in the world is the whale .',
+    ]))
+  else:
+    text = (
+        pipeline | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
+  text_and_tokenized_text_tuple = (
+      text
+      | 'AddMask' >> beam.Map(add_mask_to_last_word)
+      | 'TokenizeSentence' >> beam.Map(tokenize_sentence))
+  output = (
+      text_and_tokenized_text_tuple
+      | 'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
+      | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
+  output | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+    known_args.output,
+    shard_name_template='',
+    append_trailing_newlines=True)
+
+  result = pipeline.run()
+  result.wait_until_finish()
+  return result
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   run()

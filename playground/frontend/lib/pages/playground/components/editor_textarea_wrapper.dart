@@ -22,6 +22,7 @@ import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
+import 'package:playground/modules/editor/components/share_dropdown/share_button.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
 import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
 import 'package:playground/modules/notifications/components/notification.dart';
@@ -81,6 +82,11 @@ class CodeTextAreaWrapper extends StatelessWidget {
                       ],
                       Semantics(
                         container: true,
+                        child: const ShareButton(),
+                      ),
+                      const SizedBox(width: kLgSpacing),
+                      Semantics(
+                        container: true,
                         child: RunButton(
                           disabled: state.selectedExample?.isMultiFile ?? false,
                           isRunning: state.isCodeRunning,
@@ -92,7 +98,8 @@ class CodeTextAreaWrapper extends StatelessWidget {
                                   (_) => NotificationManager.showError(
                                     context,
                                     AppLocalizations.of(context)!.runCode,
-                                    AppLocalizations.of(context)!.cancelExecution,
+                                    AppLocalizations.of(context)!
+                                        .cancelExecution,
                                   ),
                                 );
                           },

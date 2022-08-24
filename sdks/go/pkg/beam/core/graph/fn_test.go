@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -52,6 +53,7 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: &GoodDoFnCoGbk2{}, opt: CoGBKMainInput(3)},
 			{dfn: &GoodDoFnCoGbk7{}, opt: CoGBKMainInput(8)},
 			{dfn: &GoodDoFnCoGbk1wSide{}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn{State1: state.Value[int](state.MakeValueState[int]("state1"))}, opt: NumMainInputs(MainKv)},
 		}
 
 		for _, test := range tests {
@@ -70,7 +72,8 @@ func TestNewDoFn(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		tests := []struct {
-			dfn interface{}
+			dfn       interface{}
+			numInputs int
 		}{
 			// Validate main inputs.
 			{dfn: func() int { return 0 }}, // No inputs.
@@ -94,26 +97,44 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: &BadDoFnReturnValuesInFinishBundle{}},
 			{dfn: &BadDoFnReturnValuesInSetup{}},
 			{dfn: &BadDoFnReturnValuesInTeardown{}},
+			{dfn: &BadStatefulDoFnNoStateProvider{State1: state.Value[int](state.MakeValueState[int]("state1"))}},
+			{dfn: &BadStatefulDoFnNoStateFields{}},
+			{dfn: &BadStatefulDoFnNoKV{State1: state.Value[int](state.MakeValueState[int]("state1"))}, numInputs: 1},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
-				if cfn, err := NewDoFn(test.dfn); err != nil {
-					t.Logf("NewDoFn failed as expected:\n%v", err)
-				} else {
-					t.Errorf("NewDoFn(%v) = %v, want failure", cfn.Name(), cfn)
-				}
-				// If validation fails with unknown main inputs, then it should
-				// always fail for any known number of main inputs, so test them
-				// all. Error messages won't necessarily match.
-				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainSingle)); err != nil {
-					t.Logf("NewDoFn failed as expected:\n%v", err)
-				} else {
-					t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
-				}
-				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainKv)); err != nil {
-					t.Logf("NewDoFn failed as expected:\n%v", err)
-				} else {
-					t.Errorf("NewDoFn(%v, NumMainInputs(MainKv)) = %v, want failure", cfn.Name(), cfn)
+				switch test.numInputs {
+				case 1:
+					if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainSingle)); err != nil {
+						t.Logf("NewDoFn failed as expected:\n%v", err)
+					} else {
+						t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
+					}
+				case 2:
+					if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainKv)); err != nil {
+						t.Logf("NewDoFn failed as expected:\n%v", err)
+					} else {
+						t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
+					}
+				default:
+					if cfn, err := NewDoFn(test.dfn); err != nil {
+						t.Logf("NewDoFn failed as expected:\n%v", err)
+					} else {
+						t.Errorf("NewDoFn(%v) = %v, want failure", cfn.Name(), cfn)
+					}
+					// If validation fails with unknown main inputs, then it should
+					// always fail for any known number of main inputs, so test them
+					// all. Error messages won't necessarily match.
+					if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainSingle)); err != nil {
+						t.Logf("NewDoFn failed as expected:\n%v", err)
+					} else {
+						t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
+					}
+					if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainKv)); err != nil {
+						t.Logf("NewDoFn failed as expected:\n%v", err)
+					} else {
+						t.Errorf("NewDoFn(%v, NumMainInputs(MainKv)) = %v, want failure", cfn.Name(), cfn)
+					}
 				}
 			})
 		}
@@ -1058,6 +1079,14 @@ func (fn *GoodStatefulWatermarkEstimatingKv) WatermarkEstimatorState(estimator *
 	return 0
 }
 
+type GoodStatefulDoFn struct {
+	State1 state.Value[int]
+}
+
+func (fn *GoodStatefulDoFn) ProcessElement(state.Provider, int, int) int {
+	return 0
+}
+
 // Examples of incorrect SDF signatures.
 // Examples with missing methods.
 
@@ -1420,6 +1449,29 @@ func (fn *BadManualWatermarkEstimatorMismatched) CreateTracker(RestT) *RTrackerT
 
 func (fn *BadManualWatermarkEstimatorMismatched) CreateWatermarkEstimator() *WatermarkEstimatorT {
 	return &WatermarkEstimatorT{}
+}
+
+type BadStatefulDoFnNoStateProvider struct {
+	State1 state.Value[int]
+}
+
+func (fn *BadStatefulDoFnNoStateProvider) ProcessElement(int, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoStateFields struct {
+}
+
+func (fn *BadStatefulDoFnNoStateFields) ProcessElement(state.Provider, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoKV struct {
+	State1 state.Value[int]
+}
+
+func (fn *BadStatefulDoFnNoKV) ProcessElement(state.Provider, int, int) int {
+	return 0
 }
 
 // Examples of correct CombineFn signatures

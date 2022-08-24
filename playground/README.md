@@ -74,6 +74,13 @@ cd beam
 ./gradlew playground:backend:containers:router:dockerComposeLocalDown
 ```
 
+## Run the method to remove unused code snippets from the Cloud Datastore. Unused snippets are snippets that are out of date. If the last visited date property less or equals than the current date minus dayDiff parameter then a snippet is out of date
+
+```
+cd beam
+./gradlew playground:backend:removeUnusedSnippet -DdayDiff={int} -DprojectId={string}
+```
+
 # Deployment
 
 See [terraform](./terraform/README.md) for details on how to build and deploy

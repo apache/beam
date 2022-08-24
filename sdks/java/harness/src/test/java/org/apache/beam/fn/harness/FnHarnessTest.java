@@ -43,10 +43,10 @@ import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Rule;
 import org.junit.Test;
@@ -163,9 +163,9 @@ public class FnHarnessTest {
                 .build();
 
         when(environmentVariableMock.apply("LOGGING_API_SERVICE_DESCRIPTOR"))
-            .thenReturn(TextFormat.printToString(loggingDescriptor));
+            .thenReturn(TextFormat.printer().printToString(loggingDescriptor));
         when(environmentVariableMock.apply("CONTROL_API_SERVICE_DESCRIPTOR"))
-            .thenReturn(TextFormat.printToString(controlDescriptor));
+            .thenReturn(TextFormat.printer().printToString(controlDescriptor));
 
         FnHarness.main(environmentVariableMock);
       } finally {
