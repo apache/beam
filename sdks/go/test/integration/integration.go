@@ -91,6 +91,7 @@ var directFilters = []string{
 	// The direct runner does not support user state.
 	"TestValueState",
 	"TestBagState",
+	"TestCombiningState",
 }
 
 var portableFilters = []string{
@@ -114,6 +115,7 @@ var portableFilters = []string{
 	// The portable runner does not support user state.
 	"TestValueState",
 	"TestBagState",
+	"TestCombiningState",
 }
 
 var flinkFilters = []string{
@@ -158,6 +160,7 @@ var samzaFilters = []string{
 	// The samza runner does not support user state.
 	"TestValueState",
 	"TestBagState",
+	"TestCombiningState",
 }
 
 var sparkFilters = []string{
