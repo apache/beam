@@ -143,13 +143,13 @@ type combiningStateFn struct {
 
 type combine1 struct{}
 
-func (ac *combine1) Mergecombineulators(a, b int) int {
+func (ac *combine1) MergeAccumulators(a, b int) int {
 	return a + b
 }
 
 type combine2 struct{}
 
-func (ac *combine2) Mergecombineulators(a, b string) string {
+func (ac *combine2) MergeAccumulators(a, b string) string {
 	ai, _ := strconv.Atoi(a)
 	bi, _ := strconv.Atoi(b)
 	return strconv.Itoa(ai + bi)
@@ -162,11 +162,11 @@ func (ac *combine2) ExtractOutput(a string) int {
 
 type combine3 struct{}
 
-func (ac *combine3) Createcombineulator() string {
+func (ac *combine3) CreateAccumulator() string {
 	return "0"
 }
 
-func (ac *combine3) Mergecombineulators(a string, b string) string {
+func (ac *combine3) MergeAccumulators(a string, b string) string {
 	ai, _ := strconv.Atoi(a)
 	bi, _ := strconv.Atoi(b)
 	return strconv.Itoa(ai + bi)
@@ -183,7 +183,7 @@ func (ac *combine4) AddInput(a, b int) int {
 	return a + b
 }
 
-func (ac *combine4) Mergecombineulators(a, b int) int {
+func (ac *combine4) MergeAccumulators(a, b int) int {
 	return a + b
 }
 
