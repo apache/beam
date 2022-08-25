@@ -382,18 +382,6 @@ func (s *stateProvider) getMultiMapKeyReader(userStateID string) (io.ReadCloser,
 	return s.readersByKey[userStateID], nil
 }
 
-func (s *stateProvider) getMultiMapKeyClearer(userStateID string) (io.Writer, error) {
-	if w, ok := s.clearersByKey[userStateID]; ok {
-		return w, nil
-	}
-	w, err := s.sr.OpenMultimapKeysUserStateClearer(s.ctx, s.SID, userStateID, s.elementKey, s.window)
-	if err != nil {
-		return nil, err
-	}
-	s.clearersByKey[userStateID] = w
-	return s.clearersByKey[userStateID], nil
-}
-
 func (s *stateProvider) encodeKey(userStateID string, key interface{}) ([]byte, error) {
 	fv := FullValue{Elm: key}
 	enc := MakeElementEncoder(coder.SkipW(s.keyCodersByID[userStateID]))
