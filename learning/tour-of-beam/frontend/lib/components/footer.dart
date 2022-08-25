@@ -98,6 +98,7 @@ class _PrivacyPolicyButton extends StatelessWidget {
 
 final _linkButtonStyle = TextButton.styleFrom(
   textStyle: const TextStyle(
-    fontWeight: FontWeight.normal,
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
   ),
 );

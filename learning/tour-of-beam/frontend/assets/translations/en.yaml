@@ -25,7 +25,7 @@ ui:
   continueGitHub: 'Continue with GitHub'
   continueGoogle: 'Continue with Google'
 pages:
-  home:
+  welcome:
     title: 'Welcome to the Tour of Beam!'
     ifSaveProgress: 'Your journey is broken down into learning modules. If you would like to save your progress and track completed modules, please'
     signIn: ' sign in.'

@@ -134,7 +134,7 @@ class _IntroText extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'pages.home.title',
+          'pages.welcome.title',
           style: Theme.of(context).textTheme.displayMedium,
         ).tr(),
         Container(
@@ -148,10 +148,10 @@ class _IntroText extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyLarge,
             children: [
               TextSpan(
-                text: 'pages.home.ifSaveProgress'.tr(),
+                text: 'pages.welcome.ifSaveProgress'.tr(),
               ),
               TextSpan(
-                text: 'pages.home.signIn'.tr(),
+                text: 'pages.welcome.signIn'.tr(),
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge!
@@ -161,7 +161,7 @@ class _IntroText extends StatelessWidget {
                     // TODO(nausharipov): sign in
                   },
               ),
-              TextSpan(text: '\n\n${'pages.home.selectLanguage'.tr()}'),
+              TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),
             ],
           ),
         ),
@@ -196,7 +196,7 @@ class _Buttons extends StatelessWidget {
           onPressed: () {
             // TODO(nausharipov): redirect
           },
-          child: const Text('pages.home.startLearning').tr(),
+          child: const Text('pages.welcome.startLearning').tr(),
         ),
       ],
     );
