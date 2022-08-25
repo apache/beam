@@ -224,7 +224,10 @@ func (f *combiningStateFn) ProcessElement(s state.Provider, w string, c int) str
 	if err != nil {
 		panic(err)
 	}
-	f.State4.Add(s, 1)
+	err = f.State4.Add(s, 1)
+	if err != nil {
+		panic(err)
+	}
 	return fmt.Sprintf("%s: %v %v %v %v %v", w, i, i1, i2, i3, i4)
 }
 
