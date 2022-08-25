@@ -572,13 +572,13 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     """Return the argument for this instance of the LogicalType."""
     raise NotImplementedError()
 
-  def to_representation_type(value):
+  def to_representation_type(self, value):
     # type: (LanguageT) -> RepresentationT
 
     """Convert an instance of LanguageT to RepresentationT."""
     raise NotImplementedError()
 
-  def to_language_type(value):
+  def to_language_type(self, value):
     # type: (RepresentationT) -> LanguageT
 
     """Convert an instance of RepresentationT to LanguageT."""
@@ -677,6 +677,17 @@ class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
   @classmethod
   def language_type(cls):
     return Timestamp
+
+  def to_language_type(self, value):
+    # type: (np.int64) -> Timestamp
+
+    # value shifted as in apache_beams.coders.coder_impl.TimestampCoderImpl
+    if value < 0:
+      millis = int(value) + (1 << 63)
+    else:
+      millis = int(value) - (1 << 63)
+
+    return Timestamp(micros=millis * 1000)
 
 
 # Make sure MicrosInstant is registered after MillisInstant so that it
