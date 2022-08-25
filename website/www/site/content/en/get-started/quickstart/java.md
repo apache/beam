@@ -39,7 +39,7 @@ On this page:
 Use [`sdkman`](https://sdkman.io/) to install the Java Development Kit (JDK).
 
 {{< highlight >}}
-# Instll sdkman
+# Install sdkman
 curl -s "https://get.sdkman.io" | bash
 
 # Install Java 11
@@ -61,7 +61,7 @@ sdk install maven
 
 Clone or download the
 [apache/beam-starter-java](https://github.com/apache/beam-starter-java) GitHub
-repository and change into the beam-starter-java directory.
+repository and change into the `beam-starter-java` directory.
 
 {{< highlight >}}
 git clone https://github.com/apache/beam-starter-java.git
