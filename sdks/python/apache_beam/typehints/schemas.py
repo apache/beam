@@ -658,8 +658,8 @@ MicrosInstantRepresentation = NamedTuple(
 
 @LogicalType.register_logical_type
 class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
-  """Millis instant logical type handles values consistent with that encoded by
-  InstantCoder in Java sdk.
+  """Millisecond-precision instant logical type handles values consistent with
+  that encoded by ``InstantCoder`` in the Java SDK.
 
   This class handles Timestamp language type as :class:`MicrosInstant`, but it
   only provides millisecond precision, because it is aimed to handle data
@@ -696,7 +696,7 @@ class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
 @LogicalType.register_logical_type
 class MicrosInstant(NoArgumentLogicalType[Timestamp,
                                           MicrosInstantRepresentation]):
-  """MicroInstant logical type handles Timestamp."""
+  """Microsecond-precision instant logical type that handles ``Timestamp``."""
   @classmethod
   def urn(cls):
     return common_urns.micros_instant.urn
