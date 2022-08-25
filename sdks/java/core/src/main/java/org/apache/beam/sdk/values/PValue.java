@@ -27,9 +27,6 @@ import org.apache.beam.sdk.transforms.PTransform;
  * <p>A primitive value within Beam.
  */
 @Internal
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public interface PValue extends POutput, PInput {
 
   /** Returns the name of this {@link PValue}. */

@@ -34,7 +34,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ReflectUti
 
 /** Beam-customized version from {@link ReflectiveFunctionBase}, to address BEAM-5921. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class UdfImplReflectiveFunctionBase implements Function {
   /** Method that implements the function. */

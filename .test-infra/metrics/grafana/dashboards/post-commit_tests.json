@@ -36,7 +36,7 @@
       "id": 11,
       "links": [],
       "options": {
-        "content": "This dashboard tracks Post-commit test reliability over-time.\n\n* [Post-commit test policies](https://beam.apache.org/contribute/postcommits-policies/)\n* [Existing test failure issues](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20test-failures%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC)\n* [File a new test failure issue](https://s.apache.org/beam-test-failure)",
+        "content": "This dashboard tracks Post-commit test reliability over-time.\n\n* [Post-commit test policies](https://beam.apache.org/contribute/postcommits-policies/)\n* [Existing test failure issues](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Atest-failures)\n* [File a new test failure issue](https://github.com/apache/beam/issues/new/choose)",
         "mode": "markdown"
       },
       "pluginVersion": "8.1.2",
@@ -691,14 +691,14 @@
     },
     {
       "datasource": "BeamPSQL",
-      "description": "Tracks the count of test failure JIRA issues currently open.",
+      "description": "Tracks the count of test failure GitHub issues currently open.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "# of JIRA issues",
+            "axisLabel": "# of GitHub issues",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "bars",
@@ -786,8 +786,8 @@
       "links": [
         {
           "targetBlank": true,
-          "title": "Jira tickets",
-          "url": "https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20test-failures%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC"
+          "title": "GitHub issues",
+          "url": "https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Atest-failures"
         }
       ],
       "options": {
@@ -808,7 +808,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with days as (select date_trunc('day', dd) as day from generate_series( $__timeFrom()::timestamp, $__timeTo()::timestamp, '1 day'::interval) as dd),\n     knowndays as (SELECT days.day, count(*) as total_open\n                   FROM jira_issues, days\n                   WHERE jira_issues.created < days.day AND (jira_issues.resolutiondate > days.day OR jira_issues.resolutiondate is null)\n                   GROUP BY days.day\n                   ORDER BY days.day)\nselect days.day as time, greatest(knowndays.total_open, 0) as total_open\nfrom days left outer join knowndays\non days.day = knowndays.day",
+          "rawSql": "with days as (select date_trunc('day', dd) as day from generate_series( $__timeFrom()::timestamp, $__timeTo()::timestamp, '1 day'::interval) as dd),\n     knowndays as (SELECT days.day, count(*) as total_open\n                   FROM gh_issues, days\n                   WHERE gh_issues.created_ts < days.day AND (gh_issues.closed_ts > days.day OR gh_issues.closed_ts is null)\n                   GROUP BY days.day\n                   ORDER BY days.day)\nselect days.day as time, greatest(knowndays.total_open, 0) as total_open\nfrom days left outer join knowndays\non days.day = knowndays.day",
           "refId": "A",
           "select": [
             [
@@ -835,7 +835,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with days as (select date_trunc('day', dd) as day from generate_series( $__timeFrom()::timestamp, $__timeTo()::timestamp, '1 day'::interval) as dd),\n     knowndays as (SELECT days.day, count(*) as currently_failing\n                   FROM jira_issues, days\n                   WHERE jira_issues.created < days.day AND (jira_issues.resolutiondate > days.day OR jira_issues.resolutiondate is null) AND (jira_issues.labels LIKE '%currently-failing%')\n                   GROUP BY days.day\n                   ORDER BY days.day)\nselect days.day as time, greatest(knowndays.currently_failing, 0) as currently_failing\nfrom days left outer join knowndays\non days.day = knowndays.day",
+          "rawSql": "with days as (select date_trunc('day', dd) as day from generate_series( $__timeFrom()::timestamp, $__timeTo()::timestamp, '1 day'::interval) as dd),\n     knowndays as (SELECT days.day, count(*) as currently_failing\n                   FROM gh_issues, days\n                   WHERE gh_issues.created_ts < days.day AND (gh_issues.closed_ts > days.day OR gh_issues.closed_ts is null) AND (gh_issues.labels @> ARRAY['currently-failing'])\n                   GROUP BY days.day\n                   ORDER BY days.day)\nselect days.day as time, greatest(knowndays.currently_failing, 0) as currently_failing\nfrom days left outer join knowndays\non days.day = knowndays.day",
           "refId": "D",
           "select": [
             [
@@ -859,7 +859,7 @@
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Test Failure JIRA issues",
+      "title": "Test Failure GitHub issues",
       "type": "timeseries"
     }
   ],

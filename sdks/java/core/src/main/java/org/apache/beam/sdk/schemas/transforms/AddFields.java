@@ -64,7 +64,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class AddFields {
   public static <T> Inner<T> create() {
     return new Inner<>();
@@ -134,7 +134,7 @@ public class AddFields {
       }
     }
 
-    /** This class encapsulates all data needed to add a a new field to the schema. */
+    /** This class encapsulates all data needed to add a new field to the schema. */
     @AutoValue
     abstract static class AddFieldsInformation implements Serializable {
       // The new output fieldtype after adding the new field.

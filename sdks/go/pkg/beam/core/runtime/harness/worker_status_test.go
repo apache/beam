@@ -20,7 +20,10 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"google.golang.org/grpc"
@@ -53,7 +56,6 @@ func setup(t *testing.T, srv *BeamFnWorkerStatusServicer) {
 	go func() {
 		if err := server.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
-			panic(err)
 		}
 	}()
 	t.Cleanup(func() {
@@ -75,7 +77,9 @@ func TestSendStatusResponse(t *testing.T) {
 		t.Fatalf("unable to start test server: %v", err)
 	}
 
-	statusHandler := workerStatusHandler{conn: conn}
+	statusHandler := workerStatusHandler{conn: conn, cache: &statecache.SideInputCache{}, metStoreToString: func(builder *strings.Builder) {
+		builder.WriteString("metStore metadata")
+	}}
 	if err := statusHandler.start(ctx); err != nil {
 		t.Fatal(err)
 	}

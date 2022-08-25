@@ -128,8 +128,8 @@ public class CombineRunnersTest {
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     context.addPCollectionConsumer(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add,
-        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     // Create runner.
     new CombineRunners.PrecombineFactory<>().createRunnerForPTransform(context);
@@ -208,8 +208,8 @@ public class CombineRunnersTest {
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     context.addPCollectionConsumer(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add,
-        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction)
@@ -269,8 +269,8 @@ public class CombineRunnersTest {
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     context.addPCollectionConsumer(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add,
-        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction)
@@ -313,8 +313,8 @@ public class CombineRunnersTest {
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     context.addPCollectionConsumer(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add,
-        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createConvertToAccumulatorsMapFunction)
@@ -380,8 +380,8 @@ public class CombineRunnersTest {
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     context.addPCollectionConsumer(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add,
-        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction)

@@ -51,4 +51,4 @@ as well.)
     option is useful for local testing. However, it is not suitable for a production environment,
     as it performs work on the machine the job originated from.
     - `environment_config` is not used for the `LOOPBACK` environment.
-- `sdk_worker_parallelism` sets the number of SDK workers that will run on each worker node.
+- `sdk_worker_parallelism` sets the number of SDK workers that run on each worker node. The default is 1. If 0, the value is automatically set by the runner by looking at different parameters, such as the number of CPU cores on the worker machine. Only used for Python pipelines on Flink and Spark runners.

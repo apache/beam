@@ -47,7 +47,7 @@ class SplitView extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _SplitViewState createState() => _SplitViewState();
+  State<SplitView> createState() => _SplitViewState();
 }
 
 class _SplitViewState extends State<SplitView> {
@@ -128,7 +128,7 @@ class _SplitViewState extends State<SplitView> {
         child: Container(
             width: _isHorizontal ? widget.dividerSize : double.infinity,
             height: _isVertical ? widget.dividerSize : double.infinity,
-            color: ThemeColors.of(context).greyColor,
+            color: ThemeColors.of(context).divider,
             child: Center(
               child: SvgPicture.asset(_isHorizontal
                   ? kDragHorizontalIconAsset

@@ -33,7 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link ParDoFnFactory} to create instances of {@link ReifyTimestampAndWindowsParDoFn}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class ReifyTimestampAndWindowsParDoFnFactory implements ParDoFnFactory {
   @Override

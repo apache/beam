@@ -50,12 +50,6 @@ job('beam_Dependency_Check') {
         commonJobProperties.PYTHON)
   }
 
-  wrappers{
-    credentialsBinding {
-      usernamePassword('BEAM_JIRA_BOT_USERNAME', 'BEAM_JIRA_BOT_PASSWORD', 'beam-jira-bot')
-    }
-  }
-
   def date = new Date().format('yyyy-MM-dd')
   publishers {
     extendedEmail {

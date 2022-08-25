@@ -82,7 +82,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Internal
 @SuppressWarnings({
   "keyfor",
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class PCollectionViews {
@@ -1042,7 +1042,8 @@ public class PCollectionViews {
 
     @Override
     public Map<K, Iterable<V>> apply(MultimapView<Void, KV<K, V>> primitiveViewT) {
-      // TODO: BEAM-3071 - fix this so that we aren't relying on Java equality and are
+      // TODO: https://github.com/apache/beam/issues/18569 - fix this so that we aren't relying on
+      // Java equality and are
       // using structural value equality.
       Multimap<K, V> multimap = ArrayListMultimap.create();
       for (KV<K, V> elem : primitiveViewT.get(null)) {
@@ -1127,7 +1128,8 @@ public class PCollectionViews {
 
     @Override
     public Map<K, V> apply(MultimapView<Void, KV<K, V>> primitiveViewT) {
-      // TODO: BEAM-3071 - fix this so that we aren't relying on Java equality and are
+      // TODO: https://github.com/apache/beam/issues/18569 - fix this so that we aren't relying on
+      // Java equality and are
       // using structural value equality.
       Map<K, V> map = new HashMap<>();
       for (KV<K, V> elem : primitiveViewT.get(null)) {

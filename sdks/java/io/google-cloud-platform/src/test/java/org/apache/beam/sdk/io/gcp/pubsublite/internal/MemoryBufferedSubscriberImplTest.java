@@ -39,7 +39,6 @@ import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.util.List;
-import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -157,21 +156,7 @@ public class MemoryBufferedSubscriberImplTest {
   }
 
   @Test
-  public void onDataSatisfiedOnShutdown() throws Exception {
-    Future<Void> onData = bufferedSubscriber.onData();
-    bufferedSubscriber.stopAsync();
-    onData.get();
-  }
-
-  @Test
-  public void onDataSatisfiedOnError() throws Exception {
-    Future<Void> onData = bufferedSubscriber.onData();
-    subscriber.fail(new RuntimeException("bad"));
-    onData.get();
-  }
-
-  @Test
-  public void onDataSatisfiedOnData() throws Exception {
+  public void dataAvailableToCaller() {
     SequencedMessage message1 =
         SequencedMessage.newBuilder()
             .setCursor(Cursor.newBuilder().setOffset(example(Offset.class).value() + 10))
@@ -182,19 +167,14 @@ public class MemoryBufferedSubscriberImplTest {
             .setCursor(Cursor.newBuilder().setOffset(example(Offset.class).value() + 20))
             .setSizeBytes(1)
             .build();
-    Future<Void> onData = bufferedSubscriber.onData();
-    assertFalse(onData.isDone());
+    assertFalse(bufferedSubscriber.peek().isPresent());
     consumer.accept(ImmutableList.of(message1, message2));
-    onData.get();
-    assertTrue(bufferedSubscriber.onData().isDone()); // Still messages, onData is satisfied.
     assertEquals(bufferedSubscriber.fetchOffset(), example(Offset.class));
     assertEquals(bufferedSubscriber.peek().get(), message1);
     bufferedSubscriber.pop();
     assertEquals(bufferedSubscriber.fetchOffset(), Offset.of(message1.getCursor().getOffset() + 1));
-    assertTrue(bufferedSubscriber.onData().isDone()); // Still messages, onData is satisfied.
     assertEquals(bufferedSubscriber.peek().get(), message2);
     bufferedSubscriber.pop();
     assertEquals(bufferedSubscriber.fetchOffset(), Offset.of(message2.getCursor().getOffset() + 1));
-    assertFalse(bufferedSubscriber.onData().isDone());
   }
 }

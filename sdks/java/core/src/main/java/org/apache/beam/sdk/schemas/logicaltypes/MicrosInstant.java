@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.schemas.logicaltypes;
 
 import java.time.Instant;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 
@@ -33,11 +35,15 @@ import org.apache.beam.sdk.values.Row;
  * NanosInstant}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
-  public static final String IDENTIFIER = "beam:logical_type:micros_instant:v1";
-  // TODO(BEAM-10878): This should be a constant
+  public static final String IDENTIFIER =
+      SchemaApi.LogicalTypes.Enum.MICROS_INSTANT
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(RunnerApi.beamUrn);
+  // TODO(https://github.com/apache/beam/issues/20540): This should be a constant
   private final Schema schema;
 
   public MicrosInstant() {

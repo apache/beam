@@ -34,8 +34,7 @@ def get_file_output(encoding="utf-8", path=sys.argv[-1], arg_string=""):
     """
     import subprocess
 
-    proc = subprocess.Popen([sys.executable, path], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+    proc = subprocess.Popen([sys.executable, path], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     if arg_string:
         for arg in arg_string.split("\n"):
             proc.stdin.write(bytearray(str(arg) + "\n", encoding))

@@ -90,7 +90,7 @@ import software.amazon.awssdk.services.s3.model.UploadPartCopyResponse;
 /** Test case for {@link S3FileSystem}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class S3FileSystemTest {
 

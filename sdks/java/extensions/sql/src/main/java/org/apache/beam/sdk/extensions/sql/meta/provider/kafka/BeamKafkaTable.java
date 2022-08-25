@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  * between {@code BeamSqlRow} and {@code KV<byte[], byte[]>}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
   private String bootstrapServers;

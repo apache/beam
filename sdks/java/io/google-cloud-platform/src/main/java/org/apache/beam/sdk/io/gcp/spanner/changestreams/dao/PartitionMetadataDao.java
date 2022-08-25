@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_CREATED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_FINISHED_AT;
@@ -39,10 +38,6 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.TransactionRunner;
 import com.google.cloud.spanner.Value;
-import io.opencensus.common.Scope;
-import io.opencensus.trace.AttributeValue;
-import io.opencensus.trace.Tracer;
-import io.opencensus.trace.Tracing;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +50,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /** Data access object for the Connector metadata tables. */
 public class PartitionMetadataDao {
-  private static final Tracer TRACER = Tracing.getTracer();
 
   private final String metadataTableName;
   private final DatabaseClient databaseClient;
@@ -100,29 +94,23 @@ public class PartitionMetadataDao {
    *     returns null.
    */
   public @Nullable Struct getPartition(String partitionToken) {
-    try (Scope scope = TRACER.spanBuilder("getPartition").setRecordEvents(true).startScopedSpan()) {
-      TRACER
-          .getCurrentSpan()
-          .putAttribute(
-              PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-      try (ResultSet resultSet =
-          databaseClient
-              .singleUse()
-              .executeQuery(
-                  Statement.newBuilder(
-                          "SELECT * FROM "
-                              + metadataTableName
-                              + " WHERE "
-                              + COLUMN_PARTITION_TOKEN
-                              + " = @partition")
-                      .bind("partition")
-                      .to(partitionToken)
-                      .build())) {
-        if (resultSet.next()) {
-          return resultSet.getCurrentRowAsStruct();
-        }
-        return null;
+    try (ResultSet resultSet =
+        databaseClient
+            .singleUse()
+            .executeQuery(
+                Statement.newBuilder(
+                        "SELECT * FROM "
+                            + metadataTableName
+                            + " WHERE "
+                            + COLUMN_PARTITION_TOKEN
+                            + " = @partition")
+                    .bind("partition")
+                    .to(partitionToken)
+                    .build())) {
+      if (resultSet.next()) {
+        return resultSet.getCurrentRowAsStruct();
       }
+      return null;
     }
   }
 
@@ -148,9 +136,7 @@ public class PartitionMetadataDao {
             .bind("state")
             .to(State.FINISHED.name())
             .build();
-    try (Scope scope =
-            TRACER.spanBuilder("getMinCurrentWatermark").setRecordEvents(true).startScopedSpan();
-        ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
+    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
       if (resultSet.next()) {
         return resultSet.getTimestamp(COLUMN_WATERMARK);
       }
@@ -268,7 +254,6 @@ public class PartitionMetadataDao {
   /** Represents the execution of a read / write transaction in Cloud Spanner. */
   public static class InTransactionContext {
 
-    private static final Tracer TRACER = Tracing.getTracer();
     private final String metadataTableName;
     private final TransactionContext transaction;
     private final Map<State, String> stateToTimestampColumn;
@@ -295,15 +280,8 @@ public class PartitionMetadataDao {
      * @param row the partition metadata to be inserted
      */
     public Void insert(PartitionMetadata row) {
-      try (Scope scope = TRACER.spanBuilder("insert").setRecordEvents(true).startScopedSpan()) {
-        TRACER
-            .getCurrentSpan()
-            .putAttribute(
-                PARTITION_ID_ATTRIBUTE_LABEL,
-                AttributeValue.stringAttributeValue(row.getPartitionToken()));
-        transaction.buffer(ImmutableList.of(createInsertMetadataMutationFrom(row)));
-        return null;
-      }
+      transaction.buffer(ImmutableList.of(createInsertMetadataMutationFrom(row)));
+      return null;
     }
 
     /**
@@ -326,16 +304,9 @@ public class PartitionMetadataDao {
      * @param partitionToken the partition unique identifier
      */
     public Void updateToRunning(String partitionToken) {
-      try (Scope scope =
-          TRACER.spanBuilder("updateToRunning").setRecordEvents(true).startScopedSpan()) {
-        TRACER
-            .getCurrentSpan()
-            .putAttribute(
-                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-        transaction.buffer(
-            ImmutableList.of(createUpdateMetadataStateMutationFrom(partitionToken, State.RUNNING)));
-        return null;
-      }
+      transaction.buffer(
+          ImmutableList.of(createUpdateMetadataStateMutationFrom(partitionToken, State.RUNNING)));
+      return null;
     }
 
     /**
@@ -344,17 +315,9 @@ public class PartitionMetadataDao {
      * @param partitionToken the partition unique identifier
      */
     public Void updateToFinished(String partitionToken) {
-      try (Scope scope =
-          TRACER.spanBuilder("updateToRunning").setRecordEvents(true).startScopedSpan()) {
-        TRACER
-            .getCurrentSpan()
-            .putAttribute(
-                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-        transaction.buffer(
-            ImmutableList.of(
-                createUpdateMetadataStateMutationFrom(partitionToken, State.FINISHED)));
-        return null;
-      }
+      transaction.buffer(
+          ImmutableList.of(createUpdateMetadataStateMutationFrom(partitionToken, State.FINISHED)));
+      return null;
     }
 
     /**
@@ -365,15 +328,8 @@ public class PartitionMetadataDao {
      * @return the commit timestamp of the read / write transaction
      */
     public Void updateWatermark(String partitionToken, Timestamp watermark) {
-      try (Scope scope =
-          TRACER.spanBuilder("updateCurrentWatermark").setRecordEvents(true).startScopedSpan()) {
-        TRACER
-            .getCurrentSpan()
-            .putAttribute(
-                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-        transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
-        return null;
-      }
+      transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
+      return null;
     }
 
     /**
@@ -384,28 +340,21 @@ public class PartitionMetadataDao {
      *     returns null.
      */
     public @Nullable Struct getPartition(String partitionToken) {
-      try (Scope scope =
-          TRACER.spanBuilder("getPartition").setRecordEvents(true).startScopedSpan()) {
-        TRACER
-            .getCurrentSpan()
-            .putAttribute(
-                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-        try (ResultSet resultSet =
-            transaction.executeQuery(
-                Statement.newBuilder(
-                        "SELECT * FROM "
-                            + metadataTableName
-                            + " WHERE "
-                            + COLUMN_PARTITION_TOKEN
-                            + " = @partition")
-                    .bind("partition")
-                    .to(partitionToken)
-                    .build())) {
-          if (resultSet.next()) {
-            return resultSet.getCurrentRowAsStruct();
-          }
-          return null;
+      try (ResultSet resultSet =
+          transaction.executeQuery(
+              Statement.newBuilder(
+                      "SELECT * FROM "
+                          + metadataTableName
+                          + " WHERE "
+                          + COLUMN_PARTITION_TOKEN
+                          + " = @partition")
+                  .bind("partition")
+                  .to(partitionToken)
+                  .build())) {
+        if (resultSet.next()) {
+          return resultSet.getCurrentRowAsStruct();
         }
+        return null;
       }
     }
 

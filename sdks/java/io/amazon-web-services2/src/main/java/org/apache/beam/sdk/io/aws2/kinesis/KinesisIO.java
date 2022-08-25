@@ -275,7 +275,7 @@ public final class KinesisIO {
   /** Implementation of {@link #read()}. */
   @AutoValue
   @SuppressWarnings({
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
   })
   public abstract static class Read extends PTransform<PBegin, PCollection<KinesisRecord>> {
 

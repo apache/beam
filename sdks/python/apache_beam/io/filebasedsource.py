@@ -29,6 +29,8 @@ For an example implementation of :class:`FileBasedSource` see
 # pytype: skip-file
 
 from typing import Callable
+from typing import Iterable
+from typing import Tuple
 from typing import Union
 
 from apache_beam.internal import pickler
@@ -36,6 +38,7 @@ from apache_beam.io import concat_source
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.options.value_provider import StaticValueProvider
@@ -344,9 +347,14 @@ class _ExpandIntoRanges(DoFn):
     self._splittable = splittable
     self._compression_type = compression_type
 
-  def process(self, element, *args, **kwargs):
-    match_results = FileSystems.match([element])
-    for metadata in match_results[0].metadata_list:
+  def process(self, element: Union[str, FileMetadata], *args,
+              **kwargs) -> Iterable[Tuple[FileMetadata, OffsetRange]]:
+    if isinstance(element, FileMetadata):
+      metadata_list = [element]
+    else:
+      match_results = FileSystems.match([element])
+      metadata_list = match_results[0].metadata_list
+    for metadata in metadata_list:
       splittable = (
           self._splittable and _determine_splittability_from_compression_type(
               metadata.path, self._compression_type))
@@ -397,7 +405,6 @@ class ReadAllFiles(PTransform):
   PTransform authors who wishes to implement file-based Read transforms that
   read a PCollection of files.
   """
-
   def __init__(self,
                splittable,  # type: bool
                compression_type,
@@ -435,17 +442,32 @@ class ReadAllFiles(PTransform):
     self._min_bundle_size = min_bundle_size
     self._source_from_file = source_from_file
     self._with_filename = with_filename
+    # TODO(BEAM-14497) always reshuffle once gbk always trigger works.
+    self._is_reshuffle = True
+
+  def _disable_reshuffle(self):
+    # TODO(BEAM-14497) Remove this private method once gbk always trigger works.
+    #
+    # Currently Reshuffle() holds elements until the stage is completed. When
+    # ReadRange is needed instantly after match (like read continuously), the
+    # reshard is temporarily disabled. However, the read then does not scale and
+    # is deemed experimental.
+    self._is_reshuffle = False
+    return self
 
   def expand(self, pvalue):
-    return (
+    pvalue = (
         pvalue
         | 'ExpandIntoRanges' >> ParDo(
             _ExpandIntoRanges(
                 self._splittable,
                 self._compression_type,
                 self._desired_bundle_size,
-                self._min_bundle_size))
-        | 'Reshard' >> Reshuffle()
+                self._min_bundle_size)))
+    if self._is_reshuffle:
+      pvalue = pvalue | 'Reshard' >> Reshuffle()
+    return (
+        pvalue
         | 'ReadRange' >> ParDo(
             _ReadRange(
                 self._source_from_file, with_filename=self._with_filename)))

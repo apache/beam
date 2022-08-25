@@ -79,7 +79,7 @@ func main() {
 	// Concept #1: Invoke a root transform with the pipeline; in this case,
 	// textio.Read to read a set of input text file. textio.Read returns a
 	// PCollection where each element is one line from the input text
-	// (one of of Shakespeare's texts).
+	// (one of Shakespeare's texts).
 
 	// This example reads from a public dataset containing the text
 	// of King Lear.

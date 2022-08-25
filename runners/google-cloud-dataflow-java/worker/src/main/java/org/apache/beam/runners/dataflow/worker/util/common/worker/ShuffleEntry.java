@@ -18,26 +18,29 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.util.Arrays;
+import java.util.Objects;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Entry written to/read from a shuffle dataset. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ShuffleEntry {
   final ShufflePosition position;
-  final byte[] key;
-  final byte[] secondaryKey;
-  final byte[] value;
+  final ByteString key;
+  final ByteString secondaryKey;
+  final ByteString value;
 
-  public ShuffleEntry(byte[] key, byte[] secondaryKey, byte[] value) {
+  public ShuffleEntry(ByteString key, ByteString secondaryKey, ByteString value) {
     this.position = null;
     this.key = key;
     this.secondaryKey = secondaryKey;
     this.value = value;
   }
 
-  public ShuffleEntry(ShufflePosition position, byte[] key, byte[] secondaryKey, byte[] value) {
+  public ShuffleEntry(
+      ShufflePosition position, ByteString key, ByteString secondaryKey, ByteString value) {
     this.position = position;
     this.key = key;
     this.secondaryKey = secondaryKey;
@@ -48,23 +51,23 @@ public class ShuffleEntry {
     return position;
   }
 
-  public byte[] getKey() {
+  public ByteString getKey() {
     return key;
   }
 
-  public byte[] getSecondaryKey() {
+  public ByteString getSecondaryKey() {
     return secondaryKey;
   }
 
-  public byte[] getValue() {
+  public ByteString getValue() {
     return value;
   }
 
   /** Returns the size of this entry in bytes, excluding {@code position}. */
   public int length() {
-    return (key == null ? 0 : key.length)
-        + (secondaryKey == null ? 0 : secondaryKey.length)
-        + (value == null ? 0 : value.length);
+    return (key == null ? 0 : key.size())
+        + (secondaryKey == null ? 0 : secondaryKey.size())
+        + (value == null ? 0 : value.size());
   }
 
   @Override
@@ -72,11 +75,11 @@ public class ShuffleEntry {
     return "ShuffleEntry("
         + position.toString()
         + ","
-        + byteArrayToString(key)
+        + byteArrayToString(key.toByteArray())
         + ","
-        + byteArrayToString(secondaryKey)
+        + byteArrayToString(secondaryKey.toByteArray())
         + ","
-        + byteArrayToString(value)
+        + byteArrayToString(value.toByteArray())
         + ")";
   }
 
@@ -93,12 +96,10 @@ public class ShuffleEntry {
     }
     if (o instanceof ShuffleEntry) {
       ShuffleEntry that = (ShuffleEntry) o;
-      return (this.position == null ? that.position == null : this.position.equals(that.position))
-          && (this.key == null ? that.key == null : Arrays.equals(this.key, that.key))
-          && (this.secondaryKey == null
-              ? that.secondaryKey == null
-              : Arrays.equals(this.secondaryKey, that.secondaryKey))
-          && (this.value == null ? that.value == null : Arrays.equals(this.value, that.value));
+      return (Objects.equals(this.position, that.position))
+          && (Objects.equals(this.key, that.key))
+          && (Objects.equals(this.secondaryKey, that.secondaryKey))
+          && (Objects.equals(this.value, that.value));
     }
     return false;
   }
@@ -107,8 +108,8 @@ public class ShuffleEntry {
   public int hashCode() {
     return getClass().hashCode()
         + (position == null ? 0 : position.hashCode())
-        + (key == null ? 0 : Arrays.hashCode(key))
-        + (secondaryKey == null ? 0 : Arrays.hashCode(secondaryKey))
-        + (value == null ? 0 : Arrays.hashCode(value));
+        + (key == null ? 0 : key.hashCode())
+        + (secondaryKey == null ? 0 : secondaryKey.hashCode())
+        + (value == null ? 0 : value.hashCode());
   }
 }

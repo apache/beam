@@ -22,6 +22,7 @@
 
 import abc
 import collections
+import json
 import logging
 import queue
 import threading
@@ -51,6 +52,7 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 if TYPE_CHECKING:
   import apache_beam.coders.slow_stream
+
   OutputStream = apache_beam.coders.slow_stream.OutputStream
   DataOrTimers = Union[beam_fn_api_pb2.Elements.Data,
                        beam_fn_api_pb2.Elements.Timers]
@@ -67,6 +69,22 @@ _DEFAULT_TIME_FLUSH_THRESHOLD_MS = 0  # disable time-based flush by default
 # Keep a set of completed instructions to discard late received data. The set
 # can have up to _MAX_CLEANED_INSTRUCTIONS items. See _GrpcDataChannel.
 _MAX_CLEANED_INSTRUCTIONS = 10000
+
+# retry on transient UNAVAILABLE grpc error from data channels.
+_GRPC_SERVICE_CONFIG = json.dumps({
+    "methodConfig": [{
+        "name": [{
+            "service": "org.apache.beam.model.fn_execution.v1.BeamFnData"
+        }],
+        "retryPolicy": {
+            "maxAttempts": 5,
+            "initialBackoff": "0.1s",
+            "maxBackoff": "5s",
+            "backoffMultiplier": 2,
+            "retryableStatusCodes": ["UNAVAILABLE"],
+        },
+    }]
+})
 
 
 class ClosableOutputStream(OutputStream):
@@ -111,6 +129,7 @@ class ClosableOutputStream(OutputStream):
 
 class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
   """A size-based buffering OutputStream."""
+
   def __init__(
       self,
       close_callback=None,  # type: Optional[Callable[[bytes], None]]
@@ -185,6 +204,7 @@ class TimeBasedBufferingClosableOutputStream(
 
 class PeriodicThread(threading.Thread):
   """Call a function periodically with the specified number of seconds"""
+
   def __init__(
       self,
       interval,  # type: float
@@ -656,6 +676,7 @@ class _GrpcDataChannel(DataChannel):
 
 class GrpcClientDataChannel(_GrpcDataChannel):
   """A DataChannel wrapping the client side of a BeamFnData connection."""
+
   def __init__(
       self,
       data_stub,  # type: beam_fn_api_pb2_grpc.BeamFnDataStub
@@ -724,6 +745,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
 
   Caches the created channels by ``data descriptor url``.
   """
+
   def __init__(
       self,
       credentials=None,  # type: Any
@@ -752,7 +774,8 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
           # received or sent over the data plane. The actual buffer size
           # is controlled in a layer above.
           channel_options = [("grpc.max_receive_message_length", -1),
-                             ("grpc.max_send_message_length", -1)]
+                             ("grpc.max_send_message_length", -1),
+                             ("grpc.service_config", _GRPC_SERVICE_CONFIG)]
           grpc_channel = None
           if self._credentials is None:
             grpc_channel = GRPCChannelFactory.insecure_channel(
@@ -772,9 +795,9 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   def create_data_channel(self, remote_grpc_port):
     # type: (beam_fn_api_pb2.RemoteGrpcPort) -> GrpcClientDataChannel
     url = remote_grpc_port.api_service_descriptor.url
-    # TODO(BEAM-7746): this can return None if url is falsey, but this seems
-    #  incorrect, as code that calls this method seems to always expect
-    #  non-Optional values.
+    # TODO(https://github.com/apache/beam/issues/19737): this can return None
+    #  if url is falsey, but this seems incorrect, as code that calls this
+    #  method seems to always expect non-Optional values.
     return self.create_data_channel_from_url(url)  # type: ignore[return-value]
 
   def close(self):

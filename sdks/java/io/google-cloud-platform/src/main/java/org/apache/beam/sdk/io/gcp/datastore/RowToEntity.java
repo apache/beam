@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 
 /** A {@code PTransform} to perform a conversion of {@link Row} to {@link Entity}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class RowToEntity extends PTransform<PCollection<Row>, PCollection<Entity>> {
   private final Supplier<String> keySupplier;

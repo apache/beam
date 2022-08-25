@@ -73,7 +73,7 @@ import org.slf4j.LoggerFactory;
  * not be inline calls and process elements over a stream.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
     extends WindowMappingFn<TargetWindowT> {

@@ -50,7 +50,7 @@
 //
 //   --output=[YOUR_LOCAL_FILE | YOUR_REMOTE_FILE]
 //
-// The input file defaults to a public data set containing the text of of King
+// The input file defaults to a public data set containing the text of King
 // Lear, by William Shakespeare. You can override it and choose your own input
 // with --input.
 package main
@@ -71,12 +71,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
@@ -118,8 +118,8 @@ var (
 // done automatically by the starcgen code generator, or it can be done manually
 // by calling beam.RegisterFunction in an init() call.
 func init() {
-	beam.RegisterFunction(formatFn)
-	beam.RegisterType(reflect.TypeOf((*extractFn)(nil)))
+	register.DoFn3x0[context.Context, string, func(string)](&extractFn{})
+	register.Emitter1[string]()
 }
 
 var (

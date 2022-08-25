@@ -20,7 +20,7 @@ Roadmap for connectors developed using Java SDK.
 # Couchbase
 
 Couchbase is a NoSQL document-oriented database. See
-[BEAM-1893](https://issues.apache.org/jira/browse/BEAM-1893) for more details on the
+[Issue 18381](https://github.com/apache/beam/issues/18381) for more details on the
 planned Beam connector for Couchbase.
 
 # InfluxDB

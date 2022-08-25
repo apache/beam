@@ -47,7 +47,7 @@ import org.apache.commons.math3.distribution.ZipfDistribution;
  * used by {@link SyntheticBoundedSource} and {@link SyntheticUnboundedSource}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SyntheticOptions implements Serializable {
   private static final long serialVersionUID = 0;

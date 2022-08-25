@@ -23,6 +23,7 @@ import static org.apache.beam.runners.dataflow.worker.WindmillTimeUtils.windmill
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -56,6 +57,15 @@ public class WindmillTimeUtilsTest {
     assertEquals(new Instant(-17), windmillToHarnessTimestamp(-16987));
     assertEquals(new Instant(-17), windmillToHarnessTimestamp(-17000));
     assertEquals(new Instant(-18), windmillToHarnessTimestamp(-17001));
+    assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, windmillToHarnessTimestamp(Long.MIN_VALUE + 1));
+    assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, windmillToHarnessTimestamp(Long.MIN_VALUE + 2));
+    // Long.MIN_VALUE = -9223372036854775808, need to add 1808 microseconds to get to next
+    // millisecond returned by Beam.
+    assertEquals(
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
+        windmillToHarnessTimestamp(Long.MIN_VALUE + 1808));
+    assertEquals(
+        BoundedWindow.TIMESTAMP_MIN_VALUE, windmillToHarnessTimestamp(Long.MIN_VALUE + 1807));
   }
 
   @Test

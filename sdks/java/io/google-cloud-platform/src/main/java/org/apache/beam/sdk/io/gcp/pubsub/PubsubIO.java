@@ -96,9 +96,16 @@ import org.slf4j.LoggerFactory;
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the Beam
  * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner
  * PipelineRunners} for more details.
+ *
+ * <h3>Updates to the I/O connector code</h3>
+ *
+ * For any significant updates to this I/O connector, please consider involving corresponding code
+ * reviewers mentioned <a
+ * href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
+ * here</a>.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PubsubIO {
 
@@ -1185,7 +1192,7 @@ public class PubsubIO {
      * Writes to Pub/Sub, adding each record's unique identifier to the published messages in an
      * attribute with the specified name. The value of the attribute is an opaque string.
      *
-     * <p>If the the output from this sink is being read by another Beam pipeline, then {@link
+     * <p>If the output from this sink is being read by another Beam pipeline, then {@link
      * PubsubIO.Read#withIdAttribute(String)} can be used to ensure that* the other source reads
      * these unique identifiers from the appropriate attribute.
      */

@@ -47,7 +47,7 @@ import org.joda.time.Instant;
  * how data is pushed into the stream compared to the advancement of Watermarks since Watermarks
  * advance onBatchCompleted hook call so if you'd want to set the watermark advance for a specific
  * batch it should be called before that batch. Also keep in mind that being a queue that is polled
- * per batch interval, if there is a need to "hold" the same Watermark without advancing it it
+ * per batch interval, if there is a need to "hold" the same Watermark without advancing it, it
  * should be stated explicitly or the Watermark will advance as soon as it can (in the next batch
  * completed hook).
  *
@@ -87,7 +87,7 @@ import org.joda.time.Instant;
  */
 // TODO: write a proper Builder enforcing all those rules mentioned.
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   public static final String TRANSFORM_URN = "beam:transform:spark:createstream:v1";

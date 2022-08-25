@@ -91,6 +91,7 @@ public class ThroughputEstimator implements Serializable {
     }
     return bytesInQueue
         .divide(BigDecimal.valueOf(queue.size()), MathContext.DECIMAL128)
+        .max(BigDecimal.ZERO)
         .doubleValue();
   }
 
@@ -103,7 +104,7 @@ public class ThroughputEstimator implements Serializable {
       // Remove the element if the timestamp of the first element is beyond
       // the time range to look backward.
       ImmutablePair<Timestamp, BigDecimal> pair = queue.remove();
-      bytesInQueue = bytesInQueue.subtract(pair.getRight());
+      bytesInQueue = bytesInQueue.subtract(pair.getRight()).max(BigDecimal.ZERO);
     }
   }
 }

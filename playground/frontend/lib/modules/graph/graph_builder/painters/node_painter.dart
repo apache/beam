@@ -80,7 +80,7 @@ class NodeElementPainter {
     return size!;
   }
 
-  get maxTextWidth {
+  double get maxTextWidth {
     var textWidth = getTextSize(element.label, 10.0).width;
     if (parentLabel.isNotEmpty) {
       final parentLabelSize = getTextSize(parentLabel, 10.0).width;

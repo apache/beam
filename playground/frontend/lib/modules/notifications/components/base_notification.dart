@@ -50,6 +50,10 @@ class BaseNotification extends StatelessWidget {
 
   Widget _renderLeftBorder(BuildContext context) {
     return Positioned(
+      width: kNotificationBorderWidth,
+      left: 0,
+      top: 0,
+      bottom: 0,
       child: Container(
         decoration: BoxDecoration(
           color: color,
@@ -59,10 +63,6 @@ class BaseNotification extends StatelessWidget {
           ),
         ),
       ),
-      width: kNotificationBorderWidth,
-      left: 0,
-      top: 0,
-      bottom: 0,
     );
   }
 

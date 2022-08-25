@@ -63,6 +63,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -93,10 +94,7 @@ import org.slf4j.LoggerFactory;
  * the data directly into the final table, skipping temporary tables. In this case, the output
  * {@link KV} maps the final table to itself.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
-class WriteTables<DestinationT>
+class WriteTables<DestinationT extends @NonNull Object>
     extends PTransform<
         PCollection<KV<ShardedKey<DestinationT>, WritePartition.Result>>,
         PCollection<KV<TableDestination, WriteTables.Result>>> {
@@ -139,7 +137,7 @@ class WriteTables<DestinationT>
   private final List<PCollectionView<?>> sideInputs;
   private final TupleTag<KV<TableDestination, WriteTables.Result>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
-  private final ValueProvider<String> loadJobProjectId;
+  private final @Nullable ValueProvider<String> loadJobProjectId;
   private final int maxRetryJobs;
   private final boolean ignoreUnknownValues;
   private final @Nullable String kmsKey;
@@ -206,8 +204,8 @@ class WriteTables<DestinationT>
             BigQueryHelpers.fromJsonString(jsonSchemas.get(destination), TableSchema.class);
       } else {
         tableSchema = dynamicDestinations.getSchema(destination);
-        checkArgument(
-            tableSchema != null,
+        Preconditions.checkArgumentNotNull(
+            tableSchema,
             "Unless create disposition is %s, a schema must be specified, i.e. "
                 + "DynamicDestinations.getSchema() may not return null. "
                 + "However, create disposition is %s, and %s returned null for destination %s",
@@ -269,7 +267,7 @@ class WriteTables<DestinationT>
       } else if (tempTable) {
         // In this case, we are writing to a temp table and always need to create it.
         // WRITE_TRUNCATE is set so that we properly handle retries of this pane.
-        writeDisposition = WriteDisposition.WRITE_TRUNCATE;
+        writeDisposition = WriteDisposition.WRITE_APPEND;
         createDisposition = CreateDisposition.CREATE_IF_NEEDED;
       }
 
@@ -286,6 +284,7 @@ class WriteTables<DestinationT>
               writeDisposition,
               createDisposition,
               schemaUpdateOptions);
+
       pendingJobs.add(
           new PendingJobData(
               window,
@@ -354,7 +353,6 @@ class WriteTables<DestinationT>
                                   BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
                           pendingJob.tableDestination.getTableDescription());
                     }
-
                     Result result =
                         new AutoValue_WriteTables_Result(
                             BigQueryHelpers.toJsonString(pendingJob.tableReference),
@@ -399,7 +397,7 @@ class WriteTables<DestinationT>
       @Nullable ValueProvider<String> loadJobProjectId,
       int maxRetryJobs,
       boolean ignoreUnknownValues,
-      String kmsKey,
+      @Nullable String kmsKey,
       String sourceFormat,
       boolean useAvroLogicalTypes,
       Set<SchemaUpdateOption> schemaUpdateOptions,
@@ -451,6 +449,7 @@ class WriteTables<DestinationT>
         .apply(GroupByKey.create())
         .apply(Values.create())
         .apply(ParDo.of(new GarbageCollectTemporaryFiles()));
+
     return writeTablesOutputs.get(mainOutputTag);
   }
 
@@ -459,13 +458,16 @@ class WriteTables<DestinationT>
       DatasetService datasetService,
       String jobIdPrefix,
       TableReference ref,
-      TimePartitioning timePartitioning,
-      Clustering clustering,
+      @Nullable TimePartitioning timePartitioning,
+      @Nullable Clustering clustering,
       @Nullable TableSchema schema,
       List<String> gcsUris,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       Set<SchemaUpdateOption> schemaUpdateOptions) {
+    @SuppressWarnings({
+      "nullness" // nulls allowed in most fields but API client not annotated
+    })
     JobConfigurationLoad loadConfig =
         new JobConfigurationLoad()
             .setDestinationTable(ref)

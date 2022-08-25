@@ -27,7 +27,6 @@ import traceback
 from datetime import datetime
 from dependency_check.bigquery_client_utils import BigQueryClientUtils
 from dependency_check.report_generator_config import ReportGeneratorConfig
-from jira_utils.jira_manager import JiraManager
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
@@ -96,10 +95,6 @@ def prioritize_dependencies(deps, sdk_type):
   table_id = ReportGeneratorConfig.get_bigquery_table_id(sdk_type)
   high_priority_deps = []
   bigquery_client = BigQueryClientUtils(project_id, dataset_id, table_id)
-  jira_manager = JiraManager(ReportGeneratorConfig.BEAM_JIRA_HOST,
-                             ReportGeneratorConfig.BEAM_JIRA_BOT_USRENAME,
-                             ReportGeneratorConfig.BEAM_JIRA_BOT_PASSWORD,
-                             ReportGeneratorConfig.get_owners_file(sdk_type))
 
   for dep in deps:
     try:
@@ -141,13 +136,7 @@ def prioritize_dependencies(deps, sdk_type):
                           latest_release_date)
       if (version_comparer.compare_dependency_versions(curr_ver, latest_ver) or
           compare_dependency_release_dates(curr_release_date, latest_release_date)):
-        # Create a new issue or update on the existing issue
-        jira_issue = jira_manager.run(dep_name, curr_ver, latest_ver, sdk_type, group_id = group_id)
-        if (jira_issue and jira_issue.fields.status.name in ['Open', 'Reopened', 'Triage Needed']):
-          dep_info += "<td><a href=\'{0}\'>{1}</a></td></tr>".format(
-            ReportGeneratorConfig.BEAM_JIRA_HOST+"browse/"+ jira_issue.key,
-            jira_issue.key)
-          high_priority_deps.append(dep_info)
+        high_priority_deps.append(dep_info)
 
     except:
       traceback.print_exc()
@@ -329,13 +318,11 @@ def generate_report(sdk_type):
       <td><b>{2}</b></td>
       <td><b>{3}</b></td>
       <td><b>{4}</b></td>
-      <td><b>{5}</b></td>
       </tr>""".format("Dependency Name",
                       "Current Version",
                       "Latest Version",
                       "Release Date Of the Current Used Version",
-                      "Release Date Of The Latest Release",
-                      "JIRA Issue")
+                      "Release Date Of The Latest Release")
     report.write(subtitle)
     report.write("<table>\n")
     report.write(table_fields)

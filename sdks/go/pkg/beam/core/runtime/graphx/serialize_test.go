@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore U1000 unused functions/types are for tests
+
 package graphx
 
 import (

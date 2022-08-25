@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * attribute exists.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class AddTimestampAttribute extends PTransform<PCollection<Row>, PCollection<Row>> {
   private static final Logger LOG = LoggerFactory.getLogger(AddTimestampAttribute.class);

@@ -43,7 +43,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
 
 /** Runs a Pipeline on Flink via {@link FlinkRunner}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkPipelineRunner implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkPipelineRunner.class);

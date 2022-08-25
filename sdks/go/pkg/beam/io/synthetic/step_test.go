@@ -37,7 +37,7 @@ func TestStepConfig_OutputPerInput(t *testing.T) {
 			cfg := DefaultStepConfig().OutputPerInput(test.outPer).Build()
 
 			// Non-splittable StepFn.
-			dfn := stepFn{cfg: cfg}
+			dfn := stepFn{Cfg: cfg}
 			var keys [][]byte
 			emitFn := func(key []byte, val []byte) {
 				keys = append(keys, key)
@@ -52,7 +52,7 @@ func TestStepConfig_OutputPerInput(t *testing.T) {
 
 			// SDF StepFn.
 			cfg = DefaultStepConfig().OutputPerInput(test.outPer).Splittable(true).Build()
-			sdf := sdfStepFn{cfg: cfg}
+			sdf := sdfStepFn{Cfg: cfg}
 			keys, _ = simulateSdfStepFn(t, &sdf)
 			if got := len(keys); got != test.outPer {
 				t.Errorf("sdfStepFn emitted wrong number of outputs: got: %v, want: %v",
@@ -97,7 +97,7 @@ func TestStepConfig_FilterRatio(t *testing.T) {
 
 			// Non-splittable StepFn.
 			cfg := DefaultStepConfig().FilterRatio(test.ratio).Build()
-			dfn := stepFn{cfg: cfg}
+			dfn := stepFn{Cfg: cfg}
 			dfn.Setup()
 			dfn.rng = &fakeRand{f64: test.rand}
 			dfn.ProcessElement(elm, elm, emitFn)
@@ -110,7 +110,7 @@ func TestStepConfig_FilterRatio(t *testing.T) {
 
 			// SDF StepFn.
 			cfg = DefaultStepConfig().FilterRatio(test.ratio).Splittable(true).Build()
-			sdf := sdfStepFn{cfg: cfg}
+			sdf := sdfStepFn{Cfg: cfg}
 			keys = nil
 			rest := sdf.CreateInitialRestriction(elm, elm)
 			splits := sdf.SplitRestriction(elm, elm, rest)
@@ -154,7 +154,7 @@ func TestStepConfig_InitialSplits(t *testing.T) {
 					Build()
 				elm := []byte{0, 0, 0, 0}
 
-				sdf := sdfStepFn{cfg: cfg}
+				sdf := sdfStepFn{Cfg: cfg}
 				rest := sdf.CreateInitialRestriction(elm, elm)
 				splits := sdf.SplitRestriction(elm, elm, rest)
 				if got := len(splits); got != test.want {
@@ -186,7 +186,7 @@ func TestStepConfig_InitialSplits(t *testing.T) {
 					InitialSplits(test.splits).
 					Build()
 
-				sdf := sdfStepFn{cfg: cfg}
+				sdf := sdfStepFn{Cfg: cfg}
 				keys, _ := simulateSdfStepFn(t, &sdf)
 				if got := len(keys); got != test.want {
 					t.Errorf("SourceFn emitted wrong number of outputs: got: %v, want: %v",

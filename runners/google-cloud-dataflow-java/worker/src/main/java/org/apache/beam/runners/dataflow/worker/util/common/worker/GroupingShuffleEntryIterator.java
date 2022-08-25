@@ -20,12 +20,12 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import java.util.Arrays;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * used via the interface of that class, hence doesn't inherit it.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class GroupingShuffleEntryIterator {
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleEntryIterator.class);
@@ -59,7 +59,7 @@ public abstract class GroupingShuffleEntryIterator {
    * shuffleIterator.next() is the key of the next KeyGroupedShuffleEntries to return via {@link
    * #advance}/{@link #getCurrent}.
    */
-  private byte @Nullable [] currentKeyBytes = null;
+  private @Nullable ByteString currentKeyBytes = null;
 
   private ShufflePosition lastGroupStart;
 
@@ -118,7 +118,7 @@ public abstract class GroupingShuffleEntryIterator {
       // start ValuesIterable below from this entry.
       atCurrentEntry = shuffleIterator.copy();
       entry = shuffleIterator.next();
-      if (!Arrays.equals(entry.getKey(), currentKeyBytes)) {
+      if (!entry.getKey().equals(currentKeyBytes)) {
         break;
       }
       // Note: we can get here only if the ValuesIterable of the preceding key has NOT been
@@ -190,12 +190,12 @@ public abstract class GroupingShuffleEntryIterator {
       extends ElementByteSizeObservableIterable<ShuffleEntry, ValuesIterator>
       implements Reiterable<ShuffleEntry> {
     private final GroupingShuffleEntryIterator parent;
-    private final byte[] currentKeyBytes;
+    private final ByteString currentKeyBytes;
     private Reiterator<ShuffleEntry> baseValuesIterator;
 
     public ValuesIterable(
         GroupingShuffleEntryIterator parent,
-        byte[] keyBytes,
+        ByteString keyBytes,
         Reiterator<ShuffleEntry> baseValuesIterator) {
       this.parent = parent;
       this.currentKeyBytes = keyBytes;
@@ -217,7 +217,7 @@ public abstract class GroupingShuffleEntryIterator {
     private final GroupingShuffleEntryIterator parent;
     private final Reiterator<ShuffleEntry> valuesIterator;
     private final ProgressTracker<ShuffleEntry> tracker;
-    private final byte[] expectedKeyBytes;
+    private final ByteString expectedKeyBytes;
 
     private Boolean cachedHasNext;
     private long byteSizeRead = 0L;
@@ -226,7 +226,7 @@ public abstract class GroupingShuffleEntryIterator {
     public ValuesIterator(
         GroupingShuffleEntryIterator parent,
         Reiterator<ShuffleEntry> valuesIterator,
-        byte[] expectedKeyBytes) {
+        ByteString expectedKeyBytes) {
       this.parent = parent;
       this.valuesIterator = valuesIterator;
       this.expectedKeyBytes = checkNotNull(expectedKeyBytes);
@@ -267,13 +267,14 @@ public abstract class GroupingShuffleEntryIterator {
       return cachedHasNext;
     }
 
+    @SuppressWarnings("ReferenceEquality")
     private boolean advance() {
       // Save a copy of the iterator pointing at the next entry, to use below in case we're right
       // before a key boundary (or end of stream).
       Reiterator<ShuffleEntry> possibleStartOfNextKey = valuesIterator.copy();
       if (valuesIterator.hasNext()) {
         ShuffleEntry entry = valuesIterator.next();
-        if (Arrays.equals(entry.getKey(), expectedKeyBytes)) {
+        if (entry.getKey().equals(expectedKeyBytes)) {
           byteSizeRead += entry.length();
           tracker.saw(entry);
           current = entry;

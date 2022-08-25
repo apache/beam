@@ -34,7 +34,7 @@ import org.hamcrest.Matcher;
  * MatchResult#metadata()} throws an exception under normal circumstances.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class MatchResultMatcher extends BaseMatcher<MatchResult> {
 

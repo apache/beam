@@ -169,8 +169,6 @@ func (v *iterValue) invoke(args []reflect.Value) []reflect.Value {
 	for i, t := range v.types {
 		var v reflect.Value
 		switch {
-		case t == typex.EventTimeType:
-			v = reflect.ValueOf(elm.Timestamp)
 		case isKey:
 			v = reflect.ValueOf(Convert(elm.Elm, t))
 			isKey = false

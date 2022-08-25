@@ -19,8 +19,8 @@
     - { title: Events, description: 'Follow our <a href="/">calendar</a> in the homepage which has the latest events organized by the community.' }
 - list:
     - { title: Read our Contribution Guide and Policies, description: 'Get familiar with our <a href="/contribute/">contribution guide</a> and <a href="/contribute/precommit-policies/">policies</a>.' }
-    - { title: Create a Jira account, description: 'Create a <a target="_blank" href="https://issues.apache.org/jira/secure/Signup!default.jspa" target="_blank">Jira account</a> and send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> to request comitter permissions.' }
-    - { title: Find an area to contribute, description: 'Beam recognizes code and non-code contributions. Check out this <a target="_blank" href="https://issues.apache.org/jira/secure/Dashboard.jspa?selectPageId=12335926">Jira board</a> for some inspiration.' }
+    - { title: Create an Issue, description: 'Create an <a target="_blank" href="https://github.com/apache/beam/issues/new">issue</a> for any bugs you find or features you’d like to see added.' }
+    - { title: Find an area to contribute, description: 'Beam recognizes code and non-code contributions. Check out the <a target="_blank" href="https://github.com/apache/beam/issues">GitHub Issues</a> for some inspiration.' }
     - { title: Contribute, description: 'To contribute code, you need to sign an <a href="https://www.apache.org/licenses/icla.pdf">Individual Contributor License Agreement (ICLA)</a>. Learn more <a target="_blank" href="https://www.apache.org/licenses/icla.pdf">here</a>.' }
     - { title: Stay engaged!, description: Finds ways to stay engaged in the project and community and help us shape it’s strategy and vision. }
 - list:

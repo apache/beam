@@ -113,6 +113,7 @@ Note: Currently file paths need to be absolute paths.
 
 ## Pipeline Options for the Twister2 Runner
 
+<div class="table-container-wrapper">
 <table class="table table-bordered">
 <tr>
   <th>Field</th>
@@ -150,3 +151,4 @@ Note: Currently file paths need to be absolute paths.
   <td>2048</td>
 </tr>
 </table>
+</div>

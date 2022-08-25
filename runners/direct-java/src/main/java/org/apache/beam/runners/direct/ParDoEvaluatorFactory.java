@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 
 /** A {@link TransformEvaluatorFactory} for {@link ParDo.MultiOutput}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluatorFactory {
 

@@ -52,7 +52,7 @@ import org.joda.time.Instant;
  * as one or both of a maximum number of elements or a maximum period of time to read.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
   private final UnboundedSource<T, ?> source;

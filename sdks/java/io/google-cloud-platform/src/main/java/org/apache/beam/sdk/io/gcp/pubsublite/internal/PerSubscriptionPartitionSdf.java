@@ -26,41 +26,39 @@ import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedMessage> {
+
   private static final Logger LOG = LoggerFactory.getLogger(PerSubscriptionPartitionSdf.class);
-  private final Duration maxSleepTime;
-  private final ManagedBacklogReaderFactory backlogReaderFactory;
+  private final ManagedFactory<TopicBacklogReader> backlogReaderFactory;
+  private final ManagedFactory<BlockingCommitter> committerFactory;
   private final SubscriptionPartitionProcessorFactory processorFactory;
   private final SerializableFunction<SubscriptionPartition, InitialOffsetReader>
       offsetReaderFactory;
   private final SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress>
       trackerFactory;
-  private final SerializableFunction<SubscriptionPartition, BlockingCommitter> committerFactory;
 
   PerSubscriptionPartitionSdf(
-      Duration maxSleepTime,
-      ManagedBacklogReaderFactory backlogReaderFactory,
+      ManagedFactory<TopicBacklogReader> backlogReaderFactory,
+      ManagedFactory<BlockingCommitter> committerFactory,
       SerializableFunction<SubscriptionPartition, InitialOffsetReader> offsetReaderFactory,
       SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress>
           trackerFactory,
-      SubscriptionPartitionProcessorFactory processorFactory,
-      SerializableFunction<SubscriptionPartition, BlockingCommitter> committerFactory) {
-    this.maxSleepTime = maxSleepTime;
+      SubscriptionPartitionProcessorFactory processorFactory) {
     this.backlogReaderFactory = backlogReaderFactory;
+    this.committerFactory = committerFactory;
     this.processorFactory = processorFactory;
     this.offsetReaderFactory = offsetReaderFactory;
     this.trackerFactory = trackerFactory;
-    this.committerFactory = committerFactory;
   }
 
   @Teardown
-  public void teardown() {
-    backlogReaderFactory.close();
+  public void teardown() throws Exception {
+    try (AutoCloseable c1 = committerFactory;
+        AutoCloseable c2 = backlogReaderFactory) {}
   }
 
   /**
@@ -89,7 +87,7 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
     LOG.debug("Starting process for {} at {}", subscriptionPartition, Instant.now());
     SubscriptionPartitionProcessor processor =
         processorFactory.newProcessor(subscriptionPartition, tracker, receiver);
-    ProcessContinuation result = processor.runFor(maxSleepTime);
+    ProcessContinuation result = processor.run();
     LOG.debug("Starting commit for {} at {}", subscriptionPartition, Instant.now());
     // TODO(dpcollins-google): Move commits to a bundle finalizer for drain correctness
     processor
@@ -98,7 +96,7 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
             lastClaimed -> {
               try {
                 committerFactory
-                    .apply(subscriptionPartition)
+                    .create(subscriptionPartition)
                     .commitOffset(Offset.of(lastClaimed.value() + 1));
               } catch (Exception e) {
                 throw ExtractStatus.toCanonical(e).underlying;
@@ -118,7 +116,7 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
   @NewTracker
   public TrackerWithProgress newTracker(
       @Element SubscriptionPartition subscriptionPartition, @Restriction OffsetByteRange range) {
-    return trackerFactory.apply(backlogReaderFactory.newReader(subscriptionPartition), range);
+    return trackerFactory.apply(backlogReaderFactory.create(subscriptionPartition), range);
   }
 
   @GetSize

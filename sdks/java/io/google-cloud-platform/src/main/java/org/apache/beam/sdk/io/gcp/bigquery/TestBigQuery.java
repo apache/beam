@@ -47,8 +47,12 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.hamcrest.Matcher;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -65,17 +69,14 @@ import org.junit.runners.model.Statement;
  *
  * <p>Deletes the table on test shutdown.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestBigQuery implements TestRule {
   private static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY_MM_dd_HH_mm_ss_SSS");
 
   private TestBigQueryOptions pipelineOptions;
   private Schema schema;
-  private Table table;
-  private BigQueryServices.DatasetService datasetService;
+  private @Nullable Table table = null;
+  private BigQueryServices.@Nullable DatasetService datasetService = null;
 
   /**
    * Creates an instance of this rule.
@@ -125,7 +126,9 @@ public class TestBigQuery implements TestRule {
     this.table = createTable(description);
   }
 
+  @RequiresNonNull("datasetService")
   private Table createTable(Description description) throws IOException, InterruptedException {
+    BigQueryServices.DatasetService datasetService = this.datasetService;
     TableReference tableReference =
         new TableReference()
             .setProjectId(
@@ -135,7 +138,7 @@ public class TestBigQuery implements TestRule {
             .setDatasetId(pipelineOptions.getTargetDataset())
             .setTableId(createRandomizedName(description));
 
-    table =
+    Table newTable =
         new Table()
             .setTableReference(tableReference)
             .setSchema(BigQueryUtils.toTableSchema(schema))
@@ -153,7 +156,8 @@ public class TestBigQuery implements TestRule {
               + "It should have been cleaned up by the test rule.");
     }
 
-    datasetService.createTable(table);
+    datasetService.createTable(newTable);
+    table = newTable;
     return table;
   }
 
@@ -195,7 +199,9 @@ public class TestBigQuery implements TestRule {
     return topicName.toString() + "_" + String.valueOf(randomNumber);
   }
 
+  @RequiresNonNull("table")
   public String tableSpec() {
+    Table table = this.table;
     return String.format(
         "%s:%s.%s",
         table.getTableReference().getProjectId(),
@@ -203,12 +209,15 @@ public class TestBigQuery implements TestRule {
         table.getTableReference().getTableId());
   }
 
+  @RequiresNonNull("table")
   public TableReference tableReference() {
     return table.getTableReference();
   }
 
   @Experimental(Kind.SCHEMAS)
+  @RequiresNonNull("table")
   public TableDataInsertAllResponse insertRows(Schema rowSchema, Row... rows) throws IOException {
+    Table table = this.table;
     List<Rows> bqRows =
         Arrays.stream(rows)
             .map(row -> new Rows().setJson(BigQueryUtils.toTableRow(row)))
@@ -236,6 +245,7 @@ public class TestBigQuery implements TestRule {
   @Experimental(Kind.SCHEMAS)
   public List<Row> getFlatJsonRows(Schema rowSchema) {
     Bigquery bq = newBigQueryClient(pipelineOptions);
+    Preconditions.checkStateNotNull(this.table);
     return bqRowsToBeamRows(getSchema(bq), getTableRows(bq), rowSchema);
   }
 
@@ -276,7 +286,10 @@ public class TestBigQuery implements TestRule {
         .collect(Collectors.toList());
   }
 
+  @RequiresNonNull("table")
+  @SideEffectFree
   private TableSchema getSchema(Bigquery bq) {
+    Table table = this.table;
     try {
       return bq.tables()
           .get(
@@ -293,7 +306,10 @@ public class TestBigQuery implements TestRule {
     }
   }
 
+  @RequiresNonNull("table")
+  @SideEffectFree
   private List<TableRow> getTableRows(Bigquery bq) {
+    Table table = this.table;
     try {
       return bq.tabledata()
           .list(

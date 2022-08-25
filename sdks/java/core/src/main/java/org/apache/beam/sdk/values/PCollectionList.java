@@ -59,9 +59,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type of the elements of all the {@link PCollection PCollections} in this list
  */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
 public class PCollectionList<T> implements PInput, POutput {
   /**
    * Returns an empty {@link PCollectionList} that is part of the given {@link Pipeline}.

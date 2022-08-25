@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.TestSparkRunner;
@@ -84,7 +83,6 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
@@ -101,7 +99,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ResumeFromCheckpointStreamingTest implements Serializable {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
@@ -111,8 +109,6 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
   private static final String TOPIC = "kafka_beam_test_topic";
 
   private transient TemporaryFolder temporaryFolder;
-
-  @Rule public final transient ReuseSparkContextRule noContextReuse = ReuseSparkContextRule.no();
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -356,7 +352,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
 
   /**
    * A custom PAssert that avoids using {@link org.apache.beam.sdk.transforms.Flatten} until
-   * BEAM-1444 is resolved.
+   * https://github.com/apache/beam/issues/18144 is resolved.
    */
   private static class PAssertWithoutFlatten<T>
       extends PTransform<PCollection<Iterable<T>>, PDone> {

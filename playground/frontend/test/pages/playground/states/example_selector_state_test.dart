@@ -19,53 +19,80 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/modules/examples/repositories/example_client/example_client.dart';
-import 'package:playground/modules/examples/repositories/example_repository.dart';
+import 'package:playground/pages/playground/states/example_loaders/examples_loader.dart';
 import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 
 import 'example_selector_state_test.mocks.dart';
 import 'mocks/categories_mock.dart';
+import 'mocks/example_repository_mock.dart';
 
-final playgroundState = PlaygroundState();
-final ExampleClient client = MockExampleClient();
-
-@GenerateMocks([ExampleClient])
+@GenerateMocks([ExamplesLoader])
 void main() {
-  test(
-      'ExampleSelector state should notify all listeners about filter type change',
-      () {
-    final exampleState = ExampleState(ExampleRepository(client));
-    final state = ExampleSelectorState(exampleState, playgroundState, []);
-    state.addListener(() {
-      expect(state.selectedFilterType, ExampleType.example);
-    });
-        state.setSelectedFilterType(ExampleType.example);
-      });
+  late PlaygroundState playgroundState;
+  late ExampleState exampleState;
+  late ExampleSelectorState state;
+  final mockExampleRepository = getMockExampleRepository();
+
+  setUp(() {
+    exampleState = ExampleState(mockExampleRepository);
+    playgroundState = PlaygroundState(
+      examplesLoader: MockExamplesLoader(),
+      exampleState: exampleState,
+    );
+    state = ExampleSelectorState(playgroundState, []);
+  });
 
   test(
-      'ExampleSelector state should notify all listeners about categories change',
-          () {
-        final exampleState = ExampleState(ExampleRepository(client));
-        final state = ExampleSelectorState(exampleState, playgroundState, []);
-        state.addListener(() {
-          expect(state.categories, []);
-        });
-        state.setCategories([]);
+    'ExampleSelector state selectedFilterType should be ExampleType.all by default',
+    () {
+      expect(state.selectedFilterType, ExampleType.all);
+    },
+  );
+
+  test(
+    'ExampleSelector state filterText should be empty string by default',
+    () {
+      expect(state.filterText, '');
+    },
+  );
+
+  test(
+    'ExampleSelector state should notify all listeners about filter type change',
+    () {
+      state.addListener(() {
+        expect(state.selectedFilterType, ExampleType.example);
       });
+      state.setSelectedFilterType(ExampleType.example);
+    },
+  );
+
+  test(
+    'ExampleSelector state should notify all listeners about filterText change',
+    () {
+      state.addListener(() {
+        expect(state.filterText, 'test');
+      });
+      state.setFilterText('test');
+    },
+  );
+
+  test(
+    'ExampleSelector state should notify all listeners about categories change',
+    () {
+      state.addListener(() {
+        expect(state.categories, []);
+      });
+      state.setCategories([]);
+    },
+  );
 
   test(
       'ExampleSelector state sortCategories should:'
-          '- update categories and notify all listeners,'
-          'but should NOT:'
-          '- affect Example state categories', () {
-    final exampleState = ExampleState(ExampleRepository(client));
-    final state = ExampleSelectorState(
-      exampleState,
-      playgroundState,
-      [],
-    );
+      '- update categories and notify all listeners,'
+      'but should NOT:'
+      '- affect Example state categories', () {
     state.addListener(() {
       expect(state.categories, []);
       expect(exampleState.sdkCategories, exampleState.sdkCategories);
@@ -75,13 +102,11 @@ void main() {
 
   test(
       'ExampleSelector state sortExamplesByType should:'
-          '- update categories,'
-          '- notify all listeners,'
-          'but should NOT:'
-          '- affect Example state categories', () {
-    final exampleState = ExampleState(ExampleRepository(client));
+      '- update categories,'
+      '- notify all listeners,'
+      'but should NOT:'
+      '- affect Example state categories', () {
     final state = ExampleSelectorState(
-      exampleState,
       playgroundState,
       categoriesMock,
     );
@@ -94,15 +119,13 @@ void main() {
 
   test(
       'ExampleSelector state sortExamplesByName should:'
-          '- update categories'
-          '- notify all listeners,'
-          'but should NOT:'
-          '- wait for full name of example,'
-          '- be sensitive for register,'
-          '- affect Example state categories', () {
-    final exampleState = ExampleState(ExampleRepository(client));
+      '- update categories'
+      '- notify all listeners,'
+      'but should NOT:'
+      '- wait for full name of example,'
+      '- be sensitive for register,'
+      '- affect Example state categories', () {
     final state = ExampleSelectorState(
-      exampleState,
       playgroundState,
       categoriesMock,
     );

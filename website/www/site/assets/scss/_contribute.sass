@@ -14,6 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+$padding: 24px
 
 .list-text-size-md
   position: relative
@@ -39,3 +40,54 @@
 
 .no-bullet
   list-style-type: none
+
+.text--active
+  color: $color-brand
+
+.table-contribute
+  th
+    text-align: center
+
+  th
+    padding: 14px 14px 17px 14px !important
+    border: none !important
+    border-bottom: 1px solid #ff6d05 !important
+    letter-spacing: 2px
+    line-height: normal !important
+    text-transform: uppercase
+
+  td
+    padding: $padding !important
+    border-bottom: 1px solid rgba(255, 109, 5, 0.24)
+    @media (max-width: $mobile)
+      padding: $padding/4 !important
+
+    p
+      margin-left: 67px
+      font-size: 14px
+      line-height: 1.57
+      @media (max-width: $mobile)
+        margin: 0
+
+  td:nth-child(2)
+    padding: $padding/3 !important
+    padding-left: $padding !important
+    @media (max-width: $mobile)
+      padding: $padding/3 !important
+      padding-left: $padding/2 !important
+
+    a
+      line-height: 2
+      letter-spacing: 0.43px
+      color: $color-brand
+      text-decoration: none
+      &:hover,
+      &focus
+        text-decoration: underline
+
+  td:nth-child(1)
+    background-color: rgba(255, 109, 0, 0.04)
+    padding-left: $padding/2 !important
+    padding-right: 0 !important
+    line-height: 1.57
+    letter-spacing: 0.43px

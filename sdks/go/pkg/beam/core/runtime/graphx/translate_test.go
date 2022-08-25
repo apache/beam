@@ -201,6 +201,7 @@ func (rt *testRT) GetError() error                 { return nil }
 func (rt *testRT) GetProgress() (float64, float64) { return 0, 0 }
 func (rt *testRT) IsDone() bool                    { return true }
 func (rt *testRT) GetRestriction() interface{}     { return nil }
+func (rt *testRT) IsBounded() bool                 { return true }
 func (rt *testRT) TrySplit(_ float64) (interface{}, interface{}, error) {
 	return nil, nil, nil
 }

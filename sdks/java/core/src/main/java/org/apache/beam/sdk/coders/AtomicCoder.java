@@ -19,6 +19,7 @@ package org.apache.beam.sdk.coders;
 
 import java.util.Collections;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Coder} that has no component {@link Coder Coders} or other configuration.
@@ -30,9 +31,6 @@ import java.util.List;
  *
  * @param <T> the type of the values being transcoded
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public abstract class AtomicCoder<T> extends StructuredCoder<T> {
   /**
    * {@inheritDoc}.
@@ -71,7 +69,7 @@ public abstract class AtomicCoder<T> extends StructuredCoder<T> {
    * @return true if the other object has the same class as this {@link AtomicCoder}.
    */
   @Override
-  public final boolean equals(Object other) {
+  public final boolean equals(@Nullable Object other) {
     return other != null && this.getClass().equals(other.getClass());
   }
 

@@ -30,7 +30,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.joda.time.Duration;
 
 class ExternalTransformConfig {
   private ExternalTransformConfig() {}
@@ -74,10 +73,6 @@ class ExternalTransformConfig {
 
     public void setSubscriptionPath(String path) {
       builder.setSubscriptionPath(SubscriptionPath.parse(path));
-    }
-
-    public void setMinBundleTimeout(Long durationMillis) {
-      builder.setMinBundleTimeout(Duration.millis(durationMillis));
     }
 
     public void setDeduplicate(Boolean deduplicate) {

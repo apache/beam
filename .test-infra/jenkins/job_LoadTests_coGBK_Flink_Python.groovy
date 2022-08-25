@@ -152,4 +152,4 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTest(delegate, CommonTestProperties.TriggeringContext.PR)
     }
 
-// TODO(BEAM-9761) Re-enable auto builds after these tests pass.
+// TODO(https://github.com/apache/beam/issues/20146) Re-enable auto builds after these tests pass.

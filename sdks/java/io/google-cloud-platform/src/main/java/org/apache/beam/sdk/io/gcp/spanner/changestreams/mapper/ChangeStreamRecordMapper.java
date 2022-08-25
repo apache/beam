@@ -249,8 +249,8 @@ public class ChangeStreamRecordMapper {
             .map(this::columnTypeFrom)
             .collect(Collectors.toList()),
         row.getStructList(MODS_COLUMN).stream().map(this::modFrom).collect(Collectors.toList()),
-        ModType.valueOf(row.getString(MOD_TYPE_COLUMN)),
-        ValueCaptureType.valueOf(row.getString(VALUE_CAPTURE_TYPE_COLUMN)),
+        modTypeFrom(row.getString(MOD_TYPE_COLUMN)),
+        valueCaptureTypeFrom(row.getString(VALUE_CAPTURE_TYPE_COLUMN)),
         row.getLong(NUMBER_OF_RECORDS_IN_TRANSACTION_COLUMN),
         row.getLong(NUMBER_OF_PARTITIONS_IN_TRANSACTION_COLUMN),
         changeStreamRecordMetadataFrom(partition, commitTimestamp, resultSetMetadata));
@@ -297,6 +297,24 @@ public class ChangeStreamRecordMapper {
     final String newValues =
         struct.isNull(NEW_VALUES_COLUMN) ? null : getJsonString(struct, NEW_VALUES_COLUMN);
     return new Mod(keys, oldValues, newValues);
+  }
+
+  private ModType modTypeFrom(String name) {
+    try {
+      return ModType.valueOf(name);
+    } catch (IllegalArgumentException e) {
+      // This is not logged to prevent flooding users with messages
+      return ModType.UNKNOWN;
+    }
+  }
+
+  private ValueCaptureType valueCaptureTypeFrom(String name) {
+    try {
+      return ValueCaptureType.valueOf(name);
+    } catch (IllegalArgumentException e) {
+      // This is not logged to prevent flooding users with messages
+      return ValueCaptureType.UNKNOWN;
+    }
   }
 
   private ChildPartition childPartitionFrom(String partitionToken, Struct struct) {

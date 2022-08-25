@@ -21,7 +21,7 @@ import java.io.IOException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
 
 /**
  * An outbound {@link FnDataReceiver} for the Beam Fn Data API.
@@ -35,7 +35,7 @@ import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
  * @deprecated Migrate to use {@link BeamFnDataOutboundAggregator} directly.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @Deprecated
 public class BeamFnDataOutboundObserver<T> implements CloseableFnDataReceiver<T> {

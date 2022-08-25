@@ -35,7 +35,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * last) is terminated.
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, String> {

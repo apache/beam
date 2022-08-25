@@ -22,6 +22,8 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
 
+import static LoadTestsBuilder.GO_SDK_CONTAINER
+
 
 String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 
@@ -47,6 +49,8 @@ def batchScenarios = {
         top_count            : 20,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
     [
@@ -69,6 +73,8 @@ def batchScenarios = {
         top_count            : 20,
         num_workers          : 16,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
     [
@@ -91,6 +97,8 @@ def batchScenarios = {
         top_count            : 20,
         num_workers          : 16,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }

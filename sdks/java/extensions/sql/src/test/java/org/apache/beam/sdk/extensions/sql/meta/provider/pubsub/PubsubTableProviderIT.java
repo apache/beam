@@ -196,7 +196,7 @@ public class PubsubTableProviderIT implements Serializable {
     resultSignal.waitForSuccess(timeout);
   }
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-12320")
+  @Ignore("https://github.com/apache/beam/issues/20937")
   @Test
   public void testSQLSelectsArrayAttributes() throws Exception {
 
@@ -586,8 +586,9 @@ public class PubsubTableProviderIT implements Serializable {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider());
     sqlEnv.executeDdl(createTableString);
 
-    // TODO(BEAM-8741): Ideally we could write this query without specifying a column list, because
-    //   it shouldn't be possible to write to event_timestamp when it's mapped to  publish time.
+    // TODO(https://github.com/apache/beam/issues/19875): Ideally we could write this query without
+    //   specifying a column list, because it shouldn't be possible to write to event_timestamp
+    //   when it's mapped to  publish time.
     String queryString =
         "INSERT INTO message (name, height, knows_javascript) \n"
             + "VALUES \n"
@@ -705,9 +706,9 @@ public class PubsubTableProviderIT implements Serializable {
     sqlEnv.executeDdl(createTableString);
     sqlEnv.executeDdl(createFilteredTableString);
 
-    // TODO(BEAM-8741): Ideally we could write these queries without specifying a column list,
-    // because
-    //   it shouldn't be possible to write to event_timestamp when it's mapped to  publish time.
+    // TODO(https://github.com/apache/beam/issues/19875): Ideally we could write these queries
+    //   without specifying a column list, because it shouldn't be possible to write to
+    //   event_timestamp when it's mapped to  publish time.
     String filterQueryString =
         "INSERT INTO javascript_people (name, height) (\n"
             + "  SELECT \n"

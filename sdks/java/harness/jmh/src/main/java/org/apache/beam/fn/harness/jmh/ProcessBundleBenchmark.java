@@ -88,7 +88,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -315,7 +315,9 @@ public class ProcessBundleBenchmark {
     final StateRequestHandler cachingStateRequestHandler;
 
     @SuppressWarnings({
-      "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+      // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+      // errorprone is released (2.11.0)
+      "unused"
     })
     private static class StatefulOutputZeroOneTwo
         extends DoFn<KV<String, String>, KV<String, String>> {

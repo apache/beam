@@ -28,4 +28,5 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 @DefaultCoder(AvroCoder.class)
 public enum ValueCaptureType {
   OLD_AND_NEW_VALUES,
+  UNKNOWN
 }

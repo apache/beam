@@ -317,8 +317,6 @@ class BlobStorageIO(object):
 
     return results
 
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_beam_io_error_filter)
   def exists(self, path):
     """Returns whether the given Azure Blob Storage blob exists.
 
@@ -326,10 +324,8 @@ class BlobStorageIO(object):
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
     """
-    container, blob = parse_azfs_path(path)
-    blob_to_check = self.client.get_blob_client(container, blob)
     try:
-      blob_to_check.get_blob_properties()
+      self._blob_properties(path)
       return True
     except ResourceNotFoundError as e:
       if e.status_code == 404:
@@ -339,8 +335,6 @@ class BlobStorageIO(object):
         # We re-raise all other exceptions.
         raise
 
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_beam_io_error_filter)
   def size(self, path):
     """Returns the size of a single Blob Storage blob.
 
@@ -349,19 +343,8 @@ class BlobStorageIO(object):
 
     Returns: size of the Blob Storage blob in bytes.
     """
-    container, blob = parse_azfs_path(path)
-    blob_to_check = self.client.get_blob_client(container, blob)
-    try:
-      properties = blob_to_check.get_blob_properties()
-    except ResourceNotFoundError as e:
-      message = e.reason
-      code = e.status_code
-      raise BlobStorageError(message, code)
+    return self._blob_properties(path).size
 
-    return properties.size
-
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_beam_io_error_filter)
   def last_updated(self, path):
     """Returns the last updated epoch time of a single
     Azure Blob Storage blob.
@@ -372,28 +355,48 @@ class BlobStorageIO(object):
     Returns: last updated time of the Azure Blob Storage blob
     in seconds.
     """
-    container, blob = parse_azfs_path(path)
-    blob_to_check = self.client.get_blob_client(container, blob)
-    try:
-      properties = blob_to_check.get_blob_properties()
-    except ResourceNotFoundError as e:
-      message = e.reason
-      code = e.status_code
-      raise BlobStorageError(message, code)
+    return self._updated_to_seconds(self._blob_properties(path).last_modified)
 
-    datatime = properties.last_modified
-    return (
-        time.mktime(datatime.timetuple()) - time.timezone +
-        datatime.microsecond / 1000000.0)
-
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_beam_io_error_filter)
   def checksum(self, path):
     """Looks up the checksum of an Azure Blob Storage blob.
 
     Args:
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
+    """
+    return self._blob_properties(path).properties.etag
+
+  def _status(self, path):
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Returns supported fields (checksum, last_updated, size) of a single object
+    as a dict at once.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single blob property.
+
+    Returns: dict of fields of the blob property.
+    """
+    properties = self._blob_properties(path)
+    file_status = {}
+    if hasattr(properties, 'etag'):
+      file_status['checksum'] = properties.etag
+    if hasattr(properties, 'last_modified'):
+      file_status['last_updated'] = self._updated_to_seconds(
+          properties.last_modified)
+    if hasattr(properties, 'size'):
+      file_status['size'] = properties.size
+    return file_status
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_beam_io_error_filter)
+  def _blob_properties(self, path):
+    """Returns a blob properties object for the given path
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single blob properties object.
+
+    Returns: blob properties.
     """
     container, blob = parse_azfs_path(path)
     blob_to_check = self.client.get_blob_client(container, blob)
@@ -404,7 +407,14 @@ class BlobStorageIO(object):
       code = e.status_code
       raise BlobStorageError(message, code)
 
-    return properties.etag
+    return properties
+
+  @staticmethod
+  def _updated_to_seconds(updated):
+    """Helper function transform the updated field of response to seconds"""
+    return (
+        time.mktime(updated.timetuple()) - time.timezone +
+        updated.microsecond / 1000000.0)
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
@@ -559,40 +569,56 @@ class BlobStorageIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
-  def list_prefix(self, path):
+  def list_prefix(self, path, with_metadata=False):
     """Lists files matching the prefix.
 
     Args:
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
+      with_metadata: Experimental. Specify whether returns file metadata.
 
     Returns:
-      Dictionary of file name -> size.
+      If ``with_metadata`` is False: dict of file name -> size; if
+        ``with_metadata`` is True: dict of file name -> tuple(size, timestamp).
     """
     storage_account, container, blob = parse_azfs_path(
         path, blob_optional=True, get_account=True)
-    file_sizes = {}
+    file_info = {}
     counter = 0
     start_time = time.time()
 
-    logging.info("Starting the size estimation of the input")
+    if with_metadata:
+      logging.debug("Starting the file information of the input")
+    else:
+      logging.debug("Starting the size estimation of the input")
     container_client = self.client.get_container_client(container)
 
     while True:
       response = container_client.list_blobs(name_starts_with=blob)
       for item in response:
         file_name = "azfs://%s/%s/%s" % (storage_account, container, item.name)
-        file_sizes[file_name] = item.size
+        if with_metadata:
+          file_info[file_name] = (
+              item.size, self._updated_to_seconds(item.last_modified))
+        else:
+          file_info[file_name] = item.size
         counter += 1
         if counter % 10000 == 0:
-          logging.info("Finished computing size of: %s files", len(file_sizes))
+          if with_metadata:
+            logging.info(
+                "Finished computing file information of: %s files",
+                len(file_info))
+          else:
+            logging.info("Finished computing size of: %s files", len(file_info))
       break
 
-    logging.info(
+    logging.log(
+        # do not spam logs when list_prefix is likely used to check empty folder
+        logging.INFO if counter > 0 else logging.DEBUG,
         "Finished listing %s files in %s seconds.",
         counter,
         time.time() - start_time)
-    return file_sizes
+    return file_info
 
 
 class BlobStorageDownloader(Downloader):

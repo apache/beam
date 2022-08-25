@@ -31,6 +31,8 @@ option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "SchemaApi";
 
+import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
+
 message Schema {
   // List of fields for this schema. Two fields may not share a name.
   repeated Field fields = 1;
@@ -108,6 +110,27 @@ message LogicalType {
   FieldType representation = 3;
   FieldType argument_type = 4;
   FieldValue argument = 5;
+}
+
+// Universally defined Logical types for Row schemas.
+// These logical types are supposed to be understood by all SDKs.
+message LogicalTypes {
+  enum Enum {
+    // A URN for Python Callable logical type
+    //   - Representation type: STRING
+    //   - Language type: In Python SDK, PythonCallableWithSource.
+    //     In any other SDKs, a wrapper object for a string which
+    //     can be evaluated to a Python Callable object.
+    PYTHON_CALLABLE = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:logical_type:python_callable:v1"];
+
+    // A URN for MicrosInstant type
+    //   - Representation type: ROW<seconds: INT64, micros: INT64>
+    //   - A timestamp without a timezone where seconds + micros represents the
+    //     amount of time since the epoch.
+    MICROS_INSTANT  = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:logical_type:micros_instant:v1"];
+  }
 }
 
 message Option {

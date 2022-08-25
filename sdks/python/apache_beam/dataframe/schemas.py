@@ -68,6 +68,7 @@ from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.typehints.schemas import named_fields_to_schema
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
+from apache_beam.typehints.typehints import normalize
 from apache_beam.utils import proto_utils
 
 __all__ = (
@@ -118,6 +119,12 @@ BEAM_TO_PANDAS[float] = BEAM_TO_PANDAS[np.float64]
 BEAM_TO_PANDAS[Optional[float]] = BEAM_TO_PANDAS[Optional[np.float64]]
 
 BEAM_TO_PANDAS[bytes] = 'bytes'
+
+# Add shunts for normalized (Beam) typehints as well
+BEAM_TO_PANDAS.update({
+    normalize(typehint): pandas_dtype
+    for (typehint, pandas_dtype) in BEAM_TO_PANDAS.items()
+})
 
 
 @typehints.with_input_types(T)

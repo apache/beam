@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.PValue;
  * {@link PTransform}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class UnconsumedReads {
   public static void ensureAllReadsConsumed(Pipeline pipeline) {

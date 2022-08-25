@@ -149,4 +149,18 @@ public class WatermarkPolicyTest {
     policy.update(b);
     assertThat(policy.getWatermark()).isEqualTo(time2.plus(Duration.standardMinutes(1)));
   }
+
+  @Test
+  public void shouldUpdateWatermarkParameters() {
+    SerializableFunction<KinesisRecord, Instant> fn = input -> Instant.now();
+    Duration idleDurationThreshold = Duration.standardSeconds(30);
+
+    WatermarkParameters parameters =
+        WatermarkParameters.create()
+            .withTimestampFn(fn)
+            .withWatermarkIdleDurationThreshold(idleDurationThreshold);
+
+    assertThat(parameters.getTimestampFn()).isEqualTo(fn);
+    assertThat(parameters.getWatermarkIdleDurationThreshold()).isEqualTo(idleDurationThreshold);
+  }
 }

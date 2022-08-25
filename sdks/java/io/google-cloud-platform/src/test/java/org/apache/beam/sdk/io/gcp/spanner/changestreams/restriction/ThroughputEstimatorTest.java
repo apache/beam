@@ -110,6 +110,14 @@ public class ThroughputEstimatorTest {
     assertEquals(want.doubleValue(), actual, DELTA);
   }
 
+  @Test
+  public void testThroughputShouldNotBeNegative() {
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(0, 0), -10);
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(1, 0), 10);
+    double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(0, 0));
+    assertEquals(0D, actual, DELTA);
+  }
+
   private List<ImmutablePair<Timestamp, Long>> generateTestData(
       int size, int startSeconds, int endSeconds, long maxBytes) {
     Random random = new Random();

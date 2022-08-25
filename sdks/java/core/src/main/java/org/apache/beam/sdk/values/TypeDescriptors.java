@@ -27,6 +27,7 @@ import java.util.Set;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.ProcessFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * A utility class for creating {@link TypeDescriptor} objects for different types, such as Java
@@ -34,10 +35,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
  * extracting type variables of parameterized types (e.g. extracting the {@code OutputT} type
  * variable of a {@code DoFn<InputT, OutputT>}).
  */
-@SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-  "rawtypes"
-})
 public class TypeDescriptors {
   /**
    * The {@link TypeDescriptor} for Boolean. This is the equivalent of:
@@ -352,7 +349,7 @@ public class TypeDescriptors {
    */
   @SuppressWarnings("unchecked")
   public static <T, V> TypeDescriptor<V> extractFromTypeParameters(
-      T instance, Class<? super T> supertype, TypeVariableExtractor<T, V> extractor) {
+      @NonNull T instance, Class<? super T> supertype, TypeVariableExtractor<T, V> extractor) {
     return extractFromTypeParameters(
         (TypeDescriptor<T>) TypeDescriptor.of(instance.getClass()), supertype, extractor);
   }

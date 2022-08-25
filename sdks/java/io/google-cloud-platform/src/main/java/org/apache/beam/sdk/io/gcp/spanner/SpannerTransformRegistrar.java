@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -117,7 +117,8 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       implements ExternalTransformBuilder<ReadBuilder.Configuration, PBegin, PCollection<Row>> {
 
     public static class Configuration extends CrossLanguageConfiguration {
-      // TODO: BEAM-10851 Come up with something to determine schema without this explicit parameter
+      // TODO: https://github.com/apache/beam/issues/20415 Come up with something to determine
+      // schema without this explicit parameter
       private Schema schema = Schema.builder().build();
       private @Nullable String sql;
       private @Nullable String table;

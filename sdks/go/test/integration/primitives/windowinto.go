@@ -16,22 +16,26 @@
 package primitives
 
 import (
-	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
 func init() {
-	beam.RegisterFunction(sumPerKey)
-	beam.RegisterFunction(sumSideInputs)
-	beam.RegisterType(reflect.TypeOf((*createTimestampedData)(nil)).Elem())
+	register.Function4x2(sumPerKey)
+	register.Function3x0(sumSideInputs)
+	register.DoFn2x0[[]byte, func(beam.EventTime, string, int)](&createTimestampedData{})
+
+	register.Emitter3[beam.EventTime, string, int]()
+	register.Emitter1[int]()
+	register.Iter1[int]()
 }
 
 // createTimestampedData produces data timestamped with the ordinal.
@@ -266,4 +270,128 @@ func TriggerAfterEndOfWindow(s beam.Scope) {
 		[]beam.WindowIntoOption{
 			beam.Trigger(trigger),
 		}, 2)
+}
+
+// TriggerAfterAll tests AfterAll trigger. The output pane is fired when all triggers in the subtriggers
+// are ready. In this test, since trigger.AfterCount(int32(5)) won't be ready unless we see 5 elements,
+// trigger.Always() won't fire until we meet that condition. So we fire only once when we see the 5th element.
+func TriggerAfterAll(s beam.Scope) {
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0, 5.0, 8.0)
+	con.AdvanceWatermark(11000)
+
+	col := teststream.Create(s, con)
+	trigger := trigger.Repeat(
+		trigger.AfterAll(
+			[]trigger.Trigger{
+				trigger.Always(),
+				trigger.AfterCount(int32(5)),
+			},
+		),
+	)
+
+	validateCount(s.Scope("Global"), window.NewFixedWindows(10*time.Second), col,
+		[]beam.WindowIntoOption{
+			beam.Trigger(trigger),
+		}, 1)
+}
+
+// TriggerAfterEach tests AfterEach trigger. The output pane is fired after each trigger
+// is ready in the order set in subtriggers. In this test, since trigger.AfterCount(int32(3)) is first,
+// first pane is fired after 3 elements, then a pane is fired each for trigger.Always() for
+// element 5.0 and 8.0
+func TriggerAfterEach(s beam.Scope) {
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0, 5.0, 8.0)
+	con.AdvanceWatermark(11000)
+
+	col := teststream.Create(s, con)
+	trigger := trigger.Repeat(
+		trigger.AfterEach(
+			[]trigger.Trigger{
+				trigger.AfterCount(int32(3)),
+				trigger.Always(),
+			},
+		),
+	)
+
+	validateCount(s.Scope("Global"), window.NewGlobalWindows(), col,
+		[]beam.WindowIntoOption{
+			beam.Trigger(trigger),
+		}, 3)
+}
+
+// TriggerAfterAny tests AfterAny trigger. In this test, trigger.Always() gets ready everytime.
+// So we would expect panes to be fired at every element irrespective of checking for other triggers.
+func TriggerAfterAny(s beam.Scope) {
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceWatermark(11000)
+	con.AddElements(12000, 5.0, 8.0)
+
+	col := teststream.Create(s, con)
+	trigger := trigger.Repeat(
+		trigger.AfterAny(
+			[]trigger.Trigger{
+				trigger.AfterCount(int32(3)),
+				trigger.Always(),
+			},
+		),
+	)
+	windowSize := 10 * time.Second
+	validateCount(s.Scope("Global"), window.NewFixedWindows(windowSize), col,
+		[]beam.WindowIntoOption{
+			beam.Trigger(trigger),
+		}, 5)
+}
+
+// TriggerAfterSynchronizedProcessingTime tests AfterSynchronizedProcessingTime trigger. It fires at the window
+// expiration since the times doesn't synchronize in this test case.
+func TriggerAfterSynchronizedProcessingTime(s beam.Scope) {
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceWatermark(11000)
+	con.AddElements(12000, 5.0, 8.0)
+
+	col := teststream.Create(s, con)
+	trigger := trigger.Repeat(trigger.AfterSynchronizedProcessingTime())
+	windowSize := 10 * time.Second
+	validateCount(s.Scope("Global"), window.NewFixedWindows(windowSize), col,
+		[]beam.WindowIntoOption{
+			beam.Trigger(trigger),
+		}, 2)
+}
+
+// TriggerNever tests Never Trigger. It fires at the window expiration.
+func TriggerNever(s beam.Scope) {
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceWatermark(11000)
+	con.AddElements(12000, 5.0, 8.0)
+
+	col := teststream.Create(s, con)
+	trigger := trigger.Never()
+	windowSize := 10 * time.Second
+	validateCount(s.Scope("Global"), window.NewFixedWindows(windowSize), col,
+		[]beam.WindowIntoOption{
+			beam.Trigger(trigger),
+		}, 2)
+}
+
+// TriggerOrFinally tests OrFinally trigger. The main trigger in this test case trigger.Always()
+// is always ready. But the output is produced only when finally trigger is ready. So it is ready at second
+// element in first window and produces two output panes. Similarly, for the second window.
+func TriggerOrFinally(s beam.Scope) {
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceWatermark(11000)
+	con.AddElements(12000, 5.0, 8.0)
+
+	col := teststream.Create(s, con)
+	trigger := trigger.OrFinally(trigger.Always(), trigger.AfterCount(int32(2)))
+	windowSize := 10 * time.Second
+	validateCount(s.Scope("Global"), window.NewFixedWindows(windowSize), col,
+		[]beam.WindowIntoOption{
+			beam.Trigger(trigger),
+		}, 4)
 }

@@ -189,7 +189,7 @@ def convert_to_beam_type(typ):
     return _type_var_cache[id(typ)]
   elif isinstance(typ, str):
     # Special case for forward references.
-    # TODO(BEAM-8487): Currently unhandled.
+    # TODO(https://github.com/apache/beam/issues/19954): Currently unhandled.
     _LOGGER.info('Converting string literal type hint to Any: "%s"', typ)
     return typehints.Any
   elif getattr(typ, '__module__', None) != 'typing':
@@ -197,9 +197,11 @@ def convert_to_beam_type(typ):
     return typ
 
   type_map = [
-      # TODO(BEAM-9355): Currently unsupported.
+      # TODO(https://github.com/apache/beam/issues/20076): Currently
+      # unsupported.
       _TypeMapEntry(match=is_new_type, arity=0, beam_type=typehints.Any),
-      # TODO(BEAM-8487): Currently unsupported.
+      # TODO(https://github.com/apache/beam/issues/19954): Currently
+      # unsupported.
       _TypeMapEntry(match=is_forward_ref, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(match=is_any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(

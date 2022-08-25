@@ -225,7 +225,7 @@ public class SplittableParDoViaKeyedWorkItems {
    * {@link ProcessFn} sets timers, and timers are namespaced to a single window and it should be
    * the window of the input element.
    *
-   * <p>See also: https://issues.apache.org/jira/browse/BEAM-1983
+   * <p>See also: https://github.com/apache/beam/issues/18366
    */
   @VisibleForTesting
   public static class ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>

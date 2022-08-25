@@ -28,6 +28,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -48,6 +49,8 @@ func init() {
 	schema.RegisterType(reflect.TypeOf((*failKVFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*hashFn)(nil)).Elem())
 	schema.RegisterType(reflect.TypeOf((*hashFn)(nil)).Elem())
+	runtime.RegisterType(reflect.TypeOf((*nonEmptyFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*nonEmptyFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*sumFn)(nil)).Elem())
 	schema.RegisterType(reflect.TypeOf((*sumFn)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*diffFn)(nil)).Elem(), wrapMakerDiffFn)
@@ -57,6 +60,7 @@ func init() {
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*failGBKFn)(nil)).Elem(), wrapMakerFailGBKFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*failKVFn)(nil)).Elem(), wrapMakerFailKVFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*hashFn)(nil)).Elem(), wrapMakerHashFn)
+	reflectx.RegisterStructWrapper(reflect.TypeOf((*nonEmptyFn)(nil)).Elem(), wrapMakerNonEmptyFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*sumFn)(nil)).Elem(), wrapMakerSumFn)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int, int) int)(nil)).Elem(), funcMakerIntIntГInt)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int, func(*int) bool) error)(nil)).Elem(), funcMakerIntIterIntГError)
@@ -66,6 +70,7 @@ func init() {
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int) int)(nil)).Elem(), funcMakerIntГInt)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte, func(*typex.T) bool, func(*typex.T) bool, func(t typex.T), func(t typex.T), func(t typex.T)) error)(nil)).Elem(), funcMakerSliceOfByteIterTypex۰TIterTypex۰TEmitTypex۰TEmitTypex۰TEmitTypex۰TГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte, func(*typex.T) bool, func(*typex.T) bool, func(*typex.T) bool) error)(nil)).Elem(), funcMakerSliceOfByteIterTypex۰TIterTypex۰TIterTypex۰TГError)
+	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte, func(*typex.Z) bool) error)(nil)).Elem(), funcMakerSliceOfByteIterTypex۰ZГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X, func(*typex.Y) bool) error)(nil)).Elem(), funcMakerTypex۰XIterTypex۰YГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X, typex.Y) error)(nil)).Elem(), funcMakerTypex۰XTypex۰YГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X) error)(nil)).Elem(), funcMakerTypex۰XГError)
@@ -75,6 +80,7 @@ func init() {
 	exec.RegisterInput(reflect.TypeOf((*func(*string) bool)(nil)).Elem(), iterMakerString)
 	exec.RegisterInput(reflect.TypeOf((*func(*typex.T) bool)(nil)).Elem(), iterMakerTypex۰T)
 	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y) bool)(nil)).Elem(), iterMakerTypex۰Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z) bool)(nil)).Elem(), iterMakerTypex۰Z)
 }
 
 func wrapMakerDiffFn(fn interface{}) map[string]reflectx.Func {
@@ -128,6 +134,13 @@ func wrapMakerHashFn(fn interface{}) map[string]reflectx.Func {
 	dfn := fn.(*hashFn)
 	return map[string]reflectx.Func{
 		"ProcessElement": reflectx.MakeFunc(func(a0 int, a1 func(*string) bool) error { return dfn.ProcessElement(a0, a1) }),
+	}
+}
+
+func wrapMakerNonEmptyFn(fn interface{}) map[string]reflectx.Func {
+	dfn := fn.(*nonEmptyFn)
+	return map[string]reflectx.Func{
+		"ProcessElement": reflectx.MakeFunc(func(a0 []byte, a1 func(*typex.Z) bool) error { return dfn.ProcessElement(a0, a1) }),
 	}
 }
 
@@ -346,6 +359,32 @@ func (c *callerSliceOfByteIterTypex۰TIterTypex۰TIterTypex۰TГError) Call4x1(a
 	return c.fn(arg0.([]byte), arg1.(func(*typex.T) bool), arg2.(func(*typex.T) bool), arg3.(func(*typex.T) bool))
 }
 
+type callerSliceOfByteIterTypex۰ZГError struct {
+	fn func([]byte, func(*typex.Z) bool) error
+}
+
+func funcMakerSliceOfByteIterTypex۰ZГError(fn interface{}) reflectx.Func {
+	f := fn.(func([]byte, func(*typex.Z) bool) error)
+	return &callerSliceOfByteIterTypex۰ZГError{fn: f}
+}
+
+func (c *callerSliceOfByteIterTypex۰ZГError) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *callerSliceOfByteIterTypex۰ZГError) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *callerSliceOfByteIterTypex۰ZГError) Call(args []interface{}) []interface{} {
+	out0 := c.fn(args[0].([]byte), args[1].(func(*typex.Z) bool))
+	return []interface{}{out0}
+}
+
+func (c *callerSliceOfByteIterTypex۰ZГError) Call2x1(arg0, arg1 interface{}) interface{} {
+	return c.fn(arg0.([]byte), arg1.(func(*typex.Z) bool))
+}
+
 type callerTypex۰XIterTypex۰YГError struct {
 	fn func(typex.X, func(*typex.Y) bool) error
 }
@@ -451,8 +490,9 @@ func (c *callerГInt) Call0x1() interface{} {
 }
 
 type emitNative struct {
-	n  exec.ElementProcessor
-	fn interface{}
+	n   exec.ElementProcessor
+	fn  interface{}
+	est *sdf.WatermarkEstimator
 
 	ctx   context.Context
 	ws    []typex.Window
@@ -471,6 +511,10 @@ func (e *emitNative) Value() interface{} {
 	return e.fn
 }
 
+func (e *emitNative) AttachEstimator(est *sdf.WatermarkEstimator) {
+	e.est = est
+}
+
 func emitMakerTypex۰T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
 	ret.fn = ret.invokeTypex۰T
@@ -479,6 +523,9 @@ func emitMakerTypex۰T(n exec.ElementProcessor) exec.ReusableEmitter {
 
 func (e *emitNative) invokeTypex۰T(val typex.T) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: val}
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
@@ -582,6 +629,24 @@ func (v *iterNative) readTypex۰Y(value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*value = elm.Elm.(typex.Y)
+	return true
+}
+
+func iterMakerTypex۰Z(s exec.ReStream) exec.ReusableInput {
+	ret := &iterNative{s: s}
+	ret.fn = ret.readTypex۰Z
+	return ret
+}
+
+func (v *iterNative) readTypex۰Z(value *typex.Z) bool {
+	elm, err := v.cur.Read()
+	if err != nil {
+		if err == io.EOF {
+			return false
+		}
+		panic(fmt.Sprintf("broken stream: %v", err))
+	}
+	*value = elm.Elm.(typex.Z)
 	return true
 }
 

@@ -204,7 +204,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
   public void advanceInputWatermark(Instant newInputWatermark) throws Exception {
     timerInternals.advanceInputWatermark(newInputWatermark);
     while (timerInternals.removeNextEventTimer() != null) {
-      // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+      // TODO: Should test timer firings: see https://github.com/apache/beam/issues/18084
     }
   }
 
@@ -212,11 +212,11 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
   public void advanceProcessingTime(Instant newProcessingTime) throws Exception {
     timerInternals.advanceProcessingTime(newProcessingTime);
     while (timerInternals.removeNextProcessingTimer() != null) {
-      // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+      // TODO: Should test timer firings: see https://github.com/apache/beam/issues/18084
     }
     timerInternals.advanceSynchronizedProcessingTime(newProcessingTime);
     while (timerInternals.removeNextSynchronizedProcessingTimer() != null) {
-      // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+      // TODO: Should test timer firings: see https://github.com/apache/beam/issues/18084
     }
   }
 

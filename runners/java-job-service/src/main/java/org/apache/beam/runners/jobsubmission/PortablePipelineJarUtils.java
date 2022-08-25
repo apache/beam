@@ -27,9 +27,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Message;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Struct;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Message;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.util.JsonFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 
 /**
@@ -63,7 +63,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
  * </ul>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class PortablePipelineJarUtils {
   private static final String ARTIFACT_FOLDER = "artifacts";

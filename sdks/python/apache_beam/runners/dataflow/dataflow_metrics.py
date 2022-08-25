@@ -219,7 +219,7 @@ class DataflowMetrics(MetricResults):
       dist_sum = _get_match(
           metric.distribution.object_value.properties,
           lambda x: x.key == 'sum').value.integer_value
-      if not dist_sum:
+      if dist_sum is None:
         # distribution metric is not meant to use on large values, but in case
         # it is, the value can overflow and become double_value, the correctness
         # of the value may not be guaranteed.
@@ -282,15 +282,16 @@ class DataflowMetrics(MetricResults):
 
 
 def main(argv):
-  """Print the metric results for a the dataflow --job_id and --project.
+  """Print the metric results for the dataflow --job_id and --project.
 
   Instead of running an entire pipeline which takes several minutes, use this
   main method to display MetricResults for a specific --job_id and --project
   which takes only a few seconds.
   """
-  # TODO(BEAM-6833): The MetricResults do not show translated step names as the
-  # job_graph is not provided to DataflowMetrics.
-  # Import here to avoid adding the dependency for local running scenarios.
+  # TODO(https://github.com/apache/beam/issues/19452): The MetricResults do not
+  # show translated step names as the job_graph is not provided to
+  # DataflowMetrics. Import here to avoid adding the dependency for local
+  # running scenarios.
   try:
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.runners.dataflow.internal import apiclient

@@ -44,7 +44,7 @@ class ElementLimiter(Limiter):
   element.
   """
   def update(self, e):
-    # type: (Any) -> None
+    # type: (Any) -> None # noqa: F821
 
     """Update the internal state based on some property of an element.
 
@@ -75,7 +75,7 @@ class DurationLimiter(Limiter):
   """Limits the duration of the capture."""
   def __init__(
       self,
-      duration_limit  # type: datetime.timedelta
+      duration_limit  # type: datetime.timedelta # noqa: F821
   ):
     self._duration_limit = duration_limit
     self._timer = threading.Timer(duration_limit.total_seconds(), self._trigger)

@@ -165,7 +165,7 @@ class StateCache(object):
   The operations on the cache are thread-safe for use by multiple workers.
 
   :arg max_entries The maximum number of entries to store in the cache.
-  TODO Memory-based caching: https://issues.apache.org/jira/browse/BEAM-8297
+  TODO Memory-based caching: https://github.com/apache/beam/issues/19857
   """
   def __init__(self, max_entries):
     # type: (int) -> None

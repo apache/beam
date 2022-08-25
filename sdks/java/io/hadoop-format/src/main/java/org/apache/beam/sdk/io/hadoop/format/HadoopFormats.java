@@ -35,7 +35,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utility class for working with Hadoop related objects. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 final class HadoopFormats {
 

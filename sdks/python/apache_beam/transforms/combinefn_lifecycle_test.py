@@ -72,7 +72,7 @@ class CombineFnLifecycleTest(unittest.TestCase):
   def test_combining_value_state(self):
     if ('DataflowRunner' in self.pipeline.get_pipeline_options().view_as(
         StandardOptions).runner):
-      self.skipTest('BEAM-11793')
+      self.skipTest('https://github.com/apache/beam/issues/20722')
     run_pardo(self.pipeline)
 
 

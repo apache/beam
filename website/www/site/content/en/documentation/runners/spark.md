@@ -67,7 +67,8 @@ the portable Runner. For more information on portability, please visit the
 
 ## Spark Runner prerequisites and setup
 
-The Spark runner currently supports Spark's 2.x branch, and more specifically any version greater than 2.4.0.
+The Spark runner currently supports Spark's 3.1.x branch.
+> **Note:** Support for Spark 2.4.x is deprecated and will be dropped with the release of Beam 2.44.0 (or soon after).
 
 {{< paragraph class="language-java" >}}
 You can add a dependency on the latest version of the Spark runner by adding to your pom.xml the following:
@@ -76,7 +77,7 @@ You can add a dependency on the latest version of the Spark runner by adding to 
 {{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-spark</artifactId>
+  <artifactId>beam-runners-spark-3</artifactId>
   <version>{{< param release_latest >}}</version>
 </dependency>
 {{< /highlight >}}
@@ -90,13 +91,13 @@ In some cases, such as running in local mode/Standalone, your (self-contained) a
 {{< highlight java >}}
 <dependency>
   <groupId>org.apache.spark</groupId>
-  <artifactId>spark-core_2.11</artifactId>
+  <artifactId>spark-core_2.12</artifactId>
   <version>${spark.version}</version>
 </dependency>
 
 <dependency>
   <groupId>org.apache.spark</groupId>
-  <artifactId>spark-streaming_2.11</artifactId>
+  <artifactId>spark-streaming_2.12</artifactId>
   <version>${spark.version}</version>
 </dependency>
 {{< /highlight >}}
@@ -193,7 +194,7 @@ download it on the [Downloads page](/get-started/downloads/).
 {{< paragraph class="language-py" >}}
 1. Start the JobService endpoint:
     * with Docker (preferred): `docker run --net=host apache/beam_spark_job_server:latest`
-    * or from Beam source code: `./gradlew :runners:spark:2:job-server:runShadow`
+    * or from Beam source code: `./gradlew :runners:spark:3:job-server:runShadow`
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
@@ -228,7 +229,7 @@ For more details on the different deployment modes see: [Standalone](https://spa
 {{< paragraph class="language-py" >}}
 2. Start JobService that will connect with the Spark master:
     * with Docker (preferred): `docker run --net=host apache/beam_spark_job_server:latest --spark-master-url=spark://localhost:7077`
-    * or from Beam source code: `./gradlew :runners:spark:2:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077`
+    * or from Beam source code: `./gradlew :runners:spark:3:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077`
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}3. Submit the pipeline as above.
@@ -246,7 +247,7 @@ To run Beam jobs written in Python, Go, and other supported languages, you can u
 
 The following example runs a portable Beam job in Python from the Dataproc cluster's master node with Yarn backed.
 
-> Note: This example executes successfully with Dataproc 2.0, Spark 2.4.8 and 3.1.2 and Beam 2.37.0.
+> Note: This example executes successfully with Dataproc 2.0, Spark 3.1.2 and Beam 2.37.0.
 
 1. Create a Dataproc cluster with [Docker](https://cloud.google.com/dataproc/docs/concepts/components/docker) component enabled.
 
@@ -324,6 +325,7 @@ When executing your pipeline with the Spark Runner, you should consider the foll
 <br><b>For RDD/DStream based runner:</b><br>
 {{< /paragraph >}}
 
+<div class="table-container-wrapper">
 <table class="language-java table table-bordered">
 <tr>
   <th>Field</th>
@@ -361,11 +363,13 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>false</td>
 </tr>
 </table>
+</div>
 
 {{< paragraph class="language-java" >}}
 <br><b>For Structured Streaming based runner:</b><br>
 {{< /paragraph >}}
 
+<div class="table-container-wrapper">
 <table class="language-java table table-bordered">
 <tr>
   <th>Field</th>
@@ -408,7 +412,9 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>true</td>
 </tr>
 </table>
+</div>
 
+<div class="table-container-wrapper">
 <table class="language-py table table-bordered">
 <tr>
   <th>Field</th>
@@ -426,6 +432,7 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>Set to match your job service endpoint (localhost:8099 by default)</td>
 </tr>
 </table>
+</div>
 
 ## Additional notes
 
@@ -442,7 +449,11 @@ You can monitor a running Spark job using the Spark [Web Interfaces](https://spa
 Spark also has a history server to [view after the fact](https://spark.apache.org/docs/latest/monitoring.html#viewing-after-the-fact).
 {{< paragraph class="language-java" >}}
 Metrics are also available via [REST API](https://spark.apache.org/docs/latest/monitoring.html#rest-api).
-Spark provides a [metrics system](https://spark.apache.org/docs/latest/monitoring.html#metrics) that allows reporting Spark metrics to a variety of Sinks. The Spark runner reports user-defined Beam Aggregators using this same metrics system and currently supports <code>GraphiteSink</code> and <code>CSVSink</code>, and providing support for additional Sinks supported by Spark is easy and straight-forward.
+Spark provides a [metrics system](https://spark.apache.org/docs/latest/monitoring.html#metrics) that allows reporting Spark metrics to a variety of Sinks.
+The Spark runner reports user-defined Beam Aggregators using this same metrics system and currently supports
+[GraphiteSink](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/runners/spark/metrics/sink/GraphiteSink.html)
+and [CSVSink](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/runners/spark/metrics/sink/CsvSink.html).
+Providing support for additional Sinks supported by Spark is easy and straight-forward.
 {{< /paragraph >}}
 {{< paragraph class="language-py" >}}Spark metrics are not yet supported on the portable runner.{{< /paragraph >}}
 

@@ -66,6 +66,7 @@ func CreateList2(a, b interface{}) (*beam.Pipeline, beam.Scope, beam.PCollection
 var (
 	Runner        = runners.Runner
 	defaultRunner = "direct"
+	mainCalled    = false
 )
 
 func getRunner() string {
@@ -79,6 +80,11 @@ func getRunner() string {
 // DefaultRunner returns the default runner name for the test file.
 func DefaultRunner() string {
 	return defaultRunner
+}
+
+// MainCalled returns true iff Main or MainRet has been called.
+func MainCalled() bool {
+	return mainCalled
 }
 
 // Run runs a pipeline for testing. The semantics of the pipeline is expected
@@ -124,6 +130,7 @@ func Main(m *testing.M) {
 // pipelines on runners other than the direct runner, while setting the default
 // runner to use.
 func MainWithDefault(m *testing.M, runner string) {
+	mainCalled = true
 	defaultRunner = runner
 	if !flag.Parsed() {
 		flag.Parse()
@@ -146,6 +153,7 @@ func MainRet(m *testing.M) int {
 // MainRetWithDefault is equivelant to MainWithDefault but returns an exit code
 // to pass to os.Exit().
 func MainRetWithDefault(m *testing.M, runner string) int {
+	mainCalled = true
 	defaultRunner = runner
 	if !flag.Parsed() {
 		flag.Parse()

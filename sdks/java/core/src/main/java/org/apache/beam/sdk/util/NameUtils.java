@@ -31,7 +31,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 /** Helpers for extracting the name of objects and classes. */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class NameUtils {
 

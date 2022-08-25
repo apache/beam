@@ -1,0 +1,16 @@
+{
+  "name": "high",
+  "enabled": true,
+  "priority": 100,
+  "options": {
+    "java_arguments": [
+      "java_args=high"
+    ],
+    "classpath": [
+      "classpath_high"
+    ],
+    "properties": {
+      "priority": "high"
+    }
+  }
+}

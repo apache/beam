@@ -20,6 +20,12 @@ A connector for reading from and writing to Google Cloud Datastore.
 
 This module uses the newer google-cloud-datastore client package. Its API was
 different enough to require extensive changes to this and associated modules.
+
+**Updates to the I/O connector code**
+
+For any significant updates to this I/O connector, please consider involving
+corresponding code reviewers mentioned in
+https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 """
 # pytype: skip-file
 

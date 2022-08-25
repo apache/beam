@@ -47,9 +47,6 @@ import org.slf4j.LoggerFactory;
  * <p>This object is not serializable, and its state can be safely discarded across serialization
  * boundaries for any associated source objects.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class BigQueryQueryHelper {
 
   private static final Integer JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
@@ -59,13 +56,17 @@ class BigQueryQueryHelper {
   public static JobStatistics dryRunQueryIfNeeded(
       BigQueryServices bqServices,
       BigQueryOptions options,
-      AtomicReference<JobStatistics> dryRunJobStats,
+      AtomicReference<@Nullable JobStatistics> dryRunJobStats,
       String query,
       Boolean flattenResults,
       Boolean useLegacySql,
       @Nullable String location)
       throws InterruptedException, IOException {
-    if (dryRunJobStats.get() == null) {
+    @Nullable JobStatistics maybeJobStatistics = dryRunJobStats.get();
+
+    if (maybeJobStatistics != null) {
+      return maybeJobStatistics;
+    } else {
       JobStatistics jobStatistics =
           bqServices
               .getJobService(options)
@@ -76,15 +77,14 @@ class BigQueryQueryHelper {
                   createBasicQueryConfig(query, flattenResults, useLegacySql),
                   location);
       dryRunJobStats.compareAndSet(null, jobStatistics);
+      return jobStatistics;
     }
-
-    return dryRunJobStats.get();
   }
 
   public static TableReference executeQuery(
       BigQueryServices bqServices,
       BigQueryOptions options,
-      AtomicReference<JobStatistics> dryRunJobStats,
+      AtomicReference<@Nullable JobStatistics> dryRunJobStats,
       String stepUuid,
       String query,
       Boolean flattenResults,
@@ -95,7 +95,7 @@ class BigQueryQueryHelper {
       @Nullable String kmsKey)
       throws InterruptedException, IOException {
     // Step 1: Find the effective location of the query.
-    String effectiveLocation = location;
+    @Nullable String effectiveLocation = location;
     try (DatasetService tableService = bqServices.getDatasetService(options)) {
       if (effectiveLocation == null) {
         List<TableReference> referencedTables =
@@ -162,6 +162,7 @@ class BigQueryQueryHelper {
           queryResultTable,
           queryJobId);
 
+      @SuppressWarnings("nullness") // setLocation is not annotated, but does accept nulls
       JobReference jobReference =
           new JobReference()
               .setProjectId(

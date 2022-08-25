@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiService;
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Offset;
@@ -46,10 +45,4 @@ interface MemoryBufferedSubscriber extends ApiService {
 
   /** Remove the head message from the buffer. Throws if no messages exist in the buffer. */
   void pop();
-
-  /**
-   * Return a future which will be satisfied when data is likely available or the subscriber has
-   * failed.
-   */
-  ApiFuture<Void> onData();
 }

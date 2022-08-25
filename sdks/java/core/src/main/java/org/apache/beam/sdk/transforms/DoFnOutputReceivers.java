@@ -34,7 +34,7 @@ import org.joda.time.Instant;
 /** Common {@link OutputReceiver} and {@link MultiOutputReceiver} classes. */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DoFnOutputReceivers {
   private static class RowOutputReceiver<T> implements OutputReceiver<Row> {

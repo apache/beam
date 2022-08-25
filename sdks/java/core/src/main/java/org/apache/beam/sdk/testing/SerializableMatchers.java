@@ -59,7 +59,7 @@ import org.hamcrest.Matchers;
  * 3))}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SerializableMatchers implements Serializable {
 
@@ -71,7 +71,7 @@ public class SerializableMatchers implements Serializable {
       Iterable<SerializableMatcher<? super T>> serializableMatchers) {
 
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     }) // safe covariant cast
     final Iterable<Matcher<? super T>> matchers = (Iterable) serializableMatchers;
@@ -90,7 +90,7 @@ public class SerializableMatchers implements Serializable {
       Iterable<SerializableMatcher<? super T>> serializableMatchers) {
 
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     }) // safe covariant cast
     final Iterable<Matcher<? super T>> matchers = (Iterable) serializableMatchers;
@@ -152,7 +152,7 @@ public class SerializableMatchers implements Serializable {
       List<SerializableMatcher<? super T>> serializableMatchers) {
 
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     }) // safe covariant cast
     final List<Matcher<? super T>> matchers = (List) serializableMatchers;
@@ -204,7 +204,7 @@ public class SerializableMatchers implements Serializable {
       Collection<SerializableMatcher<? super T>> serializableMatchers) {
 
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     }) // safe covariant cast
     final Collection<Matcher<? super T>> matchers = (Collection) serializableMatchers;
@@ -274,7 +274,7 @@ public class SerializableMatchers implements Serializable {
       List<SerializableMatcher<? super T>> serializableMatchers) {
 
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     }) // safe covariant cast
     final List<Matcher<? super T>> matchers = (List) serializableMatchers;
@@ -326,7 +326,7 @@ public class SerializableMatchers implements Serializable {
       Collection<SerializableMatcher<? super T>> serializableMatchers) {
 
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     }) // safe covariant cast
     final Collection<Matcher<? super T>> matchers = (Collection) serializableMatchers;

@@ -88,7 +88,8 @@ class TaxiRideExampleTest(unittest.TestCase):
         beam.Pipeline(), self.input_path, self.output_path)
 
     # Parse result file and compare.
-    # TODO(BEAM-12379): taxiride examples should produce int sums, not floats
+    # TODO(https://github.com/apache/beam/issues/20926): taxiride examples
+    # should produce int sums, not floats
     results = []
     with open_shards(f'{self.output_path}-*') as result_file:
       for line in result_file:

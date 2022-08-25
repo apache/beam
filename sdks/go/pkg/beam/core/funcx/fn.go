@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -80,6 +81,10 @@ const (
 	FnPane FnParamKind = 0x400
 	// FnBundleFinalization indicates a function input parameter that implements typex.BundleFinalization.
 	FnBundleFinalization FnParamKind = 0x800
+	// FnWatermarkEstimator indicates a function input parameter that implements sdf.WatermarkEstimator
+	FnWatermarkEstimator FnParamKind = 0x1000
+	// FnStateProvider indicates a function input parameter that implements state.Provider
+	FnStateProvider FnParamKind = 0x2000
 )
 
 func (k FnParamKind) String() string {
@@ -108,6 +113,10 @@ func (k FnParamKind) String() string {
 		return "Pane"
 	case FnBundleFinalization:
 		return "BundleFinalization"
+	case FnWatermarkEstimator:
+		return "WatermarkEstimator"
+	case FnStateProvider:
+		return "StateProvider"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -285,6 +294,28 @@ func (u *Fn) BundleFinalization() (pos int, exists bool) {
 	return -1, false
 }
 
+// StateProvider returns (index, true) iff the function expects a
+// parameter that implements state.Provider.
+func (u *Fn) StateProvider() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnStateProvider {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+// WatermarkEstimator returns (index, true) iff the function expects a
+// parameter that implements sdf.WatermarkEstimator.
+func (u *Fn) WatermarkEstimator() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnWatermarkEstimator {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
 // Error returns (index, true) iff the function returns an error.
 func (u *Fn) Error() (pos int, exists bool) {
 	for i, p := range u.Ret {
@@ -359,10 +390,14 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = FnWindow
 		case t == typex.BundleFinalizationType:
 			kind = FnBundleFinalization
+		case t == state.ProviderType:
+			kind = FnStateProvider
 		case t == reflectx.Type:
 			kind = FnType
 		case t.Implements(reflect.TypeOf((*sdf.RTracker)(nil)).Elem()):
 			kind = FnRTracker
+		case t.Implements(reflect.TypeOf((*sdf.WatermarkEstimator)(nil)).Elem()):
+			kind = FnWatermarkEstimator
 		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
 			kind = FnValue
 		case IsEmit(t):
@@ -447,7 +482,7 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 }
 
 // The order of present parameters and return values must be as follows:
-// func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnType?, FnBundleFinalization?, FnRTracker?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
+// func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnWatermarkEstimator?, FnType?, FnBundleFinalization?, FnRTracker?, FnStateProvider?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
 //     where ? indicates 0 or 1, and * indicates any number.
 //     and  a SideInput is one of FnValue or FnIter or FnReIter
 // Note: Fns with inputs must have at least one FnValue as the main input.
@@ -471,14 +506,16 @@ func validateOrder(u *Fn) error {
 }
 
 var (
-	errContextParam                 = errors.New("may only have a single context.Context parameter and it must be the first parameter")
-	errPaneParamPrecedence          = errors.New("may only have a single PaneInfo parameter and it must precede the WindowParam, EventTime and main input parameter")
-	errWindowParamPrecedence        = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
-	errEventTimeParamPrecedence     = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
-	errReflectTypePrecedence        = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
-	errRTrackerPrecedence           = errors.New("may only have a single sdf.RTracker parameter and it must precede the main input parameter")
-	errBundleFinalizationPrecedence = errors.New("may only have a single BundleFinalization parameter and it must precede the main input parameter")
-	errInputPrecedence              = errors.New("inputs parameters must precede emit function parameters")
+	errContextParam                      = errors.New("may only have a single context.Context parameter and it must be the first parameter")
+	errPaneParamPrecedence               = errors.New("may only have a single PaneInfo parameter and it must precede the WindowParam, EventTime and main input parameter")
+	errWindowParamPrecedence             = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
+	errEventTimeParamPrecedence          = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
+	errWatermarkEstimatorParamPrecedence = errors.New("may only have a single sdf.WatermarkEstimator parameter and it must precede the main input parameter")
+	errReflectTypePrecedence             = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
+	errRTrackerPrecedence                = errors.New("may only have a single sdf.RTracker parameter and it must precede the main input parameter")
+	errBundleFinalizationPrecedence      = errors.New("may only have a single BundleFinalization parameter and it must precede the main input parameter")
+	errStateProviderPrecedence           = errors.New("may only have a single state.Provider parameter and it must precede the main input parameter")
+	errInputPrecedence                   = errors.New("inputs parameters must precede emit function parameters")
 )
 
 type paramState int
@@ -489,11 +526,13 @@ const (
 	psPane
 	psWindow
 	psEventTime
+	psWatermarkEstimator
 	psType
 	psInput
 	psOutput
 	psRTracker
 	psBundleFinalization
+	psStateProvider
 )
 
 func nextParamState(cur paramState, transition FnParamKind) (paramState, error) {
@@ -508,12 +547,16 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psWindow, nil
 		case FnEventTime:
 			return psEventTime, nil
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
 		case FnType:
 			return psType, nil
 		case FnBundleFinalization:
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psContext:
 		switch transition {
@@ -523,12 +566,16 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psWindow, nil
 		case FnEventTime:
 			return psEventTime, nil
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
 		case FnType:
 			return psType, nil
 		case FnBundleFinalization:
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psPane:
 		switch transition {
@@ -536,25 +583,46 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psWindow, nil
 		case FnEventTime:
 			return psEventTime, nil
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
 		case FnType:
 			return psType, nil
 		case FnBundleFinalization:
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psWindow:
 		switch transition {
 		case FnEventTime:
 			return psEventTime, nil
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
 		case FnType:
 			return psType, nil
 		case FnBundleFinalization:
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psEventTime:
+		switch transition {
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
+		case FnType:
+			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
+		}
+	case psWatermarkEstimator:
 		switch transition {
 		case FnType:
 			return psType, nil
@@ -562,6 +630,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psType:
 		switch transition {
@@ -569,13 +639,22 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psBundleFinalization:
 		switch transition {
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psRTracker:
+		switch transition {
+		case FnStateProvider:
+			return psStateProvider, nil
+		}
+	case psStateProvider:
 		// Completely handled by the default clause
 	case psInput:
 		switch transition {
@@ -598,12 +677,16 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		return -1, errWindowParamPrecedence
 	case FnEventTime:
 		return -1, errEventTimeParamPrecedence
+	case FnWatermarkEstimator:
+		return -1, errWatermarkEstimatorParamPrecedence
 	case FnType:
 		return -1, errReflectTypePrecedence
 	case FnBundleFinalization:
 		return -1, errBundleFinalizationPrecedence
 	case FnRTracker:
 		return -1, errRTrackerPrecedence
+	case FnStateProvider:
+		return -1, errStateProviderPrecedence
 	case FnIter, FnReIter, FnValue, FnMultiMap:
 		return psInput, nil
 	case FnEmit:
@@ -614,10 +697,9 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 }
 
 var (
-	errEventTimeRetPrecedence = errors.New("beam.EventTime must be first return parameter")
-	errErrorPrecedence        = errors.New("error must be the final return parameter")
-	// TODO(BEAM-11104): Enable process continuations as a valid return value.
-	errContinuationSupport = errors.New("process continuations are not supported in this SDK release; see https://issues.apache.org/jira/browse/BEAM-11104 for the feature's current status")
+	errEventTimeRetPrecedence        = errors.New("beam.EventTime must be first return parameter")
+	errErrorPrecedence               = errors.New("error must be the final return parameter")
+	errProcessContinuationPrecedence = errors.New("ProcessContinuation must be the final non-error return parameter")
 )
 
 type retState int
@@ -637,8 +719,15 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 		case RetEventTime:
 			return rsEventTime, nil
 		}
-	case rsEventTime, rsOutput, rsProcessContinuation:
+	case rsEventTime, rsOutput:
 		// Identical to the default cases.
+	case rsProcessContinuation:
+		switch transition {
+		case RetError:
+			return rsError, nil
+		default:
+			return -1, errProcessContinuationPrecedence
+		}
 	case rsError:
 		// This is a terminal state. No valid transitions. error must be the final return value.
 		return -1, errErrorPrecedence
@@ -650,7 +739,7 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 	case RetValue, RetRTracker:
 		return rsOutput, nil
 	case RetProcessContinuation:
-		return -1, errContinuationSupport
+		return rsProcessContinuation, nil
 	case RetError:
 		return rsError, nil
 	default:

@@ -32,12 +32,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * sequential number.
  */
 @VisibleForTesting
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class TagWithUniqueIds<KeyT, ElementT>
     extends DoFn<KV<KeyT, ElementT>, KV<KeyT, TableRowInfo<ElementT>>> {
-  private transient String randomUUID;
+  private transient @Nullable String randomUUID = null;
   private transient long sequenceNo = 0L;
 
   private final @Nullable SerializableFunction<ElementT, String> elementToId;
@@ -46,7 +43,7 @@ class TagWithUniqueIds<KeyT, ElementT>
     elementToId = null;
   }
 
-  public TagWithUniqueIds(SerializableFunction<ElementT, String> elementToId) {
+  public TagWithUniqueIds(@Nullable SerializableFunction<ElementT, String> elementToId) {
     this.elementToId = elementToId;
   }
 

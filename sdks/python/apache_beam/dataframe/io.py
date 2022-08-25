@@ -246,8 +246,8 @@ class _ReadFromPandas(beam.PTransform):
     paths_pcoll = root | beam.Create([self.path])
     match = io.filesystems.FileSystems.match([self.path], limits=[1])[0]
     if not match.metadata_list:
-      # TODO(BEAM-12031): This should be allowed for streaming pipelines if
-      # user provides an explicit schema.
+      # TODO(https://github.com/apache/beam/issues/20858): This should be
+      # allowed for streaming pipelines if user provides an explicit schema.
       raise FileNotFoundError(f"Found no files that match {self.path!r}")
     first_path = match.metadata_list[0].path
     with io.filesystems.FileSystems.open(first_path) as handle:
@@ -718,3 +718,41 @@ class _WriteToPandasFileSink(fileio.FileSink):
     if self.buffer:
       self.write_to(pd.concat(self.buffer), self.file_handle)
       self.file_handle.flush()
+
+
+class ReadViaPandas(beam.PTransform):
+  def __init__(
+      self,
+      format,
+      *args,
+      include_indexes=False,
+      objects_as_strings=True,
+      **kwargs):
+    self._reader = globals()['read_%s' % format](*args, **kwargs)
+    self._include_indexes = include_indexes
+    self._objects_as_strings = objects_as_strings
+
+  def expand(self, p):
+    from apache_beam.dataframe import convert  # avoid circular import
+    df = p | self._reader
+    if self._objects_as_strings:
+      for col, t in zip(df.columns, df.dtypes):
+        if t == object:
+          df[col] = df[col].astype(pd.StringDtype())
+    return convert.to_pcollection(df, include_indexes=self._include_indexes)
+
+
+class WriteViaPandas(beam.PTransform):
+  def __init__(self, format, *args, **kwargs):
+    self._writer_func = globals()['to_%s' % format]
+    self._args = args
+    self._kwargs = kwargs
+
+  def expand(self, pcoll):
+    from apache_beam.dataframe import convert  # avoid circular import
+    return {
+        'files_written': self._writer_func(
+            convert.to_dataframe(pcoll), *self._args, **self._kwargs)
+        | beam.Map(lambda file_result: file_result.file_name).with_output_types(
+            str)
+    }

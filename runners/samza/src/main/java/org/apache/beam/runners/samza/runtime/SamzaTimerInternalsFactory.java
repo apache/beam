@@ -61,8 +61,8 @@ import org.slf4j.LoggerFactory;
  * set, and removes the ready timers when the watermark is advanced.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaTimerInternalsFactory.class);
@@ -374,7 +374,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         default:
           throw new UnsupportedOperationException(
               String.format(
-                  "%s currently only supports event time or processing time", SamzaRunner.class));
+                  "%s currently only supports event time or processing time but get %s",
+                  SamzaRunner.class, timerData.getDomain()));
       }
     }
 
@@ -460,7 +461,9 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
         default:
           throw new UnsupportedOperationException(
-              String.format("%s currently only supports event time", SamzaRunner.class));
+              String.format(
+                  "%s currently only supports event time or processing time but get %s",
+                  SamzaRunner.class, domain));
       }
     }
 
@@ -490,7 +493,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         default:
           throw new UnsupportedOperationException(
               String.format(
-                  "%s currently only supports event time or processing time", SamzaRunner.class));
+                  "%s currently only supports event time or processing time but get %s",
+                  SamzaRunner.class, keyedTimerData.getTimerData().getDomain()));
       }
     }
 
@@ -509,7 +513,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         default:
           throw new UnsupportedOperationException(
               String.format(
-                  "%s currently only supports event time or processing time", SamzaRunner.class));
+                  "%s currently only supports event time or processing time but get %s",
+                  SamzaRunner.class, keyedTimerData.getTimerData().getDomain()));
       }
     }
 

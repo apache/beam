@@ -26,7 +26,7 @@ import javax.net.ssl.X509TrustManager;
 
 /** Utility class for registration of ssl context, and to allow all certificate requests. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SSLUtils {
 

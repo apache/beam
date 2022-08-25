@@ -232,7 +232,8 @@ class JobServiceHandle(object):
           beam_job_api_pb2.JobMessagesRequest(job_id=preparation_id),
           timeout=self.timeout)
     except Exception:
-      # TODO(BEAM-6442): Unify preparation_id and job_id for all runners.
+      # TODO(https://github.com/apache/beam/issues/19284): Unify preparation_id
+      # and job_id for all runners.
       state_stream = message_stream = None
 
     # Run the job and wait for a result, we don't set a timeout here because
@@ -325,7 +326,7 @@ class PortableRunner(runner.PipelineRunner):
         default_environment=PortableRunner._create_environment(
             portable_options))
 
-    # TODO: https://issues.apache.org/jira/browse/BEAM-7199
+    # TODO: https://github.com/apache/beam/issues/19493
     # Eventually remove the 'pre_optimize' option alltogether and only perform
     # the equivalent of the 'default' case below (minus the 'lift_combiners'
     # part).
@@ -335,8 +336,8 @@ class PortableRunner(runner.PipelineRunner):
         pre_optimize != 'none'):
       if pre_optimize == 'default':
         phases = [
-            # TODO: https://issues.apache.org/jira/browse/BEAM-4678
-            #       https://issues.apache.org/jira/browse/BEAM-11478
+            # TODO: https://github.com/apache/beam/issues/18584
+            #       https://github.com/apache/beam/issues/18586
             # Eventually remove the 'lift_combiners' phase from 'default'.
             translations.pack_combiners,
             translations.lift_combiners,
@@ -361,8 +362,8 @@ class PortableRunner(runner.PipelineRunner):
         ]
         partial = False
       elif pre_optimize == 'all_except_fusion':
-        # TODO(BEAM-7248): Delete this branch after PortableRunner supports
-        # beam:runner:executable_stage:v1.
+        # TODO(https://github.com/apache/beam/issues/19422): Delete this branch
+        # after PortableRunner supports beam:runner:executable_stage:v1.
         phases = [
             translations.annotate_downstream_side_inputs,
             translations.annotate_stateful_dofns_as_roots,
@@ -411,7 +412,7 @@ class PortableRunner(runner.PipelineRunner):
     # type: (Pipeline, PipelineOptions) -> PipelineResult
     portable_options = options.view_as(PortableOptions)
 
-    # TODO: https://issues.apache.org/jira/browse/BEAM-5525
+    # TODO: https://github.com/apache/beam/issues/19168
     # portable runner specific default
     if options.view_as(SetupOptions).sdk_location == 'default':
       options.view_as(SetupOptions).sdk_location = 'container'

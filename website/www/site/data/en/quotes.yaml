@@ -10,12 +10,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- text: eBay, an e-commerce company, uses Apache Beam in their streaming pipelines to integrate with other OSS services such as Apache Kafka and Apache Airflow.
+#Cards with quotes will be displayed by the order listed, e.g., first card will display the first quote
+- text: Apache Beam is a central component to Intuit's Stream Processing Platform, which has driven 3x faster time-to-production for authoring a stream processing pipeline.
   icon: icons/quote-icon.svg
-  logoUrl: images/logos/powered-by/eBay.png
-- text: Developed at Spotify and built on top of Apache Beam, Klio is an open source framework for data processing pipelines for audio and other media files.
+  logoUrl: images/case-study/intuit/intuit-quote.png
+  linkUrl: case-studies/intuit/index.html
+  linkText: Learn more
+- text: Apache Beam enabled real-time ML streaming feature generation and model execution playing a pivotal role in optimizing Lyft’s Marketplace ML predictions, processing ~4mil events per minute to generate ~100 features.
   icon: icons/quote-icon.svg
-  logoUrl: images/logos/powered-by/klio.png
-- text: Oriel Research Therapeutics (ORT) is a startup company that utilizes Apache Beam to process over 1 million samples of genomic data to detect Leukemia, Sepsis and other medical conditions.
+  logoUrl: images/case-study/lyft/lyft-quote.png
+  linkUrl: case-studies/lyft/index.html
+  linkText: Learn more
+- text: Seznam, a Czech search engine, has been an early contributor and adopter of Apache Beam, and they migrated several petabyte-scale workloads to Apache Beam pipelines.
   icon: icons/quote-icon.svg
-  logoUrl: images/logos/powered-by/oriel.png
+  logoUrl: images/logos/powered-by/seznam.png
+  linkUrl: case-studies/seznam/index.html
+  linkText: Learn more
+- text: Palo Alto Networks, Inc. is a global cybersecurity leader that uses Apache Beam to process ~10 millions of security log events per second for their real-time streaming infrastructure.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/paloalto.png
+  linkUrl: case-studies/paloalto/index.html
+  linkText: Learn more
+- text: Apache Beam provides Ricardo, a leading Swiss second hand marketplace, with a scalable and reliable data processing framework that supports fundamental business scenarios and enables real-time and ML data processing.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/ricardo.png
+  linkUrl: case-studies/ricardo/index.html
+  linkText: Learn more
+- text: Apache Hop, an open-source data orchestration platform, uses Apache Beam to "design once, run anywhere" and creates a value-add for Apache Beam users by enabling visual pipeline development and lifecycle management.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/hop.svg
+  linkUrl: case-studies/hop/index.html
+  linkText: Learn more
+- text: Have a story to share? Your logo could be here.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/blank.jpg
+  linkUrl:  mailto:dev@beam.apache.org?subject=Beam
+  linkText: Share your story

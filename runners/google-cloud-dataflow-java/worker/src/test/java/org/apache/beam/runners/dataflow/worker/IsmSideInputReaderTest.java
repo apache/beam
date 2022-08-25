@@ -1551,7 +1551,7 @@ public class IsmSideInputReaderTest {
     }
   }
 
-  // TODO(BEAM-13460): Add assertions on contains() calls
+  // TODO(https://github.com/apache/beam/issues/21294): Add assertions on contains() calls
   @SuppressWarnings("ReturnValueIgnored")
   private static <T> void verifyMap(
       Map<byte[], T> expectedMap, Map<byte[], T> mapView, Comparator<T> valueComparator) {

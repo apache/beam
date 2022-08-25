@@ -39,7 +39,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ImmutableB
  * field of an struct column to uncollect.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class ArrayScanColumnRefToUncollect extends RelConverter<ResolvedNodes.ResolvedArrayScan> {
   ArrayScanColumnRefToUncollect(ConversionContext context) {

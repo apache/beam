@@ -51,7 +51,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
-import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -63,8 +62,7 @@ import org.mockito.Spy;
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
 public class PerSubscriptionPartitionSdfTest {
-  private static final Duration MAX_SLEEP_TIME =
-      Duration.standardMinutes(10).plus(Duration.millis(10));
+
   private static final OffsetByteRange RESTRICTION =
       OffsetByteRange.of(new OffsetRange(1, Long.MAX_VALUE), 0);
   private static final SubscriptionPartition PARTITION =
@@ -72,14 +70,14 @@ public class PerSubscriptionPartitionSdfTest {
 
   @Mock SerializableFunction<SubscriptionPartition, InitialOffsetReader> offsetReaderFactory;
 
-  @Mock ManagedBacklogReaderFactory backlogReaderFactory;
+  @Mock ManagedFactory<TopicBacklogReader> backlogReaderFactory;
   @Mock TopicBacklogReader backlogReader;
 
   @Mock
   SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress> trackerFactory;
 
   @Mock SubscriptionPartitionProcessorFactory processorFactory;
-  @Mock SerializableFunction<SubscriptionPartition, BlockingCommitter> committerFactory;
+  @Mock ManagedFactory<BlockingCommitter> committerFactory;
 
   @Mock InitialOffsetReader initialOffsetReader;
   @Spy TrackerWithProgress tracker;
@@ -95,17 +93,16 @@ public class PerSubscriptionPartitionSdfTest {
     when(offsetReaderFactory.apply(any())).thenReturn(initialOffsetReader);
     when(processorFactory.newProcessor(any(), any(), any())).thenReturn(processor);
     when(trackerFactory.apply(any(), any())).thenReturn(tracker);
-    when(committerFactory.apply(any())).thenReturn(committer);
+    when(committerFactory.create(any())).thenReturn(committer);
     when(tracker.currentRestriction()).thenReturn(RESTRICTION);
-    when(backlogReaderFactory.newReader(any())).thenReturn(backlogReader);
+    when(backlogReaderFactory.create(any())).thenReturn(backlogReader);
     sdf =
         new PerSubscriptionPartitionSdf(
-            MAX_SLEEP_TIME,
             backlogReaderFactory,
+            committerFactory,
             offsetReaderFactory,
             trackerFactory,
-            processorFactory,
-            committerFactory);
+            processorFactory);
   }
 
   @Test
@@ -131,7 +128,7 @@ public class PerSubscriptionPartitionSdfTest {
   }
 
   @Test
-  public void tearDownClosesBacklogReaderFactory() {
+  public void tearDownClosesBacklogReaderFactory() throws Exception {
     sdf.teardown();
     verify(backlogReaderFactory).close();
   }
@@ -139,7 +136,7 @@ public class PerSubscriptionPartitionSdfTest {
   @Test
   @SuppressWarnings("argument.type.incompatible")
   public void process() throws Exception {
-    when(processor.runFor(MAX_SLEEP_TIME)).thenReturn(ProcessContinuation.resume());
+    when(processor.run()).thenReturn(ProcessContinuation.resume());
     when(processorFactory.newProcessor(any(), any(), any()))
         .thenAnswer(
             args -> {
@@ -154,17 +151,18 @@ public class PerSubscriptionPartitionSdfTest {
     assertEquals(ProcessContinuation.resume(), sdf.processElement(tracker, PARTITION, output));
     verify(processorFactory).newProcessor(eq(PARTITION), any(), eq(output));
     InOrder order = inOrder(processor);
-    order.verify(processor).runFor(MAX_SLEEP_TIME);
+    order.verify(processor).run();
     order.verify(processor).lastClaimed();
     InOrder order2 = inOrder(committerFactory, committer);
-    order2.verify(committerFactory).apply(PARTITION);
+    order2.verify(committerFactory).create(PARTITION);
     order2.verify(committer).commitOffset(Offset.of(example(Offset.class).value() + 1));
   }
 
-  private static final class NoopManagedBacklogReaderFactory
-      implements ManagedBacklogReaderFactory {
+  private static final class NoopManagedFactory<T extends AutoCloseable>
+      implements ManagedFactory<T> {
+
     @Override
-    public TopicBacklogReader newReader(SubscriptionPartition subscriptionPartition) {
+    public T create(SubscriptionPartition subscriptionPartition) {
       return null;
     }
 
@@ -178,12 +176,11 @@ public class PerSubscriptionPartitionSdfTest {
     ObjectOutputStream output = new ObjectOutputStream(new ByteArrayOutputStream());
     output.writeObject(
         new PerSubscriptionPartitionSdf(
-            MAX_SLEEP_TIME,
-            new NoopManagedBacklogReaderFactory(),
-            x -> null,
+            new NoopManagedFactory<>(),
+            new NoopManagedFactory<>(),
+            (x) -> null,
             (x, y) -> null,
-            (x, y, z) -> null,
-            (x) -> null));
+            (x, y, z) -> null));
   }
 
   @Test

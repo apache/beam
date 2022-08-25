@@ -97,6 +97,16 @@ class DataflowDistributionCounter(object):
     bucket_index = self.calculate_bucket_index(element)
     self.buckets[bucket_index] += 1
 
+  def add_input_n(self, element, n):
+    if element < 0:
+      raise ValueError('Distribution counters support only non-negative value')
+    self.min = min(self.min, element)
+    self.max = max(self.max, element)
+    self.count += n
+    self.sum += element * n
+    bucket_index = self.calculate_bucket_index(element)
+    self.buckets[bucket_index] += n
+
   def calculate_bucket_index(self, element):
     """Calculate the bucket index for the given element."""
     if element == 0:
@@ -132,6 +142,16 @@ class DataflowDistributionCounter(object):
     histogram.firstBucketOffset = first_bucket_offset
     histogram.bucketCounts = (
         self.buckets[first_bucket_offset:last_bucket_offset + 1])
+
+  def extract_output(self):
+    global INT64_MIN  # pylint: disable=global-variable-not-assigned
+    global INT64_MAX  # pylint: disable=global-variable-not-assigned
+    if not INT64_MIN <= self.sum <= INT64_MAX:
+      self.sum %= 2**64
+      if self.sum >= INT64_MAX:
+        self.sum -= 2**64
+    mean = self.sum // self.count if self.count else float('nan')
+    return mean, self.sum, self.count, self.min, self.max
 
   def merge(self, accumulators):
     raise NotImplementedError()

@@ -30,7 +30,7 @@ import org.joda.time.Instant;
 
 /**
  * An extendable factory to create a {@link TimestampPolicy} for each partition at runtime by
- * KafkaIO reader. Subclasses implement {@link #createTimestampPolicy}, which is invoked by the the
+ * KafkaIO reader. Subclasses implement {@link #createTimestampPolicy}, which is invoked by the
  * reader while starting or resuming from a checkpoint. Two commonly used policies are provided. See
  * {@link #withLogAppendTime()} and {@link #withProcessingTime()}.
  */

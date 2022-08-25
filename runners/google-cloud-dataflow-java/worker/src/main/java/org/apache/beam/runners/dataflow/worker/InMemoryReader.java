@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * @param <T> the type of the elements read from the source
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class InMemoryReader<T> extends NativeReader<T> {
   private static final Logger LOG = LoggerFactory.getLogger(InMemoryReader.class);

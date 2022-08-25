@@ -35,8 +35,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  * called once per key. Needs to be reset via {@code resetForNewKey()} before processing a new key.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class InMemoryBagUserStateFactory<K, V, W extends BoundedWindow>
     implements StateRequestHandlers.BagUserStateHandlerFactory<K, V, W> {

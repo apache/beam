@@ -24,7 +24,8 @@ from apache_beam.dataframe.frames import PD_VERSION
 from apache_beam.dataframe.pandas_top_level_functions import _is_top_level_function
 
 
-@unittest.skipIf(sys.platform == 'win32', '[BEAM-10626]')
+@unittest.skipIf(
+    sys.platform == 'win32', '[https://github.com/apache/beam/issues/20361]')
 class DoctestTest(unittest.TestCase):
   def test_ndframe_tests(self):
     # IO methods are tested in io_test.py
@@ -285,7 +286,7 @@ class DoctestTest(unittest.TestCase):
                 "df1.merge(df2, how='cross')"
             ],
 
-            # TODO(BEAM-11711)
+            # TODO(https://github.com/apache/beam/issues/20759)
             'pandas.core.frame.DataFrame.set_index': [
                 "df.set_index([s, s**2])",
             ],
@@ -294,7 +295,7 @@ class DoctestTest(unittest.TestCase):
                 "df.set_axis(range(0,2), axis='index')",
             ],
 
-            # TODO(BEAM-12495)
+            # TODO(https://github.com/apache/beam/issues/21014)
             'pandas.core.frame.DataFrame.value_counts': [
               'df.value_counts(dropna=False)'
             ],
@@ -332,8 +333,9 @@ class DoctestTest(unittest.TestCase):
                 'df.rename(index=str).index',
             ],
             'pandas.core.frame.DataFrame.set_index': [
-                # TODO(BEAM-11711): This could pass in the index as
-                # a DeferredIndex, and we should fail it as order-sensitive.
+                # TODO(https://github.com/apache/beam/issues/20759): This could
+                # pass in the index as a DeferredIndex, and we should fail it
+                # as order-sensitive.
                 "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
             ],
             'pandas.core.frame.DataFrame.set_axis': [
@@ -517,10 +519,10 @@ class DoctestTest(unittest.TestCase):
             # Relies on setting values with iloc
             'pandas.core.series.Series': ['ser', 'r'],
             'pandas.core.series.Series.groupby': [
-                # TODO(BEAM-11393): This example requires aligning two series
-                # with non-unique indexes. It only works in pandas because
-                # pandas can recognize the indexes are identical and elide the
-                # alignment.
+                # TODO(https://github.com/apache/beam/issues/20643): This
+                # example requires aligning two series with non-unique indexes.
+                # It only works in pandas because pandas can recognize the
+                # indexes are identical and elide the alignment.
                 'ser.groupby(ser > 100).mean()',
             ],
             'pandas.core.series.Series.asfreq': ['*'],
@@ -642,7 +644,8 @@ class DoctestTest(unittest.TestCase):
                 'seconds_series.dt.seconds'
             ],
 
-            # TODO(BEAM-12530): Test data creation fails for these
+            # TODO(https://github.com/apache/beam/issues/21013): Test data
+            # creation fails for these
             #   s = pd.Series(pd.to_timedelta(np.arange(5), unit="d"))
             # pylint: disable=line-too-long
             'pandas.core.indexes.accessors.DatetimeProperties.to_pydatetime': [

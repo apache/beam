@@ -17,8 +17,13 @@
  */
 
 const kExampleParam = 'example';
-const kIsEditable = 'enabled';
-const kSourceCode = 'code';
+const kIsEditableParam = 'editable';
 const kContextLine = 'line';
 
 const kQuickStartCategoryName = 'quick start';
+
+const _kIsEmbedded = 'embedded';
+
+bool isEmbedded() {
+  return Uri.base.toString().contains(_kIsEmbedded);
+}

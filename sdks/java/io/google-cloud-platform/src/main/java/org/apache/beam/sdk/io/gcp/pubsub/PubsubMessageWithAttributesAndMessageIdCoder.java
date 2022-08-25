@@ -31,7 +31,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** A coder for PubsubMessage including attributes and the message id from the PubSub server. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PubsubMessageWithAttributesAndMessageIdCoder extends CustomCoder<PubsubMessage> {
   // A message's payload cannot be null

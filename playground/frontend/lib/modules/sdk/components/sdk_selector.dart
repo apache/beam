@@ -23,7 +23,7 @@ import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/components/sdk_selector_row.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
 typedef SetSdk = void Function(SDK sdk);
@@ -62,15 +62,16 @@ class SDKSelector extends StatelessWidget {
             ...SDK.values.map((SDK value) {
               return SizedBox(
                 width: double.infinity,
-                child: Consumer<ExampleState>(
+                child: Consumer<PlaygroundState>(
                   builder: (context, state, child) => SdkSelectorRow(
                     sdk: value,
                     onSelect: () {
                       close();
                       setSdk(value);
                       setExample(
-                        state.defaultExamplesMap[value] ??
+                        state.exampleState.defaultExamplesMap[value] ??
                             ExampleModel(
+                              sdk: value,
                               name: kEmptyExampleName,
                               path: '',
                               description: '',

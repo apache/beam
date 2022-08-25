@@ -45,11 +45,11 @@ class SdkSelectorRow extends StatelessWidget {
           ),
         ),
       ),
+      onPressed: onSelect,
       child: Padding(
         padding: const EdgeInsets.all(kLgSpacing),
         child: Text(sdk.displayName),
       ),
-      onPressed: onSelect,
     );
   }
 }

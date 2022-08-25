@@ -154,7 +154,7 @@ class DisplayManager(object):
         self._pipeline_graph.update_pcollection_stats(self._pcollection_stats)
 
         if IPython:
-          from IPython.core import display
+          from IPython import display
           display.clear_output(True)
           rendered_graph = self._renderer.render_pipeline_graph(
               self._pipeline_graph)

@@ -56,7 +56,7 @@ configurations {
 dependencies {
     implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
 
-    // TODO(BEAM-13179): Determine how to build without this dependency
+    // TODO(https://github.com/apache/beam/issues/21156): Determine how to build without this dependency
     provided "org.immutables:value:2.8.8"
     permitUnusedDeclared "org.immutables:value:2.8.8"
     implementation library.java.avro

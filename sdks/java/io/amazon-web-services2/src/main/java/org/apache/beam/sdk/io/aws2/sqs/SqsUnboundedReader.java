@@ -81,7 +81,7 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
   private static final String RECEIPT_HANDLE_IS_INVALID = "ReceiptHandleIsInvalid";

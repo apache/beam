@@ -30,7 +30,7 @@ import org.apache.beam.sdk.schemas.Schema;
  * of time in nanoseconds.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Time implements Schema.LogicalType<LocalTime, Long> {
 

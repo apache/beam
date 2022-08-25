@@ -21,8 +21,7 @@ This folder contains resources required to deploy the Beam metrics stack.
 
 There are two types of metrics in Beam:
 * Community metrics. The stack includes:
-  * Python scripts for ingesting data from sources (Jenkins, JIRA,
-  GitHub)
+  * Python scripts for ingesting data from sources (Jenkins and GitHub)
   * Postgres analytics database
 
 * Test Results, i.e. metrics published by tests (IO Performance tests, Load tests and Nexmark tests). Beam uses InfluxDB time series database to store test metrics.

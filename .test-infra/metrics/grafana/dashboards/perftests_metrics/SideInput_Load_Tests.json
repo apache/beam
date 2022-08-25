@@ -21,7 +21,7 @@
   "links": [],
   "panels": [
     {
-      "content": "The following options should be used by default:\n* key size: 100B\n* value size: 900B\n* number of workers: 10\n* size of the window (if fixed windows are used): 1 second\n\n[Jenkins job definition (Python, Dataflow)](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_LoadTests_SideInput_Python.groovy) [Jenkins job definition (Go, Flink)](https://github.com/apache/beam/tree/master/.test-infra/jenkins/job_LoadTests_SideInput_Flink_Go.groovy) [Jenkins job definition (Go, Dataflow)](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_LoadTests_SideInput_Go.groovy)\n\nUntil the issue [BEAM-11427](https://issues.apache.org/jira/browse/BEAM-11427) in Go SDK is resolved, sideinput iteration test have 400MB, instead of 10GB.",
+      "content": "Jenkins job definition (Python, Dataflow)](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_LoadTests_SideInput_Python.groovy) [Jenkins job definition (Go, Flink)](https://github.com/apache/beam/tree/master/.test-infra/jenkins/job_LoadTests_SideInput_Flink_Go.groovy) [Jenkins job definition (Go, Dataflow)](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_LoadTests_SideInput_Go.groovy)",
       "datasource": null,
       "gridPos": {
         "h": 8,

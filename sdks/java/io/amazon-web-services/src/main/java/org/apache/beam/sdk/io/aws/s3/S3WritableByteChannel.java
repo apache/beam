@@ -43,7 +43,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 
 /** A writable S3 object, as a {@link WritableByteChannel}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class S3WritableByteChannel implements WritableByteChannel {
   private final AmazonS3 amazonS3;

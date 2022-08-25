@@ -61,7 +61,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
 import org.junit.After;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -152,8 +151,8 @@ public class ReadWriteIT {
     }
   }
 
-  // Workaround for BEAM-12867
-  // TODO(BEAM-12867): Remove this.
+  // Workaround for https://github.com/apache/beam/issues/21257
+  // TODO(https://github.com/apache/beam/issues/21257): Remove this.
   private static class CustomCreate extends PTransform<PCollection<Void>, PCollection<Integer>> {
     @Override
     public PCollection<Integer> expand(PCollection<Void> input) {
@@ -195,15 +194,9 @@ public class ReadWriteIT {
         pipeline.apply(
             "readMessages",
             PubsubLiteIO.read(
-                SubscriberOptions.newBuilder()
-                    .setSubscriptionPath(subscriptionPath)
-                    // setMinBundleTimeout INTENDED FOR TESTING ONLY
-                    // This sacrifices efficiency to make tests run faster. Do not use this in a
-                    // real pipeline!
-                    .setMinBundleTimeout(Duration.standardSeconds(5))
-                    .build()));
+                SubscriberOptions.newBuilder().setSubscriptionPath(subscriptionPath).build()));
     return messages;
-    // TODO(BEAM-13230): Fix and re-enable
+    // TODO(https://github.com/apache/beam/issues/21157): Fix and re-enable
     // Deduplicate messages based on the uuids added in PubsubLiteIO.addUuids() when writing.
     // return messages.apply(
     //   "dedupeMessages", PubsubLiteIO.deduplicate(UuidDeduplicationOptions.newBuilder().build()));
@@ -227,7 +220,6 @@ public class ReadWriteIT {
   }
 
   @Test
-  @Ignore("BEAM-14253")
   public void testReadWrite() throws Exception {
     pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
     pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);

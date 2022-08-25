@@ -27,7 +27,7 @@ import org.joda.time.Instant;
 /** Class for capturing errors on IO operations on Google Cloud Healthcare APIs resources. */
 @DefaultCoder(HealthcareIOErrorCoder.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class HealthcareIOError<T> {
   private T dataResource;

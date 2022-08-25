@@ -17,12 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
-
-import io.opencensus.common.Scope;
-import io.opencensus.trace.AttributeValue;
-import io.opencensus.trace.Tracer;
-import io.opencensus.trace.Tracing;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
@@ -68,7 +62,6 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   private static final long serialVersionUID = -7574596218085711975L;
   private static final Logger LOG = LoggerFactory.getLogger(ReadChangeStreamPartitionDoFn.class);
-  private static final Tracer TRACER = Tracing.getTracer();
   private static final double AUTOSCALING_SIZE_MULTIPLIER = 2.0D;
 
   private final DaoFactory daoFactory;
@@ -234,20 +227,11 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       BundleFinalizer bundleFinalizer) {
 
     final String token = partition.getPartitionToken();
-    try (Scope scope =
-        TRACER
-            .spanBuilder("ReadChangeStreamPartitionDoFn.processElement")
-            .setRecordEvents(true)
-            .startScopedSpan()) {
-      TRACER
-          .getCurrentSpan()
-          .putAttribute(PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(token));
 
-      LOG.debug(
-          "[" + token + "] Processing element with restriction " + tracker.currentRestriction());
+    LOG.debug(
+        "[" + token + "] Processing element with restriction " + tracker.currentRestriction());
 
-      return queryChangeStreamAction.run(
-          partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
-    }
+    return queryChangeStreamAction.run(
+        partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
   }
 }

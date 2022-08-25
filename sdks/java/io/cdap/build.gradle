@@ -1,0 +1,76 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+    id 'java'
+    id 'org.apache.beam.module'
+}
+
+applyJavaNature(
+        exportJavadoc: false,
+        automaticModuleName: 'org.apache.beam.sdk.io.cdap',
+)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: CDAP :: Java"
+ext.summary = """Apache Beam SDK provides a simple, Java-based
+interface for integration with CDAP plugins."""
+
+/** Define the list of runners which execute a precommit test.
+ * Some runners are run from separate projects, see the preCommit task below
+ * for details.
+ */
+
+dependencies {
+    implementation library.java.cdap_api
+    implementation library.java.cdap_api_commons
+    implementation (library.java.cdap_common) {
+        exclude module: 'log4j-over-slf4j'
+    }
+    implementation library.java.cdap_etl_api
+    implementation library.java.cdap_etl_api_spark
+    implementation library.java.cdap_hydrator_common
+    implementation library.java.cdap_plugin_hubspot
+    implementation library.java.cdap_plugin_salesforce
+    implementation library.java.cdap_plugin_service_now
+    implementation library.java.cdap_plugin_zendesk
+    implementation library.java.commons_lang3
+    implementation library.java.guava
+    implementation library.java.hadoop_common
+    implementation library.java.hadoop_mapreduce_client_core
+    implementation library.java.jackson_core
+    implementation library.java.jackson_databind
+    implementation library.java.slf4j_api
+    implementation library.java.tephra
+    implementation library.java.vendored_guava_26_0_jre
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":sdks:java:io:hadoop-format")
+    testImplementation library.java.cdap_plugin_service_now
+    testImplementation library.java.cdap_etl_api
+    testImplementation library.java.hadoop_common
+    testImplementation library.java.vendored_guava_26_0_jre
+    testImplementation library.java.junit
+    testImplementation library.java.mockito_core
+    testImplementation library.java.testcontainers_postgresql
+    testImplementation project(":sdks:java:io:hadoop-common")
+    testImplementation project(":sdks:java:io:hadoop-format")
+    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+}

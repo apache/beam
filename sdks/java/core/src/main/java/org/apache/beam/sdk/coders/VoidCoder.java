@@ -23,7 +23,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link Coder} for {@link Void}. Uses zero bytes per {@link Void}. */
-public class VoidCoder extends AtomicCoder<Void> {
+public class VoidCoder extends AtomicCoder<@Nullable Void> {
 
   public static VoidCoder of() {
     return INSTANCE;

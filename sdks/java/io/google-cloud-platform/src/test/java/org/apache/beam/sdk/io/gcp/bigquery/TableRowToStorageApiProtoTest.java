@@ -24,6 +24,7 @@ import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.BigDecimalByteStringEncoder;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
@@ -32,7 +33,9 @@ import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -47,7 +50,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 /** Unit tests for {@link org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto}. */
 public class TableRowToStorageApiProtoTest {
@@ -73,11 +76,16 @@ public class TableRowToStorageApiProtoTest {
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValue"))
                   .add(new TableFieldSchema().setType("DATE").setName("dateValue"))
                   .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue"))
+                  .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bigNumericValue"))
                   .add(
                       new TableFieldSchema()
-                          .setType("STRING")
+                          .setType("BYTES")
                           .setMode("REPEATED")
                           .setName("arrayValue"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValue"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
+                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
                   .build());
 
   private static final TableSchema BASE_TABLE_SCHEMA_NO_F =
@@ -97,11 +105,16 @@ public class TableRowToStorageApiProtoTest {
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValue"))
                   .add(new TableFieldSchema().setType("DATE").setName("dateValue"))
                   .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue"))
+                  .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bigNumericValue"))
                   .add(
                       new TableFieldSchema()
-                          .setType("STRING")
+                          .setType("BYTES")
                           .setMode("REPEATED")
                           .setName("arrayValue"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValue"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
+                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
                   .build());
 
   private static final DescriptorProto BASE_TABLE_SCHEMA_PROTO =
@@ -173,43 +186,78 @@ public class TableRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvalue")
                   .setNumber(10)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timevalue")
                   .setNumber(11)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datetimevalue")
                   .setNumber(12)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datevalue")
                   .setNumber(13)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("numericvalue")
                   .setNumber(14)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_BYTES)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("bignumericvalue")
+                  .setNumber(15)
+                  .setType(Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("arrayvalue")
-                  .setNumber(15)
-                  .setType(Type.TYPE_STRING)
+                  .setNumber(16)
+                  .setType(Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_REPEATED)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampisovalue")
+                  .setNumber(17)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluelong")
+                  .setNumber(18)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluespace")
+                  .setNumber(19)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("datetimevaluespace")
+                  .setNumber(20)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .build();
 
@@ -275,43 +323,78 @@ public class TableRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvalue")
                   .setNumber(9)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timevalue")
                   .setNumber(10)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datetimevalue")
                   .setNumber(11)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datevalue")
                   .setNumber(2)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("numericvalue")
                   .setNumber(13)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_BYTES)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("bignumericvalue")
+                  .setNumber(14)
+                  .setType(Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("arrayvalue")
-                  .setNumber(14)
-                  .setType(Type.TYPE_STRING)
+                  .setNumber(15)
+                  .setType(Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_REPEATED)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampisovalue")
+                  .setNumber(17)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluelong")
+                  .setNumber(20)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluespace")
+                  .setNumber(21)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("datetimevaluespace")
+                  .setNumber(21)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .build();
   private static final TableSchema NESTED_TABLE_SCHEMA =
@@ -414,6 +497,18 @@ public class TableRowToStorageApiProtoTest {
     assertEquals(expectedBaseTypesNoF, nestedTypesNoF2);
   }
 
+  private static final List<Object> REPEATED_BYTES =
+      ImmutableList.of(
+          BaseEncoding.base64().encode("hello".getBytes(StandardCharsets.UTF_8)),
+          "goodbye".getBytes(StandardCharsets.UTF_8),
+          ByteString.copyFrom("solong".getBytes(StandardCharsets.UTF_8)));
+
+  private static final List<Object> EXPECTED_PROTO_REPEATED_BYTES =
+      ImmutableList.of(
+          ByteString.copyFrom("hello".getBytes(StandardCharsets.UTF_8)),
+          ByteString.copyFrom("goodbye".getBytes(StandardCharsets.UTF_8)),
+          ByteString.copyFrom("solong".getBytes(StandardCharsets.UTF_8)));
+
   private static final TableRow BASE_TABLE_ROW =
       new TableRow()
           .setF(
@@ -426,15 +521,20 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("42"),
                   new TableCell().setV("43"),
                   new TableCell().setV("2.8168"),
-                  new TableCell().setV("2.817"),
+                  new TableCell().setV("2"),
                   new TableCell().setV("true"),
                   new TableCell().setV("true"),
-                  new TableCell().setV("43"),
-                  new TableCell().setV("00:52:07[.123]|[.123456] UTC"),
-                  new TableCell().setV("2019-08-16 00:52:07[.123]|[.123456] UTC"),
+                  new TableCell().setV("1970-01-01T00:00:00.000043Z"),
+                  new TableCell().setV("00:52:07.123456"),
+                  new TableCell().setV("2019-08-16T00:52:07.123456"),
                   new TableCell().setV("2019-08-16"),
                   new TableCell().setV("23.4"),
-                  new TableCell().setV(ImmutableList.of("hello", "goodbye"))));
+                  new TableCell().setV("2312345.4"),
+                  new TableCell().setV(REPEATED_BYTES),
+                  new TableCell().setV("1970-01-01T00:00:00.000+01:00"),
+                  new TableCell().setV("1234567"),
+                  new TableCell().setV("1970-01-01 00:00:00.000343"),
+                  new TableCell().setV("2019-08-16 00:52:07.123456")));
 
   private static final TableRow BASE_TABLE_ROW_NO_F =
       new TableRow()
@@ -444,15 +544,22 @@ public class TableRowToStorageApiProtoTest {
           .set("int64Value", "42")
           .set("intValue", "43")
           .set("float64Value", "2.8168")
-          .set("floatValue", "2.817")
+          .set("floatValue", "2")
           .set("boolValue", "true")
           .set("booleanValue", "true")
-          .set("timestampValue", "43")
-          .set("timeValue", "00:52:07[.123]|[.123456] UTC")
-          .set("datetimeValue", "2019-08-16 00:52:07[.123]|[.123456] UTC")
+          // UTC time
+          .set("timestampValue", "1970-01-01T00:00:00.000043Z")
+          .set("timeValue", "00:52:07.123456")
+          .set("datetimeValue", "2019-08-16T00:52:07.123456")
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
-          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+          .set("bigNumericValue", "2312345.4")
+          .set("arrayValue", REPEATED_BYTES)
+          .set("timestampISOValue", "1970-01-01T00:00:00.000+01:00")
+          .set("timestampValueLong", "1234567")
+          // UTC time for backwards compatibility
+          .set("timestampValueSpace", "1970-01-01 00:00:00.000343")
+          .set("datetimeValueSpace", "2019-08-16 00:52:07.123456");
 
   private static final Map<String, Object> BASE_ROW_EXPECTED_PROTO_VALUES =
       ImmutableMap.<String, Object>builder()
@@ -462,15 +569,24 @@ public class TableRowToStorageApiProtoTest {
           .put("int64value", (long) 42)
           .put("intvalue", (long) 43)
           .put("float64value", (double) 2.8168)
-          .put("floatvalue", (double) 2.817)
+          .put("floatvalue", (double) 2)
           .put("boolvalue", true)
           .put("booleanvalue", true)
-          .put("timestampvalue", "43")
-          .put("timevalue", "00:52:07[.123]|[.123456] UTC")
-          .put("datetimevalue", "2019-08-16 00:52:07[.123]|[.123456] UTC")
-          .put("datevalue", "2019-08-16")
-          .put("numericvalue", "23.4")
-          .put("arrayvalue", ImmutableList.of("hello", "goodbye"))
+          .put("timestampvalue", 43L)
+          .put("timevalue", 3497124416L)
+          .put("datetimevalue", 142111881387172416L)
+          .put("datevalue", (int) LocalDate.of(2019, 8, 16).toEpochDay())
+          .put(
+              "numericvalue",
+              BigDecimalByteStringEncoder.encodeToNumericByteString(new BigDecimal("23.4")))
+          .put(
+              "bignumericvalue",
+              BigDecimalByteStringEncoder.encodeToBigNumericByteString(new BigDecimal("2312345.4")))
+          .put("arrayvalue", EXPECTED_PROTO_REPEATED_BYTES)
+          .put("timestampisovalue", -3600000000L)
+          .put("timestampvaluelong", 1234567000L)
+          .put("timestampvaluespace", 343L)
+          .put("datetimevaluespace", 142111881387172416L)
           .build();
 
   private static final Map<String, Object> BASE_ROW_NO_F_EXPECTED_PROTO_VALUES =
@@ -480,15 +596,24 @@ public class TableRowToStorageApiProtoTest {
           .put("int64value", (long) 42)
           .put("intvalue", (long) 43)
           .put("float64value", (double) 2.8168)
-          .put("floatvalue", (double) 2.817)
+          .put("floatvalue", (double) 2)
           .put("boolvalue", true)
           .put("booleanvalue", true)
-          .put("timestampvalue", "43")
-          .put("timevalue", "00:52:07[.123]|[.123456] UTC")
-          .put("datetimevalue", "2019-08-16 00:52:07[.123]|[.123456] UTC")
-          .put("datevalue", "2019-08-16")
-          .put("numericvalue", "23.4")
-          .put("arrayvalue", ImmutableList.of("hello", "goodbye"))
+          .put("timestampvalue", 43L)
+          .put("timevalue", 3497124416L)
+          .put("datetimevalue", 142111881387172416L)
+          .put("datevalue", (int) LocalDate.parse("2019-08-16").toEpochDay())
+          .put(
+              "numericvalue",
+              BigDecimalByteStringEncoder.encodeToNumericByteString(new BigDecimal("23.4")))
+          .put(
+              "bignumericvalue",
+              BigDecimalByteStringEncoder.encodeToBigNumericByteString(new BigDecimal("2312345.4")))
+          .put("arrayvalue", EXPECTED_PROTO_REPEATED_BYTES)
+          .put("timestampisovalue", -3600000000L)
+          .put("timestampvaluelong", 1234567000L)
+          .put("timestampvaluespace", 343L)
+          .put("datetimevaluespace", 142111881387172416L)
           .build();
 
   private void assertBaseRecord(DynamicMessage msg, boolean withF) {
@@ -506,12 +631,16 @@ public class TableRowToStorageApiProtoTest {
         new TableRow()
             .set("nestedValue1", BASE_TABLE_ROW)
             .set("nestedValue2", BASE_TABLE_ROW)
-            .set("nestedvalueNoF1", BASE_TABLE_ROW_NO_F)
-            .set("nestedvalueNoF2", BASE_TABLE_ROW_NO_F);
+            .set("nestedValueNoF1", BASE_TABLE_ROW_NO_F)
+            .set("nestedValueNoF2", BASE_TABLE_ROW_NO_F);
 
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(NESTED_TABLE_SCHEMA);
-    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, tableRow, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(NESTED_TABLE_SCHEMA);
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, tableRow, false);
     assertEquals(4, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -527,8 +656,11 @@ public class TableRowToStorageApiProtoTest {
   public void testMessageWithFFromTableRow() throws Exception {
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(BASE_TABLE_SCHEMA);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(BASE_TABLE_SCHEMA);
     DynamicMessage msg =
-        TableRowToStorageApiProto.messageFromTableRow(descriptor, BASE_TABLE_ROW, false);
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, BASE_TABLE_ROW, false);
     assertBaseRecord(msg, true);
   }
 
@@ -567,8 +699,11 @@ public class TableRowToStorageApiProtoTest {
             .set("repeatednof2", ImmutableList.of(BASE_TABLE_ROW_NO_F, BASE_TABLE_ROW_NO_F));
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(REPEATED_MESSAGE_SCHEMA);
     DynamicMessage msg =
-        TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow, false);
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, repeatedRow, false);
     assertEquals(4, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -609,8 +744,11 @@ public class TableRowToStorageApiProtoTest {
             .set("repeatednof2", null);
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(REPEATED_MESSAGE_SCHEMA);
     DynamicMessage msg =
-        TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow, false);
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, repeatedRow, false);
 
     Map<String, FieldDescriptor> fieldDescriptors =
         descriptor.getFields().stream()

@@ -20,6 +20,7 @@ import (
     "reflect"
 
     "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
   	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 {{- range $import := .Imports}}
     "{{$import}}"
@@ -40,6 +41,7 @@ func init() {
 type emitNative struct {
 	n     exec.ElementProcessor
 	fn    interface{}
+	est   *sdf.WatermarkEstimator
 
 	ctx context.Context
 	ws  []typex.Window
@@ -58,6 +60,10 @@ func (e *emitNative) Value() interface{} {
 	return e.fn
 }
 
+func (e *emitNative) AttachEstimator(est *sdf.WatermarkEstimator) {
+	e.est = est
+}
+
 {{range $x := .X}}
 func emitMaker{{$x.Name}}(n exec.ElementProcessor) exec.ReusableEmitter {
     ret := &emitNative{n: n}
@@ -67,6 +73,9 @@ func emitMaker{{$x.Name}}(n exec.ElementProcessor) exec.ReusableEmitter {
 
 func (e *emitNative) invoke{{$x.Name}}(elm {{$x.Type}}) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: elm }
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
@@ -80,6 +89,9 @@ func emitMakerET{{$x.Name}}(n exec.ElementProcessor) exec.ReusableEmitter {
 
 func (e *emitNative) invokeET{{$x.Name}}(t typex.EventTime, elm {{$x.Type}}) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: t, Elm: elm }
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(t.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
@@ -94,6 +106,9 @@ func emitMaker{{$x.Name}}{{$y.Name}}(n exec.ElementProcessor) exec.ReusableEmitt
 
 func (e *emitNative) invoke{{$x.Name}}{{$y.Name}}(key {{$x.Type}}, val {{$y.Type}}) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: key, Elm2: val }
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
@@ -107,6 +122,9 @@ func emitMakerET{{$x.Name}}{{$y.Name}}(n exec.ElementProcessor) exec.ReusableEmi
 
 func (e *emitNative) invokeET{{$x.Name}}{{$y.Name}}(t typex.EventTime, key {{$x.Type}}, val {{$y.Type}}) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: t, Elm: key, Elm2: val }
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(t.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}

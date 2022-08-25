@@ -21,10 +21,10 @@
 
 {{ $scssMain := "scss/main.scss"}}
 {{ if .Site.IsServer }}
-    {{ $css := resources.Get $scssMain | toCSS (dict "enableSourceMap" true) | postCSS }}
+    {{ $css := resources.Get $scssMain | toCSS (dict "enableSourceMap" true) | resources.ExecuteAsTemplate "scss/main.css" . | postCSS }}
     <link href="{{ $css.RelPermalink }}" rel="stylesheet">
 {{ else }}
-    {{ $css := resources.Get $scssMain | toCSS (dict "enableSourceMap" false) | postCSS | minify | fingerprint }}
+    {{ $css := resources.Get $scssMain | toCSS (dict "enableSourceMap" false) | resources.ExecuteAsTemplate "scss/main.css" . | postCSS | minify | fingerprint }}
     <link rel="preload" href="{{ $css.RelPermalink }}" as="style">
     <link href="{{ $css.RelPermalink }}" rel="stylesheet" integrity="{{ $css.Data.integrity }}">
 {{ end }}
@@ -48,24 +48,30 @@
 {{ $sectionNav := resources.Get "js/section-nav.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $sectionNav.RelPermalink }}" defer></script>
 
-{{ $pageNav := resources.Get "js/page-nav.js" | minify | fingerprint }}
+{{ $pageNav := resources.Get "js/page-nav.js" | resources.ExecuteAsTemplate "js/page-nav.js" . | minify | fingerprint }}
 <script type="text/javascript" src="{{ $pageNav.RelPermalink }}" defer></script>
 
 {{ $expandableList := resources.Get "js/expandable-list.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $expandableList.RelPermalink }}" defer></script>
 
-{{ $copyToClipboard := resources.Get "js/copy-to-clipboard.js" | minify | fingerprint }}
+{{ $copyToClipboard := resources.Get "js/copy-to-clipboard.js" |  resources.ExecuteAsTemplate "js/copy-to-clipboard.js" . |minify | fingerprint }}
 <script type="text/javascript" src="{{ $copyToClipboard.RelPermalink }}" defer></script>
 
 {{ $calendar := resources.Get "js/calendar.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $calendar.RelPermalink }}" defer></script>
 
+{{ $fixPlaygroundNestedScroll := resources.Get "js/fix-playground-nested-scroll.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $fixPlaygroundNestedScroll.RelPermalink }}" defer></script>
+
+{{ $anchorContentJumpFix := resources.Get "js/anchor-content-jump-fix.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $anchorContentJumpFix.RelPermalink }}" defer></script>
+
 <link rel="alternate" type="application/rss+xml" title="{{ .Site.Title }}" href="/feed.xml">
 <link rel="canonical" href="{{ .Site.Params.hostName }}{{ .Permalink | absURL }}" data-proofer-ignore>
 <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+<link rel="stylesheet" href="https://unpkg.com/swiper@8/swiper-bundle.min.css"/>
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/keen-slider@5.3.2/keen-slider.min.css"/>
 
 <script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

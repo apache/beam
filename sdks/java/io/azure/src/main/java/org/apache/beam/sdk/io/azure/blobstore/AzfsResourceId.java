@@ -31,7 +31,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class AzfsResourceId implements ResourceId {
 

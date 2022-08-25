@@ -42,6 +42,11 @@ var (
 		"Sets an auto-shutdown timeout to the Kafka cluster. "+
 			"Requires the timeout command to be present in Path, unless the value is set to \"\".")
 
+	// BigQueryDataset is the name of the dataset to create tables in for
+	// BigQuery integration tests.
+	BigQueryDataset = flag.String("bq_dataset", "",
+		"Name of the dataset to create tables in for BigQuery tests.")
+
 	// ExpansionJars contains elements in the form "label:jar" describing jar
 	// filepaths for expansion services to use in integration tests, and the
 	// corresponding labels. Once provided through this flag, those jars can

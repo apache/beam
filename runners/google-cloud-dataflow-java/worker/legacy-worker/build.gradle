@@ -52,7 +52,7 @@ def sdk_provided_dependencies = [
         library.java.jackson_databind,
         library.java.joda_time,
         library.java.slf4j_api,
-        library.java.vendored_grpc_1_43_2,
+        library.java.vendored_grpc_1_48_1,
 ]
 
 def sdk_provided_shaded_project_dependencies = [
@@ -79,8 +79,8 @@ def excluded_dependencies = [
 ]
 
 applyJavaNature(
+        automaticModuleName: 'org.apache.beam.runners.dataflow.worker',
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
-        publish: false,
         classesTriggerCheckerBugs: [
           'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
           'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
@@ -90,7 +90,7 @@ applyJavaNature(
         shadowJarValidationExcludes: [
             "org/apache/beam/runners/dataflow/worker/**",
             "org/apache/beam/repackaged/beam_runners_google_cloud_dataflow_java_legacy_worker/**",
-            // TODO(BEAM-6137): Move DataflowRunnerHarness class under org.apache.beam.runners.dataflow.worker namespace
+            // TODO(https://github.com/apache/beam/issues/19114): Move DataflowRunnerHarness class under org.apache.beam.runners.dataflow.worker namespace
             "com/google/cloud/dataflow/worker/DataflowRunnerHarness.class",
             // Allow slf4j implementation worker for logging during pipeline execution
             "org/slf4j/impl/**"
@@ -228,7 +228,7 @@ dependencies {
     implementation library.java.joda_time
     implementation library.java.slf4j_api
     implementation "io.opencensus:opencensus-api:0.31.0"
-    implementation library.java.vendored_grpc_1_43_2
+    implementation library.java.vendored_grpc_1_48_1
     implementation library.java.error_prone_annotations
     permitUnusedDeclared library.java.error_prone_annotations
     runtimeOnly library.java.slf4j_jdk14
@@ -244,6 +244,7 @@ dependencies {
     shadowTest library.java.jsonassert
     shadowTest library.java.junit
     shadowTest library.java.mockito_core
+    shadowTest library.java.powermock
 }
 
 project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
@@ -267,8 +268,8 @@ project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
 
 tasks.check.dependsOn project.tasks.validateShadedJarContainsSlf4jJdk14
 
-//TODO(BEAM-5657): checktyle task should be enabled in the future.
+//TODO(https://github.com/apache/beam/issues/19115): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false
 checkstyleTest.enabled = false
-//TODO(BEAM-5659): javadoc task should be enabled in the future.
+//TODO(https://github.com/apache/beam/issues/19119): javadoc task should be enabled in the future.
 javadoc.enabled = false

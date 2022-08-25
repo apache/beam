@@ -18,6 +18,7 @@
 
 import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
 import 'example_mock.dart';
 
@@ -35,3 +36,10 @@ final List<ExampleModel> unsortedExamples = [exampleMock1, exampleMock2];
 final List<ExampleModel> examplesSortedByTypeMock = [exampleMock2];
 
 final List<ExampleModel> examplesSortedByNameMock = [exampleMock1];
+
+final sdkCategoriesFromServerMock = {
+  SDK.java: categoriesMock,
+  SDK.python: categoriesMock,
+  SDK.go: categoriesMock,
+  SDK.scio: categoriesMock,
+};

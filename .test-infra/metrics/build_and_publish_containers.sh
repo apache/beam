@@ -40,7 +40,6 @@ echo
 echo ===========Building containers==========
 docker build -t gcr.io/${PROJECT_ID}/beamgrafana:$CONTAINER_VERSION_NAME ./grafana
 docker build -t gcr.io/${PROJECT_ID}/beammetricssyncjenkins:$CONTAINER_VERSION_NAME ./sync/jenkins
-docker build -t gcr.io/${PROJECT_ID}/beammetricssyncjira:$CONTAINER_VERSION_NAME ./sync/jira
 docker build -t gcr.io/${PROJECT_ID}/beammetricssyncgithub:$CONTAINER_VERSION_NAME ./sync/github
 
 if [ "$DO_PUSH" = true ]; then
@@ -48,6 +47,5 @@ if [ "$DO_PUSH" = true ]; then
   echo ===========Publishing containers==========
   docker push gcr.io/${PROJECT_ID}/beamgrafana:$CONTAINER_VERSION_NAME
   docker push gcr.io/${PROJECT_ID}/beammetricssyncjenkins:$CONTAINER_VERSION_NAME
-  docker push gcr.io/${PROJECT_ID}/beammetricssyncjira:$CONTAINER_VERSION_NAME
   docker push gcr.io/${PROJECT_ID}/beammetricssyncgithub:$CONTAINER_VERSION_NAME
 fi

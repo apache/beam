@@ -34,7 +34,6 @@ const (
 	newLinePattern                    = "\n"
 	javaPublicClassNamePattern        = "public class (.*?) [{|implements(.*)]"
 	pipelineNamePattern               = `Pipeline\s([A-z|0-9_]*)\s=\sPipeline\.create`
-	findImportsPattern                = `import.*\;`
 	graphSavePattern                  = "String dotString = org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer.toDotString(%s);\n" +
 		"    try (java.io.PrintWriter out = new java.io.PrintWriter(\"Graph.dot\")) {\n      " +
 		"		out.println(dotString);\n    " +
@@ -107,7 +106,7 @@ func (builder *JavaPreparersBuilder) WithGraphHandler() *JavaPreparersBuilder {
 func addCodeToSaveGraph(args ...interface{}) error {
 	filePath := args[0].(string)
 	pipelineObjectName, _ := findPipelineObjectName(filePath)
-	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName, utils.GraphFileName)
+	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName, pipelineObjectName)
 
 	if pipelineObjectName != utils.EmptyLine {
 		err := replace(filePath, fmt.Sprintf("%s.run", pipelineObjectName), graphSaveCode)

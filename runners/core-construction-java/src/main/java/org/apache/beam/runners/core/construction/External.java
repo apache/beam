@@ -52,9 +52,9 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -72,8 +72,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Experimental(Kind.PORTABILITY)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class External {
   private static final String EXPANDED_TRANSFORM_BASE_NAME = "external";
@@ -98,8 +98,12 @@ public class External {
   }
 
   @VisibleForTesting
-  static <InputT extends PInput, OutputT> SingleOutputExpandableTransform<InputT, OutputT> of(
-      String urn, byte[] payload, String endpoint, ExpansionServiceClientFactory clientFactory) {
+  public static <InputT extends PInput, OutputT>
+      SingleOutputExpandableTransform<InputT, OutputT> of(
+          String urn,
+          byte[] payload,
+          String endpoint,
+          ExpansionServiceClientFactory clientFactory) {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
     return new SingleOutputExpandableTransform<>(
@@ -115,7 +119,7 @@ public class External {
         Endpoints.ApiServiceDescriptor endpoint,
         ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex,
-        Map<String, Coder> outputCoders) {
+        Map<String, Coder<?>> outputCoders) {
       super(urn, payload, endpoint, clientFactory, namespaceIndex, outputCoders);
     }
 
@@ -135,7 +139,7 @@ public class External {
           getOutputCoders());
     }
 
-    public SingleOutputExpandableTransform<InputT, OutputT> withOutputCoder(Coder outputCoder) {
+    public SingleOutputExpandableTransform<InputT, OutputT> withOutputCoder(Coder<?> outputCoder) {
       return new SingleOutputExpandableTransform<>(
           getUrn(),
           getPayload(),
@@ -155,7 +159,7 @@ public class External {
         Endpoints.ApiServiceDescriptor endpoint,
         ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex,
-        Map<String, Coder> outputCoders) {
+        Map<String, Coder<?>> outputCoders) {
       super(urn, payload, endpoint, clientFactory, namespaceIndex, outputCoders);
     }
 
@@ -170,7 +174,8 @@ public class External {
       return pCollectionTuple;
     }
 
-    public MultiOutputExpandableTransform<InputT> withOutputCoder(Map<String, Coder> outputCoders) {
+    public MultiOutputExpandableTransform<InputT> withOutputCoder(
+        Map<String, Coder<?>> outputCoders) {
       return new MultiOutputExpandableTransform<>(
           getUrn(),
           getPayload(),
@@ -189,13 +194,13 @@ public class External {
     private final Endpoints.ApiServiceDescriptor endpoint;
     private final ExpansionServiceClientFactory clientFactory;
     private final Integer namespaceIndex;
-    private final Map<String, Coder> outputCoders;
+    private final Map<String, Coder<?>> outputCoders;
 
     private transient RunnerApi.@Nullable Components expandedComponents;
     private transient RunnerApi.@Nullable PTransform expandedTransform;
     private transient @Nullable List<String> expandedRequirements;
     private transient @Nullable Map<PCollection, String> externalPCollectionIdMap;
-    private transient @Nullable Map<Coder, String> externalCoderIdMap;
+    private transient @Nullable Map<Coder<?>, String> externalCoderIdMap;
 
     ExpandableTransform(
         String urn,
@@ -203,7 +208,7 @@ public class External {
         Endpoints.ApiServiceDescriptor endpoint,
         ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex,
-        Map<String, Coder> outputCoders) {
+        Map<String, Coder<?>> outputCoders) {
       this.urn = urn;
       this.payload = payload;
       this.endpoint = endpoint;
@@ -238,7 +243,8 @@ public class External {
                     PValues.expandInput(PBegin.in(p)),
                     ImmutableMap.of(entry.getKey(), (PCollection<?>) entry.getValue()),
                     Impulse.create(),
-                    // TODO(BEAM-12082): Add proper support for Resource Hints with XLang.
+                    // TODO(https://github.com/apache/beam/issues/18371): Add proper support for
+                    // Resource Hints with XLang.
                     ResourceHints.create(),
                     p);
             // using fake Impulses to provide inputs
@@ -315,7 +321,7 @@ public class External {
               });
       externalPCollectionIdMap = externalPCollectionIdMapBuilder.build();
 
-      Map<Coder, String> externalCoderIdMapBuilder = new HashMap<>();
+      Map<Coder<?>, String> externalCoderIdMapBuilder = new HashMap<>();
       expandedComponents
           .getPcollectionsMap()
           .forEach(
@@ -323,7 +329,7 @@ public class External {
                 try {
                   String coderId = pCol.getCoderId();
                   if (isJavaSDKCompatible(expandedComponents, coderId)) {
-                    Coder coder = rehydratedComponents.getCoder(coderId);
+                    Coder<?> coder = rehydratedComponents.getCoder(coderId);
                     externalCoderIdMapBuilder.putIfAbsent(coder, coderId);
                   }
                 } catch (IOException e) {
@@ -450,7 +456,7 @@ public class External {
       return externalPCollectionIdMap;
     }
 
-    Map<Coder, String> getExternalCoderIdMap() {
+    Map<Coder<?>, String> getExternalCoderIdMap() {
       return externalCoderIdMap;
     }
 
@@ -474,7 +480,7 @@ public class External {
       return namespaceIndex;
     }
 
-    Map<String, Coder> getOutputCoders() {
+    Map<String, Coder<?>> getOutputCoders() {
       return outputCoders;
     }
   }

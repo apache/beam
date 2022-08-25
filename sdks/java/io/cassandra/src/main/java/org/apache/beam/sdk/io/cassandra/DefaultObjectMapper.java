@@ -30,7 +30,7 @@ import java.util.concurrent.Future;
  * @see org.apache.beam.sdk.io.cassandra.DefaultObjectMapperFactory
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class DefaultObjectMapper<T> implements Mapper<T>, Serializable {
 

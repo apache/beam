@@ -22,16 +22,12 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import org.apache.beam.sdk.io.aws.options.S3ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Construct AmazonS3ClientBuilder with default values of S3 client properties like path style
  * access, accelerated mode, etc.
  */
 public class DefaultS3ClientBuilderFactory implements S3ClientBuilderFactory {
-
-  private static final Logger LOG = LoggerFactory.getLogger(DefaultS3ClientBuilderFactory.class);
 
   @Override
   public AmazonS3ClientBuilder createBuilder(S3Options s3Options) {
@@ -49,10 +45,6 @@ public class DefaultS3ClientBuilderFactory implements S3ClientBuilderFactory {
                   s3Options.getAwsServiceEndpoint(), s3Options.getAwsRegion()));
     } else if (!Strings.isNullOrEmpty(s3Options.getAwsRegion())) {
       builder = builder.withRegion(s3Options.getAwsRegion());
-    } else {
-      LOG.info(
-          "The AWS S3 Beam extension was included in this build, but the awsRegion flag "
-              + "was not specified. If you don't plan to use S3, then ignore this message.");
     }
     return builder;
   }

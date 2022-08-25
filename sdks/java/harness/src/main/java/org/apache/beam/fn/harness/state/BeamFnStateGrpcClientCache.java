@@ -28,8 +28,8 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * <p>TODO: Add the ability to close which cancels any pending and stops any future requests.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamFnStateGrpcClientCache {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnStateGrpcClientCache.class);

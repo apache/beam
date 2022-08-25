@@ -37,6 +37,12 @@ import org.apache.spark.streaming.api.java.JavaStreamingListener;
  * which link to Spark dependencies, won't be scanned by {@link PipelineOptions} reflective
  * instantiation. Note that {@link SparkContextOptions} is not registered with {@link
  * SparkRunnerRegistrar}.
+ *
+ * <p>Note: It's recommended to use {@link
+ * org.apache.beam.runners.spark.translation.SparkContextFactory#setProvidedSparkContext(JavaSparkContext)}
+ * instead of {@link SparkContextOptions#setProvidedSparkContext(JavaSparkContext)} for testing.
+ * When using @{@link org.apache.beam.sdk.testing.TestPipeline} any provided {@link
+ * JavaSparkContext} via {@link SparkContextOptions} is dropped.
  */
 public interface SparkContextOptions extends SparkPipelineOptions {
 

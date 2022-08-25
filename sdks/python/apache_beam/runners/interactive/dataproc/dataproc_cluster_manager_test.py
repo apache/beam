@@ -24,7 +24,7 @@ from unittest.mock import patch
 
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
-from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
+from apache_beam.runners.interactive.dataproc.types import ClusterMetadata
 
 try:
   from google.cloud import dataproc_v1  # pylint: disable=unused-import
@@ -87,7 +87,7 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that no exception is thrown when a cluster already exists,
     but is using ie.current_env().clusters.default_cluster_name.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project', region='test-region')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
@@ -103,7 +103,7 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when a user is trying to write to
     a project while having insufficient permissions.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project', region='test-region')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
@@ -121,7 +121,7 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when a user specifies a region
     that does not exist.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project', region='test-region')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
@@ -137,7 +137,7 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when the exception is not handled by
     any other case under _create_cluster.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project', region='test-region')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
@@ -157,7 +157,7 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when a user is trying to delete
     a project that they have insufficient permissions for.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project', region='test-region')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
@@ -179,7 +179,7 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when cleanup attempts to delete
     a cluster that does not exist.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project', region='test-region')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
@@ -199,7 +199,7 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when the exception is not handled by
     any other case under cleanup.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project', region='test-region')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
@@ -223,13 +223,13 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Test to receive a mock staging location successfully under
     get_staging_location.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project',
         region='test-region',
         cluster_name='test-cluster')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     self.assertEqual(
-        cluster_manager.get_staging_location(cluster_metadata),
+        cluster_manager.get_staging_location(),
         'gs://test-bucket/google-cloud-dataproc-metainfo/')
 
   @patch(
@@ -239,13 +239,13 @@ class DataprocClusterManagerTest(unittest.TestCase):
     """
     Test to catch when an error is raised inside get_staging_location.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project',
         region='test-region',
         cluster_name='test-cluster')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     with self.assertRaises(MockException):
-      cluster_manager.get_staging_location(cluster_metadata)
+      cluster_manager.get_staging_location()
 
   @patch(
       'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
@@ -262,13 +262,12 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that parse_master_url_and_dashboard properly parses the input
     string and produces a mock master_url and mock dashboard link.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project', region='test-region')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     line = 'test-line Found Web Interface test-master-url' \
     ' of application \'test-app-id\'.\n'
-    master_url, dashboard = cluster_manager.parse_master_url_and_dashboard(
-      cluster_metadata, line)
+    master_url, dashboard = cluster_manager.parse_master_url_and_dashboard(line)
     self.assertEqual('test-master-url', master_url)
     self.assertEqual(
         'test-resource-manager/gateway/default/yarn/proxy/test-app-id/',
@@ -282,14 +281,14 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when a user is trying to get information
     for a project without sufficient permissions to do so.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project', region='test-region')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
     with self.assertLogs(
         _LOGGER,
         level='ERROR') as context_manager, self.assertRaises(ValueError):
-      cluster_manager.get_cluster_details(cluster_metadata)
+      cluster_manager.get_cluster_details()
       self.assertTrue(
           'Due to insufficient project permissions' in
           context_manager.output[0])
@@ -302,14 +301,14 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when cleanup attempts to get information
     for a cluster that does not exist.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project', region='test-region')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
     with self.assertLogs(
         _LOGGER,
         level='ERROR') as context_manager, self.assertRaises(ValueError):
-      cluster_manager.get_cluster_details(cluster_metadata)
+      cluster_manager.get_cluster_details()
       self.assertTrue('Cluster does not exist' in context_manager.output[0])
 
   @patch(
@@ -320,14 +319,14 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when the exception is not handled by
     any other case under get_cluster_details.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project', region='test-region')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
     with self.assertLogs(
         _LOGGER,
         level='ERROR') as context_manager, self.assertRaises(MockException):
-      cluster_manager.get_cluster_details(cluster_metadata)
+      cluster_manager.get_cluster_details()
       self.assertTrue(
           'Failed to get information for cluster' in context_manager.output[0])
 
@@ -341,14 +340,12 @@ class DataprocClusterManagerTest(unittest.TestCase):
     unique substring which identifies the location of the master_url and
     application id of the Flink master.
     """
-    cluster_metadata = MasterURLIdentifier(
+    cluster_metadata = ClusterMetadata(
         project_id='test-project', region='test-region')
     cluster_manager = DataprocClusterManager(cluster_metadata)
     cluster_manager._fs = MockFileSystem()
-    master_url, dashboard = cluster_manager.get_master_url_and_dashboard(
-        cluster_metadata,
-        'test-staging-bucket'
-    )
+    cluster_metadata._staging_directory = 'test-staging-bucket'
+    master_url, dashboard = cluster_manager.get_master_url_and_dashboard()
     self.assertEqual(master_url, 'test-master-url')
     self.assertEqual(dashboard, 'test-dashboard-link')
 

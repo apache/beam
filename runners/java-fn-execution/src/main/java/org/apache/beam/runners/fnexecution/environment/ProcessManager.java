@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 /** A simple process manager which forks processes and kills them if necessary. */
 @ThreadSafe
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ProcessManager {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessManager.class);

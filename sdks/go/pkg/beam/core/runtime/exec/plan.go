@@ -66,8 +66,8 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		if p, ok := u.(*PCollection); ok {
 			pcols = append(pcols, p)
 		}
-		if p, ok := u.(*ParDo); ok {
-			p.bf = &bf
+		if p, ok := u.(needsBundleFinalization); ok {
+			p.AttachFinalizer(&bf)
 		}
 	}
 	if len(roots) == 0 {
@@ -275,4 +275,12 @@ func (p *Plan) Split(s SplitPoints) (SplitResult, error) {
 		return p.source.Split(s.Splits, s.Frac, s.BufSize)
 	}
 	return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
+}
+
+// Checkpoint attempts to split an SDF if the DoFn self-checkpointed.
+func (p *Plan) Checkpoint() (SplitResult, time.Duration, bool, error) {
+	if p.source != nil {
+		return p.source.Checkpoint()
+	}
+	return SplitResult{}, -1 * time.Minute, false, nil
 }

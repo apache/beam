@@ -28,12 +28,13 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaTooNarrowException;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"nullness"})
-public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
+public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
   private final SerializableFunction<T, TableRow> formatFunction;
   private final CreateDisposition createDisposition;
@@ -69,7 +70,8 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
   public MessageConverter<T> getMessageConverter(
       DestinationT destination, DatasetService datasetService) throws Exception {
     return new MessageConverter<T>() {
-      TableSchema tableSchema;
+      @Nullable TableSchema tableSchema;
+      TableRowToStorageApiProto.SchemaInformation schemaInformation;
       Descriptor descriptor;
       long descriptorHash;
 
@@ -103,7 +105,8 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
               MoreObjects.firstNonNull(
                   SCHEMA_CACHE.putSchemaIfAbsent(tableReference, tableSchema), tableSchema);
         }
-
+        schemaInformation =
+            TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
         descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
         descriptorHash = BigQueryUtils.hashSchemaDescriptorDeterministic(descriptor);
       }
@@ -130,7 +133,6 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
 
       public void refreshSchemaInternal() throws Exception {
         TableReference tableReference = getTable(destination).getTableReference();
-        LOG.info("Refreshing schema for table " + BigQueryHelpers.toTableSpec(tableReference));
         SCHEMA_CACHE.refreshSchema(tableReference, datasetService);
         TableSchema newSchema = SCHEMA_CACHE.getSchema(tableReference, datasetService);
         if (newSchema == null) {
@@ -138,6 +140,8 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
         }
         synchronized (this) {
           tableSchema = newSchema;
+          schemaInformation =
+              TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
           descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
           long newHash = BigQueryUtils.hashSchemaDescriptorDeterministic(descriptor);
           if (descriptorHash != newHash) {
@@ -151,19 +155,29 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
       }
 
       @Override
+      public TableRow toTableRow(T element) {
+        return formatFunction.apply(element);
+      }
+
+      @Override
       public StorageApiWritePayload toMessage(T element) throws Exception {
         int attempt = 0;
         do {
+          TableRowToStorageApiProto.SchemaInformation localSchemaInformation;
           Descriptor localDescriptor;
           long localDescriptorHash;
           synchronized (this) {
+            localSchemaInformation = schemaInformation;
             localDescriptor = descriptor;
             localDescriptorHash = descriptorHash;
           }
           try {
             Message msg =
                 TableRowToStorageApiProto.messageFromTableRow(
-                    localDescriptor, formatFunction.apply(element), ignoreUnknownValues);
+                    localSchemaInformation,
+                    localDescriptor,
+                    formatFunction.apply(element),
+                    ignoreUnknownValues);
             return new AutoValue_StorageApiWritePayload(msg.toByteArray(), localDescriptorHash);
           } catch (SchemaTooNarrowException e) {
             if (attempt > schemaUpdateRetries) {

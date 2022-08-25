@@ -27,7 +27,6 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -65,7 +64,8 @@ import org.joda.time.Duration;
  *     words.apply(Deduplicate.<String>values());
  * }</pre>
  */
-// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
 @SuppressWarnings("unused")
 public final class Deduplicate {
   /** The default is the {@link TimeDomain#PROCESSING_TIME processing time domain}. */
@@ -307,17 +307,14 @@ public final class Deduplicate {
     @ProcessElement
     public void processElement(
         @Element KV<K, V> element,
-        BoundedWindow window,
         OutputReceiver<KV<K, V>> receiver,
         @StateId(SEEN_STATE) ValueState<Boolean> seenState,
         @TimerId(EXPIRY_TIMER) Timer expiryTimer) {
       Boolean seen = seenState.read();
       // Seen state is either set or not set so if it has been set then it must be true.
       if (seen == null) {
-        // We don't want the expiry timer to hold up watermarks, so we set its output timestamp to
-        // the end of the
-        // window.
-        expiryTimer.offset(duration).withOutputTimestamp(window.maxTimestamp()).setRelative();
+        // We don't want the expiry timer to hold up watermarks.
+        expiryTimer.offset(duration).withNoOutputTimestamp().setRelative();
         seenState.write(true);
         receiver.output(element);
       }

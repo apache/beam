@@ -37,7 +37,7 @@ import org.joda.time.Instant;
 
 /** A simulator of the {@code WinningBids} query. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
   /** Auctions currently still open, indexed by auction id. */

@@ -48,6 +48,7 @@ from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import is_consistent_with
+from apache_beam.typehints.typehints import visit_inner_types
 
 
 def check_or_interleave(hint, value, var):
@@ -306,6 +307,21 @@ class UnionHintTestCase(TypeHintTestCase):
             A: str, B: int
         }), typehints.Union[str, int])
     self.assertEqual(hint.bind_type_variables({A: int, B: int}), int)
+
+  def test_visit_inner_types(self):
+    A = typehints.TypeVariable('A')  # pylint: disable=invalid-name
+    B = typehints.TypeVariable('B')  # pylint: disable=invalid-name
+    hint = typehints.Tuple[Tuple[A, A], B, int]
+
+    user_data = object()
+    nodes = []
+
+    def visitor(hint, arg):
+      self.assertIs(arg, user_data)
+      nodes.append(hint)
+
+    visit_inner_types(hint, visitor, user_data)
+    self.assertEqual(nodes, [hint, Tuple[A, A], A, A, B, int])
 
 
 class OptionalHintTestCase(TypeHintTestCase):

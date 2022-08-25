@@ -22,7 +22,7 @@ This page illustrates the usage of Beam SQL with example code.
 
 ## Beam Schemas and Rows
 
-A SQL query can only be applied to a a `PCollection<T>`
+A SQL query can only be applied to a `PCollection<T>`
 where `T` has a schema registered, or a `PCollection<Row>`. See the
 [schema documentation](/documentation/programming-guide/#what-is-a-schema) in
 the Beam Programming Guide for details on registering a schema for a type `T`.

@@ -50,7 +50,7 @@ var unimplementedCoders = map[string]bool{
 
 var filteredCases = []struct{ filter, reason string }{
 	{"logical", "BEAM-9615: Support logical types"},
-	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "BEAM-13043: Support encoding position."},
+	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "https://github.com/apache/beam/issues/21206: Support encoding position."},
 }
 
 // Coder is a representation a serialized beam coder.
@@ -89,7 +89,7 @@ func (s *Spec) testStandardCoder() (err error) {
 		return nil
 	}
 	if s.Coder.Urn == "beam:coder:state_backed_iterable:v1" {
-		log.Printf("skipping unimplemented test coverage for beam:coder:state_backed_iterable:v1. BEAM-13801")
+		log.Printf("skipping unimplemented test coverage for beam:coder:state_backed_iterable:v1. https://github.com/apache/beam/issues/21324")
 		return nil
 	}
 	for _, c := range filteredCases {
@@ -338,6 +338,7 @@ var nameToType = map[string]reflect.Type{
 	"f_bool":  reflectx.Bool,
 	"f_bytes": reflect.PtrTo(reflectx.ByteSlice),
 	"f_map":   reflect.MapOf(reflectx.String, reflect.PtrTo(reflectx.Int64)),
+	"f_float": reflectx.Float32,
 }
 
 func setField(rv reflect.Value, i int, v interface{}) {
@@ -355,6 +356,12 @@ func setField(rv reflect.Value, i int, v interface{}) {
 		rf.SetString(v.(string))
 	case reflect.Int32:
 		rf.SetInt(int64(v.(int)))
+	case reflect.Float32:
+		c, err := strconv.ParseFloat(v.(string), 32)
+		if err != nil {
+			panic(err)
+		}
+		rf.SetFloat(c)
 	case reflect.Float64:
 		c, err := strconv.ParseFloat(v.(string), 64)
 		if err != nil {

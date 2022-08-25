@@ -31,12 +31,12 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.util.JsonFormat;
 
 /** Translator for Schema coders. */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<SchemaCoder> {
   private static final String SCHEMA = "schema";

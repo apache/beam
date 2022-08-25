@@ -122,13 +122,13 @@ public class SqlQueryTest {
     }
 
     @Test
-    @Ignore("https://jira.apache.org/jira/browse/BEAM-7072")
+    @Ignore("https://github.com/apache/beam/issues/19541")
     public void sqlQuery5MatchesModelBatch() {
       queryMatchesModel("SqlQuery5TestBatch", getQuery5(CONFIG), new Query5Model(CONFIG), false);
     }
 
     @Test
-    @Ignore("https://jira.apache.org/jira/browse/BEAM-7072")
+    @Ignore("https://github.com/apache/beam/issues/19541")
     public void sqlQuery5MatchesModelStreaming() {
       queryMatchesModel("SqlQuery5TestStreaming", getQuery5(CONFIG), new Query5Model(CONFIG), true);
     }

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.testutils.publishing;
 import static org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils.isBlank;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class InfluxDBSettings {
 

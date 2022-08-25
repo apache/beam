@@ -72,7 +72,7 @@ import org.junit.runners.model.Statement;
  * <p>Deletes topic and subscription on shutdown.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TestPubsub implements TestRule {
   private static final DateTimeFormatter DATETIME_FORMAT =

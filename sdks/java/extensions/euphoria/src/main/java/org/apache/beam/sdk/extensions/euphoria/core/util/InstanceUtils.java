@@ -26,7 +26,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
  */
 @Audience(Audience.Type.EXECUTOR)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class InstanceUtils {
 

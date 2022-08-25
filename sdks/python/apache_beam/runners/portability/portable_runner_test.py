@@ -25,7 +25,6 @@ import time
 import unittest
 
 import grpc
-import pytest
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
@@ -221,7 +220,7 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
     raise unittest.SkipTest("Portable runners don't support drain yet.")
 
 
-@unittest.skip("BEAM-7248")
+@unittest.skip("https://github.com/apache/beam/issues/19422")
 class PortableRunnerOptimized(PortableRunnerTest):
   def create_options(self):
     options = super().create_options()
@@ -232,8 +231,8 @@ class PortableRunnerOptimized(PortableRunnerTest):
     return options
 
 
-# TODO(BEAM-7248): Delete this test after PortableRunner supports
-# beam:runner:executable_stage:v1.
+# TODO(https://github.com/apache/beam/issues/19422): Delete this test after
+# PortableRunner supports beam:runner:executable_stage:v1.
 class PortableRunnerOptimizedWithoutFusion(PortableRunnerTest):
   def create_options(self):
     options = super().create_options()
@@ -263,7 +262,6 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     return options
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="[BEAM-10625]")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_subprocesses = True
 
@@ -290,6 +288,11 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
         '-p',
         str(job_port),
     ]
+
+  def test_batch_rebatch_pardos(self):
+    raise unittest.SkipTest(
+        "Portable runners with subprocess can't make "
+        "assertions about warnings raised on the worker.")
 
 
 class PortableRunnerTestWithSubprocessesAndMultiWorkers(

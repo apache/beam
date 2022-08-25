@@ -62,7 +62,6 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
-import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
 import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
@@ -369,7 +368,7 @@ public class HCatalogIOTest implements Serializable {
     service.executeQuery("create table " + TEST_TABLE + "(mycol1 string, mycol2 int)");
   }
 
-  private void reCreateTestTableForUnboundedReads() throws CommandNeedRetryException {
+  private void reCreateTestTableForUnboundedReads() {
     service.executeQuery("drop table " + TEST_TABLE);
     service.executeQuery(
         "create table "

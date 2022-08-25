@@ -284,7 +284,7 @@ class PipelineInstrument(object):
     roots = [root for root in pipeline_proto.root_transform_ids]
 
     # Get the transform IDs of the caching transforms. These caching operations
-    # are added the the _background_caching_pipeline in the instrument() method.
+    # are added to the _background_caching_pipeline in the instrument() method.
     # It's added there so that multiple calls to this method won't add multiple
     # caching operations (idempotent).
     transforms = pipeline_proto.components.transforms

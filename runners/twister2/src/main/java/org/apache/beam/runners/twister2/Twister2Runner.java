@@ -63,8 +63,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * the configuration.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Twister2Runner extends PipelineRunner<PipelineResult> {
 
@@ -91,7 +91,8 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
     LOG.info("Translating pipeline to Twister2 program.");
     pipeline.replaceAll(getDefaultOverrides());
 
-    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default when we address
+    // performance issue.
     if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }
@@ -152,7 +153,8 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
     LOG.info("Translating pipeline to Twister2 program.");
     pipeline.replaceAll(getDefaultOverrides());
 
-    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default when we address
+    // performance issue.
     if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }

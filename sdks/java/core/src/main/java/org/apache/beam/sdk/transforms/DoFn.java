@@ -53,6 +53,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -98,6 +99,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * Returns the {@code PipelineOptions} specified with the {@link
      * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
+    @Pure
     public abstract PipelineOptions getPipelineOptions();
   }
 
@@ -107,6 +109,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * Returns the {@code PipelineOptions} specified with the {@link
      * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
+    @Pure
     public abstract PipelineOptions getPipelineOptions();
 
     /**
@@ -141,6 +144,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * Returns the {@code PipelineOptions} specified with the {@link
      * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
+    @Pure
     public abstract PipelineOptions getPipelineOptions();
 
     /**
@@ -240,6 +244,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * <p>The element will not be changed -- it is safe to cache, etc. without copying.
      * Implementation of {@link DoFn.ProcessElement} method should not mutate the element.
      */
+    @Pure
     public abstract InputT element();
 
     /**
@@ -248,6 +253,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * @throws IllegalArgumentException if this is not a side input
      * @see ParDo.SingleOutput#withSideInputs
      */
+    @Pure
     public abstract <T> T sideInput(PCollectionView<T> view);
 
     /**
@@ -255,6 +261,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      *
      * <p>See {@link Window} for more information.
      */
+    @Pure
     public abstract Instant timestamp();
 
     /**
@@ -264,6 +271,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * <p>Generally all data is in a single, uninteresting pane unless custom triggering and/or late
      * data has been explicitly requested. See {@link Window} for more information.
      */
+    @Pure
     public abstract PaneInfo pane();
   }
 
@@ -287,6 +295,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   public abstract class OnWindowExpirationContext extends WindowedContext {
 
     /** Returns the window in which the window expiration is firing. */
+    @Pure
     public abstract BoundedWindow window();
   }
 
@@ -300,7 +309,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * @deprecated This method permits a {@link DoFn} to emit elements behind the watermark. These
    *     elements are considered late, and if behind the {@link Window#withAllowedLateness(Duration)
    *     allowed lateness} of a downstream {@link PCollection} may be silently dropped. See
-   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
+   *     https://github.com/apache/beam/issues/18065 for details on a replacement.
    */
   @Deprecated
   public Duration getAllowedTimestampSkew() {
@@ -850,8 +859,8 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       commits the output of this bundle. See <a
    *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
    *       Finalize Bundles</a> for further details.
-   *   <li>TODO(BEAM-1287): Add support for an {@link OutputReceiver} and {@link
-   *       MultiOutputReceiver} that can output to a window.
+   *   <li>TODO(https://github.com/apache/beam/issues/18203): Add support for an {@link
+   *       OutputReceiver} and {@link MultiOutputReceiver} that can output to a window.
    * </ul>
    *
    * <p>Note that {@link FinishBundle @FinishBundle} is invoked before the runner commits the output

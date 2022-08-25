@@ -89,7 +89,6 @@ COMMENTS_TO_ADD = [
     "Run PostCommit_Java_Dataflow",
     "Run PostCommit_Java_DataflowV2",
     "Run PostCommit_Java_Hadoop_Versions",
-    "Run Python 3.6 PostCommit",
     "Run Python 3.7 PostCommit",
     "Run Python 3.8 PostCommit",
     "Run Python 3.9 PostCommit",

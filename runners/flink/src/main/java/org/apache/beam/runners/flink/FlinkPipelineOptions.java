@@ -39,9 +39,9 @@ public interface FlinkPipelineOptions
   String EXACTLY_ONCE = "EXACTLY_ONCE";
 
   /**
-   * The url of the Flink JobManager on which to execute pipelines. This can either be the the
-   * address of a cluster JobManager, in the form "host:port" or one of the special Strings
-   * "[local]", "[collection]" or "[auto]". "[local]" will start a local Flink Cluster in the JVM,
+   * The url of the Flink JobManager on which to execute pipelines. This can either be the address
+   * of a cluster JobManager, in the form "host:port" or one of the special Strings "[local]",
+   * "[collection]" or "[auto]". "[local]" will start a local Flink Cluster in the JVM,
    * "[collection]" will execute the pipeline on Java Collections while "[auto]" will let the system
    * decide where to execute the pipeline based on the environment.
    */
@@ -107,7 +107,7 @@ public interface FlinkPipelineOptions
   @Description(
       "Sets the expected behaviour for tasks in case that they encounter an error in their "
           + "checkpointing procedure. If this is set to true, the task will fail on checkpointing error. "
-          + "If this is set to false, the task will only decline a the checkpoint and continue running. ")
+          + "If this is set to false, the task will only decline the checkpoint and continue running. ")
   @Default.Boolean(true)
   Boolean getFailOnCheckpointingErrors();
 
@@ -284,6 +284,14 @@ public interface FlinkPipelineOptions
   Boolean getFasterCopy();
 
   void setFasterCopy(Boolean fasterCopy);
+
+  @Description(
+      "Directory containing Flink YAML configuration files. "
+          + "These properties will be set to all jobs submitted to Flink and take precedence "
+          + "over configurations in FLINK_CONF_DIR.")
+  String getFlinkConfDir();
+
+  void setFlinkConfDir(String confDir);
 
   static FlinkPipelineOptions defaults() {
     return PipelineOptionsFactory.as(FlinkPipelineOptions.class);

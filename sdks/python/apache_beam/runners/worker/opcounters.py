@@ -32,12 +32,13 @@ from typing import Optional
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.utils import counters
+from apache_beam.utils import windowed_value
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 
 if TYPE_CHECKING:
-  from apache_beam.utils import windowed_value
   from apache_beam.runners.worker.statesampler import StateSampler
+  from apache_beam.typehints.batch import BatchConverter
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -189,7 +190,9 @@ class OperationCounters(object):
       coder,
       index,
       suffix='out',
-      producer_type_hints=None):
+      producer_type_hints=None,
+      producer_batch_converter=None, # type: Optional[BatchConverter]
+  ):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
         '%s-%s%s-ElementCount' % (step_name, suffix, index), Counter.SUM)
@@ -202,6 +205,7 @@ class OperationCounters(object):
     self._sample_counter = 0
     self._next_sample = 0
     self.output_type_constraints = producer_type_hints or {}
+    self.producer_batch_converter = producer_batch_converter
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -209,6 +213,19 @@ class OperationCounters(object):
     """Add one value to this counter."""
     if self._should_sample():
       self.do_sample(windowed_value)
+
+  def update_from_batch(self, windowed_batch):
+    # type: (windowed_value.WindowedBatch) -> None
+    assert self.producer_batch_converter is not None
+    assert isinstance(windowed_batch, windowed_value.HomogeneousWindowedBatch)
+
+    batch_length = self.producer_batch_converter.get_length(
+        windowed_batch.values)
+    self.element_counter.update(batch_length)
+
+    mean_element_size = self.producer_batch_converter.estimate_byte_size(
+        windowed_batch.values) / batch_length
+    self.mean_byte_counter.update_n(mean_element_size, batch_length)
 
   def _observable_callback(self, inner_coder_impl, accumulator):
     def _observable_callback_inner(value, is_encoded=False):

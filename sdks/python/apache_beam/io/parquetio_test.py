@@ -424,7 +424,7 @@ class TestParquet(unittest.TestCase):
     # a list of pa.Table instances to model this expecation
     expected_result = [
         pa.Table.from_batches([batch]) for batch in self._records_as_arrow(
-            count=12000).to_batches(chunksize=1000)
+            count=12000).to_batches(max_chunksize=1000)
     ]
     self._run_parquet_test(file_name, None, None, False, expected_result)
 
@@ -434,7 +434,7 @@ class TestParquet(unittest.TestCase):
     # a list of pa.Table instances to model this expecation
     expected_result = [
         pa.Table.from_batches([batch]) for batch in self._records_as_arrow(
-            count=12000).to_batches(chunksize=1000)
+            count=12000).to_batches(max_chunksize=1000)
     ]
     self._run_parquet_test(file_name, None, 10000, True, expected_result)
 
@@ -472,7 +472,7 @@ class TestParquet(unittest.TestCase):
     orig = self._records_as_arrow(count=120, schema=self.SCHEMA96)
     expected_result = [
         pa.Table.from_batches([batch], schema=self.SCHEMA96)
-        for batch in orig.to_batches(chunksize=20)
+        for batch in orig.to_batches(max_chunksize=20)
     ]
     self._run_parquet_test(file_name, None, None, False, expected_result)
 

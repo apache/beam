@@ -17,15 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
-
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
-import io.opencensus.common.Scope;
-import io.opencensus.trace.AttributeValue;
-import io.opencensus.trace.Tracer;
-import io.opencensus.trace.Tracing;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
@@ -69,7 +63,6 @@ import org.slf4j.LoggerFactory;
 public class QueryChangeStreamAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueryChangeStreamAction.class);
-  private static final Tracer TRACER = Tracing.getTracer();
   private static final Duration BUNDLE_FINALIZER_TIMEOUT = Duration.standardMinutes(5);
   private static final String OUT_OF_RANGE_ERROR_MESSAGE = "Specified start_timestamp is invalid";
 
@@ -167,97 +160,86 @@ public class QueryChangeStreamAction {
     final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
     final Timestamp endTimestamp = partition.getEndTimestamp();
 
-    try (Scope scope =
-        TRACER.spanBuilder("QueryChangeStreamAction").setRecordEvents(true).startScopedSpan()) {
-      TRACER
-          .getCurrentSpan()
-          .putAttribute(PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(token));
+    // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
+    // ReadChangeStreamPartitionDoFn#processElement is called
+    final PartitionMetadata updatedPartition =
+        Optional.ofNullable(partitionMetadataDao.getPartition(token))
+            .map(partitionMetadataMapper::from)
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "Partition " + token + " not found in metadata table"));
 
-      // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
-      // ReadChangeStreamPartitionDoFn#processElement is called
-      final PartitionMetadata updatedPartition =
-          Optional.ofNullable(partitionMetadataDao.getPartition(token))
-              .map(partitionMetadataMapper::from)
-              .orElseThrow(
-                  () ->
-                      new IllegalStateException(
-                          "Partition " + token + " not found in metadata table"));
+    try (ChangeStreamResultSet resultSet =
+        changeStreamDao.changeStreamQuery(
+            token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {
 
-      try (ChangeStreamResultSet resultSet =
-          changeStreamDao.changeStreamQuery(
-              token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {
+      metrics.incQueryCounter();
+      while (resultSet.next()) {
+        final List<ChangeStreamRecord> records =
+            changeStreamRecordMapper.toChangeStreamRecords(
+                updatedPartition, resultSet.getCurrentRowAsStruct(), resultSet.getMetadata());
 
-        metrics.incQueryCounter();
-        while (resultSet.next()) {
-          final List<ChangeStreamRecord> records =
-              changeStreamRecordMapper.toChangeStreamRecords(
-                  updatedPartition, resultSet.getCurrentRowAsStruct(), resultSet.getMetadata());
+        Optional<ProcessContinuation> maybeContinuation;
+        for (final ChangeStreamRecord record : records) {
+          if (record instanceof DataChangeRecord) {
+            maybeContinuation =
+                dataChangeRecordAction.run(
+                    updatedPartition,
+                    (DataChangeRecord) record,
+                    tracker,
+                    receiver,
+                    watermarkEstimator);
+          } else if (record instanceof HeartbeatRecord) {
+            maybeContinuation =
+                heartbeatRecordAction.run(
+                    updatedPartition, (HeartbeatRecord) record, tracker, watermarkEstimator);
+          } else if (record instanceof ChildPartitionsRecord) {
+            maybeContinuation =
+                childPartitionsRecordAction.run(
+                    updatedPartition, (ChildPartitionsRecord) record, tracker, watermarkEstimator);
+          } else {
+            LOG.error("[" + token + "] Unknown record type " + record.getClass());
+            throw new IllegalArgumentException("Unknown record type " + record.getClass());
+          }
 
-          Optional<ProcessContinuation> maybeContinuation;
-          for (final ChangeStreamRecord record : records) {
-            if (record instanceof DataChangeRecord) {
-              maybeContinuation =
-                  dataChangeRecordAction.run(
-                      updatedPartition,
-                      (DataChangeRecord) record,
-                      tracker,
-                      receiver,
-                      watermarkEstimator);
-            } else if (record instanceof HeartbeatRecord) {
-              maybeContinuation =
-                  heartbeatRecordAction.run(
-                      updatedPartition, (HeartbeatRecord) record, tracker, watermarkEstimator);
-            } else if (record instanceof ChildPartitionsRecord) {
-              maybeContinuation =
-                  childPartitionsRecordAction.run(
-                      updatedPartition,
-                      (ChildPartitionsRecord) record,
-                      tracker,
-                      watermarkEstimator);
-            } else {
-              LOG.error("[" + token + "] Unknown record type " + record.getClass());
-              throw new IllegalArgumentException("Unknown record type " + record.getClass());
-            }
+          // The size of a record is represented by the number of bytes needed for the
+          // string representation of the record. Here, we only try to achieve an estimate
+          // instead of an accurate throughput.
+          this.throughputEstimator.update(
+              Timestamp.now(), record.toString().getBytes(StandardCharsets.UTF_8).length);
 
-            // The size of a record is represented by the number of bytes needed for the
-            // string representation of the record. Here, we only try to achieve an estimate
-            // instead of an accurate throughput.
-            this.throughputEstimator.update(
-                record.getRecordTimestamp(),
-                record.toString().getBytes(StandardCharsets.UTF_8).length);
-
-            if (maybeContinuation.isPresent()) {
-              LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
-              bundleFinalizer.afterBundleCommit(
-                  Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-                  updateWatermarkCallback(token, watermarkEstimator));
-              return maybeContinuation.get();
-            }
+          if (maybeContinuation.isPresent()) {
+            LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
+            bundleFinalizer.afterBundleCommit(
+                Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
+                updateWatermarkCallback(token, watermarkEstimator));
+            return maybeContinuation.get();
           }
         }
-        bundleFinalizer.afterBundleCommit(
-            Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-            updateWatermarkCallback(token, watermarkEstimator));
+      }
+      bundleFinalizer.afterBundleCommit(
+          Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
+          updateWatermarkCallback(token, watermarkEstimator));
 
-      } catch (SpannerException e) {
-        /*
-        If there is a split when a partition is supposed to be finished, the residual will try
-        to perform a change stream query for an out of range interval. We ignore this error
-        here, and the residual should be able to claim the end of the timestamp range, finishing
-        the partition.
-        */
-        if (isTimestampOutOfRange(e)) {
-          LOG.debug(
-              "["
-                  + token
-                  + "] query change stream is out of range for "
-                  + startTimestamp
-                  + " to "
-                  + endTimestamp
-                  + ", finishing stream");
-        } else {
-          throw e;
-        }
+    } catch (SpannerException e) {
+      /*
+      If there is a split when a partition is supposed to be finished, the residual will try
+      to perform a change stream query for an out of range interval. We ignore this error
+      here, and the residual should be able to claim the end of the timestamp range, finishing
+      the partition.
+      */
+      if (isTimestampOutOfRange(e)) {
+        LOG.debug(
+            "["
+                + token
+                + "] query change stream is out of range for "
+                + startTimestamp
+                + " to "
+                + endTimestamp
+                + ", finishing stream");
+      } else {
+        throw e;
       }
     }
 

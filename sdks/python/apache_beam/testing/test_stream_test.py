@@ -373,9 +373,10 @@ class TestStreamTest(unittest.TestCase):
         | beam.Map(lambda x: ('k', x))
         | beam.GroupByKey())
 
-    # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
-    # respect the TimestampCombiner.  The test below should also verify the
-    # timestamps of the outputted elements once this is implemented.
+    # TODO(https://github.com/apache/beam/issues/18441): timestamp assignment
+    # for elements from a GBK should respect the TimestampCombiner.  The test
+    # below should also verify the timestamps of the outputted elements once
+    # this is implemented.
 
     # assert per window
     expected_window_to_elements = {
@@ -418,9 +419,10 @@ class TestStreamTest(unittest.TestCase):
         | beam.Map(lambda x: ('k', x))
         | beam.GroupByKey())
 
-    # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
-    # respect the TimestampCombiner.  The test below should also verify the
-    # timestamps of the outputted elements once this is implemented.
+    # TODO(https://github.com/apache/beam/issues/18441): timestamp assignment
+    # for elements from a GBK should respect the TimestampCombiner.  The test
+    # below should also verify the timestamps of the outputted elements once
+    # this is implemented.
 
     # assert per window
     expected_window_to_elements = {
@@ -460,9 +462,10 @@ class TestStreamTest(unittest.TestCase):
         | beam.Map(lambda x: ('k', x))
         | beam.GroupByKey())
 
-    # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
-    # respect the TimestampCombiner.  The test below should also verify the
-    # timestamps of the outputted elements once this is implemented.
+    # TODO(https://github.com/apache/beam/issues/18441): timestamp assignment
+    # for elements from a GBK should respect the TimestampCombiner.  The test
+    # below should also verify the timestamps of the outputted elements once
+    # this is implemented.
 
     expected_window_to_elements = {
         window.IntervalWindow(0, 15): [('k', ['a'])],

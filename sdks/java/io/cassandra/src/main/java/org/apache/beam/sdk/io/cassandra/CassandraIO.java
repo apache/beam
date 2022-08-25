@@ -124,8 +124,8 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CassandraIO {
 
@@ -953,8 +953,8 @@ public class CassandraIO {
     }
 
     /**
-     * Mutate the entity to the Cassandra instance, using {@link Mapper} obtained with the the
-     * Mapper factory, the DefaultObjectMapperFactory uses {@link
+     * Mutate the entity to the Cassandra instance, using {@link Mapper} obtained with the Mapper
+     * factory, the DefaultObjectMapperFactory uses {@link
      * com.datastax.driver.mapping.MappingManager}. This method uses {@link
      * Mapper#saveAsync(Object)} method, which is asynchronous. Beam will wait for all futures to
      * complete, to guarantee all writes have succeeded.

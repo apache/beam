@@ -131,7 +131,7 @@ func TestPaneCoder(t *testing.T) {
 			}
 			got, err := DecodePane(&buf)
 			if err != nil {
-				t.Fatalf("failed to decode pane from buffer %v, got %v", buf, err)
+				t.Fatalf("failed to decode pane from buffer %v, got %v", &buf, err)
 			}
 			if want := input; !equalPanes(got, want) {
 				t.Errorf("got pane %v, want %v", got, want)
@@ -172,7 +172,7 @@ func TestEncodePane_bad(t *testing.T) {
 			var buf bytes.Buffer
 			err := EncodePane(input, &buf)
 			if err == nil {
-				t.Errorf("successfully encoded pane when it should have failed, got %v", buf)
+				t.Errorf("successfully encoded pane when it should have failed, got %v", &buf)
 			}
 		})
 	}

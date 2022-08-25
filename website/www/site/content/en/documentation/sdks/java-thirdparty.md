@@ -47,7 +47,7 @@ Apache License 2.0
 
 ### Code example
 
-Assuming a WebEvent class that has a the setters setIP, setQueryImg and setQueryStringValues
+Assuming a WebEvent class that has a setters setIP, setQueryImg and setQueryStringValues
 
     PCollection<WebEvent> filledWebEvents = input
       .apply("Extract Elements from logline",

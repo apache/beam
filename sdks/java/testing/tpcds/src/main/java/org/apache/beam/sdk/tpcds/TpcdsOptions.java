@@ -17,13 +17,15 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
+import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
 
 /** Options used to configure TPC-DS test. */
-public interface TpcdsOptions extends BeamSqlPipelineOptions {
+public interface TpcdsOptions extends ApplicationNameOptions, GcpOptions, BeamSqlPipelineOptions {
   @Description(
       "The size of TPC-DS data to run query on, user input should contain the unit, such as '1G', '10G'")
   @Validation.Required

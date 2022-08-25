@@ -52,12 +52,12 @@ import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.ClientCallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.ClientResponseObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -86,7 +86,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
           .put(SdkHarnessOptions.LogLevel.TRACE, Level.FINEST)
           .build();
 
-  private static final Formatter FORMATTER = new SimpleFormatter();
+  private static final Formatter DEFAULT_FORMATTER = new SimpleFormatter();
 
   /**
    * The number of log messages that will be buffered. Assuming log messages are at most 1 KiB, this
@@ -145,6 +145,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     inboundObserver = new LogControlObserver();
     logRecordHandler = new LogRecordHandler();
     logRecordHandler.setLevel(Level.ALL);
+    logRecordHandler.setFormatter(DEFAULT_FORMATTER);
     logRecordHandler.executeOn(options.as(GcsOptions.class).getExecutorService());
     outboundObserver = (CallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
     rootLogger.addHandler(logRecordHandler);
@@ -205,7 +206,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
       BeamFnApi.LogEntry.Builder builder =
           BeamFnApi.LogEntry.newBuilder()
               .setSeverity(severity)
-              .setMessage(FORMATTER.formatMessage(record))
+              .setMessage(getFormatter().formatMessage(record))
               .setThread(Integer.toString(record.getThreadID()))
               .setTimestamp(
                   Timestamp.newBuilder()

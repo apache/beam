@@ -36,15 +36,11 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Partitions temporary files based on number of files and file sizes. Output key is a pair of
  * tablespec and the list of files corresponding to each partition of that table.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class WritePartition<DestinationT>
     extends DoFn<
         Iterable<WriteBundlesToFiles.Result<DestinationT>>,
@@ -81,8 +77,7 @@ class WritePartition<DestinationT>
   private final long maxSizeBytes;
   private final RowWriterFactory<?, DestinationT> rowWriterFactory;
 
-  private @Nullable TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>>
-      multiPartitionsTag;
+  private TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>> multiPartitionsTag;
   private TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>> singlePartitionTag;
 
   private static class PartitionData {
@@ -225,8 +220,13 @@ class WritePartition<DestinationT>
       // In the fast-path case where we only output one table, the transform loads it directly
       // to the final table. In this case, we output on a special TupleTag so the enclosing
       // transform knows to skip the rename step.
-      TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>> outputTag =
-          (destinationData.getPartitions().size() == 1) ? singlePartitionTag : multiPartitionsTag;
+      TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>> outputTag;
+      if (destinationData.getPartitions().size() == 1) {
+        outputTag = singlePartitionTag;
+      } else {
+        outputTag = multiPartitionsTag;
+      }
+
       for (int i = 0; i < destinationData.getPartitions().size(); ++i) {
         PartitionData partitionData = destinationData.getPartitions().get(i);
         c.output(

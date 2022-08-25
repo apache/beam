@@ -36,7 +36,7 @@ import org.hamcrest.TypeSafeMatcher;
  * </pre>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class JsonMatcher<T> extends TypeSafeMatcher<T> {
   private Matcher<Map<String, Object>> mapMatcher;

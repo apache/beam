@@ -20,4 +20,4 @@ limitations under the License.
 This roadmap is in progress. In the meantime, here are available resources:
 
  - [Beam SQL documentation](/documentation/dsls/sql/overview)
- - JIRA: [dsl-sql](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20dsl-sql)
+ - Issues: [dsl-sql](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Adsl-sql)

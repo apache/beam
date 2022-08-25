@@ -33,7 +33,7 @@ This section provides a walkthrough of a series of example Apache Beam pipelines
 {{< /paragraph >}}
 
 > **Note**: MobileGaming is not yet available for the Go SDK. There is an open issue for this
-([BEAM-4293](https://issues.apache.org/jira/browse/BEAM-4293)).
+([Issue 18806](https://github.com/apache/beam/issues/18806)).
 
 Every time a user plays an instance of our hypothetical mobile game, they generate a data event. Each data event consists of the following information:
 

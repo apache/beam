@@ -13,6 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore U1000 unused type options in ExpansionPayload struct is needed to maintain
+// correct expected serialized payload
+
 // Package sqlx contains "internal" SQL transform interfaces that are needed
 // by the SQL expansion providers.
 //

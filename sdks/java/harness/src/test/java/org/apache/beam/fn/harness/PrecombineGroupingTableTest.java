@@ -17,10 +17,13 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
+import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.in;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
@@ -28,16 +31,29 @@ import static org.junit.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
-import org.apache.beam.fn.harness.GroupingTable.Receiver;
-import org.apache.beam.fn.harness.PrecombineGroupingTable.Combiner;
-import org.apache.beam.fn.harness.PrecombineGroupingTable.GroupingKeyCreator;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.apache.beam.fn.harness.PrecombineGroupingTable.SamplingSizeEstimator;
 import org.apache.beam.fn.harness.PrecombineGroupingTable.SizeEstimator;
+import org.apache.beam.runners.core.GlobalCombineFnRunner;
+import org.apache.beam.runners.core.GlobalCombineFnRunners;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.test.TestExecutors;
+import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
-import org.hamcrest.collection.IsIterableContainingInAnyOrder;
+import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -46,79 +62,275 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class PrecombineGroupingTableTest {
 
-  private static class TestOutputReceiver implements Receiver {
-    final List<Object> outputElems = new ArrayList<>();
+  @Rule
+  public TestExecutorService executorService = TestExecutors.from(Executors.newCachedThreadPool());
+
+  private static class TestOutputReceiver<T> implements FnDataReceiver<T> {
+    final List<T> outputElems = new ArrayList<>();
 
     @Override
-    public void process(Object elem) {
+    public void accept(T elem) {
       outputElems.add(elem);
     }
   }
 
+  private static final CombineFn<Integer, Long, Long> COMBINE_FN =
+      new CombineFn<Integer, Long, Long>() {
+
+        @Override
+        public Long createAccumulator() {
+          return 0L;
+        }
+
+        @Override
+        public Long addInput(Long accumulator, Integer value) {
+          return accumulator + value;
+        }
+
+        @Override
+        public Long mergeAccumulators(Iterable<Long> accumulators) {
+          long sum = 0;
+          for (Long part : accumulators) {
+            sum += part;
+          }
+          return sum;
+        }
+
+        @Override
+        public Long compact(Long accumulator) {
+          if (accumulator % 2 == 0) {
+            return accumulator / 4;
+          }
+          return accumulator;
+        }
+
+        @Override
+        public Long extractOutput(Long accumulator) {
+          return accumulator;
+        }
+      };
+
   @Test
-  public void testCombiningGroupingTable() throws Exception {
-    Combiner<Object, Integer, Long, Long> summingCombineFn =
-        new Combiner<Object, Integer, Long, Long>() {
-
-          @Override
-          public Long createAccumulator(Object key) {
-            return 0L;
-          }
-
-          @Override
-          public Long add(Object key, Long accumulator, Integer value) {
-            return accumulator + value;
-          }
-
-          @Override
-          public Long merge(Object key, Iterable<Long> accumulators) {
-            long sum = 0;
-            for (Long part : accumulators) {
-              sum += part;
-            }
-            return sum;
-          }
-
-          @Override
-          public Long compact(Object key, Long accumulator) {
-            return accumulator;
-          }
-
-          @Override
-          public Long extract(Object key, Long accumulator) {
-            return accumulator;
-          }
-        };
-
+  public void testCombiningInheritsOneOfTheValuesTimestamps() throws Exception {
     PrecombineGroupingTable<String, Integer, Long> table =
         new PrecombineGroupingTable<>(
-            100_000_000L,
-            new IdentityGroupingKeyCreator(),
-            new KvPairInfo(),
-            summingCombineFn,
+            PipelineOptionsFactory.create(),
+            Caches.forMaximumBytes(2500L),
+            StringUtf8Coder.of(),
+            GlobalCombineFnRunners.create(COMBINE_FN),
             new StringPowerSizeEstimator(),
-            new IdentitySizeEstimator());
-    table.setMaxSize(1000);
+            new IdentitySizeEstimator(),
+            false);
 
-    TestOutputReceiver receiver = new TestOutputReceiver();
+    TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
 
-    table.put("A", 1, receiver);
-    table.put("B", 2, receiver);
-    table.put("B", 3, receiver);
-    table.put("C", 4, receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("A", 1), new Instant(1)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("B", 9), new Instant(21)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("A", 2), new Instant(1)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("B", 2), new Instant(20)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("A", 4), new Instant(1)), receiver);
+    table.flush(receiver);
+    assertThat(
+        receiver.outputElems,
+        containsInAnyOrder(
+            timestampedValueInGlobalWindow(KV.of("A", 1L + 2 + 4), new Instant(1)),
+            timestampedValueInGlobalWindow(KV.of("B", 9L + 2), new Instant(21))));
+  }
+
+  @Test
+  public void testCombiningGroupingTableHonorsKeyWeights() throws Exception {
+    PrecombineGroupingTable<String, Integer, Long> table =
+        new PrecombineGroupingTable<>(
+            PipelineOptionsFactory.create(),
+            Caches.forMaximumBytes(2500L),
+            StringUtf8Coder.of(),
+            GlobalCombineFnRunners.create(COMBINE_FN),
+            new StringPowerSizeEstimator(),
+            new IdentitySizeEstimator(),
+            false);
+
+    TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
+
+    // Putting the same 1000 weight key in should not cause any eviction.
+    table.put(valueInGlobalWindow(KV.of("AAA", 1)), receiver);
+    table.put(valueInGlobalWindow(KV.of("AAA", 2)), receiver);
+    table.put(valueInGlobalWindow(KV.of("AAA", 4)), receiver);
     assertThat(receiver.outputElems, empty());
 
-    table.put("C", 5000, receiver);
-    assertThat(receiver.outputElems, hasItem((Object) KV.of("C", 5004L)));
-
-    table.put("DDDD", 6, receiver);
-    assertThat(receiver.outputElems, hasItem((Object) KV.of("DDDD", 6L)));
+    // Putting in other large keys should cause eviction.
+    table.put(valueInGlobalWindow(KV.of("BBB", 9)), receiver);
+    table.put(valueInGlobalWindow(KV.of("CCC", 11)), receiver);
+    assertThat(
+        receiver.outputElems,
+        containsInAnyOrder(
+            valueInGlobalWindow(KV.of("AAA", 1L + 2 + 4)), valueInGlobalWindow(KV.of("BBB", 9L))));
 
     table.flush(receiver);
     assertThat(
         receiver.outputElems,
-        IsIterableContainingInAnyOrder.containsInAnyOrder(
-            KV.of("A", 1L), KV.of("B", 2L + 3), KV.of("C", 5000L + 4), KV.of("DDDD", 6L)));
+        containsInAnyOrder(
+            valueInGlobalWindow(KV.of("AAA", 1L + 2 + 4)),
+            valueInGlobalWindow(KV.of("BBB", 9L)),
+            valueInGlobalWindow(KV.of("CCC", 11L))));
+  }
+
+  @Test
+  public void testCombiningGroupingTableEvictsAllOnLargeEntry() throws Exception {
+    PrecombineGroupingTable<String, Integer, Long> table =
+        new PrecombineGroupingTable<>(
+            PipelineOptionsFactory.create(),
+            Caches.forMaximumBytes(2500L),
+            StringUtf8Coder.of(),
+            GlobalCombineFnRunners.create(COMBINE_FN),
+            new StringPowerSizeEstimator(),
+            new IdentitySizeEstimator(),
+            false);
+
+    TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
+
+    table.put(valueInGlobalWindow(KV.of("A", 1)), receiver);
+    table.put(valueInGlobalWindow(KV.of("B", 3)), receiver);
+    table.put(valueInGlobalWindow(KV.of("B", 6)), receiver);
+    table.put(valueInGlobalWindow(KV.of("C", 7)), receiver);
+    assertThat(receiver.outputElems, empty());
+
+    // Add beyond the size which causes compaction which still leads to evicting all since the
+    // largest is most recent.
+    table.put(valueInGlobalWindow(KV.of("C", 9999)), receiver);
+    assertThat(
+        receiver.outputElems,
+        containsInAnyOrder(
+            valueInGlobalWindow(KV.of("A", 1L)),
+            valueInGlobalWindow(KV.of("B", 9L)),
+            valueInGlobalWindow(KV.of("C", (9999L + 7) / 4))));
+
+    table.flush(receiver);
+    assertThat(
+        receiver.outputElems,
+        containsInAnyOrder(
+            valueInGlobalWindow(KV.of("A", 1L)),
+            valueInGlobalWindow(KV.of("B", 3L + 6)),
+            valueInGlobalWindow(KV.of("C", (9999L + 7) / 4))));
+  }
+
+  @Test
+  public void testCombiningGroupingTableCompactionSaves() throws Exception {
+    PrecombineGroupingTable<String, Integer, Long> table =
+        new PrecombineGroupingTable<>(
+            PipelineOptionsFactory.create(),
+            Caches.forMaximumBytes(2500L),
+            StringUtf8Coder.of(),
+            GlobalCombineFnRunners.create(COMBINE_FN),
+            new StringPowerSizeEstimator(),
+            new IdentitySizeEstimator(),
+            false);
+
+    TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
+
+    // Insert three compactable values which shouldn't lead to eviction even though we are over
+    // the maximum size.
+    table.put(valueInGlobalWindow(KV.of("A", 1004)), receiver);
+    table.put(valueInGlobalWindow(KV.of("B", 1004)), receiver);
+    table.put(valueInGlobalWindow(KV.of("C", 1004)), receiver);
+    assertThat(receiver.outputElems, empty());
+
+    table.flush(receiver);
+    assertThat(
+        receiver.outputElems,
+        containsInAnyOrder(
+            valueInGlobalWindow(KV.of("A", 1004L / 4)),
+            valueInGlobalWindow(KV.of("B", 1004L / 4)),
+            valueInGlobalWindow(KV.of("C", 1004L / 4))));
+  }
+
+  @Test
+  public void testCombiningGroupingTablePartialEviction() throws Exception {
+    PrecombineGroupingTable<String, Integer, Long> table =
+        new PrecombineGroupingTable<>(
+            PipelineOptionsFactory.create(),
+            Caches.forMaximumBytes(2500L),
+            StringUtf8Coder.of(),
+            GlobalCombineFnRunners.create(COMBINE_FN),
+            new StringPowerSizeEstimator(),
+            new IdentitySizeEstimator(),
+            false);
+
+    TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
+
+    // Insert three values which even with compaction isn't enough so we evict A & B to get
+    // under the max weight.
+    table.put(valueInGlobalWindow(KV.of("A", 1001)), receiver);
+    table.put(valueInGlobalWindow(KV.of("B", 1001)), receiver);
+    table.put(valueInGlobalWindow(KV.of("C", 1001)), receiver);
+    assertThat(
+        receiver.outputElems,
+        containsInAnyOrder(
+            valueInGlobalWindow(KV.of("A", 1001L)), valueInGlobalWindow(KV.of("B", 1001L))));
+
+    table.flush(receiver);
+    assertThat(
+        receiver.outputElems,
+        containsInAnyOrder(
+            valueInGlobalWindow(KV.of("A", 1001L)),
+            valueInGlobalWindow(KV.of("B", 1001L)),
+            valueInGlobalWindow(KV.of("C", 1001L))));
+  }
+
+  @Test
+  public void testCombiningGroupingTableEmitsCorrectValuesUnderHighCacheContention()
+      throws Exception {
+    Long[] expectedKeys = new Long[1000];
+    for (int j = 1; j <= 1000; ++j) {
+      expectedKeys[j - 1] = (long) j;
+    }
+
+    int numThreads = 1000;
+    List<Future<?>> futures = new ArrayList<>(numThreads);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    GlobalCombineFnRunner<Integer, Long, Long> combineFnRunner =
+        GlobalCombineFnRunners.create(COMBINE_FN);
+    Cache<Object, Object> cache = Caches.forMaximumBytes(numThreads * 50000);
+    for (int i = 0; i < numThreads; ++i) {
+      final int currentI = i;
+      futures.add(
+          executorService.submit(
+              () -> {
+                ArrayListMultimap<Long, Long> values = ArrayListMultimap.create();
+                PrecombineGroupingTable<Long, Integer, Long> table =
+                    new PrecombineGroupingTable<>(
+                        options,
+                        Caches.subCache(cache, currentI),
+                        VarLongCoder.of(),
+                        combineFnRunner,
+                        new IdentitySizeEstimator(),
+                        new IdentitySizeEstimator(),
+                        false);
+                for (int j = 1; j <= 1000; ++j) {
+                  table.put(
+                      valueInGlobalWindow(KV.of((long) j, j)),
+                      (input) ->
+                          values.put(input.getValue().getKey(), input.getValue().getValue()));
+                }
+                for (int j = 1; j <= 1000; ++j) {
+                  table.flush(
+                      (input) ->
+                          values.put(input.getValue().getKey(), input.getValue().getValue()));
+                }
+
+                assertThat(values.keySet(), containsInAnyOrder(expectedKeys));
+                for (Map.Entry<Long, Long> value : values.entries()) {
+                  if (value.getKey() % 2 == 0) {
+                    assertThat(value.getValue(), equalTo(value.getKey() / 4));
+                  } else {
+                    assertThat(value.getValue(), equalTo(value.getKey()));
+                  }
+                }
+                return null;
+              }));
+    }
+    for (Future<?> future : futures) {
+      future.get();
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -258,14 +470,6 @@ public class PrecombineGroupingTableTest {
     };
   }
 
-  /** Return the key as its grouping key. */
-  private static class IdentityGroupingKeyCreator implements GroupingKeyCreator<Object> {
-    @Override
-    public Object createGroupingKey(Object key) {
-      return key;
-    }
-  }
-
   /** "Estimate" the size of longs by looking at their value. */
   private static class IdentitySizeEstimator implements SizeEstimator<Long> {
     int calls = 0;
@@ -282,24 +486,6 @@ public class PrecombineGroupingTableTest {
     @Override
     public long estimateSize(String element) {
       return (long) Math.pow(10, element.length());
-    }
-  }
-
-  private static class KvPairInfo implements PrecombineGroupingTable.PairInfo {
-    @SuppressWarnings("unchecked")
-    @Override
-    public Object getKeyFromInputPair(Object pair) {
-      return ((KV<Object, ?>) pair).getKey();
-    }
-
-    @Override
-    public Object getValueFromInputPair(Object pair) {
-      return ((KV<?, ?>) pair).getValue();
-    }
-
-    @Override
-    public Object makeOutputPair(Object key, Object value) {
-      return KV.of(key, value);
     }
   }
 }

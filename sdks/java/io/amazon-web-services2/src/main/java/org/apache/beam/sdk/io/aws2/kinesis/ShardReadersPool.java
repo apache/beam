@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
  * separate threads. Read records are stored in a blocking queue of limited capacity.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class ShardReadersPool {
 

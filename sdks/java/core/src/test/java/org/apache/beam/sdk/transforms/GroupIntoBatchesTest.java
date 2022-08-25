@@ -35,10 +35,12 @@ import org.apache.beam.sdk.testing.TestStream.ElementEvent;
 import org.apache.beam.sdk.testing.TestStream.Event;
 import org.apache.beam.sdk.testing.TestStream.ProcessingTimeEvent;
 import org.apache.beam.sdk.testing.TestStream.WatermarkEvent;
+import org.apache.beam.sdk.testing.UsesOnWindowExpiration;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -97,7 +99,13 @@ public class GroupIntoBatchesTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+  @Category({
+    ValidatesRunner.class,
+    NeedsRunner.class,
+    UsesTimersInParDo.class,
+    UsesStatefulParDo.class,
+    UsesOnWindowExpiration.class
+  })
   public void testInGlobalWindowBatchSizeCount() {
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline
@@ -130,7 +138,13 @@ public class GroupIntoBatchesTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+  @Category({
+    ValidatesRunner.class,
+    NeedsRunner.class,
+    UsesTimersInParDo.class,
+    UsesStatefulParDo.class,
+    UsesOnWindowExpiration.class
+  })
   public void testInGlobalWindowBatchSizeByteSize() {
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline
@@ -172,7 +186,13 @@ public class GroupIntoBatchesTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+  @Category({
+    ValidatesRunner.class,
+    NeedsRunner.class,
+    UsesTimersInParDo.class,
+    UsesStatefulParDo.class,
+    UsesOnWindowExpiration.class
+  })
   public void testInGlobalWindowBatchSizeByteSizeFn() {
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline
@@ -223,9 +243,15 @@ public class GroupIntoBatchesTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+  @Category({
+    ValidatesRunner.class,
+    NeedsRunner.class,
+    UsesTimersInParDo.class,
+    UsesStatefulParDo.class,
+    UsesOnWindowExpiration.class
+  })
   public void testWithShardedKeyInGlobalWindow() {
-    // Since with default sharding, the number of subshards of of a key is nondeterministic, create
+    // Since with default sharding, the number of subshards of a key is nondeterministic, create
     // a large number of input elements and a small batch size and check there is no batch larger
     // than the specified size.
     int numElements = 10000;
@@ -300,14 +326,22 @@ public class GroupIntoBatchesTest implements Serializable {
                       numFullBatches > totalNumBatches / 2);
                   return null;
                 });
-    pipeline
-        .runWithAdditionalOptionArgs(ImmutableList.of("--targetParallelism=1"))
-        .waitUntilFinish();
+    if (pipeline.getOptions().getRunner().getSimpleName().equals("DirectRunner")) {
+      pipeline.runWithAdditionalOptionArgs(ImmutableList.of("--targetParallelism=1"));
+    } else {
+      pipeline.run();
+    }
   }
 
   /** test behavior when the number of input elements is not evenly divisible by batch size. */
   @Test
-  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+  @Category({
+    ValidatesRunner.class,
+    NeedsRunner.class,
+    UsesTimersInParDo.class,
+    UsesStatefulParDo.class,
+    UsesOnWindowExpiration.class
+  })
   public void testWithUnevenBatches() {
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline
@@ -315,6 +349,7 @@ public class GroupIntoBatchesTest implements Serializable {
             .apply(GroupIntoBatches.ofSize(BATCH_SIZE))
             // set output coder
             .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
+
     PAssert.that("Incorrect batch size in one or more elements", collection)
         .satisfies(
             new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
@@ -345,10 +380,12 @@ public class GroupIntoBatchesTest implements Serializable {
 
   @Test
   @Category({
+    ValidatesRunner.class,
     NeedsRunner.class,
     UsesTimersInParDo.class,
     UsesTestStream.class,
-    UsesStatefulParDo.class
+    UsesStatefulParDo.class,
+    UsesOnWindowExpiration.class
   })
   public void testInStreamingMode() {
     int timestampInterval = 1;
@@ -449,11 +486,13 @@ public class GroupIntoBatchesTest implements Serializable {
 
   @Test
   @Category({
+    ValidatesRunner.class,
     NeedsRunner.class,
     UsesTimersInParDo.class,
     UsesTestStream.class,
     UsesTestStreamWithProcessingTime.class,
-    UsesStatefulParDo.class
+    UsesStatefulParDo.class,
+    UsesOnWindowExpiration.class
   })
   public void testBufferingTimerInFixedWindow() {
     final Duration windowDuration = Duration.standardSeconds(4);
@@ -572,11 +611,13 @@ public class GroupIntoBatchesTest implements Serializable {
 
   @Test
   @Category({
+    ValidatesRunner.class,
     NeedsRunner.class,
     UsesTimersInParDo.class,
     UsesTestStream.class,
     UsesTestStreamWithProcessingTime.class,
-    UsesStatefulParDo.class
+    UsesStatefulParDo.class,
+    UsesOnWindowExpiration.class
   })
   public void testBufferingTimerInGlobalWindow() {
     final Duration maxBufferingDuration = Duration.standardSeconds(5);

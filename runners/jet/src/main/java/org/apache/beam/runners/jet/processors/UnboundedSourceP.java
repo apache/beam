@@ -43,10 +43,10 @@ import org.apache.beam.sdk.util.WindowedValue;
  * source.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness",
   "keyfor"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class UnboundedSourceP<T, CmT extends UnboundedSource.CheckpointMark>
     extends AbstractProcessor {
 

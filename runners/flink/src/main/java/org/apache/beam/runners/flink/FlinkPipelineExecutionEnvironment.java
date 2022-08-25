@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * (translated) job.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class FlinkPipelineExecutionEnvironment {
 
@@ -97,18 +97,14 @@ class FlinkPipelineExecutionEnvironment {
 
     FlinkPipelineTranslator translator;
     if (options.isStreaming()) {
-      this.flinkStreamEnv =
-          FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-              options, options.getFilesToStage());
+      this.flinkStreamEnv = FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
       if (hasUnboundedOutput && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
         LOG.warn(
             "UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
       }
       translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options);
     } else {
-      this.flinkBatchEnv =
-          FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-              options, options.getFilesToStage());
+      this.flinkBatchEnv = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
     }
 

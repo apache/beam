@@ -389,19 +389,20 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     raise unittest.SkipTest("BEAM-2939")
 
   def test_callbacks_with_exception(self):
-    raise unittest.SkipTest("BEAM-11021")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19526")
 
   def test_register_finalizations(self):
-    raise unittest.SkipTest("BEAM-11021")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19526")
 
   def test_custom_merging_window(self):
-    raise unittest.SkipTest("BEAM-11004")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/20641")
 
   # Inherits all other tests.
 
 
 class FlinkRunnerTestOptimized(FlinkRunnerTest):
-  # TODO: Remove these tests after resolving BEAM-7248 and enabling
+  # TODO: Remove these tests after resolving
+  #  https://github.com/apache/beam/issues/19422 and enabling
   #  PortableRunnerOptimized
   def create_options(self):
     options = super().create_options()
@@ -411,16 +412,16 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
     return options
 
   def test_external_transform(self):
-    raise unittest.SkipTest("BEAM-7252")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19461")
 
   def test_expand_kafka_read(self):
-    raise unittest.SkipTest("BEAM-7252")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19461")
 
   def test_expand_kafka_write(self):
-    raise unittest.SkipTest("BEAM-7252")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19461")
 
   def test_sql(self):
-    raise unittest.SkipTest("BEAM-7252")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19461")
 
   def test_pack_combiners(self):
     # Stages produced by translations.pack_combiners are fused

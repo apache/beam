@@ -51,7 +51,6 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -59,6 +58,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/test/integration/wordcount"
 )
@@ -73,8 +73,8 @@ var (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*addTimestampFn)(nil)).Elem())
-	beam.RegisterFunction(formatFn)
+	register.DoFn1x2[beam.X, beam.EventTime, beam.X](&addTimestampFn{})
+	register.Function4x1(formatFn)
 }
 
 // Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for

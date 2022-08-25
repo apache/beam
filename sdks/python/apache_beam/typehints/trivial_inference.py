@@ -49,7 +49,7 @@ def instance_to_type(o):
   if o is None:
     return type(None)
   elif t == pvalue.Row:
-    return row_type.RowTypeConstraint([
+    return row_type.RowTypeConstraint.from_fields([
         (name, instance_to_type(value)) for name, value in o.as_dict().items()
     ])
   elif t not in typehints.DISALLOWED_PRIMITIVE_TYPES:
@@ -438,8 +438,11 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           from apache_beam.pvalue import Row
           if state.stack[-pop_count].value == Row:
             fields = state.stack[-1].value
-            return_type = row_type.RowTypeConstraint(
-                zip(fields, Const.unwrap_all(state.stack[-pop_count + 1:-1])))
+            return_type = row_type.RowTypeConstraint.from_fields(
+                list(
+                    zip(
+                        fields,
+                        Const.unwrap_all(state.stack[-pop_count + 1:-1]))))
           else:
             return_type = Any
         else:

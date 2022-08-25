@@ -163,7 +163,8 @@ class Counter(object):
   BEAM_DISTRIBUTION = cy_combiners.DistributionInt64Fn()
 
   # Dataflow Distribution Accumulator Fn.
-  # TODO(BEAM-4045): Generalize distribution counter if necessary.
+  # TODO(https://github.com/apache/beam/issues/18843): Generalize distribution
+  # counter if necessary.
   DATAFLOW_DISTRIBUTION = cy_combiners.DataflowDistributionCounterFn()
 
   def __init__(self, name, combine_fn):
@@ -183,6 +184,11 @@ class Counter(object):
 
   def update(self, value):
     self.accumulator = self._add_input(self.accumulator, value)
+
+  def update_n(self, value, n):
+    """Update the counter with the same value N times"""
+    for _ in range(n):
+      self.accumulator = self._add_input(self, value)
 
   def reset(self, value):
     self.accumulator = self.combine_fn.create_accumulator()
@@ -212,9 +218,13 @@ class AccumulatorCombineFnCounter(Counter):
   def update(self, value):
     self._fast_add_input(value)
 
+  def update_n(self, value, n):
+    self._fast_add_input_n(value, n)
+
   def reset(self):
     self.accumulator = self.combine_fn.create_accumulator()
     self._fast_add_input = self.accumulator.add_input
+    self._fast_add_input_n = self.accumulator.add_input_n
 
 
 class CounterFactory(object):

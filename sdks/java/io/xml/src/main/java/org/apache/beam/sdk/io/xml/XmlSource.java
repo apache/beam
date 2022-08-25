@@ -49,7 +49,7 @@ import org.codehaus.stax2.XMLInputFactory2;
 
 /** Implementation of {@link XmlIO#read}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class XmlSource<T> extends FileBasedSource<T> {
 

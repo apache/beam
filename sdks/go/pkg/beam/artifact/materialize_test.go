@@ -313,7 +313,7 @@ func (fake *fakeRetrievalService) resolvedArtifactsWithStagingTo() []*pipepb.Art
 
 func (fake *fakeRetrievalService) fileArtifactsWithoutStagingTo() []*pipepb.ArtifactInformation {
 	var artifacts []*pipepb.ArtifactInformation
-	for name, _ := range fake.artifacts {
+	for name := range fake.artifacts {
 		payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
 			Path: filepath.Join("/tmp", name)})
 		artifacts = append(artifacts, &pipepb.ArtifactInformation{
@@ -326,7 +326,7 @@ func (fake *fakeRetrievalService) fileArtifactsWithoutStagingTo() []*pipepb.Arti
 
 func (fake *fakeRetrievalService) urlArtifactsWithoutStagingTo() []*pipepb.ArtifactInformation {
 	var artifacts []*pipepb.ArtifactInformation
-	for name, _ := range fake.artifacts {
+	for name := range fake.artifacts {
 		payload, _ := proto.Marshal(&pipepb.ArtifactUrlPayload{
 			Url: path.Join("gs://tmp", name)})
 		artifacts = append(artifacts, &pipepb.ArtifactInformation{

@@ -20,15 +20,15 @@ package org.apache.beam.runners.core.metrics;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Closeable;
-import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -37,10 +37,7 @@ import org.joda.time.DateTimeUtils.MillisProvider;
 /** Monitors the execution of one or more execution threads. */
 public class ExecutionStateSampler {
 
-  // We use a synchronized data structure (as opposed to a concurrent one) since synchronization
-  // is necessary to prevent races between tracker removal and the sampling thread iteration.
-  @GuardedBy("this")
-  private final HashSet<ExecutionStateTracker> activeTrackers = new HashSet<>();
+  private final Set<ExecutionStateTracker> activeTrackers = ConcurrentHashMap.newKeySet();
 
   private static final MillisProvider SYSTEM_MILLIS_PROVIDER = System::currentTimeMillis;
 
@@ -150,15 +147,13 @@ public class ExecutionStateSampler {
   }
 
   /** Add the tracker to the sampling set. */
-  synchronized void addTracker(ExecutionStateTracker tracker) {
+  void addTracker(ExecutionStateTracker tracker) {
     this.activeTrackers.add(tracker);
   }
 
   /** Remove the tracker from the sampling set. */
   void removeTracker(ExecutionStateTracker tracker) {
-    synchronized (this) {
-      activeTrackers.remove(tracker);
-    }
+    activeTrackers.remove(tracker);
 
     // Attribute any remaining time since the last sampling while removing the tracker.
     //
@@ -174,7 +169,7 @@ public class ExecutionStateSampler {
 
   /** Attributing sampling time to trackers. */
   @VisibleForTesting
-  public synchronized void doSampling(long millisSinceLastSample) {
+  public void doSampling(long millisSinceLastSample) {
     for (ExecutionStateTracker tracker : activeTrackers) {
       tracker.takeSample(millisSinceLastSample);
     }

@@ -32,7 +32,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMult
 
 /** Validates that the {@link PipelineOptions} conforms to all the {@link Validation} criteria. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PipelineOptionsValidator {
   /**
