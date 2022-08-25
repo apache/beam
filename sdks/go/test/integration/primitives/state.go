@@ -31,10 +31,10 @@ func init() {
 	register.DoFn3x1[state.Provider, string, int, string](&bagStateFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&combiningStateFn{})
 	register.Emitter2[string, int]()
-	register.Combiner1[int](&accum1{})
-	register.Combiner2[string, int](&accum2{})
-	register.Combiner2[string, int](&accum3{})
-	register.Combiner1[int](&accum4{})
+	register.Combiner1[int](&combine1{})
+	register.Combiner2[string, int](&combine2{})
+	register.Combiner2[string, int](&combine3{})
+	register.Combiner1[int](&combine4{})
 }
 
 type valueStateFn struct {
@@ -141,49 +141,49 @@ type combiningStateFn struct {
 	State4 state.Combining[int, int, int]
 }
 
-type accum1 struct{}
+type combine1 struct{}
 
-func (ac *accum1) MergeAccumulators(a, b int) int {
+func (ac *combine1) Mergecombineulators(a, b int) int {
 	return a + b
 }
 
-type accum2 struct{}
+type combine2 struct{}
 
-func (ac *accum2) MergeAccumulators(a, b string) string {
+func (ac *combine2) Mergecombineulators(a, b string) string {
 	ai, _ := strconv.Atoi(a)
 	bi, _ := strconv.Atoi(b)
 	return strconv.Itoa(ai + bi)
 }
 
-func (ac *accum2) ExtractOutput(a string) int {
+func (ac *combine2) ExtractOutput(a string) int {
 	ai, _ := strconv.Atoi(a)
 	return ai
 }
 
-type accum3 struct{}
+type combine3 struct{}
 
-func (ac *accum3) CreateAccumulator() string {
+func (ac *combine3) Createcombineulator() string {
 	return "0"
 }
 
-func (ac *accum3) MergeAccumulators(a string, b string) string {
+func (ac *combine3) Mergecombineulators(a string, b string) string {
 	ai, _ := strconv.Atoi(a)
 	bi, _ := strconv.Atoi(b)
 	return strconv.Itoa(ai + bi)
 }
 
-func (ac *accum3) ExtractOutput(a string) int {
+func (ac *combine3) ExtractOutput(a string) int {
 	ai, _ := strconv.Atoi(a)
 	return ai
 }
 
-type accum4 struct{}
+type combine4 struct{}
 
-func (ac *accum4) AddInput(a, b int) int {
+func (ac *combine4) AddInput(a, b int) int {
 	return a + b
 }
 
-func (ac *accum4) MergeAccumulators(a, b int) int {
+func (ac *combine4) Mergecombineulators(a, b int) int {
 	return a + b
 }
 
@@ -240,10 +240,10 @@ func CombiningStateParDo() *beam.Pipeline {
 		State0: state.MakeCombiningState[int, int, int]("key0", func(a, b int) int {
 			return a + b
 		}),
-		State1: state.Combining[int, int, int](state.MakeCombiningState[int, int, int]("key1", &accum1{})),
-		State2: state.Combining[string, string, int](state.MakeCombiningState[string, string, int]("key2", &accum2{})),
-		State3: state.Combining[string, string, int](state.MakeCombiningState[string, string, int]("key3", &accum3{})),
-		State4: state.Combining[int, int, int](state.MakeCombiningState[int, int, int]("key4", &accum4{}))},
+		State1: state.Combining[int, int, int](state.MakeCombiningState[int, int, int]("key1", &combine1{})),
+		State2: state.Combining[string, string, int](state.MakeCombiningState[string, string, int]("key2", &combine2{})),
+		State3: state.Combining[string, string, int](state.MakeCombiningState[string, string, int]("key3", &combine3{})),
+		State4: state.Combining[int, int, int](state.MakeCombiningState[int, int, int]("key4", &combine4{}))},
 		keyed)
 	passert.Equals(s, counts, "apple: 0 0 0 0 0", "pear: 0 0 0 0 0", "peach: 0 0 0 0 0", "apple: 1 1 1 1 1", "apple: 2 2 2 2 2", "pear: 1 1 1 1 1")
 
