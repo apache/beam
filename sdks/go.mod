@@ -25,6 +25,7 @@ go 1.18
 require (
 	cloud.google.com/go/bigquery v1.38.0
 	cloud.google.com/go/datastore v1.8.0
+	cloud.google.com/go/profiler v0.3.0
 	cloud.google.com/go/pubsub v1.24.0
 	cloud.google.com/go/storage v1.25.0
 	github.com/docker/go-connections v0.4.0
@@ -51,8 +52,6 @@ require (
 	gopkg.in/retry.v1 v1.0.3
 	gopkg.in/yaml.v2 v2.4.0
 )
-
-require cloud.google.com/go/profiler v0.3.0
 
 require (
 	cloud.google.com/go v0.102.1 // indirect
