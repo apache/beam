@@ -31,6 +31,7 @@ func init() {
 	register.DoFn3x1[state.Provider, string, int, string](&valueStateFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&bagStateFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&combiningStateFn{})
+	register.DoFn3x1[state.Provider, string, int, string](&mapStateFn{})
 	register.Emitter2[string, int]()
 	register.Combiner1[int](&combine1{})
 	register.Combiner2[string, int](&combine2{})
