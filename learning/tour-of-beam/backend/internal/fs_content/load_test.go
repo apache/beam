@@ -60,6 +60,7 @@ func TestSample(t *testing.T) {
 		Modules: []tob.Module{
 			{Id: "module1", Name: "Module One", Complexity: "BASIC",
 				Nodes: []tob.Node{
+					{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "intro-unit", Name: "Intro Unit Name"}},
 					{Type: tob.NODE_GROUP, Group: &tob.Group{
 						Name: "The Group", Nodes: []tob.Node{
 							{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "example1", Name: "Example Unit Name"}},

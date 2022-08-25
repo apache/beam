@@ -23,8 +23,7 @@ import (
 // ToB Datastore schema
 // - Content tree has a root entity in tb_learning_path,
 //   descendant entities in tb_learning_module/group/unit have it as a common ancestor
-// - learning path consists of modules, modules consist of either groups or units
-// - A group can have only 1 type of children: only units or only groups
+// - learning path consists of modules, modules consist of groups and units
 // - Ordering is established by "order" property
 // - To limit ancestor queries by only first-level descendants, "level" property is used
 
@@ -33,8 +32,7 @@ const (
 
 	TbLearningPathKind   = "tb_learning_path"
 	TbLearningModuleKind = "tb_learning_module"
-	TbLearningGroupKind  = "tb_learning_group"
-	TbLearningUnitKind   = "tb_learning_unit"
+	TbNodeKind           = "tb_node"
 
 	PgSnippetsKind = "pg_snippets"
 	PgSdksKind     = "pg_sdks"
@@ -44,13 +42,6 @@ const (
 type TbLearningPath struct {
 	Key  *datastore.Key `datastore:"__key__"`
 	Name string         `datastore:"name"`
-}
-
-// 1-1 to Node model
-type Node struct {
-	Type  tob.NodeType
-	Unit  *TbLearningUnit
-	Group *TbLearningGroup
 }
 
 // tb_learning_module
@@ -67,11 +58,13 @@ type TbLearningModule struct {
 // tb_learning_group
 type TbLearningGroup struct {
 	Key  *datastore.Key `datastore:"__key__"`
+	Id   string         `datastore:"id"`
 	Name string         `datastore:"name"`
 
 	// internal, only db
-	Order int `datastore:"order"`
-	Level int `datastore:"level"`
+	Order    int          `datastore:"order"`
+	Level    int          `datastore:"level"`
+	NodeType tob.NodeType `datastore:"node_type"`
 }
 
 // tb_learning_unit
@@ -88,8 +81,9 @@ type TbLearningUnit struct {
 	SolutionSnippetId string `datastore:"solutionSnippetId"`
 
 	// internal, only db
-	Order int `datastore:"order"`
-	Level int `datastore:"level"`
+	Order    int          `datastore:"order"`
+	Level    int          `datastore:"level"`
+	NodeType tob.NodeType `datastore:"node_type"`
 }
 
 type PgSnippets struct {

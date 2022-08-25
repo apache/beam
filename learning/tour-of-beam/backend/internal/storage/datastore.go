@@ -61,57 +61,36 @@ func (d *DatastoreDb) collectModules(ctx context.Context, tx *datastore.Transact
 // - parentKey
 // - level: depth of a node's children
 // Recursively query/collect for each subgroup key, with level = level + 1
-// If no subgroups found, query units and return as a group of units
-// TODO: allow for mixed groups&units nodes
 func (d *DatastoreDb) collectNodes(ctx context.Context, tx *datastore.Transaction,
 	parentKey *datastore.Key, level int) (nodes []tob.Node, err error) {
 
-	var allGroups []TbLearningGroup
-
-	queryGroups := datastore.NewQuery(TbLearningGroupKind).
-		Namespace(PgNamespace).
-		Ancestor(parentKey).
-		FilterField("level", "=", level).
-		Order("order").
-		Transaction(tx)
-	if _, err := d.Client.GetAll(ctx, queryGroups, &allGroups); err != nil {
-		return nodes, fmt.Errorf("getting groups of node %v: %w", parentKey, err)
-	}
-
-	if len(allGroups) > 0 {
-		// node of groups
-		for _, tbGroup := range allGroups {
-			node := tob.Node{Type: tob.NODE_GROUP}
-			node.Group = &tob.Group{Name: tbGroup.Name}
-			node.Group.Nodes, err = d.collectNodes(ctx, tx, tbGroup.Key, level+1)
-			if err != nil {
-				return nodes, err
-			}
-			nodes = append(nodes, node)
-		}
-		return nodes, err
-	}
-
-	// node of units
-	var allUnits []TbLearningUnit
+	var tbNodes []TbNode
 
 	// Custom index.yaml should be applied for this query to work
-	queryUnits := datastore.NewQuery(TbLearningUnitKind).
+	queryNodes := datastore.NewQuery(TbNodeKind).
 		Namespace(PgNamespace).
 		Ancestor(parentKey).
 		FilterField("level", "=", level).
-		Project("id", "name").
+		Project("id", "name", "node_type").
 		Order("order").
 		Transaction(tx)
-	if _, err = d.Client.GetAll(ctx, queryUnits, &allUnits); err != nil {
-		return nodes, fmt.Errorf("getting units of node %v: %w", parentKey, err)
+	if _, err = d.Client.GetAll(ctx, queryNodes, &tbNodes); err != nil {
+		return nodes, fmt.Errorf("getting children of node %v: %w", parentKey, err)
 	}
 
-	for _, tbUnit := range allUnits {
-		node := tob.Node{Type: tob.NODE_UNIT}
-		node.Unit = &tob.Unit{Id: tbUnit.Id, Name: tbUnit.Name}
+	// traverse the nodes which are groups, with level=level+1
+	for _, tbNode := range tbNodes {
+
+		node := tbNode.ToInternal()
+		if node.Type == tob.NODE_GROUP {
+			node.Group.Nodes, err = d.collectNodes(ctx, tx, tbNode.Key, level+1)
+		}
+		if err != nil {
+			return nodes, err
+		}
 		nodes = append(nodes, node)
 	}
+
 	return nodes, nil
 }
 
@@ -136,6 +115,7 @@ func (d *DatastoreDb) GetContentTree(ctx context.Context, sdk tob.Sdk) (tree tob
 }
 
 // Helper to clear all ToB Datastore entities related to a particular SDK
+// They have one common ancestor key in tb_learning_path
 func (d *DatastoreDb) clearContentTree(ctx context.Context, tx *datastore.Transaction, sdk tob.Sdk) error {
 	rootKey := pgNameKey(TbLearningPathKind, sdk2Key(sdk), nil)
 	q := datastore.NewQuery("").
@@ -160,7 +140,7 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 	sdk := tree.Sdk
 
 	saveUnit := func(unit *tob.Unit, order, level int, parentKey *datastore.Key) error {
-		unitKey := datastoreKey(TbLearningUnitKind, tree.Sdk, unit.Id, parentKey)
+		unitKey := datastoreKey(TbNodeKind, tree.Sdk, unit.Id, parentKey)
 		_, err := tx.Put(unitKey, MakeDatastoreUnit(unit, order, level))
 		if err != nil {
 			return fmt.Errorf("failed to put unit: %w", err)
@@ -175,7 +155,7 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 	var groupId int = 0
 	genGroupKey := func(parentKey *datastore.Key) *datastore.Key {
 		groupId++
-		return datastoreKey(TbLearningGroupKind,
+		return datastoreKey(TbNodeKind,
 			tree.Sdk, fmt.Sprintf("group%v", groupId), parentKey)
 	}
 

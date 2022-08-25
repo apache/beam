@@ -50,6 +50,9 @@ func datastoreKey(kind string, sdk tob.Sdk, id string, parent *datastore.Key) *d
 }
 
 func MakeDatastoreUnit(unit *tob.Unit, order, level int) *TbLearningUnit {
+	if unit == nil {
+		return nil
+	}
 	return &TbLearningUnit{
 		Id:   unit.Id,
 		Name: unit.Name,
@@ -59,18 +62,38 @@ func MakeDatastoreUnit(unit *tob.Unit, order, level int) *TbLearningUnit {
 		TaskSnippetId:     unit.TaskSnippetId,
 		SolutionSnippetId: unit.SolutionSnippetId,
 
-		Order: order,
-		Level: level,
+		Order:    order,
+		Level:    level,
+		NodeType: tob.NODE_UNIT,
 	}
 }
 
+func FromDatastoreUnit(tbUnit *TbLearningUnit) *tob.Unit {
+	if tbUnit == nil {
+		return nil
+	}
+	return &tob.Unit{Id: tbUnit.Id, Name: tbUnit.Name}
+}
+
 func MakeDatastoreGroup(group *tob.Group, order, level int) *TbLearningGroup {
+	if group == nil {
+		return nil
+	}
 	return &TbLearningGroup{
+		Id:   group.Name, // Just to make a subset of TbLearningUnit
 		Name: group.Name,
 
-		Order: order,
-		Level: level,
+		Order:    order,
+		Level:    level,
+		NodeType: tob.NODE_GROUP,
 	}
+}
+
+func FromDatastoreGroup(tbGroup *TbLearningGroup) *tob.Group {
+	if tbGroup == nil {
+		return nil
+	}
+	return &tob.Group{Name: tbGroup.Name}
 }
 
 func MakeDatastoreModule(mod *tob.Module, order int) *TbLearningModule {
