@@ -81,8 +81,8 @@ public class DataChangeRecord implements ChangeStreamRecord {
    * @param numberOfPartitionsInTransaction the total number of partitions within the given
    *     transaction
    * @param transactionTag the transaction tag associated with the given transaction
-   * @param isSystemTransaction whether the given transaction is Spanner system transaction 
-   *     (or user transaction)
+   * @param isSystemTransaction whether the given transaction is Spanner system transaction (or user
+   *     transaction)
    * @param metadata connector execution metadata for the given record
    */
   public DataChangeRecord(
@@ -195,9 +195,9 @@ public class DataChangeRecord implements ChangeStreamRecord {
     return transactionTag;
   }
 
-  /** 
-   * Whether the given transaction is Spanner system transaction. 
-   * Otherwise it is user/application transaction. 
+  /**
+   * Whether the given transaction is Spanner system transaction. Otherwise it is user/application
+   * transaction.
    */
   public boolean isSystemTransaction() {
     return isSystemTransaction;

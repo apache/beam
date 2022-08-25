@@ -63,7 +63,6 @@ import org.slf4j.LoggerFactory;
 
 /** End-to-end test of Cloud Spanner Change Streams Transactions Ordered Within Key Globally. */
 @RunWith(JUnit4.class)
-
 public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
 
   private static final Logger LOG =
