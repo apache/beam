@@ -46,9 +46,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type represented by this {@link TypeDescriptor}
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class TypeDescriptor<T> implements Serializable {
 
   // This class is just a wrapper for TypeToken
@@ -106,7 +103,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
     token = typedToken;
   }
 
-  private boolean hasUnresolvedParameters(Type type) {
+  private static boolean hasUnresolvedParameters(Type type) {
     if (type instanceof TypeVariable) {
       return true;
     } else if (type instanceof ParameterizedType) {
@@ -124,7 +121,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
    * Returns the enclosing instance if the field is synthetic and it is able to access it, or
    * {@literal null} if not.
    */
-  private @Nullable Object getEnclosingInstance(Field field, Object instance) {
+  private static @Nullable Object getEnclosingInstance(Field field, Object instance) {
     if (!field.isSynthetic()) {
       return null;
     }
@@ -179,8 +176,13 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /** Returns the component type if this type is an array type, otherwise returns {@code null}. */
-  public TypeDescriptor<?> getComponentType() {
-    return new SimpleTypeDescriptor<>(token.getComponentType());
+  public @Nullable TypeDescriptor<?> getComponentType() {
+    @Nullable TypeToken<?> componentTypeToken = token.getComponentType();
+    if (componentTypeToken == null) {
+      return null;
+    } else {
+      return new SimpleTypeDescriptor<>(componentTypeToken);
+    }
   }
 
   /** Returns the generic form of a supertype. */

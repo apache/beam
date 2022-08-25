@@ -19,10 +19,10 @@ import (
 	"beam.apache.org/learning/katas/windowing/fixed_time_window/fixed_time_window/pkg/common"
 	"beam.apache.org/learning/katas/windowing/fixed_time_window/fixed_time_window/pkg/task"
 	"context"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
 
 func main() {
