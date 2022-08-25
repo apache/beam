@@ -16,10 +16,24 @@
  * limitations under the License.
  */
 
+import Long from "long";
+
 import * as beam from "../../src/apache_beam";
 import { PCollection } from "../../src/apache_beam";
+import {
+  VarIntCoder,
+  StrUtf8Coder,
+} from "../../src/apache_beam/coders/standard_coders";
+import { KVCoder } from "../../src/apache_beam/coders/required_coders";
+import { withCoderInternal } from "../../src/apache_beam/transforms/internal";
 import * as combiners from "../../src/apache_beam/transforms/combiners";
 import * as pardo from "../../src/apache_beam/transforms/pardo";
+import * as windowings from "../../src/apache_beam/transforms/windowings";
+import * as row_coder from "../../src/apache_beam/coders/row_coder";
+import {
+  pythonTransform,
+  pythonCallable,
+} from "../../src/apache_beam/transforms/python";
 import { assertDeepEqual } from "../../src/apache_beam/testing/assert";
 
 describe("Programming Guide Tested Samples", function () {
@@ -480,6 +494,130 @@ describe("Programming Guide Tested Samples", function () {
         );
       });
     });
-    //
+  });
+
+  describe("Coders", function () {
+    it("with_row_coder", async function () {
+      await beam.createRunner().run((root: beam.Root) => {
+        const elements = [
+          { intFieldName: 1, stringFieldName: "foo" },
+          { intFieldName: 2, stringFieldName: "bar" },
+        ];
+        const pcoll = root.apply(beam.create(elements));
+        // [START with_row_coder]
+        const result = pcoll.apply(
+          beam.withRowCoder({ intFieldName: 0, stringFieldName: "" })
+        );
+        // [END with_row_coder]
+        result.apply(assertDeepEqual(elements));
+      });
+    });
+  });
+
+  describe("MultiLangauge", function () {
+    it("python_map", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        const pcoll = root.apply(
+          beam.create([
+            { a: 1, b: 10 },
+            { a: 2, b: 20 },
+          ])
+        );
+        // [START python_map]
+        const result: PCollection<number> = await pcoll
+          .apply(
+            beam.withName("UpdateCoder1", beam.withRowCoder({ a: 0, b: 0 }))
+          )
+          .applyAsync(
+            pythonTransform(
+              // Fully qualified name
+              "apache_beam.transforms.Map",
+              // Positional arguments
+              [pythonCallable("lambda x: x.a + x.b")],
+              // Keyword arguments
+              {},
+              // Output type if it cannot be inferred
+              { requestedOutputCoders: { output: new VarIntCoder() } }
+            )
+          );
+        // [END python_map]
+        result.apply(assertDeepEqual([11, 22]));
+      });
+    }).timeout(10000);
+
+    it("stateful_dofn", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        // [START stateful_dofn]
+        const pcoll = root.apply(
+          beam.create([
+            { key: "a", value: 1 },
+            { key: "b", value: 10 },
+            { key: "a", value: 100 },
+          ])
+        );
+        const result: PCollection<number> = await pcoll
+          .apply(
+            withCoderInternal(
+              new KVCoder(new StrUtf8Coder(), new VarIntCoder())
+            )
+          )
+          .applyAsync(
+            pythonTransform(
+              // Construct a new Transform from source.
+              "__constructor__",
+              [
+                pythonCallable(`
+                # Define a DoFn to be used below.
+                class ReadModifyWriteStateDoFn(beam.DoFn):
+                  STATE_SPEC = beam.transforms.userstate.ReadModifyWriteStateSpec(
+                      'num_elements', beam.coders.VarIntCoder())
+
+                  def process(self, element, state=beam.DoFn.StateParam(STATE_SPEC)):
+                    current_value = state.read() or 0
+                    state.write(current_value + 1)
+                    yield current_value + 1
+
+                class MyPythonTransform(beam.PTransform):
+                  def expand(self, pcoll):
+                    return pcoll | beam.ParDo(ReadModifyWriteStateDoFn())
+              `),
+              ],
+              // Keyword arguments to pass to the transform, if any.
+              {},
+              // Output type if it cannot be inferred
+              { requestedOutputCoders: { output: new VarIntCoder() } }
+            )
+          );
+        // [END stateful_dofn]
+        result.apply(assertDeepEqual([1, 1, 2]));
+      });
+    }).timeout(10000);
+
+    it("cross_lang_transform", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        const pcoll = root.apply(beam.create(["a", "bb"]));
+        // [START cross_lang_transform]
+        const result: PCollection<string> = await pcoll
+          .apply(withCoderInternal(new StrUtf8Coder()))
+          .applyAsync(
+            pythonTransform(
+              // Define an arbitrary transform from a callable.
+              "__callable__",
+              [
+                pythonCallable(`
+              def apply(pcoll, prefix, postfix):
+                return pcoll | beam.Map(lambda s: prefix + s + postfix)
+              `),
+              ],
+              // Keyword arguments to pass above, if any.
+              { prefix: "x", postfix: "y" },
+              // Output type if it cannot be inferred
+              { requestedOutputCoders: { output: new StrUtf8Coder() } }
+            )
+          );
+        // [END cross_lang_transform]
+        result.apply(assertDeepEqual(["xay", "xbby"]));
+      });
+    }).timeout(10000);
   });
 });

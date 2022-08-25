@@ -7434,6 +7434,58 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
 4. After the job has been submitted to the Beam runner, shutdown the expansion service by
    terminating the expansion service process.
 
+#### 13.2.4. Using cross-language transforms in a Typescript pipeline
+
+Using a Typescript wrapper for a cross-language pipeline is similar to using any
+other transform, provided the dependencies (e.g. a recent Python interpreter or
+a Java JRE) is available.  For example, most of the Typescript IOs are simply
+wrappers around Beam transforms from other languages.
+
+If a wrapper is not already available, one can use it explicitly using
+[apache_beam.transforms.external.rawExternalTransform](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/external.ts).
+which takes a `urn` (a string identifying the transform),
+a `payload` (a binary or json object parameterizing the transform),
+and a `expansionService` which can either be an address of a pre-started service
+or a callable returning an auto-started expansion service object.
+
+For example, one could write
+
+```
+pcoll.applyAsync(
+    rawExternalTransform(
+        "beam:registered:urn",
+        {arg: value},
+        "localhost:expansion_service_port"
+    )
+);
+```
+
+Note that `pcoll` must have a cross-language compatible coder coder such as `SchemaCoder`.
+This can be ensured with the [withCoderInternal](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/internal.ts)
+or [withRowCoder](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/internal.ts)
+transforms, e.g.
+
+```
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" with_row_coder >}}
+```
+
+Coder can also be specified on the output if it cannot be inferred, e.g.
+
+In addition, there are several utilities such as [pythonTransform](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/python.ts)
+that make it easier to invoke transforms from specific languages:
+
+```
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" python_map >}}
+```
+
+Cross-langauge transforms can also be defined in line, which can be useful
+for accessing features or libraries not available in the calling SDK
+
+```
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" cross_lang_transform >}}
+```
+
+
 ### 13.3. Runner Support {#x-lang-transform-runner-support}
 
 Currently, portable runners such as Flink, Spark, and the direct runner can be used with multi-language pipelines.
