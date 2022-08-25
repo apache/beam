@@ -60,7 +60,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
       LoggerFactory.getLogger(ReadFromSparkReceiverWithOffsetDoFn.class);
 
   /** Constant waiting time after the {@link Receiver} starts. Required to prepare for polling */
-  private static final int START_POLL_TIMEOUT_MS = 1000;
+  private static final int START_POLL_TIMEOUT_MS = 2000;
 
   private final SerializableFunction<Instant, WatermarkEstimator<Instant>>
       createWatermarkEstimatorFn;
