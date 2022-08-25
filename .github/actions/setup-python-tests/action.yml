@@ -24,15 +24,21 @@ inputs:
     default: ''
   python-version:
     required: false
-    default: 3.7
+    default: py38
 runs:
   using: "composite"
   steps:
     - name: Setup environment
       uses: ./.github/actions/setup-self-hosted-action
-    - name: Setup tox
+    - name: Setup python env for testing
       shell: bash
-      run: pip3 install tox
+      run: |
+        cd sdks/python
+        pip install --upgrade pip
+        pip install --upgrade setuptools
+        pip install -r build-requirements.txt
+        pip install -e ".[gcp,test]"
+        pip3 install tox
     - name: Run python tests
       shell: bash
       run: cd sdks/python && tox -e ${{ inputs.python-version }} -- ${{ inputs.test-directory }}
