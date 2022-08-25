@@ -267,6 +267,43 @@ def get_test_beam_fieldtype_protos():
                           ]) for i,
                       typ in enumerate(all_primitives)
                   ]))),
+      schema_pb2.FieldType(
+          row_type=schema_pb2.RowType(
+              schema=schema_pb2.Schema(
+                  id='a-schema-with-optional-nested-struct',
+                  fields=[
+                      schema_pb2.Field(
+                          name='id',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.INT64)),
+                      schema_pb2.Field(
+                          name='nested_row',
+                          type=schema_pb2.FieldType(
+                              nullable=True,
+                              row_type=schema_pb2.RowType(
+                                  schema=schema_pb2.Schema(
+                                      id='the-nested-schema',
+                                      fields=[
+                                          schema_pb2.Field(
+                                              name='name',
+                                              type=schema_pb2.FieldType(
+                                                  atomic_type=schema_pb2.STRING)
+                                          ),
+                                          schema_pb2.Field(
+                                              name='optional_map',
+                                              type=schema_pb2.FieldType(
+                                                  nullable=True,
+                                                  map_type=schema_pb2.MapType(
+                                                      key_type=schema_pb2.
+                                                      FieldType(
+                                                          atomic_type=schema_pb2
+                                                          .STRING),
+                                                      value_type=schema_pb2.
+                                                      FieldType(
+                                                          atomic_type=schema_pb2
+                                                          .DOUBLE)))),
+                                      ]))))
+                  ])))
   ]
 
   return all_primitives + \
