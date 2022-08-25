@@ -54,13 +54,14 @@ def _load_model(
         "Loading state_dict_path %s onto a %s device", state_dict_path, device)
     state_dict = torch.load(file, map_location=device)
   except RuntimeError as e:
-    message = "Loading the model onto a GPU device failed due to an " \
-      f"exception:\n{e}\nAttempting to load onto a CPU device instead."
-    logging.warning(message)
-
-    device = torch.device('cpu')
-    file = FileSystems.open(state_dict_path, 'rb')
-    state_dict = torch.load(file, map_location=device)
+    if device == torch.device('cuda'):
+      message = "Loading the model onto a GPU device failed due to an " \
+        f"exception:\n{e}\nAttempting to load onto a CPU device instead."
+      logging.warning(message)
+      return _load_model(
+          model_class, state_dict_path, torch.device('cpu'), **model_params)
+    else:
+      raise e
 
   model.load_state_dict(state_dict)
   model.to(device)
