@@ -26,7 +26,7 @@ abstract class AnalyticsService {
     return Provider.of<AnalyticsService>(context, listen: false);
   }
 
-  void trackSelectSdk(SDK oldSdk, SDK newSdk);
+  void trackSelectSdk(SDK? oldSdk, SDK newSdk);
   void trackSelectExample(ExampleModel newExample);
   void trackClickNewExample();
   void trackReset();

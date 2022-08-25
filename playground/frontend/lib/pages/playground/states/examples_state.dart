@@ -61,7 +61,7 @@ class ExampleState with ChangeNotifier {
     _allExamplesCompleter.complete();
   }
 
-  List<CategoryModel>? getCategories(SDK sdk) {
+  List<CategoryModel> getCategories(SDK? sdk) {
     return sdkCategories?[sdk] ?? [];
   }
 
@@ -173,31 +173,27 @@ class ExampleState with ChangeNotifier {
       return;
     }
 
-    List<MapEntry<SDK, ExampleModel>> defaultExamples = [];
-
-    for (var value in SDK.values) {
-      defaultExamples.add(
-        MapEntry(
-          value,
-          await _exampleRepository.getDefaultExample(
-            // First parameter is an empty string, because we don't need path to get the default example.
-            GetExampleRequestWrapper('', value),
-          ),
-        ),
-      );
+    try {
+      await Future.wait(SDK.values.map(_loadDefaultExample));
+    } catch (ex) {
+      if (defaultExamplesMap.isEmpty) {
+        rethrow;
+      }
+      // As long as any of the examples is loaded, continue.
+      print(ex);
+      // TODO: Log.
     }
 
-    defaultExamplesMap.addEntries(defaultExamples);
-    final futures = <Future<void>>[];
-
-    for (var entry in defaultExamplesMap.entries) {
-      final exampleFuture = loadExampleInfo(entry.value)
-          .then((value) => defaultExamplesMap[entry.key] = value);
-      futures.add(exampleFuture);
-    }
     notifyListeners();
+  }
 
-    await Future.wait(futures);
+  Future<void> _loadDefaultExample(SDK sdk) async {
+    final exampleWithoutInfo = await _exampleRepository.getDefaultExample(
+      // First parameter is an empty string, because we don't need path to get the default example.
+      GetExampleRequestWrapper('', sdk),
+    );
+
+    defaultExamplesMap[sdk] = await loadExampleInfo(exampleWithoutInfo);
   }
 
   Future<void> loadDefaultExamplesIfNot() async {
