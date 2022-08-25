@@ -111,6 +111,7 @@ tasks.rat {
     "learning/tour-of-beam/**/module-info.yaml",
     "learning/tour-of-beam/**/group-info.yaml",
     "learning/tour-of-beam/**/unit-info.yaml",
+    "learning/tour-of-beam/backend/samples/**/*.md",
 
 
     // test p8 file for SnowflakeIO
