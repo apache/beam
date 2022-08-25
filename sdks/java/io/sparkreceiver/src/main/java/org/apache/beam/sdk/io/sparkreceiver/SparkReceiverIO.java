@@ -45,8 +45,8 @@ import org.slf4j.LoggerFactory;
  * to pass {@code getOffsetFn} which is a {@link SerializableFunction} that defines how to get
  * {@code Long offset} from {@code V record}.
  *
- * <p>Optionally you can pass {@code watermarkFn} which is a {@link SerializableFunction} that
- * defines how to get {@code Instant watermark} from {@code V record}.
+ * <p>Optionally you can pass {@code timestampFn} which is a {@link SerializableFunction} that
+ * defines how to get {@code Instant timestamp} from {@code V record}.
  *
  * <p>Example of {@link SparkReceiverIO#read()} usage:
  *
@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
  *  SparkReceiverIO.Read<String> reader =
  *    SparkReceiverIO.<String>read()
  *      .withGetOffsetFn(Long::valueOf)
- *      .withWatermarkFn(Instant::parse)
+ *      .withTimestampFn(Instant::parse)
  *      .withSparkReceiverBuilder(receiverBuilder);
  * }</pre>
  */
@@ -83,7 +83,7 @@ public class SparkReceiverIO {
 
     abstract @Nullable SerializableFunction<V, Long> getGetOffsetFn();
 
-    abstract @Nullable SerializableFunction<V, Instant> getWatermarkFn();
+    abstract @Nullable SerializableFunction<V, Instant> getTimestampFn();
 
     abstract Builder<V> toBuilder();
 
@@ -95,7 +95,7 @@ public class SparkReceiverIO {
 
       abstract Builder<V> setGetOffsetFn(SerializableFunction<V, Long> getOffsetFn);
 
-      abstract Builder<V> setWatermarkFn(SerializableFunction<V, Instant> watermarkFn);
+      abstract Builder<V> setTimestampFn(SerializableFunction<V, Instant> timestampFn);
 
       abstract Read<V> build();
     }
@@ -113,10 +113,10 @@ public class SparkReceiverIO {
       return toBuilder().setGetOffsetFn(getOffsetFn).build();
     }
 
-    /** A function to calculate watermark after a record. */
-    public Read<V> withWatermarkFn(SerializableFunction<V, Instant> watermarkFn) {
-      checkArgument(watermarkFn != null, "Watermark function can not be null");
-      return toBuilder().setWatermarkFn(watermarkFn).build();
+    /** A function to calculate timestamp for a record. */
+    public Read<V> withTimestampFn(SerializableFunction<V, Instant> timestampFn) {
+      checkArgument(timestampFn != null, "Timestamp function can not be null");
+      return toBuilder().setTimestampFn(timestampFn).build();
     }
 
     @Override

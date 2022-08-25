@@ -20,13 +20,14 @@ package org.apache.beam.sdk.io.sparkreceiver;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -52,12 +53,12 @@ public class SparkReceiverIOTest {
     ReceiverBuilder<String, CustomReceiverWithOffset> receiverBuilder =
         new ReceiverBuilder<>(CustomReceiverWithOffset.class).withConstructorArgs();
     SerializableFunction<String, Long> offsetFn = Long::valueOf;
-    SerializableFunction<String, Instant> watermarkFn = Instant::parse;
+    SerializableFunction<String, Instant> timestampFn = Instant::parse;
 
     SparkReceiverIO.Read<String> read =
         SparkReceiverIO.<String>read()
             .withGetOffsetFn(offsetFn)
-            .withWatermarkFn(watermarkFn)
+            .withTimestampFn(timestampFn)
             .withSparkReceiverBuilder(receiverBuilder);
 
     assertEquals(offsetFn, read.getGetOffsetFn());
@@ -78,9 +79,9 @@ public class SparkReceiverIOTest {
   }
 
   @Test
-  public void testReadObjectCreationFailsIfWatermarkFnIsNull() {
+  public void testReadObjectCreationFailsIfTimestampFnIsNull() {
     assertThrows(
-        IllegalArgumentException.class, () -> SparkReceiverIO.<String>read().withWatermarkFn(null));
+        IllegalArgumentException.class, () -> SparkReceiverIO.<String>read().withTimestampFn(null));
   }
 
   @Test
@@ -105,14 +106,29 @@ public class SparkReceiverIOTest {
     SparkReceiverIO.Read<String> reader =
         SparkReceiverIO.<String>read()
             .withGetOffsetFn(Long::valueOf)
-            .withWatermarkFn(Instant::parse)
+            .withTimestampFn(Instant::parse)
             .withSparkReceiverBuilder(receiverBuilder);
 
-    List<String> storedRecords = CustomReceiverWithOffset.getStoredRecords();
+    for (int i = 0; i < CustomReceiverWithOffset.RECORDS_COUNT; i++) {
+      TestOutputDoFn.EXPECTED_RECORDS.add(String.valueOf(i));
+    }
+    pipeline.apply(reader).setCoder(StringUtf8Coder.of()).apply(ParDo.of(new TestOutputDoFn()));
 
-    PCollection<String> output = pipeline.apply(reader).setCoder(StringUtf8Coder.of());
-
-    PAssert.that(output).containsInAnyOrder(storedRecords);
     pipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+  }
+
+  /** {@link DoFn} that throws {@code RuntimeException} if receives unexpected element. */
+  private static class TestOutputDoFn extends DoFn<String, String> {
+    private static final Set<String> EXPECTED_RECORDS = new HashSet<>();
+
+    @ProcessElement
+    public void processElement(@Element String element, OutputReceiver<String> outputReceiver) {
+      if (!EXPECTED_RECORDS.contains(element)) {
+        throw new RuntimeException("Received unexpected element: " + element);
+      } else {
+        EXPECTED_RECORDS.remove(element);
+        outputReceiver.output(element);
+      }
+    }
   }
 }

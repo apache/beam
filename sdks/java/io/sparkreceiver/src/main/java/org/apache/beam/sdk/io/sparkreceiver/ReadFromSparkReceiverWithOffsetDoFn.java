@@ -61,7 +61,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
   private final SerializableFunction<Instant, WatermarkEstimator<Instant>>
       createWatermarkEstimatorFn;
   private final SerializableFunction<V, Long> getOffsetFn;
-  private final SerializableFunction<V, Instant> getWatermarkFn;
+  private final SerializableFunction<V, Instant> getTimestampFn;
   private final ReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder;
 
   ReadFromSparkReceiverWithOffsetDoFn(SparkReceiverIO.Read<V> transform) {
@@ -76,11 +76,11 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
     checkStateNotNull(getOffsetFn, "Get offset fn can't be null!");
     this.getOffsetFn = getOffsetFn;
 
-    SerializableFunction<V, Instant> getWatermarkFn = transform.getWatermarkFn();
-    if (getWatermarkFn == null) {
-      getWatermarkFn = input -> Instant.now();
+    SerializableFunction<V, Instant> getTimestampFn = transform.getTimestampFn();
+    if (getTimestampFn == null) {
+      getTimestampFn = input -> Instant.now();
     }
-    this.getWatermarkFn = getWatermarkFn;
+    this.getTimestampFn = getTimestampFn;
   }
 
   @GetInitialRestriction
@@ -152,6 +152,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
             });
       } catch (Exception e) {
         LOG.error("Can not init Spark Receiver!", e);
+        throw new IllegalStateException("Spark Receiver was not initialized");
       }
       ((HasOffset) sparkReceiver).setStartOffset(startOffset);
       sparkReceiver.supervisor().startReceiver();
@@ -159,6 +160,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
         TimeUnit.MILLISECONDS.sleep(START_POLL_TIMEOUT_MS);
       } catch (InterruptedException e) {
         LOG.error("SparkReceiver was interrupted before polling started", e);
+        throw new IllegalStateException("Spark Receiver was interrupted before polling started");
       }
     }
 
@@ -198,7 +200,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
           LOG.debug("Stop for restriction: {}", tracker.currentRestriction().toString());
           return ProcessContinuation.stop();
         }
-        Instant currentTimeStamp = getWatermarkFn.apply(record);
+        Instant currentTimeStamp = getTimestampFn.apply(record);
         ((ManualWatermarkEstimator<Instant>) watermarkEstimator).setWatermark(currentTimeStamp);
         receiver.outputWithTimestamp(record, currentTimeStamp);
       }

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -35,8 +33,8 @@ public class CustomReceiverWithOffset extends Receiver<String> implements HasOff
 
   private static final Logger LOG = LoggerFactory.getLogger(CustomReceiverWithOffset.class);
   private static final int TIMEOUT_MS = 500;
-  private static final List<String> STORED_RECORDS = new ArrayList<>();
-  private static final int RECORDS_COUNT = 20;
+  public static final int RECORDS_COUNT = 20;
+
   private Long startOffset;
 
   CustomReceiverWithOffset() {
@@ -67,11 +65,11 @@ public class CustomReceiverWithOffset extends Receiver<String> implements HasOff
   private void receive() {
     Long currentOffset = startOffset;
     while (!isStopped()) {
-      if (currentOffset <= RECORDS_COUNT) {
-        if (!isStopped()) {
-          STORED_RECORDS.add(currentOffset.toString());
-          store((currentOffset++).toString());
-        }
+      if (currentOffset < RECORDS_COUNT) {
+        store(String.valueOf(currentOffset));
+        currentOffset++;
+      } else {
+        break;
       }
       try {
         TimeUnit.MILLISECONDS.sleep(TIMEOUT_MS);
@@ -79,9 +77,5 @@ public class CustomReceiverWithOffset extends Receiver<String> implements HasOff
         LOG.error("Interrupted", e);
       }
     }
-  }
-
-  public static List<String> getStoredRecords() {
-    return STORED_RECORDS;
   }
 }
