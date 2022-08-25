@@ -17,6 +17,7 @@ package primitives
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -249,6 +250,56 @@ func CombiningStateParDo() *beam.Pipeline {
 		State4: state.Combining[int, int, int](state.MakeCombiningState[int, int, int]("key4", &combine4{}))},
 		keyed)
 	passert.Equals(s, counts, "apple: 0 0 0 0 0", "pear: 0 0 0 0 0", "peach: 0 0 0 0 0", "apple: 1 1 1 1 1", "apple: 2 2 2 2 2", "pear: 1 1 1 1 1")
+
+	return p
+}
+
+type mapStateFn struct {
+	State1 state.Map[string, int]
+}
+
+func (f *mapStateFn) ProcessElement(s state.Provider, w string, c int) string {
+	i, _, err := f.State1.Get(s, w)
+	if err != nil {
+		panic(err)
+	}
+	i++
+	err = f.State1.Put(s, w, i)
+	if err != nil {
+		panic(err)
+	}
+	err = f.State1.Put(s, fmt.Sprintf("%v%v", w, i), i)
+	if err != nil {
+		panic(err)
+	}
+	j, _, err := f.State1.Get(s, w)
+	if err != nil {
+		panic(err)
+	}
+	if i != j {
+		panic(fmt.Sprintf("Reading state multiple times for %v produced different results: %v != %v", w, i, j))
+	}
+
+	keys, _, err := f.State1.Keys(s)
+	if err != nil {
+		panic(err)
+	}
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	return fmt.Sprintf("%v: %v, keys: %v", w, i, keys)
+}
+
+// MapStateParDo tests a DoFn that uses value state.
+func MapStateParDo() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear")
+	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
+		emit(w, 1)
+	}, in)
+	counts := beam.ParDo(s, &mapStateFn{State1: state.MakeMapState[string, int]("key1")}, keyed)
+	passert.Equals(s, counts, "apple: 1, keys: [apple apple1]", "pear: 1, keys: [pear pear1]", "peach: 1, keys: [peach peach1]", "apple: 2, keys: [apple apple1 apple2]", "apple: 3, keys: [apple apple1 apple2 apple3]", "pear: 2, keys: [pear pear1 pear2]")
 
 	return p
 }

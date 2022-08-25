@@ -36,3 +36,8 @@ func TestCombiningState(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.RunAndValidate(t, CombiningStateParDo())
 }
+
+func TestMapState(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, MapStateParDo())
+}
