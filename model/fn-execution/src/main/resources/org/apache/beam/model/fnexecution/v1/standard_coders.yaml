@@ -453,6 +453,13 @@ coder:
 examples:
     "\x03\x00\x02\x00\xb6\x95\xd5\xf9\x05\xc0\xc4\x07\x1b2020-08-13T14:14:14.123456Z\xc0\xf7\x85\xda\xae\x98\xeb\x02": {f_timestamp: {seconds: 1597328054, micros: 123456}, f_string: "2020-08-13T14:14:14.123456Z", f_int: 1597328054123456}
 
+coder:
+  urn: "beam:coder:row:v1"
+  # f_timestamp: logical(millis_instant), f_string: string, f_int: int64
+  payload: "\n:\n\x0bf_timestamp\x1a+:)\n#beam:logical_type:millis_instant:v1\x1a\x02\x10\x04\n\x0e\n\x08f_string\x1a\x02\x10\x07\n\x0b\n\x05f_int\x1a\x02\x10\x04\x12$80be749a-5700-4ede-89d8-dd9a4433a3f8"
+examples:
+  "\x03\x00\x80\x00\x01s\xe8+\xd7k\x182020-08-13T14:14:14.123Z\xeb\xae\xaf\xc1\xbe.": {f_timestamp: 1597328054123, f_string: "2020-08-13T14:14:14.123Z", f_int: 1597328054123}
+
 ---
 
 coder:
