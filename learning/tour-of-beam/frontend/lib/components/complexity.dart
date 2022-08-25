@@ -58,8 +58,7 @@ class _Dot extends StatelessWidget {
     );
   }
 
-// TODO(nausharipov): extract into colors if correct
-  static const grey = _Dot(color: Color.fromARGB(125, 128, 128, 128));
+  static const grey = _Dot(color: TobColors.grey4);
   static const green = _Dot(color: TobColors.green);
   static const orange = _Dot(color: TobColors.orange);
   static const red = _Dot(color: TobColors.red);

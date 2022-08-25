@@ -20,7 +20,7 @@ ui:
   darkMode: 'Dark Mode'
   lightMode: 'Light Mode'
   privacyPolicy: 'Privacy Policy'
-  reportIssue: 'Report issue in Jira'
+  reportIssue: 'Report Issue in GitHub'
   signIn: 'Sign in'
   continueGitHub: 'Continue with GitHub'
   continueGoogle: 'Continue with Google'
