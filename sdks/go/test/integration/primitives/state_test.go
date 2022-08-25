@@ -13,32 +13,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package primitives
 
 import (
-	"beam.apache.org/learning/katas/core_transforms/map/pardo_onetomany/pkg/task"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
-func TestTask(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	tests := []struct {
-		input beam.PCollection
-		want []interface{}
-	}{
-		{
-			input: beam.Create(s, "Hello Beam. It is awesome."),
-			want: []interface{}{"Hello", "Beam.", "It", "is", "awesome."},
-		},
-	}
-	for _, tt := range tests {
-		got := task.ApplyTransform(s, tt.input)
-		passert.Equals(s, got, tt.want...)
-		if err := ptest.Run(p); err != nil {
-			t.Error(err)
-		}
-	}
+func TestValueState(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, ValueStateParDo())
+}
+
+func TestBagState(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, BagStateParDo())
+}
+
+func TestCombiningState(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, CombiningStateParDo())
 }

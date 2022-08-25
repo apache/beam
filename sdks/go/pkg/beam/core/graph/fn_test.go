@@ -53,8 +53,11 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: &GoodDoFnCoGbk2{}, opt: CoGBKMainInput(3)},
 			{dfn: &GoodDoFnCoGbk7{}, opt: CoGBKMainInput(8)},
 			{dfn: &GoodDoFnCoGbk1wSide{}, opt: NumMainInputs(MainKv)},
-			// TODO(#22736) - Enable this once stateful dofns are fully supported
-			// {dfn: &GoodStatefulDoFn{State1: state.Value[int](state.MakeValueState[int]("state1"))}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn{State1: state.MakeValueState[int]("state1")}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn2{State1: state.MakeBagState[int]("state1")}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn3{State1: state.MakeCombiningState[int, int, int]("state1", func(a, b int) int {
+				return a * b
+			})}, opt: NumMainInputs(MainKv)},
 		}
 
 		for _, test := range tests {
@@ -1085,6 +1088,22 @@ type GoodStatefulDoFn struct {
 }
 
 func (fn *GoodStatefulDoFn) ProcessElement(state.Provider, int, int) int {
+	return 0
+}
+
+type GoodStatefulDoFn2 struct {
+	State1 state.Bag[int]
+}
+
+func (fn *GoodStatefulDoFn2) ProcessElement(state.Provider, int, int) int {
+	return 0
+}
+
+type GoodStatefulDoFn3 struct {
+	State1 state.Combining[int, int, int]
+}
+
+func (fn *GoodStatefulDoFn3) ProcessElement(state.Provider, int, int) int {
 	return 0
 }
 
