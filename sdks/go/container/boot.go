@@ -58,6 +58,24 @@ const (
 	enableGoogleCloudProfilerOption = "enable_google_cloud_profiler"
 )
 
+func configureGoogleCloudProfilerEnvVars(metadata map[string]string) error {
+	if metadata == nil {
+		return errors.New("enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled")
+	}
+	jobName, nameExists := metadata["job_name"]
+	if !nameExists {
+		return errors.New("required job_name missing from metadata, profiling will not be enabled without it")
+	}
+	jobID, idExists := metadata["job_id"]
+	if !idExists {
+		return errors.New("required job_id missing from metadata, profiling will not be enabled without it")
+	}
+	os.Setenv(cloudProfilingJobName, jobName)
+	os.Setenv(cloudProfilingJobID, jobID)
+	log.Printf("Cloud Profiling Job Name: %v, Job IDL %v", jobName, jobID)
+	return nil
+}
+
 func main() {
 	flag.Parse()
 	if *id == "" {
@@ -130,20 +148,9 @@ func main() {
 
 	enableGoogleCloudProfiler := strings.Contains(options, enableGoogleCloudProfilerOption)
 	if enableGoogleCloudProfiler {
-		if metadata := info.GetMetadata(); metadata != nil {
-			if jobName, nameExists := metadata["job_name"]; nameExists {
-				if jobId, idExists := metadata["job_id"]; idExists {
-					os.Setenv(cloudProfilingJobName, jobName)
-					os.Setenv(cloudProfilingJobID, jobId)
-					log.Printf("Cloud Profiling Job Name: %v, Job IDL %v", jobName, jobId)
-				} else {
-					log.Println("Required job_id missing from metadata, profiling will not be enabled without it.")
-				}
-			} else {
-				log.Println("Required job_name missing from metadata, profiling will not be enabled without it.")
-			}
-		} else {
-			log.Println("enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled.")
+		err := configureGoogleCloudProfilerEnvVars(info.Metadata)
+		if err != nil {
+			log.Printf("could not configure Google Cloud Profiler variables, got %v", err)
 		}
 	}
 
