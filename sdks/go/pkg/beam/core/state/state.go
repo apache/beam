@@ -229,8 +229,8 @@ func MakeBagState[T any](k string) Bag[T] {
 // It uses 3 generic values, [T1, T2, T3], to represent the accumulator, input, and output types respectively.
 // Key represents the key used to lookup this state.
 type Combining[T1, T2, T3 any] struct {
-	Key     string
-	accumFn interface{}
+	Key       string
+	combineFn interface{}
 }
 
 // Add is used to write add an element to the combining pipeline state.
@@ -354,8 +354,9 @@ func (s Combining[T1, T2, T3]) StateType() TypeEnum {
 	return TypeCombining
 }
 
+// GetCombineFn returns this state instance's CombineFn
 func (s Combining[T1, T2, T3]) GetCombineFn() interface{} {
-	return s.accumFn
+	return s.combineFn
 }
 
 // MakeCombiningState is a factory function to create an instance of Combining state with the given key and combiner
@@ -364,7 +365,7 @@ func (s Combining[T1, T2, T3]) GetCombineFn() interface{} {
 // If no accumulator or output types are defined, use the input type.
 func MakeCombiningState[T1, T2, T3 any](k string, combiner interface{}) Combining[T1, T2, T3] {
 	return Combining[T1, T2, T3]{
-		Key:     k,
-		accumFn: combiner,
+		Key:       k,
+		combineFn: combiner,
 	}
 }
