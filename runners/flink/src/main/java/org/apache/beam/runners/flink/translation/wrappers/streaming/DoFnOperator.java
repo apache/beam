@@ -88,11 +88,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -301,10 +301,8 @@ public class DoFnOperator<InputT, OutputT>
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
 
-    this.requiresStableInput =
-        // WindowDoFnOperator does not use a DoFn
-        doFn != null
-            && DoFnSignatures.getSignature(doFn.getClass()).processElement().requiresStableInput();
+    this.requiresStableInput = isRequiresStableInput(doFn);
+
     this.usesOnWindowExpiration =
         doFn != null && DoFnSignatures.getSignature(doFn.getClass()).onWindowExpiration() != null;
 
@@ -324,6 +322,17 @@ public class DoFnOperator<InputT, OutputT>
     }
 
     this.finishBundleBeforeCheckpointing = flinkOptions.getFinishBundleBeforeCheckpointing();
+  }
+
+  private boolean isRequiresStableInput(DoFn<InputT, OutputT> doFn) {
+    // WindowDoFnOperator does not use a DoFn
+    return doFn != null
+        && DoFnSignatures.getSignature(doFn.getClass()).processElement().requiresStableInput();
+  }
+
+  @VisibleForTesting
+  boolean getRequiresStableInput() {
+    return requiresStableInput;
   }
 
   // allow overriding this in WindowDoFnOperator because this one dynamically creates
@@ -490,6 +499,7 @@ public class DoFnOperator<InputT, OutputT>
             doFnSchemaInformation,
             sideInputMapping);
 
+    doFnRunner = createWrappingDoFnRunner(doFnRunner, stepContext);
     if (requiresStableInput) {
       // put this in front of the root FnRunner before any additional wrappers
       doFnRunner =
@@ -504,7 +514,6 @@ public class DoFnOperator<InputT, OutputT>
                   options.getNumConcurrentCheckpoints(),
                   serializedOptions);
     }
-    doFnRunner = createWrappingDoFnRunner(doFnRunner, stepContext);
     earlyBindStateIfNeeded();
 
     if (!options.getDisableMetrics()) {
@@ -760,8 +769,8 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   /**
-   * Allows to apply a hold to the output watermark before it is send out. By default, just passes
-   * the potential output watermark through which will make it the new output watermark.
+   * Allows to apply a hold to the output watermark before it is send out. Used to apply hold on
+   * output watermark for delayed (asynchronous or buffered) processing.
    *
    * @param currentOutputWatermark the current output watermark
    * @param potentialOutputWatermark The potential new output watermark which can be adjusted, if
@@ -769,6 +778,9 @@ public class DoFnOperator<InputT, OutputT>
    * @return The new output watermark which will be emitted.
    */
   public long applyOutputWatermarkHold(long currentOutputWatermark, long potentialOutputWatermark) {
+    if (requiresStableInput) {
+      return Math.min(bufferingDoFnRunner.getOutputWatermarkHold(), potentialOutputWatermark);
+    }
     return potentialOutputWatermark;
   }
 
@@ -902,7 +914,7 @@ public class DoFnOperator<InputT, OutputT>
     timeService.registerTimer(timeService.getCurrentProcessingTime(), callback);
   }
 
-  private void updateOutputWatermark() {
+  void updateOutputWatermark() {
     try {
       processInputWatermark(false);
     } catch (Exception ex) {
@@ -1005,6 +1017,7 @@ public class DoFnOperator<InputT, OutputT>
       // We can now release all buffered data which was held back for
       // @RequiresStableInput guarantees.
       bufferingDoFnRunner.checkpointCompleted(checkpointId);
+      updateOutputWatermark();
     }
 
     List<InMemoryBundleFinalizer.Finalization> finalizations =

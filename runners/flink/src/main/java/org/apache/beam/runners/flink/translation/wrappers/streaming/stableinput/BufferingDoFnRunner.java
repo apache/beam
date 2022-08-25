@@ -62,6 +62,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       int maxConcurrentCheckpoints,
       SerializablePipelineOptions pipelineOptions)
       throws Exception {
+
     return new BufferingDoFnRunner<>(
         doFnRunner,
         stateName,
@@ -85,6 +86,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
   int currentStateIndex;
   /** The current handler used for buffering. */
   private BufferingElementsHandler currentBufferingElementsHandler;
+  /** Minimum timestamp of all buffered elements. */
+  private volatile long currentOutputWatermarkHold;
 
   private BufferingDoFnRunner(
       DoFnRunner<InputT, OutputT> underlying,
@@ -96,6 +99,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       int maxConcurrentCheckpoints,
       SerializablePipelineOptions pipelineOptions)
       throws Exception {
+
     Preconditions.checkArgument(
         maxConcurrentCheckpoints > 0 && maxConcurrentCheckpoints < Short.MAX_VALUE,
         "Maximum number of concurrent checkpoints not within the bounds of 0 and %s",
@@ -140,6 +144,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       lastUsedIndex = pendingSnapshots.get(pendingSnapshots.size() - 1).internalId;
     }
     this.currentStateIndex = lastUsedIndex;
+    this.currentOutputWatermarkHold = Long.MAX_VALUE;
     // If a previous run had a higher number of concurrent checkpoints we need to use this number to
     // not break the buffering/flushing logic.
     return Math.max(maxConcurrentCheckpoints, maxIndex) + 1;
@@ -152,6 +157,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
 
   @Override
   public void processElement(WindowedValue<InputT> elem) {
+    currentOutputWatermarkHold =
+        Math.min(elem.getTimestamp().getMillis(), currentOutputWatermarkHold);
     currentBufferingElementsHandler.buffer(new BufferedElements.Element(elem));
   }
 
@@ -164,6 +171,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       Instant timestamp,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
+
+    currentOutputWatermarkHold = Math.min(timestamp.getMillis(), currentOutputWatermarkHold);
     currentBufferingElementsHandler.buffer(
         new BufferedElements.Timer<>(
             timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain));
@@ -212,6 +221,11 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       }
       bufferingElementsHandler.clear();
     }
+    currentOutputWatermarkHold = Long.MAX_VALUE;
+  }
+
+  public long getOutputWatermarkHold() {
+    return currentOutputWatermarkHold;
   }
 
   private void addToBeAcknowledgedCheckpoint(long checkpointId, int internalId) throws Exception {

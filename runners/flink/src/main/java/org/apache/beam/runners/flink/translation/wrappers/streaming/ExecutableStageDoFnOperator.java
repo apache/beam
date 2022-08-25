@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.core.StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_TIMER_ID;
+import static org.apache.beam.runners.flink.translation.utils.FlinkPortableRunnerUtils.requiresStableInput;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPortableRunnerUtils.requiresTimeSortedInput;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -171,7 +172,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient long minEventTimeTimerTimestampInCurrentBundle;
 
   /** The input watermark before the current bundle started. */
-  private transient long inputWatermarkBeforeBundleStart;
+  private long inputWatermarkBeforeBundleStart = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
 
   /** Flag indicating whether the operator has been closed. */
   private transient boolean closed;
@@ -196,7 +197,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       Coder keyCoder,
       KeySelector<WindowedValue<InputT>, ?> keySelector) {
     super(
-        new NoOpDoFn(),
+        requiresStableInput(payload) ? new StableNoOpDoFn() : new NoOpDoFn(),
         stepName,
         windowedInputCoder,
         outputCoders,
@@ -280,8 +281,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   @Override
   public final void notifyCheckpointComplete(long checkpointId) throws Exception {
-    finalizationHandler.finalizeAllOutstandingBundles();
     super.notifyCheckpointComplete(checkpointId);
+    finalizationHandler.finalizeAllOutstandingBundles();
   }
 
   private BundleCheckpointHandler getBundleCheckpointHandler(boolean hasSDF) {
@@ -814,6 +815,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // gives better throughput due to the bundle not getting cut on
     // every watermark. So we have implemented 2) below.
     //
+    potentialOutputWatermark =
+        super.applyOutputWatermarkHold(currentOutputWatermark, potentialOutputWatermark);
     if (sdkHarnessRunner.isBundleInProgress()) {
       if (minEventTimeTimerTimestampInLastBundle < Long.MAX_VALUE) {
         // We can safely advance the watermark to before the last bundle's minimum event timer
@@ -1271,6 +1274,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   private static class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
+    @ProcessElement
+    public void doNothing(ProcessContext context) {}
+  }
+
+  private static class StableNoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
+    @RequiresStableInput
     @ProcessElement
     public void doNothing(ProcessContext context) {}
   }
