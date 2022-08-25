@@ -26,3 +26,8 @@ func TestValueState(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.RunAndValidate(t, ValueStateParDo())
 }
+
+func TestBagState(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, BagStateParDo())
+}
