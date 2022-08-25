@@ -404,6 +404,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		urnTruncateSizedRestrictions:
 		var data string
 		var sides map[string]*pipepb.SideInput
+		var userState map[string]*pipepb.StateSpec
 		switch urn {
 		case graphx.URNParDo,
 			urnPairWithRestriction,
@@ -416,6 +417,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			data = string(pardo.GetDoFn().GetPayload())
 			sides = pardo.GetSideInputs()
+			userState = pardo.GetStateSpecs()
 		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 			var cmb pipepb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
@@ -462,6 +464,51 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					n.PID = transform.GetUniqueName()
 
 					input := unmarshalKeyedValues(transform.GetInputs())
+
+					if len(userState) > 0 {
+						stateIDToCoder := make(map[string]*coder.Coder)
+						stateIDToCombineFn := make(map[string]*graph.CombineFn)
+						for key, spec := range userState {
+							var cID string
+							if rmw := spec.GetReadModifyWriteSpec(); rmw != nil {
+								cID = rmw.CoderId
+							} else if bs := spec.GetBagSpec(); bs != nil {
+								cID = bs.ElementCoderId
+							} else if cs := spec.GetCombiningSpec(); cs != nil {
+								cID = cs.AccumulatorCoderId
+								cmbData := string(cs.GetCombineFn().GetPayload())
+								var cmbTp v1pb.TransformPayload
+								if err := protox.DecodeBase64(cmbData, &cmbTp); err != nil {
+									return nil, errors.Wrapf(err, "invalid transform payload %v for %v", cmbData, transform)
+								}
+								_, fn, _, _, _, err := graphx.DecodeMultiEdge(cmbTp.GetEdge())
+								if err != nil {
+									return nil, err
+								}
+								cfn, err := graph.AsCombineFn(fn)
+								if err != nil {
+									return nil, err
+								}
+								stateIDToCombineFn[key] = cfn
+							}
+							c, err := b.coders.Coder(cID)
+							if err != nil {
+								return nil, err
+							}
+							stateIDToCoder[key] = c
+							sid := StreamID{
+								Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
+								PtransformID: id.to,
+							}
+
+							ec, wc, err := b.makeCoderForPCollection(input[0])
+							if err != nil {
+								return nil, err
+							}
+							n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIDToCoder, stateIDToCombineFn)
+						}
+					}
+
 					for i := 1; i < len(input); i++ {
 						// TODO(https://github.com/apache/beam/issues/18602) Handle ViewFns for side inputs
 

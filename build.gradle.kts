@@ -100,6 +100,8 @@ tasks.rat {
     "**/*.json",
 
     // Katas files
+    "learning/katas/**/course-info.yaml",
+    "learning/katas/**/task-info.yaml",
     "learning/katas/**/course-remote-info.yaml",
     "learning/katas/**/section-remote-info.yaml",
     "learning/katas/**/lesson-remote-info.yaml",

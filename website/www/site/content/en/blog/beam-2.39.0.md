@@ -3,6 +3,7 @@ title:  "Apache Beam 2.39.0"
 date:   2022-05-25 9:00:00 -0700
 categories:
   - blog
+  - release
 authors:
   - yichi
 ---

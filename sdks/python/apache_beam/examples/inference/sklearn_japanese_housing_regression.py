@@ -41,6 +41,7 @@ from apache_beam.ml.inference.sklearn_inference import ModelFileType
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerPandas
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.runner import PipelineResult
 
 # yapf: disable
 MODELS = [
@@ -130,40 +131,47 @@ def inference_transform(model_name, model_path):
   return transform_name >> RunInference(model_loader)
 
 
-def run(argv=None, save_main_session=True):
+def run(
+    argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
   """Entry point. Defines and runs the pipeline."""
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
-  with beam.Pipeline(options=pipeline_options) as p:
-    # Input may be a single file or a comma separated list of files.
-    file_names = p | 'FileNames' >> beam.Create(known_args.input.split(','))
-    loaded_data = file_names | beam.ParDo(LoadDataframe())
+  pipeline = test_pipeline
+  if not test_pipeline:
+    pipeline = beam.Pipeline(options=pipeline_options)
 
-    # Some examples don't have all features. Pipelines
-    # that expect those fields will fail. There are many ways to deal with
-    # missing data. This example illustrates how to assign predictions to
-    # different models depending upon what data is available.
-    [all, floor_area, stations, no_features] = (
-        loaded_data
-        | 'Partition' >> beam.Partition(sort_by_features, len(MODELS)))
+  # Input may be a single file or a comma separated list of files.
+  file_names = pipeline | 'FileNames' >> beam.Create(
+      known_args.input.split(','))
+  loaded_data = file_names | beam.ParDo(LoadDataframe())
 
-    model_path = known_args.model_path
-    prediction_1 = all | inference_transform('all_features', model_path)
-    prediction_2 = floor_area | inference_transform('floor_area', model_path)
-    prediction_3 = stations | inference_transform('stations', model_path)
-    prediction_4 = no_features | inference_transform('no_features', model_path)
+  # Some examples don't have all features. Pipelines
+  # that expect those fields will fail. There are many ways to deal with
+  # missing data. This example illustrates how to assign predictions to
+  # different models depending upon what data is available.
+  [all, floor_area, stations, no_features] = (
+      loaded_data
+      | 'Partition' >> beam.Partition(sort_by_features, len(MODELS)))
 
-    all_predictions = (prediction_1, prediction_2, prediction_3, prediction_4)
-    flattened_predictions = all_predictions | 'Flatten' >> beam.Flatten()
-    prediction_report = (
-        flattened_predictions
-        | 'AllPredictions' >> beam.Map(report_predictions))
-    _ = prediction_report | "WriteOutput" >> beam.io.WriteToText(
-        known_args.output,
-        append_trailing_newlines=True,
-        shard_name_template='')
+  model_path = known_args.model_path
+  prediction_1 = all | inference_transform('all_features', model_path)
+  prediction_2 = floor_area | inference_transform('floor_area', model_path)
+  prediction_3 = stations | inference_transform('stations', model_path)
+  prediction_4 = no_features | inference_transform('no_features', model_path)
+
+  all_predictions = (prediction_1, prediction_2, prediction_3, prediction_4)
+  flattened_predictions = all_predictions | 'Flatten' >> beam.Flatten()
+  prediction_report = (
+      flattened_predictions
+      | 'AllPredictions' >> beam.Map(report_predictions))
+  _ = prediction_report | "WriteOutput" >> beam.io.WriteToText(
+      known_args.output, append_trailing_newlines=True, shard_name_template='')
+
+  result = pipeline.run()
+  result.wait_until_finish()
+  return result
 
 
 if __name__ == '__main__':
