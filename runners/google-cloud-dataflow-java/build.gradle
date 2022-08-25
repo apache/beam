@@ -504,7 +504,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesStrictTimerOrdering' /* https://github.com/apache/beam/issues/19957 */,
-      'org.apache.beam.sdk.testing.UsesTestStream',
       'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
     ],
     excludedTests: [
