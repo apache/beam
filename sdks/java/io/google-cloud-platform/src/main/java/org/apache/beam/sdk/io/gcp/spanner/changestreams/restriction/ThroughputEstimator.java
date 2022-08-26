@@ -55,23 +55,25 @@ public class ThroughputEstimator implements Serializable {
    * @param bytes the total bytes of the records
    */
   public void update(Timestamp timeOfRecords, long bytes) {
-    BigDecimal bytesNum = BigDecimal.valueOf(bytes);
-    if (startTimeOfCurrentWindow.equals(Timestamp.MIN_VALUE)) {
-      bytesInCurrentWindow = bytesNum;
-      startTimeOfCurrentWindow = timeOfRecords;
-      return;
-    }
+    synchronized (queue) {
+      BigDecimal bytesNum = BigDecimal.valueOf(bytes);
+      if (startTimeOfCurrentWindow.equals(Timestamp.MIN_VALUE)) {
+        bytesInCurrentWindow = bytesNum;
+        startTimeOfCurrentWindow = timeOfRecords;
+        return;
+      }
 
-    if (timeOfRecords.getSeconds() < startTimeOfCurrentWindow.getSeconds() + 1) {
-      bytesInCurrentWindow = bytesInCurrentWindow.add(bytesNum);
-    } else {
-      queue.add(new ImmutablePair<>(startTimeOfCurrentWindow, bytesInCurrentWindow));
-      bytesInQueue = bytesInQueue.add(bytesInCurrentWindow);
+      if (timeOfRecords.getSeconds() < startTimeOfCurrentWindow.getSeconds() + 1) {
+        bytesInCurrentWindow = bytesInCurrentWindow.add(bytesNum);
+      } else {
+        queue.add(new ImmutablePair<>(startTimeOfCurrentWindow, bytesInCurrentWindow));
+        bytesInQueue = bytesInQueue.add(bytesInCurrentWindow);
 
-      bytesInCurrentWindow = bytesNum;
-      startTimeOfCurrentWindow = timeOfRecords;
+        bytesInCurrentWindow = bytesNum;
+        startTimeOfCurrentWindow = timeOfRecords;
+      }
+      cleanQueue(startTimeOfCurrentWindow);
     }
-    cleanQueue(startTimeOfCurrentWindow);
   }
 
   /** Returns the estimated throughput for now. */
@@ -85,14 +87,16 @@ public class ThroughputEstimator implements Serializable {
    * @param time the specified timestamp to check throughput
    */
   public double getFrom(Timestamp time) {
-    cleanQueue(time);
-    if (queue.size() == 0) {
-      return 0D;
+    synchronized (queue) {
+      cleanQueue(time);
+      if (queue.size() == 0) {
+        return 0D;
+      }
+      return bytesInQueue
+          .divide(BigDecimal.valueOf(queue.size()), MathContext.DECIMAL128)
+          .max(BigDecimal.ZERO)
+          .doubleValue();
     }
-    return bytesInQueue
-        .divide(BigDecimal.valueOf(queue.size()), MathContext.DECIMAL128)
-        .max(BigDecimal.ZERO)
-        .doubleValue();
   }
 
   private void cleanQueue(Timestamp time) {
