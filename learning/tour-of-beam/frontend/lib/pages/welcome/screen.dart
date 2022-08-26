@@ -35,11 +35,20 @@ class WelcomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return PageContainer(
       child: SingleChildScrollView(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Table(
+          border: TableBorder.symmetric(
+            inside: BorderSide(color: ThemeColors.of(context).divider),
+          ),
           children: const [
-            Expanded(child: _SdkSelection()),
-            Expanded(child: _TourSummary()),
+            TableRow(
+              children: [
+                TableCell(
+                  verticalAlignment: TableCellVerticalAlignment.fill,
+                  child: _SdkSelection(),
+                ),
+                _TourSummary(),
+              ],
+            ),
           ],
         ),
       ),
@@ -53,7 +62,7 @@ class _SdkSelection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _SdkSelectionBody(
-      child: Column(
+      child: Wrap(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(50, 60, 50, 20),
@@ -111,15 +120,8 @@ class _SdkSelectionBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: ThemeColors.of(context).background,
-        border: Border(
-          right: BorderSide(
-            color: ThemeColors.of(context).divider,
-          ),
-        ),
-      ),
+    return ColoredBox(
+      color: ThemeColors.of(context).background,
       child: child,
     );
   }
