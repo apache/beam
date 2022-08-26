@@ -38,8 +38,6 @@ Node is either a group or a unit.
 Every module or unit has SDK-wide unique ID, which is provided by a content maintainer.
 User's progress on a unit is tied to its ID, and if ID changes, the progress is lost.
 
-Only __homogenious groups__ are supported: it consists of only units or only groups, but not both
-
 __Kinds__
 - tb_learning_path
 
@@ -51,14 +49,8 @@ __Kinds__
 
   parentKey: Learning Path key SDK
 
-- tb_learning_group
+- tb_learning_node
 
-  key: `<SDK>_<groupID>`
-
-  parentKey: parent module/group key
-
-- tb_learning_unit
-
-  key: `<SDK>_<unitID>`
+  key: `<SDK>_<persistentID>`
 
   parentKey: parent module/group key

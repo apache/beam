@@ -77,6 +77,7 @@ type TbLearningUnit struct {
 type TbLearningNode struct {
 	Type tob.NodeType `datastore:"type"`
 	// common fields, duplicate same fields from the nested entities
+	// (needed to allow projection when getting the content tree)
 	Id   string `datastore:"id"`
 	Name string `datastore:"name"`
 
