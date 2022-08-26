@@ -47,3 +47,8 @@ class TobIconSizes {
   static const double medium = 24;
   static const double large = 32;
 }
+
+class ScreenSizes {
+  // TODO(nausharipov): name better
+  static const medium = 1024;
+}

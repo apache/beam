@@ -31,6 +31,33 @@ import '../../constants/sizes.dart';
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen();
 
+  static const horizontalHalves = [
+    TableRow(
+      children: [
+        TableCell(
+          verticalAlignment: TableCellVerticalAlignment.fill,
+          child: _SdkSelection(),
+        ),
+        _TourSummary(),
+      ],
+    ),
+  ];
+
+  static const verticalHalves = [
+    TableRow(
+      children: [
+        TableCell(
+          child: _SdkSelection(),
+        ),
+      ],
+    ),
+    TableRow(
+      children: [
+        _TourSummary(),
+      ],
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return PageContainer(
@@ -39,17 +66,9 @@ class WelcomeScreen extends StatelessWidget {
           border: TableBorder.symmetric(
             inside: BorderSide(color: ThemeColors.of(context).divider),
           ),
-          children: const [
-            TableRow(
-              children: [
-                TableCell(
-                  verticalAlignment: TableCellVerticalAlignment.fill,
-                  child: _SdkSelection(),
-                ),
-                _TourSummary(),
-              ],
-            ),
-          ],
+          children: MediaQuery.of(context).size.width > ScreenSizes.medium
+              ? horizontalHalves
+              : verticalHalves,
         ),
       ),
     );
