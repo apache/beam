@@ -190,7 +190,6 @@ def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesMapState',
         'org.apache.beam.sdk.testing.UsesMetricsPusher',
         'org.apache.beam.sdk.testing.UsesOrderedListState',
-        'org.apache.beam.sdk.testing.UsesTestStream',
         'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
         'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
 ]
@@ -465,6 +464,7 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
       'org.apache.beam.sdk.testing.UsesStatefulParDo',
       'org.apache.beam.sdk.testing.UsesTimersInParDo',
+      'org.apache.beam.sdk.testing.UsesTestStream',
       'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
       'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
     ],
