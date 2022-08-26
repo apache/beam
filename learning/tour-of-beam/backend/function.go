@@ -88,7 +88,7 @@ func getContentTree(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tree, err := svc.GetContentTree(context.Background(), sdk, nil /*TODO userId*/)
+	tree, err := svc.GetContentTree(r.Context(), sdk, nil /*TODO userId*/)
 	if err != nil {
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, err.Error())
 		return
