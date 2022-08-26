@@ -73,6 +73,8 @@ public class PostProcessingMetricsDoFnTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L,
+            "transactionTag",
+            true,
             ChangeStreamRecordMetadata.newBuilder()
                 .withRecordStreamStartedAt(Timestamp.ofTimeMicroseconds(1L))
                 .withRecordStreamEndedAt(Timestamp.ofTimeMicroseconds(2L))
