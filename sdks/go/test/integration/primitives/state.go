@@ -19,8 +19,10 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
@@ -79,6 +81,18 @@ func ValueStateParDo() *beam.Pipeline {
 	}, in)
 	counts := beam.ParDo(s, &valueStateFn{State1: state.MakeValueState[int]("key1"), State2: state.MakeValueState[string]("key2")}, keyed)
 	passert.Equals(s, counts, "apple: 1, I", "pear: 1, I", "peach: 1, I", "apple: 2, II", "apple: 3, III", "pear: 2, II")
+
+	return p
+}
+
+// ValueStateParDo tests a DoFn that uses windowed value state.
+func ValueStateParDo_Windowed() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 1, 1, 2, 2, 3, 4, 4, 4, 4}}, beam.Impulse(s))
+	wData := beam.WindowInto(s, window.NewFixedWindows(1*time.Second), timestampedData)
+	counts := beam.ParDo(s, &valueStateFn{State1: state.MakeValueState[int]("key1"), State2: state.MakeValueState[string]("key2")}, wData)
+	passert.Equals(s, counts, "magic: 1, I", "magic: 2, II", "magic: 3, III", "magic: 1, I", "magic: 2, II", "magic: 1, I", "magic: 1, I", "magic: 2, II", "magic: 3, III", "magic: 4, IIII")
 
 	return p
 }

@@ -90,6 +90,7 @@ var directFilters = []string{
 	"TestOomParDo",
 	// The direct runner does not support user state.
 	"TestValueState",
+	"TestValueState_Windowed",
 	"TestBagState",
 	"TestCombiningState",
 }
@@ -114,6 +115,7 @@ var portableFilters = []string{
 	"TestOomParDo",
 	// The portable runner does not support user state.
 	"TestValueState",
+	"TestValueState_Windowed",
 	"TestBagState",
 	"TestCombiningState",
 }
@@ -159,6 +161,7 @@ var samzaFilters = []string{
 	"TestOomParDo",
 	// The samza runner does not support user state.
 	"TestValueState",
+	"TestValueState_Windowed",
 	"TestBagState",
 	"TestCombiningState",
 }
