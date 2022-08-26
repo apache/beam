@@ -27,6 +27,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,14 +39,15 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings({"nullness", "rawtypes"})
-public class UpdateSchemaDestination
+public class UpdateSchemaDestination<DestinationT>
     extends DoFn<
-        Iterable<KV<TableDestination, WriteTables.Result>>,
+        Iterable<KV<DestinationT, WriteTables.Result>>,
         Iterable<KV<TableDestination, WriteTables.Result>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UpdateSchemaDestination.class);
@@ -104,21 +106,37 @@ public class UpdateSchemaDestination
     pendingJobs.clear();
   }
 
+  TableDestination getTableWithDefaultProject(DestinationT destination, BigQueryOptions options) {
+    TableDestination tableDestination = dynamicDestinations.getTable(destination);
+    TableReference tableReference = tableDestination.getTableReference();
+
+    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+      tableReference.setProjectId(
+          options.getBigQueryProject() == null
+              ? options.getProject()
+              : options.getBigQueryProject());
+      tableDestination = tableDestination.withTableReference(tableReference);
+    }
+
+    return tableDestination;
+  }
+
   @ProcessElement
   public void processElement(
-      @Element Iterable<KV<TableDestination, WriteTables.Result>> element,
+      @Element Iterable<KV<DestinationT, WriteTables.Result>> element,
       ProcessContext context,
       BoundedWindow window)
       throws IOException {
-    Object destination = null;
-    for (KV<TableDestination, WriteTables.Result> entry : element) {
+    DestinationT destination = null;
+    BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
+    for (KV<DestinationT, WriteTables.Result> entry : element) {
       destination = entry.getKey();
       if (destination != null) {
         break;
       }
     }
     if (destination != null) {
-      TableDestination tableDestination = dynamicDestinations.getTable(destination);
+      TableDestination tableDestination = getTableWithDefaultProject(destination, options);
       TableSchema schema = dynamicDestinations.getSchema(destination);
       TableReference tableReference = tableDestination.getTableReference();
       String jobIdPrefix =
@@ -143,8 +161,13 @@ public class UpdateSchemaDestination
       if (updateSchemaDestinationJob != null) {
         pendingJobs.add(new PendingJobData(updateSchemaDestinationJob, tableDestination, window));
       }
-      context.output(element);
     }
+    List<KV<TableDestination, WriteTables.Result>> tableDestinations = new ArrayList<>();
+    for (KV<DestinationT, WriteTables.Result> entry : element) {
+      tableDestinations.add(
+          KV.of(getTableWithDefaultProject(destination, options), entry.getValue()));
+    }
+    context.output(tableDestinations);
   }
 
   @Teardown
