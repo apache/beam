@@ -124,7 +124,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
         .containsInAnyOrder(
             "{\"SingerId\":\"0\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 0\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{};",
+                + "{}",
             "{\"SingerId\":\"1\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
                 + "{\"FirstName\":\"Updating mutation 1\"};"
