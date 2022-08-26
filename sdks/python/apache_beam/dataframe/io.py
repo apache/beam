@@ -800,12 +800,12 @@ class _ReadGbq(beam.PTransform):
 
   Args:
     table (str): The ID of the table. The ID must contain only
-    letters ``a-z``, ``A-Z``,
+      letters ``a-z``, ``A-Z``,
       numbers ``0-9``, underscores ``_`` or white spaces.
       Note that the table argument must contain the entire table
       reference specified as: ``'PROJECT:DATASET.TABLE'``.
     use_bq_storage_api (bool): The method to use to read from BigQuery.
-    It may be 'EXPORT' or
+      It may be 'EXPORT' or
       'DIRECT_READ'. EXPORT invokes a BigQuery export request
       (https://cloud.google.com/bigquery/docs/exporting-data).
       'DIRECT_READ' reads
