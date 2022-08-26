@@ -110,7 +110,7 @@ func (s *stateProvider) WriteValueState(val state.Transaction) error {
 	return nil
 }
 
-// ReadBagState reads a BagState state from the State API
+// ReadBagState reads a bag state from the State API
 func (s *stateProvider) ReadBagState(userStateID string) ([]interface{}, []state.Transaction, error) {
 	initialValue, ok := s.initialBagByKey[userStateID]
 	if !ok {
@@ -165,7 +165,7 @@ func (s *stateProvider) WriteBagState(val state.Transaction) error {
 	return nil
 }
 
-// ReadMapStateValue reads a value from the map state given a key.
+// ReadMapStateValue reads a value from the map state for a given key.
 func (s *stateProvider) ReadMapStateValue(userStateID string, key interface{}) (interface{}, []state.Transaction, error) {
 	_, ok := s.initialMapValuesByKey[userStateID]
 	if !ok {

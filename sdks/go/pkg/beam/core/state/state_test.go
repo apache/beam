@@ -117,10 +117,6 @@ func (s *fakeProvider) ExtractOutputFn(userStateID string) reflectx.Func {
 	return nil
 }
 
-// ReadMapStateValue(userStateID string, key interface{}) (interface{}, []Transaction, error)
-// 	ReadMapStateKeys(userStateID string) ([]interface{}, []Transaction, error)
-// 	WriteMapState(val Transaction) error
-
 func (s *fakeProvider) ReadMapStateValue(userStateID string, key interface{}) (interface{}, []Transaction, error) {
 	keyString := key.(string)
 	if err, ok := s.err[userStateID]; ok {
