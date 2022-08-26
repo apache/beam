@@ -1077,7 +1077,7 @@ public class BigQueryIO {
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
 
       if (getMethod() == TypedRead.Method.DIRECT_READ) {
-        return expandForDirectRead(input, coder);
+        return expandForDirectRead(input, coder, beamSchemaEnabled);
       }
 
       checkArgument(
@@ -1232,22 +1232,34 @@ public class BigQueryIO {
       return rows;
     }
 
-    private PCollection<T> expandForDirectRead(PBegin input, Coder<T> outputCoder) {
+    private PCollection<T> expandForDirectRead(
+        PBegin input, Coder<T> outputCoder, boolean beamSchemaEnabled) {
       ValueProvider<TableReference> tableProvider = getTableProvider();
       Pipeline p = input.getPipeline();
+      BigQuerySourceDef srcDef = createSourceDef();
       if (tableProvider != null) {
         // No job ID is required. Read directly from BigQuery storage.
-        return p.apply(
-            org.apache.beam.sdk.io.Read.from(
-                BigQueryStorageTableSource.create(
-                    tableProvider,
-                    getFormat(),
-                    getSelectedFields(),
-                    getRowRestriction(),
-                    getParseFn(),
-                    outputCoder,
-                    getBigQueryServices(),
-                    getProjectionPushdownApplied())));
+        PCollection<T> rows =
+            p.apply(
+                org.apache.beam.sdk.io.Read.from(
+                    BigQueryStorageTableSource.create(
+                        tableProvider,
+                        getFormat(),
+                        getSelectedFields(),
+                        getRowRestriction(),
+                        getParseFn(),
+                        outputCoder,
+                        getBigQueryServices(),
+                        getProjectionPushdownApplied())));
+        if (beamSchemaEnabled) {
+          BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
+          Schema beamSchema = srcDef.getBeamSchema(bqOptions);
+          SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
+          SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
+
+          rows.setSchema(beamSchema, getTypeDescriptor(), toBeamRow, fromBeamRow);
+        }
+        return rows;
       }
 
       checkArgument(
@@ -1437,6 +1449,14 @@ public class BigQueryIO {
             }
           };
 
+      if (beamSchemaEnabled) {
+        BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
+        Schema beamSchema = srcDef.getBeamSchema(bqOptions);
+        SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
+        SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
+
+        rows.setSchema(beamSchema, getTypeDescriptor(), toBeamRow, fromBeamRow);
+      }
       return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
     }
 
