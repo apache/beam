@@ -467,9 +467,13 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			m.requirements[URNRequiresStatefulProcessing] = true
 			stateSpecs := make(map[string]*pipepb.StateSpec)
 			for _, ps := range edge.Edge.DoFn.PipelineState() {
-				coderID, err := m.coders.Add(edge.Edge.StateCoders[UserStateCoderId(ps)])
-				if err != nil {
-					return handleErr(err)
+				coderID := ""
+				c, ok := edge.Edge.StateCoders[UserStateCoderId(ps)]
+				if ok {
+					coderID, err = m.coders.Add(c)
+					if err != nil {
+						return handleErr(err)
+					}
 				}
 				keyCoderID := ""
 				if c, ok := edge.Edge.StateCoders[UserStateKeyCoderId(ps)]; ok {
@@ -477,8 +481,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 					if err != nil {
 						return handleErr(err)
 					}
-				} else if ps.StateType() == state.TypeMap {
-					return nil, errors.Errorf("Map type %v must have a key coder type, none detected", ps)
+				} else if ps.StateType() == state.TypeMap || ps.StateType() == state.TypeSet {
+					return nil, errors.Errorf("set or map state type %v must have a key coder type, none detected", ps)
 				}
 				switch ps.StateType() {
 				case state.TypeValue:
@@ -541,6 +545,17 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 							MapSpec: &pipepb.MapStateSpec{
 								KeyCoderId:   keyCoderID,
 								ValueCoderId: coderID,
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
+							Urn: URNMultiMapUserState,
+						},
+					}
+				case state.TypeSet:
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_SetSpec{
+							SetSpec: &pipepb.SetStateSpec{
+								ElementCoderId: keyCoderID,
 							},
 						},
 						Protocol: &pipepb.FunctionSpec{

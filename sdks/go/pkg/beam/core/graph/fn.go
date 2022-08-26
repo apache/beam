@@ -1274,10 +1274,10 @@ func validateState(fn *DoFn, numIn mainInputs) error {
 					"unique per DoFn", k, orig, s)
 			}
 			t := s.StateType()
-			if t != state.TypeValue && t != state.TypeBag && t != state.TypeCombining && t != state.TypeMap {
+			if t != state.TypeValue && t != state.TypeBag && t != state.TypeCombining && t != state.TypeSet && t != state.TypeMap {
 				err := errors.Errorf("Unrecognized state type %v for state %v", t, s)
 				return errors.SetTopLevelMsgf(err, "Unrecognized state type %v for state %v. Currently the only supported state"+
-					"types are state.Value, state.Combining, state.Bag, and state.Map", t, s)
+					"types are state.Value, state.Combining, state.Bag, state.Set, and state.Map", t, s)
 			}
 			stateKeys[k] = s
 		}
