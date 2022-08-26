@@ -458,8 +458,8 @@ class ReadGbqTransformTests(unittest.TestCase):
 
   def test_ReadGbq_unsupported_param(self):
     with self.assertRaisesRegex(ValueError,
-                                r"""Encountered unsupported parameter\(s\)
-        in read_gbq\: dict_keys\(\['reauth'\]\)"""):
+                                r"""Encountered unsupported parameter(s)
+        in read_gbq: dict_keys(['reauth'])"""):
       p = beam.Pipeline()
       _ = p | beam.dataframe.io.read_gbq(
           table="table", use_bqstorage_api=False, reauth="true_config")
