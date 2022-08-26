@@ -147,6 +147,7 @@ func (s *stateProvider) ReadBagState(userStateID string) ([]interface{}, []state
 	return initialValue, transactions, nil
 }
 
+// ClearBagState clears a bag state from the State API
 func (s *stateProvider) ClearBagState(val state.Transaction) error {
 	cl, err := s.getBagClearer(val.Key)
 	if err != nil {
