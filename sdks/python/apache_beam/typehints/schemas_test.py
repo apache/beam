@@ -599,6 +599,13 @@ class SchemaTest(unittest.TestCase):
             # bypass schema cache
             schema_registry=SchemaTypeRegistry()))
 
+  def test_row_type_is_callable(self):
+    simple_row_type = row_type.RowTypeConstraint.from_fields([('foo', np.int64),
+                                                              ('bar', str)])
+    instance = simple_row_type(np.int64(35), 'baz')
+    self.assertIsInstance(instance, simple_row_type.user_type)
+    self.assertEqual(instance, (np.int64(35), 'baz'))
+
 
 @parameterized_class([
     {
