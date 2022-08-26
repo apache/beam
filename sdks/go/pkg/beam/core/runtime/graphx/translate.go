@@ -1404,7 +1404,7 @@ func UserStateCoderId(ps state.PipelineState) string {
 	return fmt.Sprintf("val_%v", ps.StateKey())
 }
 
-// UserStateCoderId returns the key coder id of a user state
+// UserStateKeyCoderId returns the key coder id of a user state
 func UserStateKeyCoderId(ps state.PipelineState) string {
 	return fmt.Sprintf("key_%v", ps.StateKey())
 }

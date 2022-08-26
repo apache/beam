@@ -121,7 +121,7 @@ func (f *bagStateFn) ProcessElement(s state.Provider, w string, c int) string {
 	return fmt.Sprintf("%s: %v, %s", w, sum, strings.Join(j, ","))
 }
 
-// BagStateParDo tests a DoFn that uses value state.
+// BagStateParDo tests a DoFn that uses bag state.
 func BagStateParDo() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
