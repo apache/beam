@@ -1197,9 +1197,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testStreamingWriteWithAutoSharding() throws Exception {
-    if (useStorageApi) {
-      return;
-    }
     streamingWrite(true);
   }
 
@@ -1221,6 +1218,54 @@ public class BigQueryIOWriteTest implements Serializable {
             .withoutValidation();
     if (autoSharding) {
       write = write.withAutoSharding();
+    }
+    p.apply(
+            Create.of(
+                    new TableRow().set("name", "a").set("number", "1"),
+                    new TableRow().set("name", "b").set("number", "2"),
+                    new TableRow().set("name", "c").set("number", "3"),
+                    new TableRow().set("name", "d").set("number", "4"))
+                .withCoder(TableRowJsonCoder.of()))
+        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
+        .apply("WriteToBQ", write);
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(
+            new TableRow().set("name", "a").set("number", "1"),
+            new TableRow().set("name", "b").set("number", "2"),
+            new TableRow().set("name", "c").set("number", "3"),
+            new TableRow().set("name", "d").set("number", "4")));
+  }
+
+  @Test
+  public void testStorageApiWriteWithAutoSharding() throws Exception {
+    storageWrite(true);
+  }
+
+  private void storageWrite(boolean autoSharding) throws Exception {
+    if (!useStorageApi) {
+      return;
+    }
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+    if (autoSharding) {
+      write =
+          write
+              .withAutoSharding()
+              .withTriggeringFrequency(Duration.standardSeconds(5))
+              .withMethod(Method.STORAGE_WRITE_API);
     }
     p.apply(
             Create.of(
@@ -1929,7 +1974,8 @@ public class BigQueryIOWriteTest implements Serializable {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set, not both.");
+        "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set, not"
+            + " both.");
     p.apply(Create.empty(INPUT_RECORD_CODER))
         .apply(
             BigQueryIO.<InputRecord>write()
