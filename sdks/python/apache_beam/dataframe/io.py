@@ -80,9 +80,8 @@ def read_gbq(
     raise ValueError("Please specify a BigQuery table to read from.")
   elif len(kwargs) > 0:
     raise ValueError(
-        "Unsupported parameter entered in read_gbq. Please enter only "
-        "supported parameters 'table', 'dataset', "
-        "'project_id', 'use_bqstorage_api'.")
+        f"Encountered unsupported parameter(s) in read_gbq: {kwargs.keys()!r}"
+        "")
   return _ReadGbq(table, dataset, project_id, use_bqstorage_api)
 
 

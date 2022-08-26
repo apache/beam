@@ -380,14 +380,14 @@ X     , c1, c2
         f'{output}out.csv-'
         f'{datetime.utcfromtimestamp(0).isoformat()}*')
     self.assertCountEqual(
-        ['timestamp,value'] + [f'{i},{i%3}' for i in range(10)],
+        ['timestamp,value'] + [f'{i},{i % 3}' for i in range(10)],
         set(self.read_all_lines(first_window_files, delete=True)))
 
     second_window_files = (
         f'{output}out.csv-'
         f'{datetime.utcfromtimestamp(10).isoformat()}*')
     self.assertCountEqual(
-        ['timestamp,value'] + [f'{i},{i%3}' for i in range(10, 20)],
+        ['timestamp,value'] + [f'{i},{i % 3}' for i in range(10, 20)],
         set(self.read_all_lines(second_window_files, delete=True)))
 
     # Check that we've read (and removed) every output file
@@ -457,11 +457,9 @@ class ReadGbqTransformTests(unittest.TestCase):
       _ = p | beam.dataframe.io.read_gbq(table=res)
 
   def test_ReadGbq_unsupported_param(self):
-    with self.assertRaisesRegex(
-        ValueError,
-        "Unsupported parameter entered in read_gbq. Please enter only "
-        "supported parameters 'table', 'dataset', "
-        "'project_id', 'use_bqstorage_api'."):
+    with self.assertRaisesRegex(ValueError,
+                                r"""Encountered unsupported parameter\(s\)
+        in read_gbq\: dict_keys\(\['reauth'\]\)"""):
       p = beam.Pipeline()
       _ = p | beam.dataframe.io.read_gbq(
           table="table", use_bqstorage_api=False, reauth="true_config")
