@@ -137,10 +137,6 @@ func (s *Value[T]) Read(p Provider) (T, bool, error) {
 
 // StateKey returns the key for this pipeline state entry.
 func (s Value[T]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 
@@ -212,10 +208,6 @@ func (s *Bag[T]) Read(p Provider) ([]T, bool, error) {
 
 // StateKey returns the key for this pipeline state entry.
 func (s Bag[T]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 
@@ -353,10 +345,6 @@ func (s *Combining[T1, T2, T3]) readAccumulator(p Provider) (interface{}, bool, 
 
 // StateKey returns the key for this pipeline state entry.
 func (s Combining[T1, T2, T3]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 
@@ -487,10 +475,6 @@ func (s *Map[K, V]) Get(p Provider, key K) (V, bool, error) {
 
 // StateKey returns the key for this pipeline state entry.
 func (s Map[K, V]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 
