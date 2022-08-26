@@ -92,7 +92,8 @@ func ValueStateParDo_Windowed() *beam.Pipeline {
 	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 1, 1, 2, 2, 3, 4, 4, 4, 4}}, beam.Impulse(s))
 	wData := beam.WindowInto(s, window.NewFixedWindows(1*time.Second), timestampedData)
 	counts := beam.ParDo(s, &valueStateFn{State1: state.MakeValueState[int]("key1"), State2: state.MakeValueState[string]("key2")}, wData)
-	passert.Equals(s, counts, "magic: 1, I", "magic: 2, II", "magic: 3, III", "magic: 1, I", "magic: 2, II", "magic: 1, I", "magic: 1, I", "magic: 2, II", "magic: 3, III", "magic: 4, IIII")
+	globalCounts := beam.WindowInto(s, window.NewGlobalWindows(), counts)
+	passert.Equals(s, globalCounts, "magic: 1, I", "magic: 2, II", "magic: 3, III", "magic: 1, I", "magic: 2, II", "magic: 1, I", "magic: 1, I", "magic: 2, II", "magic: 3, III", "magic: 4, IIII")
 
 	return p
 }
