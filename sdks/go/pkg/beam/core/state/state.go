@@ -66,8 +66,10 @@ type Transaction struct {
 type Provider interface {
 	ReadValueState(id string) (interface{}, []Transaction, error)
 	WriteValueState(val Transaction) error
+	ClearValueState(val Transaction) error
 	ReadBagState(id string) ([]interface{}, []Transaction, error)
 	WriteBagState(val Transaction) error
+	ClearBagState(val Transaction) error
 	CreateAccumulatorFn(userStateID string) reflectx.Func
 	AddInputFn(userStateID string) reflectx.Func
 	MergeAccumulatorsFn(userStateID string) reflectx.Func
@@ -126,6 +128,14 @@ func (s *Value[T]) Read(p Provider) (T, bool, error) {
 		return val, false, nil
 	}
 	return cur.(T), true, nil
+}
+
+// Clear is used to clear this instance of global pipeline state representing a single value.
+func (s *Value[T]) Clear(p Provider) error {
+	return p.ClearValueState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeClear,
+	})
 }
 
 // StateKey returns the key for this pipeline state entry.
@@ -196,6 +206,14 @@ func (s *Bag[T]) Read(p Provider) ([]T, bool, error) {
 		return cur, false, nil
 	}
 	return cur, true, nil
+}
+
+// Clear is used to clear this instance of global pipeline state representing a bag.
+func (s *Bag[T]) Clear(p Provider) error {
+	return p.ClearBagState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeClear,
+	})
 }
 
 // StateKey returns the key for this pipeline state entry.
@@ -301,6 +319,14 @@ func (s *Combining[T1, T2, T3]) Read(p Provider) (T3, bool, error) {
 	}
 
 	return acc.(T3), true, nil
+}
+
+// Clear is used to clear this instance of global pipeline state representing a combiner.
+func (s *Combining[T1, T2, T3]) Clear(p Provider) error {
+	return p.ClearValueState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeClear,
+	})
 }
 
 func (s *Combining[T1, T2, T3]) readAccumulator(p Provider) (interface{}, bool, error) {

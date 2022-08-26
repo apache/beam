@@ -93,15 +93,21 @@ func (s *stateProvider) WriteValueState(val state.Transaction) error {
 		return err
 	}
 
-	// TODO(#22736) - optimize this a bit once all state types are added. In the case of sets/clears,
-	// we can remove the transactions. We can also consider combining other transactions on read (or sooner)
-	// so that we don't need to use as much memory/time replaying transactions.
-	if transactions, ok := s.transactionsByKey[val.Key]; ok {
-		transactions = append(transactions, val)
-		s.transactionsByKey[val.Key] = transactions
-	} else {
-		s.transactionsByKey[val.Key] = []state.Transaction{val}
+	// Any transactions before a set don't matter
+	s.transactionsByKey[val.Key] = []state.Transaction{val}
+
+	return nil
+}
+
+func (s *stateProvider) ClearValueState(val state.Transaction) error {
+	cl, err := s.getClearer(val.Key)
+	if err != nil {
+		return err
 	}
+	cl.Write([]byte{})
+
+	// Any transactions before a clear don't matter
+	s.transactionsByKey[val.Key] = []state.Transaction{val}
 
 	return nil
 }
@@ -158,6 +164,19 @@ func (s *stateProvider) WriteBagState(val state.Transaction) error {
 	} else {
 		s.transactionsByKey[val.Key] = []state.Transaction{val}
 	}
+
+	return nil
+}
+
+func (s *stateProvider) ClearBagState(val state.Transaction) error {
+	cl, err := s.getClearer(val.Key)
+	if err != nil {
+		return err
+	}
+	cl.Write([]byte{})
+
+	// Any transactions before a clear don't matter
+	s.transactionsByKey[val.Key] = []state.Transaction{val}
 
 	return nil
 }
