@@ -19,16 +19,11 @@ indexes:
   properties:
     - name: order
 
-- kind: tb_learning_group
+- kind: tb_node
   ancestor: yes
   properties:
-    - name: level
-    - name: order
-
-- kind: tb_learning_unit
-  ancestor: yes
-  properties:
-    - name: level
-    - name: order
-    - name: id
-    - name: name
+  - name: level
+  - name: order
+  - name: id
+  - name: name
+  - name: node_type

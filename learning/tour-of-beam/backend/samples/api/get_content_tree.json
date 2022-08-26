@@ -1,38 +1,41 @@
 {
-    "sdk": "Java",
-    "modules": [
-      {
-        "moduleId": "1",
-        "name": "Introduction",
-        "units": [
-          {
-            "unitId": "1.1",
-            "name": "Basic concepts",
-            "completed": true
-          },
-          {
-            "unitId": "1.2",
-            "name": "Advanced concepts",
-            "completed": false
-          }
+  "modules" : [
+     {
+        "complexity" : "BASIC",
+        "moduleId" : "module1",
+        "name" : "Module One",
+        "nodes" : [
+           {
+              "type" : "unit",
+              "unit" : {
+                 "name" : "Intro Unit Name",
+                 "unitId" : "intro-unit"
+              }
+           },
+           {
+              "group" : {
+                 "name" : "The Group",
+                 "nodes" : [
+                    {
+                       "type" : "unit",
+                       "unit" : {
+                          "name" : "Example Unit Name",
+                          "unitId" : "example1"
+                       }
+                    },
+                    {
+                       "type" : "unit",
+                       "unit" : {
+                          "name" : "Challenge Name",
+                          "unitId" : "challenge1"
+                       }
+                    }
+                 ]
+              },
+              "type" : "group"
+           }
         ]
-      },
-      {
-        "moduleId": "2",
-        "name": "Common transforms",
-        "units": [
-          {
-            "unitId": "2.1",
-            "name": "Filter",
-            "completed": false
-          },
-          {
-            "unitId": "2.2",
-            "name": "Aggregation",
-            "completed": false
-          }
-        ]
-      }
-    ]
-  }
-  
+     }
+  ],
+  "sdk" : "Python"
+}
