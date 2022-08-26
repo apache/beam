@@ -32,7 +32,7 @@ const (
 
 	TbLearningPathKind   = "tb_learning_path"
 	TbLearningModuleKind = "tb_learning_module"
-	TbNodeKind           = "tb_node"
+	TbLearningNodeKind   = "tb_learning_node"
 
 	PgSnippetsKind = "pg_snippets"
 	PgSdksKind     = "pg_sdks"
@@ -55,23 +55,14 @@ type TbLearningModule struct {
 	Order int `datastore:"order"`
 }
 
-// tb_learning_group
+// tb_learning_node.group
 type TbLearningGroup struct {
-	Key  *datastore.Key `datastore:"__key__"`
-	Id   string         `datastore:"id"`
-	Name string         `datastore:"name"`
-
-	// internal, only db
-	Order    int          `datastore:"order"`
-	Level    int          `datastore:"level"`
-	NodeType tob.NodeType `datastore:"node_type"`
+	Name string `datastore:"name"`
 }
 
-// tb_learning_unit
+// tb_learning_node.unit
+// Learning Unit content
 type TbLearningUnit struct {
-	// key: <sdk>_<id>
-	Key *datastore.Key `datastore:"__key__"`
-
 	Id          string   `datastore:"id"`
 	Name        string   `datastore:"name"`
 	Description string   `datastore:"description,noindex"`
@@ -79,11 +70,25 @@ type TbLearningUnit struct {
 
 	TaskSnippetId     string `datastore:"taskSnippetId"`
 	SolutionSnippetId string `datastore:"solutionSnippetId"`
+}
 
-	// internal, only db
-	Order    int          `datastore:"order"`
-	Level    int          `datastore:"level"`
-	NodeType tob.NodeType `datastore:"node_type"`
+// tb_learning_node
+// Container for learning tree nodes, which are either groups or units
+type TbLearningNode struct {
+	Type tob.NodeType `datastore:"type"`
+	// common fields, duplicate same fields from the nested entities
+	Id   string `datastore:"id"`
+	Name string `datastore:"name"`
+
+	// type-specific nested info
+	Unit  *TbLearningUnit  `datastore:"unit,noindex"`
+	Group *TbLearningGroup `datastore:"group,noindex"`
+
+	// internal datastore-only fields
+	// key: <sdk>_<id>
+	Key   *datastore.Key `datastore:"__key__"`
+	Order int            `datastore:"order"`
+	Level int            `datastore:"level"`
 }
 
 type PgSnippets struct {

@@ -64,14 +64,14 @@ func (d *DatastoreDb) collectModules(ctx context.Context, tx *datastore.Transact
 func (d *DatastoreDb) collectNodes(ctx context.Context, tx *datastore.Transaction,
 	parentKey *datastore.Key, level int) (nodes []tob.Node, err error) {
 
-	var tbNodes []TbNode
+	var tbNodes []TbLearningNode
 
 	// Custom index.yaml should be applied for this query to work
-	queryNodes := datastore.NewQuery(TbNodeKind).
+	queryNodes := datastore.NewQuery(TbLearningNodeKind).
 		Namespace(PgNamespace).
 		Ancestor(parentKey).
 		FilterField("level", "=", level).
-		Project("id", "name", "node_type").
+		Project("type", "id", "name").
 		Order("order").
 		Transaction(tx)
 	if _, err = d.Client.GetAll(ctx, queryNodes, &tbNodes); err != nil {
@@ -79,9 +79,10 @@ func (d *DatastoreDb) collectNodes(ctx context.Context, tx *datastore.Transactio
 	}
 
 	// traverse the nodes which are groups, with level=level+1
+	nodes = make([]tob.Node, 0, len(tbNodes))
 	for _, tbNode := range tbNodes {
 
-		node := tbNode.ToInternal()
+		node := FromDatastoreNode(tbNode)
 		if node.Type == tob.NODE_GROUP {
 			node.Group.Nodes, err = d.collectNodes(ctx, tx, tbNode.Key, level+1)
 		}
@@ -128,6 +129,10 @@ func (d *DatastoreDb) clearContentTree(ctx context.Context, tx *datastore.Transa
 		return err
 	}
 
+	for _, key := range keys {
+		log.Println("deleting ", key)
+	}
+
 	err = tx.DeleteMulti(keys)
 	if err != nil {
 		return err
@@ -140,8 +145,8 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 	sdk := tree.Sdk
 
 	saveUnit := func(unit *tob.Unit, order, level int, parentKey *datastore.Key) error {
-		unitKey := datastoreKey(TbNodeKind, tree.Sdk, unit.Id, parentKey)
-		_, err := tx.Put(unitKey, MakeDatastoreUnit(unit, order, level))
+		unitKey := datastoreKey(TbLearningNodeKind, tree.Sdk, unit.Id, parentKey)
+		_, err := tx.Put(unitKey, MakeUnitNode(unit, order, level))
 		if err != nil {
 			return fmt.Errorf("failed to put unit: %w", err)
 		}
@@ -155,14 +160,14 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 	var groupId int = 0
 	genGroupKey := func(parentKey *datastore.Key) *datastore.Key {
 		groupId++
-		return datastoreKey(TbNodeKind,
+		return datastoreKey(TbLearningNodeKind,
 			tree.Sdk, fmt.Sprintf("group%v", groupId), parentKey)
 	}
 
 	var saveNode func(tob.Node, int, int, *datastore.Key) error
 	saveGroup := func(group *tob.Group, order, level int, parentKey *datastore.Key) error {
 		groupKey := genGroupKey(parentKey)
-		if _, err := tx.Put(groupKey, MakeDatastoreGroup(group, order, level)); err != nil {
+		if _, err := tx.Put(groupKey, MakeGroupNode(group, order, level)); err != nil {
 			return fmt.Errorf("failed to put group: %w", err)
 		}
 		for order, node := range group.Nodes {

@@ -49,51 +49,90 @@ func datastoreKey(kind string, sdk tob.Sdk, id string, parent *datastore.Key) *d
 	return pgNameKey(kind, name, parent)
 }
 
-func MakeDatastoreUnit(unit *tob.Unit, order, level int) *TbLearningUnit {
+func MakeUnitNode(unit *tob.Unit, order, level int) *TbLearningNode {
 	if unit == nil {
 		return nil
 	}
-	return &TbLearningUnit{
+	return &TbLearningNode{
 		Id:   unit.Id,
 		Name: unit.Name,
 
-		Description:       unit.Description,
-		Hints:             unit.Hints,
-		TaskSnippetId:     unit.TaskSnippetId,
-		SolutionSnippetId: unit.SolutionSnippetId,
+		Type:  tob.NODE_UNIT,
+		Order: order,
+		Level: level,
 
-		Order:    order,
-		Level:    level,
-		NodeType: tob.NODE_UNIT,
+		Unit: &TbLearningUnit{
+			Id:   unit.Id,
+			Name: unit.Name,
+
+			Description:       unit.Description,
+			Hints:             unit.Hints,
+			TaskSnippetId:     unit.TaskSnippetId,
+			SolutionSnippetId: unit.SolutionSnippetId,
+		},
 	}
 }
 
-func FromDatastoreUnit(tbUnit *TbLearningUnit) *tob.Unit {
-	if tbUnit == nil {
-		return nil
-	}
-	return &tob.Unit{Id: tbUnit.Id, Name: tbUnit.Name}
-}
-
-func MakeDatastoreGroup(group *tob.Group, order, level int) *TbLearningGroup {
+func MakeGroupNode(group *tob.Group, order, level int) *TbLearningNode {
 	if group == nil {
 		return nil
 	}
-	return &TbLearningGroup{
-		Id:   group.Name, // Just to make a subset of TbLearningUnit
+	return &TbLearningNode{
+		// ID doesn't make much sense for groups,
+		// but we have to define it to include in queries
+		Id:   group.Name,
 		Name: group.Name,
 
-		Order:    order,
-		Level:    level,
-		NodeType: tob.NODE_GROUP,
+		Type:  tob.NODE_GROUP,
+		Order: order,
+		Level: level,
+
+		Group: &TbLearningGroup{
+			Name: group.Name,
+		},
 	}
 }
 
-func FromDatastoreGroup(tbGroup *TbLearningGroup) *tob.Group {
-	if tbGroup == nil {
-		return nil
+// Depending on the projection, we either convert TbLearningUnit to a model
+// Or we use common fields Id, Name to make it
+func FromDatastoreUnit(tbUnit *TbLearningUnit, id, name string) *tob.Unit {
+	if tbUnit == nil {
+		return &tob.Unit{Id: id, Name: name}
 	}
-	return &tob.Group{Name: tbGroup.Name}
+	return &tob.Unit{
+		Id:                tbUnit.Id,
+		Name:              tbUnit.Name,
+		Description:       tbUnit.Description,
+		Hints:             tbUnit.Hints,
+		TaskSnippetId:     tbUnit.TaskSnippetId,
+		SolutionSnippetId: tbUnit.SolutionSnippetId,
+	}
+}
+
+// Depending on the projection, we either convert TbLearningGroup to a model
+// Or we use common field Name to make it
+func FromDatastoreGroup(tbGroup *TbLearningGroup, name string) *tob.Group {
+	if tbGroup == nil {
+		return &tob.Group{Name: name}
+	}
+	return &tob.Group{
+		Name: tbGroup.Name,
+	}
+}
+
+func FromDatastoreNode(tbNode TbLearningNode) tob.Node {
+	node := tob.Node{
+		Type: tbNode.Type,
+	}
+	switch tbNode.Type {
+	case tob.NODE_GROUP:
+		node.Group = FromDatastoreGroup(tbNode.Group, tbNode.Name)
+	case tob.NODE_UNIT:
+		node.Unit = FromDatastoreUnit(tbNode.Unit, tbNode.Id, tbNode.Name)
+	default:
+		panic("undefined node type")
+	}
+	return node
 }
 
 func MakeDatastoreModule(mod *tob.Module, order int) *TbLearningModule {
