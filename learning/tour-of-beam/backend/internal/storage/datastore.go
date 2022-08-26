@@ -101,7 +101,7 @@ func (d *DatastoreDb) GetContentTree(ctx context.Context, sdk tob.Sdk) (tree tob
 	tree.Sdk = sdk
 
 	_, err = d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
-		rootKey := pgNameKey(TbLearningPathKind, sdk2Key(sdk), nil)
+		rootKey := pgNameKey(TbLearningPathKind, sdkToKey(sdk), nil)
 		if err := d.Client.Get(ctx, rootKey, &tbLP); err != nil {
 			return fmt.Errorf("error querying learning_path: %w", err)
 		}
@@ -118,7 +118,7 @@ func (d *DatastoreDb) GetContentTree(ctx context.Context, sdk tob.Sdk) (tree tob
 // Helper to clear all ToB Datastore entities related to a particular SDK
 // They have one common ancestor key in tb_learning_path
 func (d *DatastoreDb) clearContentTree(ctx context.Context, tx *datastore.Transaction, sdk tob.Sdk) error {
-	rootKey := pgNameKey(TbLearningPathKind, sdk2Key(sdk), nil)
+	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(sdk), nil)
 	q := datastore.NewQuery("").
 		Namespace(PgNamespace).
 		Ancestor(rootKey).
@@ -188,7 +188,7 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 		panic("Unknown node type")
 	}
 
-	rootKey := pgNameKey(TbLearningPathKind, sdk2Key(tree.Sdk), nil)
+	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(tree.Sdk), nil)
 	tbLP := TbLearningPath{Name: tree.Sdk.String()}
 	if _, err := tx.Put(rootKey, &tbLP); err != nil {
 		return fmt.Errorf("failed to put learning_path: %w", err)

@@ -35,6 +35,11 @@ import (
 
 var svc service.IContent
 
+const (
+	BAD_FORMAT     = "BAD_FORMAT"
+	INTERNAL_ERROR = "INTERNAL_ERROR"
+)
+
 func init() {
 	// dependencies
 	// required:
@@ -79,13 +84,13 @@ func getContentTree(w http.ResponseWriter, r *http.Request) {
 	sdkStr := r.URL.Query().Get("sdk")
 	sdk := tob.FromString(sdkStr)
 	if sdk == tob.SDK_UNDEFINED {
-		finalizeErrResponse(w, http.StatusBadRequest, "BAD_FORMAT", fmt.Sprintf("Bad sdk: %v", sdkStr))
+		finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, fmt.Sprintf("Bad sdk: %v", sdkStr))
 		return
 	}
 
 	tree, err := svc.GetContentTree(context.Background(), sdk, nil /*TODO userId*/)
 	if err != nil {
-		finalizeErrResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, err.Error())
 		return
 	}
 

@@ -22,7 +22,7 @@ import (
 	"cloud.google.com/go/datastore"
 )
 
-func sdk2Key(sdk tob.Sdk) string {
+func sdkToKey(sdk tob.Sdk) string {
 	switch sdk {
 	case tob.SDK_GO:
 		return "SDK_GO"
@@ -45,7 +45,7 @@ func pgNameKey(kind, nameId string, parentKey *datastore.Key) (key *datastore.Ke
 // Get entity key from sdk & entity ID
 // SDK_JAVA_{entityID}
 func datastoreKey(kind string, sdk tob.Sdk, id string, parent *datastore.Key) *datastore.Key {
-	name := fmt.Sprintf("%s_%s", sdk2Key(sdk), id)
+	name := fmt.Sprintf("%s_%s", sdkToKey(sdk), id)
 	return pgNameKey(kind, name, parent)
 }
 

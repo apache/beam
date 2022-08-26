@@ -26,10 +26,14 @@ import (
 	"cloud.google.com/go/datastore"
 )
 
-var repo storage.Iface
+var (
+	repo storage.Iface
+	ctx  context.Context
+)
 
 func init() {
-	client, err := datastore.NewClient(context.Background(), "")
+	ctx = context.Background()
+	client, err := datastore.NewClient(ctx, "")
 	if err != nil {
 		log.Fatalf("new datastore client: %v", err)
 	}
@@ -45,7 +49,7 @@ func main() {
 	}
 
 	fmt.Printf("collected %v sdks\n", len(trees))
-	if err = repo.SaveContentTrees(context.Background(), trees); err != nil {
+	if err = repo.SaveContentTrees(ctx, trees); err != nil {
 		log.Fatal(err)
 	}
 }
