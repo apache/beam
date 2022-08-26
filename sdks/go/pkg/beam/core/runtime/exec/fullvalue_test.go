@@ -20,12 +20,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
-
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func makeInput(vs ...interface{}) []MainInput {
@@ -251,7 +250,7 @@ func TestDecodeStream(t *testing.T) {
 	d := MakeElementDecoder(c)
 
 	const size = 10
-	setup := func() *decodeReStream {
+	setup := func() *singleUseReStream {
 		r, w := io.Pipe()
 		// Since the io.Pipe is blocking, run in a goroutine.
 		go func() {
@@ -259,7 +258,7 @@ func TestDecodeStream(t *testing.T) {
 				e.Encode(&FullValue{Elm: i}, w)
 			}
 		}()
-		return &decodeReStream{d: d, r: r, size: int(size)}
+		return &singleUseReStream{d: d, r: r, size: int(size)}
 	}
 
 	t.Run("ReadAll", func(t *testing.T) {
@@ -332,7 +331,7 @@ func TestDecodeMultiChunkStream(t *testing.T) {
 	d := MakeElementDecoder(c)
 
 	const size = 10
-	setup := func() *decodeMultiChunkReStream {
+	setup := func() *singleUseMultiChunkReStream {
 		r, w := io.Pipe()
 		// Since the io.Pipe is blocking, run in a goroutine.
 		go func() {
@@ -344,7 +343,7 @@ func TestDecodeMultiChunkStream(t *testing.T) {
 		}()
 		var byteCount int
 		bcr := &byteCountReader{reader: r, count: &byteCount}
-		return &decodeMultiChunkReStream{d: d, r: bcr}
+		return &singleUseMultiChunkReStream{d: d, r: bcr}
 	}
 
 	t.Run("ReadAll", func(t *testing.T) {

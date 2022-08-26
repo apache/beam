@@ -192,18 +192,18 @@ func ReadAll(rs ReStream) ([]FullValue, error) {
 	}
 }
 
-// decodeReStream is a decode on demand ReStream.
+// singleUseReStream is a decode on demand ReStream.
 // Can only produce a single Stream because it consumes the reader.
 // Must not be used for streams that might be re-iterated, causing Open
 // to be called twice.
-type decodeReStream struct {
+type singleUseReStream struct {
 	r    io.Reader
 	d    ElementDecoder
 	size int // The number of elements in this stream.
 }
 
 // Open returns the Stream from the start of the in-memory reader. Returns error if called twice.
-func (n *decodeReStream) Open() (Stream, error) {
+func (n *singleUseReStream) Open() (Stream, error) {
 	if n.r == nil {
 		return nil, errors.New("decodeReStream opened twice!")
 	}
@@ -227,7 +227,9 @@ type decodeStream struct {
 func (s *decodeStream) Close() error {
 	// On close, if next != size, we must iterate through the rest of the decoding
 	// until the reader is drained. Otherwise we corrupt the read for the next element.
-	// TODO: Optimize the case where we have length prefixed values
+	//
+	// TODO(https://github.com/apache/beam/issues/22901):
+	// Optimize the case where we have length prefixed values
 	// so we can avoid allocating the values in the first place.
 	for s.next < s.size {
 		err := s.d.DecodeTo(s.r, &s.ret)
@@ -255,10 +257,10 @@ func (s *decodeStream) Read() (*FullValue, error) {
 	return &s.ret, nil
 }
 
-// decodeMultiChunkReStream is a decode on demand stream, that can handle a multi-chunk streams.
+// singleUseMultiChunkReStream is a decode on demand restream, that can handle a multi-chunk streams.
 // Can only produce a single Stream because it consumes the reader.
 // Must not be used for streams that might be re-iterated, causing Open to be called twice.
-type decodeMultiChunkReStream struct {
+type singleUseMultiChunkReStream struct {
 	r *byteCountReader
 	d ElementDecoder
 
@@ -266,7 +268,7 @@ type decodeMultiChunkReStream struct {
 }
 
 // Open returns the Stream from the start of the in-memory ReStream. Returns error if called twice.
-func (n *decodeMultiChunkReStream) Open() (Stream, error) {
+func (n *singleUseMultiChunkReStream) Open() (Stream, error) {
 	if n.r == nil {
 		return nil, errors.New("decodeReStream opened twice!")
 	}

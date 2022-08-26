@@ -204,13 +204,13 @@ func (n *DataSource) makeReStream(ctx context.Context, cv ElementDecoder, bcr *b
 		// decode elements on demand instead to reduce memory usage.
 		switch {
 		case size >= 0:
-			return &decodeReStream{
+			return &singleUseReStream{
 				r:    bcr,
 				d:    cv,
 				size: int(size),
 			}, nil
 		case size == -1:
-			return &decodeMultiChunkReStream{
+			return &singleUseMultiChunkReStream{
 				r: bcr,
 				d: cv,
 				open: func(bcr *byteCountReader) (Stream, error) {
