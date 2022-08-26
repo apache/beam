@@ -36,6 +36,8 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.typehints.schemas import LogicalType
+from apache_beam.typehints.schemas import MillisInstant
 from apache_beam.utils.timestamp import Timestamp
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -191,6 +193,10 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       # write records using sqlalchemy engine
       self.engine.execute(
           "INSERT INTO {} VALUES({},'{}')".format(table_name, i, strtime))
+
+    # Register MillisInstant logical type to override the mapping from Timestamp
+    # originally handled by MicrosInstant.
+    LogicalType.register_logical_type(MillisInstant)
 
     with TestPipeline() as p:
       p.not_use_test_runner_api = True
