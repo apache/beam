@@ -396,7 +396,7 @@ def validate_composite_type_param(type_param, error_msg_prefix):
 
 # TODO(https://github.com/apache/beam/issues/20982): Remove this function and
 # use plain repr() instead.
-def _unified_repr(o):
+def repr(o):
   """Given an object return a qualified name for the object.
 
   This function closely mirrors '__qualname__' which was introduced in
