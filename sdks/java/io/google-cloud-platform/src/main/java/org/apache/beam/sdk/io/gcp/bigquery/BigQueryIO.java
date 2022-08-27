@@ -1254,9 +1254,24 @@ public class BigQueryIO {
         if (beamSchemaEnabled) {
           BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
           Schema beamSchema = srcDef.getBeamSchema(bqOptions);
+
+          List<Schema.Field> flds =
+              beamSchema.getFields().stream()
+                  .filter(
+                      field -> {
+                        if (getSelectedFields() != null
+                            && getSelectedFields().isAccessible()
+                            && getSelectedFields().get() != null) {
+                          return getSelectedFields().get().contains(field.getName());
+                        } else {
+                          return true;
+                        }
+                      })
+                  .collect(Collectors.toList());
+
+          beamSchema = Schema.builder().addFields(flds).build();
           SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
           SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
-
           rows.setSchema(beamSchema, getTypeDescriptor(), toBeamRow, fromBeamRow);
         }
         return rows;

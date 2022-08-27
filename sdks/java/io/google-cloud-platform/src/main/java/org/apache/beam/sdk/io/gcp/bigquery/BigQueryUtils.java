@@ -639,7 +639,7 @@ public class BigQueryUtils {
         return null;
       } else {
         throw new IllegalArgumentException(
-            "Received null value for non-nullable field " + field.getName());
+            "Received null value for non-nullable field \"" + field.getName() + "\"");
       }
     }
 
