@@ -165,7 +165,7 @@ For detailed instructions explaining how to build and run a pipeline that uses M
 
 ## Beam Java SDK support
 
-The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines). For information about the Java wrapper transformP, see [RunInference.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java). For example pipelines, see [RunInferenceTransformTest.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/test/java/org/apache/beam/sdk/extensions/python/transforms/RunInferenceTransformTest.java).
+The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines). For information about the Java wrapper transform, see [RunInference.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java). For example pipelines, see [RunInferenceTransformTest.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/test/java/org/apache/beam/sdk/extensions/python/transforms/RunInferenceTransformTest.java).
 
 ## TensorFlow support
 
@@ -182,7 +182,7 @@ beam.run_inference(tf_handler)
 beam.run_inference(beam.ml.inference.KeyedHandler(tf_handler))
 
 Args:
-  inference_spec_type: Model inference endpoint.
+  inference_spec_type: Model inference endpoint
 Returns:
   A Beam RunInference ModelHandler for TensorFlow
 """
