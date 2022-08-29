@@ -51,3 +51,8 @@ func TestMapState(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.RunAndValidate(t, MapStateParDo())
 }
+
+func TestMapState_Clear(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, MapStateParDo_Clear())
+}
