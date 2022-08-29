@@ -684,3 +684,171 @@ func TestMapPut(t *testing.T) {
 		}
 	}
 }
+
+func TestSetContains(t *testing.T) {
+	is := make(map[string]interface{})
+	im := make(map[string]map[string]interface{})
+	ts := make(map[string][]Transaction)
+	es := make(map[string]error)
+	ca := make(map[string]bool)
+	eo := make(map[string]bool)
+	ts["no_transactions"] = nil
+	im["basic_set"] = map[string]interface{}{}
+	ts["basic_set"] = []Transaction{{Key: "basic_set", Type: TransactionTypeSet, Val: true, MapKey: "foo"}, {Key: "basic_set", Type: TransactionTypeSet, Val: true, MapKey: "bar"}}
+	im["basic_clear"] = map[string]interface{}{"foo": true, "bar": true}
+	ts["basic_clear"] = []Transaction{{Key: "basic_clear", Type: TransactionTypeClear, Val: nil, MapKey: "foo"}}
+	im["set_then_clear"] = map[string]interface{}{"foo": true, "bar": true}
+	ts["set_then_clear"] = []Transaction{{Key: "set_then_clear", Type: TransactionTypeSet, Val: true, MapKey: "foo"}, {Key: "set_then_clear", Type: TransactionTypeClear, Val: nil, MapKey: "foo"}}
+	im["err"] = map[string]interface{}{"foo": true}
+	ts["err"] = []Transaction{{Key: "err", Type: TransactionTypeSet, Val: true}}
+	es["err"] = errFake
+
+	f := fakeProvider{
+		initialMapState:   im,
+		initialState:      is,
+		transactions:      ts,
+		err:               es,
+		createAccumForKey: ca,
+		extractOutForKey:  eo,
+	}
+
+	var tests = []struct {
+		vs    Set[string]
+		fooOk bool
+		barOk bool
+		err   error
+	}{
+		{MakeSetState[string]("no_transactions"), false, false, nil},
+		{MakeSetState[string]("basic_set"), true, true, nil},
+		{MakeSetState[string]("basic_clear"), false, true, nil},
+		{MakeSetState[string]("set_then_clear"), false, true, nil},
+		{MakeSetState[string]("err"), false, false, errFake},
+	}
+
+	for _, tt := range tests {
+		ok, err := tt.vs.Contains(&f, "foo")
+		if err != nil && tt.err == nil {
+			t.Errorf("Set.Contains() returned error %v for state key %v entry foo when it shouldn't have", err, tt.vs.Key)
+		} else if err == nil && tt.err != nil {
+			t.Errorf("Set.Contains() returned no error for state key %v entry foo when it should have returned %v", tt.vs.Key, err)
+		} else if ok && !tt.fooOk {
+			t.Errorf("Set.Contains() returned true for state key %v entry foo when it shouldn't have", tt.vs.Key)
+		} else if !ok && tt.fooOk {
+			t.Errorf("Set.Contains() returned false for state key %v entry foo when it should have returned true", tt.vs.Key)
+		}
+		ok, err = tt.vs.Contains(&f, "bar")
+		if err != nil && tt.err == nil {
+			t.Errorf("Set.Contains() returned error %v for state key %v entry bar when it shouldn't have", err, tt.vs.Key)
+		} else if err == nil && tt.err != nil {
+			t.Errorf("Set.Contains() returned no error for state key %v entry bar when it should have returned %v", tt.vs.Key, err)
+		} else if ok && !tt.barOk {
+			t.Errorf("Set.Contains() returned true for state key %v entry bar when it shouldn't have", tt.vs.Key)
+		} else if !ok && tt.barOk {
+			t.Errorf("Set.Contains() returned false for state key %v entry bar when it should have returned true", tt.vs.Key)
+		}
+	}
+}
+
+func TestSetKeys(t *testing.T) {
+	is := make(map[string]interface{})
+	im := make(map[string]map[string]interface{})
+	ts := make(map[string][]Transaction)
+	es := make(map[string]error)
+	ca := make(map[string]bool)
+	eo := make(map[string]bool)
+	ts["no_transactions"] = nil
+	im["basic_set"] = map[string]interface{}{"foo": true}
+	ts["basic_set"] = []Transaction{{Key: "basic_set", Type: TransactionTypeSet, Val: true, MapKey: "foo"}, {Key: "basic_set", Type: TransactionTypeSet, Val: true, MapKey: "bar"}}
+	im["basic_clear"] = map[string]interface{}{"foo": true, "bar": true}
+	ts["basic_clear"] = []Transaction{{Key: "basic_clear", Type: TransactionTypeClear, Val: nil, MapKey: "foo"}}
+	im["set_then_clear"] = map[string]interface{}{"foo": true, "bar": true}
+	ts["set_then_clear"] = []Transaction{{Key: "set_then_clear", Type: TransactionTypeSet, Val: true, MapKey: "foo"}, {Key: "set_then_clear", Type: TransactionTypeClear, Val: nil, MapKey: "foo"}}
+	im["err"] = map[string]interface{}{"foo": true}
+	ts["err"] = []Transaction{{Key: "err", Type: TransactionTypeSet, Val: true}}
+	es["err"] = errFake
+
+	f := fakeProvider{
+		initialMapState:   im,
+		initialState:      is,
+		transactions:      ts,
+		err:               es,
+		createAccumForKey: ca,
+		extractOutForKey:  eo,
+	}
+
+	var tests = []struct {
+		vs   Set[string]
+		keys []string
+		ok   bool
+		err  error
+	}{
+		{MakeSetState[string]("no_transactions"), []string{}, false, nil},
+		{MakeSetState[string]("basic_set"), []string{"foo", "bar"}, true, nil},
+		{MakeSetState[string]("basic_clear"), []string{"bar"}, true, nil},
+		{MakeSetState[string]("set_then_clear"), []string{"bar"}, true, nil},
+		{MakeSetState[string]("err"), []string{}, false, errFake},
+	}
+
+	for _, tt := range tests {
+		val, ok, err := tt.vs.Keys(&f)
+		if err != nil && tt.err == nil {
+			t.Errorf("Set.Keys() returned error %v for state key %v when it shouldn't have", err, tt.vs.Key)
+		} else if err == nil && tt.err != nil {
+			t.Errorf("Set.Keys() returned no error for state key %v when it should have returned %v", tt.vs.Key, err)
+		} else if ok && !tt.ok {
+			t.Errorf("Set.Keys() returned a value %v for state key %v when it shouldn't have", val, tt.vs.Key)
+		} else if len(val) != len(tt.keys) {
+			t.Errorf("Set.Keys()=%v, want %v for state key %v", val, tt.keys, tt.vs.Key)
+		} else {
+			eq := true
+			for idx, v := range val {
+				if v != tt.keys[idx] {
+					eq = false
+				}
+			}
+			if !eq {
+				t.Errorf("Set.Keys()=%v, want %v for state key %v", val, tt.keys, tt.vs.Key)
+			}
+		}
+	}
+}
+
+func TestSetAdd(t *testing.T) {
+	var tests = []struct {
+		writes []string
+		okFoo  bool
+		okBar  bool
+	}{
+		{[]string{}, false, false},
+		{[]string{"foo"}, true, false},
+		{[]string{"foo", "bar"}, true, true},
+	}
+
+	for _, tt := range tests {
+		f := fakeProvider{
+			initialState: make(map[string]interface{}),
+			transactions: make(map[string][]Transaction),
+			err:          make(map[string]error),
+		}
+		vs := MakeSetState[string]("vs")
+		for _, val := range tt.writes {
+			vs.Add(&f, val)
+		}
+		ok, err := vs.Contains(&f, "foo")
+		if err != nil {
+			t.Errorf("Set.Contains(\"foo\") returned error %v when it shouldn't have after writing: %v", err, tt.writes)
+		} else if ok && !tt.okFoo {
+			t.Errorf("Set.Contains(\"foo\") returned true when it should have returned false after writing: %v", tt.writes)
+		} else if !ok && tt.okFoo {
+			t.Errorf("Set.Contains(\"foo\") returned false when it should have returned true after writing: %v", tt.writes)
+		}
+		ok, err = vs.Contains(&f, "bar")
+		if err != nil {
+			t.Errorf("Set.Contains(\"bar\") returned error %v when it shouldn't have after writing: %v", err, tt.writes)
+		} else if ok && !tt.okBar {
+			t.Errorf("Set.Contains(\"bar\") returned true when it should have returned false after writing: %v", tt.writes)
+		} else if !ok && tt.okBar {
+			t.Errorf("Set.Contains(\"bar\") returned false when it should have returned true after writing: %v", tt.writes)
+		}
+	}
+}
