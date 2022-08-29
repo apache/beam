@@ -300,7 +300,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   public void writeDynamicDestinations(boolean schemas, boolean autoSharding) throws Exception {
     final Schema schema =
-        Schema.builder().addField("name", FieldType.STRING).addField("id", FieldType.INT32).build();
+        Schema.builder().addField("name", FieldType.STRING).addField("id", FieldType.INT64).build();
 
     final Pattern userPattern = Pattern.compile("([a-z]+)([0-9]+)");
 
@@ -341,10 +341,10 @@ public class BigQueryIOWriteTest implements Serializable {
                 checkState(matcher.matches());
                 return Row.withSchema(schema)
                     .addValue(matcher.group(1))
-                    .addValue(Integer.valueOf(matcher.group(2)))
+                    .addValue(Long.valueOf(matcher.group(2)))
                     .build();
               },
-              r -> r.getString(0) + r.getInt32(1));
+              r -> r.getString(0) + r.getInt64(1));
     }
 
     // Use a partition decorator to verify that partition decorators are supported.
