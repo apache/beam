@@ -145,7 +145,7 @@ class DataFrameBatchConverterTest(unittest.TestCase):
     typehints.validate_composite_type_param(self.batch_typehint, '')
     typehints.validate_composite_type_param(self.element_typehint, '')
 
-  def test_type_check(self):
+  def test_type_check_batch(self):
     typehints.check_constraint(self.normalized_batch_typehint, self.batch)
 
   def test_type_check_element(self):
@@ -159,25 +159,45 @@ class DataFrameBatchConverterTest(unittest.TestCase):
     typehints.check_constraint(self.normalized_batch_typehint, rebatched)
     self.equality_check(self.batch, rebatched)
 
+  def _split_batch_into_n_partitions(self, N):
+    elements = list(self.converter.explode_batch(self.batch))
+
+    # Split elements into N contiguous partitions
+    element_batches = [
+        elements[len(elements) * i // N:len(elements) * (i + 1) // N]
+        for i in range(N)
+    ]
+
+    lengths = [len(element_batch) for element_batch in element_batches]
+    batches = [self.converter.produce_batch(element_batch)
+               for element_batch in element_batches]
+
+    return batches, lengths
+
   @parameterized.expand([
       (2, ),
       (3, ),
       (10, ),
   ])
   def test_combine_batches(self, N):
-    elements = list(self.converter.explode_batch(self.batch))
-
-    # Split elements into N contiguous partitions, create a batch out of each
-    batches = [
-        self.converter.produce_batch(
-            elements[len(elements) * i // N:len(elements) * (i + 1) // N])
-        for i in range(N)
-    ]
+    batches, _ = self._split_batch_into_n_partitions(N)
 
     # Combine the batches, output should be equivalent to the original batch
     combined = self.converter.combine_batches(batches)
 
     self.equality_check(self.batch, combined)
+
+  @parameterized.expand([
+      (2, ),
+      (3, ),
+      (10, ),
+  ])
+  def test_get_lenth(self, N):
+    batches, lengths = self._split_batch_into_n_partitions(N)
+
+    for batch, expected_length in zip(batches, lengths):
+      self.assertEqual(self.converter.get_length(batch), expected_length)
+
 
   def test_equals(self):
     self.assertTrue(self.converter == self.create_batch_converter())

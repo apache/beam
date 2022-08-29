@@ -183,7 +183,8 @@ class DataFrameBatchConverter(BatchConverter):
     raise NotImplementedError
 
   def explode_batch(self, batch: pd.DataFrame):
-    # TODO: Only do null checks for nullable types
+    # TODO(https://github.com/apache/beam/issues/22948): Only do null checks for
+    # nullable types
     def make_null_checking_generator(series):
       nulls = pd.isnull(series)
       return (None if isnull else value for isnull, value in zip(nulls, series))
@@ -216,7 +217,6 @@ class DataFrameBatchConverterDropIndex(DataFrameBatchConverter):
     return [batch[column] for column in batch.columns]
 
   def produce_batch(self, elements):
-    # Note from_records has an index= parameter
     batch = pd.DataFrame.from_records(elements, columns=self._columns)
 
     for column, typehint in self._element_type._fields:

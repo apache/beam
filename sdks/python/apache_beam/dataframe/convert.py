@@ -166,9 +166,7 @@ class SeriesToElementsFn(beam.DoFn):
     yield element
 
   def infer_output_type(self, input_element_type):
-    # Raise a TypeError if proxy has an unknown type
-    output_type = dtype_to_fieldtype(self._proxy.dtype)
-    return output_type
+    return dtype_to_fieldtype(self._proxy.dtype)
 
 
 # TODO: Or should this be called from_dataframe?
