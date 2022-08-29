@@ -1,0 +1,9 @@
+/**
+ * Fn API and bootstrapping protobuf definitions
+ *
+ * TODO: improve plural names in lists (look weird in Java)
+ * e.g. getOutputsMap, addCodersBuilder
+ *
+ * TODO: gRPC/proto field names collide with Java/Python syntax e.g. "class" (Java), "output" (Python)
+ */
+syntax = "proto3";
