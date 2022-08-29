@@ -97,12 +97,14 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	if len(pipelineState) > 0 {
 		edge.StateCoders = make(map[string]*coder.Coder)
 		for _, ps := range pipelineState {
-			sT := typex.New(ps.CoderType())
-			c, err := inferCoder(sT)
-			if err != nil {
-				return nil, addParDoCtx(err, s)
+			if ct := ps.CoderType(); ct != nil {
+				sT := typex.New(ps.CoderType())
+				c, err := inferCoder(sT)
+				if err != nil {
+					return nil, addParDoCtx(err, s)
+				}
+				edge.StateCoders[graphx.UserStateCoderId(ps)] = c
 			}
-			edge.StateCoders[graphx.UserStateCoderId(ps)] = c
 			if kct := ps.KeyCoderType(); kct != nil {
 				kT := typex.New(kct)
 				kc, err := inferCoder(kT)
