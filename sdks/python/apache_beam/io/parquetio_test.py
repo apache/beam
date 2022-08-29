@@ -23,13 +23,15 @@ import shutil
 import tempfile
 import unittest
 from tempfile import TemporaryDirectory
+from typing import Iterable
 
 import hamcrest as hc
-import pandas
+import pandas as pd
 import pytest
 from parameterized import param
 from parameterized import parameterized
 
+import apache_beam as beam
 from apache_beam import Create
 from apache_beam import Map
 from apache_beam.io import filebasedsource
@@ -39,6 +41,7 @@ from apache_beam.io.parquetio import ReadAllFromParquet
 from apache_beam.io.parquetio import ReadAllFromParquetBatched
 from apache_beam.io.parquetio import ReadFromParquet
 from apache_beam.io.parquetio import ReadFromParquetBatched
+from apache_beam.io.parquetio import ReadFromParquetSchema
 from apache_beam.io.parquetio import WriteToParquet
 from apache_beam.io.parquetio import _create_parquet_sink
 from apache_beam.io.parquetio import _create_parquet_source
@@ -463,7 +466,7 @@ class TestParquet(unittest.TestCase):
   def _convert_to_timestamped_record(self, record):
     timestamped_record = record.copy()
     timestamped_record['favorite_number'] =\
-      pandas.Timestamp(timestamped_record['favorite_number'])
+      pd.Timestamp(timestamped_record['favorite_number'])
     return timestamped_record
 
   def test_int96_type_conversion(self):
@@ -602,6 +605,64 @@ class TestParquet(unittest.TestCase):
           | Create([file_pattern]) \
           | ReadAllFromParquet(with_filename=True),
           equal_to(result))
+
+  def test_read_from_parquet_schema(self):
+    path = self._write_data()
+
+    with TestPipeline() as p:
+      pc = p | ReadFromParquetSchema(path)
+      assert_that(
+          pc, equal_to([tuple(record.values()) for record in self.RECORDS]))
+
+  def test_read_from_parquet_schema_with_projection(self):
+    path = self._write_data()
+
+    projected_columns = ['name', 'favorite_color']
+    expected = [(record['name'], record['favorite_color'])
+                for record in self.RECORDS]
+
+    with TestPipeline() as p:
+      pc = p | ReadFromParquetSchema(path, columns=projected_columns)
+      assert_that(pc, equal_to(expected))
+
+  def test_read_from_parquet_schema_with_compute(self):
+    path = self._write_data()
+
+    class DoubleFavoriteNumber(beam.DoFn):
+      def process_batch(self, batch: pa.Table) -> Iterable[pd.DataFrame]:
+        df = batch.to_pandas()
+
+        df['favorite_number'] *= 2
+
+        yield df
+
+      def infer_output_type(self, input_type):
+        return input_type
+
+    with TestPipeline() as p:
+      pc = (
+          p | ReadFromParquetSchema(path)
+          | beam.ParDo(DoubleFavoriteNumber()))
+      assert_that(
+          pc,
+          equal_to([(
+              record['name'],
+              record['favorite_number'] * 2,
+              record['favorite_color']) for record in self.RECORDS]))
+
+  def test_read_from_parquet_schema_raises_for_bad_projection(self):
+    path = self._write_data()
+
+    projected_columns = ['name', 'this_column_doesnt_exist']
+
+    # Error should mention the problem column, as well as the actually available
+    # columns
+    assert_regex = (
+        r"'this_column_doesnt_exist'.*"
+        r"\['name', 'favorite_number', 'favorite_color'\]")
+    with TestPipeline() as p:
+      with self.assertRaisesRegex(ValueError, assert_regex):
+        _ = p | ReadFromParquetSchema(path, columns=projected_columns)
 
 
 if __name__ == '__main__':

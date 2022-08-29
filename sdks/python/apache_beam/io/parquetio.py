@@ -31,11 +31,13 @@ Parquet file.
 # pytype: skip-file
 
 from functools import partial
+from typing import Iterator
 
 from pkg_resources import parse_version
 
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
+from apache_beam.io import filesystems
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import Read
@@ -43,6 +45,9 @@ from apache_beam.io.iobase import Write
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
+from apache_beam.typehints import arrow_type_compatibility
+from apache_beam.typehints import row_type
+from apache_beam.typehints import schemas
 
 try:
   import pyarrow as pa
@@ -206,6 +211,65 @@ class ReadFromParquet(PTransform):
 
   def display_data(self):
     return {'source_dd': self._source}
+
+
+def _get_arrow_field_unsafe(
+    arrow_schema: pa.Schema, column_name: str) -> pa.Field:
+  field = arrow_schema.field_by_name(column_name)
+  if field is None:
+    raise ValueError(
+        f"Requested column {column_name!r} which doesn't exist in "
+        f"the input. Available columns: {arrow_schema.names}")
+  return field
+
+
+class ReadFromParquetSchema(PTransform):
+  def __init__(
+      self, file_pattern=None, min_bundle_size=0, validate=True, columns=None):
+    self._file_pattern = file_pattern
+    self._columns = columns
+    self._source = _create_parquet_source(
+        file_pattern,
+        min_bundle_size,
+        validate=validate,
+        columns=columns,
+    )
+
+  def expand(self, pvalue):
+    match = filesystems.FileSystems.match([self._file_pattern], limits=[1])[0]
+    if not match.metadata_list:
+      # TODO(BEAM-12031): This should be allowed for streaming pipelines if
+      # user provides an explicit schema.
+      raise FileNotFoundError(f"Found no files that match {self.path!r}")
+    first_path = match.metadata_list[0].path
+    with filesystems.FileSystems.open(first_path) as handle:
+      arrow_schema = pq.read_schema(handle)
+
+    if self._columns:
+      arrow_schema = pa.schema(
+          fields=[
+              _get_arrow_field_unsafe(arrow_schema, column_name)
+              for column_name in self._columns
+          ],
+          metadata=arrow_schema.metadata)
+    beam_schema = arrow_type_compatibility.beam_schema_from_arrow_schema(
+        arrow_schema)
+
+    return pvalue | Read(self._source) | ParDo(
+        _ArrowTableToBeamRows(beam_schema))
+
+
+class _ArrowTableToBeamRows(DoFn):
+  def __init__(self, beam_schema):
+    self._output_type = row_type.RowTypeConstraint.from_fields(
+        schemas.named_fields_from_schema(beam_schema))
+
+  @DoFn.yields_batches
+  def process(self, batch: pa.Table) -> Iterator[pa.Table]:
+    yield batch
+
+  def infer_output_type(self, input_type):
+    return self._output_type
 
 
 class ReadAllFromParquetBatched(PTransform):
