@@ -28,7 +28,6 @@ import (
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 	"beam.apache.org/learning/tour-of-beam/backend/internal/service"
 	"beam.apache.org/learning/tour-of-beam/backend/internal/storage"
-
 	"cloud.google.com/go/datastore"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
@@ -61,7 +60,7 @@ func init() {
 	// functions framework
 	functions.HTTP("sdkList", sdkList)
 	functions.HTTP("getContentTree", getContentTree)
-	//functions.HTTP("getUnitContent", getUnitContent)
+
 }
 
 func finalizeErrResponse(w http.ResponseWriter, status int, code, message string) {

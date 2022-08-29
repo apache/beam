@@ -41,13 +41,15 @@ func TestSample(t *testing.T) {
 	assert.Equal(t, tob.ContentTree{
 		Sdk: tob.SDK_JAVA,
 		Modules: []tob.Module{
-			{Id: "module1", Name: "Module One", Complexity: "BASIC",
+			{
+				Id: "module1", Name: "Module One", Complexity: "BASIC",
 				Nodes: []tob.Node{
 					{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "example1", Name: "Example Unit Name"}},
 					genUnitNode("challenge1"),
 				},
 			},
-			{Id: "module2", Name: "Module Two", Complexity: "MEDIUM",
+			{
+				Id: "module2", Name: "Module Two", Complexity: "MEDIUM",
 				Nodes: []tob.Node{
 					{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "example21", Name: "Example Unit Name"}},
 					genUnitNode("challenge21"),
@@ -58,15 +60,20 @@ func TestSample(t *testing.T) {
 	assert.Equal(t, tob.ContentTree{
 		Sdk: tob.SDK_PYTHON,
 		Modules: []tob.Module{
-			{Id: "module1", Name: "Module One", Complexity: "BASIC",
+			{
+				Id: "module1", Name: "Module One", Complexity: "BASIC",
 				Nodes: []tob.Node{
 					{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "intro-unit", Name: "Intro Unit Name"}},
-					{Type: tob.NODE_GROUP, Group: &tob.Group{
-						Name: "The Group", Nodes: []tob.Node{
-							{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "example1", Name: "Example Unit Name"}},
-							genUnitNode("challenge1"),
+					{
+						Type: tob.NODE_GROUP, Group: &tob.Group{
+							Name: "The Group", Nodes: []tob.Node{
+								{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "example1", Name: "Example Unit Name"}},
+								genUnitNode("challenge1"),
+							},
 						},
 					},
-					},
-				}}}}, trees[1])
+				},
+			},
+		},
+	}, trees[1])
 }

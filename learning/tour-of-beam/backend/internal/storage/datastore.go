@@ -28,9 +28,10 @@ type DatastoreDb struct {
 	Client *datastore.Client
 }
 
-// Query modules structure and content (recursively)
+// Query modules structure and content (recursively).
 func (d *DatastoreDb) collectModules(ctx context.Context, tx *datastore.Transaction,
-	rootKey *datastore.Key) ([]tob.Module, error) {
+	rootKey *datastore.Key,
+) ([]tob.Module, error) {
 	// Custom index.yaml should be applied for this query to work
 	// (Ancestor + Order)
 	modules := make([]tob.Module, 0)
@@ -60,10 +61,10 @@ func (d *DatastoreDb) collectModules(ctx context.Context, tx *datastore.Transact
 // Params:
 // - parentKey
 // - level: depth of a node's children
-// Recursively query/collect for each subgroup key, with level = level + 1
+// Recursively query/collect for each subgroup key, with level = level + 1.
 func (d *DatastoreDb) collectNodes(ctx context.Context, tx *datastore.Transaction,
-	parentKey *datastore.Key, level int) (nodes []tob.Node, err error) {
-
+	parentKey *datastore.Key, level int,
+) (nodes []tob.Node, err error) {
 	var tbNodes []TbLearningNode
 
 	// Custom index.yaml should be applied for this query to work
@@ -81,7 +82,6 @@ func (d *DatastoreDb) collectNodes(ctx context.Context, tx *datastore.Transactio
 	// traverse the nodes which are groups, with level=level+1
 	nodes = make([]tob.Node, 0, len(tbNodes))
 	for _, tbNode := range tbNodes {
-
 		node := FromDatastoreNode(tbNode)
 		if node.Type == tob.NODE_GROUP {
 			node.Group.Nodes, err = d.collectNodes(ctx, tx, tbNode.Key, level+1)
@@ -95,7 +95,7 @@ func (d *DatastoreDb) collectNodes(ctx context.Context, tx *datastore.Transactio
 	return nodes, nil
 }
 
-// Get learning content tree for SDK
+// Get learning content tree for SDK.
 func (d *DatastoreDb) GetContentTree(ctx context.Context, sdk tob.Sdk) (tree tob.ContentTree, err error) {
 	var tbLP TbLearningPath
 	tree.Sdk = sdk
@@ -116,7 +116,7 @@ func (d *DatastoreDb) GetContentTree(ctx context.Context, sdk tob.Sdk) (tree tob
 }
 
 // Helper to clear all ToB Datastore entities related to a particular SDK
-// They have one common ancestor key in tb_learning_path
+// They have one common ancestor key in tb_learning_path.
 func (d *DatastoreDb) clearContentTree(ctx context.Context, tx *datastore.Transaction, sdk tob.Sdk) error {
 	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(sdk), nil)
 	q := datastore.NewQuery("").
@@ -140,7 +140,7 @@ func (d *DatastoreDb) clearContentTree(ctx context.Context, tx *datastore.Transa
 	return tx.Delete(rootKey)
 }
 
-// Serialize a content tree to Datastore
+// Serialize a content tree to Datastore.
 func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.ContentTree) error {
 	sdk := tree.Sdk
 
@@ -209,7 +209,7 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 	return nil
 }
 
-// Re-create content trees for each SDK in separate transaction
+// Re-create content trees for each SDK in separate transaction.
 func (d *DatastoreDb) SaveContentTrees(ctx context.Context, trees []tob.ContentTree) error {
 	for _, tree := range trees {
 		log.Println("Saving sdk tree", tree.Sdk)
@@ -227,5 +227,5 @@ func (d *DatastoreDb) SaveContentTrees(ctx context.Context, trees []tob.ContentT
 	return nil
 }
 
-// check if the interface is implemented
+// check if the interface is implemented.
 var _ Iface = &DatastoreDb{}

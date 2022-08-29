@@ -32,7 +32,7 @@ func getSamplesPath() string {
 
 type Mock struct{}
 
-// check if the interface is implemented
+// check if the interface is implemented.
 var _ IContent = &Mock{}
 
 func (d *Mock) GetContentTree(_ context.Context, sdk tob.Sdk, userId *string) (ct tob.ContentTree, err error) {

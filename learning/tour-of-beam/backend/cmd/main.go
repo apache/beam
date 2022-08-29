@@ -19,7 +19,7 @@ import (
 	"log"
 	"os"
 
-	// Blank-import the function package so the init() runs
+	// Blank-import the function package so the init() runs.
 	_ "beam.apache.org/learning/tour-of-beam/backend"
 	"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
 )

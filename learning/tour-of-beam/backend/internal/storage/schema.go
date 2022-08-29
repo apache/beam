@@ -38,13 +38,13 @@ const (
 	PgSdksKind     = "pg_sdks"
 )
 
-// tb_learning_path
+// tb_learning_path.
 type TbLearningPath struct {
 	Key  *datastore.Key `datastore:"__key__"`
 	Name string         `datastore:"name"`
 }
 
-// tb_learning_module
+// tb_learning_module.
 type TbLearningModule struct {
 	Key        *datastore.Key `datastore:"__key__"`
 	Id         string         `datastore:"id"`
@@ -55,13 +55,13 @@ type TbLearningModule struct {
 	Order int `datastore:"order"`
 }
 
-// tb_learning_node.group
+// tb_learning_node.group.
 type TbLearningGroup struct {
 	Name string `datastore:"name"`
 }
 
 // tb_learning_node.unit
-// Learning Unit content
+// Learning Unit content.
 type TbLearningUnit struct {
 	Id          string   `datastore:"id"`
 	Name        string   `datastore:"name"`
@@ -73,7 +73,7 @@ type TbLearningUnit struct {
 }
 
 // tb_learning_node
-// Container for learning tree nodes, which are either groups or units
+// Container for learning tree nodes, which are either groups or units.
 type TbLearningNode struct {
 	Type tob.NodeType `datastore:"type"`
 	// common fields, duplicate same fields from the nested entities

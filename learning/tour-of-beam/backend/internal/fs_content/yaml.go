@@ -23,7 +23,7 @@ import (
 )
 
 // Could have done it in generics if 1.18 was supported in GCF
-// Fatals on error
+// Fatals on error.
 func loadLearningPathInfo(path string) (info learningPathInfo) {
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {

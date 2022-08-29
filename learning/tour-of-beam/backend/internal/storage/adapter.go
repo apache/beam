@@ -43,7 +43,7 @@ func pgNameKey(kind, nameId string, parentKey *datastore.Key) (key *datastore.Ke
 }
 
 // Get entity key from sdk & entity ID
-// SDK_JAVA_{entityID}
+// SDK_JAVA_{entityID}.
 func datastoreKey(kind string, sdk tob.Sdk, id string, parent *datastore.Key) *datastore.Key {
 	name := fmt.Sprintf("%s_%s", sdkToKey(sdk), id)
 	return pgNameKey(kind, name, parent)
@@ -94,7 +94,7 @@ func MakeGroupNode(group *tob.Group, order, level int) *TbLearningNode {
 }
 
 // Depending on the projection, we either convert TbLearningUnit to a model
-// Or we use common fields Id, Name to make it
+// Or we use common fields Id, Name to make it.
 func FromDatastoreUnit(tbUnit *TbLearningUnit, id, name string) *tob.Unit {
 	if tbUnit == nil {
 		return &tob.Unit{Id: id, Name: name}
@@ -110,7 +110,7 @@ func FromDatastoreUnit(tbUnit *TbLearningUnit, id, name string) *tob.Unit {
 }
 
 // Depending on the projection, we either convert TbLearningGroup to a model
-// Or we use common field Name to make it
+// Or we use common field Name to make it.
 func FromDatastoreGroup(tbGroup *TbLearningGroup, name string) *tob.Group {
 	if tbGroup == nil {
 		return &tob.Group{Name: name}

@@ -86,7 +86,6 @@ func collectUnit(infopath string, ids_watcher *IdsWatcher) (unit *tob.Unit, err 
 	rootpath := filepath.Join(infopath, "..")
 	err = filepath.WalkDir(rootpath,
 		func(path string, d fs.DirEntry, err error) error {
-
 			switch {
 			// skip nested dirs
 			case path > rootpath && d.IsDir():
@@ -128,7 +127,7 @@ func collectGroup(infopath string, ids_watcher *IdsWatcher) (*tob.Group, error) 
 	return &group, nil
 }
 
-// Collect node which is either a unit or a group
+// Collect node which is either a unit or a group.
 func collectNode(rootpath string, ids_watcher *IdsWatcher) (node tob.Node, err error) {
 	files, err := os.ReadDir(rootpath)
 	if err != nil {
@@ -188,9 +187,8 @@ func collectSdk(infopath string) (tree tob.ContentTree, err error) {
 
 // Build a content tree for each SDK
 // Walk recursively through the learning-content dir, search for metadata files:
-// content-info.yaml, module-info.yaml, unit-info.yaml
+// content-info.yaml, module-info.yaml, unit-info.yaml.
 func CollectLearningTree(rootpath string) (trees []tob.ContentTree, err error) {
-
 	err = filepath.WalkDir(rootpath, func(path string, d fs.DirEntry, err error) error {
 		// terminate walk on any error
 		if err != nil {

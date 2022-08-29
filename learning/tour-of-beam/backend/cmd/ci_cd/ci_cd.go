@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 
@@ -42,13 +41,13 @@ func init() {
 
 func main() {
 	learningRoot := os.Getenv("TOB_LEARNING_ROOT")
-	fmt.Printf("Parsing learning-content at %q\n", learningRoot)
+	log.Printf("Parsing learning-content at %q\n", learningRoot)
 	trees, err := fs_content.CollectLearningTree(learningRoot)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("collected %v sdks\n", len(trees))
+	log.Printf("collected %v sdks\n", len(trees))
 	if err = repo.SaveContentTrees(ctx, trees); err != nil {
 		log.Fatal(err)
 	}
