@@ -539,7 +539,7 @@ func (s Map[K, V]) StateType() TypeEnum {
 	return TypeMap
 }
 
-// MakeValueState is a factory function to create an instance of ValueState with the given key.
+// MakeMapState is a factory function to create an instance of MapState with the given key.
 func MakeMapState[K comparable, V any](k string) Map[K, V] {
 	return Map[K, V]{
 		Key: k,
