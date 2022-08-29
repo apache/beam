@@ -386,7 +386,12 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, info *p
 			logger.Errorf("SaveSnippet(): entity is too large. Max entity size: %d symbols", maxSnippetSize)
 			return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet size is more than %d symbols", maxSnippetSize)
 		}
-		snippet.Files = append(snippet.Files, controller.entityMapper.ToFileEntity(info, file))
+		fileEntity, err := controller.entityMapper.ToFileEntity(info, file)
+		if err != nil {
+			logger.Errorf("SaveSnippet(): file has wrong properties, err: %s", err.Error())
+			return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "File content is invalid")
+		}
+		snippet.Files = append(snippet.Files, fileEntity)
 	}
 
 	id, err := snippet.ID()
