@@ -807,7 +807,7 @@ func TestSetKeys(t *testing.T) {
 				}
 			}
 			if !eq {
-				t.Errorf("Map.Keys()=%v, want %v for state key %v", val, tt.keys, tt.vs.Key)
+				t.Errorf("Set.Keys()=%v, want %v for state key %v", val, tt.keys, tt.vs.Key)
 			}
 		}
 	}
