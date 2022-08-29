@@ -31,45 +31,30 @@ import '../../constants/sizes.dart';
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen();
 
-  static const horizontalHalves = [
-    TableRow(
-      children: [
-        TableCell(
-          verticalAlignment: TableCellVerticalAlignment.fill,
-          child: _SdkSelection(),
-        ),
-        _TourSummary(),
-      ],
-    ),
-  ];
-
-  static const verticalHalves = [
-    TableRow(
-      children: [
-        TableCell(
-          child: _SdkSelection(),
-        ),
-      ],
-    ),
-    TableRow(
-      children: [
-        _TourSummary(),
-      ],
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return PageContainer(
       child: SingleChildScrollView(
-        child: Table(
-          border: TableBorder.symmetric(
-            inside: BorderSide(color: ThemeColors.of(context).divider),
-          ),
-          children: MediaQuery.of(context).size.width > ScreenSizes.medium
-              ? horizontalHalves
-              : verticalHalves,
-        ),
+        child: MediaQuery.of(context).size.width > ScreenSizes.medium
+            ? IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Flexible(
+                      child: _SdkSelection(),
+                    ),
+                    Flexible(
+                      child: _TourSummary(),
+                    ),
+                  ],
+                ),
+              )
+            : Column(
+                children: const [
+                  _SdkSelection(),
+                  _TourSummary(),
+                ],
+              ),
       ),
     );
   }
@@ -80,9 +65,17 @@ class _SdkSelection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SdkSelectionBody(
-      child: Wrap(
+    return ColoredBox(
+      color: ThemeColors.of(context).background,
+      child: Stack(
         children: [
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Image.asset(TobAssets.welcomeLaptop),
+          ),
+          const SizedBox(height: 900),
           Padding(
             padding: const EdgeInsets.fromLTRB(50, 60, 50, 20),
             child: Column(
@@ -94,7 +87,6 @@ class _SdkSelection extends StatelessWidget {
               ],
             ),
           ),
-          Image.asset(TobAssets.welcomeLaptop),
         ],
       ),
     );
@@ -131,19 +123,6 @@ class _TourSummary extends StatelessWidget {
     'Windowing',
     'Triggers',
   ];
-}
-
-class _SdkSelectionBody extends StatelessWidget {
-  final Widget child;
-  const _SdkSelectionBody({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: ThemeColors.of(context).background,
-      child: child,
-    );
-  }
 }
 
 class _IntroText extends StatelessWidget {
@@ -243,6 +222,7 @@ class _SdkButton extends StatelessWidget {
       padding: const EdgeInsets.only(right: 15, bottom: 10),
       child: OutlinedButton(
         style: OutlinedButton.styleFrom(
+          backgroundColor: ThemeColors.of(context).background,
           side: groupValue == value
               ? null
               : const BorderSide(color: TobColors.grey1),
