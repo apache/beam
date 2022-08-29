@@ -60,7 +60,6 @@ func init() {
 	// functions framework
 	functions.HTTP("sdkList", sdkList)
 	functions.HTTP("getContentTree", getContentTree)
-
 }
 
 func finalizeErrResponse(w http.ResponseWriter, status int, code, message string) {
