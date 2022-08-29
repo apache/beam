@@ -51,11 +51,12 @@ func (s *fakeProvider) ReadValueState(userStateID string) (interface{}, []Transa
 }
 
 func (s *fakeProvider) WriteValueState(val Transaction) error {
-	if transactions, ok := s.transactions[val.Key]; ok {
-		s.transactions[val.Key] = append(transactions, val)
-	} else {
-		s.transactions[val.Key] = []Transaction{val}
-	}
+	s.transactions[val.Key] = []Transaction{val}
+	return nil
+}
+
+func (s *fakeProvider) ClearValueState(val Transaction) error {
+	s.transactions[val.Key] = []Transaction{val}
 	return nil
 }
 
@@ -77,6 +78,11 @@ func (s *fakeProvider) WriteBagState(val Transaction) error {
 	} else {
 		s.transactions[val.Key] = []Transaction{val}
 	}
+	return nil
+}
+
+func (s *fakeProvider) ClearBagState(val Transaction) error {
+	s.transactions[val.Key] = []Transaction{val}
 	return nil
 }
 
@@ -245,6 +251,44 @@ func TestValueWrite(t *testing.T) {
 	}
 }
 
+func TestValueClear(t *testing.T) {
+	var tests = []struct {
+		writes []int
+		clears int
+	}{
+		{[]int{}, 1},
+		{[]int{3}, 1},
+		{[]int{1, 5}, 1},
+		{[]int{}, 2},
+		{[]int{3}, 2},
+		{[]int{1, 5}, 2},
+	}
+
+	for _, tt := range tests {
+		f := fakeProvider{
+			initialState: make(map[string]interface{}),
+			transactions: make(map[string][]Transaction),
+			err:          make(map[string]error),
+		}
+		vs := MakeValueState[int]("vs")
+		for _, val := range tt.writes {
+			vs.Write(&f, val)
+		}
+		for i := 0; i < tt.clears; i++ {
+			err := vs.Clear(&f)
+			if err != nil {
+				t.Errorf("Value.Clear() attempt %v returned error %v", i, err)
+			}
+		}
+		_, ok, err := vs.Read(&f)
+		if err != nil {
+			t.Errorf("Value.Read() returned error %v when it shouldn't have after writing: %v", err, tt.writes)
+		} else if ok {
+			t.Errorf("Value.Read() returned a value when it shouldn't have after writing %v and performing %v clears", tt.writes, tt.clears)
+		}
+	}
+}
+
 func TestBagRead(t *testing.T) {
 	is := make(map[string][]interface{})
 	ts := make(map[string][]Transaction)
@@ -356,6 +400,44 @@ func TestBagAdd(t *testing.T) {
 	}
 }
 
+func TestBagClear(t *testing.T) {
+	var tests = []struct {
+		writes []int
+		clears int
+	}{
+		{[]int{}, 1},
+		{[]int{3}, 1},
+		{[]int{1, 5}, 1},
+		{[]int{}, 2},
+		{[]int{3}, 2},
+		{[]int{1, 5}, 2},
+	}
+
+	for _, tt := range tests {
+		f := fakeProvider{
+			initialState: make(map[string]interface{}),
+			transactions: make(map[string][]Transaction),
+			err:          make(map[string]error),
+		}
+		vs := MakeBagState[int]("vs")
+		for _, val := range tt.writes {
+			vs.Add(&f, val)
+		}
+		for i := 0; i < tt.clears; i++ {
+			err := vs.Clear(&f)
+			if err != nil {
+				t.Errorf("Bag.Clear() attempt %v returned error %v", i, err)
+			}
+		}
+		_, ok, err := vs.Read(&f)
+		if err != nil {
+			t.Errorf("Bag.Read() returned error %v when it shouldn't have after writing: %v", err, tt.writes)
+		} else if ok {
+			t.Errorf("Bag.Read() returned a value when it shouldn't have after writing %v and performing %v clears", tt.writes, tt.clears)
+		}
+	}
+}
+
 func TestCombiningRead(t *testing.T) {
 	is := make(map[string]interface{})
 	ts := make(map[string][]Transaction)
@@ -432,6 +514,80 @@ func TestCombiningRead(t *testing.T) {
 			t.Errorf("Combining.Read() didn't return a value for state key %v when it should have returned %v", tt.vs.Key, tt.val)
 		} else if val != tt.val {
 			t.Errorf("Combining.Read()=%v, want %v for state key %v", val, tt.val, tt.vs.Key)
+		}
+	}
+}
+
+func TestCombiningClear(t *testing.T) {
+	var tests = []struct {
+		vs     Combining[int, int, int]
+		writes []int
+		val    int
+		clears int
+		ok     bool
+	}{
+		{MakeCombiningState[int, int, int]("no_transactions", func(a, b int) int {
+			return a + b
+		}), []int{}, 0, 1, false},
+		{MakeCombiningState[int, int, int]("no_transactions", func(a, b int) int {
+			return a + b
+		}), []int{2}, 0, 1, false},
+		{MakeCombiningState[int, int, int]("no_transactions", func(a, b int) int {
+			return a + b
+		}), []int{7, 8, 9}, 0, 1, false},
+		{MakeCombiningState[int, int, int]("no_transactions_initial_accum", func(a, b int) int {
+			return a + b
+		}), []int{}, 1, 1, true},
+		{MakeCombiningState[int, int, int]("no_transactions_initial_accum", func(a, b int) int {
+			return a + b
+		}), []int{1}, 1, 1, true},
+		{MakeCombiningState[int, int, int]("no_transactions_initial_accum", func(a, b int) int {
+			return a + b
+		}), []int{3, 4}, 1, 1, true},
+	}
+
+	for _, tt := range tests {
+		is := make(map[string]interface{})
+		ts := make(map[string][]Transaction)
+		es := make(map[string]error)
+		ca := make(map[string]bool)
+		eo := make(map[string]bool)
+		ma := make(map[string]bool)
+		ai := make(map[string]bool)
+		ts["no_transactions"] = nil
+		ma["no_transactions"] = true
+		ts["no_transactions_initial_accum"] = nil
+		ca["no_transactions_initial_accum"] = true
+		ma["no_transactions_initial_accum"] = true
+
+		f := fakeProvider{
+			initialState:      is,
+			transactions:      ts,
+			err:               es,
+			createAccumForKey: ca,
+			extractOutForKey:  eo,
+			mergeAccumForKey:  ma,
+			addInputForKey:    ai,
+		}
+
+		for _, val := range tt.writes {
+			tt.vs.Add(&f, val)
+		}
+		for i := 0; i < tt.clears; i++ {
+			err := tt.vs.Clear(&f)
+			if err != nil {
+				t.Errorf("Combining.Clear() attempt %v returned error %v", i, err)
+			}
+		}
+		val, ok, err := tt.vs.Read(&f)
+		if err != nil {
+			t.Errorf("Combining.Read() returned error %v when it shouldn't have after writing %v and performing %v clears for key %v", err, tt.writes, tt.clears, tt.vs.StateKey())
+		} else if ok && !tt.ok {
+			t.Errorf("Combining.Read() returned a value when it shouldn't have after writing %v and performing %v clears for key %v", tt.writes, tt.clears, tt.vs.StateKey())
+		} else if !ok && tt.ok {
+			t.Errorf("Combining.Read() returned no value when it should have returned %v after writing %v and performing %v clears for key %v", tt.val, tt.writes, tt.clears, tt.vs.StateKey())
+		} else if tt.val != val {
+			t.Errorf("Combining.Read()=%v, want %v after writing %v and performing %v clears for key %v", val, tt.val, tt.writes, tt.clears, tt.vs.StateKey())
 		}
 	}
 }

@@ -27,9 +27,19 @@ func TestValueState(t *testing.T) {
 	ptest.RunAndValidate(t, ValueStateParDo())
 }
 
+func TestValueState_Clear(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, ValueStateParDo_Clear())
+}
+
 func TestBagState(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.RunAndValidate(t, BagStateParDo())
+}
+
+func TestBagState_Clear(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, BagStateParDo_Clear())
 }
 
 func TestCombiningState(t *testing.T) {
