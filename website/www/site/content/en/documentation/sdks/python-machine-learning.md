@@ -36,12 +36,12 @@ For more information, see the [`BatchElements` transform documentation](https://
 
 ### Shared helper class
 
-Using the `Shared` class within RunInference implementation allows us to load the model only once per process and share it with all DoFn instances created in that process. This feature reduces memory consumption and model loading time. For more information, see the
+Using the `Shared` class within the RunInference implementation makes it possible to load the model only once per process and share it with all DoFn instances created in that process. This feature reduces memory consumption and model loading time. For more information, see the
 [`Shared` class documentation](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/shared.py#L20).
 
 ### Multi-model pipelines
 
-The RunInference API can be composed into multi-model pipelines. Multi-model pipelines can be useful for A/B testing or for building out ensembles that are comprised of models that perform tokenization, sentence segmentation, part-of-speech tagging, named entity extraction, language detection, coreference resolution, and more.
+The RunInference API can be composed into multi-model pipelines. Multi-model pipelines can be useful for A/B testing or for building out ensembles made up of models that perform tokenization, sentence segmentation, part-of-speech tagging, named entity extraction, language detection, coreference resolution, and more.
 
 ## Modify a pipeline to use an ML model
 
@@ -165,7 +165,29 @@ For detailed instructions explaining how to build and run a pipeline that uses M
 
 ## Beam Java SDK support
 
-RunInference API is available to Beam Java SDK 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines). Please see [here](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java) for the Java wrapper transform to use and please see [here](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/test/java/org/apache/beam/sdk/extensions/python/transforms/RunInferenceTransformTest.java) for some example pipelines.
+The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines). For information about the Java wrapper transformP, see [RunInference.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java). For example pipelines, see [RunInferenceTransformTest.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/test/java/org/apache/beam/sdk/extensions/python/transforms/RunInferenceTransformTest.java).
+
+## TensorFlow support
+
+To use TensorFlow with the RunInference API, create a model handler from within `tfx_bsl`. The model handler can be keyed or unkeyed.
+For more information, see [run_inference.py](https://github.com/tensorflow/tfx-bsl/blob/d1fca25e5eeaac9ef0111ec13e7634df836f36f6/tfx_bsl/public/beam/run_inference.py) in the TensorFlow GitHub repository.
+
+```
+tf_handler = CreateModelHandler(inference_spec_type)
+
+# unkeyed
+beam.run_inference(tf_handler)
+
+# keyed
+beam.run_inference(beam.ml.inference.KeyedHandler(tf_handler))
+
+Args:
+  inference_spec_type: Model inference endpoint.
+Returns:
+  A Beam RunInference ModelHandler for TensorFlow
+"""
+return run_inference.create_model_handler(inference_spec_type, None, None)
+```
 
 ## Troubleshooting
 
@@ -177,7 +199,7 @@ In some cases, the `PredictionResults` output might not include the correct pred
 
 The RunInference API currently expects outputs to be an `Iterable[Any]`. Example return types are `Iterable[Tensor]` or `Iterable[Dict[str, Tensor]]`. When RunInference zips the inputs with the predictions, the predictions iterate over the dictionary keys instead of the batch elements. The result is that the key name is preserved but the prediction tensors are discarded. For more information, see the [Pytorch RunInference PredictionResult is a Dict](https://github.com/apache/beam/issues/22240) issue in the Apache Beam GitHub project.
 
-To work with the current RunInference implementation, you can create a wrapper class that overrides the `model(input)` call. In PyTorch, for example, your wrapper would override the `forward()` function and return an output with the appropriate format of `List[Dict[str, torch.Tensor]]`. For more information, see our [HuggingFace language modeling example](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py#L49).
+To work with the current RunInference implementation, you can create a wrapper class that overrides the `model(input)` call. In PyTorch, for example, your wrapper would override the `forward()` function and return an output with the appropriate format of `List[Dict[str, torch.Tensor]]`. For more information, see the [HuggingFace language modeling example](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py#L49).
 
 ### Unable to batch tensor elements
 
