@@ -169,7 +169,7 @@ func collectSdk(infopath string) (tree tob.ContentTree, err error) {
 	ids_watcher := NewIdsWatcher()
 
 	info := loadLearningPathInfo(infopath)
-	tree.Sdk = tob.FromString(info.Sdk)
+	tree.Sdk = tob.ParseSdk(info.Sdk)
 	if tree.Sdk == tob.SDK_UNDEFINED {
 		return tree, fmt.Errorf("unknown SDK at %v", infopath)
 	}

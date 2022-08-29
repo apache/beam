@@ -29,7 +29,7 @@ func TestParse(t *testing.T) {
 		{"Bad", SDK_UNDEFINED},
 		{"", SDK_UNDEFINED},
 	} {
-		if parsed := FromString(s.str); parsed != s.expected {
+		if parsed := ParseSdk(s.str); parsed != s.expected {
 			t.Errorf("Failed to parse %v: got %v (expected %v)", s.str, parsed, s.expected)
 		}
 	}

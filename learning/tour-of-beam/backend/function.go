@@ -70,7 +70,12 @@ func finalizeErrResponse(w http.ResponseWriter, status int, code, message string
 }
 
 func sdkList(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, `{"names": ["Java", "Python", "Go"]}`)
+	if r.Method != "GET" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Add("Content-Type", "application/json")
+	fmt.Fprint(w, `{"names": ["Java", "Python", "Go"]}`)
 }
 
 func getContentTree(w http.ResponseWriter, r *http.Request) {
@@ -81,17 +86,24 @@ func getContentTree(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sdkStr := r.URL.Query().Get("sdk")
-	sdk := tob.FromString(sdkStr)
+	sdk := tob.ParseSdk(sdkStr)
 	if sdk == tob.SDK_UNDEFINED {
-		finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, fmt.Sprintf("Bad sdk: %v", sdkStr))
+		log.Printf("Bad sdk: %v", sdkStr)
+		finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, "Bad sdk")
 		return
 	}
 
 	tree, err := svc.GetContentTree(r.Context(), sdk, nil /*TODO userId*/)
 	if err != nil {
-		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, err.Error())
+		log.Println("Get content tree error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
 		return
 	}
 
-	_ = json.NewEncoder(w).Encode(tree)
+	err = json.NewEncoder(w).Encode(tree)
+	if err != nil {
+		log.Println("Format content tree error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format content tree")
+		return
+	}
 }
