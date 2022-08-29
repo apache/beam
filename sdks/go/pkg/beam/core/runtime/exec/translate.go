@@ -467,14 +467,57 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 					if len(userState) > 0 {
 						stateIDToCoder := make(map[string]*coder.Coder)
+						stateIDToKeyCoder := make(map[string]*coder.Coder)
+						stateIDToCombineFn := make(map[string]*graph.CombineFn)
 						for key, spec := range userState {
-							// TODO(#22736) - this will eventually need to be aware of which type of state its modifying to support non-Value state types.
-							cID := spec.GetReadModifyWriteSpec().CoderId
+							var cID string
+							var kcID string
+							if rmw := spec.GetReadModifyWriteSpec(); rmw != nil {
+								cID = rmw.CoderId
+							} else if bs := spec.GetBagSpec(); bs != nil {
+								cID = bs.ElementCoderId
+							} else if cs := spec.GetCombiningSpec(); cs != nil {
+								cID = cs.AccumulatorCoderId
+								cmbData := string(cs.GetCombineFn().GetPayload())
+								var cmbTp v1pb.TransformPayload
+								if err := protox.DecodeBase64(cmbData, &cmbTp); err != nil {
+									return nil, errors.Wrapf(err, "invalid transform payload %v for %v", cmbData, transform)
+								}
+								_, fn, _, _, _, err := graphx.DecodeMultiEdge(cmbTp.GetEdge())
+								if err != nil {
+									return nil, err
+								}
+								cfn, err := graph.AsCombineFn(fn)
+								if err != nil {
+									return nil, err
+								}
+								stateIDToCombineFn[key] = cfn
+							} else if ms := spec.GetMapSpec(); ms != nil {
+								cID = ms.ValueCoderId
+								kcID = ms.KeyCoderId
+							}
 							c, err := b.coders.Coder(cID)
 							if err != nil {
 								return nil, err
 							}
+							if kcID != "" {
+								kc, err := b.coders.Coder(kcID)
+								if err != nil {
+									return nil, err
+								}
+								stateIDToKeyCoder[key] = kc
+							}
 							stateIDToCoder[key] = c
+							sid := StreamID{
+								Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
+								PtransformID: id.to,
+							}
+
+							ec, wc, err := b.makeCoderForPCollection(input[0])
+							if err != nil {
+								return nil, err
+							}
+							n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIDToCoder, stateIDToKeyCoder, stateIDToCombineFn)
 						}
 					}
 

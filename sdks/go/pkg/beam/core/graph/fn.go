@@ -1273,13 +1273,13 @@ func validateState(fn *DoFn, numIn mainInputs) error {
 				return errors.SetTopLevelMsgf(err, "Duplicate state key %v used by %v and %v. Ensure that state keys are"+
 					"unique per DoFn", k, orig, s)
 			}
+			t := s.StateType()
+			if t != state.TypeValue && t != state.TypeBag && t != state.TypeCombining && t != state.TypeMap {
+				err := errors.Errorf("Unrecognized state type %v for state %v", t, s)
+				return errors.SetTopLevelMsgf(err, "Unrecognized state type %v for state %v. Currently the only supported state"+
+					"types are state.Value, state.Combining, state.Bag, and state.Map", t, s)
+			}
 			stateKeys[k] = s
-		}
-		if len(ps) > 0 {
-			// TODO(#22736) - Remove this once state is fully supported
-			err := errors.Errorf("ProcessElement uses a StateProvider, but state is not supported in this release.")
-			return errors.SetTopLevelMsgf(err, "ProcessElement uses a StateProvider, but state is not supported in this release. "+
-				"Please try upgrading to a newer release if one exists or wait for state support to be released.")
 		}
 	} else {
 		if len(ps) > 0 {

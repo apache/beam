@@ -147,7 +147,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
                     create: (context) => ExampleSelectorState(
                       playgroundState,
                       playgroundState.exampleState
-                          .getCategories(playgroundState.sdk)!,
+                          .getCategories(playgroundState.sdk),
                     ),
                     builder: (context, _) => Positioned(
                       left: dropdownOffset.dx,
