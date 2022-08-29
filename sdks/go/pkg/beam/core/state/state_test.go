@@ -885,7 +885,7 @@ func TestMapRemove(t *testing.T) {
 		}
 		val, _, err := vs.Keys(&f)
 		if err != nil {
-			t.Errorf("Map.Get(\"foo\") returned error %v when it shouldn't have after writing: %v", err, tt.writes)
+			t.Errorf("Map.Keys() returned error %v when it shouldn't have after writing: %v", err, tt.writes)
 		} else if len(val) != len(tt.keys) {
 			t.Errorf("Map.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
 		} else {
@@ -927,7 +927,7 @@ func TestMapClear(t *testing.T) {
 		}
 		val, _, err := vs.Keys(&f)
 		if err != nil {
-			t.Errorf("Map.Get(\"foo\") returned error %v when it shouldn't have after writing: %v", err, tt.writes)
+			t.Errorf("Map.Keys() returned error %v when it shouldn't have after writing: %v", err, tt.writes)
 		} else if len(val) != len(tt.keys) {
 			t.Errorf("Map.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
 		} else {
@@ -1142,7 +1142,7 @@ func TestSetRemove(t *testing.T) {
 		}
 		val, _, err := vs.Keys(&f)
 		if err != nil {
-			t.Errorf("Set.Get(\"foo\") returned error %v when it shouldn't have after writing: %v", err, tt.writes)
+			t.Errorf("Set.Keys() returned error %v when it shouldn't have after writing: %v", err, tt.writes)
 		} else if len(val) != len(tt.keys) {
 			t.Errorf("Set.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
 		} else {
@@ -1184,7 +1184,7 @@ func TestSetClear(t *testing.T) {
 		}
 		val, _, err := vs.Keys(&f)
 		if err != nil {
-			t.Errorf("Set.Get(\"foo\") returned error %v when it shouldn't have after writing: %v", err, tt.writes)
+			t.Errorf("Set.Keys() returned error %v when it shouldn't have after writing: %v", err, tt.writes)
 		} else if len(val) != len(tt.keys) {
 			t.Errorf("Set.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
 		} else {
