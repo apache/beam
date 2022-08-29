@@ -35,6 +35,7 @@ func init() {
 	register.DoFn3x1[state.Provider, string, int, string](&combiningStateFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&mapStateFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&mapStateClearFn{})
+	register.DoFn3x1[state.Provider, string, int, string](&setStateClearFn{})
 	register.Emitter2[string, int]()
 	register.Combiner1[int](&combine1{})
 	register.Combiner2[string, int](&combine2{})
@@ -441,8 +442,68 @@ func MapStateParDo_Clear() *beam.Pipeline {
 	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
 		emit(w, 1)
 	}, in)
-	counts := beam.ParDo(s, &mapStateFn{State1: state.MakeMapState[string, int]("key1")}, keyed)
-	passert.Equals(s, counts, "apple: [apple]", "pear: [pear]", "peach: [peach]", "apple: [apple1, apple2, apple3]", "apple: []", "pear: [pear1 pear2 pear3]")
+	counts := beam.ParDo(s, &mapStateClearFn{State1: state.MakeMapState[string, int]("key1")}, keyed)
+	passert.Equals(s, counts, "apple: [apple]", "pear: [pear]", "peach: [peach]", "apple: [apple1 apple2 apple3]", "apple: []", "pear: [pear1 pear2 pear3]")
+
+	return p
+}
+
+type setStateClearFn struct {
+	State1 state.Set[string]
+}
+
+func (f *setStateClearFn) ProcessElement(s state.Provider, w string, c int) string {
+	ok, err := f.State1.Contains(s, w)
+	if err != nil {
+		panic(err)
+	}
+	if ok {
+		f.State1.Remove(s, w)
+		f.State1.Add(s, fmt.Sprintf("%v%v", w, 1))
+		f.State1.Add(s, fmt.Sprintf("%v%v", w, 2))
+		f.State1.Add(s, fmt.Sprintf("%v%v", w, 3))
+	} else {
+		ok, err := f.State1.Contains(s, fmt.Sprintf("%v%v", w, 1))
+		if err != nil {
+			panic(err)
+		}
+		if ok {
+			f.State1.Clear(s)
+		} else {
+			f.State1.Add(s, w)
+		}
+	}
+
+	keys, _, err := f.State1.Keys(s)
+	if err != nil {
+		panic(err)
+	}
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	for _, k := range keys {
+		ok, err = f.State1.Contains(s, k)
+		if err != nil {
+			panic(err)
+		}
+		if !ok {
+			panic(fmt.Sprintf("%v is present in keys, but not in the map", k))
+		}
+	}
+
+	return fmt.Sprintf("%v: %v", w, keys)
+}
+
+// SetStateParDo_Clear tests clearing and removing from a DoFn that uses set state.
+func SetStateParDo_Clear() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear")
+	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
+		emit(w, 1)
+	}, in)
+	counts := beam.ParDo(s, &setStateClearFn{State1: state.MakeSetState[string]("key1")}, keyed)
+	passert.Equals(s, counts, "apple: [apple]", "pear: [pear]", "peach: [peach]", "apple: [apple1 apple2 apple3]", "apple: []", "pear: [pear1 pear2 pear3]")
 
 	return p
 }
