@@ -468,7 +468,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			stateSpecs := make(map[string]*pipepb.StateSpec)
 			for _, ps := range edge.Edge.DoFn.PipelineState() {
 				coderID := ""
-				c, ok := edge.Edge.StateCoders[UserStateCoderId(ps)]
+				c, ok := edge.Edge.StateCoders[UserStateCoderID(ps)]
 				if ok {
 					coderID, err = m.coders.Add(c)
 					if err != nil {
@@ -476,7 +476,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 					}
 				}
 				keyCoderID := ""
-				if c, ok := edge.Edge.StateCoders[UserStateKeyCoderId(ps)]; ok {
+				if c, ok := edge.Edge.StateCoders[UserStateKeyCoderID(ps)]; ok {
 					keyCoderID, err = m.coders.Add(c)
 					if err != nil {
 						return handleErr(err)
@@ -1414,12 +1414,12 @@ func UpdateDefaultEnvWorkerType(typeUrn string, pyld []byte, p *pipepb.Pipeline)
 	return errors.Errorf("unable to find dependency with %q role in environment with ID %q,", URNArtifactGoWorkerRole, defaultEnvId)
 }
 
-// UserStateCoderId returns the coder id of a user state
-func UserStateCoderId(ps state.PipelineState) string {
+// UserStateCoderID returns the coder id of a user state
+func UserStateCoderID(ps state.PipelineState) string {
 	return fmt.Sprintf("val_%v", ps.StateKey())
 }
 
-// UserStateKeyCoderId returns the key coder id of a user state
-func UserStateKeyCoderId(ps state.PipelineState) string {
+// UserStateKeyCoderID returns the key coder id of a user state
+func UserStateKeyCoderID(ps state.PipelineState) string {
 	return fmt.Sprintf("key_%v", ps.StateKey())
 }
