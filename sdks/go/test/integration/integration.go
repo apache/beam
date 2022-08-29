@@ -27,7 +27,8 @@
 // Running integration tests can be done with a go test call with any flags that
 // are required by the test pipelines, such as --runner or --endpoint.
 // Example:
-//    go test -v ./sdks/go/test/integration/... --runner=portable --endpoint=localhost:8099
+//
+//	go test -v ./sdks/go/test/integration/... --runner=portable --endpoint=localhost:8099
 //
 // Alternatively, tests can be executed by running the
 // run_validatesrunner_tests.sh script, which also performs much of the
@@ -92,6 +93,7 @@ var directFilters = []string{
 	"TestValueState",
 	"TestBagState",
 	"TestCombiningState",
+	"TestMapState",
 }
 
 var portableFilters = []string{
@@ -116,6 +118,7 @@ var portableFilters = []string{
 	"TestValueState",
 	"TestBagState",
 	"TestCombiningState",
+	"TestMapState",
 }
 
 var flinkFilters = []string{
@@ -161,6 +164,7 @@ var samzaFilters = []string{
 	"TestValueState",
 	"TestBagState",
 	"TestCombiningState",
+	"TestMapState",
 }
 
 var sparkFilters = []string{
