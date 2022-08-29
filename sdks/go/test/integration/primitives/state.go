@@ -20,8 +20,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
@@ -83,8 +85,21 @@ func ValueStateParDo() *beam.Pipeline {
 	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
 		emit(w, 1)
 	}, in)
-	counts := beam.ParDo(s, &valueStateFn{State1: state.MakeValueState[int]("key1"), State2: state.MakeValueState[string]("key2")}, keyed)
+	counts := beam.ParDo(s, &valueStateFn{}, keyed)
 	passert.Equals(s, counts, "apple: 1, I", "pear: 1, I", "peach: 1, I", "apple: 2, II", "apple: 3, III", "pear: 2, II")
+
+	return p
+}
+
+// ValueStateParDo tests a DoFn that uses windowed value state.
+func ValueStateParDo_Windowed() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 1, 1, 2, 2, 3, 4, 4, 4, 4}}, beam.Impulse(s))
+	wData := beam.WindowInto(s, window.NewFixedWindows(3*time.Second), timestampedData)
+	counts := beam.ParDo(s, &valueStateFn{State1: state.MakeValueState[int]("key1"), State2: state.MakeValueState[string]("key2")}, wData)
+	globalCounts := beam.WindowInto(s, window.NewGlobalWindows(), counts)
+	passert.Equals(s, globalCounts, "magic: 1, I", "magic: 2, II", "magic: 3, III", "magic: 1, I", "magic: 2, II", "magic: 3, III", "magic: 1, I", "magic: 2, II", "magic: 3, III", "magic: 1, I")
 
 	return p
 }
@@ -171,7 +186,7 @@ func BagStateParDo() *beam.Pipeline {
 	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
 		emit(w, 1)
 	}, in)
-	counts := beam.ParDo(s, &bagStateFn{State1: state.MakeBagState[int]("key1"), State2: state.MakeBagState[string]("key2")}, keyed)
+	counts := beam.ParDo(s, &bagStateFn{}, keyed)
 	passert.Equals(s, counts, "apple: 0, ", "pear: 0, ", "peach: 0, ", "apple: 1, I", "apple: 2, I,I", "pear: 1, I")
 
 	return p
