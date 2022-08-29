@@ -83,7 +83,7 @@ func ValueStateParDo() *beam.Pipeline {
 	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
 		emit(w, 1)
 	}, in)
-	counts := beam.ParDo(s, &valueStateFn{State1: state.MakeValueState[int]("key1"), State2: state.MakeValueState[string]("key2")}, keyed)
+	counts := beam.ParDo(s, &valueStateFn{}, keyed)
 	passert.Equals(s, counts, "apple: 1, I", "pear: 1, I", "peach: 1, I", "apple: 2, II", "apple: 3, III", "pear: 2, II")
 
 	return p
@@ -184,7 +184,7 @@ func BagStateParDo() *beam.Pipeline {
 	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
 		emit(w, 1)
 	}, in)
-	counts := beam.ParDo(s, &bagStateFn{State1: state.MakeBagState[int]("key1"), State2: state.MakeBagState[string]("key2")}, keyed)
+	counts := beam.ParDo(s, &bagStateFn{}, keyed)
 	passert.Equals(s, counts, "apple: 0, ", "pear: 0, ", "peach: 0, ", "apple: 1, I", "apple: 2, I,I", "pear: 1, I")
 
 	return p
