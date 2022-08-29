@@ -376,6 +376,10 @@ class GlobalWindows(NonMergingWindowFn):
     # type: (...) -> WindowedValue
     return WindowedValue(value, timestamp, (GlobalWindow(), ), pane_info)
 
+  @classmethod
+  def windowed_value_at_end_of_window(cls, value):
+    return cls.windowed_value(value, GlobalWindow().max_timestamp())
+
   def assign(self, assign_context):
     # type: (WindowFn.AssignContext) -> List[GlobalWindow]
     return [GlobalWindow()]
