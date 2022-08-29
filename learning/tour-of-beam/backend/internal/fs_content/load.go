@@ -62,22 +62,22 @@ type learningUnitInfo struct {
 }
 
 // Watch for duplicate ids. Not thread-safe!
-type IdsWatcher struct {
+type idsWatcher struct {
 	ids map[string]struct{}
 }
 
-func (w *IdsWatcher) CheckId(id string) {
+func (w *idsWatcher) CheckId(id string) {
 	if _, exists := w.ids[id]; exists {
 		log.Fatalf("Duplicate id: %v", id)
 	}
 	w.ids[id] = struct{}{}
 }
 
-func NewIdsWatcher() IdsWatcher {
-	return IdsWatcher{make(map[string]struct{})}
+func NewIdsWatcher() idsWatcher {
+	return idsWatcher{make(map[string]struct{})}
 }
 
-func collectUnit(infopath string, ids_watcher *IdsWatcher) (unit *tob.Unit, err error) {
+func collectUnit(infopath string, ids_watcher *idsWatcher) (unit *tob.Unit, err error) {
 	info := loadLearningUnitInfo(infopath)
 	log.Printf("Found Unit %v metadata at %v\n", info.Id, infopath)
 	ids_watcher.CheckId(info.Id)
@@ -112,7 +112,7 @@ func collectUnit(infopath string, ids_watcher *IdsWatcher) (unit *tob.Unit, err 
 	return builder.Build(), err
 }
 
-func collectGroup(infopath string, ids_watcher *IdsWatcher) (*tob.Group, error) {
+func collectGroup(infopath string, ids_watcher *idsWatcher) (*tob.Group, error) {
 	info := loadLearningGroupInfo(infopath)
 	log.Printf("Found Group %v metadata at %v\n", info.Name, infopath)
 	group := tob.Group{Name: info.Name}
@@ -128,7 +128,7 @@ func collectGroup(infopath string, ids_watcher *IdsWatcher) (*tob.Group, error) 
 }
 
 // Collect node which is either a unit or a group.
-func collectNode(rootpath string, ids_watcher *IdsWatcher) (node tob.Node, err error) {
+func collectNode(rootpath string, ids_watcher *idsWatcher) (node tob.Node, err error) {
 	files, err := os.ReadDir(rootpath)
 	if err != nil {
 		return node, err
@@ -149,7 +149,7 @@ func collectNode(rootpath string, ids_watcher *IdsWatcher) (node tob.Node, err e
 	return node, err
 }
 
-func collectModule(infopath string, ids_watcher *IdsWatcher) (tob.Module, error) {
+func collectModule(infopath string, ids_watcher *idsWatcher) (tob.Module, error) {
 	info := loadLearningModuleInfo(infopath)
 	log.Printf("Found Module %v metadata at %v\n", info.Id, infopath)
 	ids_watcher.CheckId(info.Id)

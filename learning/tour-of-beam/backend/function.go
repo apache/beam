@@ -88,7 +88,8 @@ func getContentTree(w http.ResponseWriter, r *http.Request) {
 	sdk := tob.ParseSdk(sdkStr)
 	if sdk == tob.SDK_UNDEFINED {
 		log.Printf("Bad sdk: %v", sdkStr)
-		finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, "Bad sdk")
+		message := fmt.Sprintf("Sdk not in: %v", tob.SdksList())
+		finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, message)
 		return
 	}
 

@@ -185,7 +185,7 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 			return saveGroup(node.Group, order, level, parentKey)
 		}
 
-		panic("Unknown node type")
+		return fmt.Errorf("unknown datastore node type: %v", node.Type)
 	}
 
 	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(tree.Sdk), nil)
