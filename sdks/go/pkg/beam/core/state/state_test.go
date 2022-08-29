@@ -813,7 +813,7 @@ func TestSetKeys(t *testing.T) {
 	}
 }
 
-func TestMapAdd(t *testing.T) {
+func TestSetAdd(t *testing.T) {
 	var tests = []struct {
 		writes []string
 		okFoo  bool
