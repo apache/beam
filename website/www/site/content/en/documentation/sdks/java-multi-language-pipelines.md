@@ -140,9 +140,9 @@ before running your pipeline.
 
 Here we've provided commands for running the example pipeline using
 Gradle on a [Beam HEAD Git clone](https://github.com/apache/beam).
-If you need a more stable environment, please [setup a Java project](/get-started/quickstart-java/) 
-that uses the latest releaesed Beam version and include the necessary
-dependencies.
+If you need a more stable environment, please
+[setup a Java project](/get-started/quickstart-java/) that uses the latest
+releaesed Beam version and include the necessary dependencies.
 
 ### Run with Dataflow runner
 
