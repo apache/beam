@@ -1232,6 +1232,24 @@ public class BigQueryIO {
       return rows;
     }
 
+    private static Schema getFinalSchema(
+        Schema beamSchema, ValueProvider<List<String>> selectedFields) {
+      List<Schema.Field> flds =
+          beamSchema.getFields().stream()
+              .filter(
+                  field -> {
+                    if (selectedFields != null
+                        && selectedFields.isAccessible()
+                        && selectedFields.get() != null) {
+                      return selectedFields.get().contains(field.getName());
+                    } else {
+                      return true;
+                    }
+                  })
+              .collect(Collectors.toList());
+      return Schema.builder().addFields(flds).build();
+    }
+
     private PCollection<T> expandForDirectRead(
         PBegin input, Coder<T> outputCoder, boolean beamSchemaEnabled) {
       ValueProvider<TableReference> tableProvider = getTableProvider();
@@ -1255,21 +1273,8 @@ public class BigQueryIO {
           BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
           Schema beamSchema = srcDef.getBeamSchema(bqOptions);
 
-          List<Schema.Field> flds =
-              beamSchema.getFields().stream()
-                  .filter(
-                      field -> {
-                        if (getSelectedFields() != null
-                            && getSelectedFields().isAccessible()
-                            && getSelectedFields().get() != null) {
-                          return getSelectedFields().get().contains(field.getName());
-                        } else {
-                          return true;
-                        }
-                      })
-                  .collect(Collectors.toList());
+          beamSchema = getFinalSchema(beamSchema, getSelectedFields());
 
-          beamSchema = Schema.builder().addFields(flds).build();
           SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
           SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
           rows.setSchema(beamSchema, getTypeDescriptor(), toBeamRow, fromBeamRow);
@@ -1467,9 +1472,11 @@ public class BigQueryIO {
       if (beamSchemaEnabled) {
         BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
         Schema beamSchema = srcDef.getBeamSchema(bqOptions);
+
+        beamSchema = getFinalSchema(beamSchema, getSelectedFields());
+
         SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
         SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
-
         rows.setSchema(beamSchema, getTypeDescriptor(), toBeamRow, fromBeamRow);
       }
       return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
