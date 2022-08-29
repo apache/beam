@@ -32,6 +32,7 @@
     <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
     <maven-compiler-plugin.version>3.6.2</maven-compiler-plugin.version>
     <mockito.version>3.7.7</mockito.version>
+    <mockito-inline.version>4.2.0</mockito-inline.version>
     <puppycrawl.version>8.7</puppycrawl.version>
     <re2j.version>1.5</re2j.version>
     <slf4j.version>1.7.25</slf4j.version>
@@ -66,6 +67,10 @@
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-storage</artifactId>
       <version>${cloud-storage.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigquery</artifactId>
     </dependency>
 
     <dependency>
@@ -112,6 +117,12 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-inline</artifactId>
+      <version>${mockito-inline.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
