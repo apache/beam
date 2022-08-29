@@ -17,7 +17,7 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: Go tests
+name: Tour of Beam Go tests
 
 on:
   push:
