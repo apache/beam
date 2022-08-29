@@ -29,34 +29,31 @@ on:
     paths: ['learning/tour-of-beam/backend/**']
 
 jobs:
-  build:
+  checks:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./learning/tour-of-beam/backend
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
         with:
           go-version: '1.16'
       - name: Run fmt
         run: |
-          cd learning/tour-of-beam/backend
           go fmt ./...
           git diff-index --quiet HEAD || (echo "Run go fmt before checking in changes" && exit 1)
+
       - name: Run vet
-        run: | 
-          cd learning/tour-of-beam/backend
-          VOUT=$(go vet --copylocks=false --unsafeptr=false ./...)
-          if [ -n "$VOUT" ]; then 
-            echo -e "Run go vet and fix warnings before checking in changes\n"
-            echo -e "Vet Warnings:\n"
-            echo -e "$VOUT" && exit 1
-          fi
-      - name: Run Staticcheck
-        run: |
-          go install "honnef.co/go/tools/cmd/staticcheck@2022.1"
-          cd learning/tour-of-beam/backend
-          RESULTS=$($(go env GOPATH)/bin/staticcheck ./...)
-          if [ -n "$RESULTS" ]; then 
-            echo -e "Please address Staticcheck warnings before checking in changes\n"
-            echo -e "Staticcheck Warnings:\n"
-            echo -e "$RESULTS" && exit 1
-          fi
+        run: go vet ./...
+
+      - name: Run test
+        run: go test -v ./...
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.49.0
+          working-directory: learning/tour-of-beam/backend
+          skip-cache: true
+
