@@ -29,7 +29,9 @@ import (
 
 func init() {
 	register.DoFn3x1[state.Provider, string, int, string](&valueStateFn{})
+	register.DoFn3x1[state.Provider, string, int, string](&valueStateClearFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&bagStateFn{})
+	register.DoFn3x1[state.Provider, string, int, string](&bagStateClearFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&combiningStateFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&mapStateFn{})
 	register.Emitter2[string, int]()
@@ -85,6 +87,44 @@ func ValueStateParDo() *beam.Pipeline {
 	return p
 }
 
+type valueStateClearFn struct {
+	State1 state.Value[int]
+}
+
+func (f *valueStateClearFn) ProcessElement(s state.Provider, w string, c int) string {
+	i, ok, err := f.State1.Read(s)
+	if err != nil {
+		panic(err)
+	}
+	if ok {
+		err = f.State1.Clear(s)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		err = f.State1.Write(s, 1)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return fmt.Sprintf("%s: %v,%v", w, i, ok)
+}
+
+// ValueStateParDo_Clear tests that a DoFn that uses value state can be cleared.
+func ValueStateParDo_Clear() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear", "pear", "apple")
+	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
+		emit(w, 1)
+	}, in)
+	counts := beam.ParDo(s, &valueStateClearFn{State1: state.MakeValueState[int]("key1")}, keyed)
+	passert.Equals(s, counts, "apple: 0,false", "pear: 0,false", "peach: 0,false", "apple: 1,true", "apple: 0,false", "pear: 1,true", "pear: 0,false", "apple: 1,true")
+
+	return p
+}
+
 type bagStateFn struct {
 	State1 state.Bag[int]
 	State2 state.Bag[string]
@@ -131,6 +171,47 @@ func BagStateParDo() *beam.Pipeline {
 	}, in)
 	counts := beam.ParDo(s, &bagStateFn{State1: state.MakeBagState[int]("key1"), State2: state.MakeBagState[string]("key2")}, keyed)
 	passert.Equals(s, counts, "apple: 0, ", "pear: 0, ", "peach: 0, ", "apple: 1, I", "apple: 2, I,I", "pear: 1, I")
+
+	return p
+}
+
+type bagStateClearFn struct {
+	State1 state.Bag[int]
+}
+
+func (f *bagStateClearFn) ProcessElement(s state.Provider, w string, c int) string {
+	i, ok, err := f.State1.Read(s)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		i = []int{}
+	}
+	err = f.State1.Add(s, 1)
+	if err != nil {
+		panic(err)
+	}
+
+	sum := 0
+	for _, val := range i {
+		sum += val
+	}
+	if sum == 3 {
+		f.State1.Clear(s)
+	}
+	return fmt.Sprintf("%s: %v", w, sum)
+}
+
+// BagStateParDo_Clear tests a DoFn that uses bag state.
+func BagStateParDo_Clear() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	in := beam.Create(s, "apple", "pear", "apple", "apple", "pear", "apple", "apple", "pear", "pear", "pear", "apple", "pear")
+	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
+		emit(w, 1)
+	}, in)
+	counts := beam.ParDo(s, &bagStateClearFn{State1: state.MakeBagState[int]("key1")}, keyed)
+	passert.Equals(s, counts, "apple: 0", "pear: 0", "apple: 1", "apple: 2", "pear: 1", "apple: 3", "apple: 0", "pear: 2", "pear: 3", "pear: 0", "apple: 1", "pear: 1")
 
 	return p
 }
