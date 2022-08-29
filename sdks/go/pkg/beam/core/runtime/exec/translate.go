@@ -498,8 +498,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							} else if ss := spec.GetSetSpec(); ss != nil {
 								kcID = ss.ElementCoderId
 							} else {
-								a := spec.GetSpec().(*pipepb.StateSpec_SetSpec)
-								return nil, errors.Errorf("Unrecognized state type %v", a)
+								return nil, errors.Errorf("Unrecognized state type %v", spec)
 							}
 							if cID != "" {
 								c, err := b.coders.Coder(cID)
