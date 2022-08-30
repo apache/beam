@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,6 +18,7 @@
 #
 
 """Integration tests for Dataframe sources and sinks."""
+# pytype: skip-file
 
 import logging
 import unittest
