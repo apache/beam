@@ -26,7 +26,7 @@ import config
 from api.v1.api_pb2 import Sdk
 from cd_helper import CDHelper
 from ci_helper import CIHelper
-from helper import find_examples, get_supported_categories, Example
+from helper import find_examples, get_supported_categories, Example, validate_examples_for_duplicates_by_name
 from logger import setup_logger
 
 parser = argparse.ArgumentParser(
@@ -80,6 +80,7 @@ def _run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
     supported_categories = get_supported_categories(categories_file)
     logging.info("Start of searching Playground examples ...")
     examples = find_examples(root_dir, supported_categories, sdk)
+    validate_examples_for_duplicates_by_name(examples)
     logging.info("Finish of searching Playground examples")
     logging.info("Number of found Playground examples: %s", len(examples))
 
