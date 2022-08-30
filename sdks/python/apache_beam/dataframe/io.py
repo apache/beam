@@ -625,10 +625,15 @@ class _WriteToPandas(beam.PTransform):
     self.binary = binary
 
   def expand(self, pcoll):
-    dir, name = io.filesystems.FileSystems.split(self.path)
+    if 'file_naming' in self.kwargs:
+      dir, name = self.path, ''
+    else:
+      dir, name = io.filesystems.FileSystems.split(self.path)
     return pcoll | fileio.WriteToFiles(
         path=dir,
-        file_naming=fileio.default_file_naming(name),
+        shards=self.kwargs.pop('num_shards', None),
+        file_naming=self.kwargs.pop(
+            'file_naming', fileio.default_file_naming(name)),
         sink=lambda _: _WriteToPandasFileSink(
             self.writer, self.args, self.kwargs, self.incremental, self.binary))
 
