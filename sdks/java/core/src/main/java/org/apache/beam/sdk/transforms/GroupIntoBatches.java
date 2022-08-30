@@ -117,6 +117,10 @@ public class GroupIntoBatches<K, InputT>
    */
   @AutoValue
   public abstract static class BatchingParams<InputT> implements Serializable {
+    public static <InputT> BatchingParams<InputT> createDefault() {
+      return new AutoValue_GroupIntoBatches_BatchingParams(Long.MAX_VALUE, Long.MAX_VALUE, null, Duration.ZERO);
+    }
+
     public static <InputT> BatchingParams<InputT> create(
         long batchSize,
         long batchSizeBytes,
@@ -159,7 +163,7 @@ public class GroupIntoBatches<K, InputT>
       return weigher;
     }
   }
-
+  
   private final BatchingParams<InputT> params;
   private static final UUID workerUuid = UUID.randomUUID();
 
@@ -170,8 +174,8 @@ public class GroupIntoBatches<K, InputT>
   /** Aim to create batches each with the specified element count. */
   public static <K, InputT> GroupIntoBatches<K, InputT> ofSize(long batchSize) {
     Preconditions.checkState(batchSize < Long.MAX_VALUE);
-    return new GroupIntoBatches<>(
-        BatchingParams.create(batchSize, Long.MAX_VALUE, null, Duration.ZERO));
+    return new GroupIntoBatches<>(BatchingParams.createDefault())
+        .withSize(batchSize);
   }
 
   /**
@@ -185,9 +189,8 @@ public class GroupIntoBatches<K, InputT>
    * {@link #ofByteSize(long, SerializableFunction)} to specify code to calculate the byte size.
    */
   public static <K, InputT> GroupIntoBatches<K, InputT> ofByteSize(long batchSizeBytes) {
-    Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
-    return new GroupIntoBatches<>(
-        BatchingParams.create(Long.MAX_VALUE, batchSizeBytes, null, Duration.ZERO));
+    return new GroupIntoBatches<>(BatchingParams.createDefault())
+        .withByteSize(batchSizeBytes);
   }
 
   /**
@@ -196,14 +199,53 @@ public class GroupIntoBatches<K, InputT>
    */
   public static <K, InputT> GroupIntoBatches<K, InputT> ofByteSize(
       long batchSizeBytes, SerializableFunction<InputT, Long> getElementByteSize) {
-    Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
-    return new GroupIntoBatches<>(
-        BatchingParams.create(Long.MAX_VALUE, batchSizeBytes, getElementByteSize, Duration.ZERO));
+    return new GroupIntoBatches<>(BatchingParams.createDefault())
+        .withByteSize(batchSizeBytes, getElementByteSize);
   }
 
   /** Returns user supplied parameters for batching. */
   public BatchingParams<InputT> getBatchingParams() {
     return params;
+  }
+
+  /**
+   * @see GroupIntoBatches#ofSize(long)
+   */
+  public GroupIntoBatches<K, InputT> withSize(long batchSize) {
+    Preconditions.checkState(batchSize < Long.MAX_VALUE);
+    return new GroupIntoBatches<>(
+        BatchingParams.create(
+            params.getBatchSize(),
+            batchSizeBytes,
+            params.getElementByteSize(),
+            params.getMaxBufferingDuration()));
+  }
+
+  /**
+   * @see GroupIntoBatches#ofByteSize(long)
+   */
+  public GroupIntoBatches<K, InputT> withByteSize(long batchSizeBytes) {
+    Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
+    return new GroupIntoBatches<>(
+        BatchingParams.create(
+            params.getBatchSize(),
+            batchSizeBytes,
+            params.getElementByteSize(),
+            params.getMaxBufferingDuration()));
+  }
+
+  /**
+   * @see GroupIntoBatches#ofByteSize(long, SerializableFunction)
+   */
+  public GroupIntoBatches<K, InputT> withByteSize(
+      long batchSizeBytes, SerializableFunction<InputT, Long> getElementByteSize) {
+    Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
+    return new GroupIntoBatches<>(
+        BatchingParams.create(
+            params.getBatchSize(),
+            batchSizeBytes,
+            getElementByteSize,
+            params.getMaxBufferingDuration()));
   }
 
   /**

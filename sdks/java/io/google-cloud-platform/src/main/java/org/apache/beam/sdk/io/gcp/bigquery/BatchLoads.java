@@ -113,6 +113,9 @@ class BatchLoads<DestinationT, ElementT>
   // If user triggering is supplied, we will trigger the file write after this many records are
   // written.
   static final int FILE_TRIGGERING_RECORD_COUNT = 500000;
+  // If user triggering is supplied, we will trigger the file write after this many bytes are
+  // written.
+  static final int FILE_TRIGGERING_BYTE_COUNT = 100 * (1L << 20) // 100MiB
 
   // If using auto-sharding for unbounded data, we batch the records before triggering file write
   // to avoid generating too many small files.
@@ -647,6 +650,7 @@ class BatchLoads<DestinationT, ElementT>
     return input
         .apply(
             GroupIntoBatches.<DestinationT, ElementT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
                 .withMaxBufferingDuration(maxBufferingDuration)
                 .withShardedKey())
         .setCoder(
