@@ -169,7 +169,9 @@ The RunInference API is available with the Beam Java SDK versions 2.41.0 and lat
 
 ## TensorFlow support
 
-To use TensorFlow with the RunInference API, create a model handler from within `tfx_bsl`. The model handler can be keyed or unkeyed.
+To use TensorFlow with the RunInference API, you need to create a model handler from within `tfx_bsl`, import the required modules, and add the necessary code to your pipline.
+
+First, create a model handler from within `tfx_bsl`. The model handler can be keyed or unkeyed.
 For more information, see [run_inference.py](https://github.com/tensorflow/tfx-bsl/blob/d1fca25e5eeaac9ef0111ec13e7634df836f36f6/tfx_bsl/public/beam/run_inference.py) in the TensorFlow GitHub repository.
 
 ```
@@ -185,6 +187,30 @@ Args:
   inference_spec_type: Model inference endpoint
 Returns:
   A Beam RunInference ModelHandler for TensorFlow
+```
+
+Next, in your pipeline, import the required modules:
+
+```
+from tensorflow_serving.apis import prediction_log_pb2
+from apache_beam.ml.inference.base import RunInference
+from tfx_bsl.public.beam.run_inference import CreateModelHandler
+```
+
+Finally, add the code to your pipeline. This example shows a pipeline that uses a model that multiplies by five.
+
+```
+pipeline = beam.Pipeline()
+
+tfexample_beam_record = tfx_bsl.public.tfxio.TFExampleRecord(file_pattern=predict_values_five_times_table)
+saved_model_spec = model_spec_pb2.SavedModelSpec(model_path=save_model_dir_multiply)
+inferece_spec_type = model_spec_pb2.InferenceSpecType(saved_model_spec=saved_model_spec)
+model_handler = CreateModelHandler(inferece_spec_type)
+with pipeline as p:
+    _ = (p | tfexample_beam_record.RawRecordBeamSource() 
+           | RunInference(model_handler)
+           | beam.Map(print)
+        )
 ```
 
 ## Troubleshooting
@@ -224,5 +250,7 @@ Disable batching by overriding the `batch_elements_kwargs` function in your Mode
 
 * [RunInference transforms](/documentation/transforms/python/elementwise/runinference)
 * [RunInference API pipeline examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference)
+* [RunInference public codelab](https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_basic.ipynb)
+* [RunInference notebooks](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml)
 
 {{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
