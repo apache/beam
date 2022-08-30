@@ -305,6 +305,9 @@ nav.runner-switcher {
         border-top-right-radius: 6px;
         border-bottom: none;
         padding-left: 0 !important;
+        &:not(:last-child) {
+            border-right: none;
+        }
         &:hover {
             cursor: pointer
         }
