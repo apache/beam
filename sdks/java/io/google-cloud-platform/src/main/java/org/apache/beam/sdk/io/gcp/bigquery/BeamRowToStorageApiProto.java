@@ -307,7 +307,6 @@ public class BeamRowToStorageApiProto {
       if (encoder == null) {
         throw new RuntimeException("Unexpected beam type " + beamFieldType);
       }
-      System.out.println("VALUE: " + encoder.apply(value).getClass().toString());
       return encoder.apply(value);
     }
   }
