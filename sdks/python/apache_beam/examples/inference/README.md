@@ -210,7 +210,7 @@ For example:
 python -m apache_beam.examples.inference.tensorrt_object_detection \
   --input image_file_names.txt \
   --output predictions.csv \
-  --model_state_dict_path ssd_mobilenet_v2_320x320_coco17_tpu-8.trt
+  --engine_path ssd_mobilenet_v2_320x320_coco17_tpu-8.trt
 ```
 This writes the output to the `predictions.csv` with contents like:
 ```
