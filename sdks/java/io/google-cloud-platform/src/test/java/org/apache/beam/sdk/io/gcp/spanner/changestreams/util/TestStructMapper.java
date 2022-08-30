@@ -75,7 +75,9 @@ public class TestStructMapper {
           StructField.of("mod_type", Type.string()),
           StructField.of("value_capture_type", Type.string()),
           StructField.of("number_of_records_in_transaction", Type.int64()),
-          StructField.of("number_of_partitions_in_transaction", Type.int64()));
+          StructField.of("number_of_partitions_in_transaction", Type.int64()),
+          StructField.of("transaction_tag", Type.string()),
+          StructField.of("is_system_transaction", Type.bool()));
   private static final Type DATA_CHANGE_RECORD_JSON_TYPE =
       Type.struct(
           StructField.of("commit_timestamp", Type.timestamp()),
@@ -88,7 +90,9 @@ public class TestStructMapper {
           StructField.of("mod_type", Type.string()),
           StructField.of("value_capture_type", Type.string()),
           StructField.of("number_of_records_in_transaction", Type.int64()),
-          StructField.of("number_of_partitions_in_transaction", Type.int64()));
+          StructField.of("number_of_partitions_in_transaction", Type.int64()),
+          StructField.of("transaction_tag", Type.string()),
+          StructField.of("is_system_transaction", Type.bool()));
   private static final Type HEARTBEAT_RECORD_TYPE =
       Type.struct(StructField.of("timestamp", Type.timestamp()));
   private static final Type CHILD_PARTITIONS_RECORD_TYPE =
@@ -278,6 +282,10 @@ public class TestStructMapper {
         .to(record.getNumberOfRecordsInTransaction())
         .set("number_of_partitions_in_transaction")
         .to(record.getNumberOfPartitionsInTransaction())
+        .set("transaction_tag")
+        .to(record.getTransactionTag())
+        .set("is_system_transaction")
+        .to(record.isSystemTransaction())
         .build();
   }
 

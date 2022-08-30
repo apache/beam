@@ -189,6 +189,8 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
                       record.getValueCaptureType(),
                       record.getNumberOfRecordsInTransaction(),
                       record.getNumberOfPartitionsInTransaction(),
+                      record.getTransactionTag(),
+                      record.isSystemTransaction(),
                       fakeChangeStreamMetadata))
           .forEach(outputReceiver::output);
     }
