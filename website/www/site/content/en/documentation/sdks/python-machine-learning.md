@@ -185,8 +185,6 @@ Args:
   inference_spec_type: Model inference endpoint
 Returns:
   A Beam RunInference ModelHandler for TensorFlow
-"""
-return run_inference.create_model_handler(inference_spec_type, None, None)
 ```
 
 ## Troubleshooting
