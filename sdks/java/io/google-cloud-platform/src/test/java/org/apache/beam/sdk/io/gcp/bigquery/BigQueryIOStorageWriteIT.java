@@ -27,19 +27,15 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -60,7 +56,6 @@ public class BigQueryIOStorageWriteIT {
   private String project;
   private static final String DATASET_ID = "big_query_storage";
   private static final String TABLE_PREFIX = "storage_write_";
-  private static final long EVEN_NUM_ELEMENTS = 10;
 
   private BigQueryOptions bqOptions;
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryStorageIOWriteIT");
@@ -86,25 +81,11 @@ public class BigQueryIOStorageWriteIT {
     }
   }
 
-  private TestStream<Long> stream(int rowCount) {
-    int timestampInterval = 1;
-    Instant startInstant = new Instant(0L);
-    TestStream.Builder<Long> streamBuilder =
-        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(startInstant);
-    long offset = 0L;
-    for (long i = 0L; i < rowCount; i++) {
-      streamBuilder =
-          streamBuilder.addElements(
-              TimestampedValue.of(
-                  i, startInstant.plus(Duration.standardSeconds(offset * timestampInterval))));
-      offset++;
-    }
-    final long windowDuration = 6;
-    return streamBuilder
-        .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(windowDuration - 1)))
-        .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(windowDuration + 1)))
-        .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(EVEN_NUM_ELEMENTS)))
-        .advanceWatermarkToInfinity();
+  private GenerateSequence stream(int rowCount) {
+    int timestampIntervalInMilliseconds = 10;
+    return GenerateSequence.from(0).to(rowCount)
+        .withRate(1, Duration.millis(timestampIntervalInMilliseconds));
+
   }
 
   private void runBigQueryIOStorageWritePipeline(
