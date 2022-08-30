@@ -659,14 +659,14 @@ public class Pipeline {
     @Override
     public CompositeBehavior enterCompositeTransform(Node node) {
       if (node.getTransform() != null) {
-        node.getTransform().validate(options);
+        node.getTransform().validate(options, node.getInputs(), node.getOutputs());
       }
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
     @Override
     public void visitPrimitiveTransform(Node node) {
-      node.getTransform().validate(options);
+      node.getTransform().validate(options, node.getInputs(), node.getOutputs());
     }
   }
 

@@ -29,17 +29,24 @@ import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -180,8 +187,45 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
             new UnboundedSourceImpl(options, this::newBufferedSubscriber, this::newBacklogReader)));
   }
 
+  private static final class SourceTransform
+      extends PTransform<PBegin, PCollection<SequencedMessage>> {
+
+    private final SubscribeTransform impl;
+
+    private SourceTransform(SubscribeTransform impl) {
+      this.impl = impl;
+    }
+
+    @Override
+    public PCollection<SequencedMessage> expand(PBegin input) {
+      return impl.expandSource(input);
+    }
+  }
+
+  public static final PTransformOverride V1_READ_OVERRIDE =
+      PTransformOverride.of(
+          PTransformMatchers.classEqualTo(SubscribeTransform.class), new ReadOverrideFactory());
+
+  private static class ReadOverrideFactory
+      implements PTransformOverrideFactory<
+          PBegin, PCollection<SequencedMessage>, SubscribeTransform> {
+
+    @Override
+    public PTransformReplacement<PBegin, PCollection<SequencedMessage>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<SequencedMessage>, SubscribeTransform> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(), new SourceTransform(transform.getTransform()));
+    }
+
+    @Override
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<SequencedMessage> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
   @Override
   public PCollection<SequencedMessage> expand(PBegin input) {
-    return expandSource(input);
+    return expandSdf(input);
   }
 }

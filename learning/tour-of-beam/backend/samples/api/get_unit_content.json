@@ -1,0 +1,10 @@
+{
+    "unitId": "1.1",
+    "name": "Basic concepts",
+    "description": "Lorem ipsum...",
+    "hint": "Try to use this method....",
+    "assignment": "assignmentSnippetId",
+    "solution": "solutionSnippetId",
+    "userSnippet": "userSnippetId",
+    "completed": true
+}

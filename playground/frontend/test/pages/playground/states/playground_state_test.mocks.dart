@@ -115,12 +115,17 @@ class MockExampleState extends _i1.Mock implements _i7.ExampleState {
       (super.noSuchMethod(Invocation.getter(#hasListeners), returnValue: false)
           as bool);
   @override
-  dynamic setSdkCategories(Map<_i8.SDK, List<_i9.CategoryModel>>? map) =>
-      super.noSuchMethod(Invocation.method(#setSdkCategories, [map]));
+  _i5.Future<void> init() => (super.noSuchMethod(Invocation.method(#init, []),
+      returnValue: Future<void>.value(),
+      returnValueForMissingStub: Future<void>.value()) as _i5.Future<void>);
   @override
-  List<_i9.CategoryModel>? getCategories(_i8.SDK? sdk) =>
-      (super.noSuchMethod(Invocation.method(#getCategories, [sdk]))
-          as List<_i9.CategoryModel>?);
+  void setSdkCategories(Map<_i8.SDK, List<_i9.CategoryModel>>? map) =>
+      super.noSuchMethod(Invocation.method(#setSdkCategories, [map]),
+          returnValueForMissingStub: null);
+  @override
+  List<_i9.CategoryModel> getCategories(_i8.SDK? sdk) =>
+      (super.noSuchMethod(Invocation.method(#getCategories, [sdk]),
+          returnValue: <_i9.CategoryModel>[]) as List<_i9.CategoryModel>);
   @override
   _i5.Future<String> getExampleOutput(String? id, _i8.SDK? sdk) =>
       (super.noSuchMethod(Invocation.method(#getExampleOutput, [id, sdk]),
@@ -164,6 +169,10 @@ class MockExampleState extends _i1.Mock implements _i7.ExampleState {
               returnValue:
                   Future<_i2.ExampleModel>.value(_FakeExampleModel_0()))
           as _i5.Future<_i2.ExampleModel>);
+  @override
+  void changeSelectorVisibility() =>
+      super.noSuchMethod(Invocation.method(#changeSelectorVisibility, []),
+          returnValueForMissingStub: null);
   @override
   _i5.Future<void> loadDefaultExamples() =>
       (super.noSuchMethod(Invocation.method(#loadDefaultExamples, []),
