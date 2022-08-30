@@ -470,6 +470,15 @@ def default_file_naming(prefix, suffix=None):
   return _inner
 
 
+def single_file_naming(prefix, suffix=None):
+  def _inner(window, pane, shard_index, total_shards, compression, destination):
+    assert shard_index in (0, None), shard_index
+    assert total_shards in (1, None), total_shards
+    return _format_shard(window, pane, None, None, compression, prefix, suffix)
+
+  return _inner
+
+
 _FileResult = collections.namedtuple(
     'FileResult', [
         'file_name',

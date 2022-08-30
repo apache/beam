@@ -56,7 +56,7 @@ class ExampleSelectorState with ChangeNotifier {
   void sortCategories() {
     final categories = _playgroundState.exampleState.getCategories(
       _playgroundState.sdk,
-    )!;
+    );
 
     final sortedCategories = categories
         .map((category) => CategoryModel(
