@@ -85,7 +85,6 @@ $(document).ready(function() {
                     }
 
                     const tabsHtml = _self.navHtml(values);
-                    console.log(tabsHtml);
                     $(this).before(tabsHtml);
                 });
             },
@@ -220,8 +219,6 @@ $(document).ready(function() {
             clearInterval(this.interval);
 
             const sendMessage = function () {
-                console.log(message);
-
                 for (const iframe of playgroundIframes) {
                     iframe.contentWindow.postMessage(message, '*');
                 }
