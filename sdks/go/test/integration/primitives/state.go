@@ -449,8 +449,8 @@ func (f *mapStateClearFn) ProcessElement(s state.Provider, w string, c int) stri
 	return fmt.Sprintf("%v: %v", w, keys)
 }
 
-// MapStateParDo_Clear tests clearing and removing from a DoFn that uses map state.
-func MapStateParDo_Clear() *beam.Pipeline {
+// MapStateParDoClear tests clearing and removing from a DoFn that uses map state.
+func MapStateParDoClear() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear")
@@ -509,8 +509,8 @@ func (f *setStateClearFn) ProcessElement(s state.Provider, w string, c int) stri
 	return fmt.Sprintf("%v: %v", w, keys)
 }
 
-// SetStateParDo_Clear tests clearing and removing from a DoFn that uses set state.
-func SetStateParDo_Clear() *beam.Pipeline {
+// SetStateParDoClear tests clearing and removing from a DoFn that uses set state.
+func SetStateParDoClear() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear")

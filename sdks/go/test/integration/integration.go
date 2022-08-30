@@ -97,7 +97,8 @@ var directFilters = []string{
 	"TestBagState_Clear",
 	"TestCombiningState",
 	"TestMapState",
-	"TestMapState_Clear",
+	"TestMapStateClear",
+	"TestSetStateClear",
 }
 
 var portableFilters = []string{
@@ -126,7 +127,8 @@ var portableFilters = []string{
 	"TestBagState_Clear",
 	"TestCombiningState",
 	"TestMapState",
-	"TestMapState_Clear",
+	"TestMapStateClear",
+	"TestSetStateClear",
 }
 
 var flinkFilters = []string{
@@ -176,7 +178,8 @@ var samzaFilters = []string{
 	"TestBagState_Clear",
 	"TestCombiningState",
 	"TestMapState",
-	"TestMapState_Clear",
+	"TestMapStateClear",
+	"TestSetStateClear",
 }
 
 var sparkFilters = []string{
