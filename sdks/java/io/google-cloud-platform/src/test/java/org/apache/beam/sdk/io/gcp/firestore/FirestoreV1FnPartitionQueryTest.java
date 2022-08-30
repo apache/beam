@@ -33,26 +33,49 @@ import com.google.firestore.v1.Cursor;
 import com.google.firestore.v1.PartitionQueryRequest;
 import com.google.firestore.v1.PartitionQueryResponse;
 import com.google.firestore.v1.Value;
+import com.google.protobuf.util.Timestamps;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.PartitionQueryFn;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.PartitionQueryPair;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.AbstractIterator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
-@SuppressWarnings(
-    "initialization.fields.uninitialized") // mockito fields are initialized via the Mockito Runner
+@RunWith(Parameterized.class)
 public final class FirestoreV1FnPartitionQueryTest
     extends BaseFirestoreV1ReadFnTest<PartitionQueryRequest, PartitionQueryPair> {
+
+  @Parameterized.Parameter public Instant readTime;
+
+  @Rule public MockitoRule rule = MockitoJUnit.rule();
 
   @Mock private UnaryCallable<PartitionQueryRequest, PartitionQueryPagedResponse> callable;
   @Mock private PartitionQueryPagedResponse pagedResponse1;
   @Mock private PartitionQueryPage page1;
   @Mock private PartitionQueryPagedResponse pagedResponse2;
   @Mock private PartitionQueryPage page2;
+
+  @Parameterized.Parameters(name = "readTime = {0}")
+  public static Collection<Object> data() {
+    return Arrays.asList(null, Instant.now());
+  }
+
+  private PartitionQueryRequest withReadTime(PartitionQueryRequest request, Instant readTime) {
+    return readTime == null
+        ? request
+        : request.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
+  }
 
   @Test
   public void endToEnd() throws Exception {
@@ -72,7 +95,7 @@ public final class FirestoreV1FnPartitionQueryTest
             .addPartitions(
                 Cursor.newBuilder().addValues(Value.newBuilder().setReferenceValue("doc-400")))
             .build();
-    when(callable.call(request1)).thenReturn(pagedResponse1);
+    when(callable.call(withReadTime(request1, readTime))).thenReturn(pagedResponse1);
     when(page1.getResponse()).thenReturn(response1);
     when(pagedResponse1.iteratePages()).thenReturn(ImmutableList.of(page1));
 
@@ -90,7 +113,7 @@ public final class FirestoreV1FnPartitionQueryTest
 
     when(processContext.element()).thenReturn(request1);
 
-    PartitionQueryFn fn = new PartitionQueryFn(clock, ff, options);
+    PartitionQueryFn fn = new PartitionQueryFn(clock, ff, options, readTime);
 
     runFunction(fn);
 
@@ -107,7 +130,7 @@ public final class FirestoreV1FnPartitionQueryTest
             .setParent(String.format("projects/%s/databases/(default)/document", projectId))
             .build();
     PartitionQueryResponse response1 = PartitionQueryResponse.newBuilder().build();
-    when(callable.call(request1)).thenReturn(pagedResponse1);
+    when(callable.call(withReadTime(request1, readTime))).thenReturn(pagedResponse1);
     when(page1.getResponse()).thenReturn(response1);
     when(pagedResponse1.iteratePages()).thenReturn(ImmutableList.of(page1));
 
@@ -125,7 +148,7 @@ public final class FirestoreV1FnPartitionQueryTest
 
     when(processContext.element()).thenReturn(request1);
 
-    PartitionQueryFn fn = new PartitionQueryFn(clock, ff, options);
+    PartitionQueryFn fn = new PartitionQueryFn(clock, ff, options, readTime);
 
     runFunction(fn);
 
@@ -157,7 +180,7 @@ public final class FirestoreV1FnPartitionQueryTest
             .setNextPageToken("page2")
             .build();
     when(page1.getResponse()).thenReturn(response1);
-    when(callable.call(request1)).thenReturn(pagedResponse1);
+    when(callable.call(withReadTime(request1, readTime))).thenReturn(pagedResponse1);
     doNothing().when(attempt).checkCanRetry(any(), eq(RETRYABLE_ERROR));
     when(pagedResponse1.iteratePages())
         .thenAnswer(
@@ -202,7 +225,7 @@ public final class FirestoreV1FnPartitionQueryTest
 
     when(page2.getResponse()).thenReturn(response2);
     when(page2.hasNextPage()).thenReturn(false);
-    when(callable.call(request2)).thenReturn(pagedResponse2);
+    when(callable.call(withReadTime(request2, readTime))).thenReturn(pagedResponse2);
     when(pagedResponse2.iteratePages()).thenReturn(ImmutableList.of(page2));
 
     when(stub.partitionQueryPagedCallable()).thenReturn(callable);
@@ -216,7 +239,7 @@ public final class FirestoreV1FnPartitionQueryTest
 
     when(processContext.element()).thenReturn(request1);
 
-    PartitionQueryFn fn = new PartitionQueryFn(clock, ff, rpcQosOptions);
+    PartitionQueryFn fn = new PartitionQueryFn(clock, ff, rpcQosOptions, readTime);
 
     runFunction(fn);
 

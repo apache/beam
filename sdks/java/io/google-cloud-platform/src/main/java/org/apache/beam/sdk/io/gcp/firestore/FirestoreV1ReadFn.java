@@ -48,6 +48,7 @@ import com.google.firestore.v1.StructuredQuery.Order;
 import com.google.firestore.v1.Value;
 import com.google.protobuf.Message;
 import com.google.protobuf.ProtocolStringList;
+import com.google.protobuf.util.Timestamps;
 import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -91,6 +92,14 @@ final class FirestoreV1ReadFn {
       super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
     }
 
+    RunQueryFn(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime) {
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
+    }
+
     @Override
     public Context getRpcAttemptContext() {
       return FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.RunQuery;
@@ -126,6 +135,13 @@ final class FirestoreV1ReadFn {
     }
 
     @Override
+    protected RunQueryRequest setReadTime(RunQueryRequest element, @Nullable Instant readTime) {
+      return readTime == null
+          ? element
+          : element.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
+    }
+
+    @Override
     protected @Nullable RunQueryResponse resumptionValue(
         @Nullable RunQueryResponse previousValue, RunQueryResponse nextValue) {
       // We need a document to resume, may be null if reporting partial progress.
@@ -153,7 +169,15 @@ final class FirestoreV1ReadFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, null);
+    }
+
+    public PartitionQueryFn(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime) {
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
     }
 
     @Override
@@ -176,6 +200,7 @@ final class FirestoreV1ReadFn {
 
         try {
           PartitionQueryRequest request = setPageToken(element, aggregate);
+          request = setReadTime(request, readTime);
           attempt.recordRequestStart(clock.instant());
           PartitionQueryPagedResponse pagedResponse =
               firestoreStub.partitionQueryPagedCallable().call(request);
@@ -216,6 +241,14 @@ final class FirestoreV1ReadFn {
       }
       return request;
     }
+
+    @Override
+    protected PartitionQueryRequest setReadTime(
+        PartitionQueryRequest element, @Nullable Instant readTime) {
+      return readTime == null
+          ? element
+          : element.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
+    }
   }
 
   /**
@@ -238,7 +271,15 @@ final class FirestoreV1ReadFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, null);
+    }
+
+    ListDocumentsFn(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime) {
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
     }
 
     @Override
@@ -256,6 +297,14 @@ final class FirestoreV1ReadFn {
     protected ListDocumentsRequest setPageToken(
         ListDocumentsRequest request, String nextPageToken) {
       return request.toBuilder().setPageToken(nextPageToken).build();
+    }
+
+    @Override
+    protected ListDocumentsRequest setReadTime(
+        ListDocumentsRequest request, @Nullable Instant readTime) {
+      return readTime == null
+          ? request
+          : request.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
     }
   }
 
@@ -279,7 +328,15 @@ final class FirestoreV1ReadFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, null);
+    }
+
+    ListCollectionIdsFn(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime) {
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
     }
 
     @Override
@@ -297,6 +354,14 @@ final class FirestoreV1ReadFn {
     protected ListCollectionIdsRequest setPageToken(
         ListCollectionIdsRequest request, String nextPageToken) {
       return request.toBuilder().setPageToken(nextPageToken).build();
+    }
+
+    @Override
+    protected ListCollectionIdsRequest setReadTime(
+        ListCollectionIdsRequest request, @Nullable Instant readTime) {
+      return readTime == null
+          ? request
+          : request.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
     }
   }
 
@@ -318,6 +383,14 @@ final class FirestoreV1ReadFn {
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions) {
       super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+    }
+
+    BatchGetDocumentsFn(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime) {
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
     }
 
     @Override
@@ -369,6 +442,14 @@ final class FirestoreV1ReadFn {
       // No sense in resuming from an empty result.
       return newValue.getResultCase() == ResultCase.RESULT_NOT_SET ? previousValue : newValue;
     }
+
+    @Override
+    protected BatchGetDocumentsRequest setReadTime(
+        BatchGetDocumentsRequest element, @Nullable Instant readTime) {
+      return readTime == null
+          ? element
+          : element.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
+    }
   }
 
   /**
@@ -389,7 +470,15 @@ final class FirestoreV1ReadFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, null);
+    }
+
+    protected StreamingFirestoreV1ReadFn(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime) {
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
     }
 
     protected abstract ServerStreamingCallable<InT, OutT> getCallable(FirestoreStub firestoreStub);
@@ -414,6 +503,7 @@ final class FirestoreV1ReadFn {
         Instant start = clock.instant();
         InT request =
             lastReceivedValue == null ? element : setStartFrom(element, lastReceivedValue);
+        request = setReadTime(request, readTime);
         try {
           attempt.recordRequestStart(start);
           ServerStream<OutT> serverStream = getCallable(firestoreStub).call(request);
@@ -460,8 +550,9 @@ final class FirestoreV1ReadFn {
     protected PaginatedFirestoreV1ReadFn(
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
-        RpcQosOptions rpcQosOptions) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime) {
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
     }
 
     protected abstract UnaryCallable<RequestT, PagedResponseT> getCallable(
@@ -484,6 +575,7 @@ final class FirestoreV1ReadFn {
 
         try {
           RequestT request = nextPageToken == null ? element : setPageToken(element, nextPageToken);
+          request = setReadTime(request, readTime);
           attempt.recordRequestStart(clock.instant());
           PagedResponseT pagedResponse = getCallable(firestoreStub).call(request);
           for (PageT page : pagedResponse.iteratePages()) {
@@ -524,6 +616,8 @@ final class FirestoreV1ReadFn {
     protected final FirestoreStatefulComponentFactory firestoreStatefulComponentFactory;
     protected final RpcQosOptions rpcQosOptions;
 
+    @Nullable protected final Instant readTime;
+
     // transient running state information, not important to any possible checkpointing
     protected transient FirestoreStub firestoreStub;
     protected transient RpcQos rpcQos;
@@ -535,11 +629,13 @@ final class FirestoreV1ReadFn {
     protected BaseFirestoreV1ReadFn(
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
-        RpcQosOptions rpcQosOptions) {
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime) {
       this.clock = requireNonNull(clock, "clock must be non null");
       this.firestoreStatefulComponentFactory =
           requireNonNull(firestoreStatefulComponentFactory, "firestoreFactory must be non null");
       this.rpcQosOptions = requireNonNull(rpcQosOptions, "rpcQosOptions must be non null");
+      this.readTime = readTime;
     }
 
     /** {@inheritDoc} */
@@ -569,7 +665,10 @@ final class FirestoreV1ReadFn {
     @Override
     public final void populateDisplayData(DisplayData.Builder builder) {
       builder.include("rpcQosOptions", rpcQosOptions);
+      builder.addIfNotNull(DisplayData.item("readTime", readTime).withLabel("ReadTime"));
     }
+
+    protected abstract InT setReadTime(InT element, @Nullable Instant readTime);
   }
 
   /**
