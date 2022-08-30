@@ -143,6 +143,11 @@ var flinkFilters = []string{
 	"TestFhirIO.*",
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
+	// Flink does not support map based state types.
+	"TestMapState",
+	"TestMapStateClear",
+	"TestSetStateClear",
+	"TestSetState",
 }
 
 var samzaFilters = []string{
@@ -198,6 +203,11 @@ var sparkFilters = []string{
 	"TestFhirIO.*",
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
+	// Spark does not support map based state types.
+	"TestMapState",
+	"TestMapStateClear",
+	"TestSetStateClear",
+	"TestSetState",
 }
 
 var dataflowFilters = []string{
