@@ -16,32 +16,52 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart';
-import 'package:playground/modules/examples/models/example_origin.dart';
+import 'package:playground/modules/messages/models/abstract_message.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
-class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
-  final String snippetId;
+/// A message that switches the SDK.
+class SetSdkMessage extends AbstractMessage {
+  final SDK sdk;
 
-  const UserSharedExampleLoadingDescriptor({
-    required this.snippetId,
+  static const type = 'SetSdk';
+
+  const SetSdkMessage({
+    required this.sdk,
   });
 
-  @override
-  ExampleOrigin get origin => ExampleOrigin.userShared;
+  static SetSdkMessage? tryParse(Map map) {
+    if (map['type'] != type) {
+      return null;
+    }
+
+    final sdk = SDK.tryParse(map['sdk']);
+    if (sdk == null) {
+      return null;
+    }
+
+    return SetSdkMessage(
+      sdk: sdk,
+    );
+  }
 
   @override
-  String toString() => '$origin-$snippetId';
-
-  @override
-  int get hashCode => snippetId.hashCode;
+  int get hashCode {
+    return sdk.hashCode;
+  }
 
   @override
   bool operator ==(Object other) {
-    return other is UserSharedExampleLoadingDescriptor &&
-        snippetId == other.snippetId;
+    if (identical(this, other)) {
+      return true;
+    }
+
+    return other is SetSdkMessage && sdk == other.sdk;
   }
 
-  // Only ContentExampleLoadingDescriptor is serialized now.
   @override
-  Map<String, dynamic> toJson() => throw UnimplementedError();
+  Map<String, dynamic> toJson() {
+    return {
+      'sdk': sdk.name,
+    };
+  }
 }

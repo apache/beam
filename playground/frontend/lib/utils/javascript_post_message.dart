@@ -16,23 +16,24 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/pages/playground/states/example_loaders/example_loader.dart';
+import 'dart:convert';
+import 'dart:html' as html;
 
-class EmptyExampleLoader extends ExampleLoader {
-  final EmptyExampleLoadingDescriptor descriptor;
+/// Sends the [message] repeatedly 30 times with the interval of one second.
+///
+/// Call this to send [message] to a newly opened window when it is unknown
+/// if it is interactive yet.
+///
+/// The receiver should be idempotent or be able to ignore repeated messages
+/// after it handles the first one.
+void javaScriptPostMessageRepeated(
+  html.WindowBase window,
+  dynamic message,
+) async {
+  final messageString = jsonEncode(message);
 
-  const EmptyExampleLoader({
-    required this.descriptor,
-  });
-
-  @override
-  Future<ExampleModel> get future async => ExampleModel(
-        sdk: descriptor.sdk,
-        name: 'Embedded_Example',
-        path: '',
-        description: '',
-        type: ExampleType.example,
-      );
+  for (int i = 30; --i >= 0; ) {
+    window.postMessage(messageString, '*');
+    await Future.delayed(const Duration(seconds: 1));
+  }
 }
