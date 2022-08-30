@@ -3,6 +3,7 @@ title:  "Apache Beam 2.25.0"
 date:   2020-10-23 14:00:00 -0800
 categories:
   - blog
+  - release
 authors:
   - robinyq
 ---

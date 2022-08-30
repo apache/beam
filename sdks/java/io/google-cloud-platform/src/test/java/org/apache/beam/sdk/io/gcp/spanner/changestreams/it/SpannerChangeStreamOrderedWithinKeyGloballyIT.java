@@ -222,6 +222,8 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
                       record.getValueCaptureType(),
                       record.getNumberOfRecordsInTransaction(),
                       record.getNumberOfPartitionsInTransaction(),
+                      record.getTransactionTag(),
+                      record.isSystemTransaction(),
                       record.getMetadata()))
           .forEach(outputReceiver::output);
     }

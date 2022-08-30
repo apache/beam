@@ -100,11 +100,21 @@ tasks.rat {
     "**/*.json",
 
     // Katas files
+    "learning/katas/**/course-info.yaml",
+    "learning/katas/**/task-info.yaml",
     "learning/katas/**/course-remote-info.yaml",
     "learning/katas/**/section-remote-info.yaml",
     "learning/katas/**/lesson-remote-info.yaml",
     "learning/katas/**/task-remote-info.yaml",
     "learning/katas/**/*.txt",
+
+    // Tour Of Beam learning-content metadata and its samples
+    "learning/tour-of-beam/**/content-info.yaml",
+    "learning/tour-of-beam/**/module-info.yaml",
+    "learning/tour-of-beam/**/group-info.yaml",
+    "learning/tour-of-beam/**/unit-info.yaml",
+    "learning/tour-of-beam/backend/samples/**/*.md",
+
 
     // test p8 file for SnowflakeIO
     "sdks/java/io/snowflake/src/test/resources/invalid_test_rsa_key.p8",

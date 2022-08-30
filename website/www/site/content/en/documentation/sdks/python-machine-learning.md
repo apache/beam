@@ -24,7 +24,7 @@ You can use Apache Beam with the RunInference API to use machine learning (ML) m
 
 ## Why use the RunInference API?
 
-RunInference takes advantage of existing Apache Beam concepts, such as the the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.
+RunInference takes advantage of existing Apache Beam concepts, such as the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.
 
 ### BatchElements PTransform
 
@@ -69,7 +69,7 @@ The section provides requirements for using pre-trained models with PyTorch and 
 
 #### PyTorch
 
-You need to provide a path to a file that contains the model saved weights. This path must be accessible by the pipeline. To use pre-trained models with the RunInference API and the PyTorch framework, complete the following steps:
+You need to provide a path to a file that contains the model's saved weights. This path must be accessible by the pipeline. To use pre-trained models with the RunInference API and the PyTorch framework, complete the following steps:
 
 1. Download the pre-trained weights and host them in a location that the pipeline can access.
 2. Pass the path of the model weights to the PyTorch `ModelHandler` by using the following code: `state_dict_path=<path_to_weights>`.
@@ -165,7 +165,7 @@ For detailed instructions explaining how to build and run a pipeline that uses M
 
 ## Beam Java SDK support
 
-RunInference API is available to Beam Java SDK 2.41.0 and later through Apache Beam [Multi-language Pipelines framework](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines). Please see [here](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java) for the Java wrapper transform to use and please see [here](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/test/java/org/apache/beam/sdk/extensions/python/transforms/RunInferenceTransformTest.java) for some example pipelines.
+RunInference API is available to Beam Java SDK 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines). Please see [here](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java) for the Java wrapper transform to use and please see [here](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/test/java/org/apache/beam/sdk/extensions/python/transforms/RunInferenceTransformTest.java) for some example pipelines.
 
 ## Troubleshooting
 

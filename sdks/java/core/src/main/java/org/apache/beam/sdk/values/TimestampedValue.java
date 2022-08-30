@@ -41,20 +41,17 @@ import org.joda.time.Instant;
  *
  * @param <V> the type of the value
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
-public class TimestampedValue<V> {
+public class TimestampedValue<V extends @Nullable Object> {
   /**
    * Returns a new {@link TimestampedValue} with the {@link BoundedWindow#TIMESTAMP_MIN_VALUE
    * minimum timestamp}.
    */
-  public static <V> TimestampedValue<V> atMinimumTimestamp(@Nullable V value) {
+  public static <V> TimestampedValue<V> atMinimumTimestamp(V value) {
     return of(value, BoundedWindow.TIMESTAMP_MIN_VALUE);
   }
 
   /** Returns a new {@code TimestampedValue} with the given value and timestamp. */
-  public static <V> TimestampedValue<V> of(@Nullable V value, Instant timestamp) {
+  public static <V> TimestampedValue<V> of(V value, Instant timestamp) {
     return new TimestampedValue<>(value, timestamp);
   }
 
@@ -150,10 +147,10 @@ public class TimestampedValue<V> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private final @Nullable V value;
+  private final V value;
   private final Instant timestamp;
 
-  protected TimestampedValue(@Nullable V value, Instant timestamp) {
+  protected TimestampedValue(V value, Instant timestamp) {
     checkNotNull(timestamp, "timestamp must be non-null");
 
     this.value = value;
