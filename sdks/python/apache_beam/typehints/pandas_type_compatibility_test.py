@@ -169,8 +169,10 @@ class DataFrameBatchConverterTest(unittest.TestCase):
     ]
 
     lengths = [len(element_batch) for element_batch in element_batches]
-    batches = [self.converter.produce_batch(element_batch)
-               for element_batch in element_batches]
+    batches = [
+        self.converter.produce_batch(element_batch)
+        for element_batch in element_batches
+    ]
 
     return batches, lengths
 
@@ -192,12 +194,11 @@ class DataFrameBatchConverterTest(unittest.TestCase):
       (3, ),
       (10, ),
   ])
-  def test_get_lenth(self, N):
+  def test_get_length(self, N):
     batches, lengths = self._split_batch_into_n_partitions(N)
 
     for batch, expected_length in zip(batches, lengths):
       self.assertEqual(self.converter.get_length(batch), expected_length)
-
 
   def test_equals(self):
     self.assertTrue(self.converter == self.create_batch_converter())
