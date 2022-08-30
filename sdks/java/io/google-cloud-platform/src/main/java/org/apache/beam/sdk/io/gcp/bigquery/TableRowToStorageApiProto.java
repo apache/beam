@@ -593,10 +593,10 @@ public class TableRowToStorageApiProto {
       case INT32:
       case FLOAT:
       case BOOL:
+      case DOUBLE:
         // The above types have native representations in JSON for all their
         // possible values.
         return fieldValue;
-      case DOUBLE:
       case STRING:
       case INT64:
       default:
