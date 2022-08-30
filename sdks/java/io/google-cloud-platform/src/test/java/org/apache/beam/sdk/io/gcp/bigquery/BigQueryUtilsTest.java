@@ -610,10 +610,10 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("time0s_ns", "12:34:00.789876"));
     assertThat(row, hasEntry("time0s_0ns", "12:34:00"));
     assertThat(row, hasEntry("name", "test"));
-    assertThat(row, hasEntry("valid", "false"));
+    assertThat(row, hasEntry("valid", false));
     assertThat(row, hasEntry("binary", "ABCD1234"));
     assertThat(row, hasEntry("numeric", "123.456"));
-    assertThat(row, hasEntry("boolean", "true"));
+    assertThat(row, hasEntry("boolean", true));
     assertThat(row, hasEntry("long", "123"));
     assertThat(row, hasEntry("double", "123.456"));
   }
@@ -664,10 +664,10 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("time0s_ns", "12:34:00.789876"));
     assertThat(row, hasEntry("time0s_0ns", "12:34:00"));
     assertThat(row, hasEntry("name", "test"));
-    assertThat(row, hasEntry("valid", "false"));
+    assertThat(row, hasEntry("valid", false));
     assertThat(row, hasEntry("binary", "ABCD1234"));
     assertThat(row, hasEntry("numeric", "123.456"));
-    assertThat(row, hasEntry("boolean", "true"));
+    assertThat(row, hasEntry("boolean", true));
     assertThat(row, hasEntry("long", "123"));
     assertThat(row, hasEntry("double", "123.456"));
   }
@@ -691,10 +691,10 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("time0s_ns", "12:34:00.789876"));
     assertThat(row, hasEntry("time0s_0ns", "12:34:00"));
     assertThat(row, hasEntry("name", "test"));
-    assertThat(row, hasEntry("valid", "false"));
+    assertThat(row, hasEntry("valid", false));
     assertThat(row, hasEntry("binary", "ABCD1234"));
     assertThat(row, hasEntry("numeric", "123.456"));
-    assertThat(row, hasEntry("boolean", "true"));
+    assertThat(row, hasEntry("boolean", true));
     assertThat(row, hasEntry("long", "123"));
     assertThat(row, hasEntry("double", "123.456"));
   }
