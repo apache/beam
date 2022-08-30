@@ -52,7 +52,7 @@ class ReadUsingReadGbqTests(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_ReadGbq_export_with_project(self):
     from apache_beam.dataframe import convert
-    with TestPipeline() as p:
+    with TestPipeline(is_integration_test=True) as p:
       actual_df = p | apache_beam.dataframe.io.read_gbq(
           table="dfsqltable_3c7d6fd5_16e0460dfd0",
           dataset="beam_bigquery_io_test",
@@ -66,7 +66,7 @@ class ReadUsingReadGbqTests(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_ReadGbq_direct_read(self):
     from apache_beam.dataframe import convert
-    with TestPipeline() as p:
+    with TestPipeline(is_integration_test=True) as p:
       actual_df = p | apache_beam.dataframe.io.\
           read_gbq(
           table=
@@ -81,7 +81,7 @@ class ReadUsingReadGbqTests(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_ReadGbq_direct_read_with_project(self):
     from apache_beam.dataframe import convert
-    with TestPipeline() as p:
+    with TestPipeline(is_integration_test=True) as p:
       actual_df = p | apache_beam.dataframe.io.read_gbq(
           table="dfsqltable_3c7d6fd5_16e0460dfd0",
           dataset="beam_bigquery_io_test",
@@ -95,7 +95,7 @@ class ReadUsingReadGbqTests(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_ReadGbq_with_computation(self):
     from apache_beam.dataframe import convert
-    with TestPipeline() as p:
+    with TestPipeline(is_integration_test=True) as p:
       beam_df = p | apache_beam.dataframe.io.read_gbq(
           table="dfsqltable_3c7d6fd5_16e0460dfd0",
           dataset="beam_bigquery_io_test",

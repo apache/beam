@@ -387,7 +387,7 @@ X     , c1, c2
         f'{output}out.csv-'
         f'{datetime.utcfromtimestamp(10).isoformat()}*')
     self.assertCountEqual(
-        ['timestamp,value'] + [f'{i},{i % 3}' for i in range(10, 20)],
+        ['timestamp,value'] + [f'{i},{i%3}' for i in range(10, 20)],
         set(self.read_all_lines(second_window_files, delete=True)))
 
     # Check that we've read (and removed) every output file
