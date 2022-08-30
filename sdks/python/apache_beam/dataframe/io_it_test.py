@@ -22,19 +22,24 @@ import unittest
 import pytest
 
 import apache_beam.io.gcp.bigquery
-from apache_beam.io.gcp import bigquery_read_it_test
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 _LOGGER = logging.getLogger(__name__)
 
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
 
-class ReadUsingReadGbqTests(bigquery_read_it_test.BigQueryReadIntegrationTests):
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class ReadUsingReadGbqTests(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_ReadGbq(self):
     from apache_beam.dataframe import convert
-    with TestPipeline() as p:
+    with TestPipeline(is_integration_test=True) as p:
       actual_df = p | apache_beam.dataframe.io.read_gbq(
           table="apache-beam-testing:beam_bigquery_io_test."
           "dfsqltable_3c7d6fd5_16e0460dfd0",
