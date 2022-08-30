@@ -87,7 +87,8 @@ const (
 	URNEnvDocker   = "beam:env:docker:v1"
 
 	// Userstate Urns.
-	URNBagUserState = "beam:user_state:bag:v1"
+	URNBagUserState      = "beam:user_state:bag:v1"
+	URNMultiMapUserState = "beam:user_state:multimap:v1"
 )
 
 func goCapabilities() []string {
@@ -466,9 +467,22 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			m.requirements[URNRequiresStatefulProcessing] = true
 			stateSpecs := make(map[string]*pipepb.StateSpec)
 			for _, ps := range edge.Edge.DoFn.PipelineState() {
-				coderID, err := m.coders.Add(edge.Edge.StateCoders[ps.StateKey()])
-				if err != nil {
-					return handleErr(err)
+				coderID := ""
+				c, ok := edge.Edge.StateCoders[UserStateCoderID(ps)]
+				if ok {
+					coderID, err = m.coders.Add(c)
+					if err != nil {
+						return handleErr(err)
+					}
+				}
+				keyCoderID := ""
+				if c, ok := edge.Edge.StateCoders[UserStateKeyCoderID(ps)]; ok {
+					keyCoderID, err = m.coders.Add(c)
+					if err != nil {
+						return handleErr(err)
+					}
+				} else if ps.StateType() == state.TypeMap || ps.StateType() == state.TypeSet {
+					return nil, errors.Errorf("set or map state type %v must have a key coder type, none detected", ps)
 				}
 				switch ps.StateType() {
 				case state.TypeValue:
@@ -523,6 +537,29 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 						},
 						Protocol: &pipepb.FunctionSpec{
 							Urn: URNBagUserState,
+						},
+					}
+				case state.TypeMap:
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_MapSpec{
+							MapSpec: &pipepb.MapStateSpec{
+								KeyCoderId:   keyCoderID,
+								ValueCoderId: coderID,
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
+							Urn: URNMultiMapUserState,
+						},
+					}
+				case state.TypeSet:
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_SetSpec{
+							SetSpec: &pipepb.SetStateSpec{
+								ElementCoderId: keyCoderID,
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
+							Urn: URNMultiMapUserState,
 						},
 					}
 				default:
@@ -1375,4 +1412,14 @@ func UpdateDefaultEnvWorkerType(typeUrn string, pyld []byte, p *pipepb.Pipeline)
 		return nil
 	}
 	return errors.Errorf("unable to find dependency with %q role in environment with ID %q,", URNArtifactGoWorkerRole, defaultEnvId)
+}
+
+// UserStateCoderID returns the coder id of a user state
+func UserStateCoderID(ps state.PipelineState) string {
+	return fmt.Sprintf("val_%v", ps.StateKey())
+}
+
+// UserStateKeyCoderID returns the key coder id of a user state
+func UserStateKeyCoderID(ps state.PipelineState) string {
+	return fmt.Sprintf("key_%v", ps.StateKey())
 }

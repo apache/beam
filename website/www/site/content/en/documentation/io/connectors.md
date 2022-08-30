@@ -252,7 +252,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kinesis/KinesisIO.html">native</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.kinesis.html#apache_beam.io.kinesis.ReadDataFromKinesis">via X-language</a>
+    </td>
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
