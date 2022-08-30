@@ -219,7 +219,7 @@ This writes the output to the `predictions.csv` with contents like:
 /absolute/path/to/000000289594.jpg;[{'ymin': '227.25109100341797'	 'xmin': '331.7402381300926'	 'ymax': '476.88533782958984'	 'xmax': '402.2928895354271'	 'score': '0.77217317'	 'class': 'person'}	 {'ymin': '231.8712615966797'	 'xmin': '292.8590789437294'.....
 ...
 ```
-Each line has data separated by a semicolon ";". The first item is the file name. The second item is a list of dictionaries, each dictionary corresponds with a single detection. As a result providing: box coordinates (ymin, xmin, ymax, xmax); score and class on a per detection basis.
+Each line has data separated by a semicolon ";". The first item is the file name. The second item is a list of dictionaries, where each dictionary corresponds with a single detection. A detection contains: box coordinates (ymin, xmin, ymax, xmax); score; and class.
 
 ---
 ## Language modeling
