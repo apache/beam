@@ -98,6 +98,7 @@ var directFilters = []string{
 	"TestCombiningState",
 	"TestMapState",
 	"TestMapStateClear",
+	"TestSetState",
 	"TestSetStateClear",
 }
 
@@ -128,6 +129,7 @@ var portableFilters = []string{
 	"TestCombiningState",
 	"TestMapState",
 	"TestMapStateClear",
+	"TestSetState",
 	"TestSetStateClear",
 }
 
@@ -179,6 +181,7 @@ var samzaFilters = []string{
 	"TestCombiningState",
 	"TestMapState",
 	"TestMapStateClear",
+	"TestSetState",
 	"TestSetStateClear",
 }
 
