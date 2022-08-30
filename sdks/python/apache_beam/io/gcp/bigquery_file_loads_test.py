@@ -951,7 +951,6 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
       self.skipTest("TestStream is not supported on TestDataflowRunner")
     output_table = '%s_%s' % (self.output_table, 'with_copy_jobs')
-    _LOGGER.info("output_table: %s", output_table)
     _SIZE = 100
     schema = self.BIG_QUERY_STREAMING_SCHEMA
     l = [{'Integr': i} for i in range(_SIZE)]
@@ -970,6 +969,48 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     # Override these parameters to induce copy jobs
     bqfl._DEFAULT_MAX_FILE_SIZE = 100
     bqfl._MAXIMUM_LOAD_SIZE = 400
+
+    with beam.Pipeline(argv=args) as p:
+      stream_source = (
+        TestStream().advance_watermark_to(0).advance_processing_time(
+          100).add_elements(l[:_SIZE // 4]).
+          advance_processing_time(100).advance_watermark_to(100).add_elements(
+          l[_SIZE // 4:2 * _SIZE // 4]).advance_processing_time(
+          100).advance_watermark_to(200).add_elements(
+          l[2 * _SIZE // 4:3 * _SIZE // 4]).advance_processing_time(
+          100).advance_watermark_to(300).add_elements(
+          l[3 * _SIZE // 4:]).advance_processing_time(
+          100).advance_watermark_to_infinity().advance_processing_time(100))
+
+      _ = (p
+           | stream_source
+           | bigquery.WriteToBigQuery(output_table,
+                                      schema=schema,
+                                      method=bigquery.WriteToBigQuery \
+                                      .Method.FILE_LOADS,
+                                      triggering_frequency=100))
+
+  @pytest.mark.it_postcommit
+  def test_bqfl_streaming_with_dynamic_destinations(self):
+    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
+      self.skipTest("TestStream is not supported on TestDataflowRunner")
+    self.output_table = "google.com:clouddfe:ahmedabualsaud_test.bqfl_stream_test"
+    prefix = self.output_table
+    output_table = lambda row: '%s_%s' % (prefix, f"dynamic_destination_{row['Integr'] % 2}")
+    _SIZE = 100
+    schema = self.BIG_QUERY_STREAMING_SCHEMA
+    l = [{'Integr': i} for i in range(_SIZE)]
+
+    state_matcher = PipelineStateMatcher(PipelineState.RUNNING)
+    bq_matcher = BigqueryFullResultStreamingMatcher(
+      project=self.project,
+      query="SELECT Integr FROM %s" % output_table,
+      data=[(i,) for i in range(90)])
+
+    args = self.test_pipeline.get_full_options_as_args(
+      on_success_matcher=all_of(state_matcher, bq_matcher),
+      streaming=True,
+      allow_unsafe_triggers=True)
 
     with beam.Pipeline(argv=args) as p:
       stream_source = (
