@@ -21,6 +21,9 @@ import 'package:playground/modules/examples/models/example_loading_descriptors/e
 import 'package:playground/modules/messages/models/abstract_message.dart';
 
 /// A message that sets content for multiple snippets.
+///
+/// Sent by the embedded playground to a newly opened window
+/// of a standalone playground.
 class SetContentMessage extends AbstractMessage {
   final ExamplesLoadingDescriptor descriptor;
 

@@ -40,7 +40,7 @@ void main() {
     );
 
     test(
-      'MessageParser.parse returns null for non-sting and non-map',
+      'MessageParser.parse returns null for non-string and non-map',
       () {
         final value = DateTime(2022);
 
@@ -51,7 +51,7 @@ void main() {
     );
 
     test(
-      'MessageParser.parse returns null for non-JSON sting',
+      'MessageParser.parse returns null for a non-JSON string',
       () {
         const value = 'non-JSON string';
 
@@ -62,7 +62,7 @@ void main() {
     );
 
     test(
-      'MessageParser.parse returns null for JSON scalar',
+      'MessageParser.parse returns null for a JSON scalar',
       () {
         const value = '123';
 

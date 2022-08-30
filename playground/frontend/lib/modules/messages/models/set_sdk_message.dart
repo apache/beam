@@ -20,6 +20,8 @@ import 'package:playground/modules/messages/models/abstract_message.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 /// A message that switches the SDK.
+///
+/// Sent to iframes by Beam documentation HTML when the language is switched.
 class SetSdkMessage extends AbstractMessage {
   final SDK sdk;
 

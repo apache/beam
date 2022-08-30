@@ -27,10 +27,9 @@ import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/params.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/messages/models/set_content_message.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:playground/utils/javascript_post_message.dart';
 import 'package:provider/provider.dart';
-
-import 'package:playground/pages/playground/states/playground_state.dart';
 
 const kTryPlaygroundButtonWidth = 200.0;
 const kTryPlaygroundButtonHeight = 40.0;
@@ -56,7 +55,7 @@ class EmbeddedActions extends StatelessWidget {
     );
   }
 
-  void _openStandalonePlayground(PlaygroundState state) async {
+  void _openStandalonePlayground(PlaygroundState state) {
     // The empty list forces the parsing of EmptyExampleLoadingDescriptor
     // and prevents the glimpse of the default catalog example.
     final window = html.window.open(

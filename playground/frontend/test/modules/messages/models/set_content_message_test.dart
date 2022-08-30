@@ -40,7 +40,7 @@ void main() {
     );
 
     test(
-      'parses an empty message without descriptor',
+      'parses a single empty Java descriptor when without descriptor',
       () {
         const map = {'type': SetContentMessage.type};
 
@@ -58,7 +58,7 @@ void main() {
     );
 
     test(
-      'parses an empty message with an invalid descriptor',
+      'parses a single empty Java descriptor with an invalid descriptor',
       () {
         const map = {
           'type': SetContentMessage.type,
