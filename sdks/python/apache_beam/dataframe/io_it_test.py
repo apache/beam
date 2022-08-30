@@ -25,22 +25,19 @@ import unittest
 
 import pytest
 
-import apache_beam as beam
 import apache_beam.io.gcp.bigquery
-from apache_beam.io.gcp import bigquery_read_it_test
-from apache_beam.io.gcp import bigquery_schema_tools
-from apache_beam.io.gcp import bigquery_tools
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class ReadUsingReadGbqTests(bigquery_read_it_test.BigQueryReadIntegrationTests):
+class ReadUsingReadGbqTests(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_ReadGbq(self):
     from apache_beam.dataframe import convert
-    with beam.Pipeline(argv=self.args) as p:
+    with TestPipeline() as p:
       actual_df = p | apache_beam.dataframe.io.read_gbq(
           table="apache-beam-testing:beam_bigquery_io_test."
           "dfsqltable_3c7d6fd5_16e0460dfd0",
@@ -52,7 +49,7 @@ class ReadUsingReadGbqTests(bigquery_read_it_test.BigQueryReadIntegrationTests):
 
   def test_ReadGbq_export_with_project(self):
     from apache_beam.dataframe import convert
-    with beam.Pipeline(argv=self.args) as p:
+    with TestPipeline() as p:
       actual_df = p | apache_beam.dataframe.io.read_gbq(
           table="dfsqltable_3c7d6fd5_16e0460dfd0",
           dataset="beam_bigquery_io_test",
@@ -66,7 +63,7 @@ class ReadUsingReadGbqTests(bigquery_read_it_test.BigQueryReadIntegrationTests):
   @pytest.mark.it_postcommit
   def test_ReadGbq_direct_read(self):
     from apache_beam.dataframe import convert
-    with beam.Pipeline(argv=self.args) as p:
+    with TestPipeline() as p:
       actual_df = p | apache_beam.dataframe.io.\
           read_gbq(
           table=
@@ -81,7 +78,7 @@ class ReadUsingReadGbqTests(bigquery_read_it_test.BigQueryReadIntegrationTests):
   @pytest.mark.it_postcommit
   def test_ReadGbq_direct_read_with_project(self):
     from apache_beam.dataframe import convert
-    with beam.Pipeline(argv=self.args) as p:
+    with TestPipeline() as p:
       actual_df = p | apache_beam.dataframe.io.read_gbq(
           table="dfsqltable_3c7d6fd5_16e0460dfd0",
           dataset="beam_bigquery_io_test",
@@ -94,15 +91,8 @@ class ReadUsingReadGbqTests(bigquery_read_it_test.BigQueryReadIntegrationTests):
 
   @pytest.mark.it_postcommit
   def test_ReadGbq_with_computation(self):
-    the_table = bigquery_tools.BigQueryWrapper().get_table(
-        project_id="apache-beam-testing",
-        dataset_id="beam_bigquery_io_test",
-        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
-    table = the_table.schema
-    utype = bigquery_schema_tools. \
-        generate_user_type_from_bq_schema(table)
     from apache_beam.dataframe import convert
-    with beam.Pipeline(argv=self.args) as p:
+    with TestPipeline() as p:
       beam_df = p | apache_beam.dataframe.io.read_gbq(
           table="dfsqltable_3c7d6fd5_16e0460dfd0",
           dataset="beam_bigquery_io_test",
@@ -110,12 +100,7 @@ class ReadUsingReadGbqTests(bigquery_read_it_test.BigQueryReadIntegrationTests):
       actual_df = beam_df.groupby('id').count()
       assert_that(
           convert.to_pcollection(actual_df, include_indexes=True),
-          equal_to([
-              utype(id=1, name=1, type=1),
-              utype(id=2, name=1, type=1),
-              utype(id=3, name=1, type=1),
-              utype(id=4, name=1, type=1)
-          ]))
+          equal_to([(1, 1, 1), (2, 1, 1), (3, 1, 1), (4, 1, 1)]))
 
 
 if __name__ == '__main__':
