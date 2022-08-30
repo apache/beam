@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -18,14 +16,13 @@
 #
 
 """Integration tests for Dataframe sources and sinks."""
-# pytype: skip-file
 
 import logging
 import unittest
-
 import pytest
 
 import apache_beam.io.gcp.bigquery
+from apache_beam.io.gcp import bigquery_read_it_test
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -33,7 +30,7 @@ from apache_beam.testing.util import equal_to
 _LOGGER = logging.getLogger(__name__)
 
 
-class ReadUsingReadGbqTests(unittest.TestCase):
+class ReadUsingReadGbqTests(bigquery_read_it_test.BigQueryReadIntegrationTests):
   @pytest.mark.it_postcommit
   def test_ReadGbq(self):
     from apache_beam.dataframe import convert
@@ -47,6 +44,7 @@ class ReadUsingReadGbqTests(unittest.TestCase):
           equal_to([(3, 'customer1', 'test'), (1, 'customer1', 'test'),
                     (2, 'customer2', 'test'), (4, 'customer2', 'test')]))
 
+  @pytest.mark.it_postcommit
   def test_ReadGbq_export_with_project(self):
     from apache_beam.dataframe import convert
     with TestPipeline() as p:
