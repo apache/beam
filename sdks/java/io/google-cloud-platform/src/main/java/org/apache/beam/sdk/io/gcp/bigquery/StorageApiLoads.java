@@ -52,6 +52,7 @@ public class StorageApiLoads<DestinationT, ElementT>
   private final BigQueryServices bqServices;
   private final int numShards;
   private final boolean allowInconsistentWrites;
+  private final boolean allowAutosharding;
 
   public StorageApiLoads(
       Coder<DestinationT> destinationCoder,
@@ -61,7 +62,8 @@ public class StorageApiLoads<DestinationT, ElementT>
       Duration triggeringFrequency,
       BigQueryServices bqServices,
       int numShards,
-      boolean allowInconsistentWrites) {
+      boolean allowInconsistentWrites,
+      boolean allowAutosharding) {
     this.destinationCoder = destinationCoder;
     this.dynamicDestinations = dynamicDestinations;
     this.createDisposition = createDisposition;
@@ -70,6 +72,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     this.bqServices = bqServices;
     this.numShards = numShards;
     this.allowInconsistentWrites = allowInconsistentWrites;
+    this.allowAutosharding = allowAutosharding;
   }
 
   @Override
@@ -136,9 +139,6 @@ public class StorageApiLoads<DestinationT, ElementT>
     // Handle triggered, low-latency loads into BigQuery.
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
-
-    // First shard all the records.
-    // TODO(reuvenlax): Add autosharding support so that users don't have to pick a shard count.
     PCollectionTuple result =
         inputInGlobalWindow
             .apply(
@@ -154,43 +154,33 @@ public class StorageApiLoads<DestinationT, ElementT>
                     successfulRowsTag,
                     BigQueryStorageApiInsertErrorCoder.of(),
                     successCoder));
-    PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> shardedRecords =
-        result
-            .get(successfulRowsTag)
-            .apply(
-                "AddShard",
-                ParDo.of(
-                    new DoFn<
-                        KV<DestinationT, StorageApiWritePayload>,
-                        KV<ShardedKey<DestinationT>, StorageApiWritePayload>>() {
-                      int shardNumber;
 
-                      @Setup
-                      public void setup() {
-                        shardNumber = ThreadLocalRandom.current().nextInt(numShards);
-                      }
+    PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> groupedRecords;
 
-                      @ProcessElement
-                      public void processElement(
-                          @Element KV<DestinationT, StorageApiWritePayload> element,
-                          OutputReceiver<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> o) {
-                        DestinationT destination = element.getKey();
-                        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
-                        buffer.putInt(++shardNumber % numShards);
-                        o.output(
-                            KV.of(ShardedKey.of(destination, buffer.array()), element.getValue()));
-                      }
-                    }))
-            .setCoder(KvCoder.of(ShardedKey.Coder.of(destinationCoder), payloadCoder));
+    if (this.allowAutosharding) {
+      groupedRecords =
+          result
+              .get(successfulRowsTag)
+              .apply(
+                  "GroupIntoBatches",
+                  GroupIntoBatches.<DestinationT, StorageApiWritePayload>ofByteSize(
+                          MAX_BATCH_SIZE_BYTES,
+                          (StorageApiWritePayload e) -> (long) e.getPayload().length)
+                      .withMaxBufferingDuration(triggeringFrequency)
+                      .withShardedKey());
 
-    PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> groupedRecords =
-        shardedRecords.apply(
-            "GroupIntoBatches",
-            GroupIntoBatches.<ShardedKey<DestinationT>, StorageApiWritePayload>ofByteSize(
-                    MAX_BATCH_SIZE_BYTES,
-                    (StorageApiWritePayload e) -> (long) e.getPayload().length)
-                .withMaxBufferingDuration(triggeringFrequency));
-
+    } else {
+      PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> shardedRecords =
+          createShardedKeyValuePairs(result)
+              .setCoder(KvCoder.of(ShardedKey.Coder.of(destinationCoder), payloadCoder));
+      groupedRecords =
+          shardedRecords.apply(
+              "GroupIntoBatches",
+              GroupIntoBatches.<ShardedKey<DestinationT>, StorageApiWritePayload>ofByteSize(
+                      MAX_BATCH_SIZE_BYTES,
+                      (StorageApiWritePayload e) -> (long) e.getPayload().length)
+                  .withMaxBufferingDuration(triggeringFrequency));
+    }
     groupedRecords.apply(
         "StorageApiWriteSharded",
         new StorageApiWritesShardedRecords<>(
@@ -205,6 +195,35 @@ public class StorageApiLoads<DestinationT, ElementT>
         null,
         failedRowsTag,
         result.get(failedRowsTag));
+  }
+
+  private PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload>>
+      createShardedKeyValuePairs(PCollectionTuple pCollection) {
+    return pCollection
+        .get(successfulRowsTag)
+        .apply(
+            "AddShard",
+            ParDo.of(
+                new DoFn<
+                    KV<DestinationT, StorageApiWritePayload>,
+                    KV<ShardedKey<DestinationT>, StorageApiWritePayload>>() {
+                  int shardNumber;
+
+                  @Setup
+                  public void setup() {
+                    shardNumber = ThreadLocalRandom.current().nextInt(numShards);
+                  }
+
+                  @ProcessElement
+                  public void processElement(
+                      @Element KV<DestinationT, StorageApiWritePayload> element,
+                      OutputReceiver<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> o) {
+                    DestinationT destination = element.getKey();
+                    ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+                    buffer.putInt(++shardNumber % numShards);
+                    o.output(KV.of(ShardedKey.of(destination, buffer.array()), element.getValue()));
+                  }
+                }));
   }
 
   public WriteResult expandUntriggered(

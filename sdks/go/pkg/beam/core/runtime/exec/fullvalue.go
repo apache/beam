@@ -20,9 +20,11 @@ import (
 	"io"
 	"reflect"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // TODO(herohde) 1/29/2018: using FullValue for nested KVs is somewhat of a hack
@@ -188,4 +190,176 @@ func ReadAll(rs ReStream) ([]FullValue, error) {
 		}
 		ret = append(ret, *elm)
 	}
+}
+
+// singleUseReStream is a decode on demand ReStream.
+// Can only produce a single Stream because it consumes the reader.
+// Must not be used for streams that might be re-iterated, causing Open
+// to be called twice.
+type singleUseReStream struct {
+	r    io.Reader
+	d    ElementDecoder
+	size int // The number of elements in this stream.
+}
+
+// Open returns the Stream from the start of the in-memory reader. Returns error if called twice.
+func (n *singleUseReStream) Open() (Stream, error) {
+	if n.r == nil {
+		return nil, errors.New("decodeReStream opened twice")
+	}
+	ret := &decodeStream{r: n.r, d: n.d, size: n.size}
+	n.r = nil
+	n.d = nil
+	return ret, nil
+}
+
+// decodeStream is a decode on demand Stream, that decodes size elements from the provided
+// io.Reader.
+type decodeStream struct {
+	r          io.Reader
+	d          ElementDecoder
+	next, size int
+	ret        FullValue
+}
+
+// Close causes subsequent calls to Read to return io.EOF, and drains the remaining element count
+// from the reader.
+func (s *decodeStream) Close() error {
+	// On close, if next != size, we must iterate through the rest of the decoding
+	// until the reader is drained. Otherwise we corrupt the read for the next element.
+	//
+	// TODO(https://github.com/apache/beam/issues/22901):
+	// Optimize the case where we have length prefixed values
+	// so we can avoid allocating the values in the first place.
+	for s.next < s.size {
+		err := s.d.DecodeTo(s.r, &s.ret)
+		if err != nil {
+			return errors.Wrap(err, "decodeStream value decode failed on close")
+		}
+		s.next++
+	}
+	s.r = nil
+	s.d = nil
+	s.ret = FullValue{}
+	return nil
+}
+
+// Read produces the next value in the stream.
+func (s *decodeStream) Read() (*FullValue, error) {
+	if s.r == nil || s.next == s.size {
+		return nil, io.EOF
+	}
+	err := s.d.DecodeTo(s.r, &s.ret)
+	if err != nil {
+		return nil, errors.Wrap(err, "decodeStream value decode failed")
+	}
+	s.next++
+	return &s.ret, nil
+}
+
+// singleUseMultiChunkReStream is a decode on demand restream, that can handle a multi-chunk streams.
+// Can only produce a single Stream because it consumes the reader.
+// Must not be used for streams that might be re-iterated, causing Open to be called twice.
+type singleUseMultiChunkReStream struct {
+	r *byteCountReader
+	d ElementDecoder
+
+	open func(*byteCountReader) (Stream, error)
+}
+
+// Open returns the Stream from the start of the in-memory ReStream. Returns error if called twice.
+func (n *singleUseMultiChunkReStream) Open() (Stream, error) {
+	if n.r == nil {
+		return nil, errors.New("decodeReStream opened twice")
+	}
+	ret := &decodeMultiChunkStream{r: n.r, d: n.d, open: n.open}
+	n.r = nil
+	n.d = nil
+	return ret, nil
+}
+
+// decodeMultiChunkStream is a simple decode on demand Stream.
+type decodeMultiChunkStream struct {
+	r           *byteCountReader
+	d           ElementDecoder
+	ret         FullValue
+	next, chunk int64
+
+	open   func(r *byteCountReader) (Stream, error)
+	stream Stream
+}
+
+// Close releases the buffer, closing the stream.
+func (s *decodeMultiChunkStream) Close() error {
+	// On close, if next < size, we must iterate through the rest of the decoding
+	// until the reader is drained. Otherwise we corrupt the read for the next element.
+	// TODO(https://github.com/apache/beam/issues/22901):
+	// Optimize the case where we have length prefixed values
+	// so we can avoid allocating the values in the first place.
+	for s.next < s.chunk {
+		err := s.d.DecodeTo(s.r, &s.ret)
+		if err != nil {
+			return errors.Wrap(err, "decodeStream value decode failed on close")
+		}
+		s.next++
+	}
+	if s.stream != nil {
+		s.stream.Close()
+		s.stream = nil
+	}
+	s.r = nil
+	s.d = nil
+	s.ret = FullValue{}
+	return nil
+}
+
+// Read produces the next value in the stream.
+func (s *decodeMultiChunkStream) Read() (*FullValue, error) {
+	// No Reader? We're done.
+	if s.r == nil {
+		return nil, io.EOF
+	}
+	// If we have a stream already, use that.
+	if s.stream != nil {
+		return s.stream.Read()
+	}
+
+	// If our next value is at the chunk size, then re-set the chunk and size.
+	if s.next == s.chunk {
+		s.chunk = 0
+		s.next = 0
+	}
+
+	// We're at the start of a chunk, see if there's a next chunk.
+	if s.chunk == 0 && s.next == 0 {
+		chunk, err := coder.DecodeVarInt(s.r.reader)
+		if err != nil {
+			return nil, errors.Wrap(err, "decodeMultiChunkStream chunk size decoding failed")
+		}
+		s.chunk = chunk
+	}
+	switch {
+	case s.chunk == 0:
+		// If the chunk is still 0, then we're done.
+		s.r = nil
+		s.d = nil
+		s.ret = FullValue{}
+		return nil, io.EOF
+	case s.chunk > 0:
+		err := s.d.DecodeTo(s.r, &s.ret)
+		if err != nil {
+			return nil, errors.Wrap(err, "decodeStream value decode failed")
+		}
+		s.next++
+		return &s.ret, nil
+	case s.chunk == -1:
+		// State Backed Iterable!
+		stream, err := s.open(s.r)
+		if err != nil {
+			return nil, err
+		}
+		s.stream = stream
+		return s.stream.Read()
+	}
+	return nil, errors.Errorf("decodeMultiChunkStream invalid chunk size: %v", s.chunk)
 }
