@@ -70,7 +70,7 @@ def _load_onnx(onnx_path):
       LOGGER.error("Failed to load ONNX file: %s", onnx_path)
       for error in range(parser.num_errors):
         LOGGER.error(parser.get_error(error))
-      sys.exit(1)
+      raise ValueError(f"Failed to load ONNX file: {onnx_path}")
   return network, builder
 
 
