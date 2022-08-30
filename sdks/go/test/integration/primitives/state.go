@@ -417,7 +417,7 @@ func (f *setStateFn) ProcessElement(s state.Provider, w string, c int) string {
 	return fmt.Sprintf("%v: %v, keys: %v", w, ok, keys)
 }
 
-// MapStateParDo tests a DoFn that uses value state.
+// SetStateParDo tests a DoFn that uses set state.
 func SetStateParDo() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
