@@ -17,38 +17,38 @@ package datastore
 
 import (
 	"context"
-	"fmt"
 	"time"
 
-	"beam.apache.org/playground/backend/internal/db/dto"
 	"cloud.google.com/go/datastore"
 
+	"beam.apache.org/playground/backend/internal/constants"
+	"beam.apache.org/playground/backend/internal/db/dto"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/db/mapper"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
 const (
-	Namespace = "Playground"
-
-	SnippetKind = "pg_snippets"
-	SchemaKind  = "pg_schema_versions"
-	SdkKind     = "pg_sdks"
-	FileKind    = "pg_files"
+	errorMsgTemplateCreatingTx = "error during creating transaction, err: %s\n"
+	errorMsgTemplateTxRollback = "error during transaction rollback, err: %s\n"
+	errorMsgTemplateTxCommit   = "error during transaction commit, err: %s\n"
 )
 
 type Datastore struct {
-	Client *datastore.Client
+	Client         *datastore.Client
+	ResponseMapper mapper.ResponseMapper
 }
 
-func New(ctx context.Context, projectId string) (*Datastore, error) {
+func New(ctx context.Context, responseMapper mapper.ResponseMapper, projectId string) (*Datastore, error) {
 	client, err := datastore.NewClient(ctx, projectId)
 	if err != nil {
 		logger.Errorf("Datastore: connection to store: error during connection, err: %s\n", err.Error())
 		return nil, err
 	}
-
-	return &Datastore{Client: client}, nil
+	return &Datastore{Client: client, ResponseMapper: responseMapper}, nil
 }
 
 // PutSnippet puts the snippet entity to datastore
@@ -57,7 +57,7 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 		logger.Errorf("Datastore: PutSnippet(): snippet is nil")
 		return nil
 	}
-	snipKey := utils.GetNameKey(SnippetKind, snipId, Namespace, nil)
+	snipKey := utils.GetSnippetKey(ctx, snipId)
 	tx, err := d.Client.NewTransaction(ctx)
 	if err != nil {
 		logger.Errorf("Datastore: PutSnippet(): error during the transaction creating, err: %s\n", err.Error())
@@ -73,8 +73,7 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 
 	var fileKeys []*datastore.Key
 	for index := range snip.Files {
-		fileId := fmt.Sprintf("%s_%d", snipId, index)
-		fileKeys = append(fileKeys, utils.GetNameKey(FileKind, fileId, Namespace, nil))
+		fileKeys = append(fileKeys, utils.GetFileKey(ctx, snipId, index))
 	}
 
 	if _, err = tx.PutMulti(fileKeys, snip.Files); err != nil {
@@ -86,7 +85,7 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 	}
 
 	if _, err = tx.Commit(); err != nil {
-		logger.Errorf("Datastore: PutSnippet(): error during the transaction committing, err: %s\n", err.Error())
+		logger.Errorf(errorMsgTemplateTxCommit, err.Error())
 		return err
 	}
 
@@ -95,11 +94,11 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 
 // GetSnippet returns the snippet entity by identifier
 func (d *Datastore) GetSnippet(ctx context.Context, id string) (*entity.SnippetEntity, error) {
-	key := utils.GetNameKey(SnippetKind, id, Namespace, nil)
+	key := utils.GetSnippetKey(ctx, id)
 	snip := new(entity.SnippetEntity)
 	tx, err := d.Client.NewTransaction(ctx)
 	if err != nil {
-		logger.Errorf("Datastore: GetSnippet(): error during the transaction creating, err: %s\n", err.Error())
+		logger.Errorf(errorMsgTemplateCreatingTx, err.Error())
 		return nil, err
 	}
 	if err = tx.Get(key, snip); err != nil {
@@ -119,7 +118,7 @@ func (d *Datastore) GetSnippet(ctx context.Context, id string) (*entity.SnippetE
 		return nil, err
 	}
 	if _, err = tx.Commit(); err != nil {
-		logger.Errorf("Datastore: GetSnippet(): error during the transaction committing, err: %s\n", err.Error())
+		logger.Errorf(errorMsgTemplateTxCommit, err.Error())
 		return nil, err
 	}
 	return snip, nil
@@ -131,7 +130,7 @@ func (d *Datastore) PutSchemaVersion(ctx context.Context, id string, schema *ent
 		logger.Errorf("Datastore: PutSchemaVersion(): schema version is nil")
 		return nil
 	}
-	key := utils.GetNameKey(SchemaKind, id, Namespace, nil)
+	key := utils.GetSchemaVerKey(ctx, id)
 	if _, err := d.Client.Put(ctx, key, schema); err != nil {
 		logger.Errorf("Datastore: PutSchemaVersion(): error during entity saving, err: %s\n", err.Error())
 		return err
@@ -147,7 +146,7 @@ func (d *Datastore) PutSDKs(ctx context.Context, sdks []*entity.SDKEntity) error
 	}
 	var keys []*datastore.Key
 	for _, sdk := range sdks {
-		keys = append(keys, utils.GetNameKey(SdkKind, sdk.Name, Namespace, nil))
+		keys = append(keys, utils.GetSdkKey(ctx, sdk.Name))
 	}
 	if _, err := d.Client.PutMulti(ctx, keys, sdks); err != nil {
 		logger.Errorf("Datastore: PutSDK(): error during entity saving, err: %s\n", err.Error())
@@ -163,49 +162,95 @@ func (d *Datastore) GetFiles(ctx context.Context, snipId string, numberOfFiles i
 		return []*entity.FileEntity{}, nil
 	}
 	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
+	defer rollback(tx)
+
 	if err != nil {
 		logger.Errorf("Datastore: GetFiles(): error during the transaction creating, err: %s\n", err.Error())
 		return nil, err
 	}
 	var fileKeys []*datastore.Key
-	for i := 0; i < numberOfFiles; i++ {
-		fileId := fmt.Sprintf("%s_%d", snipId, i)
-		fileKeys = append(fileKeys, utils.GetNameKey(FileKind, fileId, Namespace, nil))
+	for fileIndx := 0; fileIndx < numberOfFiles; fileIndx++ {
+		fileKeys = append(fileKeys, utils.GetFileKey(ctx, snipId, fileIndx))
 	}
 	var files = make([]*entity.FileEntity, numberOfFiles)
 	if err = tx.GetMulti(fileKeys, files); err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			err = rollBackErr
-		}
 		logger.Errorf("Datastore: GetFiles(): error during file getting, err: %s\n", err.Error())
-		return nil, err
-	}
-	if _, err = tx.Commit(); err != nil {
-		logger.Errorf("Datastore: GetFiles(): error during the transaction committing, err: %s\n", err.Error())
 		return nil, err
 	}
 	return files, nil
 }
 
-//GetSDK returns the sdk entity by an identifier
-func (d *Datastore) GetSDK(ctx context.Context, id string) (*entity.SDKEntity, error) {
-	sdkId := utils.GetNameKey(SdkKind, id, Namespace, nil)
-	sdk := new(entity.SDKEntity)
-	if err := d.Client.Get(ctx, sdkId, sdk); err != nil {
-		logger.Errorf("Datastore: GetSDK(): error during sdk getting, err: %s\n", err.Error())
+//GetSDKs returns sdk entities by an identifier
+func (d *Datastore) GetSDKs(ctx context.Context) ([]*entity.SDKEntity, error) {
+	var sdkKeys []*datastore.Key
+	for sdkName := range pb.Sdk_value {
+		if sdkName != pb.Sdk_SDK_UNSPECIFIED.String() {
+			sdkKeys = append(sdkKeys, utils.GetSdkKey(ctx, sdkName))
+		}
+	}
+	var sdks = make([]*entity.SDKEntity, len(sdkKeys))
+	if err := d.Client.GetMulti(ctx, sdkKeys, sdks); err != nil {
+		logger.Errorf("Datastore: GetSDKs(): error during the getting sdks, err: %s\n", err.Error())
 		return nil, err
 	}
-	return sdk, nil
+	for sdkIndex, sdk := range sdks {
+		sdk.Name = sdkKeys[sdkIndex].Name
+	}
+	return sdks, nil
+}
+
+//GetCatalog returns all examples
+func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEntity) ([]*pb.Categories, error) {
+	//Retrieving examples
+	exampleQuery := datastore.NewQuery(constants.ExampleKind).Namespace(utils.GetNamespace(ctx))
+	var examples []*entity.ExampleEntity
+	exampleKeys, err := d.Client.GetAll(ctx, exampleQuery, &examples)
+	if err != nil {
+		logger.Errorf("Datastore: GetCatalog(): error during the getting examples, err: %s\n", err.Error())
+		return nil, err
+	}
+
+	//Retrieving snippets
+	var snippetKeys []*datastore.Key
+	for _, exampleKey := range exampleKeys {
+		snippetKeys = append(snippetKeys, utils.GetSnippetKey(ctx, exampleKey.Name))
+	}
+	snippets := make([]*entity.SnippetEntity, len(snippetKeys))
+	if err = d.Client.GetMulti(ctx, snippetKeys, snippets); err != nil {
+		logger.Errorf("Datastore: GetCatalog(): error during the getting snippets, err: %s\n", err.Error())
+		return nil, err
+	}
+
+	//Retrieving files
+	var fileKeys []*datastore.Key
+	for snpIndx, snippet := range snippets {
+		for fileIndx := 0; fileIndx < snippet.NumberOfFiles; fileIndx++ {
+			fileKey := utils.GetFileKey(ctx, exampleKeys[snpIndx].Name, fileIndx)
+			fileKeys = append(fileKeys, fileKey)
+		}
+	}
+	files := make([]*entity.FileEntity, len(fileKeys))
+	if err = d.Client.GetMulti(ctx, fileKeys, files); err != nil {
+		logger.Errorf("Datastore: GetCatalog(): error during the getting files, err: %s\n", err.Error())
+		return nil, err
+	}
+
+	return d.ResponseMapper.ToArrayCategories(&dto.CatalogDTO{
+		Examples:   examples,
+		Snippets:   snippets,
+		Files:      files,
+		SdkCatalog: sdkCatalog,
+	}), nil
 }
 
 //DeleteUnusedSnippets deletes all unused snippets
 func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int32) error {
 	var hoursDiff = dayDiff * 24
 	boundaryDate := time.Now().Add(-time.Hour * time.Duration(hoursDiff))
-	snippetQuery := datastore.NewQuery(SnippetKind).
-		Namespace(Namespace).
+	snippetQuery := datastore.NewQuery(constants.SnippetKind).
+		Namespace(utils.GetNamespace(ctx)).
 		Filter("lVisited <= ", boundaryDate).
-		Filter("origin =", "PG_USER").
+		Filter("origin =", constants.UserSnippetOrigin).
 		Project("numberOfFiles")
 	var snpDtos []*dto.SnippetDeleteDTO
 	snpKeys, err := d.Client.GetAll(ctx, snippetQuery, &snpDtos)
@@ -216,9 +261,7 @@ func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int32) err
 	var fileKeys []*datastore.Key
 	for snpIndex, snpKey := range snpKeys {
 		for fileIndex := 0; fileIndex < snpDtos[snpIndex].NumberOfFiles; fileIndex++ {
-			fileId := fmt.Sprintf("%s_%d", snpKey.Name, fileIndex)
-			fileKey := utils.GetNameKey(FileKind, fileId, Namespace, nil)
-			fileKeys = append(fileKeys, fileKey)
+			fileKeys = append(fileKeys, utils.GetFileKey(ctx, snpKey.Name, fileIndex))
 		}
 	}
 	_, err = d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
@@ -231,4 +274,11 @@ func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int32) err
 		return err
 	}
 	return nil
+}
+
+func rollback(tx *datastore.Transaction) {
+	err := tx.Rollback()
+	if err != nil {
+		logger.Errorf(errorMsgTemplateTxRollback, err.Error())
+	}
 }

@@ -16,22 +16,24 @@
 package mapper
 
 import (
+	"context"
 	"time"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
+	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
 type DatastoreMapper struct {
+	ctx    context.Context
 	appEnv *environment.ApplicationEnvs
 	props  *environment.Properties
 }
 
-func New(appEnv *environment.ApplicationEnvs, props *environment.Properties) *DatastoreMapper {
-	return &DatastoreMapper{appEnv: appEnv, props: props}
+func NewDatastoreMapper(ctx context.Context, appEnv *environment.ApplicationEnvs, props *environment.Properties) *DatastoreMapper {
+	return &DatastoreMapper{ctx: ctx, appEnv: appEnv, props: props}
 }
 
 func (m *DatastoreMapper) ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet {
@@ -40,12 +42,12 @@ func (m *DatastoreMapper) ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet
 		IDMeta: &entity.IDMeta{Salt: m.props.Salt, IdLength: m.props.IdLength},
 		//OwnerId property will be used in Tour of Beam project
 		Snippet: &entity.SnippetEntity{
-			SchVer:        utils.GetNameKey(datastoreDb.SchemaKind, m.appEnv.SchemaVersion(), datastoreDb.Namespace, nil),
-			Sdk:           utils.GetNameKey(datastoreDb.SdkKind, info.Sdk.String(), datastoreDb.Namespace, nil),
+			SchVer:        utils.GetSchemaVerKey(m.ctx, m.appEnv.SchemaVersion()),
+			Sdk:           utils.GetSdkKey(m.ctx, info.Sdk.String()),
 			PipeOpts:      info.PipelineOptions,
 			Created:       nowDate,
 			LVisited:      nowDate,
-			Origin:        "PG_USER",
+			Origin:        constants.UserSnippetOrigin,
 			NumberOfFiles: len(info.Files),
 		},
 	}

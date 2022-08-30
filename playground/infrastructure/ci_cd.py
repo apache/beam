@@ -26,7 +26,7 @@ import config
 from api.v1.api_pb2 import Sdk
 from cd_helper import CDHelper
 from ci_helper import CIHelper
-from helper import find_examples, get_supported_categories, Example
+from helper import find_examples, get_supported_categories, Example, validate_examples_for_duplicates_by_name
 from logger import setup_logger
 
 parser = argparse.ArgumentParser(
@@ -36,7 +36,7 @@ parser.add_argument(
     dest="step",
     required=True,
     help="CI step to verify all beam examples/tests/katas. CD step to save all "
-         "beam examples/tests/katas and their outputs on the GCS",
+         "beam examples/tests/katas and their outputs on the GCD",
     choices=[config.Config.CI_STEP_NAME, config.Config.CD_STEP_NAME])
 parser.add_argument(
     "--sdk",
@@ -58,12 +58,12 @@ def _ci_step(examples: List[Example]):
     asyncio.run(ci_helper.verify_examples(examples))
 
 
-def _cd_step(examples: List[Example]):
+def _cd_step(examples: List[Example], sdk: Sdk):
     """
-    CD step to save all beam examples/tests/katas and their outputs on the GCS
+    CD step to save all beam examples/tests/katas and their outputs on the GCD
     """
     cd_helper = CDHelper()
-    cd_helper.store_examples(examples)
+    cd_helper.save_examples(examples, sdk)
 
 
 def _check_envs():
@@ -80,6 +80,7 @@ def _run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
     supported_categories = get_supported_categories(categories_file)
     logging.info("Start of searching Playground examples ...")
     examples = find_examples(root_dir, supported_categories, sdk)
+    validate_examples_for_duplicates_by_name(examples)
     logging.info("Finish of searching Playground examples")
     logging.info("Number of found Playground examples: %s", len(examples))
 
@@ -89,9 +90,9 @@ def _run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
         _ci_step(examples=examples)
         logging.info("Finish of verification single_file Playground examples")
     if step == config.Config.CD_STEP_NAME:
-        logging.info("Start of storing Playground examples ...")
-        _cd_step(examples=examples)
-        logging.info("Finish of storing Playground examples")
+        logging.info("Start of saving Playground examples ...")
+        _cd_step(examples=examples, sdk=sdk)
+        logging.info("Finish of saving Playground examples")
 
 
 if __name__ == "__main__":
