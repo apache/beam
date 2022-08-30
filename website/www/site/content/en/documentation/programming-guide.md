@@ -2551,7 +2551,7 @@ Timers and States are explained in more detail in the
 
 {{< paragraph class="language-go" >}}
 **Timer and State:**
-This feature isn't implemented in the Go SDK; see more at [Issue 20510](https://github.com/apache/beam/issues/20510). Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.
+Timers aren't implemented in the Go SDK; see more at [Issue 22737](https://github.com/apache/beam/issues/22737). Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.
 {{< /paragraph >}}
 
 {{< paragraph class="language-typescript" >}}
@@ -2619,9 +2619,7 @@ class StatefulDoFn(beam.DoFn):
 {{< /highlight >}}
 
 {{< highlight go >}}
-// State and Timers are yet implemented in the Go SDK.
-// See https://github.com/apache/beam/issues/20510 for info
-// on contributing State and Timers.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" state_and_timers >}}
 {{< /highlight >}}
 
 ### 4.6. Composite transforms {#composite-transforms}
@@ -5749,11 +5747,12 @@ In Python, DoFn declares states to be accessed by creating `StateSpec` class mem
 to other nodes in the graph. A `DoFn` can declare multiple state variables.
 {{< /paragraph >}}
 
-<span class="language-go">
-
-> **Note:** The Beam SDK for Go does not yet support a State and Timer API. See [Issue 20510](https://github.com/apache/beam/issues/20510) to contribute.
-
-</span>
+{{< paragraph class="language-go" >}}
+In Go, DoFn declares states to be accessed by creating state struct member variables representing each state. Each
+state variable is initialized with a key, this key is unique to a ParDo in the graph and has no relation
+to other nodes in the graph. If no name is supplied, the key defaults to the member variable's name.
+A `DoFn` can declare multiple state variables.
+{{< /paragraph >}}
 
 ### 11.1. Types of state {#types-of-state}
 
@@ -5809,7 +5808,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" value_state >}}
 {{< /highlight >}}
 
 #### CombiningState
@@ -5841,7 +5840,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combining_state >}}
 {{< /highlight >}}
 
 #### BagState
@@ -5887,7 +5886,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" state_and_timers >}}
 {{< /highlight >}}
 
 ### 11.2. Deferred state reads {#deferred-state-reads}
@@ -5920,7 +5919,7 @@ This is not supported yet, see https://github.com/apache/beam/issues/20739.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22964.
 {{< /highlight >}}
 
 If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
@@ -6010,7 +6009,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 #### 11.3.2. Processing-time timers {#processing-time-timers}
@@ -6062,7 +6061,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 #### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
@@ -6123,7 +6122,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 #### 11.3.4. Timer output timestamps {#timer-output-timestamps}
@@ -6234,7 +6233,7 @@ Timer output timestamps is not yet supported in Python SDK. See https://github.c
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
@@ -6280,7 +6279,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" windowed_state >}}
 {{< /highlight >}}
 
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
@@ -6364,7 +6363,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 ### 11.5. State and timers examples {#state-timers-examples}
