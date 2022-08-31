@@ -351,7 +351,9 @@ class InteractiveRunnerTest(unittest.TestCase):
     aggregate = lambda df: df.groupby(['name', 'height']).mean()
 
     deferred_df = aggregate(to_dataframe(p | beam.Create(data)))
-    df_expected = aggregate(pd.DataFrame(data))
+    df_input = pd.DataFrame(data)
+    df_input.name = df_input.name.astype(pd.StringDtype())
+    df_expected = aggregate(df_input)
 
     # Watch the local scope for Interactive Beam so that values will be cached.
     ib.watch(locals())
@@ -378,7 +380,9 @@ class InteractiveRunnerTest(unittest.TestCase):
     aggregate = lambda df: df.groupby(['name', 'height']).mean()['age']
 
     deferred_df = aggregate(to_dataframe(p | beam.Create(data)))
-    df_expected = aggregate(pd.DataFrame(data))
+    df_input = pd.DataFrame(data)
+    df_input.name = df_input.name.astype(pd.StringDtype())
+    df_expected = aggregate(df_input)
 
     # Watch the local scope for Interactive Beam so that values will be cached.
     ib.watch(locals())
