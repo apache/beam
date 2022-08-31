@@ -158,7 +158,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             // First batch of records ordered within key.
             "{\"SingerId\":\"0\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 0\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{}",
+                + "{};",
             "{\"SingerId\":\"1\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
                 + "{};",
