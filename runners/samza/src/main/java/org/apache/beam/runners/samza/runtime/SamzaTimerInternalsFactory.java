@@ -628,7 +628,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
    * This is needed for migration of existing jobs. Give events in timerState, construct
    * keyedTimerState preparing for memory reloading.
    *
-   * TODO (dchen): To be removed after all jobs have migrated to use KeyedTimerData
+   * <p>TODO (dchen): To be removed after all jobs have migrated to use KeyedTimerData
    */
   private void migrateToKeyedTimerState(
       SamzaMapState<TimerKey<K>, Long> timerState,
