@@ -132,7 +132,6 @@ public class GroupByKeyOp<K, InputT, OutputT>
     this.timerInternalsFactory =
         SamzaTimerInternalsFactory.createTimerInternalFactory(
             keyCoder,
-            timerRegistry,
             TIMER_STATE_ID,
             nonKeyedStateInternalsFactory,
             windowingStrategy,

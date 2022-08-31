@@ -130,7 +130,6 @@ public class SplittableParDoProcessKeyedElementsOp<
     this.timerInternalsFactory =
         SamzaTimerInternalsFactory.createTimerInternalFactory(
             ByteArrayCoder.of(),
-            timerRegistry,
             TIMER_STATE_ID,
             nonKeyedStateInternalsFactory,
             windowingStrategy,
