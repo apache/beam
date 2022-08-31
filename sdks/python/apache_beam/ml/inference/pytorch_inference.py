@@ -158,6 +158,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """
     inference_args = {} if not inference_args else inference_args
 
+    # torch.no_grad() mitigates GPU memory issues
+    # https://github.com/apache/beam/issues/22811
     with torch.no_grad():
       batched_tensors = torch.stack(batch)
       batched_tensors = _convert_to_device(batched_tensors, self._device)
@@ -266,6 +268,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     # If elements in `batch` are provided as a dictionaries from key to Tensors,
     # then iterate through the batch list, and group Tensors to the same key
     key_to_tensor_list = defaultdict(list)
+
+    # torch.no_grad() mitigates GPU memory issues
+    # https://github.com/apache/beam/issues/22811
     with torch.no_grad():
       for example in batch:
         for key, tensor in example.items():
