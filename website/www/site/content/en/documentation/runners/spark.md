@@ -59,8 +59,8 @@ the portable Runner. For more information on portability, please visit the
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="language-java">Non portable (Java)</li>
-    <li data-type="language-py">Portable (Java/Python/Go)</li>
+    <li data-value="java">Non portable (Java)</li>
+    <li data-value="py">Portable (Java/Python/Go)</li>
   </ul>
 </nav>
 

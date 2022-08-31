@@ -61,6 +61,7 @@ $(document).ready(function() {
             "valueToTabTitle": function (value) {
                 switch (value) {
                     case 'py': return 'Python';
+                    case 'typescript': return 'TypeScript';
                 }
 
                 return value.charAt(0).toUpperCase() + value.slice(1);
