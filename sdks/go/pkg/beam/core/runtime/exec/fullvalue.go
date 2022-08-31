@@ -205,7 +205,7 @@ type singleUseReStream struct {
 // Open returns the Stream from the start of the in-memory reader. Returns error if called twice.
 func (n *singleUseReStream) Open() (Stream, error) {
 	if n.r == nil {
-		return nil, errors.New("decodeReStream opened twice!")
+		return nil, errors.New("decodeReStream opened twice")
 	}
 	ret := &decodeStream{r: n.r, d: n.d, size: n.size}
 	n.r = nil
@@ -270,7 +270,7 @@ type singleUseMultiChunkReStream struct {
 // Open returns the Stream from the start of the in-memory ReStream. Returns error if called twice.
 func (n *singleUseMultiChunkReStream) Open() (Stream, error) {
 	if n.r == nil {
-		return nil, errors.New("decodeReStream opened twice!")
+		return nil, errors.New("decodeReStream opened twice")
 	}
 	ret := &decodeMultiChunkStream{r: n.r, d: n.d, open: n.open}
 	n.r = nil

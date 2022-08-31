@@ -418,3 +418,28 @@ def _get_object_type(filename, filepath):
     else:
         object_type = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
     return object_type
+
+
+def validate_examples_for_duplicates_by_name(examples: List[Example]):
+    """
+    Validate examples for duplicates by example name to avoid duplicates in the Cloud Datastore
+    :param examples: examples from the repository for saving to the Cloud Datastore
+    """
+    example_names = list(map(lambda example: example.name, examples))
+    duplicates = []
+    for name in example_names:
+        if name not in duplicates:
+            duplicates.append(name)
+        else:
+            err_msg = f"Examples have duplicate names, duplicates: {name}"
+            logging.error(err_msg)
+            raise ValidationException(err_msg)
+
+
+class ValidationException(Exception):
+    def __init__(self, error: str):
+        super().__init__()
+        self.msg = error
+
+    def __str__(self):
+        return self.msg

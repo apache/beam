@@ -34,6 +34,7 @@ Imposes a mapping between common Python types and Beam portable schemas
   bytes       <-----> BYTES
   ByteString  ------> BYTES
   Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
+  Timestamp   <------ LogicalType(urn="beam:logical_type:millis_instant:v1")
   Mapping     <-----> MapType
   Sequence    <-----> ArrayType
   NamedTuple  <-----> RowType
@@ -177,7 +178,7 @@ def option_to_runner_api(
 
 def option_from_runner_api(
     option_proto: schema_pb2.Option,
-    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> type:
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> Tuple[str, Any]:
   return SchemaTranslation(
       schema_registry=schema_registry).option_from_runner_api(option_proto)
 
@@ -571,13 +572,13 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     """Return the argument for this instance of the LogicalType."""
     raise NotImplementedError()
 
-  def to_representation_type(value):
+  def to_representation_type(self, value):
     # type: (LanguageT) -> RepresentationT
 
     """Convert an instance of LanguageT to RepresentationT."""
     raise NotImplementedError()
 
-  def to_language_type(value):
+  def to_language_type(self, value):
     # type: (RepresentationT) -> LanguageT
 
     """Convert an instance of RepresentationT to LanguageT."""
@@ -587,6 +588,7 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
   def register_logical_type(cls, logical_type_cls):
     """Register an implementation of LogicalType."""
     cls._known_logical_types.add(logical_type_cls.urn(), logical_type_cls)
+    return logical_type_cls
 
   @classmethod
   def from_typing(cls, typ):
@@ -656,8 +658,53 @@ MicrosInstantRepresentation = NamedTuple(
 
 
 @LogicalType.register_logical_type
+class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
+  """Millisecond-precision instant logical type handles values consistent with
+  that encoded by ``InstantCoder`` in the Java SDK.
+
+  This class handles :class:`apache_beam.utils.timestamp.Timestamp` language
+  type as :class:`MicrosInstant`, but it only provides millisecond precision,
+  because it is aimed to handle data encoded by Java sdk's InstantCoder which
+  has same precision level.
+
+  Timestamp is handled by `MicrosInstant` by default. In some scenario, such as
+  read from cross-language transform with rows containing InstantCoder encoded
+  timestamps, one may need to override the mapping of Timetamp to MillisInstant.
+  To do this, re-register this class with
+  :func:`~LogicalType.register_logical_type`.
+  """
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return np.int64
+
+  @classmethod
+  def urn(cls):
+    return common_urns.millis_instant.urn
+
+  @classmethod
+  def language_type(cls):
+    return Timestamp
+
+  def to_language_type(self, value):
+    # type: (np.int64) -> Timestamp
+
+    # value shifted as in apache_beams.coders.coder_impl.TimestampCoderImpl
+    if value < 0:
+      millis = int(value) + (1 << 63)
+    else:
+      millis = int(value) - (1 << 63)
+
+    return Timestamp(micros=millis * 1000)
+
+
+# Make sure MicrosInstant is registered after MillisInstant so that it
+# overwrites the mapping of Timestamp language type representation choice and
+# thus does not lose microsecond precision inside python sdk.
+@LogicalType.register_logical_type
 class MicrosInstant(NoArgumentLogicalType[Timestamp,
                                           MicrosInstantRepresentation]):
+  """Microsecond-precision instant logical type that handles ``Timestamp``."""
   @classmethod
   def urn(cls):
     return common_urns.micros_instant.urn
@@ -683,6 +730,7 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
 
 @LogicalType.register_logical_type
 class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
+  """A logical type for PythonCallableSource objects."""
   @classmethod
   def urn(cls):
     return common_urns.python_callable.urn

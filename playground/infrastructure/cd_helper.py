@@ -31,6 +31,7 @@ from google.cloud import storage
 
 from api.v1.api_pb2 import Sdk, SDK_PYTHON, SDK_JAVA, PrecompiledObjectType
 from config import Config, PrecompiledExample
+from datastore_client import DatastoreClient
 from grpc_client import GRPCClient
 from helper import Example, get_statuses
 
@@ -41,6 +42,7 @@ class CDHelper:
 
     It is used to save beam examples/katas/tests and their output on the GCS.
     """
+
     def store_examples(self, examples: List[Example]):
         """
         Store beam examples and their output in the Google Cloud.
@@ -57,6 +59,15 @@ class CDHelper:
         self._save_to_cloud_storage(examples)
         logging.info("Finish of sending Playground examples to the bucket")
         self._clear_temp_folder()
+
+    def _save_to_datastore(self, examples: List[Example], sdk: Sdk):
+        """
+        Save beam examples to the Google Cloud Datastore
+        :param examples: beam examples from the repository
+        :param sdk: specific sdk that needs to filter examples
+        """
+        datastore_client = DatastoreClient()
+        datastore_client.save_to_cloud_datastore(examples, sdk)
 
     async def _get_outputs(self, examples: List[Example]):
         """
