@@ -92,8 +92,8 @@ func ValueStateParDo() *beam.Pipeline {
 	return p
 }
 
-// ValueStateParDo tests a DoFn that uses windowed value state.
-func ValueStateParDo_Windowed() *beam.Pipeline {
+// ValueStateParDoWindowed tests a DoFn that uses windowed value state.
+func ValueStateParDoWindowed() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 1, 1, 2, 2, 3, 4, 4, 4, 4}}, beam.Impulse(s))
@@ -129,8 +129,8 @@ func (f *valueStateClearFn) ProcessElement(s state.Provider, w string, c int) st
 	return fmt.Sprintf("%s: %v,%v", w, i, ok)
 }
 
-// ValueStateParDo_Clear tests that a DoFn that uses value state can be cleared.
-func ValueStateParDo_Clear() *beam.Pipeline {
+// ValueStateParDoClear tests that a DoFn that uses value state can be cleared.
+func ValueStateParDoClear() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear", "pear", "apple")
@@ -220,8 +220,8 @@ func (f *bagStateClearFn) ProcessElement(s state.Provider, w string, c int) stri
 	return fmt.Sprintf("%s: %v", w, sum)
 }
 
-// BagStateParDo_Clear tests a DoFn that uses bag state.
-func BagStateParDo_Clear() *beam.Pipeline {
+// BagStateParDoClear tests a DoFn that uses bag state.
+func BagStateParDoClear() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	in := beam.Create(s, "apple", "pear", "apple", "apple", "pear", "apple", "apple", "pear", "pear", "pear", "apple", "pear")
