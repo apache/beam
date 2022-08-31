@@ -74,6 +74,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
 
       pcoll | RunInference(PytorchModelHandlerTensor(state_dict_path="my_uri"))
 
+    Supported Versions:
+      PyTorch 1.9 and 1.10 are currently supported for Python 3.7, 3.8, and 3.9
+
     Args:
       state_dict_path: path to the saved dictionary of the model state.
       model_class: class of the Pytorch model that defines the model
