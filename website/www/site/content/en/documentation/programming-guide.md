@@ -2551,7 +2551,11 @@ Timers and States are explained in more detail in the
 
 {{< paragraph class="language-go" >}}
 **Timer and State:**
-Timers aren't implemented in the Go SDK; see more at [Issue 22737](https://github.com/apache/beam/issues/22737). Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.
+User defined State parameters can be used in a stateful DoFn. Timers aren't implemented in the Go SDK yet;
+see more at [Issue 22737](https://github.com/apache/beam/issues/22737). Once implemented, user defined Timer
+parameters can be used in a stateful DoFn.
+Timers and States are explained in more detail in the
+[Timely (and Stateful) Processing with Apache Beam](/blog/2017/08/28/timely-processing.html) blog post.
 {{< /paragraph >}}
 
 {{< paragraph class="language-typescript" >}}
@@ -5783,6 +5787,10 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" value_state >}}
+{{< /highlight >}}
+
 Beam also allows explicitly specifying a coder for `ValueState` values. For example:
 
 {{< highlight java >}}
@@ -5808,7 +5816,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/04transforms.go" value_state >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" value_state_coder >}}
 {{< /highlight >}}
 
 #### CombiningState

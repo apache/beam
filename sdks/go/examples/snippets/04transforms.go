@@ -607,6 +607,36 @@ func (s *valueStateFn) ProcessElement(p state.Provider, book string, word string
 
 // [END value_state]
 
+type MyCustomType struct{}
+
+func (m MyCustomType) Bytes() []byte {
+	return nil
+}
+
+func (m MyCustomType) FromBytes(_ []byte) MyCustomType {
+	return m
+}
+
+// [START value_state_coder]
+
+type valueStateDoFn struct {
+	val state.Value[MyCustomType]
+}
+
+func encode(m MyCustomType) []byte {
+	return m.Bytes()
+}
+
+func decode(b []byte) MyCustomType {
+	return MyCustomType{}.FromBytes(b)
+}
+
+func init() {
+	beam.RegisterCoder(reflect.TypeOf((*MyCustomType)(nil)).Elem(), encode, decode)
+}
+
+// [END value_state_coder]
+
 type combineFn struct{}
 
 // [START combining_state]
