@@ -106,15 +106,15 @@ type valueTemplateGenerator struct {
 	driver string
 }
 
-func (v *valueTemplateGenerator) generate(rowCount int, colsCount int) string {
+func (v *valueTemplateGenerator) generate(rowCount int, columnColunt int) string {
 	switch v.driver {
 	case "postgres":
 		// the point is to generate ($1,$2),($3,$4)
 		valueTemplates := make([]string, rowCount)
 		for i := 0; i < rowCount; i++ {
-			n := colsCount * i
-			templates := make([]string, colsCount)
-			for j := 0; j < colsCount; j++ {
+			n := columnColunt * i
+			templates := make([]string, columnColunt)
+			for j := 0; j < columnColunt; j++ {
 				templates[j] = fmt.Sprintf("$%d", n+j+1)
 			}
 			valueTemplates[i] = fmt.Sprintf("(%s)", strings.Join(templates, ","))
@@ -122,7 +122,7 @@ func (v *valueTemplateGenerator) generate(rowCount int, colsCount int) string {
 		return strings.Join(valueTemplates, ",")
 	default:
 		// the point is to generate (?,?),(?,?)
-		questions := strings.Repeat("?,", colsCount)
+		questions := strings.Repeat("?,", columnColunt)
 		valueTemplate := fmt.Sprintf("(%s)", questions[:len(questions)-1])
 		values := strings.Repeat(valueTemplate+",", rowCount)
 		if len(values) == 0 {
