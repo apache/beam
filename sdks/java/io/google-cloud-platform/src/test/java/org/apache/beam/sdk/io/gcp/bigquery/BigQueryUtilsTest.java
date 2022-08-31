@@ -599,7 +599,7 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(22));
     assertThat(row, hasEntry("id", "123"));
-    assertThat(row, hasEntry("value", "123.456"));
+    assertThat(row, hasEntry("value", 123.456));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("datetime0ms", "2020-11-02T12:34:56"));
     assertThat(row, hasEntry("datetime0s_ns", "2020-11-02T12:34:00.789876"));
@@ -615,7 +615,7 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("numeric", "123.456"));
     assertThat(row, hasEntry("boolean", true));
     assertThat(row, hasEntry("long", "123"));
-    assertThat(row, hasEntry("double", "123.456"));
+    assertThat(row, hasEntry("double", 123.456));
   }
 
   @Test
@@ -642,7 +642,7 @@ public class BigQueryUtilsTest {
     row = ((List<TableRow>) row.get("map")).get(0);
     assertThat(row.size(), equalTo(2));
     assertThat(row, hasEntry("key", "test"));
-    assertThat(row, hasEntry("value", "123.456"));
+    assertThat(row, hasEntry("value", 123.456));
   }
 
   @Test
@@ -653,7 +653,7 @@ public class BigQueryUtilsTest {
     row = (TableRow) row.get("row");
     assertThat(row.size(), equalTo(22));
     assertThat(row, hasEntry("id", "123"));
-    assertThat(row, hasEntry("value", "123.456"));
+    assertThat(row, hasEntry("value", 123.456));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("datetime0ms", "2020-11-02T12:34:56"));
     assertThat(row, hasEntry("datetime0s_ns", "2020-11-02T12:34:00.789876"));
@@ -669,7 +669,7 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("numeric", "123.456"));
     assertThat(row, hasEntry("boolean", true));
     assertThat(row, hasEntry("long", "123"));
-    assertThat(row, hasEntry("double", "123.456"));
+    assertThat(row, hasEntry("double", 123.456));
   }
 
   @Test
@@ -680,7 +680,7 @@ public class BigQueryUtilsTest {
     row = ((List<TableRow>) row.get("rows")).get(0);
     assertThat(row.size(), equalTo(22));
     assertThat(row, hasEntry("id", "123"));
-    assertThat(row, hasEntry("value", "123.456"));
+    assertThat(row, hasEntry("value", 123.456));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("datetime0ms", "2020-11-02T12:34:56"));
     assertThat(row, hasEntry("datetime0s_ns", "2020-11-02T12:34:00.789876"));
@@ -696,7 +696,7 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("numeric", "123.456"));
     assertThat(row, hasEntry("boolean", true));
     assertThat(row, hasEntry("long", "123"));
-    assertThat(row, hasEntry("double", "123.456"));
+    assertThat(row, hasEntry("double", 123.456));
   }
 
   @Test
