@@ -235,7 +235,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   // for unit test only
   NavigableSet<KeyedTimerData<K>> getEventTimeBuffer() {
     return eventTimeBuffer;
-  } // todo dchen1
+  }
 
   Set<KeyedTimerData<K>> getProcessTimeBuffer() {
     return processTimeBuffer;
@@ -477,7 +477,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
                   .state(
                       StateNamespaces.global(),
                       StateTags.set(
-                          timerStateId + "-pts",
+                          timerStateId + "-process-timers-sorted",
                           new KeyedTimerData.KeyedTimerDataCoder<>(keyCoder, windowCoder)));
 
       init();
@@ -604,6 +604,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         final KeyedTimerData keyedTimerData = iter.next();
         processTimeBuffer.add(keyedTimerData);
       }
+      timestampSortedProcessTimeTimerState.closeIterators();
 
       timestampSortedProcessTimeTimerState.closeIterators();
       LOG.info("Loaded {} processing time timers in memory", processTimeBuffer.size());
@@ -626,6 +627,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   /**
    * This is needed for migration of existing jobs. Give events in timerState, construct
    * keyedTimerState preparing for memory reloading.
+   *
+   * TODO (dchen): To be removed after all jobs have migrated to use KeyedTimerData
    */
   private void migrateToKeyedTimerState(
       SamzaMapState<TimerKey<K>, Long> timerState,
