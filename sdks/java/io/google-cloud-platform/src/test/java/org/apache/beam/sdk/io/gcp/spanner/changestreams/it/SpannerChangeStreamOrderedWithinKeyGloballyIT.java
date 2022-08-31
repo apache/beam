@@ -178,7 +178,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
                 + "{};",
             "{\"SingerId\":\"3\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 3\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{}",
+                + "{};",
 
             // Third batch of records ordered within key.
             "{\"SingerId\":\"1\"}\n"
