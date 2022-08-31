@@ -82,6 +82,8 @@ type Provider interface {
 	ReadMapStateValue(userStateID string, key interface{}) (interface{}, []Transaction, error)
 	ReadMapStateKeys(userStateID string) ([]interface{}, []Transaction, error)
 	WriteMapState(val Transaction) error
+	ClearMapStateKey(val Transaction) error
+	ClearMapState(val Transaction) error
 }
 
 // PipelineState is an interface representing different kinds of PipelineState (currently just state.Value).
@@ -501,6 +503,23 @@ func (s *Map[K, V]) Get(p Provider, key K) (V, bool, error) {
 	return cur.(V), true, nil
 }
 
+// Remove deletes an entry from this instance of map state.
+func (s *Map[K, V]) Remove(p Provider, key K) error {
+	return p.ClearMapStateKey(Transaction{
+		Key:    s.Key,
+		Type:   TransactionTypeClear,
+		MapKey: key,
+	})
+}
+
+// Clear deletes all entries from this instance of map state.
+func (s *Map[K, V]) Clear(p Provider) error {
+	return p.ClearMapState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeClear,
+	})
+}
+
 // StateKey returns the key for this pipeline state entry.
 func (s Map[K, V]) StateKey() string {
 	return s.Key
@@ -618,6 +637,23 @@ func (s *Set[K]) Contains(p Provider, key K) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// Remove deletes an entry from this instance of set state.
+func (s Set[K]) Remove(p Provider, key K) error {
+	return p.ClearMapStateKey(Transaction{
+		Key:    s.Key,
+		Type:   TransactionTypeClear,
+		MapKey: key,
+	})
+}
+
+// Clear deletes all entries from this instance of set state.
+func (s Set[K]) Clear(p Provider) error {
+	return p.ClearMapState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeClear,
+	})
 }
 
 // StateKey returns the key for this pipeline state entry.
