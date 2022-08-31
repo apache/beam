@@ -40,14 +40,27 @@ public class PythonService {
 
   private final String module;
   private final List<String> args;
+  private final List<String> extraPackages;
 
-  public PythonService(String module, List<String> args) {
+  public PythonService(String module, List<String> args, List<String> extraPackages) {
     this.module = module;
     this.args = args;
+    this.extraPackages = extraPackages;
+  }
+
+  public PythonService(String module, List<String> args) {
+    this(module, args, ImmutableList.of());
   }
 
   public PythonService(String module, String... args) {
     this(module, Arrays.asList(args));
+  }
+
+  public PythonService withExtraPackages(List<String> extraPackages) {
+    return new PythonService(
+        module,
+        args,
+        ImmutableList.<String>builder().addAll(this.extraPackages).addAll(extraPackages).build());
   }
 
   @SuppressWarnings("argument.type.incompatible")
@@ -57,8 +70,13 @@ public class PythonService {
     try (FileOutputStream fout = new FileOutputStream(bootstrapScript.getAbsolutePath())) {
       ByteStreams.copy(getClass().getResourceAsStream("bootstrap_beam_venv.py"), fout);
     }
-    List<String> bootstrapCommand =
-        ImmutableList.of(whichPython(), bootstrapScript.getAbsolutePath());
+    List<String> bootstrapCommand = new ArrayList<>();
+    bootstrapCommand.add(whichPython());
+    bootstrapCommand.add(bootstrapScript.getAbsolutePath());
+    // TODO(BEAM-22856): If the version is a non .dev version, pass it here as --beam_version.
+    if (!extraPackages.isEmpty()) {
+      bootstrapCommand.add("--extra_packages=" + String.join(";", extraPackages));
+    }
     LOG.info("Running bootstrap command " + bootstrapCommand);
     Process bootstrap =
         new ProcessBuilder(bootstrapCommand).redirectError(ProcessBuilder.Redirect.INHERIT).start();
