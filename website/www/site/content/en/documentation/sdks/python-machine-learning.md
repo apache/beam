@@ -169,27 +169,55 @@ The RunInference API is available with the Beam Java SDK versions 2.41.0 and lat
 
 ## TensorFlow support
 
-To use TensorFlow with the RunInference API, you need to create a model handler from within `tfx_bsl`, import the required modules, and add the necessary code to your pipline.
+To use TensorFlow with the RunInference API, you need to do the following:
 
-First, create a model handler from within `tfx_bsl`. The model handler can be keyed or unkeyed.
-For more information, see [run_inference.py](https://github.com/tensorflow/tfx-bsl/blob/d1fca25e5eeaac9ef0111ec13e7634df836f36f6/tfx_bsl/public/beam/run_inference.py) in the TensorFlow GitHub repository.
+* Use `tfx_bsl` version 1.10.0 or later.
+* Create a model handler using `tfx_bsl.public.beam.run_inference.CreateModelHandler()`.
+* Use the model handler with the [`apache_beam.ml.inference.base.RunInference`](/releases/pydoc/current/apache_beam.ml.inference.base.html) transform.
+
+A sample pipeline might look like the following example:
+
+```
+import apache_beam as beam
+from apache_beam.ml.inference.base import RunInference
+from tensorflow_serving.apis import prediction_log_pb2
+from tfx_bsl.public.proto import model_spec_pb2
+from tfx_bsl.public.tfxio import TFExampleRecord
+from tfx_bsl.public.beam.run_inference import CreateModelHandler
+
+pipeline = beam.Pipeline()
+tfexample_beam_record = TFExampleRecord(file_pattern=predict_values_five_times_table)
+saved_model_spec = model_spec_pb2.SavedModelSpec(model_path=save_model_dir_multiply)
+inference_spec_type = model_spec_pb2.InferenceSpecType(saved_model_spec=saved_model_spec)
+model_handler = CreateModelHandler(inference_spec_type)
+with pipeline as p:
+    _ = (p | tfexample_beam_record.RawRecordBeamSource() 
+           | RunInference(model_handler)
+           | beam.Map(print)
+        )
+```
+
+First, within `tfx_bsl`, create a model handler. For more information, see [run_inference.py](https://github.com/tensorflow/tfx-bsl/blob/d1fca25e5eeaac9ef0111ec13e7634df836f36f6/tfx_bsl/public/beam/run_inference.py) in the TensorFlow GitHub repository.
 
 ```
 tf_handler = CreateModelHandler(inference_spec_type)
 
 # unkeyed
-beam.run_inference(tf_handler)
+RunInference(tf_handler)
 
 # keyed
-beam.run_inference(beam.ml.inference.KeyedHandler(tf_handler))
-
-Args:
-  inference_spec_type: Model inference endpoint
-Returns:
-  A Beam RunInference ModelHandler for TensorFlow
+RunInference(KeyedModelHandler(tf_handler))
 ```
 
-Next, in your pipeline, import the required modules:
+The model handler that is created from within `tfx-bsl` is always unkeyed. To make a keyed model handler, wrap the unkeyed model handler in the keyed model handler, which would then take the `tfx-bsl` model handler as a parameter. For example:
+
+```
+beam.run_inference(beam.ml.inference.KeyedModelHandler(tf_handler))
+```
+
+If you are unsure if your data is keyed, you can also use the `maybe_keyed` handler.
+
+Next, import the required modules:
 
 ```
 from tensorflow_serving.apis import prediction_log_pb2
@@ -201,11 +229,10 @@ Finally, add the code to your pipeline. This example shows a pipeline that uses 
 
 ```
 pipeline = beam.Pipeline()
-
-tfexample_beam_record = tfx_bsl.public.tfxio.TFExampleRecord(file_pattern=predict_values_five_times_table)
+tfexample_beam_record = TFExampleRecord(file_pattern=predict_values_five_times_table)
 saved_model_spec = model_spec_pb2.SavedModelSpec(model_path=save_model_dir_multiply)
-inferece_spec_type = model_spec_pb2.InferenceSpecType(saved_model_spec=saved_model_spec)
-model_handler = CreateModelHandler(inferece_spec_type)
+inference_spec_type = model_spec_pb2.InferenceSpecType(saved_model_spec=saved_model_spec)
+model_handler = CreateModelHandler(inference_spec_type)
 with pipeline as p:
     _ = (p | tfexample_beam_record.RawRecordBeamSource() 
            | RunInference(model_handler)
