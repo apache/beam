@@ -100,7 +100,7 @@ public class ThroughputEstimator implements Serializable {
   }
 
   private void cleanQueue(Timestamp time) {
-    while (queue.size() != 0) {
+    while (queue.size() > 0) {
       ImmutablePair<Timestamp, BigDecimal> peek = queue.peek();
       if (peek != null && peek.getLeft().getSeconds() >= time.getSeconds() - numOfSeconds) {
         break;
