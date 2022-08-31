@@ -37,6 +37,7 @@ var svc service.IContent
 const (
 	BAD_FORMAT     = "BAD_FORMAT"
 	INTERNAL_ERROR = "INTERNAL_ERROR"
+	NOT_FOUND      = "NOT_FOUND"
 )
 
 func init() {
@@ -57,9 +58,56 @@ func init() {
 		svc = &service.Svc{Repo: &storage.DatastoreDb{Client: client}}
 	}
 
+	addHeader := AddHeader("Content-Type", "application/json")
+	ensureGet := EnsureMethod(http.MethodGet)
+
 	// functions framework
-	functions.HTTP("sdkList", sdkList)
-	functions.HTTP("getContentTree", getContentTree)
+	functions.HTTP("sdkList", ensureGet(addHeader(sdkList)))
+	functions.HTTP("getContentTree", ensureGet(addHeader(ParseSdkParam(getContentTree))))
+	functions.HTTP("getUnitContent", ensureGet(addHeader(ParseSdkParam(getUnitContent))))
+}
+
+// Middleware-maker for setting a header
+// We also make this less generic: it works with HandlerFunc's
+// so that to be convertible to func(w http ResponseWriter, r *http.Request)
+// and be accepted by functions.HTTP
+func AddHeader(header, value string) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add(header, value)
+			next(w, r)
+		}
+	}
+}
+
+func EnsureMethod(method string) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != method {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+			next(w, r)
+		}
+	}
+}
+
+type HandlerFuncWithSdk func(w http.ResponseWriter, r *http.Request, sdk tob.Sdk)
+
+// middleware to parse sdk query param and pass it as additional handler param
+func ParseSdkParam(next HandlerFuncWithSdk) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sdkStr := r.URL.Query().Get("sdk")
+		sdk := tob.ParseSdk(sdkStr)
+		if sdk == tob.SDK_UNDEFINED {
+			log.Printf("Bad sdk: %v", sdkStr)
+			message := fmt.Sprintf("Sdk not in: %v", tob.SdksList())
+			finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, message)
+			return
+		}
+
+		next(w, r, sdk)
+	}
 }
 
 func finalizeErrResponse(w http.ResponseWriter, status int, code, message string) {
@@ -69,29 +117,10 @@ func finalizeErrResponse(w http.ResponseWriter, status int, code, message string
 }
 
 func sdkList(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	w.Header().Add("Content-Type", "application/json")
 	fmt.Fprint(w, `{"names": ["Java", "Python", "Go"]}`)
 }
 
-func getContentTree(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
-	if r.Method != "GET" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	sdkStr := r.URL.Query().Get("sdk")
-	sdk := tob.ParseSdk(sdkStr)
-	if sdk == tob.SDK_UNDEFINED {
-		log.Printf("Bad sdk: %v", sdkStr)
-		message := fmt.Sprintf("Sdk not in: %v", tob.SdksList())
-		finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, message)
-		return
-	}
+func getContentTree(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 
 	tree, err := svc.GetContentTree(r.Context(), sdk, nil /*TODO userId*/)
 	if err != nil {
@@ -104,6 +133,30 @@ func getContentTree(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Format content tree error:", err)
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format content tree")
+		return
+	}
+}
+
+// TODO Parse sdk middleware
+func getUnitContent(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
+	unitId := r.URL.Query().Get("unitId")
+
+	unit, err := svc.GetUnitContent(r.Context(), sdk, unitId, nil /*TODO userId*/)
+	if err != nil {
+		log.Println("Get unit content error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
+		return
+	}
+	if unit == nil {
+		log.Println("Get unit content error:", err)
+		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(unit)
+	if err != nil {
+		log.Println("Format unit content error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format unit content")
 		return
 	}
 }

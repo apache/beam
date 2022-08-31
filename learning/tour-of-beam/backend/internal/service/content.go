@@ -24,7 +24,7 @@ import (
 
 type IContent interface {
 	GetContentTree(ctx context.Context, sdk tob.Sdk, userId *string) (tob.ContentTree, error)
-	// GetUnitContent(ctx context.Context, unitId string, userId *string) (tob.UnitContent, error)
+	GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string, userId *string) (*tob.Unit, error)
 }
 
 type Svc struct {
@@ -32,5 +32,11 @@ type Svc struct {
 }
 
 func (s *Svc) GetContentTree(ctx context.Context, sdk tob.Sdk, userId *string) (ct tob.ContentTree, err error) {
+	// TODO enrich tree with user-specific state (isCompleted)
 	return s.Repo.GetContentTree(ctx, sdk)
+}
+
+func (s *Svc) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string, userId *string) (unit *tob.Unit, err error) {
+	// TODO enrich unit with user-specific state: isCompleted, userSnippetId
+	return s.Repo.GetUnitContent(ctx, sdk, unitId)
 }

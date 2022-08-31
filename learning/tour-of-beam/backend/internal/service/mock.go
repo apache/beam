@@ -41,8 +41,8 @@ func (d *Mock) GetContentTree(_ context.Context, sdk tob.Sdk, userId *string) (c
 	return ct, nil
 }
 
-func (d *Mock) GetUnitContent(_ context.Context, unitId string, userId *string) (u tob.Unit) {
+func (d *Mock) GetUnitContent(_ context.Context, sdk tob.Sdk, unitId string, userId *string) (u *tob.Unit, err error) {
 	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "unit.json"))
-	_ = json.Unmarshal(content, &u)
-	return u
+	err = json.Unmarshal(content, &u)
+	return u, err
 }
