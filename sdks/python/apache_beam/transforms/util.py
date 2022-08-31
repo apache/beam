@@ -198,8 +198,7 @@ class CoGroupByKey(PTransform):
       input_value_types.append(value_type)
     output_key_type = typehints.Union[tuple(input_key_types)]
     iterable_input_value_types = tuple(
-        # TODO: Change List[t] to Iterable[t]
-        typehints.List[t] for t in input_value_types)
+        typehints.Iterable[t] for t in input_value_types)
 
     output_value_type = typehints.Dict[
         str, typehints.Union[iterable_input_value_types or [typehints.Any]]]
