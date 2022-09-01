@@ -32,7 +32,7 @@ cython<1
 # Leaving 'future' in our containers for now prevent breaking tft users.
 future
 google-cloud-profiler
-google-python-cloud-debugger
+google-python-cloud-debugger;python_version<="3.9"
 guppy3  # Memory profiler
 mmh3  # Optimzes execution of some Beam codepaths. TODO: Make it Beam's dependency.
 nltk  # Commonly used for natural language processing.
