@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.extensions.python;
 
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -438,8 +440,9 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
         if (!extraPackages.isEmpty()) {
           File requirementsFile = File.createTempFile("requirements", ".txt");
           requirementsFile.deleteOnExit();
-          try (FileWriter fout =
-              new FileWriter(requirementsFile.getAbsolutePath(), Charsets.UTF_8)) {
+          try (Writer fout =
+              new OutputStreamWriter(
+                  new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
             for (String pkg : extraPackages) {
               fout.write(pkg);
               fout.write('\n');
