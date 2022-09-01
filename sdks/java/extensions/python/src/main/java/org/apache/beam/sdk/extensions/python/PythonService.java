@@ -56,6 +56,13 @@ public class PythonService {
     this(module, Arrays.asList(args));
   }
 
+  /**
+   * Specifies that the given Python packages should be installed for this service environment.
+   *
+   * @param extraPackages a list of pip-installable package specifications, such as would be found
+   *     in a requirements file.
+   * @return a Python Service object that will ensure these dependencies are available.
+   */
   public PythonService withExtraPackages(List<String> extraPackages) {
     return new PythonService(
         module,
