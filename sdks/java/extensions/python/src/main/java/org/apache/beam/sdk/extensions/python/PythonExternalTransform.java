@@ -277,6 +277,14 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     return this;
   }
 
+  /**
+   * Specifies that the given Python packages are required for this transform, which will cause them
+   * to be installed in both the construction-time and execution time environment.
+   *
+   * @param extraPackages a list of pip-installable package specifications, such as would be found
+   *     in a requirements file.
+   * @return updated wrapper for the cross-language transform.
+   */
   public PythonExternalTransform<InputT, OutputT> withExtraPackages(List<String> extraPackages) {
     Preconditions.checkState(
         Strings.isNullOrEmpty(expansionService),
