@@ -365,6 +365,8 @@ class SchemaTranslation(object):
       base = self.typing_from_runner_api(base_type)
       if base == Any:
         return base
+      elif isinstance(base, row_type.RowTypeConstraint):
+        return base
       else:
         return Optional[base]
 
