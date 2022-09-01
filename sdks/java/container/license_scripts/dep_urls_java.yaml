@@ -54,7 +54,7 @@ xz:
   '1.5': # The original repo is down. This license is taken from https://tukaani.org/xz/java.html.
     license: "file://{}/xz/COPYING"
 jackson-bom:
-  '2.13.0':
+  '2.13.3':
     license: "https://raw.githubusercontent.com/FasterXML/jackson-bom/master/LICENSE"
     type: "Apache License 2.0"
 junit-dep:

@@ -178,7 +178,7 @@ def option_to_runner_api(
 
 def option_from_runner_api(
     option_proto: schema_pb2.Option,
-    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> type:
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> Tuple[str, Any]:
   return SchemaTranslation(
       schema_registry=schema_registry).option_from_runner_api(option_proto)
 

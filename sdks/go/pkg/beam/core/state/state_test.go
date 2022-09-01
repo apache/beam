@@ -163,6 +163,20 @@ func (s *fakeProvider) WriteMapState(val Transaction) error {
 	return nil
 }
 
+func (s *fakeProvider) ClearMapStateKey(val Transaction) error {
+	if transactions, ok := s.transactions[val.Key]; ok {
+		s.transactions[val.Key] = append(transactions, val)
+	} else {
+		s.transactions[val.Key] = []Transaction{val}
+	}
+	return nil
+}
+
+func (s *fakeProvider) ClearMapState(val Transaction) error {
+	s.transactions[val.Key] = []Transaction{val}
+	return nil
+}
+
 func TestValueRead(t *testing.T) {
 	is := make(map[string]interface{})
 	ts := make(map[string][]Transaction)
@@ -841,6 +855,95 @@ func TestMapPut(t *testing.T) {
 	}
 }
 
+func TestMapRemove(t *testing.T) {
+	var tests = []struct {
+		writes  [][]string
+		removes []string
+		keys    []string
+	}{
+		{[][]string{}, []string{}, []string{}},
+		{[][]string{{"foo", "bar"}, {"foo2", "bar2"}, {"foo3", "bar3"}}, []string{"foo", "foo2"}, []string{"foo3"}},
+		{[][]string{{"foo", "bar"}, {"foo2", "bar2"}, {"foo3", "bar3"}}, []string{"foo", "foo2", "foo"}, []string{"foo3"}},
+		{[][]string{{"foo", "bar"}, {"foo2", "bar2"}, {"foo3", "bar3"}}, []string{"foo", "foo2", "foo3"}, []string{}},
+	}
+
+	for _, tt := range tests {
+		f := fakeProvider{
+			initialState: make(map[string]interface{}),
+			transactions: make(map[string][]Transaction),
+			err:          make(map[string]error),
+		}
+		vs := MakeMapState[string, string]("vs")
+		for _, val := range tt.writes {
+			vs.Put(&f, val[0], val[1])
+		}
+		for _, val := range tt.removes {
+			err := vs.Remove(&f, val)
+			if err != nil {
+				t.Errorf("vs.Remove(%v) returned error %v", val, err)
+			}
+		}
+		val, _, err := vs.Keys(&f)
+		if err != nil {
+			t.Errorf("Map.Keys() returned error %v when it shouldn't have after writing: %v", err, tt.writes)
+		} else if len(val) != len(tt.keys) {
+			t.Errorf("Map.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
+		} else {
+			eq := true
+			for idx, v := range val {
+				if v != tt.keys[idx] {
+					eq = false
+				}
+			}
+			if !eq {
+				t.Errorf("Map.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
+			}
+		}
+	}
+}
+
+func TestMapClear(t *testing.T) {
+	var tests = []struct {
+		writes [][]string
+		keys   []string
+	}{
+		{[][]string{}, []string{}},
+		{[][]string{{"foo", "bar"}, {"foo2", "bar2"}, {"foo3", "bar3"}}, []string{}},
+	}
+
+	for _, tt := range tests {
+		f := fakeProvider{
+			initialState: make(map[string]interface{}),
+			transactions: make(map[string][]Transaction),
+			err:          make(map[string]error),
+		}
+		vs := MakeMapState[string, string]("vs")
+		for _, val := range tt.writes {
+			vs.Put(&f, val[0], val[1])
+		}
+		err := vs.Clear(&f)
+		if err != nil {
+			t.Errorf("vs.Clear() returned error %v", err)
+		}
+		val, _, err := vs.Keys(&f)
+		if err != nil {
+			t.Errorf("Map.Keys() returned error %v when it shouldn't have after writing: %v", err, tt.writes)
+		} else if len(val) != len(tt.keys) {
+			t.Errorf("Map.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
+		} else {
+			eq := true
+			for idx, v := range val {
+				if v != tt.keys[idx] {
+					eq = false
+				}
+			}
+			if !eq {
+				t.Errorf("Map.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
+			}
+		}
+	}
+}
+
 func TestSetContains(t *testing.T) {
 	is := make(map[string]interface{})
 	im := make(map[string]map[string]interface{})
@@ -1005,6 +1108,95 @@ func TestSetAdd(t *testing.T) {
 			t.Errorf("Set.Contains(\"bar\") returned true when it should have returned false after writing: %v", tt.writes)
 		} else if !ok && tt.okBar {
 			t.Errorf("Set.Contains(\"bar\") returned false when it should have returned true after writing: %v", tt.writes)
+		}
+	}
+}
+
+func TestSetRemove(t *testing.T) {
+	var tests = []struct {
+		writes  []string
+		removes []string
+		keys    []string
+	}{
+		{[]string{}, []string{}, []string{}},
+		{[]string{"foo", "foo2", "foo3"}, []string{"foo", "foo2"}, []string{"foo3"}},
+		{[]string{"foo", "foo2", "foo3"}, []string{"foo", "foo2", "foo"}, []string{"foo3"}},
+		{[]string{"foo", "foo2", "foo3"}, []string{"foo", "foo2", "foo3"}, []string{}},
+	}
+
+	for _, tt := range tests {
+		f := fakeProvider{
+			initialState: make(map[string]interface{}),
+			transactions: make(map[string][]Transaction),
+			err:          make(map[string]error),
+		}
+		vs := MakeSetState[string]("vs")
+		for _, val := range tt.writes {
+			vs.Add(&f, val)
+		}
+		for _, val := range tt.removes {
+			err := vs.Remove(&f, val)
+			if err != nil {
+				t.Errorf("vs.Remove(%v) returned error %v", val, err)
+			}
+		}
+		val, _, err := vs.Keys(&f)
+		if err != nil {
+			t.Errorf("Set.Keys() returned error %v when it shouldn't have after writing: %v", err, tt.writes)
+		} else if len(val) != len(tt.keys) {
+			t.Errorf("Set.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
+		} else {
+			eq := true
+			for idx, v := range val {
+				if v != tt.keys[idx] {
+					eq = false
+				}
+			}
+			if !eq {
+				t.Errorf("Set.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
+			}
+		}
+	}
+}
+
+func TestSetClear(t *testing.T) {
+	var tests = []struct {
+		writes []string
+		keys   []string
+	}{
+		{[]string{}, []string{}},
+		{[]string{"foo", "foo2", "foo3"}, []string{}},
+	}
+
+	for _, tt := range tests {
+		f := fakeProvider{
+			initialState: make(map[string]interface{}),
+			transactions: make(map[string][]Transaction),
+			err:          make(map[string]error),
+		}
+		vs := MakeSetState[string]("vs")
+		for _, val := range tt.writes {
+			vs.Add(&f, val)
+		}
+		err := vs.Clear(&f)
+		if err != nil {
+			t.Errorf("vs.Clear() returned error %v", err)
+		}
+		val, _, err := vs.Keys(&f)
+		if err != nil {
+			t.Errorf("Set.Keys() returned error %v when it shouldn't have after writing: %v", err, tt.writes)
+		} else if len(val) != len(tt.keys) {
+			t.Errorf("Set.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
+		} else {
+			eq := true
+			for idx, v := range val {
+				if v != tt.keys[idx] {
+					eq = false
+				}
+			}
+			if !eq {
+				t.Errorf("Set.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
+			}
 		}
 	}
 }
