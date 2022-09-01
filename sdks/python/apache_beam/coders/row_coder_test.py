@@ -58,7 +58,14 @@ NullablePerson = typing.NamedTuple(
      ("favorite_time", typing.Optional[Timestamp]),
      ("one_more_field", typing.Optional[str])])
 
+
+class People(typing.NamedTuple):
+  primary: Person
+  partner: typing.Optional[Person]
+
+
 coders_registry.register_coder(Person, RowCoder)
+coders_registry.register_coder(People, RowCoder)
 
 
 class RowCoderTest(unittest.TestCase):
@@ -120,6 +127,19 @@ class RowCoderTest(unittest.TestCase):
 
       self.assertEqual(
           test_case, real_coder.decode(real_coder.encode(test_case)))
+
+  def test_create_row_coder_from_nested_named_tuple(self):
+    expected_coder = RowCoder(typing_to_runner_api(People).row_type.schema)
+    real_coder = coders_registry.get_coder(People)
+
+    for primary in self.PEOPLE:
+      for other in self.PEOPLE + [None]:
+        test_case = People(primary=primary, partner=other)
+        self.assertEqual(
+            expected_coder.encode(test_case), real_coder.encode(test_case))
+
+        self.assertEqual(
+            test_case, real_coder.decode(real_coder.encode(test_case)))
 
   def test_create_row_coder_from_schema(self):
     schema = schema_pb2.Schema(
