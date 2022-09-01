@@ -1,0 +1,69 @@
+name: Verify Release Build
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE_VER:
+        description: Beam version of current release
+        required: true
+env:
+  WORKING_BRANCH: postcommit_validation_pr # Is it always the same branch name? or should we need to add it as input?
+jobs:
+  check_environment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check environment
+        id: check_env_vars
+        env:
+          RELEASE_BRANCH: ${{ release-$RELEASE_VER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Verify release build against branch: $RELEASE_BRANCH."
+          echo "Verify hub installation."
+          hub version
+          git version
+  create_release_pr:
+    needs: check_environment
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "[Current Task] Run Gradle release build and all PostCommit Tests against Release Branch on Jenkins."
+          echo "This task will create a PR against apache/beam."
+      - name: Check out code
+        uses: actions/checkout@v3
+          ref: ${{ $RELEASE_BRANCH }}
+      - name:  Set Dataflow Python Batch Tests Release Version
+        # Commenting for the moment: sh ./set_version.sh $RELEASE_VER --git-add instead of echo "This is a test." >> TEST_FILE.md
+        run: |
+          git checkout -b $WORKING_BRANCH --quiet
+          echo "This is a test." >> TEST_FILE.md
+          git add TEST_FILE.md
+          # In case the version string was not changed, append a newline to CHANGES.md
+          echo "" >> CHANGES.md
+          git add CHANGES.md
+          git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
+          git push origin $WORKING_BRANCH --quiet
+          hub pull-request -F- <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch
+          You can run many tests automatically using release/src/main/scripts/mass_comment.py."
+          echo "[NOTE]: Please make sure all test targets have been invoked."
+          echo "Please check the test results. If there is any failure, follow the policy in release guide."
+        working-directory: 'release/src/main/scripts'
+
+#  trigger_phrases:
+#    needs: create_testing_pr
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Trigger beam_Release_Gradle_Build and PostCommit jobs # Pending to include tests migrated to GH Actions (by Wizeline team)
+#        run: |
+#         sh ./mass_comment.py
+#        working-directory: 'release/src/main/scripts'
+
+# Commenting this clean-up step 'cause I think this step is not needed, as the final self-hosted implementation has ephemeral runners.
+#  clean-up:
+#    if: always()
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Clean Temporal Directory
+#        run: |
+#          echo "==================== Final Cleanup ===================="
+#          rm -rf $LOCAL_BEAM_DIR
+#          echo "* Deleted workspace ${LOCAL_BEAM_DIR}"
