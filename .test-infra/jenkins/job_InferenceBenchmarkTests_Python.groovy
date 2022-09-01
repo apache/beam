@@ -53,7 +53,7 @@ def loadTestConfigurations = {
         input                 : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
         // TODO: make sure the model_state_dict_path weights are accurate.
         model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet101.pth',
-        output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_' + now + '.txt'
+        output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_101' + now + '.txt'
       ]
     ],
     [
@@ -81,7 +81,7 @@ def loadTestConfigurations = {
         input                 : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
         // TODO: make sure the model_state_dict_path weights are accurate.
         model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet152.pth',
-        output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_' + now + '.txt'
+        output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_resnet152' + now + '.txt'
       ]
     ],
     // Pytorch language modeling test using HuggingFace BERT models
@@ -110,7 +110,7 @@ def loadTestConfigurations = {
         // TODO: make sure the model_state_dict_path weights are accurate.
         bert_tokenizer        : 'bert-base-uncased',
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-base-uncased.pth',
-        output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_' + now + '.txt',
+        output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_bert_base_uncased' + now + '.txt',
       ]
     ],
     [
@@ -138,7 +138,7 @@ def loadTestConfigurations = {
         // TODO: make sure the model_state_dict_path weights are accurate.
         bert_tokenizer        : 'bert-large-uncased',
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-large-uncased.pth',
-        output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_' + now + '.txt'
+        output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_bert_large_uncased' + now + '.txt'
       ]
     ],
   ]
