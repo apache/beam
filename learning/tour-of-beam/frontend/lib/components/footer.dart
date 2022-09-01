@@ -60,6 +60,7 @@ class _Body extends StatelessWidget {
           top: BorderSide(color: ThemeColors.of(context).divider),
         ),
       ),
+      height: TobSizes.footerHeight,
       width: double.infinity,
       child: child,
     );

@@ -40,10 +40,10 @@ class WelcomeScreen extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    Flexible(
+                    Expanded(
                       child: _SdkSelection(),
                     ),
-                    Flexible(
+                    Expanded(
                       child: _TourSummary(),
                     ),
                   ],
@@ -65,7 +65,12 @@ class _SdkSelection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
+    return Container(
+      constraints: BoxConstraints(
+        minHeight: MediaQuery.of(context).size.height -
+            TobSizes.appBarHeight -
+            TobSizes.footerHeight,
+      ),
       color: ThemeColors.of(context).background,
       child: Stack(
         children: [
@@ -73,7 +78,10 @@ class _SdkSelection extends StatelessWidget {
             bottom: 0,
             left: 0,
             right: 0,
-            child: Image.asset(TobAssets.welcomeLaptop),
+            // TODO(nausharipov): use flutter_gen after merging
+            child: Theme.of(context).brightness == Brightness.dark
+                ? Image.asset(TobAssets.laptopDark)
+                : Image.asset(TobAssets.laptopLight),
           ),
           const SizedBox(height: 900),
           Padding(

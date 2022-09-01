@@ -28,5 +28,7 @@ class TobAssets {
   static final beamLogo = _getPngPath('beam-logo');
   static final themeMode = _getSvgPath('theme-mode');
   static final welcomeLaptop = _getPngPath('welcome-laptop');
+  static final laptopDark = _getPngPath('laptop-dark');
+  static final laptopLight = _getPngPath('laptop-light');
   static final welcomeProgress0 = _getSvgPath('welcome-progress-0');
 }

@@ -31,6 +31,7 @@ class TobSizes {
   static const double size36 = 36;
   static const double size40 = 40;
   static const double appBarHeight = 55;
+  static const double footerHeight = 30;
   static const double authOverlayWidth = 300;
 }
 
