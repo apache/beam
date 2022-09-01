@@ -2618,19 +2618,19 @@ export interface StandardProtocols {
  */
 export enum StandardProtocols_Enum {
     /**
-     * Indicates suport for progress reporting via the legacy Metrics proto.
+     * Indicates support for progress reporting via the legacy Metrics proto.
      *
      * @generated from protobuf enum value: LEGACY_PROGRESS_REPORTING = 0;
      */
     LEGACY_PROGRESS_REPORTING = 0,
     /**
-     * Indicates suport for progress reporting via the new MonitoringInfo proto.
+     * Indicates support for progress reporting via the new MonitoringInfo proto.
      *
      * @generated from protobuf enum value: PROGRESS_REPORTING = 1;
      */
     PROGRESS_REPORTING = 1,
     /**
-     * Indicates suport for worker status protocol defined at
+     * Indicates support for worker status protocol defined at
      * https://s.apache.org/beam-fn-api-harness-status.
      *
      * @generated from protobuf enum value: WORKER_STATUS = 2;
@@ -2685,7 +2685,7 @@ export interface StandardRunnerProtocols {
  */
 export enum StandardRunnerProtocols_Enum {
     /**
-     * Indicates suport the MonitoringInfo short id protocol.
+     * Indicates support the MonitoringInfo short id protocol.
      *
      * @generated from protobuf enum value: MONITORING_INFO_SHORT_IDS = 0;
      */
