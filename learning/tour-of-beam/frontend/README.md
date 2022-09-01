@@ -30,7 +30,7 @@
 
  # Tests
  Install ChromeDriver to run integration tests in a browser: https://docs.flutter.dev/testing/integration-tests#running-in-a-browser
- Run integration tests: 
+ Run integration tests:
  flutter drive \
    --driver=test_driver/integration_test.dart \
    --target=integration_test/counter_test.dart \
