@@ -17,7 +17,7 @@
  */
 
 /**
- * Unit tests for Python 3.9
+ * Unit tests for Python 3.10
  */
 
 plugins { id 'org.apache.beam.module' }
