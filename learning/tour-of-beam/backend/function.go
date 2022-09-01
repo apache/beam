@@ -157,14 +157,13 @@ func getUnitContent(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 	unitId := r.URL.Query().Get("unitId")
 
 	unit, err := svc.GetUnitContent(r.Context(), sdk, unitId, nil /*TODO userId*/)
+	if err == service.ErrNoUnit {
+		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
+		return
+	}
 	if err != nil {
 		log.Println("Get unit content error:", err)
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
-		return
-	}
-	if unit == nil {
-		log.Println("Get unit content error:", err)
-		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
 		return
 	}
 
