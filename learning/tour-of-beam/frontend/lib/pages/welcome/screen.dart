@@ -36,18 +36,16 @@ class WelcomeScreen extends StatelessWidget {
     return PageContainer(
       child: SingleChildScrollView(
         child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
-            ? IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Expanded(
-                      child: _SdkSelection(),
-                    ),
-                    Expanded(
-                      child: _TourSummary(),
-                    ),
-                  ],
-                ),
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Expanded(
+                    child: _SdkSelection(),
+                  ),
+                  Expanded(
+                    child: _TourSummary(),
+                  ),
+                ],
               )
             : Column(
                 children: const [
