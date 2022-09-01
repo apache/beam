@@ -37,7 +37,6 @@ import java.util.concurrent.ExecutionException;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecordBase;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificData;
