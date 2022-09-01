@@ -36,24 +36,42 @@ class WelcomeScreen extends StatelessWidget {
     return PageContainer(
       child: SingleChildScrollView(
         child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
-            ? Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Expanded(
-                    child: _SdkSelection(),
-                  ),
-                  Expanded(
-                    child: _TourSummary(),
-                  ),
-                ],
-              )
-            : Column(
-                children: const [
-                  _SdkSelection(),
-                  _TourSummary(),
-                ],
-              ),
+            ? const _WideWelcome()
+            : const _NarrowWelcome(),
       ),
+    );
+  }
+}
+
+class _WideWelcome extends StatelessWidget {
+  const _WideWelcome();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        Expanded(
+          child: _SdkSelection(),
+        ),
+        Expanded(
+          child: _TourSummary(),
+        ),
+      ],
+    );
+  }
+}
+
+class _NarrowWelcome extends StatelessWidget {
+  const _NarrowWelcome();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: const [
+        _SdkSelection(),
+        _TourSummary(),
+      ],
     );
   }
 }
