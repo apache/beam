@@ -27,9 +27,6 @@
  Run the app: `flutter run --web-renderer html`
 
  # Deployment
- To regenerate assets in playground_components: 
- `cd playground/frontend/playground_components`
- `flutter packages pub run build_runner build`
 
  # Tests
  Install ChromeDriver to run integration tests in a browser: https://docs.flutter.dev/testing/integration-tests#running-in-a-browser
@@ -42,14 +39,9 @@
  # Packages
  `flutter pub get`
 
- ## Flutter_gen asset generator
- Installation manual: https://pub.dev/packages/flutter_gen
- To generate assets: `flutter packages pub run build_runner build`
-
  # Contribution guide
  For checks: `./gradlew rat`
 
  # Additional resources
 
  # Troubleshooting
- 
