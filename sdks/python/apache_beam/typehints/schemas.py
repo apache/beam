@@ -647,3 +647,9 @@ class NoArgumentLogicalType(LogicalType[LanguageT, RepresentationT, None]):
     # Since there's no argument, there can be no additional information encoded
     # in the typing. Just construct an instance.
     return cls()
+
+
+# pylint: disable=wrong-import-position, unused-import
+# register standard and common logical types
+import apache_beam.typehints.logical_types
+# pylint: enable=wrong-import-position, unused-import
