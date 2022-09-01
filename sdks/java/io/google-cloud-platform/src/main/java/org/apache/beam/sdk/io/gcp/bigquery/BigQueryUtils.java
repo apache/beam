@@ -567,12 +567,18 @@ public class BigQueryUtils {
 
       case INT16:
       case INT32:
-      case INT64:
       case FLOAT:
-      case DOUBLE:
-      case STRING:
       case BOOLEAN:
+      case DOUBLE:
+        // The above types have native representations in JSON for all their
+        // possible values.
+        return fieldValue;
+
+      case STRING:
+      case INT64:
       case DECIMAL:
+        // The above types must be cast to string to be safely encoded in
+        // JSON (due to JSON's float-based representation of all numbers).
         return fieldValue.toString();
 
       case BYTES:
