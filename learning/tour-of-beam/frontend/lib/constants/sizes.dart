@@ -53,3 +53,7 @@ class ScreenSizes {
   // TODO(nausharipov): name better
   static const medium = 1024;
 }
+
+class ScreenBreakpoints {
+  static const twoColumns = ScreenSizes.medium;
+}

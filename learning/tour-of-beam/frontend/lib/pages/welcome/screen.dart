@@ -35,7 +35,7 @@ class WelcomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return PageContainer(
       child: SingleChildScrollView(
-        child: MediaQuery.of(context).size.width > ScreenSizes.medium
+        child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
             ? IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
