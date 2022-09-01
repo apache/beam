@@ -37,6 +37,9 @@ from apache_beam.utils import proto_utils
 
 __all__ = []
 
+# Get major, minor version
+PYARROW_VERSION = tuple(map(int, pa.__version__.split('.')[0:2]))
+
 BEAM_SCHEMA_ID_KEY = b'beam:schema_id'
 BEAM_OPTION_KEY_PREFIX = b'beam:option:'
 
@@ -104,9 +107,7 @@ def _beam_fieldtype_from_arrow_type(
                 arrow_type.value_field)))
   elif isinstance(arrow_type, pa.MapType):
     return schema_pb2.FieldType(
-        map_type=schema_pb2.MapType(
-            key_type=_beam_fieldtype_from_arrow_field(arrow_type.key_field),
-            value_type=_beam_fieldtype_from_arrow_field(arrow_type.item_field)))
+        map_type=_arrow_map_to_beam_map(arrow_type))
   elif isinstance(arrow_type, pa.StructType):
     # TODO
     pass
@@ -177,6 +178,47 @@ def _arrow_field_from_beam_fieldtype(
       metadata=metadata,
   )
 
+if PYARROW_VERSION < (6, 0):
+  # In pyarrow < 6.0.0 we cannot construct a MapType object from Field
+  # instances, pa.map_ will only accept DataType instances. This makes it
+  # impossible to propagate nullability.
+  #
+  # Note this was changed in:
+  # https://github.com/apache/arrow/commit/64bef2ad8d9cd2fea122cfa079f8ca3fea8cdf5d
+  #
+  # Here we define a custom arrow map conversion function to handle these cases
+  # and error as appropriate.
+
+  OPTIONS_WARNING = (
+      "Beam options will not be propagated to arrow schema. If options must be "
+      "propagated please use pyarrow>=6.0.0. Dropped options\n:{option}")
+  def _make_arrow_map(beam_map_type: schema_pb2.MapType):
+    if beam_map_type.key_type.nullable:
+      raise TypeError('Arrow map key field cannot be nullable')
+    elif beam_map_type.value_type.nullable:
+      raise TypeError("pyarrow<6 does not support creating maps with nullable "
+                       "values. Please use pyarrow>=6.0.0")
+
+    return pa.map_(
+        _arrow_type_from_beam_fieldtype(beam_map_type.key_type),
+        _arrow_type_from_beam_fieldtype(beam_map_type.value_type))
+
+  def _arrow_map_to_beam_map(arrow_map_type):
+    return schema_pb2.MapType(
+        key_type=_beam_fieldtype_from_arrow_type(arrow_map_type.key_type),
+        value_type=_beam_fieldtype_from_arrow_type(arrow_map_type.item_type))
+
+else:
+  def _make_arrow_map(beam_map_type: schema_pb2.MapType):
+    return pa.map_(
+        _arrow_field_from_beam_fieldtype(beam_map_type.key_type),
+        _arrow_field_from_beam_fieldtype(beam_map_type.value_type))
+
+  def _arrow_map_to_beam_map(arrow_map_type):
+    return schema_pb2.MapType(
+        key_type=_beam_fieldtype_from_arrow_field(arrow_map_type.key_field),
+        value_type=_beam_fieldtype_from_arrow_field(arrow_map_type.item_field))
+
 
 def _arrow_type_from_beam_fieldtype(
     beam_fieldtype: schema_pb2.FieldType,
@@ -195,9 +237,7 @@ def _arrow_type_from_beam_fieldtype(
         _arrow_field_from_beam_fieldtype(
             beam_fieldtype.array_type.element_type))
   elif type_info == "map_type":
-    output_arrow_type = pa.map_(
-        _arrow_field_from_beam_fieldtype(beam_fieldtype.map_type.key_type),
-        _arrow_field_from_beam_fieldtype(beam_fieldtype.map_type.value_type))
+    output_arrow_type = _make_arrow_map(beam_fieldtype.map_type)
   elif type_info == "row_type":
     schema = beam_fieldtype.row_type.schema
     # TODO: What about the schema ID?
