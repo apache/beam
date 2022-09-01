@@ -31,10 +31,18 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecordBase;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
+import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.reflect.ReflectDatumReader;
+import org.apache.avro.specific.SpecificData;
+import org.apache.avro.specific.SpecificRecord;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -548,7 +556,8 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   @Test
-  public void testReadTableWithReaderDatumFactory() throws IOException, InterruptedException {
+  public void testReadTableWithDefaultReaderDatumFactory()
+      throws IOException, InterruptedException {
     // setup
     Table someTable = new Table();
     someTable.setSchema(
