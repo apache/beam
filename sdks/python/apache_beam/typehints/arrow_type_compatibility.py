@@ -109,8 +109,7 @@ def _beam_fieldtype_from_arrow_type(
     return schema_pb2.FieldType(
         map_type=_arrow_map_to_beam_map(arrow_type))
   elif isinstance(arrow_type, pa.StructType):
-    # TODO
-    pass
+    raise NotImplementedError("TODO: Nested structs")
   else:
     raise ValueError(f"Unrecognized arrow type: {arrow_type!r}")
 
