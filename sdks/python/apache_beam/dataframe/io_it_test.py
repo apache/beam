@@ -22,6 +22,7 @@
 
 import logging
 import unittest
+
 import pytest
 
 import apache_beam.io.gcp.bigquery
