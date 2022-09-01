@@ -616,7 +616,8 @@ public class BigQueryIO {
    * each row of the table or query result. This API directly deserializes BigQuery AVRO data to the
    * input class, based on the appropriate {@link org.apache.avro.io.DatumReader}.
    *
-   * <p>Use {@link TypedRead#withAvroReader(AvroSource.DatumReaderFactory, Function)} to provide a custom datumReader instead.</p>
+   * <p>Use {@link TypedRead#withAvroReader(AvroSource.DatumReaderFactory, SerializableFunction)} to provide a
+   * custom datumReader instead.
    *
    * <pre>{@code
    * class ClickEvent { long userId; String url; ... }
@@ -1614,8 +1615,11 @@ public class BigQueryIO {
       return provider == null ? null : provider.get();
     }
 
-    /** Sets a custom {@link org.apache.avro.io.DatumReader} and reader {@link org.apache.avro.Schema} to directly
-     * deserialize Avro records to the target class. Meant to be used only along with {@link TypedRead#read(Class)} API.*/
+    /**
+     * Sets a custom {@link org.apache.avro.io.DatumReader} and reader {@link
+     * org.apache.avro.Schema} to directly deserialize Avro records to the target class. Meant to be
+     * used only along with {@link TypedRead#read(Class)} API.
+     */
     public TypedRead<T> withAvroReader(
         AvroSource.DatumReaderFactory<T> datumReaderFactory,
         SerializableFunction<Class<T>, org.apache.avro.Schema> avroSchemaFunction) {

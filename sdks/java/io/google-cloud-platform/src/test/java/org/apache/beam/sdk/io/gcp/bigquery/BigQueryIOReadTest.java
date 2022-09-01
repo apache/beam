@@ -27,6 +27,13 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.bigtable.v2.Mutation;
 import com.google.protobuf.ByteString;
+import java.io.IOException;
+import java.io.Serializable;
+import java.math.BigInteger;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificData;
@@ -675,7 +682,7 @@ public class BigQueryIOReadTest implements Serializable {
             .withoutValidation()
             .withAvroReader(
                 (AvroSource.DatumReaderFactory<User2>)
-                    (writer, reader)  -> new ReflectDatumReader<>(writer, reader),
+                    (writer, reader) -> new ReflectDatumReader<>(writer, reader),
                 input -> ReflectData.get().getSchema(input))
             .withCoder(SerializableCoder.of(User2.class));
 

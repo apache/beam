@@ -100,11 +100,11 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       AvroSource.DatumReaderFactory<T> factory,
       String avroSchema,
       boolean useAvroLogicalTypes) {
-    this.stepUuid = checkNotNull(stepUuid, "stepUuid");
-    this.bqServices = checkNotNull(bqServices, "bqServices");
-    this.coder = checkNotNull(coder, "coder");
-    this.factory = checkNotNull(factory, "datumReaderFactory");
-    this.avroSchema = checkNotNull(avroSchema, "avroSchema");
+    this.stepUuid = checkArgumentNotNull(stepUuid, "stepUuid");
+    this.bqServices = checkArgumentNotNull(bqServices, "bqServices");
+    this.coder = checkArgumentNotNull(coder, "coder");
+    this.factory = checkArgumentNotNull(factory, "datumReaderFactory");
+    this.avroSchema = checkArgumentNotNull(avroSchema, "avroSchema");
     this.useAvroLogicalTypes = useAvroLogicalTypes;
   }
 
