@@ -34,7 +34,7 @@ def loadTestArgsProperty = "loadTest.args"
 def runnerProperty = "runner"
 def withDataflowWorkerJarProperty = "withDataflowWorkerJar"
 
-def requirementsFileProperty = "loadTest.requirementsFile"
+def requirementsTxtFileProperty = "loadTest.requirementsTxtFile"
 
 task run(type: Exec, dependsOn: installGcpTest) {
     def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
@@ -51,13 +51,13 @@ task run(type: Exec, dependsOn: installGcpTest) {
         loadTestArgs +=" --dataflow_worker_jar=${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}"
     }
 
-    String requirementsFileArg = project.findProperty(requirementsFileProperty) ?: null
-    if (requirementsFileArg != null) {
+    String requirementsTxtFileArg = project.findProperty(requirementsTxtFileProperty) ?: null
+    if (requirementsTxtFileArg != null) {
     doFirst {
         exec {
           setWorkingDir "${project.rootDir}/sdks/python"
           executable 'sh'
-          args '-c', "${project.ext.envdir}/bin/python -m pip install -r ${requirementsFileArg}"
+          args '-c', "${project.ext.envdir}/bin/python -m pip install -r ${requirementsTxtFileArg}"
         }
      }
    }

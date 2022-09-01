@@ -43,7 +43,7 @@ class LoadTestsBuilder {
 
 
   static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options,
-      String mainClass, List<String> jobSpecificSwitches = null, String requirementsFile = null) {
+      String mainClass, List<String> jobSpecificSwitches = null, String requirementsTxtFile = null) {
     options.put('runner', runner.option)
     InfluxDBCredentialsHelper.useCredentials(context)
 
@@ -52,7 +52,7 @@ class LoadTestsBuilder {
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         setGradleTask(delegate, runner, sdk, options, mainClass,
-            jobSpecificSwitches, requirementsFile)
+            jobSpecificSwitches, requirementsTxtFile)
         commonJobProperties.setGradleSwitches(delegate)
       }
     }
@@ -92,13 +92,13 @@ class LoadTestsBuilder {
   }
 
   private static void setGradleTask(context, Runner runner, SDK sdk, Map<String, ?> options,
-      String mainClass, List<String> jobSpecificSwitches, String requirementsFile = null) {
+      String mainClass, List<String> jobSpecificSwitches, String requirementsTxtFile = null) {
     context.tasks(getGradleTaskName(sdk))
     context.switches("-PloadTest.mainClass=\"${mainClass}\"")
     context.switches("-Prunner=${runner.getDependencyBySDK(sdk)}")
     context.switches("-PloadTest.args=\"${parseOptions(options)}\"")
-    if (requirementsFile != null){
-      context.switches("-PloadTest.requirementsFile=\"${requirementsFile}\"")
+    if (requirementsTxtFile != null){
+      context.switches("-PloadTest.requirementsTxtFile=\"${requirementsTxtFile}\"")
     }
     if (jobSpecificSwitches != null) {
       jobSpecificSwitches.each {
