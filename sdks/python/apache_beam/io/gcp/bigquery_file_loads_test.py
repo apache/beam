@@ -917,14 +917,13 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     schema = self.BIG_QUERY_STREAMING_SCHEMA
     l = [{'Integr': i} for i in range(_SIZE)]
 
-    state_matcher = PipelineStateMatcher(PipelineState.RUNNING)
     bq_matcher = BigqueryFullResultStreamingMatcher(
         project=self.project,
         query="SELECT Integr FROM %s" % output_table,
-        data=[(i, ) for i in range(100)])
+        data=[(i, ) for i in range(100)],
+        timeout=30)
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(state_matcher, bq_matcher),
         streaming=True,
         allow_unsafe_triggers=True)
     with beam.Pipeline(argv=args) as p:
@@ -946,6 +945,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                                         .Method.FILE_LOADS,
                                       triggering_frequency=100))
 
+    hamcrest_assert(p, bq_matcher)
+
   @pytest.mark.it_postcommit
   def test_bqfl_streaming_with_copy_jobs(self):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
@@ -955,14 +956,12 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     schema = self.BIG_QUERY_STREAMING_SCHEMA
     l = [{'Integr': i} for i in range(_SIZE)]
 
-    state_matcher = PipelineStateMatcher(PipelineState.RUNNING)
     bq_matcher = BigqueryFullResultStreamingMatcher(
       project=self.project,
       query="SELECT Integr FROM %s" % output_table,
       data=[(i,) for i in range(100)])
 
     args = self.test_pipeline.get_full_options_as_args(
-      on_success_matcher=all_of(state_matcher, bq_matcher),
       streaming=True,
       allow_unsafe_triggers=True)
 
@@ -990,25 +989,32 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                                       .Method.FILE_LOADS,
                                       triggering_frequency=100))
 
+    hamcrest_assert(p, bq_matcher)
+
   @pytest.mark.it_postcommit
   def test_bqfl_streaming_with_dynamic_destinations(self):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
       self.skipTest("TestStream is not supported on TestDataflowRunner")
-    self.output_table = "google.com:clouddfe:ahmedabualsaud_test.bqfl_stream_test"
-    prefix = self.output_table
-    output_table = lambda row: '%s_%s' % (prefix, f"dynamic_destination_{row['Integr'] % 2}")
+    # self.output_table = "ahmedabualsaud_test.bq_fl_stream_test"
+    even_table = '%s_%s' % (self.output_table, "dynamic_dest_0")
+    odd_table = '%s_%s' % (self.output_table, "dynamic_dest_1")
+    output_table = lambda row: even_table if (row['Integr'] % 2 == 0) else odd_table
     _SIZE = 100
     schema = self.BIG_QUERY_STREAMING_SCHEMA
     l = [{'Integr': i} for i in range(_SIZE)]
 
-    state_matcher = PipelineStateMatcher(PipelineState.RUNNING)
-    bq_matcher = BigqueryFullResultStreamingMatcher(
-      project=self.project,
-      query="SELECT Integr FROM %s" % output_table,
-      data=[(i,) for i in range(90)])
+    pipeline_verifiers = [
+      BigqueryFullResultStreamingMatcher(
+        project=self.project,
+        query="SELECT Integr FROM %s" % even_table,
+        data=[(i,) for i in range(0, 100, 2)]),
+      BigqueryFullResultStreamingMatcher(
+        project=self.project,
+        query="SELECT Integr FROM %s" % odd_table,
+        data=[(i,) for i in range(1, 100, 2)])
+    ]
 
     args = self.test_pipeline.get_full_options_as_args(
-      on_success_matcher=all_of(state_matcher, bq_matcher),
       streaming=True,
       allow_unsafe_triggers=True)
 
@@ -1031,6 +1037,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                                       method=bigquery.WriteToBigQuery \
                                       .Method.FILE_LOADS,
                                       triggering_frequency=100))
+    hamcrest_assert(p, all_of(*pipeline_verifiers))
 
   @pytest.mark.it_postcommit
   def test_one_job_fails_all_jobs_fail(self):
