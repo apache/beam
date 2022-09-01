@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -88,6 +89,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   private PythonExternalTransform(String fullyQualifiedName, String expansionService) {
     this.fullyQualifiedName = fullyQualifiedName;
     this.expansionService = expansionService;
+    this.extraPackages = new ArrayList<>();
     this.kwargsMap = new TreeMap<>();
     this.typeHints = new HashMap<>();
     // TODO(https://github.com/apache/beam/issues/21567): remove a default type hint for
