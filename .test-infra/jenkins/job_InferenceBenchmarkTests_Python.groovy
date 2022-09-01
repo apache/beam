@@ -27,7 +27,6 @@ def loadTestConfigurations = {
   ->
   [
     // Benchmark test config. Add multiple configs for multiple models.
-    // (TODO): Add model name to experiments once decided on which models to use.
     [
       title             : 'Pytorch Vision Classification with Resnet 101',
       test              : 'apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks',
@@ -47,11 +46,8 @@ def loadTestConfigurations = {
         influx_measurement    : 'torch_inference_imagenet_resnet101',
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-        // args defined in the performance test
         pretrained_model_name : 'resnet101',
-        // args defined in the example.
         input                 : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
-        // TODO: make sure the model_state_dict_path weights are accurate.
         model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet101.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_101' + now + '.txt'
       ]
@@ -75,11 +71,8 @@ def loadTestConfigurations = {
         influx_measurement    : 'torch_inference_imagenet_resnet152',
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-        // args defined in the performance test
         pretrained_model_name : 'resnet152',
-        // args defined in the example.
         input                 : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
-        // TODO: make sure the model_state_dict_path weights are accurate.
         model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet152.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_resnet152' + now + '.txt'
       ]
@@ -105,9 +98,7 @@ def loadTestConfigurations = {
         influx_measurement    : 'torch_language_modeling_bert_base_uncased',
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-        // args defined in the example.
         input                 : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
-        // TODO: make sure the model_state_dict_path weights are accurate.
         bert_tokenizer        : 'bert-base-uncased',
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-base-uncased.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_bert_base_uncased' + now + '.txt',
@@ -133,9 +124,7 @@ def loadTestConfigurations = {
         influx_measurement    : 'torch_language_modeling_bert_large_uncased',
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-        // args defined in the example.
         input                 : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
-        // TODO: make sure the model_state_dict_path weights are accurate.
         bert_tokenizer        : 'bert-large-uncased',
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-large-uncased.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_bert_large_uncased' + now + '.txt'
