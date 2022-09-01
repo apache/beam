@@ -48,7 +48,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -193,7 +192,7 @@ public class RemoteExecutionTest implements Serializable {
   private transient Future<?> sdkHarnessExecutorFuture;
 
   private static class LogCapturer implements LogWriter {
-    ConcurrentLinkedQueue<BeamFnApi.LogEntry> capturedLogs = new ConcurrentLinkedQueue<>();
+    List<BeamFnApi.LogEntry> capturedLogs = Collections.synchronizedList(new ArrayList<>());
 
     @Override
     public void log(BeamFnApi.LogEntry entry) {
