@@ -49,10 +49,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.google.common.reflect.TypeToken;
-import java.lang.reflect.Type;
-import com.google.common.reflect.TypeToken;
-import java.lang.reflect.Type;
 
 /**
  * An abstract {@link BoundedSource} to read a table from BigQuery.
@@ -274,7 +270,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
 
     final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(schema);
 
-    if(parseFn == null && factory == null) {
+    if (parseFn == null && factory == null) {
       throw new IllegalArgumentException("Either parseFn or factory should be provided!");
     }
 
@@ -304,9 +300,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
         } else {
           avroSources.add(
               (AvroSource<T>)
-                  AvroSource.from(file)
-                      .withSchema(avroSchema)
-                      .withDatumReaderFactory(factory));
+                  AvroSource.from(file).withSchema(avroSchema).withDatumReaderFactory(factory));
         }
       }
     } else {

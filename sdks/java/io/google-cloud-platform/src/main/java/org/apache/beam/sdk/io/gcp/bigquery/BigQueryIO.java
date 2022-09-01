@@ -56,6 +56,10 @@ import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
+import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.reflect.ReflectDatumReader;
+import org.apache.avro.specific.SpecificData;
+import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -609,19 +613,47 @@ public class BigQueryIO {
 
   /**
    * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
-   * each row of the table or query result, where the custom {@link org.apache.avro.io.DatumReader}
-   * implementation is used to parse from the BigQuery AVRO format.
+   * each row of the table or query result. This API directly deserializes BigQuery AVRO data to the
+   * input class, based on the appropriate {@link org.apache.avro.io.DatumReader}.
    *
-   * <p> This API allows direct deserialization of AVRO data to the target class.
+   * <p>Use {@link TypedRead#withAvroReader(AvroSource.DatumReaderFactory, Function)} to provide a custom datumReader instead.</p>
+   *
+   * <pre>{@code
+   * class ClickEvent { long userId; String url; ... }
+   *
+   * p.apply(BigQueryIO.read(ClickEvent.class)).from("...")
+   * .withAvroReader((AvroSource.DatumReaderFactory<ClickEvent>) (writer, reader)  -> new ReflectDatumReader<>(writer, reader),
+   * input -> ReflectData.get().getSchema(input)));
+   * }</pre>
    */
-  public static <T> TypedRead<T> readWithDatumReader(
-      AvroSource.DatumReaderFactory<T> factory, org.apache.avro.Schema readerSchema) {
+  public static <T> TypedRead<T> read(Class<T> clazz) {
+    checkArgument(clazz != null, "Input class cannot be null!");
+
+    AvroSource.DatumReaderFactory<T> factory = null;
+    SerializableFunction<Class<T>, org.apache.avro.Schema> schemafunction = null;
+    if (SpecificData.class.isAssignableFrom(clazz)) {
+      factory =
+          (AvroSource.DatumReaderFactory<T>)
+              (writer, reader) -> new SpecificDatumReader<>(writer, reader);
+      schemafunction =
+          (SerializableFunction<Class<T>, org.apache.avro.Schema>)
+              input -> SpecificData.get().getSchema(clazz);
+    } else {
+      factory =
+          (AvroSource.DatumReaderFactory<T>)
+              (writer, reader) -> new ReflectDatumReader<>(writer, reader);
+      schemafunction =
+          (SerializableFunction<Class<T>, org.apache.avro.Schema>)
+              input -> ReflectData.get().getSchema(clazz);
+    }
+
     return new AutoValue_BigQueryIO_TypedRead.Builder<T>()
         .setValidate(true)
         .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
-        .setReaderDatumFactory(factory)
-        .setAvroSchema(readerSchema.toString())
+        .setDestinationClass(clazz)
+        .setDatumReaderFactory(factory)
+        .setAvroSchemaFunction(schemafunction)
         .setMethod(TypedRead.Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.AVRO)
@@ -827,9 +859,12 @@ public class BigQueryIO {
 
       abstract Builder<T> setParseFn(SerializableFunction<SchemaAndRecord, T> parseFn);
 
-      abstract Builder<T> setReaderDatumFactory(AvroSource.DatumReaderFactory<T> factory);
+      abstract Builder<T> setDestinationClass(Class<T> clazz);
 
-      abstract Builder<T> setAvroSchema(String avroSchema);
+      abstract Builder<T> setDatumReaderFactory(AvroSource.DatumReaderFactory<T> factory);
+
+      abstract Builder<T> setAvroSchemaFunction(
+          SerializableFunction<Class<T>, org.apache.avro.Schema> avroSchemaFunction);
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
@@ -865,9 +900,12 @@ public class BigQueryIO {
 
     abstract @Nullable SerializableFunction<SchemaAndRecord, T> getParseFn();
 
-    abstract AvroSource.@Nullable DatumReaderFactory<T> getReaderDatumFactory();
+    abstract Class<T> getDestinationClass();
 
-    abstract @Nullable String getAvroSchema();
+    abstract AvroSource.@Nullable DatumReaderFactory<T> getDatumReaderFactory();
+
+    abstract @Nullable SerializableFunction<Class<T>, org.apache.avro.Schema>
+        getAvroSchemaFunction();
 
     abstract @Nullable QueryPriority getQueryPriority();
 
@@ -1098,7 +1136,7 @@ public class BigQueryIO {
       }
 
       checkArgument(
-          getParseFn() != null || getReaderDatumFactory() != null,
+          getParseFn() != null || getDatumReaderFactory() != null,
           "Either a parseFn or readerDatumFactory is required");
 
       // if both toRowFn and fromRowFn values are set, enable Beam schema support
@@ -1145,8 +1183,8 @@ public class BigQueryIO {
                         staticJobUuid,
                         coder,
                         getParseFn(),
-                        getReaderDatumFactory(),
-                        getAvroSchema(),
+                        getDatumReaderFactory(),
+                        getAvroSchemaFunction().apply(getDestinationClass()).toString(),
                         getUseAvroLogicalTypes())));
       } else {
         // Create a singleton job ID token at execution time.
@@ -1178,8 +1216,8 @@ public class BigQueryIO {
                                     jobUuid,
                                     coder,
                                     getParseFn(),
-                                    getReaderDatumFactory(),
-                                    getAvroSchema(),
+                                    getDatumReaderFactory(),
+                                    getAvroSchemaFunction().apply(getDestinationClass()).toString(),
                                     getUseAvroLogicalTypes());
                             BigQueryOptions options =
                                 c.getPipelineOptions().as(BigQueryOptions.class);
@@ -1216,8 +1254,10 @@ public class BigQueryIO {
                                         jobUuid,
                                         coder,
                                         getParseFn(),
-                                        getReaderDatumFactory(),
-                                        getAvroSchema(),
+                                        getDatumReaderFactory(),
+                                        getAvroSchemaFunction()
+                                            .apply(getDestinationClass())
+                                            .toString(),
                                         getUseAvroLogicalTypes());
                                 List<BoundedSource<T>> sources =
                                     source.createSources(
@@ -1572,6 +1612,17 @@ public class BigQueryIO {
     public @Nullable TableReference getTable() {
       ValueProvider<TableReference> provider = getTableProvider();
       return provider == null ? null : provider.get();
+    }
+
+    /** Sets a custom {@link org.apache.avro.io.DatumReader} and reader {@link org.apache.avro.Schema} to directly
+     * deserialize Avro records to the target class. Meant to be used only along with {@link TypedRead#read(Class)} API.*/
+    public TypedRead<T> withAvroReader(
+        AvroSource.DatumReaderFactory<T> datumReaderFactory,
+        SerializableFunction<Class<T>, org.apache.avro.Schema> avroSchemaFunction) {
+      return toBuilder()
+          .setDatumReaderFactory(datumReaderFactory)
+          .setAvroSchemaFunction(avroSchemaFunction)
+          .build();
     }
 
     /**

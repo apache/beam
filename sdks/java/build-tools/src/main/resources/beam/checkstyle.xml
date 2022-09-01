@@ -288,7 +288,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="applyToProtected" value="true"/>
       <property name="applyToPackage" value="true"/>
       <property name="applyToPrivate" value="false"/>
-      <property name="format" value="^([A-Z][A-Z0-9]*(_[A-Z0-9]+)*|FLAG_.*)$"/>
+      <property name="format" value="^([A-Z][A-Z0-9$]*(_[A-Z0-9]+)*|FLAG_.*)$"/>
       <message key="name.invalidPattern"
                value="Variable ''{0}'' should be in ALL_CAPS (if it is a constant) or be private (otherwise)."/>
       <property name="severity" value="error"/>

@@ -17,13 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatistics2;
 import com.google.api.services.bigquery.model.Streamingbuffer;
@@ -34,14 +27,11 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.bigtable.v2.Mutation;
 import com.google.protobuf.ByteString;
-import java.io.IOException;
-import java.io.Serializable;
-import java.math.BigInteger;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.reflect.ReflectDatumReader;
+import org.apache.avro.specific.SpecificData;
+import org.apache.avro.specific.SpecificRecord;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -88,6 +78,20 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.math.BigInteger;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /** Tests for {@link BigQueryIO#read}. */
 @RunWith(JUnit4.class)
@@ -495,8 +499,8 @@ public class BigQueryIOReadTest implements Serializable {
     p.run();
   }
 
-  static class User extends SpecificRecordBase {
-    final private static org.apache.avro.Schema schema =
+  public static class User extends SpecificData implements SpecificRecord, Serializable {
+    public static final org.apache.avro.Schema SCHEMA$ =
         org.apache.avro.SchemaBuilder.record("User")
             .namespace("org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadTest$")
             .fields()
@@ -518,7 +522,7 @@ public class BigQueryIOReadTest implements Serializable {
     @Override
     public void put(int i, Object v) {
       if (i == 0) {
-        setName(((org.apache.avro.util.Utf8) v).toString());
+        setName(v.toString());
       }
     }
 
@@ -532,16 +536,30 @@ public class BigQueryIOReadTest implements Serializable {
 
     @Override
     public org.apache.avro.Schema getSchema() {
-      return schema;
+      return SCHEMA$;
     }
 
-    public static org.apache.avro.Schema getAvroSchema() {
-      return schema;
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      User user = (User) o;
+      return Objects.equals(name, user.name);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(name);
     }
   }
 
   @Test
-  public void testReadTableWithReaderDatumFactory() throws IOException, InterruptedException {
+  public void testReadTableWithDefaultReaderDatumFactory()
+      throws IOException, InterruptedException {
     // setup
     Table someTable = new Table();
     someTable.setSchema(
@@ -571,14 +589,11 @@ public class BigQueryIOReadTest implements Serializable {
             .withDatasetService(fakeDatasetService);
 
     BigQueryIO.TypedRead<User> read =
-        BigQueryIO
-            .readWithDatumReader(
-                (AvroSource.DatumReaderFactory<User>) (writer, reader) -> new SpecificDatumReader<>(reader),
-                User.getAvroSchema())
+        BigQueryIO.read(User.class)
             .from("non-executing-project:schema_dataset.schema_table")
             .withTestServices(fakeBqServices)
             .withoutValidation()
-            .withCoder(SerializableCoder.of(User.class));
+            .withCoder(AvroCoder.of(User.class));
 
     PCollection<User> bqRows = p.apply(read);
 
@@ -589,12 +604,91 @@ public class BigQueryIOReadTest implements Serializable {
     User c = new User();
     c.setName("c");
 
-    PAssert.that(bqRows)
-    .containsInAnyOrder(
-        ImmutableList.of(
-            a,
-            b,
-            c));
+    PAssert.that(bqRows).containsInAnyOrder(ImmutableList.of(a, b, c));
+
+    p.run();
+  }
+
+  static class User2 implements Serializable {
+    private String name;
+
+    public String getName() {
+      return this.name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      User2 user = (User2) o;
+      return Objects.equals(name, user.name);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(name);
+    }
+  }
+
+  @Test
+  public void testReadTableWithCustomReaderDatumFactory() throws IOException, InterruptedException {
+    // setup
+    Table someTable = new Table();
+    someTable.setSchema(
+        new TableSchema()
+            .setFields(ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING"))));
+    someTable.setTableReference(
+        new TableReference()
+            .setProjectId("non-executing-project")
+            .setDatasetId("schema_dataset")
+            .setTableId("schema_table"));
+    someTable.setNumBytes(1024L * 1024L);
+    FakeDatasetService fakeDatasetService = new FakeDatasetService();
+    fakeDatasetService.createDataset("non-executing-project", "schema_dataset", "", "", null);
+    fakeDatasetService.createTable(someTable);
+
+    List<TableRow> records =
+        Lists.newArrayList(
+            new TableRow().set("name", "a"),
+            new TableRow().set("name", "b"),
+            new TableRow().set("name", "c"));
+
+    fakeDatasetService.insertAll(someTable.getTableReference(), records, null);
+
+    FakeBigQueryServices fakeBqServices =
+        new FakeBigQueryServices()
+            .withJobService(new FakeJobService())
+            .withDatasetService(fakeDatasetService);
+
+    BigQueryIO.TypedRead<User2> read =
+        BigQueryIO.read(User2.class)
+            .from("non-executing-project:schema_dataset.schema_table")
+            .withTestServices(fakeBqServices)
+            .withoutValidation()
+            .withAvroReader(
+                (AvroSource.DatumReaderFactory<User2>)
+                    (writer, reader)  -> new ReflectDatumReader<>(writer, reader),
+                input -> ReflectData.get().getSchema(input))
+            .withCoder(SerializableCoder.of(User2.class));
+
+    PCollection<User2> bqRows = p.apply(read);
+
+    User2 a = new User2();
+    a.setName("a");
+    User2 b = new User2();
+    b.setName("b");
+    User2 c = new User2();
+    c.setName("c");
+
+    PAssert.that(bqRows).containsInAnyOrder(ImmutableList.of(a, b, c));
 
     p.run();
   }

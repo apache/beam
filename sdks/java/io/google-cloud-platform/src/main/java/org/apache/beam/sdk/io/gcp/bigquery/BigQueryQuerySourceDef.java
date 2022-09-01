@@ -164,8 +164,7 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
           stepUuid, this, bqServices, coder, parseFn, useAvroLogicalTypes);
     } else if (datumReaderFactory != null) {
       checkArgument(
-          avroSchema != null,
-          "avroSchema must be specified when datumReaderFactory is used.");
+          avroSchema != null, "avroSchema must be specified when datumReaderFactory is used.");
 
       return BigQueryQuerySource.create(
           stepUuid, this, bqServices, coder, datumReaderFactory, avroSchema, useAvroLogicalTypes);
