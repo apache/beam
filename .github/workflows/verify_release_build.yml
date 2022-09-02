@@ -18,11 +18,6 @@ jobs:
         env:
           RELEASE_VER: ${{ github.event.inputs.RELEASE_VER }}
         run: |
-          echo "Set RELEASE_BRANCH env variable."
-          RELEASE_BRANCH=release-${{env.RELEASE_VER}}
-          echo "RELEASE_BRANCH=${RELEASE_BRANCH}" >> $GITHUB_ENV
-          echo  ${{env.RELEASE_BRANCH}} $RELEASE_BRANCH $RELEASE_VER
-          echo  $GITHUB_ACTOR
           echo "Verify hub installation."
           git version
           hub version
@@ -36,6 +31,11 @@ jobs:
       pull-requests: write
       contents: write
     steps:
+      - name: Set RELEASE_BRANCH env variable
+        run: |
+          RELEASE_BRANCH=release-${{env.RELEASE_VER}}
+          echo "RELEASE_BRANCH=${RELEASE_BRANCH}" >> $GITHUB_ENV
+          echo "RELEASE  BRANCH: ${{env.RELEASE_BRANCH}}"
       - name: Test RELEASE_BRANCH env var
         if: ${{ env.RELEASE_BRANCH == 'release-vtest' }}
         run: echo "Release Branch $RELEASE_BRANCH"
@@ -59,7 +59,8 @@ jobs:
           git add CHANGES.md
           git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
           git push origin $WORKING_BRANCH --quiet
-          hub pull-request -b ${{env.GITHUB_ACTOR}}:${{env.RELEASE_BRANCH}} -h ${{env.GITHUB_ACTOR}}:${{env.WORKING_BRANCH}} -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch. You can run many tests automatically using release/src/main/scripts/mass_comment.py."
+          hub pull-request -b ${{env.GITHUB_ACTOR}}:${{env.RELEASE_BRANCH}} -h ${{env.GITHUB_ACTOR}}:${{env.WORKING_BRANCH}} -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
+          You can run many tests automatically using release/src/main/scripts/mass_comment.py."
         working-directory: "release/src/main/scripts"
 #  trigger_phrases:
 #    needs: create_testing_pr
