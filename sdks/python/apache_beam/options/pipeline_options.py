@@ -205,9 +205,7 @@ class PipelineOptions(HasDisplayData):
 
     # Build parser that will parse options recognized by the [sub]class of
     # PipelineOptions whose object is being instantiated.
-    # set allow_abbrev=False to avoid prefix matching while parsing.
-    # https://docs.python.org/3/library/argparse.html#partial-parsing
-    parser = _BeamArgumentParser(allow_abbrev=False)
+    parser = _BeamArgumentParser()
     for cls in type(self).mro():
       if cls == PipelineOptions:
         break
@@ -308,9 +306,7 @@ class PipelineOptions(HasDisplayData):
     # sub-classes in the main session might be repeated. Pick last unique
     # instance of each subclass to avoid conflicts.
     subset = {}
-    # set allow_abbrev=False to avoid prefix matching while parsing.
-    # https://docs.python.org/3/library/argparse.html#partial-parsing
-    parser = _BeamArgumentParser(allow_abbrev=False)
+    parser = _BeamArgumentParser()
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
