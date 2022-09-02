@@ -24,7 +24,7 @@ FROM google/cloud-sdk:$GCLOUD_SDK_VERSION
 VOLUME /opt/data
 
 # RUN mkdir -p /opt/data/WEB-INF
-COPY index.yaml /opt/data/WEB-INF/index.yaml
+# COPY index.yaml /opt/data/WEB-INF/index.yaml
 COPY start-datastore.sh .
 
 EXPOSE 8081
