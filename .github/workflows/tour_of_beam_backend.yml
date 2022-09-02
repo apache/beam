@@ -56,3 +56,18 @@ jobs:
           version: v1.49.0
           working-directory: learning/tour-of-beam/backend
 
+  integration:
+    services:
+      # datastore emulator
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checkout the code
+      # 2. Install Go1.16 & dependencies from go.mod
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.16'
+      # 3. start function-framework processes in BG
+      # 4. Load data in datastore: run CD step on samples/learning-content
+      # 5. Check sdkList, getContentTree, getUnitContent: run integration_tests/cmd/main.go
+      # 6. Compare storage/datastore/index.yml VS generated
