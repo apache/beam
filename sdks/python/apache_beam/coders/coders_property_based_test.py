@@ -70,6 +70,7 @@ SCHEMA_TYPES_TO_STRATEGY = {
     bool: st.booleans()
 }
 
+# TODO(https://github.com/apache/beam/issues/23003): Support logical types.
 SCHEMA_TYPES = list(SCHEMA_TYPES_TO_STRATEGY.keys())
 
 # A hypothesis strategy that generates schemas.
