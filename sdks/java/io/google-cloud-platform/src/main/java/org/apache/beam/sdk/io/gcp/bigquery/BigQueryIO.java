@@ -1800,10 +1800,7 @@ public class BigQueryIO {
        * of load jobs allowed per day, so be careful not to set the triggering frequency too
        * frequent. For more information, see <a
        * href="https://cloud.google.com/bigquery/docs/loading-data-cloud-storage">Loading Data from
-       * Cloud Storage</a>. Note: Load jobs currently do not support REPEATED modes for BigQuery's
-       * <a
-       * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#json_type">
-       * JSON data type</a>.
+       * Cloud Storage</a>.
        */
       FILE_LOADS,
 
@@ -2926,14 +2923,6 @@ public class BigQueryIO {
               "useAvroLogicalTypes can only be set with Avro output.");
         }
 
-        // Batch load jobs currently support JSON data insertion only with CSV files
-        if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
-          JsonElement schema = JsonParser.parseString(getJsonSchema().get());
-          if (!schema.getAsJsonObject().keySet().isEmpty()) {
-            validateNoRepeatedJsonFieldInSchema(schema);
-          }
-        }
-
         BatchLoads<DestinationT, T> batchLoads =
             new BatchLoads<>(
                 getWriteDisposition(),
@@ -3011,32 +3000,6 @@ public class BigQueryIO {
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);
-      }
-    }
-
-    private void validateNoRepeatedJsonFieldInSchema(JsonElement schema) {
-      JsonElement fields = schema.getAsJsonObject().get("fields");
-      if (!fields.isJsonArray() || fields.getAsJsonArray().isEmpty()) {
-        return;
-      }
-
-      JsonArray fieldArray = fields.getAsJsonArray();
-
-      for (int i = 0; i < fieldArray.size(); i++) {
-        JsonObject field = fieldArray.get(i).getAsJsonObject();
-        checkArgument(
-            !(field.get("type").getAsString().equalsIgnoreCase("JSON")
-                && field.get("mode") != null
-                && field.get("mode").getAsString().equalsIgnoreCase("REPEATED")),
-            "Found repeated JSON field (type=JSON, mode=REPEATED) in TableSchema. This"
-                + "is currently not supported with 'FILE_LOADS' write method. JSON insertion is "
-                + "full supported with other write methods. For more information, visit: "
-                + "https://cloud.google.com/bigquery/docs/reference/standard-sql/"
-                + "json-data#ingest_json_data");
-
-        if (field.get("type").getAsString().equals("STRUCT")) {
-          validateNoRepeatedJsonFieldInSchema(field);
-        }
       }
     }
 

@@ -136,6 +136,9 @@ public class BigQueryIOJsonIT {
   public static final String STREAMING_TEST_TABLE =
       "streaming_test" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
 
+  public static final String FILE_LOADS_TEST_TABLE =
+      "file_loads_test" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+
   private static final Map<String, Map<String, Object>> JSON_TEST_DATA = generateCountryData();
 
   // Make KV Json String pairs out of "country" column
@@ -387,6 +390,19 @@ public class BigQueryIOJsonIT {
 
     String streamingDestination =
         String.format("%s:%s.%s", project, DATASET_ID, STREAMING_TEST_TABLE);
+    options.setOutput(streamingDestination);
+    options.setInputTable(streamingDestination);
+
+    runTestWrite(options);
+  }
+
+  @Test
+  public void testFileLoadsWrite() throws Exception {
+    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
+    options.setWriteMethod(Write.Method.FILE_LOADS);
+
+    String streamingDestination =
+        String.format("%s:%s.%s", project, DATASET_ID, FILE_LOADS_TEST_TABLE);
     options.setOutput(streamingDestination);
     options.setInputTable(streamingDestination);
 
