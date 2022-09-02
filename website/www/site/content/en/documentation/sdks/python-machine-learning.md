@@ -205,7 +205,7 @@ from apache_beam.ml.inference.base import KeyedModelHandler
 RunInference(KeyedModelHandler(tf_handler))
 ```
 
-If you are unsure if your data is keyed, you can also use the `maybe_keyed` handler.
+If you are unsure if your data is keyed, you can also use `MaybeKeyedModelHandler`.
 
 For more information, see [`KeyedModelHander`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler).
 
