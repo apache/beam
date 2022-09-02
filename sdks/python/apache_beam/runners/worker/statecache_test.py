@@ -161,11 +161,11 @@ class StateCacheTest(unittest.TestCase):
   def test_get_referents_for_cache(self):
     class GetReferentsForCache(CacheAware):
       def __init__(self):
-        self.key = bytearray(1 << 20)
-        self.value = bytearray(2 << 20)
+        self.measure_me = bytearray(1 << 20)
+        self.ignore_me = bytearray(2 << 20)
 
       def get_referents_for_cache(self):
-        return [self.key]
+        return [self.measure_me]
 
     cache = StateCache(5 << 20)
     cache.put("key", "cache_token", GetReferentsForCache())

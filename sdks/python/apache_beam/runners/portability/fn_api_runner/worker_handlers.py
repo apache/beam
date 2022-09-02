@@ -82,6 +82,7 @@ if TYPE_CHECKING:
 # test which runs without state caching (FnApiRunnerTestWithDisabledCaching).
 # The cache is disabled in production for other runners.
 STATE_CACHE_SIZE_MB = 100
+MB_TO_BYTES = 1 << 20
 
 # Time-based flush is enabled in the fn_api_runner by default.
 DATA_BUFFER_TIME_LIMIT_MS = 1000
@@ -360,7 +361,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.control_conn = self  # type: ignore  # need Protocol to describe this
     self.data_conn = self.data_plane_handler
-    state_cache = StateCache(STATE_CACHE_SIZE_MB << 20)
+    state_cache = StateCache(STATE_CACHE_SIZE_MB * MB_TO_BYTES)
     self.bundle_processor_cache = sdk_worker.BundleProcessorCache(
         SingletonStateHandlerFactory(
             sdk_worker.GlobalCachingStateHandler(state_cache, state)),

@@ -78,7 +78,6 @@ def get_referents_for_cache(*objs):
   used when measuring the deep size of the object. The default is to
   use gc.get_referents(*objs).
   """
-  # print(objs)
   rval = []
   for obj in objs:
     if isinstance(obj, CacheAware):
