@@ -107,7 +107,6 @@ func init() {
 	if os.Getenv("TOB_MOCK") > "" {
 		svc = &service.Mock{}
 	} else {
-		// consumes DATASTORE_* env variables
 		client, err := datastore.NewClient(context.Background(), "")
 		if err != nil {
 			log.Fatalf("new datastore client: %v", err)
