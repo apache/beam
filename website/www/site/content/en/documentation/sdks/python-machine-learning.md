@@ -197,18 +197,6 @@ with pipeline as p:
         )
 ```
 
-First, within `tfx_bsl`, create a model handler. For more information, see [run_inference.py](https://github.com/tensorflow/tfx-bsl/blob/d1fca25e5eeaac9ef0111ec13e7634df836f36f6/tfx_bsl/public/beam/run_inference.py) in the TensorFlow GitHub repository.
-
-```
-tf_handler = CreateModelHandler(inference_spec_type)
-
-# unkeyed
-RunInference(tf_handler)
-
-# keyed
-RunInference(KeyedModelHandler(tf_handler))
-```
-
 The model handler that is created from within `tfx-bsl` is always unkeyed. To make a keyed model handler, wrap the unkeyed model handler in the keyed model handler, which would then take the `tfx-bsl` model handler as a parameter. For example:
 
 ```
