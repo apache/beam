@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ $RELEASE_BRANCH }}
-      - name:  Set Dataflow Python Batch Tests Release Version
+      - name: Set Dataflow Python Batch Tests Release Version
         # Commenting for the moment: sh ./set_version.sh $RELEASE_VER --git-add instead of echo "This is a test." >> TEST_FILE.md
         run: |
           git checkout -b $WORKING_BRANCH --quiet
@@ -47,8 +47,7 @@ jobs:
           You can run many tests automatically using release/src/main/scripts/mass_comment.py."
           echo "[NOTE]: Please make sure all test targets have been invoked."
           echo "Please check the test results. If there is any failure, follow the policy in release guide."
-        working-directory: 'release/src/main/scripts'
-
+        working-directory: "release/src/main/scripts"
 #  trigger_phrases:
 #    needs: create_testing_pr
 #    runs-on: ubuntu-latest
