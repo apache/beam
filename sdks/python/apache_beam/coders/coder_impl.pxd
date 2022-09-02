@@ -107,6 +107,10 @@ cdef class BooleanCoderImpl(CoderImpl):
   pass
 
 
+cdef class SinglePrecisionFloatCoderImpl(StreamCoderImpl):
+  pass
+
+
 cdef class FloatCoderImpl(StreamCoderImpl):
   pass
 
@@ -266,3 +270,11 @@ cdef class LogicalTypeCoderImpl(StreamCoderImpl):
 
   cpdef decode_from_stream(self, InputStream stream, bint nested)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
+
+
+cdef class BigIntegerCoderImpl(StreamCoderImpl):
+  pass
+
+
+cdef class DecimalCoderImpl(StreamCoderImpl):
+  pass

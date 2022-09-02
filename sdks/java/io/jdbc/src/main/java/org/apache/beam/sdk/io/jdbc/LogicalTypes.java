@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.jdbc;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
 import java.sql.JDBCType;
 import java.time.Instant;
 import java.util.Arrays;
@@ -30,9 +28,9 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.UuidLogicalType;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -100,8 +98,7 @@ class LogicalTypes {
 
   @VisibleForTesting
   static Schema.FieldType numeric(int precision, int scale) {
-    return Schema.FieldType.logicalType(
-        FixedPrecisionNumeric.of(JDBCType.NUMERIC.getName(), precision, scale));
+    return Schema.FieldType.logicalType(FixedPrecisionNumeric.of(precision, scale));
   }
 
   /** Base class for JDBC logical types. */
@@ -248,43 +245,6 @@ class LogicalTypes {
     @Override
     public byte[] toInputType(byte[] base) {
       checkArgument(base == null || base.length <= maxLength);
-      return base;
-    }
-  }
-
-  /** Fixed precision numeric types such as NUMERIC. */
-  static final class FixedPrecisionNumeric extends JdbcLogicalType<BigDecimal> {
-    private final int precision;
-    private final int scale;
-
-    static FixedPrecisionNumeric of(String identifier, int precision, int scale) {
-      Schema schema = Schema.builder().addInt32Field("precision").addInt32Field("scale").build();
-      return new FixedPrecisionNumeric(schema, identifier, precision, scale);
-    }
-
-    private FixedPrecisionNumeric(
-        Schema argumentSchema, String identifier, int precision, int scale) {
-      super(
-          identifier,
-          FieldType.row(argumentSchema),
-          Schema.FieldType.DECIMAL,
-          Row.withSchema(argumentSchema).addValues(precision, scale).build());
-      this.precision = precision;
-      this.scale = scale;
-    }
-
-    @Override
-    public BigDecimal toInputType(BigDecimal base) {
-      checkArgument(
-          base == null
-              || (base.precision() <= precision && base.scale() <= scale)
-              // for cases when received values can be safely coerced to the schema
-              || base.round(new MathContext(precision)).compareTo(base) == 0,
-          "Expected BigDecimal base to be null or have precision <= %s (was %s), scale <= %s (was %s)",
-          precision,
-          (base == null) ? null : base.precision(),
-          scale,
-          (base == null) ? null : base.scale());
       return base;
     }
   }
