@@ -201,8 +201,8 @@ class BigQueryJsonIT(unittest.TestCase):
         'write_method': "FILE_LOADS"
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
-    with self.assertRaises(ValueError):
-      self.run_test_write(options)
+
+    self.run_test_write(options)
 
   # Schema for writing to BigQuery
   def generate_schema(self):
