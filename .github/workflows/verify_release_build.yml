@@ -20,17 +20,21 @@ jobs:
           RELEASE_VER: ${{ github.event.inputs.RELEASE_VER }}
         run: |
           echo "RELEASE_BRANCH=release-$RELEASE_VER" >> $GITHUB_ENV
-          echo "Verify release build against branch: "$RELEASE_BRANCH" ."
+          echo "Verify release build against branch: $RELEASE_BRANCH"
           echo "Verify hub installation."
           git version
           hub version
+
+  # Run Gradle release build and all PostCommit Tests against Release Branch on Jenkins.
+  # This create_release_pr task will create a PR against apache/beam.
   create_release_pr:
     needs: check_environment
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - run: |
-          echo "[Current Task] Run Gradle release build and all PostCommit Tests against Release Branch on Jenkins."
-          echo "This task will create a PR against apache/beam."
+          echo "RELEASE BRANCH: $RELEASE_BRANCH"
       - name: Check out code
         uses: actions/checkout@v3
         with:
