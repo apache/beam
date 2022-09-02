@@ -14,9 +14,9 @@ jobs:
       - name: Check environment
         id: check_env_vars
         env:
-          RELEASE_BRANCH: ${{ release-$RELEASE_VER }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "RELEASE_BRANCH=release-$RELEASE_VER" >> $GITHUB_ENV
           echo "Verify release build against branch: $RELEASE_BRANCH."
           echo "Verify hub installation."
           hub version
