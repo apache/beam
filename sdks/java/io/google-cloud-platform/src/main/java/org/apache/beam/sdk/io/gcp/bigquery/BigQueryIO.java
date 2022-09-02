@@ -1068,16 +1068,20 @@ public class BigQueryIO {
       checkArgument(getParseFn() != null, "A parseFn is required");
 
       // if both toRowFn and fromRowFn values are set, enable Beam schema support
-      boolean beamSchemaEnabled = false;
+      Pipeline p = input.getPipeline();
+      final BigQuerySourceDef sourceDef = createSourceDef();
+
+      Schema beamSchema = null;
       if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
-        beamSchemaEnabled = true;
+        BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
+        beamSchema = sourceDef.getBeamSchema(bqOptions);
+        beamSchema = getFinalSchema(beamSchema, getSelectedFields());
       }
 
-      Pipeline p = input.getPipeline();
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
 
       if (getMethod() == TypedRead.Method.DIRECT_READ) {
-        return expandForDirectRead(input, coder, beamSchemaEnabled);
+        return expandForDirectRead(input, coder, beamSchema);
       }
 
       checkArgument(
@@ -1090,7 +1094,6 @@ public class BigQueryIO {
           "Invalid BigQueryIO.Read: Specifies row restriction, "
               + "which only applies when using Method.DIRECT_READ");
 
-      final BigQuerySourceDef sourceDef = createSourceDef();
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection;
       PCollection<T> rows;
@@ -1221,13 +1224,12 @@ public class BigQueryIO {
 
       rows = rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
 
-      if (beamSchemaEnabled) {
-        BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
-        Schema beamSchema = sourceDef.getBeamSchema(bqOptions);
-        SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
-        SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
-
-        rows.setSchema(beamSchema, getTypeDescriptor(), toBeamRow, fromBeamRow);
+      if (beamSchema != null) {
+        rows.setSchema(
+            beamSchema,
+            getTypeDescriptor(),
+            getToBeamRowFn().apply(beamSchema),
+            getFromBeamRowFn().apply(beamSchema));
       }
       return rows;
     }
@@ -1251,10 +1253,9 @@ public class BigQueryIO {
     }
 
     private PCollection<T> expandForDirectRead(
-        PBegin input, Coder<T> outputCoder, boolean beamSchemaEnabled) {
+        PBegin input, Coder<T> outputCoder, Schema beamSchema) {
       ValueProvider<TableReference> tableProvider = getTableProvider();
       Pipeline p = input.getPipeline();
-      BigQuerySourceDef srcDef = createSourceDef();
       if (tableProvider != null) {
         // No job ID is required. Read directly from BigQuery storage.
         PCollection<T> rows =
@@ -1269,15 +1270,12 @@ public class BigQueryIO {
                         outputCoder,
                         getBigQueryServices(),
                         getProjectionPushdownApplied())));
-        if (beamSchemaEnabled) {
-          BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
-          Schema beamSchema = srcDef.getBeamSchema(bqOptions);
-
-          beamSchema = getFinalSchema(beamSchema, getSelectedFields());
-
-          SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
-          SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
-          rows.setSchema(beamSchema, getTypeDescriptor(), toBeamRow, fromBeamRow);
+        if (beamSchema != null) {
+          rows.setSchema(
+              beamSchema,
+              getTypeDescriptor(),
+              getToBeamRowFn().apply(beamSchema),
+              getFromBeamRowFn().apply(beamSchema));
         }
         return rows;
       }
@@ -1469,15 +1467,12 @@ public class BigQueryIO {
             }
           };
 
-      if (beamSchemaEnabled) {
-        BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
-        Schema beamSchema = srcDef.getBeamSchema(bqOptions);
-
-        beamSchema = getFinalSchema(beamSchema, getSelectedFields());
-
-        SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
-        SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
-        rows.setSchema(beamSchema, getTypeDescriptor(), toBeamRow, fromBeamRow);
+      if (beamSchema != null) {
+        rows.setSchema(
+            beamSchema,
+            getTypeDescriptor(),
+            getToBeamRowFn().apply(beamSchema),
+            getFromBeamRowFn().apply(beamSchema));
       }
       return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
     }
