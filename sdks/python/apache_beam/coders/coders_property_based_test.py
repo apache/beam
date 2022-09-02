@@ -44,13 +44,13 @@ from apache_beam.coders import RowCoder
 from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders.typecoders import registry as coders_registry
 from apache_beam.typehints.schemas import typing_to_runner_api
+from apache_beam.typehints.schemas import PRIMITIVE_TO_ATOMIC_TYPE
 from apache_beam.utils.timestamp import Timestamp
-
-SCHEMA_TYPES = [str, bytes, Timestamp, int, np.int32, np.int64, bool]
 
 SCHEMA_TYPES_TO_STRATEGY = {
     str: st.text(),
     bytes: st.binary(),
+    typing.ByteString: st.binary(),
     # Maximum datetime on year 3000 to conform to Windows OS limits.
     Timestamp: st.datetimes(
         min_value=datetime(1970, 1, 1, 1, 1),
@@ -58,12 +58,19 @@ SCHEMA_TYPES_TO_STRATEGY = {
             3000, 1, 1, 0,
             0)).map(lambda dt: Timestamp.from_utc_datetime(dt.astimezone(utc))),
     int: st.integers(min_value=-(1 << 63 - 1), max_value=1 << 63 - 1),
+    np.int8: st.binary(min_size=1, max_size=1),
+    np.int16: st.integers(min_value=-(1 << 15 - 1), max_value=1 << 15 - 1),
     np.int32: st.integers(min_value=-(1 << 31 - 1), max_value=1 << 31 - 1),
     np.int64: st.integers(min_value=-(1 << 63 - 1), max_value=1 << 63 - 1),
     np.uint32: st.integers(min_value=0, max_value=1 << 32 - 1),
     np.uint64: st.integers(min_value=0, max_value=1 << 64 - 1),
+    np.float32: st.floats(width=32, allow_nan=False),
+    np.float64: st.floats(width=64, allow_nan=False),
+    float: st.floats(width=64, allow_nan=False),
     bool: st.booleans()
 }
+
+SCHEMA_TYPES = list(SCHEMA_TYPES_TO_STRATEGY.keys())
 
 # A hypothesis strategy that generates schemas.
 # A schema is a list containing tuples of strings (field names), types (field
@@ -75,6 +82,14 @@ SCHEMA_GENERATOR_STRATEGY = st.lists(
         st.text(ascii_letters + digits + '_', min_size=1),
         st.sampled_from(SCHEMA_TYPES),
         st.booleans()))
+
+
+class TypesAreAllTested(unittest.TestCase):
+  def test_all_types_are_tested(self):
+    # Verify that all types among Beam's defined types are being tested
+    self.assertEqual(
+        set(SCHEMA_TYPES).intersection(PRIMITIVE_TO_ATOMIC_TYPE.keys()),
+        set(PRIMITIVE_TO_ATOMIC_TYPE.keys()))
 
 
 class ProperyTestingCoders(unittest.TestCase):
@@ -118,7 +133,7 @@ class ProperyTestingCoders(unittest.TestCase):
          nullable in schema])
     coders_registry.register_coder(RowType, RowCoder)
 
-    # TODO(pabloem): Also apply nullability for these schemas.
+    # TODO(https://github.com/apache/beam/issues/23002): Apply nulls for these
     row = RowType(  # type: ignore
         **{
             name: data.draw(SCHEMA_TYPES_TO_STRATEGY[type_])
@@ -127,11 +142,8 @@ class ProperyTestingCoders(unittest.TestCase):
             nullable in schema
         })
 
-    expected_coder = RowCoder(typing_to_runner_api(RowType).row_type.schema)
-    real_coder = coders_registry.get_coder(RowType)
-    self.assertEqual(expected_coder.decode(expected_coder.encode(row)), row)
-    self.assertEqual(real_coder.decode(real_coder.encode(row)), row)
-    self.assertEqual(real_coder.encode(row), expected_coder.encode(row))
+    coder = RowCoder(typing_to_runner_api(RowType).row_type.schema)
+    self.assertEqual(coder.decode(coder.encode(row)), row)
 
 
 if __name__ == "__main__":
