@@ -81,7 +81,6 @@ from torchvision.models import mobilenet_v2
 model = mobilenet_v2(pretrained=True)
 torch.save(model.state_dict(), 'mobilenet_v2.pth') # You can replace mobilenet_v2.pth with your preferred file name for your model state dictionary.
 ```
-4. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
 
 ### Running `pytorch_image_classification.py`
 
@@ -107,7 +106,7 @@ This writes the output to the `predictions.csv` with contents like:
 ...
 ```
 
-Each image path is paired with a value representing the class out of Imagenet's 1000 classes that returned the highest confidence score.
+Each image path is paired with a value representing the Imagenet class that returned the highest confidence score out of Imagenet's 1000 classes.
 
 ---
 ## Image segmentation
