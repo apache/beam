@@ -13,14 +13,14 @@ jobs:
   check_environment:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "RELEASE_BRANCH=${release-$RELEASE_VER}" >> $GITHUB_ENV
+      #- run: echo "RELEASE_BRANCH=${release-$RELEASE_VER}" >> $GITHUB_ENV
       - name: Check environment
-        id: check_env_vars
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_VER: ${{ github.event.inputs.RELEASE_VER }}
         run: |
-          echo "Set RELEASE_BRANCH environment variable "
+          echo "Set RELEASE_BRANCH env variable."
+          RELEASE_BRANCH=release-${{env.RELEASE_VER}}
+          echo "RELEASE_BRANCH=${RELEASE_BRANCH}" >> $GITHUB_ENV
           echo  ${{env.RELEASE_BRANCH}} $RELEASE_BRANCH $RELEASE_VER
           echo  $GITHUB_ACTOR
           echo "Verify hub installation."
@@ -47,9 +47,11 @@ jobs:
         run: |
           git config user.name $GITHUB_ACTOR
       - name: Set Dataflow Python Batch Tests Release Version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # Commenting for the moment: sh ./set_version.sh $RELEASE_VER --git-add instead of echo "This is a test." >> TEST_FILE.md
         run: |
-          git checkout -b $WORKING_BRANCH --quiet
+          git checkout -b ${{env.WORKING_BRANCH}} --quiet
           echo "This is a test." >> TEST_FILE.md
           git add TEST_FILE.md
           # In case the version string was not changed, append a newline to CHANGES.md
