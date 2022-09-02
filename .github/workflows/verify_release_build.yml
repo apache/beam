@@ -31,7 +31,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
         with:
-          ref: ${{ $RELEASE_BRANCH }}
+          ref: ${{ env.RELEASE_BRANCH }}
       - name: Set Dataflow Python Batch Tests Release Version
         # Commenting for the moment: sh ./set_version.sh $RELEASE_VER --git-add instead of echo "This is a test." >> TEST_FILE.md
         run: |
