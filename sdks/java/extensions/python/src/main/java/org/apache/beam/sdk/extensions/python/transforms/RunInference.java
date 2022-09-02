@@ -33,9 +33,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Wrapper for invoking external Python {@code RunInference}. @Experimental */
 public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollection<OutputT>> {
+  private static final Logger LOG = LoggerFactory.getLogger(RunInference.class);
 
   private final String modelLoader;
   private final Schema schema;
@@ -127,8 +130,8 @@ public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollectio
   /**
    * Specifies any extra Pypi packages required by the RunInference model handler.
    *
-   * <p>For model hanlders provided by Beam Python SDK, the implementation will automatically try to
-   * infer correct packages needed, so this may be omited.
+   * <p>For model handlers provided by Beam Python SDK, the implementation will automatically try to
+   * infer correct packages needed, so this may be omitted.
    *
    * @param extraPackages a list of PyPi packages. May include the version.
    */
@@ -163,13 +166,18 @@ public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollectio
     this.extraPackages = new ArrayList<>();
   }
 
-  private List<String> mayBeInferExtraPackagesFromModelHandler() {
+  private List<String> inferExtraPackagesFromModelHandler() {
     List<String> extraPackages = new ArrayList<>();
     if (this.modelLoader.toLowerCase().contains("sklearn")) {
       extraPackages.add("scikit-learn");
       extraPackages.add("pandas");
     } else if (this.modelLoader.toLowerCase().contains("pytorch")) {
       extraPackages.add("torch");
+    }
+
+    if (!extraPackages.isEmpty()) {
+      LOG.info(
+          "Automatically inferred dependencies {} from the provided model handler.", extraPackages);
     }
 
     return extraPackages;
@@ -185,7 +193,7 @@ public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollectio
     }
 
     if (this.extraPackages.isEmpty()) {
-      this.extraPackages.addAll(mayBeInferExtraPackagesFromModelHandler());
+      this.extraPackages.addAll(inferExtraPackagesFromModelHandler());
     }
 
     return (PCollection<OutputT>)
