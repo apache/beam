@@ -8,7 +8,7 @@ on:
         default: vtest # remove default before merging
 env:
   #WORKING_BRANCH: postcommit_validation_pr # Is it always the same branch name? or should we need to add it as input?
-  WORKING_BRANCH: verify-release-workflow
+  WORKING_BRANCH: verify-release-pr-test
 jobs:
   check_environment:
     runs-on: ubuntu-latest
@@ -17,13 +17,13 @@ jobs:
         id: check_env_vars
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_ENV: ${{ github.event.inputs.RELEASE_VER }}
+          RELEASE_VER: ${{ github.event.inputs.RELEASE_VER }}
         run: |
           echo "RELEASE_BRANCH=release-$RELEASE_VER" >> $GITHUB_ENV
-          echo "Verify release build against branch: $RELEASE_BRANCH."
+          echo "Verify release build against branch: "$RELEASE_BRANCH" ."
           echo "Verify hub installation."
-          hub version
           git version
+          hub version
   create_release_pr:
     needs: check_environment
     runs-on: ubuntu-latest
