@@ -18,7 +18,6 @@ package gcpopts
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -89,7 +88,7 @@ func TestGetRegion_BothSet(t *testing.T) {
 // Set up fake credential file to read project from with the passed in projectId.
 func setupFakeCredentialFile(t *testing.T, projectID string) {
 	t.Helper()
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "FAKE-GOOGLE-APPLICATION-CREDENTIALS-*.json")
+	tmpFile, err := os.CreateTemp(os.TempDir(), "FAKE-GOOGLE-APPLICATION-CREDENTIALS-*.json")
 	if err != nil {
 		t.Fatalf("Failed creating fake credential file")
 	}

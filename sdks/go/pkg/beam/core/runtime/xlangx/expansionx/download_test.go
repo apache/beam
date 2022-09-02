@@ -16,7 +16,6 @@
 package expansionx
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -141,7 +140,7 @@ func TestNewJarGetter(t *testing.T) {
 }
 
 func makeTempDir(t *testing.T) string {
-	d, err := ioutil.TempDir(os.Getenv("TEST_TMPDIR"), "expansionx-*")
+	d, err := os.MkdirTemp(os.Getenv("TEST_TMPDIR"), "expansionx-*")
 	if err != nil {
 		t.Fatalf("failed to make temp directory, got %v", err)
 	}
@@ -152,7 +151,7 @@ func makeTempDir(t *testing.T) string {
 func TestJarExists(t *testing.T) {
 	d := makeTempDir(t)
 
-	tmpFile, err := ioutil.TempFile(d, "expansion-*.jar")
+	tmpFile, err := os.CreateTemp(d, "expansion-*.jar")
 	if err != nil {
 		t.Fatalf("failed to make temp file, got %v", err)
 	}
@@ -189,7 +188,7 @@ func TestGetJar_present(t *testing.T) {
 
 	jarName := "beam-sdks-java-fake-"
 
-	tmpFile, err := ioutil.TempFile(d, jarName+"*.jar")
+	tmpFile, err := os.CreateTemp(d, jarName+"*.jar")
 	if err != nil {
 		t.Fatalf("failed to create temp JAR file, got %v", err)
 	}

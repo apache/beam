@@ -16,7 +16,6 @@
 package fhirio
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -82,11 +81,11 @@ func TestImport(t *testing.T) {
 			validateCounter(t, pipelineResult, successCounterName, int(testCase.expectedOperationResults.Successes))
 			validateCounter(t, pipelineResult, errorCounterName, int(testCase.expectedOperationResults.Failures))
 
-			if filesInTemp, _ := ioutil.ReadDir(tempDirPath); len(filesInTemp) != 0 {
+			if filesInTemp, _ := os.ReadDir(tempDirPath); len(filesInTemp) != 0 {
 				t.Fatalf("expected 0 files in temp path, but got %v", len(filesInTemp))
 			}
 
-			if filesInDeadLetter, _ := ioutil.ReadDir(deadLetterDirPath); len(filesInDeadLetter) != testCase.expectedErrorCount {
+			if filesInDeadLetter, _ := os.ReadDir(deadLetterDirPath); len(filesInDeadLetter) != testCase.expectedErrorCount {
 				t.Fatalf("expected 1 file in deadletter path, but got %v", len(filesInDeadLetter))
 			}
 		})
