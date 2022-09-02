@@ -43,8 +43,8 @@ from apache_beam.coders import FloatCoder
 from apache_beam.coders import RowCoder
 from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders.typecoders import registry as coders_registry
-from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.typehints.schemas import PRIMITIVE_TO_ATOMIC_TYPE
+from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils.timestamp import Timestamp
 
 SCHEMA_TYPES_TO_STRATEGY = {
@@ -59,7 +59,8 @@ SCHEMA_TYPES_TO_STRATEGY = {
             0)).map(lambda dt: Timestamp.from_utc_datetime(dt.astimezone(utc))),
     int: st.integers(min_value=-(1 << 63 - 1), max_value=1 << 63 - 1),
     np.int8: st.binary(min_size=1, max_size=1),
-    np.int16: st.integers(min_value=-(1 << 15 - 1), max_value=1 << 15 - 1),
+    # INT16 not yet supported by RowCoder.
+    # np.int16: st.integers(min_value=-(1 << 15 - 1), max_value=1 << 15 - 1),
     np.int32: st.integers(min_value=-(1 << 31 - 1), max_value=1 << 31 - 1),
     np.int64: st.integers(min_value=-(1 << 63 - 1), max_value=1 << 63 - 1),
     np.uint32: st.integers(min_value=0, max_value=1 << 32 - 1),
@@ -84,13 +85,16 @@ SCHEMA_GENERATOR_STRATEGY = st.lists(
         st.sampled_from(SCHEMA_TYPES),
         st.booleans()))
 
+TYPES_UNSUPPORTED_BY_ROW_CODER = {np.int16}
+
 
 class TypesAreAllTested(unittest.TestCase):
   def test_all_types_are_tested(self):
     # Verify that all types among Beam's defined types are being tested
     self.assertEqual(
         set(SCHEMA_TYPES).intersection(PRIMITIVE_TO_ATOMIC_TYPE.keys()),
-        set(PRIMITIVE_TO_ATOMIC_TYPE.keys()))
+        set(PRIMITIVE_TO_ATOMIC_TYPE.keys()).difference(
+            TYPES_UNSUPPORTED_BY_ROW_CODER))
 
 
 class ProperyTestingCoders(unittest.TestCase):
