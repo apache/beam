@@ -13,6 +13,7 @@ jobs:
   check_environment:
     runs-on: ubuntu-latest
     steps:
+      - run: echo "RELEASE_BRANCH=${release-$RELEASE_VER}" >> $GITHUB_ENV
       - name: Check environment
         id: check_env_vars
         env:
@@ -20,10 +21,8 @@ jobs:
           RELEASE_VER: ${{ github.event.inputs.RELEASE_VER }}
         run: |
           echo "Set RELEASE_BRANCH environment variable "
-          echo  "${{ env.RELEASE_VER }}"
-          echo  $GITHUB_ACTOR
-          echo "RELEASE_BRANCH=release-$RELEASE_VER" >> $GITHUB_ENV
           echo  "${{ env.RELEASE_BRANCH }}"
+          echo  $GITHUB_ACTOR
           echo "Verify hub installation."
           git version
           hub version
@@ -58,7 +57,7 @@ jobs:
           git add CHANGES.md
           git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
           git push origin $WORKING_BRANCH --quiet
-          hub pull-request -b dannymartinm:${{ env.RELEASE_BRANCH }} -h dannymartinm:$WORKING_BRANCH -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch. You can run many tests automatically using release/src/main/scripts/mass_comment.py."
+          hub pull-request -b ${{env.GITHUB_ACTOR}}:${{ env.RELEASE_BRANCH }} -h ${{env.GITHUB_ACTOR}}:$WORKING_BRANCH -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch. You can run many tests automatically using release/src/main/scripts/mass_comment.py."
         working-directory: "release/src/main/scripts"
 #  trigger_phrases:
 #    needs: create_testing_pr
