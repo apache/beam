@@ -136,8 +136,7 @@ def run(
 
   filename_value_pair = (
       pipeline
-      | 'ReadImageNames' >> beam.io.ReadFromText(
-          known_args.input, skip_header_lines=1)
+      | 'ReadImageNames' >> beam.io.ReadFromText(known_args.input)
       | 'ReadImageData' >> beam.Map(
           lambda image_name: read_image(
               image_file_name=image_name, path_to_dir=known_args.images_dir))
