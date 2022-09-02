@@ -29,7 +29,7 @@ type Unit struct {
 
 	// optional, user-specific
 	UserSnippetId string `json:"userSnippetId,omitempty"`
-	IsCompleted   string `json:"isCompleted,omitempty"`
+	IsCompleted   bool   `json:"isCompleted,omitempty"`
 }
 
 type NodeType int
