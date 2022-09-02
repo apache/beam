@@ -19,8 +19,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_VER: ${{ github.event.inputs.RELEASE_VER }}
         run: |
+          echo "Set RELEASE_BRANCH environment variable"
           echo "RELEASE_BRANCH=release-$RELEASE_VER" >> $GITHUB_ENV
-          echo "Verify release build against branch: $RELEASE_BRANCH"
           echo "Verify hub installation."
           git version
           hub version
@@ -32,9 +32,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      contents: write
     steps:
-      - run: |
-          echo "RELEASE BRANCH: $RELEASE_BRANCH"
+      - name: Test RELEASE_BRANCH env var
+        if: ${{ env.RELEASE_BRANCH == 'release-vtest' }}
+        run: echo "Release Branch $RELEASE_BRANCH"
       - name: Check out code
         uses: actions/checkout@v3
         with:
