@@ -187,7 +187,7 @@ from tfx_bsl.public.beam.run_inference import CreateModelHandler
 
 pipeline = beam.Pipeline()
 tfexample_beam_record = TFExampleRecord(file_pattern='/path/to/examples')
-saved_model_spec = model_spec_pb2.SavedModelSpec(model_path=save_model_dir_multiply)
+saved_model_spec = model_spec_pb2.SavedModelSpec(model_path='/path/to/model')
 inference_spec_type = model_spec_pb2.InferenceSpecType(saved_model_spec=saved_model_spec)
 model_handler = CreateModelHandler(inference_spec_type)
 with pipeline as p:
