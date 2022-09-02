@@ -197,7 +197,7 @@ with pipeline as p:
         )
 ```
 
-The model handler that is created from within `tfx-bsl` is always unkeyed. To make a keyed model handler, wrap the unkeyed model handler in the keyed model handler, which would then take the `tfx-bsl` model handler as a parameter. For example:
+The model handler that is created with `CreateModelHander()` is always unkeyed. To make a keyed model handler, wrap the unkeyed model handler in the keyed model handler, which would then take the `tfx-bsl` model handler as a parameter. For example:
 
 ```
 from apache_beam.ml.inference.base import RunInference
@@ -207,28 +207,7 @@ RunInference(KeyedModelHandler(tf_handler))
 
 If you are unsure if your data is keyed, you can also use the `maybe_keyed` handler.
 
-Next, import the required modules:
-
-```
-from tensorflow_serving.apis import prediction_log_pb2
-from apache_beam.ml.inference.base import RunInference
-from tfx_bsl.public.beam.run_inference import CreateModelHandler
-```
-
-Finally, add the code to your pipeline. This example shows a pipeline that uses a model that multiplies by five.
-
-```
-pipeline = beam.Pipeline()
-tfexample_beam_record = TFExampleRecord(file_pattern=predict_values_five_times_table)
-saved_model_spec = model_spec_pb2.SavedModelSpec(model_path=save_model_dir_multiply)
-inference_spec_type = model_spec_pb2.InferenceSpecType(saved_model_spec=saved_model_spec)
-model_handler = CreateModelHandler(inference_spec_type)
-with pipeline as p:
-    _ = (p | tfexample_beam_record.RawRecordBeamSource()
-           | RunInference(model_handler)
-           | beam.Map(print)
-        )
-```
+For more information, see [`KeyedModelHander`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler).
 
 ## Troubleshooting
 
