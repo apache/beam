@@ -57,7 +57,7 @@ jobs:
           git add CHANGES.md
           git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
           git push origin $WORKING_BRANCH --quiet
-          hub pull-request -b ${{env.GITHUB_ACTOR}}:${{env.RELEASE_BRANCH}} -h ${{env.GITHUB_ACTOR}}:${{env.$WORKING_BRANCH}} -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch. You can run many tests automatically using release/src/main/scripts/mass_comment.py."
+          hub pull-request -b ${{env.GITHUB_ACTOR}}:${{env.RELEASE_BRANCH}} -h ${{env.GITHUB_ACTOR}}:${{env.WORKING_BRANCH}} -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch. You can run many tests automatically using release/src/main/scripts/mass_comment.py."
         working-directory: "release/src/main/scripts"
 #  trigger_phrases:
 #    needs: create_testing_pr
