@@ -64,7 +64,7 @@ class LoadTestOptions(PipelineOptions):
         type=json.loads,
         help='Input specification of SyntheticSource.')
     parser.add_argument(
-        '--input', type=str, help='input for the RunInference perf tests.')
+        '--input', dest='input', help='input for the RunInference perf tests.')
     parser.add_argument(
         '--timeout_ms',
         type=int,
