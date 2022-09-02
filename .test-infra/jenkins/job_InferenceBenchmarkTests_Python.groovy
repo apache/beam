@@ -150,7 +150,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate)
     }
 
-// TODO(anandinguva): Change the cron job to run once a day
 CronJobBuilder.cronJob(
     'beam_Inference_Python_Benchmarks_Dataflow', 'H 15 * * *',
     this

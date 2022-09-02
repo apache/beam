@@ -24,7 +24,8 @@ from apache_beam.testing.load_tests.load_test import LoadTest
 
 class PytorchLanguageModelingBenchmarkTest(LoadTest):
   def __init__(self):
-    # TODO (anandinguva): make get_namespace() method in RunInference static
+    # TODO (https://github.com/apache/beam/issues/23008):
+    #  make get_namespace() method in RunInference static
     self.metrics_namespace = 'RunInferencePytorch'
     super().__init__(metrics_namespace=self.metrics_namespace)
 
