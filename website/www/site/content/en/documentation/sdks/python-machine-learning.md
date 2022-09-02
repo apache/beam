@@ -212,7 +212,9 @@ RunInference(KeyedModelHandler(tf_handler))
 The model handler that is created from within `tfx-bsl` is always unkeyed. To make a keyed model handler, wrap the unkeyed model handler in the keyed model handler, which would then take the `tfx-bsl` model handler as a parameter. For example:
 
 ```
-beam.run_inference(beam.ml.inference.KeyedModelHandler(tf_handler))
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.base import KeyedModelHandler
+RunInference(KeyedModelHandler(tf_handler))
 ```
 
 If you are unsure if your data is keyed, you can also use the `maybe_keyed` handler.
