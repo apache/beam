@@ -70,7 +70,7 @@ PredictionResult = NamedTuple(
 PredictionResult.__doc__ = """A NamedTuple containing both input and output
   from the inference."""
 PredictionResult.example.__doc__ = """The input example."""
-PredictionResult.inference.__doc__ = """Results fo r the inference on the model
+PredictionResult.inference.__doc__ = """Results for the inference on the model
   for the given example."""
 
 
