@@ -47,7 +47,7 @@ def loadTestConfigurations = {
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
         pretrained_model_name : 'resnet101',
-        input                 : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
+        input_file                 : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
         model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet101.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_101' + now + '.txt'
       ]
@@ -72,7 +72,7 @@ def loadTestConfigurations = {
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
         pretrained_model_name : 'resnet152',
-        input                 : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
+        input_file                 : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
         model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet152.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_resnet152' + now + '.txt'
       ]
@@ -98,7 +98,7 @@ def loadTestConfigurations = {
         influx_measurement    : 'torch_language_modeling_bert_base_uncased',
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-        input                 : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
+        input_file                 : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
         bert_tokenizer        : 'bert-base-uncased',
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-base-uncased.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_bert_base_uncased' + now + '.txt',
@@ -124,7 +124,7 @@ def loadTestConfigurations = {
         influx_measurement    : 'torch_language_modeling_bert_large_uncased',
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-        input                 : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
+        input_file                 : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
         bert_tokenizer        : 'bert-large-uncased',
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-large-uncased.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_bert_large_uncased' + now + '.txt'

@@ -52,8 +52,11 @@ class PytorchVisionBenchmarkTest(LoadTest):
     # different models.
     model_params = {'num_classes': 1000, 'pretrained': False}
 
+    extra_opts = {}
+    extra_opts['input'] = self.pipeline.get_option('input_file')
+
     self.result = pytorch_image_classification.run(
-        self.pipeline.get_full_options_as_args(),
+        self.pipeline.get_full_options_as_args(**extra_opts),
         model_class=model_class,
         model_params=model_params,
         test_pipeline=self.pipeline)
