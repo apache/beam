@@ -219,8 +219,8 @@ def _get_state_cache_size(experiments):
   future releases.
 
   Returns:
-    an int indicating the maximum number of items to cache.
-      Default is 0 (disabled)
+    an int indicating the maximum number of megabytes to cache.
+      Default is 0 MB
   """
 
   for experiment in experiments:
@@ -228,7 +228,7 @@ def _get_state_cache_size(experiments):
     if re.match(r'state_cache_size=', experiment):
       return int(
           re.match(r'state_cache_size=(?P<state_cache_size>.*)',
-                   experiment).group('state_cache_size'))
+                   experiment).group('state_cache_size')) << 20
   return 0
 
 
