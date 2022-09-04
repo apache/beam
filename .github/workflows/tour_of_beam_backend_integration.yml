@@ -72,6 +72,8 @@ jobs:
         run: PORT=8801 FUNCTION_TARGET=sdkList ./tob_function &
       - name: Run getContentTree in background
         run: PORT=8802 FUNCTION_TARGET=getContentTree ./tob_function &
+      - name: Run getUnitContent in background
+        run: PORT=8803 FUNCTION_TARGET=getUnitContent ./tob_function &
 
       # 3. Load data in datastore: run CD step on samples/learning-content
       - name: Run CI/CD to populate datastore
@@ -81,7 +83,9 @@ jobs:
       - name: test sdkList
         run: curl -v http://localhost:8801
       - name: test getContentTree
-        run: curl -v http://localhost:8802
+        run: curl -v http://localhost:8802?sdk=Python
+      - name: test getUnitContent
+        run: curl -v http://localhost:8803?sdk=Python&unitId=challenge1
       # 5. Compare storage/datastore/index.yml VS generated
       - name: Check index.yaml
         run: |
