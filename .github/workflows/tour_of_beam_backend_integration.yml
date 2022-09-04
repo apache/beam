@@ -85,7 +85,7 @@ jobs:
       - name: test getContentTree
         run: curl -v http://localhost:8802?sdk=Python
       - name: test getUnitContent
-        run: curl -v http://localhost:8803?sdk=Python&unitId=challenge1
+        run: curl -v 'http://localhost:8803?sdk=Python&unitId=challenge1'
       # 5. Compare storage/datastore/index.yml VS generated
       - name: Check index.yaml
         run: |
