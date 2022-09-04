@@ -42,6 +42,9 @@ env:
 jobs:
   integration:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./learning/tour-of-beam/backend
     steps:
       # 0. Datastore emulator
       - name: 'Set up Cloud SDK'
