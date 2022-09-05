@@ -37,7 +37,7 @@ sleep 5
 go run cmd/ci_cd/ci_cd.go
 
 
-go test -v ./integration_tests/...
+go test -v --tags integration ./integration_tests/...
 
 pkill -P $$
 

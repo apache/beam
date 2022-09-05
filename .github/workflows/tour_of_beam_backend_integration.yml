@@ -85,7 +85,7 @@ jobs:
 
       # 4. Check sdkList, getContentTree, getUnitContent: run integration tests
       - name: Go integration tests
-        run: go test -v ./integration_tests/...
+        run: go test -v --tags integration ./integration_tests/...
       # 5. Compare storage/datastore/index.yml VS generated
       - name: Check index.yaml
         run: |
