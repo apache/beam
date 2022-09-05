@@ -48,6 +48,7 @@ func loadJson(path string, dst interface{}) error {
 	if err != nil {
 		return err
 	}
+
 	return json.NewDecoder(fh).Decode(dst)
 }
 
