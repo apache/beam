@@ -13,7 +13,6 @@ jobs:
   check_environment:
     runs-on: ubuntu-latest
     steps:
-      #- run: echo "RELEASE_BRANCH=${release-$RELEASE_VER}" >> $GITHUB_ENV
       - name: Check environment
         run: |
           echo "Verify hub installation."
@@ -48,9 +47,9 @@ jobs:
       - name: Set Dataflow Python Batch Tests Release Version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # Commenting for the moment: sh ./set_version.sh $RELEASE_VER --git-add instead of echo "This is a test." >> TEST_FILE.md
         run: |
           git checkout -b ${{env.WORKING_BRANCH}} --quiet
+          sh ./set_version.sh "$RELEASE_VER" --git-add
           echo "This is a test." >> TEST_FILE.md
           git add TEST_FILE.md
           # In case the version string was not changed, append a newline to CHANGES.md
@@ -58,9 +57,9 @@ jobs:
           git add CHANGES.md
           git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
           git push origin $WORKING_BRANCH --quiet
-          hub pull-request -b $GITHUB_ACTOR:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
-          You can run many tests automatically using release/src/main/scripts/mass_comment.py."
         working-directory: "release/src/main/scripts"
+# hub pull-request -b $GITHUB_ACTOR:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
+# You can run many tests automatically using release/src/main/scripts/mass_comment.py."
 #  trigger_phrases:
 #    needs: create_testing_pr
 #    runs-on: ubuntu-latest
