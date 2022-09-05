@@ -71,10 +71,10 @@ fi
 
 if [[ -z "$IS_SNAPSHOT_VERSION" ]] ; then
   # Fixing a release version
-  sed -i -e "s/version=.*/version=$TARGET_VERSION/" gradle.properties
+  sed -i -e "s/version=.*/version=$TARGET_VERSION/" beam/gradle.properties
   sed -i -e "s/project.version = .*/project.version = '$TARGET_VERSION'/" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
   sed -i -e "s/^__version__ = .*/__version__ = '${TARGET_VERSION}'/" sdks/python/apache_beam/version.py
-  sed -i -e "s/sdk_version=.*/sdk_version=$TARGET_VERSION/" gradle.properties
+  sed -i -e "s/sdk_version=.*/sdk_version=$TARGET_VERSION/" beam/gradle.properties
   sed -i -e "s/SdkVersion = .*/SdkVersion = \"$TARGET_VERSION\"/" sdks/go/pkg/beam/core/core.go
 else
   # For snapshot version:
