@@ -88,10 +88,12 @@ To run the image classification pipeline locally, use the following command:
 ```sh
 python -m apache_beam.examples.inference.pytorch_image_classification \
   --input IMAGE_FILE_NAMES \
-  --images_dir IMAGES_DIR \ # Only needed if your IMAGE_FILE_NAMES file contains relative paths (they will be relative from IMAGES_DIR).
+  --images_dir IMAGES_DIR \
   --output OUTPUT \
   --model_state_dict_path MODEL_STATE_DICT
 ```
+`images_dir` is only needed if your `IMAGE_FILE_NAMES` file contains relative paths (they will be relative from `IMAGES_DIR`).
+
 For example, if you've followed the naming conventions recommended above:
 ```sh
 python -m apache_beam.examples.inference.pytorch_image_classification \
@@ -141,10 +143,12 @@ To run the image segmentation pipeline locally, use the following command:
 ```sh
 python -m apache_beam.examples.inference.pytorch_image_segmentation \
   --input IMAGE_FILE_NAMES \
-  --images_dir IMAGES_DIR \ # Only needed if your IMAGE_FILE_NAMES file contains relative paths (they will be relative from IMAGES_DIR).
+  --images_dir IMAGES_DIR \
   --output OUTPUT \
   --model_state_dict_path MODEL_STATE_DICT
 ```
+`images_dir` is only needed if your `IMAGE_FILE_NAMES` file contains relative paths (they will be relative from `IMAGES_DIR`).
+
 For example, if you've followed the naming conventions recommended above:
 ```sh
 python -m apache_beam.examples.inference.pytorch_image_segmentation \
@@ -190,19 +194,21 @@ He looked up and saw the sun and stars .
 To run the language modeling pipeline locally, use the following command:
 ```sh
 python -m apache_beam.examples.inference.pytorch_language_modeling \
-  --input SENTENCES \ # optional
+  --input SENTENCES \
   --output OUTPUT \
   --model_state_dict_path MODEL_STATE_DICT
 ```
+The `input` argument is optional. If none is provided, it will run the pipeline with some
+example sentences.
+
 For example, if you've followed the naming conventions recommended above:
 ```sh
 python -m apache_beam.examples.inference.pytorch_language_modeling \
-  --input SENTENCES.txt \ # optional
+  --input SENTENCES.txt \
   --output predictions.csv \
   --model_state_dict_path BertForMaskedLM.pth
 ```
-If you don't provide a sentences file, it will run the pipeline with some
-example sentences.
+Or, using the default example sentences:
 ```sh
 python -m apache_beam.examples.inference.pytorch_language_modeling \
   --output predictions.csv \
@@ -220,7 +226,7 @@ The first item is the input sentence. The model masks the last word and tries to
 the second item is the word that the model predicts for the mask.
 
 ---
-## MNITST digit classification
+## MNIST digit classification
 [`sklearn_mnist_classification.py`](./sklearn_mnist_classification.py) contains an implementation for a RunInference pipeline that performs image classification on handwritten digits from the [MNIST](https://en.wikipedia.org/wiki/MNIST_database) database.
 
 The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing, passes the pixels to the Scikit-learn implementation of RunInference, and then writes the predictions to a text file.
@@ -229,7 +235,7 @@ The pipeline reads rows of pixels corresponding to a digit, performs basic prepr
 
 To use this transform, you need a dataset and model for language modeling.
 
-1. Create a file named `INPUT.csv` that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The content of the file should be similar to the following example:
+1. Create a file named `INPUT.csv` that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
 ```
 1,0,0,0...
 0,0,0,0...
