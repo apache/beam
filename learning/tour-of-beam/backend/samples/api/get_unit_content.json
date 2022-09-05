@@ -2,9 +2,14 @@
     "unitId": "1.1",
     "name": "Basic concepts",
     "description": "Lorem ipsum...",
-    "hint": "Try to use this method....",
-    "assignment": "assignmentSnippetId",
-    "solution": "solutionSnippetId",
-    "userSnippet": "userSnippetId",
-    "completed": true
+    "hints" : [
+        "## Hint 1\n\napply yourself :)",
+        "## Hint 2\n\napply more"
+     ],
+
+    "taskSnippetId": "taskSnippetId",
+    "solutionSnippetId": "solutionSnippetId",
+
+    "userSnippetId": "userSnippetId",
+    "isCompleted": true
 }

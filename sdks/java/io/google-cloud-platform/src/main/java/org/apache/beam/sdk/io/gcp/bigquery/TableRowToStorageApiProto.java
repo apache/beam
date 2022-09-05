@@ -590,7 +590,18 @@ public class TableRowToStorageApiProto {
         return BaseEncoding.base64().encode(((ByteString) fieldValue).toByteArray());
       case ENUM:
         throw new RuntimeException("Enumerations not supported");
+      case INT32:
+      case FLOAT:
+      case BOOL:
+      case DOUBLE:
+        // The above types have native representations in JSON for all their
+        // possible values.
+        return fieldValue;
+      case STRING:
+      case INT64:
       default:
+        // The above types must be cast to string to be safely encoded in
+        // JSON (due to JSON's float-based representation of all numbers).
         return fieldValue.toString();
     }
   }
