@@ -49,6 +49,7 @@ from apache_beam.testing.load_tests.load_test import LoadTest
 class DebeziumLoadTest(LoadTest):
   def __init__(self):
     super().__init__()
+    # self.runner = self.pipeline.get_option('runner')
     self.kubernetes_host = self.pipeline.get_option('kubernetes_host')
     self.kubernetes_port = self.pipeline.get_option('kubernetes_port')
     self.postgres_user = self.pipeline.get_option('postgres_user')
@@ -141,6 +142,7 @@ class DebeziumLoadTest(LoadTest):
 
   def createPipeline(self):
     #if the max_number_of_records is not defined the pipeline doesn't finish
+    # TODO: Change runner to Dataflow
     self.pipeline.not_use_test_runner_api = True
     result = (
         self.pipeline | 'Read from debezium' >> ReadFromDebezium(

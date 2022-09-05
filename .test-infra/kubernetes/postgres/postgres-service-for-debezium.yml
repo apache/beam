@@ -17,7 +17,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres-for-dev
+  name: postgres-for-debezium
   labels:
     name: postgres
 spec:
@@ -47,8 +47,6 @@ spec:
         - name: postgres
           image: postgres
           args: ["-c", "wal_level=logical","-c","max_wal_senders=4","-c","max_replication_slots=4"]
-          
-        
           env:
             - name: POSTGRES_PASSWORD
               value: uuinkks
