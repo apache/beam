@@ -80,6 +80,8 @@ class _NarrowWelcome extends StatelessWidget {
 class _SdkSelection extends StatelessWidget {
   const _SdkSelection();
 
+  static const double _minimalHeight = 900;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -99,7 +101,7 @@ class _SdkSelection extends StatelessWidget {
                 ? Image.asset(Assets.png.laptopDark.path)
                 : Image.asset(Assets.png.laptopLight.path),
           ),
-          const SizedBox(height: 900),
+          const SizedBox(height: _minimalHeight),
           Padding(
             padding: const EdgeInsets.fromLTRB(50, 60, 50, 20),
             child: Column(
@@ -135,7 +137,7 @@ class _TourSummary extends StatelessWidget {
                 isLast: module == _modules.last,
               ),
             )
-            .toList(),
+            .toList(growable: false),
       ),
     );
   }
@@ -152,6 +154,8 @@ class _TourSummary extends StatelessWidget {
 class _IntroText extends StatelessWidget {
   const _IntroText();
 
+  static const double _dividerMaxWidth = 150;
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -163,9 +167,9 @@ class _IntroText extends StatelessWidget {
         ).tr(),
         Container(
           margin: const EdgeInsets.symmetric(vertical: 32),
-          height: 2,
+          height: BeamSizes.size2,
           color: BeamColors.grey2,
-          constraints: const BoxConstraints(maxWidth: 150),
+          constraints: const BoxConstraints(maxWidth: _dividerMaxWidth),
         ),
         RichText(
           text: TextSpan(
@@ -214,7 +218,7 @@ class _Buttons extends StatelessWidget {
                   onChanged: _onSdkChanged,
                 ),
               )
-              .toList(),
+              .toList(growable: false),
         ),
         ElevatedButton(
           onPressed: () {
@@ -296,7 +300,7 @@ class _ModuleHeader extends StatelessWidget {
                 padding: const EdgeInsets.all(BeamSizes.size4),
                 child: SvgPicture.asset(
                   Assets.svg.welcomeProgress0,
-                  color: ThemeColors.of(context).progressBackgroundColor,
+                  color: BeamColors.grey4,
                 ),
               ),
               const SizedBox(width: BeamSizes.size16),

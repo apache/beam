@@ -38,9 +38,11 @@ class TobScaffold extends StatelessWidget {
       appBar: AppBar(
         title: const Logo(),
         actions: const [
-          SdkDropdown(),
-          ToggleThemeButton(),
-          SignInButton(),
+          _ActionVerticalPadding(child: SdkDropdown()),
+          SizedBox(width: BeamSizes.size12),
+          _ActionVerticalPadding(child: ToggleThemeButton()),
+          SizedBox(width: BeamSizes.size6),
+          _ActionVerticalPadding(child: SignInButton()),
           SizedBox(width: BeamSizes.size16),
         ],
       ),
@@ -50,6 +52,19 @@ class TobScaffold extends StatelessWidget {
           const Footer(),
         ],
       ),
+    );
+  }
+}
+
+class _ActionVerticalPadding extends StatelessWidget {
+  final Widget child;
+  const _ActionVerticalPadding({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
+      child: child,
     );
   }
 }

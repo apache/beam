@@ -32,20 +32,16 @@ class BeamSizes {
   static const double size32 = 32;
   static const double size36 = 36;
   static const double size40 = 40;
+
   static const double appBarHeight = 55;
   static const double splitViewSeparator = BeamSizes.size8;
 }
 
 class BeamBorderRadius {
-  static const double small = 4;
-  static const double medium = 6;
-  static const double large = 8;
-  static const double xl = 28;
+  static const double small = BeamSizes.size4;
+  static const double large = BeamSizes.size8;
 }
 
 class BeamIconSizes {
-  static const double xs = 8;
-  static const double small = 16;
-  static const double medium = 24;
-  static const double large = 32;
+  static const double large = BeamSizes.size32;
 }

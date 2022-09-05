@@ -20,6 +20,10 @@ import 'package:flutter/material.dart';
 
 class Pan {
   final Widget child;
+
+  /// Fraction of a split view, from 0 to 1.
+  /// For example, 0.5 is half of a 2-column split view.
+  /// Null means no limit.
   final double? minWeight;
   final double? maxWeight;
 

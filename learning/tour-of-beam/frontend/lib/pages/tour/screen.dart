@@ -113,7 +113,7 @@ class _ContentTree extends StatelessWidget {
             ...[
               'Core Transforms',
               'Common Transforms',
-            ].map((e) => _Module(module: e)).toList(),
+            ].map((e) => _Module(module: e)).toList(growable: false),
             const SizedBox(height: BeamSizes.size12),
           ],
         ),
@@ -131,7 +131,9 @@ class _Module extends StatelessWidget {
     return Column(
       children: [
         _ModuleTitle(title: module),
-        ...['Map', 'Combine'].map((e) => _Groups(group: e)).toList(),
+        ...['Map', 'Combine']
+            .map((group) => _Group(group: group))
+            .toList(growable: false),
         const BeamDivider(
           margin: EdgeInsets.symmetric(vertical: BeamSizes.size10),
         ),
@@ -185,14 +187,14 @@ class _ModuleTitle extends StatelessWidget {
   }
 }
 
-class _Groups extends StatelessWidget {
+class _Group extends StatelessWidget {
   final String group;
-  const _Groups({required this.group});
+  const _Group({required this.group});
 
   @override
   Widget build(BuildContext context) {
     return ExpansionTileWrapper(
-      expansionTile: ExpansionTile(
+      ExpansionTile(
         tilePadding: EdgeInsets.zero,
         title: _GroupTitle(title: group),
         childrenPadding: const EdgeInsets.only(
@@ -213,7 +215,7 @@ class _Units extends StatelessWidget {
     return Column(
       children: ['ParDo one-to-one', 'ParDo one-to-many']
           .map((e) => _Unit(title: e))
-          .toList(),
+          .toList(growable: false),
     );
   }
 }
@@ -325,7 +327,7 @@ class _ContentFooter extends StatelessWidget {
           Flexible(
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
-                primary: ThemeColors.of(context).primary,
+                foregroundColor: ThemeColors.of(context).primary,
                 side: BorderSide(color: ThemeColors.of(context).primary),
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.all(

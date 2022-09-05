@@ -37,7 +37,7 @@ class SdkDropdown extends StatelessWidget {
                 child: Text(sdk),
               ),
             )
-            .toList(),
+            .toList(growable: false),
         isDense: true,
         alignment: Alignment.center,
         focusColor: Colors.transparent,
@@ -53,9 +53,7 @@ class _DropdownWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(BeamSizes.size10),
-      padding: const EdgeInsets.all(BeamSizes.size2),
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: Theme.of(context).hoverColor,
         borderRadius: BorderRadius.circular(BeamSizes.size6),

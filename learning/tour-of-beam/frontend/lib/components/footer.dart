@@ -44,7 +44,7 @@ class Footer extends StatelessWidget {
           ),
           // TODO(nausharipov): get version
           Text(
-            '${'ui.builtWith'.tr()} 2.40.0',
+            '${'ui.builtWith'.tr()} (TODO: Version)',
             style: const TextStyle(
               color: BeamColors.grey3,
             ),

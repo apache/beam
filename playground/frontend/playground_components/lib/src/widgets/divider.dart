@@ -18,6 +18,8 @@
 
 import 'package:flutter/material.dart';
 
+/// Replaces Flutter's Divider, which is buggy with HTML renderer.
+/// See https://github.com/flutter/flutter/issues/46339
 class BeamDivider extends StatelessWidget {
   final EdgeInsets? margin;
   const BeamDivider({this.margin});

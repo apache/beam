@@ -79,8 +79,4 @@ class ThemeColors {
 
   Color get textColor =>
       isDark ? BeamDarkThemeColors.text : BeamLightThemeColors.text;
-
-  Color get progressBackgroundColor =>
-      // TODO(nausharipov): reuse these colors after discussion with Anna
-      isDark ? const Color(0xffFFFFFF) : const Color(0xff242639);
 }

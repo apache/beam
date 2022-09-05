@@ -35,18 +35,12 @@ class ToggleThemeButton extends StatelessWidget {
         final text =
             notifier.isDarkMode ? 'ui.lightMode'.tr() : 'ui.darkMode'.tr();
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: BeamSizes.size4,
-            horizontal: BeamSizes.size8,
-          ),
-          child: TextButton.icon(
-            icon: SvgPicture.asset(Assets.svg.themeMode),
-            label: Text(text),
-            onPressed: () {
-              notifier.toggleTheme();
-            },
-          ),
+        return TextButton.icon(
+          icon: SvgPicture.asset(Assets.svg.themeMode),
+          label: Text(text),
+          onPressed: () {
+            notifier.toggleTheme();
+          },
         );
       },
     );

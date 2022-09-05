@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../constants/names.dart';
 import '../constants/sizes.dart';
 import '../generated/assets.gen.dart';
 
@@ -29,6 +30,7 @@ class BeamLogo extends StatelessWidget {
     return Image.asset(
       Assets.png.beamLogo.path,
       height: BeamIconSizes.large,
+      package: BeamNames.package,
     );
   }
 }

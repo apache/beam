@@ -49,14 +49,14 @@ class BeamSplitView extends StatelessWidget {
       controller: SplitViewController(
         limits: pans
             .map(
-              (e) => WeightLimit(
-                min: e.minWeight,
-                max: e.maxWeight,
+              (pan) => WeightLimit(
+                min: pan.minWeight,
+                max: pan.maxWeight,
               ),
             )
-            .toList(),
+            .toList(growable: false),
       ),
-      children: pans.map((e) => e.child).toList(),
+      children: pans.map((e) => e.child).toList(growable: false),
     );
   }
 }

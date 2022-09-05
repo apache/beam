@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 
 class ExpansionTileWrapper extends StatelessWidget {
   final ExpansionTile expansionTile;
-  const ExpansionTileWrapper({required this.expansionTile});
+  const ExpansionTileWrapper(this.expansionTile);
 
   @override
   Widget build(BuildContext context) {

@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-library playground_components;
-
 export 'src/constants/colors.dart';
 export 'src/constants/links.dart';
 export 'src/constants/sizes.dart';

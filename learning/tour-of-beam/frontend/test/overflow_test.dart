@@ -18,8 +18,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tour_of_beam/components/test_screen_wrapper.dart';
 import 'package:tour_of_beam/pages/tour/screen.dart';
+import 'common/test_screen_wrapper.dart';
 
 void main() {
   testWidgets('WelcomeScreen overflow', (tester) async {

@@ -24,6 +24,6 @@ class FillerText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(''.padRight(width, 'Just a filler text '));
+    return Text(''.padRight(width, 'Just a filler text. '));
   }
 }
