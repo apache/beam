@@ -17,26 +17,31 @@ export DATASTORE_EMULATOR_HOST=localhost:8081
 export DATASTORE_EMULATOR_DATADIR=./datadir-$(date '+%H-%M-%S')
 export TOB_LEARNING_ROOT=./samples/learning-content
 
+export PORT_SDK_LIST=8801
+export PORT_GET_CONTENT_TREE=8802
+export PORT_GET_UNIT_CONTENT=8803
+
 mkdir "$DATASTORE_EMULATOR_DATADIR"
 
 docker-compose up -d
 
 go build -o tob_function cmd/main.go
 
-PORT=8801 FUNCTION_TARGET=sdkList         ./tob_function &
-PORT=8802 FUNCTION_TARGET=getContentTree  ./tob_function &
-PORT=8803 FUNCTION_TARGET=getUnitContent  ./tob_function &
+PORT=$PORT_SDK_LIST FUNCTION_TARGET=sdkList         ./tob_function &
+PORT=$PORT_GET_CONTENT_TREE FUNCTION_TARGET=getContentTree  ./tob_function &
+PORT=$PORT_GET_UNIT_CONTENT FUNCTION_TARGET=getUnitContent  ./tob_function &
 
 sleep 5
 
 
 go run cmd/ci_cd/ci_cd.go
 
-curl -v 'localhost:8801' | json_pp
-curl -v 'localhost:8802?sdk=Python' | json_pp
-curl -v 'localhost:8803?sdk=Python&unitId=challenge1' | json_pp
+
+go test -v ./integration_tests/...
 
 pkill -P $$
+
+rm -f ./tob_function
 
 docker-compose down
 
