@@ -33,10 +33,11 @@ jobs:
     steps:
       - name: Set RELEASE_BRANCH env variable
         run: |
+          echo "Set RELEASE_BRANCH env variable."
           RELEASE_BRANCH=release-${{env.RELEASE_VER}}
           echo "RELEASE_BRANCH=${RELEASE_BRANCH}" >> $GITHUB_ENV
-          echo ${{env.RELEASE_BRANCH}}
-          echo $RELEASE_BRANCH
+          echo  ${{env.RELEASE_BRANCH}} $RELEASE_BRANCH $RELEASE_VER
+          echo  $GITHUB_ACTOR
       - name: Test RELEASE_BRANCH env var
         if: ${{ env.RELEASE_BRANCH == 'release-vtest' }}
         run: echo "Release Branch $RELEASE_BRANCH"
