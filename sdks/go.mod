@@ -26,7 +26,7 @@ require (
 	cloud.google.com/go/bigquery v1.39.0
 	cloud.google.com/go/datastore v1.8.0
 	cloud.google.com/go/pubsub v1.25.1
-	cloud.google.com/go/storage v1.25.0
+	cloud.google.com/go/storage v1.26.0
 	github.com/docker/go-connections v0.4.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang/protobuf v1.5.2 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
