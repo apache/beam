@@ -1,4 +1,5 @@
 //go:build integration
+// +build integration
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,7 +49,6 @@ func loadJson(path string, dst interface{}) error {
 	if err != nil {
 		return err
 	}
-
 	return json.NewDecoder(fh).Decode(dst)
 }
 
