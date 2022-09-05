@@ -23,10 +23,14 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -59,6 +63,7 @@ import java.util.function.Function;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry.Severity;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse;
@@ -83,7 +88,7 @@ import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.Exec
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
-import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
+import org.apache.beam.runners.fnexecution.logging.LogWriter;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
@@ -154,6 +159,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests the execution of a pipeline from specification time to executing a single fused stage,
@@ -176,6 +182,7 @@ public class RemoteExecutionTest implements Serializable {
   private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
   private transient GrpcFnServer<GrpcDataService> dataServer;
   private transient GrpcFnServer<GrpcStateService> stateServer;
+  private transient LogCapturer logCapturer;
   private transient GrpcFnServer<GrpcLoggingService> loggingServer;
   private transient GrpcStateService stateDelegator;
   private transient SdkHarnessClient controlClient;
@@ -183,6 +190,15 @@ public class RemoteExecutionTest implements Serializable {
   private transient ExecutorService serverExecutor;
   private transient ExecutorService sdkHarnessExecutor;
   private transient Future<?> sdkHarnessExecutorFuture;
+
+  private static class LogCapturer implements LogWriter {
+    List<BeamFnApi.LogEntry> capturedLogs = Collections.synchronizedList(new ArrayList<>());
+
+    @Override
+    public void log(BeamFnApi.LogEntry entry) {
+      capturedLogs.add(entry);
+    }
+  }
 
   public void launchSdkHarness(PipelineOptions options) throws Exception {
     // Setup execution-time servers
@@ -196,9 +212,10 @@ public class RemoteExecutionTest implements Serializable {
                 serverExecutor,
                 OutboundObserverFactory.serverDirect()),
             serverFactory);
+    logCapturer = new LogCapturer();
     loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
+            GrpcLoggingService.forWriter(logCapturer), serverFactory);
     stateDelegator = GrpcStateService.create();
     stateServer = GrpcFnServer.allocatePortAndCreateFor(stateDelegator, serverFactory);
 
@@ -253,6 +270,7 @@ public class RemoteExecutionTest implements Serializable {
         throw e;
       }
     }
+    logCapturer = null;
   }
 
   @Test
@@ -313,8 +331,8 @@ public class RemoteExecutionTest implements Serializable {
               (Coder) remoteOutputCoder.getValue(),
               (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
     }
-    // The impulse example
 
+    // The impulse example
     try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
@@ -328,6 +346,115 @@ public class RemoteExecutionTest implements Serializable {
               valueInGlobalWindow(byteValueOf("foo", 4)),
               valueInGlobalWindow(byteValueOf("foo", 3)),
               valueInGlobalWindow(byteValueOf("foo", 3))));
+    }
+  }
+
+  @Test
+  public void testLogging() throws Exception {
+    long startTime = System.currentTimeMillis();
+    launchSdkHarness(PipelineOptionsFactory.create());
+    Pipeline p = Pipeline.create();
+    p.apply("impulse", Impulse.create())
+        .apply(
+            "create",
+            ParDo.of(
+                new DoFn<byte[], String>() {
+                  @ProcessElement
+                  public void process(ProcessContext ctxt) {
+                    ctxt.output("zero");
+                  }
+                }))
+        .apply(
+            "len",
+            ParDo.of(
+                new DoFn<String, Long>() {
+                  @ProcessElement
+                  public void process(ProcessContext ctxt) {
+                    org.slf4j.Logger logger = LoggerFactory.getLogger(RemoteExecutionTest.class);
+                    logger.warn("TEST" + ctxt.element());
+                    logger.error("TEST_EXCEPTION" + ctxt.element(), new Exception());
+                  }
+                }))
+        .apply("addKeys", WithKeys.of("foo"))
+        // Use some unknown coders
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()))
+        // Force the output to be materialized
+        .apply("gbk", GroupByKey.create());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
+    checkState(fused.getFusedStages().size() == 1, "Expected exactly one fused stage");
+    ExecutableStage stage = fused.getFusedStages().iterator().next();
+
+    ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "my_stage", stage, dataServer.getApiServiceDescriptor());
+    String ptransformId = null;
+    for (Map.Entry<String, RunnerApi.PTransform> entry :
+        descriptor.getProcessBundleDescriptor().getTransformsMap().entrySet()) {
+      if (entry.getValue().getUniqueName().contains("len")) {
+        ptransformId = entry.getKey();
+      }
+    }
+    assertNotNull(ptransformId);
+    BundleProcessor processor =
+        controlClient.getProcessor(
+            descriptor.getProcessBundleDescriptor(), descriptor.getRemoteInputDestinations());
+    Map<String, ? super Coder<WindowedValue<?>>> remoteOutputCoders =
+        descriptor.getRemoteOutputCoders();
+    Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+    for (Entry<String, ? super Coder<WindowedValue<?>>> remoteOutputCoder :
+        remoteOutputCoders.entrySet()) {
+      List<? super WindowedValue<?>> outputContents =
+          Collections.synchronizedList(new ArrayList<>());
+      outputReceivers.put(
+          remoteOutputCoder.getKey(),
+          RemoteOutputReceiver.of(
+              (Coder) remoteOutputCoder.getValue(),
+              (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
+    }
+
+    String instructionId;
+    // Execute a bundle that logs.
+    try (RemoteBundle bundle =
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
+      instructionId = bundle.getId();
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(valueInGlobalWindow(new byte[0]));
+    }
+
+    while (System.currentTimeMillis() - startTime < 30_000L) {
+      BeamFnApi.LogEntry[] logs = logCapturer.capturedLogs.toArray(new BeamFnApi.LogEntry[0]);
+      boolean foundPTransformLog = false;
+      boolean foundExceptionLog = false;
+      for (BeamFnApi.LogEntry log : logs) {
+        assertThat(
+            log.getTimestamp().getSeconds() * 1000 + log.getTimestamp().getNanos() / 1_000_000,
+            allOf(greaterThanOrEqualTo(startTime), lessThanOrEqualTo(System.currentTimeMillis())));
+        assertThat(log.getThread(), not(""));
+        assertThat(log.getLogLocation(), not(""));
+
+        if ("TESTzero".equals(log.getMessage())) {
+          assertThat(log.getSeverity(), equalTo(Severity.Enum.WARN));
+          assertThat(log.getInstructionId(), equalTo(instructionId));
+          assertThat(log.getLogLocation(), equalTo(RemoteExecutionTest.class.getCanonicalName()));
+          assertThat(log.getTransformId(), equalTo(ptransformId));
+          assertThat(log.getTrace(), equalTo(""));
+          foundPTransformLog = true;
+        } else if ("TEST_EXCEPTIONzero".equals(log.getMessage())) {
+          assertThat(log.getSeverity(), equalTo(Severity.Enum.ERROR));
+          assertThat(log.getInstructionId(), equalTo(instructionId));
+          assertThat(log.getLogLocation(), equalTo(RemoteExecutionTest.class.getCanonicalName()));
+          assertThat(log.getTransformId(), equalTo(ptransformId));
+          assertThat(log.getTrace(), containsString("RemoteExecutionTest"));
+          foundExceptionLog = true;
+        }
+      }
+      if (foundPTransformLog && foundExceptionLog) {
+        break;
+      }
+      // Wait till we get more logs from the SDK.
+      Thread.sleep(500);
     }
   }
 

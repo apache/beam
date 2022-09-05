@@ -30,6 +30,7 @@ import grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.utils.sentinel import Sentinel
 
@@ -95,6 +96,18 @@ def heap_dump():
   return banner + heap + ending
 
 
+def _state_cache_stats(state_cache):
+  #type: (StateCache) -> str
+
+  """Gather state cache statistics."""
+  cache_stats = ['=' * 10 + ' CACHE STATS ' + '=' * 10]
+  if not state_cache.is_cache_enabled():
+    cache_stats.append("Cache disabled")
+  else:
+    cache_stats.append(state_cache.describe_stats())
+  return '\n'.join(cache_stats)
+
+
 def _active_processing_bundles_state(bundle_process_cache):
   """Gather information about the currently in-processing active bundles.
 
@@ -138,6 +151,7 @@ class FnApiWorkerStatusHandler(object):
       self,
       status_address,
       bundle_process_cache=None,
+      state_cache=None,
       enable_heap_dump=False,
       log_lull_timeout_ns=DEFAULT_LOG_LULL_TIMEOUT_NS):
     """Initialize FnApiWorkerStatusHandler.
@@ -145,9 +159,11 @@ class FnApiWorkerStatusHandler(object):
     Args:
       status_address: The URL Runner uses to host the WorkerStatus server.
       bundle_process_cache: The BundleProcessor cache dict from sdk worker.
+      state_cache: The StateCache form sdk worker.
     """
     self._alive = True
     self._bundle_process_cache = bundle_process_cache
+    self._state_cache = state_cache
     ch = GRPCChannelFactory.insecure_channel(status_address)
     grpc.channel_ready_future(ch).result(timeout=60)
     self._status_channel = grpc.intercept_channel(ch, WorkerIdInterceptor())
@@ -193,9 +209,14 @@ class FnApiWorkerStatusHandler(object):
                   "status page: %s" % traceback_string))
 
   def generate_status_response(self):
-    all_status_sections = [
-        _active_processing_bundles_state(self._bundle_process_cache)
-    ] if self._bundle_process_cache else []
+    all_status_sections = []
+
+    if self._state_cache:
+      all_status_sections.append(_state_cache_stats(self._state_cache))
+
+    if self._bundle_process_cache:
+      all_status_sections.append(
+          _active_processing_bundles_state(self._bundle_process_cache))
 
     all_status_sections.append(thread_dump())
     if self._enable_heap_dump:

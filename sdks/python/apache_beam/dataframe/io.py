@@ -58,6 +58,33 @@ _DEFAULT_LINES_CHUNKSIZE = 10_000
 _DEFAULT_BYTES_CHUNKSIZE = 1 << 20
 
 
+def read_gbq(
+    table, dataset=None, project_id=None, use_bqstorage_api=False, **kwargs):
+  """This function reads data from a BigQuery table and produces a
+  :class:`~apache_beam.dataframe.frames.DeferredDataFrame.
+
+  Args:
+    table (str): Please specify a table. This can be done in the format
+      'PROJECT:dataset.table' if one would not wish to utilize
+      the parameters below.
+    dataset (str): Please specify the dataset
+      (can omit if table was specified as 'PROJECT:dataset.table').
+    project_id (str): Please specify the project ID
+      (can omit if table was specified as 'PROJECT:dataset.table').
+    use_bqstorage_api (bool): If you would like to utilize
+      the BigQuery Storage API in ReadFromBigQuery, please set
+      this flag to true. Otherwise, please set flag
+      to false or leave it unspecified.
+      """
+  if table is None:
+    raise ValueError("Please specify a BigQuery table to read from.")
+  elif len(kwargs) > 0:
+    raise ValueError(
+        f"Encountered unsupported parameter(s) in read_gbq: {kwargs.keys()!r}"
+        "")
+  return _ReadGbq(table, dataset, project_id, use_bqstorage_api)
+
+
 @frame_base.with_docs_from(pd)
 def read_csv(path, *args, splittable=False, **kwargs):
   """If your files are large and records do not contain quoted newlines, you may
@@ -625,10 +652,15 @@ class _WriteToPandas(beam.PTransform):
     self.binary = binary
 
   def expand(self, pcoll):
-    dir, name = io.filesystems.FileSystems.split(self.path)
+    if 'file_naming' in self.kwargs:
+      dir, name = self.path, ''
+    else:
+      dir, name = io.filesystems.FileSystems.split(self.path)
     return pcoll | fileio.WriteToFiles(
         path=dir,
-        file_naming=fileio.default_file_naming(name),
+        shards=self.kwargs.pop('num_shards', None),
+        file_naming=self.kwargs.pop(
+            'file_naming', fileio.default_file_naming(name)),
         sink=lambda _: _WriteToPandasFileSink(
             self.writer, self.args, self.kwargs, self.incremental, self.binary))
 
@@ -756,3 +788,59 @@ class WriteViaPandas(beam.PTransform):
         | beam.Map(lambda file_result: file_result.file_name).with_output_types(
             str)
     }
+
+
+class _ReadGbq(beam.PTransform):
+  """Read data from BigQuery with output type 'BEAM_ROW',
+  then convert it into a deferred dataframe.
+
+    This PTransform wraps the Python ReadFromBigQuery PTransform,
+    and sets the output_type as 'BEAM_ROW' to convert
+    into a Beam Schema. Once applied to a pipeline object,
+    it is passed into the to_dataframe() function to convert the
+    PCollection into a deferred dataframe.
+
+    This PTransform currently does not support queries.
+
+  Args:
+    table (str): The ID of the table. The ID must contain only
+      letters ``a-z``, ``A-Z``,
+      numbers ``0-9``, underscores ``_`` or white spaces.
+      Note that the table argument must contain the entire table
+      reference specified as: ``'PROJECT:DATASET.TABLE'``.
+    use_bq_storage_api (bool): The method to use to read from BigQuery.
+      It may be 'EXPORT' or
+      'DIRECT_READ'. EXPORT invokes a BigQuery export request
+      (https://cloud.google.com/bigquery/docs/exporting-data).
+      'DIRECT_READ' reads
+      directly from BigQuery storage using the BigQuery Read API
+      (https://cloud.google.com/bigquery/docs/reference/storage). If
+      unspecified or set to false, the default is currently utilized (EXPORT).
+      If the flag is set to true,
+      'DIRECT_READ' will be utilized."""
+  def __init__(
+      self,
+      table=None,
+      dataset_id=None,
+      project_id=None,
+      use_bqstorage_api=None):
+
+    self.table = table
+    self.dataset_id = dataset_id
+    self.project_id = project_id
+    self.use_bqstorage_api = use_bqstorage_api
+
+  def expand(self, root):
+    from apache_beam.dataframe import convert  # avoid circular import
+    if self.use_bqstorage_api:
+      method = 'DIRECT_READ'
+    else:
+      method = 'EXPORT'
+    return convert.to_dataframe(
+        root
+        | beam.io.ReadFromBigQuery(
+            table=self.table,
+            dataset=self.dataset_id,
+            project=self.project_id,
+            method=method,
+            output_type='BEAM_ROW'))

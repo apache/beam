@@ -1,0 +1,15 @@
+{
+    "unitId": "1.1",
+    "name": "Basic concepts",
+    "description": "Lorem ipsum...",
+    "hints" : [
+        "## Hint 1\n\napply yourself :)",
+        "## Hint 2\n\napply more"
+     ],
+
+    "taskSnippetId": "taskSnippetId",
+    "solutionSnippetId": "solutionSnippetId",
+
+    "userSnippetId": "userSnippetId",
+    "isCompleted": true
+}

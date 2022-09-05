@@ -1068,16 +1068,20 @@ public class BigQueryIO {
       checkArgument(getParseFn() != null, "A parseFn is required");
 
       // if both toRowFn and fromRowFn values are set, enable Beam schema support
-      boolean beamSchemaEnabled = false;
+      Pipeline p = input.getPipeline();
+      final BigQuerySourceDef sourceDef = createSourceDef();
+
+      Schema beamSchema = null;
       if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
-        beamSchemaEnabled = true;
+        BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
+        beamSchema = sourceDef.getBeamSchema(bqOptions);
+        beamSchema = getFinalSchema(beamSchema, getSelectedFields());
       }
 
-      Pipeline p = input.getPipeline();
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
 
       if (getMethod() == TypedRead.Method.DIRECT_READ) {
-        return expandForDirectRead(input, coder);
+        return expandForDirectRead(input, coder, beamSchema);
       }
 
       checkArgument(
@@ -1090,7 +1094,6 @@ public class BigQueryIO {
           "Invalid BigQueryIO.Read: Specifies row restriction, "
               + "which only applies when using Method.DIRECT_READ");
 
-      final BigQuerySourceDef sourceDef = createSourceDef();
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection;
       PCollection<T> rows;
@@ -1221,33 +1224,60 @@ public class BigQueryIO {
 
       rows = rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
 
-      if (beamSchemaEnabled) {
-        BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
-        Schema beamSchema = sourceDef.getBeamSchema(bqOptions);
-        SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
-        SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
-
-        rows.setSchema(beamSchema, getTypeDescriptor(), toBeamRow, fromBeamRow);
+      if (beamSchema != null) {
+        rows.setSchema(
+            beamSchema,
+            getTypeDescriptor(),
+            getToBeamRowFn().apply(beamSchema),
+            getFromBeamRowFn().apply(beamSchema));
       }
       return rows;
     }
 
-    private PCollection<T> expandForDirectRead(PBegin input, Coder<T> outputCoder) {
+    private static Schema getFinalSchema(
+        Schema beamSchema, ValueProvider<List<String>> selectedFields) {
+      List<Schema.Field> flds =
+          beamSchema.getFields().stream()
+              .filter(
+                  field -> {
+                    if (selectedFields != null
+                        && selectedFields.isAccessible()
+                        && selectedFields.get() != null) {
+                      return selectedFields.get().contains(field.getName());
+                    } else {
+                      return true;
+                    }
+                  })
+              .collect(Collectors.toList());
+      return Schema.builder().addFields(flds).build();
+    }
+
+    private PCollection<T> expandForDirectRead(
+        PBegin input, Coder<T> outputCoder, Schema beamSchema) {
       ValueProvider<TableReference> tableProvider = getTableProvider();
       Pipeline p = input.getPipeline();
       if (tableProvider != null) {
         // No job ID is required. Read directly from BigQuery storage.
-        return p.apply(
-            org.apache.beam.sdk.io.Read.from(
-                BigQueryStorageTableSource.create(
-                    tableProvider,
-                    getFormat(),
-                    getSelectedFields(),
-                    getRowRestriction(),
-                    getParseFn(),
-                    outputCoder,
-                    getBigQueryServices(),
-                    getProjectionPushdownApplied())));
+        PCollection<T> rows =
+            p.apply(
+                org.apache.beam.sdk.io.Read.from(
+                    BigQueryStorageTableSource.create(
+                        tableProvider,
+                        getFormat(),
+                        getSelectedFields(),
+                        getRowRestriction(),
+                        getParseFn(),
+                        outputCoder,
+                        getBigQueryServices(),
+                        getProjectionPushdownApplied())));
+        if (beamSchema != null) {
+          rows.setSchema(
+              beamSchema,
+              getTypeDescriptor(),
+              getToBeamRowFn().apply(beamSchema),
+              getFromBeamRowFn().apply(beamSchema));
+        }
+        return rows;
       }
 
       checkArgument(
@@ -1437,6 +1467,13 @@ public class BigQueryIO {
             }
           };
 
+      if (beamSchema != null) {
+        rows.setSchema(
+            beamSchema,
+            getTypeDescriptor(),
+            getToBeamRowFn().apply(beamSchema),
+            getFromBeamRowFn().apply(beamSchema));
+      }
       return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
     }
 
@@ -2725,9 +2762,6 @@ public class BigQueryIO {
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }
-      if (method == Write.Method.STORAGE_WRITE_API) {
-        checkArgument(!getAutoSharding(), "Auto sharding not yet available for Storage API writes");
-      }
 
       if (getJsonTimePartitioning() != null) {
         checkArgument(
@@ -3023,7 +3057,8 @@ public class BigQueryIO {
                 getStorageApiTriggeringFrequency(bqOptions),
                 getBigQueryServices(),
                 getStorageApiNumStreams(bqOptions),
-                method == Method.STORAGE_API_AT_LEAST_ONCE);
+                method == Method.STORAGE_API_AT_LEAST_ONCE,
+                getAutoSharding());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);
