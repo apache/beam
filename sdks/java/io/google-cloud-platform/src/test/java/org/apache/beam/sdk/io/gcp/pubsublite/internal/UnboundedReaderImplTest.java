@@ -193,11 +193,9 @@ public class UnboundedReaderImplTest {
     startSubscriber();
     doThrow(new IllegalStateException("abc")).when(subscriber).awaitTerminated(1, TimeUnit.MINUTES);
     doThrow(new IllegalStateException("def")).when(backlogReader).close();
-    doThrow(new IllegalStateException("ghi")).when(committer).close();
     assertThrows(IOException.class, reader::close);
     verify(subscriber).stopAsync();
     verify(subscriber).awaitTerminated(1, TimeUnit.MINUTES);
-    verify(committer).close();
     verify(backlogReader).close();
   }
 }
