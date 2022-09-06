@@ -240,6 +240,7 @@ jobs:
       working-directory: apache-beam-source
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
+        # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
         CIBW_BEFORE_BUILD: pip install cython && pip install --upgrade setuptools
@@ -265,6 +266,7 @@ jobs:
       working-directory: apache-beam-source-rc
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
+        # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
         CIBW_BEFORE_BUILD: pip install cython && pip install --upgrade setuptools
