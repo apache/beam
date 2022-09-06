@@ -34,7 +34,6 @@ jobs:
         run: |
           RELEASE_BRANCH=release-${{env.RELEASE_VER}}
           echo "RELEASE_BRANCH=${RELEASE_BRANCH}" >> $GITHUB_ENV
-          echo $GITHUB_WORKSPACE
       - name: Check out code
         uses: actions/checkout@v3
         with:
@@ -48,16 +47,14 @@ jobs:
         run: |
           git checkout -b ${{env.WORKING_BRANCH}} --quiet
           /bin/bash release/src/main/scripts/set_version.sh "$RELEASE_VER" --git-add
-          echo "This is a test." >> TEST_FILE.md
-          git add TEST_FILE.md
           # In case the version string was not changed, append a newline to CHANGES.md
           echo "" >> CHANGES.md
           git add CHANGES.md
           git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
           git push origin $WORKING_BRANCH --quiet
-        #working-directory: "release/src/main/scripts"
-# hub pull-request -b $GITHUB_ACTOR:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
-# You can run many tests automatically using release/src/main/scripts/mass_comment.py."
+          GITHUB_PR=$(hub pull-request -b $GITHUB_ACTOR:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
+          You can run many tests automatically using release/src/main/scripts/mass_comment.py.")
+          echo $GITHUB_PR
 #  trigger_phrases:
 #    needs: create_testing_pr
 #    runs-on: ubuntu-latest
