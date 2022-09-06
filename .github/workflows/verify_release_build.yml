@@ -34,6 +34,7 @@ jobs:
         run: |
           RELEASE_BRANCH=release-${{env.RELEASE_VER}}
           echo "RELEASE_BRANCH=${RELEASE_BRANCH}" >> $GITHUB_ENV
+          echo $GITHUB_WORKSPACE
       - name: Check out code
         uses: actions/checkout@v3
         with:
@@ -46,7 +47,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git checkout -b ${{env.WORKING_BRANCH}} --quiet
-          /bin/bash ./set_version.sh "$RELEASE_VER" --git-add
+          /bin/bash ./set_version.sh "$RELEASE_VER" --git-add "$GITHUB_WORKSPACE"
           echo "This is a test." >> TEST_FILE.md
           git add TEST_FILE.md
           # In case the version string was not changed, append a newline to CHANGES.md
