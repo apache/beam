@@ -76,13 +76,14 @@ public class KafkaSchemaTransformReadProvider
 
     @Override
     public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      if (configuration.getAvroSchema() != null) {
+      final String avroSchema = configuration.getAvroSchema();
+      if (avroSchema != null) {
         assert configuration.getConfluentSchemaRegistryUrl() == null
             : "To read from Kafka, a schema must be provided directly or though Confluent "
                 + "Schema Registry, but not both.";
-        Schema beamSchema =
+        final Schema beamSchema =
             AvroUtils.toBeamSchema(
-                new org.apache.avro.Schema.Parser().parse(configuration.getAvroSchema()));
+                new org.apache.avro.Schema.Parser().parse(avroSchema));
         SerializableFunction<byte[], Row> valueMapper =
             AvroUtils.getAvroBytesToRowFunction(beamSchema);
         return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
@@ -103,10 +104,12 @@ public class KafkaSchemaTransformReadProvider
           }
         };
       } else {
-        assert configuration.getConfluentSchemaRegistryUrl() != null
+        final String confluentSchemaRegUrl = configuration.getConfluentSchemaRegistryUrl();
+        final String confluentSchemaRegSubject = configuration.getConfluentSchemaRegistrySubject();
+        assert confluentSchemaRegUrl != null
             : "To read from Kafka, a schema must be provided directly or though Confluent "
                 + "Schema Registry. Make sure you are providing one of these parameters.";
-        assert configuration.getConfluentSchemaRegistrySubject() != null
+        assert confluentSchemaRegSubject != null
             : "You must provide a subject to get the topic's schema from Confluent Schema "
                 + "Registry.";
 
@@ -123,8 +126,7 @@ public class KafkaSchemaTransformReadProvider
                             .withKeyDeserializer(ByteArrayDeserializer.class)
                             .withValueDeserializer(
                                 ConfluentSchemaRegistryDeserializerProvider.of(
-                                    configuration.getConfluentSchemaRegistryUrl(),
-                                    configuration.getConfluentSchemaRegistrySubject()))
+                                    confluentSchemaRegUrl, confluentSchemaRegSubject))
                             .withoutMetadata())
                     .apply(Values.create());
 

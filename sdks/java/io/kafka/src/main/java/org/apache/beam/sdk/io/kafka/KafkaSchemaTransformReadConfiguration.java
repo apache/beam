@@ -41,7 +41,6 @@ public abstract class KafkaSchemaTransformReadConfiguration {
   }
 
   /** Sets the bootstrap servers for the Kafka consumer. */
-  @Nullable
   public abstract String getBootstrapServers();
 
   /**
@@ -64,7 +63,6 @@ public abstract class KafkaSchemaTransformReadConfiguration {
   public abstract String getAvroSchema();
 
   /** Sets the topic from which to read. */
-  @Nullable
   public abstract String getTopic();
 
   /** Builder for the {@link KafkaSchemaTransformReadConfiguration}. */
