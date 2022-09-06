@@ -1537,6 +1537,14 @@ public static class SumInts implements SerializableFunction<Iterable<Integer>, I
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_bounded_sum >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_simple_sum >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_simple_sum >}}
+{{< /highlight >}}
+
 {{< paragraph class="language-go" >}}
 All Combiners should be registered using a generic `register.CombinerX[...]`
 function. This allows the Go SDK to infer an encoding from any inputs/outputs,
@@ -1556,14 +1564,6 @@ types. It can be called with `register.Combiner3[T1, T2, T3](&CustomCombiner{})`
 where `T1` is the type of the accumulator, `T2` is the type of the input, and `T3` is
 the type of the output.
 {{< /paragraph >}}
-
-{{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_simple_sum >}}
-{{< /highlight >}}
-
-{{< highlight typescript >}}
-{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_simple_sum >}}
-{{< /highlight >}}
 
 ##### 4.2.4.2. Advanced combinations using CombineFn {#advanced-combines}
 
@@ -1644,7 +1644,7 @@ pc = ...
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_custom_average >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight typescript >}}
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_custom_average >}}
 {{< /highlight >}}
 
@@ -1683,7 +1683,7 @@ pc = ...
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_global_average >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight typescript >}}
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_global_average >}}
 {{< /highlight >}}
 
@@ -1713,6 +1713,10 @@ sum = pc | beam.CombineGlobally(sum).without_defaults()
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_global_with_default >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_globally >}}
 {{< /highlight >}}
 
 ##### 4.2.4.5. Combine and non-global windowing {#combine-non-global-windowing}
@@ -2556,8 +2560,10 @@ This feature isn't implemented in the Go SDK; see more at [Issue 20510](https://
 
 {{< paragraph class="language-typescript" >}}
 **Timer and State:**
-This feature isn't implemented in the Typescript SDK yet,
-but can be used from a cross-language transform.
+This feature isn't yet implemented in the Typescript SDK,
+but we welcome [contributions](https://beam.apache.org/contribute/).
+In the meantime, Typescript pipelines wishing to use state and timers can do so
+using [cross-language transforms](#use-x-lang-transforms).
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -2622,6 +2628,10 @@ class StatefulDoFn(beam.DoFn):
 // State and Timers are yet implemented in the Go SDK.
 // See https://github.com/apache/beam/issues/20510 for info
 // on contributing State and Timers.
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+// Not yet implemented.
 {{< /highlight >}}
 
 ### 4.6. Composite transforms {#composite-transforms}

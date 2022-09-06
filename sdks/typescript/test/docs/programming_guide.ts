@@ -316,6 +316,29 @@ describe("Programming Guide Tested Samples", function () {
       });
     });
 
+    it("combine_globally", async function () {
+      await beam.createRunner().run((root: beam.Root) => {
+        // [START combine_globally]
+        const pcoll = root.apply(
+          beam.create([
+            { player: "alice", accuracy: 1.0 },
+            { player: "bob", accuracy: 0.99 },
+            { player: "eve", accuracy: 0.5 },
+            { player: "eve", accuracy: 0.25 },
+          ])
+        );
+        const result = pcoll.apply(
+          beam
+            .groupGlobally()
+            .combining("accuracy", combiners.mean, "mean")
+            .combining("accuracy", combiners.max, "max")
+        );
+        const expected = [{ max: 1.0, mean: 0.685 }];
+        // [END combine_globally]
+        result.apply(assertDeepEqual(expected));
+      });
+    });
+
     it("combine_per_key", async function () {
       await beam.createRunner().run((root: beam.Root) => {
         // [START combine_per_key]
