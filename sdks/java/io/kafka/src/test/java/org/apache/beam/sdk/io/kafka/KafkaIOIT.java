@@ -65,6 +65,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -77,6 +78,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
@@ -465,6 +467,76 @@ public class KafkaIOIT {
     } finally {
       client.deleteTopics(ImmutableSet.of(topicName));
     }
+  }
+
+  @Test
+  public void testKafkaWithStopReadingFunction() {
+    CheckStopReadingFn checkStopReadingFn = new CheckStopReadingFn();
+
+    PipelineResult readResult = runWithStopReadingFn(checkStopReadingFn, "stop-reading");
+
+    assertEquals(-1, readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME));
+  }
+
+  private static class CheckStopReadingFn implements SerializableFunction<TopicPartition, Boolean> {
+    @Override
+    public Boolean apply(TopicPartition input) {
+      return true;
+    }
+  }
+
+  @Test
+  public void testKafkaWithDelayedStopReadingFunction() {
+    DelayedCheckStopReadingFn checkStopReadingFn = new DelayedCheckStopReadingFn();
+
+    PipelineResult readResult = runWithStopReadingFn(checkStopReadingFn, "delayed-stop-reading");
+
+    assertEquals(
+        sourceOptions.numRecords,
+        readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME));
+  }
+
+  private static class DelayedCheckStopReadingFn
+      implements SerializableFunction<TopicPartition, Boolean> {
+    int checkCount = 0;
+
+    @Override
+    public Boolean apply(TopicPartition input) {
+      if (checkCount >= 5) {
+        return true;
+      }
+      checkCount++;
+      return false;
+    }
+  }
+
+  private PipelineResult runWithStopReadingFn(
+      SerializableFunction<TopicPartition, Boolean> function, String topicSuffix) {
+    writePipeline
+        .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
+        .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
+        .apply(
+            "Write to Kafka",
+            writeToKafka().withTopic(options.getKafkaTopic() + "-" + topicSuffix));
+
+    readPipeline.getOptions().as(Options.class).setStreaming(true);
+    readPipeline
+        .apply(
+            "Read from unbounded Kafka",
+            readFromKafka()
+                .withTopic(options.getKafkaTopic() + "-" + topicSuffix)
+                .withCheckStopReadingFn(function))
+        .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+        .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
+        .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
+
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
+
+    PipelineResult readResult = readPipeline.run();
+    readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    return readResult;
   }
 
   private static class KeyByPartition
