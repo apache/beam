@@ -286,6 +286,9 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
    * @return updated wrapper for the cross-language transform.
    */
   public PythonExternalTransform<InputT, OutputT> withExtraPackages(List<String> extraPackages) {
+    if (extraPackages.isEmpty()) {
+      return this;
+    }
     Preconditions.checkState(
         Strings.isNullOrEmpty(expansionService),
         "Extra packages only apply to auto-started expansion service.");
