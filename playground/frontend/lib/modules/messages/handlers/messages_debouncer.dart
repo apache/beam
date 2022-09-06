@@ -16,32 +16,27 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart';
-import 'package:playground/modules/examples/models/example_origin.dart';
+import 'package:playground/modules/messages/handlers/abstract_message_handler.dart';
+import 'package:playground/modules/messages/models/abstract_message.dart';
 
-class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
-  final String snippetId;
+/// Drops messages that repeat the last one. Has no time limit.
+class MessagesDebouncer extends AbstractMessageHandler {
+  final AbstractMessageHandler handler;
+  AbstractMessage? _lastMessage;
+  MessageHandleResult _lastResult = MessageHandleResult.notHandled;
 
-  const UserSharedExampleLoadingDescriptor({
-    required this.snippetId,
+  MessagesDebouncer({
+    required this.handler,
   });
 
   @override
-  ExampleOrigin get origin => ExampleOrigin.userShared;
+  MessageHandleResult handle(AbstractMessage message) {
+    if (message == _lastMessage) {
+      return _lastResult;
+    }
 
-  @override
-  String toString() => '$origin-$snippetId';
-
-  @override
-  int get hashCode => snippetId.hashCode;
-
-  @override
-  bool operator ==(Object other) {
-    return other is UserSharedExampleLoadingDescriptor &&
-        snippetId == other.snippetId;
+    _lastMessage = message;
+    _lastResult = handler.handle(message);
+    return _lastResult;
   }
-
-  // Only ContentExampleLoadingDescriptor is serialized now.
-  @override
-  Map<String, dynamic> toJson() => throw UnimplementedError();
 }

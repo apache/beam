@@ -16,23 +16,15 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/pages/playground/states/example_loaders/example_loader.dart';
+import 'package:playground/modules/messages/models/abstract_message.dart';
 
-class EmptyExampleLoader extends ExampleLoader {
-  final EmptyExampleLoadingDescriptor descriptor;
+abstract class AbstractMessageHandler {
+  const AbstractMessageHandler();
 
-  const EmptyExampleLoader({
-    required this.descriptor,
-  });
+  MessageHandleResult handle(AbstractMessage message);
+}
 
-  @override
-  Future<ExampleModel> get future async => ExampleModel(
-        sdk: descriptor.sdk,
-        name: 'Embedded_Example',
-        path: '',
-        description: '',
-        type: ExampleType.example,
-      );
+enum MessageHandleResult {
+  handled,
+  notHandled,
 }

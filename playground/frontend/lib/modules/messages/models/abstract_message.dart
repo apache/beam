@@ -16,23 +16,9 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/pages/playground/states/example_loaders/example_loader.dart';
+/// A message received via JavaScript's onmessage.
+abstract class AbstractMessage {
+  const AbstractMessage();
 
-class EmptyExampleLoader extends ExampleLoader {
-  final EmptyExampleLoadingDescriptor descriptor;
-
-  const EmptyExampleLoader({
-    required this.descriptor,
-  });
-
-  @override
-  Future<ExampleModel> get future async => ExampleModel(
-        sdk: descriptor.sdk,
-        name: 'Embedded_Example',
-        path: '',
-        description: '',
-        type: ExampleType.example,
-      );
+  Map<String, dynamic> toJson();
 }
