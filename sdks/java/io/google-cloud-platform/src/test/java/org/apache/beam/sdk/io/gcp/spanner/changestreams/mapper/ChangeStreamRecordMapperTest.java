@@ -99,6 +99,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
@@ -111,6 +113,10 @@ public class ChangeStreamRecordMapperTest {
         mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
   }
 
+  /*
+   * Change streams with NEW_ROW value capture type do not track old values, so null value
+   * is used for OLD_VALUES_COLUMN in Mod.
+   */
   @Test
   public void testMappingUpdateStructRowNewRowToDataChangeRecord() {
     final DataChangeRecord dataChangeRecord =
@@ -130,6 +136,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.NEW_ROW,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
@@ -142,6 +150,10 @@ public class ChangeStreamRecordMapperTest {
         mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
   }
 
+  /*
+   * Change streams with NEW_VALUES value capture type do not track old values, so null value
+   * is used for OLD_VALUES_COLUMN in Mod.
+   */
   @Test
   public void testMappingUpdateStructRowNewValuesToDataChangeRecord() {
     final DataChangeRecord dataChangeRecord =
@@ -161,6 +173,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.NEW_VALUES,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
@@ -192,6 +206,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
@@ -223,6 +239,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.NEW_ROW,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
@@ -254,6 +272,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.NEW_VALUES,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
@@ -285,6 +305,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
@@ -315,6 +337,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.NEW_ROW,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
@@ -345,6 +369,8 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.NEW_VALUES,
             10L,
             2L,
+            "transactionTag",
+            true,
             null);
     final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
