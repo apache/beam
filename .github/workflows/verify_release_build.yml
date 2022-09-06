@@ -52,18 +52,24 @@ jobs:
           git add CHANGES.md
           git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
           git push origin $WORKING_BRANCH --quiet
-          GITHUB_PR=$(hub pull-request -b $GITHUB_ACTOR:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
+          GITHUB_PR_URL=$(hub pull-request -b $GITHUB_ACTOR:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
           You can run many tests automatically using release/src/main/scripts/mass_comment.py.")
-          echo $GITHUB_PR
-#  trigger_phrases:
-#    needs: create_testing_pr
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Trigger beam_Release_Gradle_Build and PostCommit jobs # Pending to include tests migrated to GH Actions (by Wizeline team)
-#        run: |
-#         sh ./mass_comment.py
-#        working-directory: 'release/src/main/scripts'
-
+          echo "GitHub PR URL:"
+          echo $GITHUB_PR_URL
+          GITHUB_PR_NUMBER=$(echo $GITHUB_PR_URL |cut -d"/" -f7)
+          echo $GITHUB_PR_NUMBER
+          echo "$GITHUB_PR_NUMBER" >> $GITHUB_ENV
+comment_trigger_phrases:
+    needs: create_testing_pr
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+        echo ${{env.GITHUB_PR_NUMBER}}
+        echo 'Test'
+        echo $GITHUB_PR_NUMBER
+        gh pr comment $GITHUB_PR_NUMBER --body "Hi! This is a test from Verify Release Workflow."
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 # Commenting this clean-up step 'cause I think this step is not needed, as the final self-hosted implementation has ephemeral runners.
 #  clean-up:
 #    if: always()
