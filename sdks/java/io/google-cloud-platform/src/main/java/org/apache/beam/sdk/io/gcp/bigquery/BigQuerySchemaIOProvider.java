@@ -23,6 +23,9 @@ import java.io.Serializable;
 import java.util.HashMap;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
+import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
+import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
@@ -91,6 +94,7 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
         .addNullableField("query", FieldType.STRING)
         .addNullableField("queryLocation", FieldType.STRING)
         .addNullableField("createDisposition", FieldType.STRING)
+        .addNullableField("useTestingBigQueryServices", FieldType.BOOLEAN)
         .build();
   }
 
@@ -198,6 +202,15 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
                   .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
                   .withTriggeringFrequency(Duration.standardSeconds(5))
                   .withAutoSharding();
+
+          if (config.getBoolean("useTestingBigQueryServices") != null
+              && config.getBoolean("useTestingBigQueryServices")) {
+            FakeBigQueryServices fbqs =
+                new FakeBigQueryServices()
+                    .withDatasetService(new FakeDatasetService())
+                    .withJobService(new FakeJobService());
+            write = write.withTestServices(fbqs);
+          }
 
           String table = config.getString("table");
           if (table != null) {

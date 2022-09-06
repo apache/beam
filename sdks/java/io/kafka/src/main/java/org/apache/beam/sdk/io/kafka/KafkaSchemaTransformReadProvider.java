@@ -37,6 +37,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.joda.time.Instant;
 
 @AutoService(SchemaTransformProvider.class)
 public class KafkaSchemaTransformReadProvider
@@ -71,6 +72,7 @@ public class KafkaSchemaTransformReadProvider
     private final KafkaSchemaTransformReadConfiguration configuration;
 
     KafkaReadSchemaTransform(KafkaSchemaTransformReadConfiguration configuration) {
+      configuration.validate();
       this.configuration = configuration;
     }
 
@@ -88,15 +90,21 @@ public class KafkaSchemaTransformReadProvider
         return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
           @Override
           public PCollectionRowTuple expand(PCollectionRowTuple input) {
+            KafkaIO.Read<byte[], byte[]> kafkaRead =
+                KafkaIO.readBytes()
+                    .withTopic(configuration.getTopic())
+                    .withBootstrapServers(configuration.getBootstrapServers());
+
+            // Initialize kafka read from first offset or from latest offset.
+            kafkaRead =
+                "earliest".equals(configuration.getStartOffset())
+                    ? kafkaRead.withStartReadTime(Instant.EPOCH)
+                    : kafkaRead;
             return PCollectionRowTuple.of(
                 "OUTPUT",
                 input
                     .getPipeline()
-                    .apply(
-                        KafkaIO.readBytes()
-                            .withTopic(configuration.getTopic())
-                            .withBootstrapServers(configuration.getBootstrapServers())
-                            .withoutMetadata())
+                    .apply(kafkaRead.withoutMetadata())
                     .apply(Values.create())
                     .apply(MapElements.into(TypeDescriptors.rows()).via(valueMapper))
                     .setRowSchema(beamSchema));
@@ -114,19 +122,22 @@ public class KafkaSchemaTransformReadProvider
                   "To read from Kafka, a schema must be provided directly or though Confluent "
                       + "Schema Registry. Make sure you are providing one of these parameters.");
             }
+            KafkaIO.Read<byte[], GenericRecord> kafkaRead =
+                KafkaIO.<byte[], GenericRecord>read()
+                    .withTopic(configuration.getTopic())
+                    .withBootstrapServers(configuration.getBootstrapServers())
+                    .withKeyDeserializer(ByteArrayDeserializer.class)
+                    .withValueDeserializer(
+                        ConfluentSchemaRegistryDeserializerProvider.of(
+                            confluentSchemaRegUrl, confluentSchemaRegSubject));
+
+            // Initialize kafka read from first offset or from latest offset.
+            kafkaRead =
+                "earliest".equals(configuration.getStartOffset())
+                    ? kafkaRead.withStartReadTime(Instant.EPOCH)
+                    : kafkaRead;
             PCollection<GenericRecord> kafkaValues =
-                input
-                    .getPipeline()
-                    .apply(
-                        KafkaIO.<byte[], GenericRecord>read()
-                            .withTopic(configuration.getTopic())
-                            .withBootstrapServers(configuration.getBootstrapServers())
-                            .withKeyDeserializer(ByteArrayDeserializer.class)
-                            .withValueDeserializer(
-                                ConfluentSchemaRegistryDeserializerProvider.of(
-                                    confluentSchemaRegUrl, confluentSchemaRegSubject))
-                            .withoutMetadata())
-                    .apply(Values.create());
+                input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
 
             assert kafkaValues.getCoder().getClass() == AvroCoder.class;
             AvroCoder<GenericRecord> coder = (AvroCoder<GenericRecord>) kafkaValues.getCoder();

@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.io.kafka;
 
 import com.google.auto.value.AutoValue;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /**
  * Configuration for reading from a Kafka topic.
@@ -34,6 +36,14 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class KafkaSchemaTransformReadConfiguration {
+
+  public static final Set<String> VALID_START_OFFSET_VALUES = Sets.newHashSet("earliest", "latest");
+
+  public void validate() {
+    assert this.getStartOffset() == null
+            || VALID_START_OFFSET_VALUES.contains(this.getStartOffset())
+        : "Valid Kafka Start offset values are " + VALID_START_OFFSET_VALUES.toString();
+  }
 
   /** Instantiates a {@link KafkaSchemaTransformReadConfiguration.Builder} instance. */
   public static Builder builder() {
@@ -62,6 +72,9 @@ public abstract class KafkaSchemaTransformReadConfiguration {
   @Nullable
   public abstract String getAvroSchema();
 
+  @Nullable
+  public abstract String getStartOffset();
+
   /** Sets the topic from which to read. */
   public abstract String getTopic();
 
@@ -81,6 +94,8 @@ public abstract class KafkaSchemaTransformReadConfiguration {
     public abstract Builder setAvroSchema(String schema);
 
     public abstract Builder setDataFormat(String dataFormat);
+
+    public abstract Builder setStartOffset(String startOffset);
 
     /** Sets the topic from which to read. */
     public abstract Builder setTopic(String value);
