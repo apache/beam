@@ -54,11 +54,9 @@ jobs:
           git push origin $WORKING_BRANCH --quiet
           GITHUB_PR_URL=$(hub pull-request -b $GITHUB_ACTOR:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
           You can run many tests automatically using release/src/main/scripts/mass_comment.py.")
-          echo "GitHub PR URL:"
-          echo $GITHUB_PR_URL
           GITHUB_PR_NUMBER=$(echo $GITHUB_PR_URL |cut -d"/" -f7)
+          echo "GITHUB_PR_NUMBER=${GITHUB_PR_NUMBER}" >> $GITHUB_ENV
           echo $GITHUB_PR_NUMBER
-          echo "$GITHUB_PR_NUMBER" >> $GITHUB_ENV
   comment_trigger_phrases:
       needs: create_release_pr
       runs-on: ubuntu-latest
