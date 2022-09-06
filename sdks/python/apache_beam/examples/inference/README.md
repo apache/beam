@@ -74,7 +74,7 @@ One popular dataset is from [ImageNet](https://www.image-net.org/). Follow their
 /absolute/path/to/image1.jpg
 /absolute/path/to/image2.jpg
 ```
-3. Download the [mobilenet_v2](https://pytorch.org/vision/stable/_modules/torchvision/models/mobilenetv2.html) model from Pytorch's repository of pretrained models. This model requires the torchvision library. To download this model, run the following commands from a python shell:
+3. Download the [mobilenet_v2](https://pytorch.org/vision/stable/_modules/torchvision/models/mobilenetv2.html) model from Pytorch's repository of pretrained models. This model requires the torchvision library. To download this model, run the following commands from a Python shell:
 ```
 import torch
 from torchvision.models import mobilenet_v2
