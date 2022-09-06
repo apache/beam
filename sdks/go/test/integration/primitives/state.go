@@ -20,8 +20,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
@@ -34,6 +36,9 @@ func init() {
 	register.DoFn3x1[state.Provider, string, int, string](&bagStateClearFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&combiningStateFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&mapStateFn{})
+	register.DoFn3x1[state.Provider, string, int, string](&mapStateClearFn{})
+	register.DoFn3x1[state.Provider, string, int, string](&setStateFn{})
+	register.DoFn3x1[state.Provider, string, int, string](&setStateClearFn{})
 	register.Emitter2[string, int]()
 	register.Combiner1[int](&combine1{})
 	register.Combiner2[string, int](&combine2{})
@@ -81,8 +86,21 @@ func ValueStateParDo() *beam.Pipeline {
 	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
 		emit(w, 1)
 	}, in)
-	counts := beam.ParDo(s, &valueStateFn{State1: state.MakeValueState[int]("key1"), State2: state.MakeValueState[string]("key2")}, keyed)
+	counts := beam.ParDo(s, &valueStateFn{}, keyed)
 	passert.Equals(s, counts, "apple: 1, I", "pear: 1, I", "peach: 1, I", "apple: 2, II", "apple: 3, III", "pear: 2, II")
+
+	return p
+}
+
+// ValueStateParDoWindowed tests a DoFn that uses windowed value state.
+func ValueStateParDoWindowed() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 1, 1, 2, 2, 3, 4, 4, 4, 4}}, beam.Impulse(s))
+	wData := beam.WindowInto(s, window.NewFixedWindows(3*time.Second), timestampedData)
+	counts := beam.ParDo(s, &valueStateFn{State1: state.MakeValueState[int]("key1"), State2: state.MakeValueState[string]("key2")}, wData)
+	globalCounts := beam.WindowInto(s, window.NewGlobalWindows(), counts)
+	passert.Equals(s, globalCounts, "magic: 1, I", "magic: 2, II", "magic: 3, III", "magic: 1, I", "magic: 2, II", "magic: 3, III", "magic: 1, I", "magic: 2, II", "magic: 3, III", "magic: 1, I")
 
 	return p
 }
@@ -111,8 +129,8 @@ func (f *valueStateClearFn) ProcessElement(s state.Provider, w string, c int) st
 	return fmt.Sprintf("%s: %v,%v", w, i, ok)
 }
 
-// ValueStateParDo_Clear tests that a DoFn that uses value state can be cleared.
-func ValueStateParDo_Clear() *beam.Pipeline {
+// ValueStateParDoClear tests that a DoFn that uses value state can be cleared.
+func ValueStateParDoClear() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear", "pear", "apple")
@@ -169,7 +187,7 @@ func BagStateParDo() *beam.Pipeline {
 	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
 		emit(w, 1)
 	}, in)
-	counts := beam.ParDo(s, &bagStateFn{State1: state.MakeBagState[int]("key1"), State2: state.MakeBagState[string]("key2")}, keyed)
+	counts := beam.ParDo(s, &bagStateFn{}, keyed)
 	passert.Equals(s, counts, "apple: 0, ", "pear: 0, ", "peach: 0, ", "apple: 1, I", "apple: 2, I,I", "pear: 1, I")
 
 	return p
@@ -202,8 +220,8 @@ func (f *bagStateClearFn) ProcessElement(s state.Provider, w string, c int) stri
 	return fmt.Sprintf("%s: %v", w, sum)
 }
 
-// BagStateParDo_Clear tests a DoFn that uses bag state.
-func BagStateParDo_Clear() *beam.Pipeline {
+// BagStateParDoClear tests a DoFn that uses bag state.
+func BagStateParDoClear() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	in := beam.Create(s, "apple", "pear", "apple", "apple", "pear", "apple", "apple", "pear", "pear", "pear", "apple", "pear")
@@ -382,6 +400,170 @@ func MapStateParDo() *beam.Pipeline {
 	}, in)
 	counts := beam.ParDo(s, &mapStateFn{State1: state.MakeMapState[string, int]("key1")}, keyed)
 	passert.Equals(s, counts, "apple: 1, keys: [apple apple1]", "pear: 1, keys: [pear pear1]", "peach: 1, keys: [peach peach1]", "apple: 2, keys: [apple apple1 apple2]", "apple: 3, keys: [apple apple1 apple2 apple3]", "pear: 2, keys: [pear pear1 pear2]")
+
+	return p
+}
+
+type mapStateClearFn struct {
+	State1 state.Map[string, int]
+}
+
+func (f *mapStateClearFn) ProcessElement(s state.Provider, w string, c int) string {
+	_, ok, err := f.State1.Get(s, w)
+	if err != nil {
+		panic(err)
+	}
+	if ok {
+		f.State1.Remove(s, w)
+		f.State1.Put(s, fmt.Sprintf("%v%v", w, 1), 1)
+		f.State1.Put(s, fmt.Sprintf("%v%v", w, 2), 1)
+		f.State1.Put(s, fmt.Sprintf("%v%v", w, 3), 1)
+	} else {
+		_, ok, err := f.State1.Get(s, fmt.Sprintf("%v%v", w, 1))
+		if err != nil {
+			panic(err)
+		}
+		if ok {
+			f.State1.Clear(s)
+		} else {
+			f.State1.Put(s, w, 1)
+		}
+	}
+
+	keys, _, err := f.State1.Keys(s)
+	if err != nil {
+		panic(err)
+	}
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	for _, k := range keys {
+		_, ok, err = f.State1.Get(s, k)
+		if err != nil {
+			panic(err)
+		}
+		if !ok {
+			panic(fmt.Sprintf("%v is present in keys, but not in the map", k))
+		}
+	}
+
+	return fmt.Sprintf("%v: %v", w, keys)
+}
+
+// MapStateParDoClear tests clearing and removing from a DoFn that uses map state.
+func MapStateParDoClear() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear")
+	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
+		emit(w, 1)
+	}, in)
+	counts := beam.ParDo(s, &mapStateClearFn{State1: state.MakeMapState[string, int]("key1")}, keyed)
+	passert.Equals(s, counts, "apple: [apple]", "pear: [pear]", "peach: [peach]", "apple: [apple1 apple2 apple3]", "apple: []", "pear: [pear1 pear2 pear3]")
+
+	return p
+}
+
+type setStateFn struct {
+	State1 state.Set[string]
+}
+
+func (f *setStateFn) ProcessElement(s state.Provider, w string, c int) string {
+	ok, err := f.State1.Contains(s, w)
+	if err != nil {
+		panic(err)
+	}
+	err = f.State1.Add(s, w)
+	if err != nil {
+		panic(err)
+	}
+	if ok {
+		err = f.State1.Add(s, fmt.Sprintf("%v%v", w, 1))
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	keys, _, err := f.State1.Keys(s)
+	if err != nil {
+		panic(err)
+	}
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	return fmt.Sprintf("%v: %v, keys: %v", w, ok, keys)
+}
+
+// SetStateParDo tests a DoFn that uses set state.
+func SetStateParDo() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear")
+	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
+		emit(w, 1)
+	}, in)
+	counts := beam.ParDo(s, &setStateFn{State1: state.MakeSetState[string]("key1")}, keyed)
+	passert.Equals(s, counts, "apple: false, keys: [apple]", "pear: false, keys: [pear]", "peach: false, keys: [peach]", "apple: true, keys: [apple apple1]", "apple: true, keys: [apple apple1]", "pear: true, keys: [pear pear1]")
+
+	return p
+}
+
+type setStateClearFn struct {
+	State1 state.Set[string]
+}
+
+func (f *setStateClearFn) ProcessElement(s state.Provider, w string, c int) string {
+	ok, err := f.State1.Contains(s, w)
+	if err != nil {
+		panic(err)
+	}
+	if ok {
+		f.State1.Remove(s, w)
+		f.State1.Add(s, fmt.Sprintf("%v%v", w, 1))
+		f.State1.Add(s, fmt.Sprintf("%v%v", w, 2))
+		f.State1.Add(s, fmt.Sprintf("%v%v", w, 3))
+	} else {
+		ok, err := f.State1.Contains(s, fmt.Sprintf("%v%v", w, 1))
+		if err != nil {
+			panic(err)
+		}
+		if ok {
+			f.State1.Clear(s)
+		} else {
+			f.State1.Add(s, w)
+		}
+	}
+
+	keys, _, err := f.State1.Keys(s)
+	if err != nil {
+		panic(err)
+	}
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	for _, k := range keys {
+		ok, err = f.State1.Contains(s, k)
+		if err != nil {
+			panic(err)
+		}
+		if !ok {
+			panic(fmt.Sprintf("%v is present in keys, but not in the map", k))
+		}
+	}
+
+	return fmt.Sprintf("%v: %v", w, keys)
+}
+
+// SetStateParDoClear tests clearing and removing from a DoFn that uses set state.
+func SetStateParDoClear() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear")
+	keyed := beam.ParDo(s, func(w string, emit func(string, int)) {
+		emit(w, 1)
+	}, in)
+	counts := beam.ParDo(s, &setStateClearFn{State1: state.MakeSetState[string]("key1")}, keyed)
+	passert.Equals(s, counts, "apple: [apple]", "pear: [pear]", "peach: [peach]", "apple: [apple1 apple2 apple3]", "apple: []", "pear: [pear1 pear2 pear3]")
 
 	return p
 }

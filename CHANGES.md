@@ -55,6 +55,7 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Added support for stateful DoFns to the Go SDK.
 
 ## I/Os
 
@@ -64,6 +65,8 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Added support for Zstd compression to the Python SDK.
+* Added support for Google Cloud Profiler to the Go SDK.
+* Added support for stateful DoFns to the Go SDK.
 
 ## Breaking Changes
 
@@ -77,6 +80,8 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed Python cross-language JDBC IO Connector cannot read or write rows containing Timestamp type values [19817](https://github.com/apache/beam/issues/19817).
+
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).

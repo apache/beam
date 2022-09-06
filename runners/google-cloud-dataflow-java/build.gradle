@@ -504,7 +504,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesStrictTimerOrdering' /* https://github.com/apache/beam/issues/19957 */,
-      'org.apache.beam.sdk.testing.UsesTestStream',
       'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
     ],
     excludedTests: [
@@ -538,9 +537,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
 
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded',
-
-      // TODO: remove once dataflow runner v2 fixed fake windowing strategy.
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerSetWithinAllowedLateness',
 
       'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics',
 

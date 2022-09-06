@@ -475,6 +475,21 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 		return nil, addContext(err, fn)
 	}
 
+	// Make sure that all state entries have keys. If they don't set them to the struct field name.
+	if fn.Recv != nil {
+		v := reflect.Indirect(reflect.ValueOf(fn.Recv))
+		for i := 0; i < v.NumField(); i++ {
+			f := v.Field(i)
+			if f.CanInterface() {
+				if ps, ok := f.Interface().(state.PipelineState); ok {
+					if ps.StateKey() == "" {
+						f.FieldByName("Key").SetString(v.Type().Field(i).Name)
+					}
+				}
+			}
+		}
+	}
+
 	// Validate ProcessElement has correct number of main inputs (as indicated by
 	// numMainIn), and that main inputs are before side inputs.
 	processFn := fn.methods[processElementName]

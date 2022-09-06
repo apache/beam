@@ -66,7 +66,7 @@ class PlaygroundPage extends StatelessWidget {
                       onChanged: (newSdk) {
                         AnalyticsService.get(context)
                             .trackSelectSdk(state.sdk, newSdk);
-                        state.setSdk(newSdk, loadDefaultIfNot: true);
+                        state.setSdk(newSdk);
                       },
                     ),
                     if (controller != null)

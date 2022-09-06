@@ -82,6 +82,8 @@ type Provider interface {
 	ReadMapStateValue(userStateID string, key interface{}) (interface{}, []Transaction, error)
 	ReadMapStateKeys(userStateID string) ([]interface{}, []Transaction, error)
 	WriteMapState(val Transaction) error
+	ClearMapStateKey(val Transaction) error
+	ClearMapState(val Transaction) error
 }
 
 // PipelineState is an interface representing different kinds of PipelineState (currently just state.Value).
@@ -149,10 +151,6 @@ func (s *Value[T]) Clear(p Provider) error {
 
 // StateKey returns the key for this pipeline state entry.
 func (s Value[T]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 
@@ -232,10 +230,6 @@ func (s *Bag[T]) Clear(p Provider) error {
 
 // StateKey returns the key for this pipeline state entry.
 func (s Bag[T]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 
@@ -381,10 +375,6 @@ func (s *Combining[T1, T2, T3]) readAccumulator(p Provider) (interface{}, bool, 
 
 // StateKey returns the key for this pipeline state entry.
 func (s Combining[T1, T2, T3]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 
@@ -513,12 +503,25 @@ func (s *Map[K, V]) Get(p Provider, key K) (V, bool, error) {
 	return cur.(V), true, nil
 }
 
+// Remove deletes an entry from this instance of map state.
+func (s *Map[K, V]) Remove(p Provider, key K) error {
+	return p.ClearMapStateKey(Transaction{
+		Key:    s.Key,
+		Type:   TransactionTypeClear,
+		MapKey: key,
+	})
+}
+
+// Clear deletes all entries from this instance of map state.
+func (s *Map[K, V]) Clear(p Provider) error {
+	return p.ClearMapState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeClear,
+	})
+}
+
 // StateKey returns the key for this pipeline state entry.
 func (s Map[K, V]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 
@@ -539,7 +542,7 @@ func (s Map[K, V]) StateType() TypeEnum {
 	return TypeMap
 }
 
-// MakeValueState is a factory function to create an instance of ValueState with the given key.
+// MakeMapState is a factory function to create an instance of MapState with the given key.
 func MakeMapState[K comparable, V any](k string) Map[K, V] {
 	return Map[K, V]{
 		Key: k,
@@ -636,12 +639,25 @@ func (s *Set[K]) Contains(p Provider, key K) (bool, error) {
 	return true, nil
 }
 
+// Remove deletes an entry from this instance of set state.
+func (s Set[K]) Remove(p Provider, key K) error {
+	return p.ClearMapStateKey(Transaction{
+		Key:    s.Key,
+		Type:   TransactionTypeClear,
+		MapKey: key,
+	})
+}
+
+// Clear deletes all entries from this instance of set state.
+func (s Set[K]) Clear(p Provider) error {
+	return p.ClearMapState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeClear,
+	})
+}
+
 // StateKey returns the key for this pipeline state entry.
 func (s Set[K]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 

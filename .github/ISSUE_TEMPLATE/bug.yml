@@ -133,6 +133,7 @@ body:
       - "Component: katas"
       - "Component: project-management"
       - "Component: release"
+      - "Component: run-inference"
       - "Component: runner-apex"
       - "Component: runner-core"
       - "Component: runner-dataflow"

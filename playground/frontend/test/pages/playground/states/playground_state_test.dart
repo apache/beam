@@ -43,7 +43,7 @@ void main() {
 
   test('Initial value of SDK field should be null', () {
     expect(state.sdk, null);
-    state.setSdk(SDK.go, loadDefaultIfNot: false);
+    state.setSdk(SDK.go);
     expect(state.sdk, SDK.go);
   });
 
@@ -57,13 +57,13 @@ void main() {
 
   test('Initial value of pipelineOptions should be empty string', () {
     expect(state.pipelineOptions, null);
-    state.setSdk(SDK.go, loadDefaultIfNot: false);
+    state.setSdk(SDK.go);
     expect(state.pipelineOptions, '');
   });
 
   test('Initial value of source should be empty string', () {
     expect(state.source, null);
-    state.setSdk(SDK.go, loadDefaultIfNot: false);
+    state.setSdk(SDK.go);
     expect(state.source, '');
   });
 
@@ -113,7 +113,7 @@ void main() {
     state.addListener(() {
       expect(state.sdk, SDK.go);
     });
-    state.setSdk(SDK.go, loadDefaultIfNot: false);
+    state.setSdk(SDK.go);
   });
 
   test(
@@ -138,11 +138,28 @@ void main() {
   test(
     'Playground state should notify all listeners about pipeline options change',
     () {
-      state.setSdk(SDK.go, loadDefaultIfNot: false);
+      state.setSdk(SDK.go);
       state.addListener(() {
         expect(state.pipelineOptions, 'test options');
       });
       state.setPipelineOptions('test options');
     },
   );
+
+  test('getLoadingDescriptor()', () {
+    state.setExample(exampleMock2, setCurrentSdk: true);
+    state.setExample(exampleMockGo, setCurrentSdk: false);
+
+    final descriptor = state.getLoadingDescriptor();
+
+    expect(
+      descriptor.toJson(),
+      {
+        'descriptors': [
+          {'sdk': 'python', 'content': 'ex2', 'name': 'Kata'},
+          {'sdk': 'go', 'content': 'ex1', 'name': 'Example'},
+        ],
+      },
+    );
+  });
 }

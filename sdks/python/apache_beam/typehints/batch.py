@@ -44,6 +44,8 @@ E = TypeVar('E')
 
 BATCH_CONVERTER_REGISTRY: List[Callable[[type, type], 'BatchConverter']] = []
 
+__all__ = ['BatchConverter']
+
 
 class BatchConverter(Generic[B, E]):
   def __init__(self, batch_type, element_type):
