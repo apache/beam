@@ -58,7 +58,8 @@ SCHEMA_TYPES_TO_STRATEGY = {
             3000, 1, 1, 0,
             0)).map(lambda dt: Timestamp.from_utc_datetime(dt.astimezone(utc))),
     int: st.integers(min_value=-(1 << 63 - 1), max_value=1 << 63 - 1),
-    np.int8: st.binary(min_size=1, max_size=1),
+    # INT8/BYTE not yet supported by RowCoder.
+    # np.int8: st.binary(min_size=1, max_size=1),
     # INT16 not yet supported by RowCoder.
     # np.int16: st.integers(min_value=-(1 << 15 - 1), max_value=1 << 15 - 1),
     np.int32: st.integers(min_value=-(1 << 31 - 1), max_value=1 << 31 - 1),
@@ -85,7 +86,7 @@ SCHEMA_GENERATOR_STRATEGY = st.lists(
         st.sampled_from(SCHEMA_TYPES),
         st.booleans()))
 
-TYPES_UNSUPPORTED_BY_ROW_CODER = {np.int16}
+TYPES_UNSUPPORTED_BY_ROW_CODER = {np.int8, np.int16}
 
 
 class TypesAreAllTested(unittest.TestCase):

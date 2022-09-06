@@ -162,8 +162,6 @@ def _nonnull_coder_from_type(field_type):
       return BooleanCoder()
     elif field_type.atomic_type == schema_pb2.BYTES:
       return BytesCoder()
-    elif field_type.atomic_type == schema_pb2.BYTE:
-      return BytesCoder()
   elif type_info == "array_type":
     return IterableCoder(_coder_from_type(field_type.array_type.element_type))
   elif type_info == "map_type":
