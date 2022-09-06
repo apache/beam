@@ -128,7 +128,7 @@ A popular dataset is from [Coco](https://cocodataset.org/#home). Follow their in
 /absolute/path/to/image1.jpg
 /absolute/path/to/image2.jpg
 ```
-3. Download the [maskrcnn_resnet50_fpn](https://pytorch.org/vision/0.12/models.html#id70) model from Pytorch's repository of pretrained models. This model requires the torchvision library. To download this model, run the following commands from a python shell:
+3. Download the [maskrcnn_resnet50_fpn](https://pytorch.org/vision/0.12/models.html#id70) model from Pytorch's repository of pretrained models. This model requires the torchvision library. To download this model, run the following commands from a Python shell:
 ```
 import torch
 from torchvision.models.detection import maskrcnn_resnet50_fpn
