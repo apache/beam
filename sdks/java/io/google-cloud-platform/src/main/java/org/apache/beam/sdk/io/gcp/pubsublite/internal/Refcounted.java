@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 /** A class that safely ensures an object of type T is cleaned up before it is garbage collected. */
 class Refcounted<T extends AutoCloseable> implements Supplier<T> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(Refcounted.class);
+  private static final Logger LOG = LoggerFactory.getLogger(Refcounted.class);
 
   private final T object;
 
@@ -55,8 +55,7 @@ class Refcounted<T extends AutoCloseable> implements Supplier<T> {
       try {
         object.close();
       } catch (Exception e) {
-        LOGGER.warn(
-            "Failed to close resource with class: " + object.getClass().getCanonicalName(), e);
+        LOG.warn("Failed to close resource with class: " + object.getClass().getCanonicalName(), e);
       }
     }
   }
