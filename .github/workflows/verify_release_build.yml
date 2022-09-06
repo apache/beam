@@ -63,11 +63,12 @@ comment_trigger_phrases:
     needs: create_testing_pr
     runs-on: ubuntu-latest
     steps:
-      - run: |
-        echo ${{env.GITHUB_PR_NUMBER}}
-        echo 'Test'
-        echo $GITHUB_PR_NUMBER
-        gh pr comment $GITHUB_PR_NUMBER --body "Hi! This is a test from Verify Release Workflow."
+      - name: Create PR Comment
+        run: |
+          echo ${{env.GITHUB_PR_NUMBER}}
+          echo 'Test'
+          echo $GITHUB_PR_NUMBER
+          gh pr comment $GITHUB_PR_NUMBER --body "Hi! This is a test from Verify Release Workflow."
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 # Commenting this clean-up step 'cause I think this step is not needed, as the final self-hosted implementation has ephemeral runners.
