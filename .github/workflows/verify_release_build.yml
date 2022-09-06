@@ -47,7 +47,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git checkout -b ${{env.WORKING_BRANCH}} --quiet
-          /bin/bash ./set_version.sh "$RELEASE_VER" --git-add "$GITHUB_WORKSPACE"
+          /bin/bash release/src/main/scripts/set_version.sh "$RELEASE_VER" --git-add
           echo "This is a test." >> TEST_FILE.md
           git add TEST_FILE.md
           # In case the version string was not changed, append a newline to CHANGES.md
@@ -55,7 +55,7 @@ jobs:
           git add CHANGES.md
           git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
           git push origin $WORKING_BRANCH --quiet
-        working-directory: "release/src/main/scripts"
+        #working-directory: "release/src/main/scripts"
 # hub pull-request -b $GITHUB_ACTOR:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
 # You can run many tests automatically using release/src/main/scripts/mass_comment.py."
 #  trigger_phrases:
