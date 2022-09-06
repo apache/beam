@@ -89,7 +89,10 @@ public class TableRowToStorageApiProtoTest {
                       new TableFieldSchema()
                           .setType("TIMESTAMP")
                           .setName("timestampValueSpaceMilli"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpaceTrailingZero"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestampValueSpaceTrailingZero"))
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
                   .build());
 
@@ -123,7 +126,10 @@ public class TableRowToStorageApiProtoTest {
                       new TableFieldSchema()
                           .setType("TIMESTAMP")
                           .setName("timestampValueSpaceMilli"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpaceTrailingZero"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestampValueSpaceTrailingZero"))
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
                   .build());
 
