@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /**
  * An implementation of {@link SchemaIOProvider} for reading and writing to BigQuery with {@link
@@ -194,7 +195,9 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
           BigQueryIO.Write<Row> write =
               BigQueryIO.<Row>write()
                   .useBeamSchema()
-                  .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API);
+                  .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
+                  .withTriggeringFrequency(Duration.standardSeconds(5))
+                  .withAutoSharding();
 
           String table = config.getString("table");
           if (table != null) {
