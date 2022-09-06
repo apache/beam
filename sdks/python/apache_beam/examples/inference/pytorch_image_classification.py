@@ -22,6 +22,7 @@ import io
 import logging
 import os
 from typing import Iterable
+from typing import Iterator
 from typing import Optional
 from typing import Tuple
 
@@ -61,6 +62,11 @@ def preprocess_image(data: Image.Image) -> torch.Tensor:
       normalize,
   ])
   return transform(data)
+
+
+def filter_empty_lines(text: str) -> Iterator[str]:
+  if len(text.strip()) > 0:
+    yield text
 
 
 class PostProcessor(beam.DoFn):
@@ -137,6 +143,7 @@ def run(
   filename_value_pair = (
       pipeline
       | 'ReadImageNames' >> beam.io.ReadFromText(known_args.input)
+      | 'RemoveEmptyLines' >> beam.ParDo(filter_empty_lines)
       | 'ReadImageData' >> beam.Map(
           lambda image_name: read_image(
               image_file_name=image_name, path_to_dir=known_args.images_dir))

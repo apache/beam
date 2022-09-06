@@ -28,6 +28,7 @@ import argparse
 import logging
 from typing import Dict
 from typing import Iterable
+from typing import Iterator
 from typing import Tuple
 
 import apache_beam as beam
@@ -107,6 +108,11 @@ def tokenize_sentence(
       k: torch.squeeze(v)
       for k, v in dict(tokenized_sentence).items()
   }
+
+
+def filter_empty_lines(text: str) -> Iterator[str]:
+  if len(text.strip()) > 0:
+    yield text
 
 
 class PostProcessor(beam.DoFn):
@@ -217,6 +223,7 @@ def run(
         pipeline | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
   text_and_tokenized_text_tuple = (
       text
+      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
       | 'AddMask' >> beam.Map(add_mask_to_last_word)
       | 'TokenizeSentence' >> beam.Map(tokenize_sentence))
   output = (
