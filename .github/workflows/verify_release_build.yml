@@ -60,7 +60,7 @@ jobs:
           echo $GITHUB_PR_NUMBER
           echo "$GITHUB_PR_NUMBER" >> $GITHUB_ENV
   comment_trigger_phrases:
-      needs: create_testing_pr
+      needs: create_release_pr
       runs-on: ubuntu-latest
       steps:
         - name: Create PR Comment
