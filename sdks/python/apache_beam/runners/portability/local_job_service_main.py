@@ -37,6 +37,7 @@ import subprocess
 import sys
 import time
 
+from apache_beam.internal import pickler
 from apache_beam.runners.portability import local_job_service
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,6 +55,7 @@ def run(argv):
       default=0,
       help='port on which to serve the job api')
   parser.add_argument('--staging_dir')
+  parser.add_argument('--default_pickler')
   parser.add_argument(
       '--pid_file', help='File in which to store the process id of the server.')
   parser.add_argument(
@@ -128,6 +130,9 @@ def run(argv):
       port = fin.read()
     print('Server started at port', port)
     return
+
+  if options.default_pickler:
+    pickler.set_library(options.default_pickler)
 
   if options.pid_file:
     print('Writing process id to', options.pid_file)
