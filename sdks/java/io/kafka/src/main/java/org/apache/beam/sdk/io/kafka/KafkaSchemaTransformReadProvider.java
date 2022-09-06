@@ -82,8 +82,7 @@ public class KafkaSchemaTransformReadProvider
             : "To read from Kafka, a schema must be provided directly or though Confluent "
                 + "Schema Registry, but not both.";
         final Schema beamSchema =
-            AvroUtils.toBeamSchema(
-                new org.apache.avro.Schema.Parser().parse(avroSchema));
+            AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(avroSchema));
         SerializableFunction<byte[], Row> valueMapper =
             AvroUtils.getAvroBytesToRowFunction(beamSchema);
         return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
@@ -104,18 +103,18 @@ public class KafkaSchemaTransformReadProvider
           }
         };
       } else {
-        final String confluentSchemaRegUrl = configuration.getConfluentSchemaRegistryUrl();
-        final String confluentSchemaRegSubject = configuration.getConfluentSchemaRegistrySubject();
-        assert confluentSchemaRegUrl != null
-            : "To read from Kafka, a schema must be provided directly or though Confluent "
-                + "Schema Registry. Make sure you are providing one of these parameters.";
-        assert confluentSchemaRegSubject != null
-            : "You must provide a subject to get the topic's schema from Confluent Schema "
-                + "Registry.";
-
         return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
           @Override
           public PCollectionRowTuple expand(PCollectionRowTuple input) {
+            final String confluentSchemaRegUrl = configuration.getConfluentSchemaRegistryUrl();
+            final String confluentSchemaRegSubject =
+                configuration.getConfluentSchemaRegistrySubject();
+            assert confluentSchemaRegUrl != null
+                : "To read from Kafka, a schema must be provided directly or though Confluent "
+                    + "Schema Registry. Make sure you are providing one of these parameters.";
+            assert confluentSchemaRegSubject != null
+                : "You must provide a subject to get the topic's schema from Confluent Schema "
+                    + "Registry.";
             PCollection<GenericRecord> kafkaValues =
                 input
                     .getPipeline()
