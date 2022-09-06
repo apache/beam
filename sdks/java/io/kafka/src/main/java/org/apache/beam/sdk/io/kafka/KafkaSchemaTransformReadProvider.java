@@ -109,12 +109,11 @@ public class KafkaSchemaTransformReadProvider
             final String confluentSchemaRegUrl = configuration.getConfluentSchemaRegistryUrl();
             final String confluentSchemaRegSubject =
                 configuration.getConfluentSchemaRegistrySubject();
-            assert confluentSchemaRegUrl != null
-                : "To read from Kafka, a schema must be provided directly or though Confluent "
-                    + "Schema Registry. Make sure you are providing one of these parameters.";
-            assert confluentSchemaRegSubject != null
-                : "You must provide a subject to get the topic's schema from Confluent Schema "
-                    + "Registry.";
+            if (confluentSchemaRegUrl == null || confluentSchemaRegSubject == null) {
+              throw new IllegalArgumentException(
+                  "To read from Kafka, a schema must be provided directly or though Confluent "
+                      + "Schema Registry. Make sure you are providing one of these parameters.");
+            }
             PCollection<GenericRecord> kafkaValues =
                 input
                     .getPipeline()
