@@ -147,7 +147,7 @@ python -m apache_beam.examples.inference.pytorch_image_segmentation \
   --output OUTPUT \
   --model_state_dict_path MODEL_STATE_DICT
 ```
-`images_dir` is only needed if your `IMAGE_FILE_NAMES` file contains relative paths (they will be relative from `IMAGES_DIR`).
+`images_dir` is only needed if your `IMAGE_FILE_NAMES.txt` file contains relative paths (they will be relative from `IMAGES_DIR`).
 
 For example, if you've followed the naming conventions recommended above:
 ```sh
