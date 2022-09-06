@@ -75,7 +75,7 @@ public class BigQueryIOJsonIT {
 
   @Rule public final transient TestPipeline p = TestPipeline.fromOptions(testOptions);
 
-  @Rule public final transient TestPipeline pWrite = TestPipeline.create();
+  @Rule public final transient TestPipeline pWrite = TestPipeline.fromOptions(testOptions);
 
   private BigQueryIOJsonOptions options;
 
@@ -259,7 +259,7 @@ public class BigQueryIOJsonIT {
 
       rowsToWrite.add(row);
     }
-
+    System.out.println("MY DESTINATION: " + options.getOutput());
     pWrite
         .apply("Create Elements", Create.of(rowsToWrite))
         .apply(
@@ -385,6 +385,8 @@ public class BigQueryIOJsonIT {
 
   @Test
   public void testLegacyStreamingWrite() throws Exception {
+    LOG.info("Testing writing JSON data with Streaming Inserts");
+
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
     options.setWriteMethod(Write.Method.STREAMING_INSERTS);
 
@@ -398,13 +400,14 @@ public class BigQueryIOJsonIT {
 
   @Test
   public void testFileLoadsWrite() throws Exception {
+    LOG.info("Testing writing JSON data with File Loads");
+
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
     options.setWriteMethod(Write.Method.FILE_LOADS);
 
-    String streamingDestination =
-        String.format("%s:%s.%s", project, DATASET_ID, FILE_LOADS_TEST_TABLE);
-    options.setOutput(streamingDestination);
-    options.setInputTable(streamingDestination);
+    String loadsDestination = String.format("%s:%s.%s", project, DATASET_ID, FILE_LOADS_TEST_TABLE);
+    options.setOutput(loadsDestination);
+    options.setInputTable(loadsDestination);
 
     runTestWrite(options);
   }
