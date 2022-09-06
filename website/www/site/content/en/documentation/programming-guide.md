@@ -3085,6 +3085,12 @@ In Go, schema encoding is used by default for struct types, with Exported fields
 Beam will automatically infer the schema based on the fields and field tags of the struct, and their order.
 {{< /paragraph >}}
 
+{{< paragraph class="language-typescript" >}}
+In Typescript, JSON objects are used to represent schema'd data.
+Unfortunately type information in Typescript is not propagated to the runtime layer,
+so it needs to be manually specified in some places (e.g. when using cross-langauge pipelines).
+{{< /paragraph >}}
+
 {{< highlight java >}}
 @DefaultSchema(JavaBeanSchema.class)
 public class Purchase {
@@ -3152,6 +3158,10 @@ class Transaction(typing.NamedTuple):
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/06schemas.go" schema_define >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" schema_def >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -3317,6 +3327,12 @@ For example, the logical type provider representing nanosecond timestamps
 might be implemented as follows
 {{< /paragraph >}}
 
+{{< paragraph class="language-typescript" >}}
+In Typescript, a logical type defined by the [LogicalTypeInfo](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/coders/row_coder.ts)
+interface which associates a logical type's URN with its representation
+and its conversion to and from this representation.
+{{< /paragraph >}}
+
 {{< highlight java >}}
 // A Logical type using java.time.Instant to represent the logical type.
 public class TimestampNanos implements LogicalType<Instant, Row> {
@@ -3345,6 +3361,14 @@ public class TimestampNanos implements LogicalType<Instant, Row> {
 
 // Register it like so:
 {{< code_sample "sdks/go/examples/snippets/06schemas.go" schema_logical_register >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+// Register a logical type:
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" schema_logical_register >}}
+
+// And use it as follows:
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" schema_logical_use >}}
 {{< /highlight >}}
 
 #### 6.4.2. Useful logical types {#built-in-logical-types}
@@ -3469,7 +3493,14 @@ In addition, often Beam pipelines have intermediate stages and types, and those 
 
 #### 6.5.1. Inferring schemas {#inferring-schemas}
 
-{{< language-switcher java py go >}}
+{{< language-switcher java py go typescript >}}
+
+{{< paragraph class="language-typescript" >}}
+Unfortunately, Beam is unable to access Typescript's type information at runtime.
+Schemas must be manually declared with `beam.withRowCoder`.
+On the other hand, schema-aware operations such as `GroupBy` can be used
+without an explicit schema declared.
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 Beam is able to infer schemas from a variety of common Java types.
@@ -4331,7 +4362,7 @@ automatically convert to any matching schema type, just like when reading the en
 
 ## 7. Data encoding and type safety {#data-encoding-and-type-safety}
 
-{{< language-switcher java py go >}}
+{{< language-switcher java py go typescript >}}
 
 When Beam runners execute your pipeline, they often need to materialize the
 intermediate data in your `PCollection`s, which requires converting elements to
@@ -4368,6 +4399,14 @@ However, users can build and register custom coders with `beam.RegisterCoder`.
 You can find available Coder functions in the
 [coder](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder)
 package.
+{{< /paragraph >}}
+
+{{< paragraph class="language-typescript" >}}
+Standard Typescript types like `number`, `UInt8Array` and `string` and more are coded using builtin coders.
+Json objects and arrays are encoded via a BSON encoding.
+For these types, coders need not be specified unless interacting with cross-language transforms.
+Users can build custom coders by extending `beam.coders.Coder`
+for use with `withCoderInternal`, but generally logical types are preferred for this case.
 {{< /paragraph >}}
 
 > Note that coders do not necessarily have a 1:1 relationship with types. For
@@ -4939,6 +4978,10 @@ into fixed windows, each 60 seconds in length:
 {{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_fixed_windows >}}
 {{< /highlight >}}
 
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" setting_fixed_windows >}}
+{{< /highlight >}}
+
 #### 8.3.2. Sliding time windows {#using-sliding-time-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
@@ -4959,6 +5002,10 @@ begins every five seconds:
 {{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_sliding_windows >}}
 {{< /highlight >}}
 
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" setting_sliding_windows >}}
+{{< /highlight >}}
+
 #### 8.3.3. Session windows {#using-session-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
@@ -4977,6 +5024,10 @@ least 10 minutes (600 seconds):
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_session_windows >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" setting_session_windows >}}
 {{< /highlight >}}
 
 Note that the sessions are per-key — each key in the collection will have its
@@ -5000,6 +5051,10 @@ a single global window for a `PCollection`:
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_global_window >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" setting_global_window >}}
 {{< /highlight >}}
 
 ### 8.4. Watermarks and late data {#watermarks-and-late-data}
@@ -5765,6 +5820,13 @@ to other nodes in the graph. A `DoFn` can declare multiple state variables.
 
 </span>
 
+<span class="language-typescript">
+
+> **Note:** The Beam SDK for Typescript does not yet support a State and Timer API,
+but it is possible to use these features from cross-langauge pipelines (see below).
+
+</span>
+
 ### 11.1. Types of state {#types-of-state}
 
 Beam provides several types of state:
@@ -5820,6 +5882,10 @@ _ = (p | 'Read per user' >> ReadPerUser()
 
 {{< highlight go >}}
 This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< /highlight >}}
+
+{{< highlight typscript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" stateful_dofn >}}
 {{< /highlight >}}
 
 #### CombiningState

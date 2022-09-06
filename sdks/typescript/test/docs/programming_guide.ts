@@ -30,6 +30,7 @@ import * as combiners from "../../src/apache_beam/transforms/combiners";
 import * as pardo from "../../src/apache_beam/transforms/pardo";
 import * as windowings from "../../src/apache_beam/transforms/windowings";
 import * as row_coder from "../../src/apache_beam/coders/row_coder";
+import { requireForSerialization } from "../../src/apache_beam/serialization";
 import {
   pythonTransform,
   pythonCallable,
@@ -533,6 +534,138 @@ describe("Programming Guide Tested Samples", function () {
         );
         // [END with_row_coder]
         result.apply(assertDeepEqual(elements));
+      });
+    });
+  });
+
+  describe("Windowing", function () {
+    it("fixed_windows", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        const pcoll = root
+          .apply(beam.create([1, 2, 3, 4, 5, 60, 61, 62]))
+          .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)));
+
+        // [START setting_fixed_windows]
+        pcoll
+          .apply(beam.windowInto(windowings.fixedWindows(60)))
+          // [END setting_fixed_windows]
+          .apply(beam.groupBy((e: number) => ""))
+          .apply(
+            assertDeepEqual([
+              { key: "", value: [1, 2, 3, 4, 5] },
+              { key: "", value: [60, 61, 62] },
+            ])
+          );
+      });
+    });
+
+    it("sliding_windows", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        const pcoll = root
+          .apply(beam.create([1, 2, 3, 4, 5, 12]))
+          .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)));
+
+        // [START setting_sliding_windows]
+        pcoll
+          .apply(beam.windowInto(windowings.slidingWindows(30, 5)))
+          // [END setting_sliding_windows]
+          .apply(beam.groupBy((e: number) => ""))
+          .apply(
+            assertDeepEqual([
+              { key: "", value: [1, 2, 3, 4, 5, 12] },
+              { key: "", value: [1, 2, 3, 4, 5, 12] },
+              { key: "", value: [1, 2, 3, 4, 5, 12] },
+              { key: "", value: [1, 2, 3, 4, 5, 12] },
+              { key: "", value: [1, 2, 3, 4, 5] },
+              { key: "", value: [1, 2, 3, 4] },
+              { key: "", value: [5, 12] },
+              { key: "", value: [12] },
+            ])
+          );
+      });
+    });
+
+    it("session_windows", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        const pcoll = root
+          .apply(beam.create([1, 2, 600, 1800, 1900]))
+          .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)));
+
+        // [START setting_session_windows]
+        pcoll
+          .apply(beam.windowInto(windowings.sessions(10 * 60)))
+          // [END setting_session_windows]
+          .apply(beam.groupBy((e: number) => ""))
+          .apply(
+            assertDeepEqual([
+              { key: "", value: [1, 2, 600] },
+              { key: "", value: [1800, 1900] },
+            ])
+          );
+      });
+    }).timeout(10000);
+
+    it("global_windows", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        const pcoll = root
+          .apply(beam.create([1, 2, 3, 4, 5, 60, 61, 62]))
+          .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)))
+          // So setting global windows is non-trivial.
+          .apply(beam.windowInto(windowings.fixedWindows(60)));
+        // [START setting_global_window]
+        pcoll
+          .apply(beam.windowInto(windowings.globalWindows()))
+          // [END setting_global_window]
+          .apply(beam.groupBy((e: number) => ""))
+          .apply(
+            assertDeepEqual([{ key: "", value: [1, 2, 3, 4, 5, 60, 61, 62] }])
+          );
+      });
+    });
+  });
+
+  describe("Schemas and Coders", function () {
+    it("schema_def", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        // [START schema_def]
+        const pcoll = root
+          .apply(
+            beam.create([
+              { intField: 1, stringField: "a" },
+              { intField: 2, stringField: "b" },
+            ])
+          )
+          // Let beam know the type of the elements by providing an exemplar.
+          .apply(beam.withRowCoder({ intField: 0, stringField: "" }));
+        // [END schema_def]
+      });
+    });
+
+    it("logical_types", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        // [START schema_logical_register]
+        class Foo {
+          constructor(public value: string) {}
+        }
+        requireForSerialization("apache-beam", { Foo });
+        row_coder.registerLogicalType({
+          urn: "beam:logical_type:typescript_foo:v1",
+          reprType: row_coder.RowCoder.inferTypeFromJSON("string", false),
+          toRepr: (foo) => foo.value,
+          fromRepr: (value) => new Foo(value),
+        });
+        // [END schema_logical_register]
+
+        // [START schema_logical_use]
+        const pcoll = root
+          .apply(beam.create([new Foo("a"), new Foo("b")]))
+          // Use beamLogicalType in the exemplar to indicate its use.
+          .apply(
+            beam.withRowCoder({
+              beamLogicalType: "beam:logical_type:typescript_foo:v1",
+            } as any)
+          );
+        // [END schema_logical_use]
       });
     });
   });
