@@ -151,8 +151,13 @@ class PlaygroundState with ChangeNotifier {
     required bool setCurrentSdk,
   }) {
     if (setCurrentSdk) {
-      setSdk(example.sdk, loadDefaultIfNot: false, notify: false);
-      snippetEditingController!.selectedExample = example;
+      _sdk = example.sdk;
+      final controller = _getOrCreateSnippetEditingController(
+        example.sdk,
+        loadDefaultIfNot: false,
+      );
+
+      controller.selectedExample = example;
     } else {
       final controller = _getOrCreateSnippetEditingController(
         example.sdk,
@@ -169,13 +174,12 @@ class PlaygroundState with ChangeNotifier {
 
   void setSdk(
     SDK sdk, {
-    required bool loadDefaultIfNot,
     bool notify = true,
   }) {
     _sdk = sdk;
     _getOrCreateSnippetEditingController(
       sdk,
-      loadDefaultIfNot: loadDefaultIfNot,
+      loadDefaultIfNot: true,
     );
 
     if (notify) {
@@ -359,6 +363,18 @@ class PlaygroundState with ChangeNotifier {
       files: [SharedFile(code: controller.codeController.text, isMain: true)],
       sdk: controller.sdk,
       pipelineOptions: controller.pipelineOptions,
+    );
+  }
+
+  /// Creates an [ExamplesLoadingDescriptor] that can recover
+  /// the current content.
+  ExamplesLoadingDescriptor getLoadingDescriptor() {
+    return ExamplesLoadingDescriptor(
+      descriptors: _snippetEditingControllers.values
+          .map(
+            (controller) => controller.getLoadingDescriptor(),
+          )
+          .toList(growable: false),
     );
   }
 }

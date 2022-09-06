@@ -16,32 +16,24 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart';
-import 'package:playground/modules/examples/models/example_origin.dart';
+import 'package:playground/modules/examples/models/example_loading_descriptors/content_example_loading_descriptor.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/pages/playground/states/example_loaders/example_loader.dart';
 
-class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
-  final String snippetId;
+class ContentExampleLoader extends ExampleLoader {
+  final ContentExampleLoadingDescriptor descriptor;
 
-  const UserSharedExampleLoadingDescriptor({
-    required this.snippetId,
+  const ContentExampleLoader({
+    required this.descriptor,
   });
 
   @override
-  ExampleOrigin get origin => ExampleOrigin.userShared;
-
-  @override
-  String toString() => '$origin-$snippetId';
-
-  @override
-  int get hashCode => snippetId.hashCode;
-
-  @override
-  bool operator ==(Object other) {
-    return other is UserSharedExampleLoadingDescriptor &&
-        snippetId == other.snippetId;
-  }
-
-  // Only ContentExampleLoadingDescriptor is serialized now.
-  @override
-  Map<String, dynamic> toJson() => throw UnimplementedError();
+  Future<ExampleModel> get future async => ExampleModel(
+    sdk: descriptor.sdk,
+    name: descriptor.name ?? 'Embedded_Example',
+    path: '',
+    description: '',
+    type: ExampleType.example,
+    source: descriptor.content,
+  );
 }

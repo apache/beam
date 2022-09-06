@@ -16,13 +16,20 @@
  * limitations under the License.
  */
 
+// ignore_for_file: unsafe_html
+
+import 'dart:html' as html;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/params.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:playground/modules/messages/models/set_content_message.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground/utils/javascript_post_message.dart';
+import 'package:provider/provider.dart';
 
 const kTryPlaygroundButtonWidth = 200.0;
 const kTryPlaygroundButtonHeight = 40.0;
@@ -37,14 +44,29 @@ class EmbeddedActions extends StatelessWidget {
       child: SizedBox(
         width: kTryPlaygroundButtonWidth,
         height: kTryPlaygroundButtonHeight,
-        child: ElevatedButton.icon(
-          icon: SvgPicture.asset(kLinkIconAsset),
-          label: Text(AppLocalizations.of(context)!.tryInPlayground),
-          onPressed: () {
-            final exampleId = Uri.base.queryParameters[kExampleParam];
-            launchUrl(Uri.parse('/?$kExampleParam=$exampleId'));
-          },
+        child: Consumer<PlaygroundState>(
+          builder: (context, state, child) => ElevatedButton.icon(
+            icon: SvgPicture.asset(kLinkIconAsset),
+            label: Text(AppLocalizations.of(context)!.tryInPlayground),
+            onPressed: () => _openStandalonePlayground(state),
+          ),
         ),
+      ),
+    );
+  }
+
+  void _openStandalonePlayground(PlaygroundState state) {
+    // The empty list forces the parsing of EmptyExampleLoadingDescriptor
+    // and prevents the glimpse of the default catalog example.
+    final window = html.window.open(
+      '/?$kExamplesParam=[]&$kSdkParam=${state.sdk?.name}',
+      '',
+    );
+
+    javaScriptPostMessageRepeated(
+      window,
+      SetContentMessage(
+        descriptor: state.getLoadingDescriptor(),
       ),
     );
   }

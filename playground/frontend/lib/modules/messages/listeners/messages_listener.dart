@@ -16,23 +16,26 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/pages/playground/states/example_loaders/example_loader.dart';
+import 'package:onmessage/onmessage.dart';
+import 'package:playground/modules/messages/handlers/abstract_message_handler.dart';
+import 'package:playground/modules/messages/parsers/messages_parser.dart';
 
-class EmptyExampleLoader extends ExampleLoader {
-  final EmptyExampleLoadingDescriptor descriptor;
+class MessagesListener {
+  final AbstractMessageHandler handler;
 
-  const EmptyExampleLoader({
-    required this.descriptor,
-  });
+  MessagesListener({
+    required this.handler,
+  }) {
+    OnMessage.instance.stream.listen(_onWindowMessage);
+  }
 
-  @override
-  Future<ExampleModel> get future async => ExampleModel(
-        sdk: descriptor.sdk,
-        name: 'Embedded_Example',
-        path: '',
-        description: '',
-        type: ExampleType.example,
-      );
+  void _onWindowMessage(MessageEvent event) {
+    final message = MessagesParser().tryParse(event.data);
+
+    if (message == null) {
+      return;
+    }
+
+    handler.handle(message);
+  }
 }

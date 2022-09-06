@@ -16,32 +16,29 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart';
-import 'package:playground/modules/examples/models/example_origin.dart';
+import 'package:playground/modules/messages/handlers/abstract_message_handler.dart';
+import 'package:playground/modules/messages/models/abstract_message.dart';
+import 'package:playground/modules/messages/models/set_sdk_message.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
 
-class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
-  final String snippetId;
+class SetSdkMessageHandler extends AbstractMessageHandler {
+  final PlaygroundState playgroundState;
 
-  const UserSharedExampleLoadingDescriptor({
-    required this.snippetId,
+  const SetSdkMessageHandler({
+    required this.playgroundState,
   });
 
   @override
-  ExampleOrigin get origin => ExampleOrigin.userShared;
+  MessageHandleResult handle(AbstractMessage message) {
+    if (message is! SetSdkMessage) {
+      return MessageHandleResult.notHandled;
+    }
 
-  @override
-  String toString() => '$origin-$snippetId';
-
-  @override
-  int get hashCode => snippetId.hashCode;
-
-  @override
-  bool operator ==(Object other) {
-    return other is UserSharedExampleLoadingDescriptor &&
-        snippetId == other.snippetId;
+    _handle(message);
+    return MessageHandleResult.handled;
   }
 
-  // Only ContentExampleLoadingDescriptor is serialized now.
-  @override
-  Map<String, dynamic> toJson() => throw UnimplementedError();
+  void _handle(SetSdkMessage message) {
+    playgroundState.setSdk(message.sdk);
+  }
 }
