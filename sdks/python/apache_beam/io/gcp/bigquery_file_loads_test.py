@@ -402,18 +402,15 @@ class TestPartitionFiles(unittest.TestCase):
 
   def test_fail_when_write_to_table_partition_requires_copy_jobs(self):
     TABLE_PARTITION_ELEMENTS = [
-      ('destination0', [('file0', 50), ('file1', 50), ('file2', 50)]),
-      ('table$partition', [('file0', 50), ('file1', 50), ('file2', 50)])
+        ('destination0', [('file0', 50), ('file1', 50), ('file2', 50)]),
+        ('table$partition', [('file0', 50), ('file1', 50), ('file2', 50)])
     ]
 
     with self.assertRaises(ValueError):
       with TestPipeline() as p:
-        destination_file_pairs = p | beam.Create(TABLE_PARTITION_ELEMENTS, reshuffle=False)
-        partitioned_files = (
-          destination_file_pairs
-          | beam.ParDo(bqfl.PartitionFiles(100, 10)))
-
-
+        destination_file_pairs = p | beam.Create(
+            TABLE_PARTITION_ELEMENTS, reshuffle=False)
+        _ = (destination_file_pairs | beam.ParDo(bqfl.PartitionFiles(100, 10)))
 
 
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
