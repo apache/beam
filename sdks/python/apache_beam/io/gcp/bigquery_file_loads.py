@@ -454,7 +454,8 @@ class UpdateDestinationSchema(beam.DoFn):
   def finish_bundle(self):
     # Unlike the other steps, schema update is not always necessary.
     # In that case, return a None value to avoid blocking in streaming context.
-    # Otherwise, streaming pipeline would hang waiting for TriggerCopyJobs side-input.
+    # Otherwise, the streaming pipeline would get stuck waiting for the
+    # TriggerCopyJobs side-input.
     if not self.pending_jobs:
       return [GlobalWindows.windowed_value(None)]
 
