@@ -203,8 +203,9 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
                   .withTriggeringFrequency(Duration.standardSeconds(5))
                   .withAutoSharding();
 
-          if (config.getBoolean("useTestingBigQueryServices") != null
-              && config.getBoolean("useTestingBigQueryServices")) {
+          final Boolean useTestingBigQueryServices =
+              config.getBoolean("useTestingBigQueryServices");
+          if (useTestingBigQueryServices != null && useTestingBigQueryServices) {
             FakeBigQueryServices fbqs =
                 new FakeBigQueryServices()
                     .withDatasetService(new FakeDatasetService())

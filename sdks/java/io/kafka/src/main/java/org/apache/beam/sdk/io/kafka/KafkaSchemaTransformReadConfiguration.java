@@ -40,9 +40,9 @@ public abstract class KafkaSchemaTransformReadConfiguration {
   public static final Set<String> VALID_START_OFFSET_VALUES = Sets.newHashSet("earliest", "latest");
 
   public void validate() {
-    assert this.getStartOffset() == null
-            || VALID_START_OFFSET_VALUES.contains(this.getStartOffset())
-        : "Valid Kafka Start offset values are " + VALID_START_OFFSET_VALUES.toString();
+    final String startOffset = this.getStartOffset();
+    assert startOffset == null || VALID_START_OFFSET_VALUES.contains(startOffset)
+        : "Valid Kafka Start offset values are " + VALID_START_OFFSET_VALUES;
   }
 
   /** Instantiates a {@link KafkaSchemaTransformReadConfiguration.Builder} instance. */
