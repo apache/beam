@@ -175,7 +175,7 @@ The pipeline reads sentences, performs basic preprocessing to convert the last w
 
 To use this transform, you need a dataset and model for language modeling.
 
-1. Download the [BertForMaskedLM](https://huggingface.co/docs/transformers/model_doc/bert#transformers.BertForMaskedLM) model from Hugging Face's repository of pretrained models. You must already have `transformers` installed, then from a python shell run:
+1. Download the [BertForMaskedLM](https://huggingface.co/docs/transformers/model_doc/bert#transformers.BertForMaskedLM) model from Hugging Face's repository of pretrained models. You must already have `transformers` installed, then from a Python shell run:
 ```
 import torch
 from transformers import BertForMaskedLM
