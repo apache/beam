@@ -78,7 +78,7 @@ func (n *DataSource) ID() UnitID {
 
 // Up initializes this datasource.
 func (n *DataSource) Up(ctx context.Context) error {
-	safeToSingleIterate := true
+	safeToSingleIterate := false
 	switch n.Out.(type) {
 	case *Expand, *Multiplex:
 		// CoGBK Expands aren't safe, as they may re-iterate the GBK stream.
