@@ -373,11 +373,11 @@ def tensorRTTests = tasks.create("tensorRTtests") {
   def argMap = [
     "runner": "DataflowRunner",
     "machine_type":"n1-standard-4",
-    "sdk_container_image": "us.gcr.io/apache-beam-testing/yeandy/apache_beam_tensorrt:latest",
+    "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest",
     "sdk_location": files(configurations.distTarBall.files).singleFile,
     "project": "apache-beam-testing",
     "region": "us-central1",
-    "input": "gs://apache-beam-testing-yeandy/tensorrt_image_file_names.txt",
+    "input": "gs://apache-beam-ml/testing/inputs/tensorrt_image_file_names.txt",
     "output": "gs://apache-beam-ml/outputs/tensorrt_predictions.txt",
     "engine_path":  "gs://apache-beam-ml/models/ssd_mobilenet_v2_320x320_coco17_tpu-8.trt"
   ]
