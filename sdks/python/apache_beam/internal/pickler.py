@@ -71,6 +71,9 @@ def set_library(selected_library=DEFAULT_PICKLE_LIB):
   if (selected_library == USE_DILL) != (desired_pickle_lib == dill_pickler):
     dill_pickler.override_pickler_hooks(selected_library == USE_DILL)
 
+  if selected_library == 'default':
+    selected_library = DEFAULT_PICKLE_LIB
+
   if selected_library == USE_DILL:
     desired_pickle_lib = dill_pickler
   elif selected_library == USE_CLOUDPICKLE:
