@@ -36,15 +36,16 @@ concurrency:
 env:
   DATASTORE_PROJECT_ID: test-proj
   DATASTORE_EMULATOR_HOST: localhost:8081
-  DATASTORE_EMULATOR_DATADIR: ${{ runner.temp }}/datadir
   TOB_LEARNING_ROOT: ./samples/learning-content
 
-  PORT_SDK_LIST: 8801
-  PORT_GET_CONTENT_TREE: 8802
-  PORT_GET_UNIT_CONTENT: 8803
 
 jobs:
   integration:
+    env:
+      DATASTORE_EMULATOR_DATADIR: ${{ runner.temp }}/datadir
+      PORT_SDK_LIST: 8801
+      PORT_GET_CONTENT_TREE: 8802
+      PORT_GET_UNIT_CONTENT: 8803
     runs-on: ubuntu-latest
     defaults:
       run:
