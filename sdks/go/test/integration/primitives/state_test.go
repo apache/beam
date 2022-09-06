@@ -27,14 +27,14 @@ func TestValueState(t *testing.T) {
 	ptest.RunAndValidate(t, ValueStateParDo())
 }
 
-func TestValueState_Windowed(t *testing.T) {
+func TestValueStateWindowed(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ValueStateParDo_Windowed())
+	ptest.RunAndValidate(t, ValueStateParDoWindowed())
 }
 
-func TestValueState_Clear(t *testing.T) {
+func TestValueStateClear(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ValueStateParDo_Clear())
+	ptest.RunAndValidate(t, ValueStateParDoClear())
 }
 
 func TestBagState(t *testing.T) {
@@ -42,9 +42,9 @@ func TestBagState(t *testing.T) {
 	ptest.RunAndValidate(t, BagStateParDo())
 }
 
-func TestBagState_Clear(t *testing.T) {
+func TestBagStateClear(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, BagStateParDo_Clear())
+	ptest.RunAndValidate(t, BagStateParDoClear())
 }
 
 func TestCombiningState(t *testing.T) {
@@ -57,7 +57,17 @@ func TestMapState(t *testing.T) {
 	ptest.RunAndValidate(t, MapStateParDo())
 }
 
+func TestMapStateClear(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, MapStateParDoClear())
+}
+
 func TestSetState(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.RunAndValidate(t, SetStateParDo())
+}
+
+func TestSetStateClear(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, SetStateParDoClear())
 }

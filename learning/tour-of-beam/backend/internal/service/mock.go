@@ -36,13 +36,13 @@ type Mock struct{}
 var _ IContent = &Mock{}
 
 func (d *Mock) GetContentTree(_ context.Context, sdk tob.Sdk, userId *string) (ct tob.ContentTree, err error) {
-	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "content_tree.json"))
+	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_content_tree.json"))
 	_ = json.Unmarshal(content, &ct)
 	return ct, nil
 }
 
-func (d *Mock) GetUnitContent(_ context.Context, unitId string, userId *string) (u tob.Unit) {
-	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "unit.json"))
-	_ = json.Unmarshal(content, &u)
-	return u
+func (d *Mock) GetUnitContent(_ context.Context, sdk tob.Sdk, unitId string, userId *string) (u tob.Unit, err error) {
+	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_unit_content.json"))
+	err = json.Unmarshal(content, &u)
+	return u, err
 }
