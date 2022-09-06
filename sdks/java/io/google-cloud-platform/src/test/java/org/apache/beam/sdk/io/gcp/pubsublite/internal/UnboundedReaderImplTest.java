@@ -100,7 +100,8 @@ public class UnboundedReaderImplTest {
   @Before
   public void setUp() {
     doReturn(INITIAL_OFFSET).when(subscriber).fetchOffset();
-    reader = new UnboundedReaderImpl(source, subscriber, backlogReader, committer, Offset.of(1));
+    reader =
+        new UnboundedReaderImpl(source, subscriber, backlogReader, () -> committer, Offset.of(1));
   }
 
   @Test
