@@ -235,7 +235,7 @@ def run(argv=None, save_main_session=True):
     filename_value_pair = (
         p
         | 'ReadImageNames' >> beam.io.ReadFromText(
-            known_args.input, skip_header_lines=0)
+            known_args.input)
         | 'ReadImageData' >> beam.Map(
             lambda image_name: read_image(
                 image_file_name=image_name, path_to_dir=known_args.images_dir))
@@ -244,7 +244,7 @@ def run(argv=None, save_main_session=True):
             lambda file_name, data: (file_name, preprocess_image(data))))
     predictions = (
         filename_value_pair
-        | 'PyTorchRunInference' >> RunInference(engine_handler)
+        | 'TensorRTRunInference' >> RunInference(engine_handler)
         | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
     _ = (
