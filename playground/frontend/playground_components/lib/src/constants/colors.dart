@@ -19,12 +19,15 @@
 import 'package:flutter/material.dart';
 
 class BeamColors {
+  static const transparent = Colors.transparent;
   static const white = Colors.white;
   static const black = Colors.black;
   static const grey1 = Color(0xffDFE1E3);
   static const grey2 = Color(0xffCBCBCB);
   static const grey3 = Color(0xffA0A4AB);
   static const grey4 = Color(0x30808080);
+  static const darkGrey = Color(0xff2E2E34);
+  static const darkBlue = Color(0xff242639);
 
   static const green = Color(0xff37AC66);
   static const orange = Color(0xffEEAB00);
@@ -32,16 +35,16 @@ class BeamColors {
 }
 
 class BeamLightThemeColors {
-  static const primaryBackground = Colors.white;
+  static const primaryBackground = BeamColors.white;
   static const secondaryBackground = Color(0xffFCFCFC);
   static const grey = Color(0xffE5E5E5);
-  static const text = Color(0xff242639);
+  static const text = BeamColors.darkBlue;
   static const primary = Color(0xffE74D1A);
 }
 
 class BeamDarkThemeColors {
   static const primaryBackground = Color(0xff18181B);
-  static const secondaryBackground = Color(0xff2E2E34);
+  static const secondaryBackground = BeamColors.darkGrey;
   static const grey = Color(0xff3F3F46);
   static const text = Color(0xffFFFFFF);
   static const primary = Color(0xffF26628);

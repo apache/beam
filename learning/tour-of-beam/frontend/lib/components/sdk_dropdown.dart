@@ -40,7 +40,7 @@ class SdkDropdown extends StatelessWidget {
             .toList(growable: false),
         isDense: true,
         alignment: Alignment.center,
-        focusColor: Colors.transparent,
+        focusColor: BeamColors.transparent,
         borderRadius: BorderRadius.circular(BeamSizes.size6),
       ),
     );

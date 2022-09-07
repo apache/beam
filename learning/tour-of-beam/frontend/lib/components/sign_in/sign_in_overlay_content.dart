@@ -18,15 +18,37 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../constants/sizes.dart';
+import '../../generated/assets.gen.dart';
 
 class SignInOverlayContent extends StatelessWidget {
   const SignInOverlayContent();
 
   @override
   Widget build(BuildContext context) {
+    final isLightTheme = Theme.of(context).brightness == Brightness.light;
+    final brandedButtonTextStyle = MaterialStatePropertyAll(
+      Theme.of(context).textTheme.bodyMedium,
+    );
+    final darkButtonStyle = ButtonStyle(
+      textStyle: brandedButtonTextStyle,
+      backgroundColor: const MaterialStatePropertyAll(BeamColors.darkGrey),
+    );
+    final githubLightButtonStyle = ButtonStyle(
+      textStyle: brandedButtonTextStyle,
+      backgroundColor: const MaterialStatePropertyAll(BeamColors.darkBlue),
+    );
+    final googleLightButtonStyle = ButtonStyle(
+      elevation: const MaterialStatePropertyAll(BeamSizes.size4),
+      foregroundColor: const MaterialStatePropertyAll(BeamColors.black),
+      textStyle: brandedButtonTextStyle,
+      overlayColor: MaterialStatePropertyAll(Theme.of(context).hoverColor),
+      backgroundColor: const MaterialStatePropertyAll(BeamColors.white),
+    );
+
     return _Body(
       child: Column(
         children: [
@@ -40,15 +62,18 @@ class SignInOverlayContent extends StatelessWidget {
             textAlign: TextAlign.center,
           ).tr(),
           const _Divider(),
-          // TODO(nausharipov): check branded buttons in firebase_auth
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () {},
-            child: const Text('ui.continueGitHub').tr(),
+            style: isLightTheme ? githubLightButtonStyle : darkButtonStyle,
+            icon: SvgPicture.asset(Assets.svg.githubLogo),
+            label: const Text('ui.continueGitHub').tr(),
           ),
           const SizedBox(height: BeamSizes.size16),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () {},
-            child: const Text('ui.continueGoogle').tr(),
+            style: isLightTheme ? googleLightButtonStyle : darkButtonStyle,
+            icon: SvgPicture.asset(Assets.svg.googleLogo),
+            label: const Text('ui.continueGoogle').tr(),
           ),
         ],
       ),

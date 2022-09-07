@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground_components/playground_components.dart';
 
 class ExpansionTileWrapper extends StatelessWidget {
   final ExpansionTile expansionTile;
@@ -26,10 +27,10 @@ class ExpansionTileWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Theme(
       data: Theme.of(context).copyWith(
-        hoverColor: Colors.transparent,
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        dividerColor: Colors.transparent,
+        hoverColor: BeamColors.transparent,
+        splashColor: BeamColors.transparent,
+        highlightColor: BeamColors.transparent,
+        dividerColor: BeamColors.transparent,
         unselectedWidgetColor: Colors.grey,
         colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.grey),
         visualDensity: const VisualDensity(vertical: -4),
