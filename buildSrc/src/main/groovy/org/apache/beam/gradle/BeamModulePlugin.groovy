@@ -1417,6 +1417,7 @@ class BeamModulePlugin implements Plugin<Project> {
           classpath = project.sourceSets.main.runtimeClasspath
 
           environment([
+            // Prefix all JMH measurement names for InfluxDB with `java_jmh_` and append the gradle module path excluding redudant components
             'INFLUXDB_MEASUREMENT': 'java_jmh_' + (getPath().split(':') - ['', 'sdks', 'java', 'jmh']).join('_')
           ])
 

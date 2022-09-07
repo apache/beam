@@ -45,8 +45,36 @@ import org.openjdk.jmh.runner.options.CommandLineOptionException;
 import org.openjdk.jmh.runner.options.CommandLineOptions;
 
 /**
- * Custom main wrapper around the {@link Runner JMH runner} that supports publishing benchmarks to
- * InfluxDB.
+ * Custom main wrapper around the {@link Runner JMH runner} that supports publishing JMH benchmark
+ * results to InfluxDB.
+ *
+ * <h3>Schema</h3>
+ *
+ * <p>The wrapper writes an aggregated InfluxDB datapoint for each benchmark to a <b>single
+ * measurement</b> according to environment variable {@code INFLUXDB_MEASUREMENT}. The
+ * <b>timestamp</b> of the datapoint corresponds to the start time of the respective benchmark.
+ *
+ * <p>Individual timeseries are discriminated using the following <b>tags</b> including tags
+ * corresponding to additional benchmark parameters in case of parameterized benchmarks:
+ *
+ * <ul>
+ *   <li>{@code benchmark} (string) : Fully qualified name of the benchmark
+ *   <li>{@code mode} (string): JMH benchmark mode
+ *   <li>{@code scoreUnit} (string): JMH score unit
+ *   <li>optionally, additional parameters in case of a parameterized benchmark (string)
+ * </ul>
+ *
+ * <p>The following fields are captured for each benchmark:
+ *
+ * <ul>
+ *   <li>{@code score} (float): JMH score
+ *   <li>{@code scoreMean} (float): Mean score of all iterations
+ *   <li>{@code scoreMedian} (float): Median score of all iterations
+ *   <li>{@code scoreError} (float): Mean error of the score
+ *   <li>{@code durationMs} (integer): Total duration (including warmups)
+ * </ul>
+ *
+ * <h3>Configuration</h3>
  *
  * <p>If {@link InfluxDBSettings} can be inferred from the environment, benchmark results will be
  * published to InfluxDB. Otherwise this will just delegate to the default {@link
