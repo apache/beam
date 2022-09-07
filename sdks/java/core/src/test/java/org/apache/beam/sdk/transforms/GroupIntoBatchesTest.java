@@ -53,6 +53,7 @@ import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -690,7 +691,7 @@ public class GroupIntoBatchesTest implements Serializable {
                 for (KV<String, Iterable<String>> element : listToCheck) {
                   Set<String> batchPrefixes =
                       Streams.stream(element.getValue())
-                          .map(s -> s.split("-")[0])
+                          .map(s -> Iterables.get(Splitter.on('-').split(s), 0))
                           .collect(Collectors.toSet());
                   assertEquals("Found invalid batching: " + batchPrefixes, 1, batchPrefixes.size());
                 }

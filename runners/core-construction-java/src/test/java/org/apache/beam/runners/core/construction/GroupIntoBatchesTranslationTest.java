@@ -20,6 +20,8 @@ package org.apache.beam.runners.core.construction;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
+import java.util.Set;
+import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.GroupIntoBatchesPayload;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -32,6 +34,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,12 +47,45 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class GroupIntoBatchesTranslationTest {
   @Parameters(name = "{index}: {0}")
-  public static Iterable<GroupIntoBatches<?, ?>> transform() {
-    return ImmutableList.of(
-        GroupIntoBatches.ofSize(5),
-        GroupIntoBatches.ofSize(5).withMaxBufferingDuration(Duration.ZERO),
-        GroupIntoBatches.ofSize(5).withMaxBufferingDuration(Duration.standardSeconds(10)),
-        GroupIntoBatches.ofByteSize(10).withMaxBufferingDuration(Duration.standardSeconds(10)));
+  public static Iterable<GroupIntoBatches<String, Integer>> transform() {
+    Set<Function<GroupIntoBatches<String, Integer>, GroupIntoBatches<String, Integer>>> creators =
+        ImmutableSet.of( //
+            $ -> GroupIntoBatches.ofSize(5), //
+            $ -> GroupIntoBatches.ofByteSize(10));
+
+    Set<Function<GroupIntoBatches<String, Integer>, GroupIntoBatches<String, Integer>>>
+        sizeModifiers =
+            ImmutableSet.of( //
+                gib -> gib, //
+                gib -> gib.withSize(5));
+
+    Set<Function<GroupIntoBatches<String, Integer>, GroupIntoBatches<String, Integer>>>
+        byteSizeModifiers =
+            ImmutableSet.of( //
+                gib -> gib, //
+                gib -> gib.withByteSize(10), //
+                gib -> gib.withByteSize(10, i -> (long) i));
+
+    Set<Function<GroupIntoBatches<String, Integer>, GroupIntoBatches<String, Integer>>>
+        maxBufferingDurationModifiers =
+            ImmutableSet.of( //
+                gib -> gib, //
+                gib -> gib.withMaxBufferingDuration(Duration.ZERO), //
+                gib -> gib.withMaxBufferingDuration(Duration.standardSeconds(10)));
+
+    return Sets.cartesianProduct(
+            creators, sizeModifiers, byteSizeModifiers, maxBufferingDurationModifiers)
+        .stream()
+        .map(
+            product -> {
+              GroupIntoBatches<String, Integer> groupIntoBatches = null;
+              for (Function<GroupIntoBatches<String, Integer>, GroupIntoBatches<String, Integer>>
+                  fn : product) {
+                groupIntoBatches = fn.apply(groupIntoBatches);
+              }
+              return groupIntoBatches;
+            })
+        .collect(ImmutableList.toImmutableList());
   }
 
   @Parameter(0)

@@ -208,6 +208,11 @@ public class GroupIntoBatches<K, InputT>
     return params;
   }
 
+  @Override
+  public String toString() {
+    return super.toString() + ", params=" + params;
+  }
+
   /** @see #ofSize(long) */
   public GroupIntoBatches<K, InputT> withSize(long batchSize) {
     Preconditions.checkState(batchSize < Long.MAX_VALUE);
