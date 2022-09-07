@@ -35,7 +35,7 @@ class ExamplesLoadingDescriptor {
 
   const ExamplesLoadingDescriptor({
     required this.descriptors,
-    required this.lazyLoadDescriptors,
+    this.lazyLoadDescriptors = const {},
     this.initialSdk,
   });
 
@@ -67,5 +67,11 @@ class ExamplesLoadingDescriptor {
           lazyLoadDescriptors,
           other.lazyLoadDescriptors,
         );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'descriptors': descriptors.map((d) => d.toJson()).toList(growable: false),
+    };
   }
 }

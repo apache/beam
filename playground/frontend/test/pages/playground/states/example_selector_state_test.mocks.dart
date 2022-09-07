@@ -22,6 +22,8 @@
 import 'dart:async' as _i4;
 
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart'
+    as _i6;
 import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor.dart'
     as _i5;
 import 'package:playground/pages/playground/states/example_loaders/examples_loader.dart'
@@ -54,6 +56,14 @@ class MockExamplesLoader extends _i1.Mock implements _i2.ExamplesLoader {
   @override
   _i4.Future<void> load(_i5.ExamplesLoadingDescriptor? descriptor) =>
       (super.noSuchMethod(Invocation.method(#load, [descriptor]),
+          returnValue: Future<void>.value(),
+          returnValueForMissingStub: Future<void>.value()) as _i4.Future<void>);
+  @override
+  _i4.Future<void> loadOne(
+          {_i5.ExamplesLoadingDescriptor? group,
+          _i6.ExampleLoadingDescriptor? one}) =>
+      (super.noSuchMethod(
+          Invocation.method(#loadOne, [], {#group: group, #one: one}),
           returnValue: Future<void>.value(),
           returnValueForMissingStub: Future<void>.value()) as _i4.Future<void>);
 }
