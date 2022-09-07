@@ -56,20 +56,17 @@ jobs:
         run: |
           GITHUB_PR_URL=$(hub pull-request -b $GITHUB_ACTOR:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
           You can run many tests automatically using release/src/main/scripts/mass_comment.py.")
-          GITHUB_PR_NUMBER=$(echo $GITHUB_PR_URL |cut -d"/" -f7)
-          echo "GITHUB_PR_NUMBER=${GITHUB_PR_NUMBER}" >> $GITHUB_ENV
-          echo "::set-output name=git_pr_number::${GITHUB_PR_NUMBER}"
+          echo "::set-output name=git_pr::${GITHUB_PR_URL}"
     outputs:
-      git_pr_number: ${{ steps.create_pr.outputs.git_pr_number }}
+      git_pr: ${{ steps.create_pr.outputs.git_pr }}
   comment_trigger_phrases:
       needs: update_create_release_pr
       runs-on: ubuntu-latest
       steps:
         - name: Create PR Comment
           run: |
-            GITHUB_PR_NUMBER=${{ needs.update_create_release_pr.outputs.git_pr_number }}
-            echo $GITHUB_PR_NUMBER
-            gh pr comment $GITHUB_PR_NUMBER --body "Hi! This is a test from Verify Release Workflow."
+            GITHUB_PR=${{ needs.update_create_release_pr.outputs.git_pr }}
+            gh pr comment $GITHUB_PR --body "Hi! This is a test from Verify Release Workflow."
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 #
