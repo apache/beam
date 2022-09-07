@@ -2278,8 +2278,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
 
     if (isinstance(self.table_reference, TableReference) and
         self.table_reference.projectId is None):
-      self.table_reference.projectId = pcoll.pipeline.options.view_as(
-          GoogleCloudOptions).project
+      self.table_reference.projectId = self._project or \
+          pcoll.pipeline.options.view_as(GoogleCloudOptions).project
 
     # TODO(pabloem): Use a different method to determine if streaming or batch.
     is_streaming_pipeline = p.options.view_as(StandardOptions).streaming
