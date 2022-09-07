@@ -17,18 +17,16 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:split_view/split_view.dart';
 
-import '../../../playground_components.dart';
-import '../../constants/names.dart';
-import '../../generated/assets.gen.dart';
+import 'pan.dart';
 
-class BeamSplitView extends StatelessWidget {
+class TobSplitView extends StatelessWidget {
   final Axis direction;
   final List<Pan> pans;
 
-  const BeamSplitView({
+  const TobSplitView({
     required this.direction,
     required this.pans,
   });
@@ -39,10 +37,7 @@ class BeamSplitView extends StatelessWidget {
       gripSize: BeamSizes.splitViewSeparator,
       gripColor: ThemeColors.of(context).divider,
       gripColorActive: ThemeColors.of(context).divider,
-      indicator: SvgPicture.asset(
-        Assets.svg.drag,
-        package: BeamNames.package,
-      ),
+      indicator: const DragIndicator(),
       viewMode: direction == Axis.horizontal
           ? SplitViewMode.Horizontal
           : SplitViewMode.Vertical,
@@ -56,7 +51,7 @@ class BeamSplitView extends StatelessWidget {
             )
             .toList(growable: false),
       ),
-      children: pans.map((e) => e.child).toList(growable: false),
+      children: pans.map((pan) => pan.child).toList(growable: false),
     );
   }
 }

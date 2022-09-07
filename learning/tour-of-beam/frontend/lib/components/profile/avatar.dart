@@ -32,6 +32,7 @@ class Avatar extends StatelessWidget {
         _openOverlay(context);
       },
       child: CircleAvatar(
+        backgroundColor: BeamColors.white,
         foregroundImage: AssetImage(Assets.png.laptopLight.path),
       ),
     );

@@ -630,7 +630,7 @@ packages:
     source: hosted
     version: "1.9.0"
   split_view:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: split_view
       url: "https://pub.dartlang.org"

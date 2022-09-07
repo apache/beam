@@ -16,16 +16,20 @@
  * limitations under the License.
  */
 
-export 'src/constants/colors.dart';
-export 'src/constants/links.dart';
-export 'src/constants/sizes.dart';
-export 'src/enums/complexity.dart';
-export 'src/theme/color_provider.dart';
-export 'src/theme/switch_notifier.dart';
-export 'src/theme/theme.dart';
-export 'src/widgets/complexity.dart';
-export 'src/widgets/dismissible_overlay.dart';
-export 'src/widgets/divider.dart';
-export 'src/widgets/drag_indicator.dart';
-export 'src/widgets/logo.dart';
-export 'src/widgets/toggle_theme_button.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
+
+import '../constants/names.dart';
+import '../generated/assets.gen.dart';
+
+class DragIndicator extends StatelessWidget {
+  const DragIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return SvgPicture.asset(
+      Assets.svg.drag,
+      package: BeamNames.package,
+    );
+  }
+}

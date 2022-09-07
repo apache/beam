@@ -24,6 +24,8 @@ import 'package:playground_components/playground_components.dart';
 import '../../components/expansion_tile_wrapper.dart';
 import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
+import '../../components/split_view/pan.dart';
+import '../../components/split_view/widget.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
 
@@ -50,7 +52,7 @@ class _WideTour extends StatelessWidget {
       children: const [
         _ContentTree(),
         Expanded(
-          child: BeamSplitView(
+          child: TobSplitView(
             direction: Axis.horizontal,
             pans: [
               Pan(

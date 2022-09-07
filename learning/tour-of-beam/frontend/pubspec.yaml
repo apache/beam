@@ -37,6 +37,7 @@ dependencies:
     path: ../../../playground/frontend/playground_components
   provider: ^6.0.3
   shared_preferences: ^2.0.15
+  split_view: ^3.2.1
   url_launcher: ^6.1.5
   url_strategy: ^0.2.0
 
