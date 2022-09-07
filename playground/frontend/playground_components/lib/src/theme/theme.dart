@@ -100,7 +100,10 @@ TextTheme _getTextTheme(Color textColor) {
         fontSize: 13,
         fontWeight: FontWeight.w400,
       ),
-      bodySmall: _emptyTextStyle,
+      bodySmall: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+      ),
     ).apply(
       bodyColor: textColor,
       displayColor: textColor,

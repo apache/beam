@@ -20,9 +20,10 @@ import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
 import 'footer.dart';
+import 'login/login_button.dart';
 import 'logo.dart';
+import 'profile/avatar.dart';
 import 'sdk_dropdown.dart';
-import 'sign_in/sign_in_button.dart';
 
 class TobScaffold extends StatelessWidget {
   final Widget child;
@@ -31,6 +32,8 @@ class TobScaffold extends StatelessWidget {
     super.key,
     required this.child,
   });
+
+  static const _isAuthorized = true;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +45,9 @@ class TobScaffold extends StatelessWidget {
           SizedBox(width: BeamSizes.size12),
           _ActionVerticalPadding(child: ToggleThemeButton()),
           SizedBox(width: BeamSizes.size6),
-          _ActionVerticalPadding(child: SignInButton()),
+          _ActionVerticalPadding(
+            child: _isAuthorized ? Avatar() : LoginButton(),
+          ),
           SizedBox(width: BeamSizes.size16),
         ],
       ),
@@ -58,6 +63,7 @@ class TobScaffold extends StatelessWidget {
 
 class _ActionVerticalPadding extends StatelessWidget {
   final Widget child;
+
   const _ActionVerticalPadding({required this.child});
 
   @override

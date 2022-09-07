@@ -20,25 +20,22 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'sign_in_overlay_content.dart';
+import 'login_content.dart';
 
-class SignInButton extends StatefulWidget {
-  const SignInButton();
+class LoginButton extends StatelessWidget {
+  const LoginButton();
 
-  @override
-  State<SignInButton> createState() => _SignInButtonState();
-}
-
-class _SignInButtonState extends State<SignInButton> {
   @override
   Widget build(BuildContext context) {
     return TextButton(
-      onPressed: _openOverlay,
+      onPressed: () {
+        _openOverlay(context);
+      },
       child: const Text('ui.signIn').tr(),
     );
   }
 
-  void _openOverlay() {
+  void _openOverlay(BuildContext context) {
     OverlayEntry? overlay;
     overlay = OverlayEntry(
       builder: (context) => DismissibleOverlay(
@@ -48,7 +45,7 @@ class _SignInButtonState extends State<SignInButton> {
         child: const Positioned(
           right: BeamSizes.size10,
           top: BeamSizes.appBarHeight,
-          child: SignInOverlayContent(),
+          child: LoginContent(),
         ),
       ),
     );

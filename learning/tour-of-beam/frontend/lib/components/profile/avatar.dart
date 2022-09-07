@@ -16,32 +16,41 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:provider/provider.dart';
+import 'package:playground_components/playground_components.dart';
 
-import '../generated/assets.gen.dart';
-import '../theme/switch_notifier.dart';
+import '../../generated/assets.gen.dart';
+import 'profile_content.dart';
 
-class ToggleThemeButton extends StatelessWidget {
-  const ToggleThemeButton();
+class Avatar extends StatelessWidget {
+  const Avatar();
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeSwitchNotifier>(
-      builder: (context, notifier, child) {
-        final text =
-            notifier.isDarkMode ? 'ui.lightMode'.tr() : 'ui.darkMode'.tr();
-
-        return TextButton.icon(
-          icon: SvgPicture.asset(Assets.svg.themeMode),
-          label: Text(text),
-          onPressed: () {
-            notifier.toggleTheme();
-          },
-        );
+    return GestureDetector(
+      onTap: () {
+        _openOverlay(context);
       },
+      child: CircleAvatar(
+        foregroundImage: AssetImage(Assets.png.laptopLight.path),
+      ),
     );
+  }
+
+  void _openOverlay(BuildContext context) {
+    OverlayEntry? overlay;
+    overlay = OverlayEntry(
+      builder: (context) => DismissibleOverlay(
+        close: () {
+          overlay?.remove();
+        },
+        child: const Positioned(
+          right: BeamSizes.size10,
+          top: BeamSizes.appBarHeight,
+          child: ProfileContent(),
+        ),
+      ),
+    );
+    Overlay.of(context)?.insert(overlay);
   }
 }

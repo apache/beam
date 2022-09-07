@@ -24,8 +24,8 @@ import 'package:playground_components/playground_components.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
 
-class SignInOverlayContent extends StatelessWidget {
-  const SignInOverlayContent();
+class LoginContent extends StatelessWidget {
+  const LoginContent();
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +42,7 @@ class SignInOverlayContent extends StatelessWidget {
             textAlign: TextAlign.center,
           ).tr(),
           const _Divider(),
-          const _BrandedSignInButtons(),
+          const _BrandedLoginButtons(),
         ],
       ),
     );
@@ -81,8 +81,8 @@ class _Divider extends StatelessWidget {
   }
 }
 
-class _BrandedSignInButtons extends StatelessWidget {
-  const _BrandedSignInButtons();
+class _BrandedLoginButtons extends StatelessWidget {
+  const _BrandedLoginButtons();
 
   @override
   Widget build(BuildContext context) {
