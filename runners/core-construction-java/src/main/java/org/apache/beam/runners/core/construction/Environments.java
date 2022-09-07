@@ -87,7 +87,7 @@ public class Environments {
           .put(ENVIRONMENT_PROCESS, ImmutableSet.of(processCommandOption, processVariablesOption))
           .build();
 
-  public static class JavaVersion {
+  public static final class JavaVersion {
 
     private final int feature;
 
@@ -120,6 +120,11 @@ public class Environments {
     /** The feature element of the version number (i.e. {@link Runtime.Version#feature}. */
     public int feature() {
       return feature;
+    }
+
+    @Override
+    public String toString() {
+      return name();
     }
   }
 
