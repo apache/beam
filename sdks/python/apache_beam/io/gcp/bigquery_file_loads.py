@@ -342,11 +342,13 @@ class UpdateDestinationSchema(beam.DoFn):
   """
   def __init__(
       self,
+      project=None,
       write_disposition=None,
       test_client=None,
       additional_bq_parameters=None,
       step_name=None,
       load_job_project_id=None):
+    self.project = project
     self._test_client = test_client
     self._write_disposition = write_disposition
     self._additional_bq_parameters = additional_bq_parameters or {}
@@ -386,7 +388,7 @@ class UpdateDestinationSchema(beam.DoFn):
     table_reference = bigquery_tools.parse_table_reference(destination)
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
-          'project', str, '')
+          'project', str, '') or self.project
 
     try:
       # Check if destination table exists
@@ -1045,6 +1047,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         finished_temp_tables_load_jobs_pc
         | beam.ParDo(
             UpdateDestinationSchema(
+                project=self.project,
                 write_disposition=self.write_disposition,
                 test_client=self.test_client,
                 additional_bq_parameters=self.additional_bq_parameters,
