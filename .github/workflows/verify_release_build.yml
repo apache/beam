@@ -73,9 +73,11 @@ jobs:
             echo ${{ needs.update_create_release_pr.outputs.git_pr_number }}
             echo 'Test 2'
             echo ${{ env.GH_PR_NUMBER}}
-            env:
-              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              GH_PR_NUMBER: ${{ needs.create_release_pr.outputs.git_pr_number }}
+            echo 'Test 3'
+            echo $GH_PR_NUMBER
+          env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_PR_NUMBER: ${{ needs.create_release_pr.outputs.git_pr_number }}
 # gh pr comment $GITHUB_PR_NUMBER --body "Hi! This is a test from Verify Release Workflow."
 # Commenting this clean-up step 'cause I think this step is not needed, as the final self-hosted implementation has ephemeral runners.
 #  clean-up:
