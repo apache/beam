@@ -62,6 +62,8 @@ jobs:
   comment_trigger_phrases:
       needs: update_create_release_pr
       runs-on: ubuntu-latest
+      permissions:
+        pull-requests: write
       steps:
         - name: Create PR Comment
           run: |
