@@ -1971,7 +1971,8 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setSdkContainerImage("gcr.io/IMAGE/foo");
 
-    for (Environments.JavaVersion javaVersion : Environments.JavaVersion.values()) {
+    for (int feature : Arrays.asList(8, 11, 17)) {
+      Environments.JavaVersion javaVersion = Environments.JavaVersion.forFeature(feature);
       System.setProperty("java.specification.version", javaVersion.specification());
       // batch legacy
       options.setExperiments(null);

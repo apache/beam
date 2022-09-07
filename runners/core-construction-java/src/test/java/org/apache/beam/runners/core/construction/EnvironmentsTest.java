@@ -276,16 +276,21 @@ public class EnvironmentsTest implements Serializable {
 
   @Test
   public void testJavaVersion() {
-    assertEquals(JavaVersion.java8, JavaVersion.forSpecification("1.8"));
-    assertEquals("java", JavaVersion.java8.legacyName());
-    assertEquals(JavaVersion.java11, JavaVersion.forSpecification("11"));
-    assertEquals("java11", JavaVersion.java11.legacyName());
-    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("17"));
-    assertEquals("java17", JavaVersion.java17.legacyName());
+    JavaVersion java8 = JavaVersion.forFeature(8);
+    assertEquals("java", java8.legacyName());
+    assertEquals("1.8", java8.specification());
+
+    JavaVersion java11 = JavaVersion.forFeature(11);
+    assertEquals("java11", java11.legacyName());
+    assertEquals("11", java11.specification());
+
+    JavaVersion java17 = JavaVersion.forFeature(17);
+    assertEquals("java17", java17.legacyName());
+    assertEquals("17", java17.specification());
   }
 
   @Test(expected = UnsupportedOperationException.class)
   public void testJavaVersionInvalid() {
-    assertEquals(JavaVersion.java8, JavaVersion.forSpecification("invalid"));
+    JavaVersion.forFeature(7);
   }
 }

@@ -18,12 +18,10 @@
 package org.apache.beam.runners.dataflow.worker.util;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeThat;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -168,7 +166,7 @@ public class MemoryMonitorTest {
 
   @Test
   public void uploadJfrProfilesOnThrashing() throws Exception {
-    assumeThat(Environments.getJavaVersion(), is(not(Environments.JavaVersion.java8)));
+    assumeTrue(Environments.getJavaVersion().feature() != 8);
 
     File remoteFolder = tempFolder.newFolder();
     monitor =

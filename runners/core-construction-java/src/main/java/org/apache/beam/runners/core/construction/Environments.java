@@ -87,38 +87,39 @@ public class Environments {
           .put(ENVIRONMENT_PROCESS, ImmutableSet.of(processCommandOption, processVariablesOption))
           .build();
 
-  public enum JavaVersion {
-    java8("java", "1.8"),
-    java11("java11", "11"),
-    java17("java17", "17");
+  public static class JavaVersion {
 
-    // Legacy name, as used in container image
-    private final String legacyName;
+    private final int feature;
 
-    // Specification version (e.g. System java.specification.version)
-    private final String specification;
-
-    JavaVersion(final String legacyName, final String specification) {
-      this.legacyName = legacyName;
-      this.specification = specification;
+    private JavaVersion(int feature) {
+      this.feature = feature;
     }
 
-    public String legacyName() {
-      return this.legacyName;
-    }
-
-    public String specification() {
-      return this.specification;
-    }
-
-    public static JavaVersion forSpecification(String specification) {
-      for (JavaVersion ver : JavaVersion.values()) {
-        if (ver.specification.equals(specification)) {
-          return ver;
-        }
+    public static JavaVersion forFeature(int feature) {
+      if (feature < 8) {
+        throw new UnsupportedOperationException(
+            String.format("unsupported Java version: %s", feature));
       }
-      throw new UnsupportedOperationException(
-          String.format("unsupported Java version: %s", specification));
+      return new JavaVersion(feature);
+    }
+
+    public String name() {
+      return "java" + feature;
+    }
+
+    /** Legacy name, as used in container image. */
+    public String legacyName() {
+      return feature == 8 ? "java" : name();
+    }
+
+    /** Specification version (e.g. System java.specification.version). */
+    public String specification() {
+      return feature == 8 ? "1.8" : Integer.toString(feature);
+    }
+
+    /** The feature element of the version number (i.e. {@link Runtime.Version#feature}. */
+    public int feature() {
+      return feature;
     }
   }
 
@@ -395,7 +396,15 @@ public class Environments {
   }
 
   public static JavaVersion getJavaVersion() {
-    return JavaVersion.forSpecification(System.getProperty("java.specification.version"));
+    return JavaVersion.forFeature(getJavaFeatureVersion());
+  }
+
+  private static int getJavaFeatureVersion() {
+    String version = System.getProperty("java.specification.version");
+    if (version.equals("1.8")) {
+      return 8;
+    }
+    return Integer.parseInt(version);
   }
 
   public static String createStagingFileName(File path, HashCode hash) {

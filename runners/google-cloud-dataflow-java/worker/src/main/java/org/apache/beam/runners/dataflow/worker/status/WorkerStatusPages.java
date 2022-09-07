@@ -59,7 +59,7 @@ public class WorkerStatusPages {
     addServlet(threadzServlet);
     addServlet(new HealthzServlet(healthyIndicator));
     addServlet(new HeapzServlet(memoryMonitor));
-    if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
+    if (Environments.getJavaVersion().feature() != 8) {
       addServlet(new JfrzServlet(memoryMonitor));
     }
     addServlet(statuszServlet);

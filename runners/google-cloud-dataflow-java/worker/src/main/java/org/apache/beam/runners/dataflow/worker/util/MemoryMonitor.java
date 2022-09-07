@@ -244,7 +244,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
 
     Duration jfrProfileDuration;
     if (uploadToGCSPath != null && debugOptions.getRecordJfrOnGcThrashing()) {
-      if (Environments.getJavaVersion() == Environments.JavaVersion.java8) {
+      if (Environments.getJavaVersion().feature() == 8) {
         throw new IllegalArgumentException(
             "recordJfrOnGcThrashing is only supported on java 9 and up.");
       }
@@ -313,7 +313,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     this.workerId = workerId;
     this.clock = clock;
 
-    if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
+    if (Environments.getJavaVersion().feature() != 8) {
       LOG.info("Uploading JFR profiles when GC thrashing is detected");
       this.jfrInterop = new JfrInterop();
     } else {

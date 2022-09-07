@@ -385,7 +385,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // Verify that if recordJfrOnGcThrashing is set, the pipeline is at least on java 11
     if (dataflowOptions.getRecordJfrOnGcThrashing()
-        && Environments.getJavaVersion() == Environments.JavaVersion.java8) {
+        && Environments.getJavaVersion().feature() < 9) {
       throw new IllegalArgumentException(
           "recordJfrOnGcThrashing is only supported on java 9 and up.");
     }
@@ -395,12 +395,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     // Adding the Java version to the SDK name for user's and support convenience.
-    String agentJavaVer = "(JRE 8 environment)";
-    if (Environments.getJavaVersion() == Environments.JavaVersion.java17) {
-      agentJavaVer = "(JRE 17 environment)";
-    } else if (Environments.getJavaVersion() == Environments.JavaVersion.java11) {
-      agentJavaVer = "(JRE 11 environment)";
-    }
+    String agentJavaVer =
+        String.format("(JRE %d environment)", Environments.getJavaVersion().feature());
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     String userAgent =
