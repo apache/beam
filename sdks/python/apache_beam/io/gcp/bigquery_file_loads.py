@@ -464,11 +464,13 @@ class TriggerCopyJobs(beam.DoFn):
   """
   def __init__(
       self,
+      project=None,
       create_disposition=None,
       write_disposition=None,
       test_client=None,
       step_name=None,
       load_job_project_id=None):
+    self.project = project
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.test_client = test_client
@@ -496,13 +498,13 @@ class TriggerCopyJobs(beam.DoFn):
     copy_to_reference = bigquery_tools.parse_table_reference(destination)
     if copy_to_reference.projectId is None:
       copy_to_reference.projectId = vp.RuntimeValueProvider.get_value(
-          'project', str, '')
+          'project', str, '') or self.project
 
     copy_from_reference = bigquery_tools.parse_table_reference(destination)
     copy_from_reference.tableId = job_reference.jobId
     if copy_from_reference.projectId is None:
       copy_from_reference.projectId = vp.RuntimeValueProvider.get_value(
-          'project', str, '')
+          'project', str, '') or self.project
 
     copy_job_name = '%s_%s' % (
         job_name_prefix,
@@ -1066,6 +1068,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         finished_temp_tables_load_jobs_pc
         | beam.ParDo(
             TriggerCopyJobs(
+                project=self.project,
                 create_disposition=self.create_disposition,
                 write_disposition=self.write_disposition,
                 test_client=self.test_client,
