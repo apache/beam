@@ -95,10 +95,12 @@ var (
 
 // Concept #3: You can make your pipeline assembly code less verbose by
 // defining your DoFns statically out-of-line. A DoFn can be defined as a Go
-// function and is conventionally suffixed "Fn". The argument and return types
-// dictate the pipeline shape when used in a ParDo. For example,
+// function and is conventionally suffixed "Fn". Using named function
+// transforms allows for easy reuse, modular testing, and an improved monitoring
+// experience. The argument and return types of a function dictate the pipeline
+// shape when used in a ParDo. For example,
 //
-//	formatFn: string x int -> string
+//	func formatFn(w string, c int) string
 //
 // indicates that the function operates on a PCollection of type KV<string,int>,
 // representing key value pairs of strings and ints, and outputs a PCollection
@@ -111,9 +113,7 @@ var (
 //
 // uses an "emit" function argument instead of a string return type to allow it
 // to output any number of elements. It operates on a PCollection of type string
-// and returns a PCollection of type string. Also, using named function
-// transforms allows for easy reuse, modular testing, and an improved monitoring
-// experience.
+// and returns a PCollection of type string.
 //
 // DoFns must be registered with Beam in order to be executed in ParDos. This is
 // done automatically by the starcgen code generator, or it can be done manually
@@ -146,7 +146,8 @@ var (
 )
 
 // extractFn is a structural DoFn that emits the words in a given line and keeps
-// a count for small words.
+// a count for small words. Its ProcessElement function will be invoked on each
+// element in the input PCollection.
 type extractFn struct {
 	SmallWordLength int `json:"smallWordLength"`
 }
