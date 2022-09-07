@@ -23,6 +23,7 @@ import logging
 from typing import List
 
 from api.v1.api_pb2 import Sdk, SDK_PYTHON, SDK_JAVA
+from config import Origin
 from datastore_client import DatastoreClient
 from grpc_client import GRPCClient
 from helper import Example, get_statuses
@@ -34,24 +35,32 @@ class CDHelper:
 
     It is used to save beam examples/katas/tests and their output on the GCD.
     """
+    _examples: List[Example]
+    _sdk: Sdk
+    _origin: Origin
 
-    def save_examples(self, examples: List[Example], sdk: Sdk):
+    def __init__(self, examples: List[Example], sdk: Sdk, origin: Origin):
+        _examples = examples
+        _sdk = sdk
+        _origin = origin
+
+    def save_examples(self):
         """
         Save beam examples and their output in the Google Cloud Datastore.
 
         Outputs for multifile examples are left empty.
         """
         single_file_examples = list(filter(
-            lambda example: example.tag.multifile is False, examples))
+            lambda example: example.tag.multifile is False, self._examples))
         logging.info("Start of executing only single-file Playground examples ...")
         asyncio.run(self._get_outputs(single_file_examples))
         logging.info("Finish of executing single-file Playground examples")
 
         logging.info("Start of sending Playground examples to the Cloud Datastore ...")
-        self._save_to_datastore(single_file_examples, sdk)
+        self._save_to_datastore(single_file_examples)
         logging.info("Finish of sending Playground examples to the Cloud Datastore")
 
-    def _save_to_datastore(self, examples: List[Example], sdk: Sdk):
+    def _save_to_datastore(self):
         """
         Save beam examples to the Google Cloud Datastore
         :param examples: beam examples from the repository
@@ -59,9 +68,9 @@ class CDHelper:
         """
         datastore_client = DatastoreClient()
         datastore_client.save_catalogs()
-        datastore_client.save_to_cloud_datastore(examples, sdk)
+        datastore_client.save_to_cloud_datastore()
 
-    async def _get_outputs(self, examples: List[Example]):
+    async def _get_outputs(self):
         """
         Run beam examples and keep their output.
 
@@ -72,27 +81,26 @@ class CDHelper:
             examples: beam examples that should be run
         """
         await get_statuses(
-            examples)  # run examples code and wait until all are executed
+            self._examples)  # run examples code and wait until all are executed
         client = GRPCClient()
-        tasks = [client.get_run_output(example.pipeline_id) for example in examples]
+        tasks = [client.get_run_output(example.pipeline_id) for example in self._examples]
         outputs = await asyncio.gather(*tasks)
 
-        tasks = [client.get_log(example.pipeline_id) for example in examples]
+        tasks = [client.get_log(example.pipeline_id) for example in self._examples]
         logs = await asyncio.gather(*tasks)
 
-        if len(examples) > 0 and (examples[0].sdk is SDK_PYTHON or
-                                  examples[0].sdk is SDK_JAVA):
+        if self._examples and self._examples[0].sdk in [SDK_PYTHON, SDK_JAVA]:
             tasks = [
                 client.get_graph(example.pipeline_id, example.filepath)
-                for example in examples
+                for example in self._examples
             ]
             graphs = await asyncio.gather(*tasks)
 
-            for graph, example in zip(graphs, examples):
+            for graph, example in zip(graphs, self._examples):
                 example.graph = graph
 
-        for output, example in zip(outputs, examples):
+        for output, example in zip(outputs, self._examples):
             example.output = output
 
-        for log, example in zip(logs, examples):
+        for log, example in zip(logs, self._examples):
             example.logs = log

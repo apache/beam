@@ -78,7 +78,7 @@ class ExampleTag:
     tag_as_string: str
 
 
-def find_examples(work_dir: str, supported_categories: List[str],
+def find_examples(dirs: list(str), supported_categories: List[str],
                   sdk: Sdk) -> List[Example]:
     """
     Find and return beam examples.
@@ -97,7 +97,7 @@ def find_examples(work_dir: str, supported_categories: List[str],
     If some example contain beam tag with incorrect format raise an error.
 
     Args:
-        work_dir: directory where to search examples.
+        dirs: directories where to search examples.
         supported_categories: list of supported categories.
         sdk: sdk that using to find examples for the specific sdk.
 
@@ -106,16 +106,17 @@ def find_examples(work_dir: str, supported_categories: List[str],
     """
     has_error = False
     examples = []
-    for root, _, files in os.walk(work_dir):
-        for filename in files:
-            filepath = os.path.join(root, filename)
-            error_during_check_file = _check_file(
-                examples=examples,
-                filename=filename,
-                filepath=filepath,
-                supported_categories=supported_categories,
-                sdk=sdk)
-            has_error = has_error or error_during_check_file
+    for dir in dirs:
+        for root, _, files in os.walk(dir):
+            for filename in files:
+                filepath = os.path.join(root, filename)
+                error_during_check_file = _check_file(
+                    examples=examples,
+                    filename=filename,
+                    filepath=filepath,
+                    supported_categories=supported_categories,
+                    sdk=sdk)
+                has_error = has_error or error_during_check_file
     if has_error:
         raise ValueError(
             "Some of the beam examples contain beam playground tag with "

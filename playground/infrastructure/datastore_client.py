@@ -27,7 +27,7 @@ from google.cloud import datastore
 from tqdm import tqdm
 
 import config
-from config import Config, PrecompiledExample, DatastoreProps
+from config import Config, Origin, PrecompiledExample, DatastoreProps
 from helper import Example
 
 from api.v1.api_pb2 import Sdk, PrecompiledObjectType
@@ -45,10 +45,16 @@ class DatastoreException(Exception):
 # Google Datastore documentation link: https://cloud.google.com/datastore/docs/concepts
 class DatastoreClient:
     """DatastoreClient is a datastore client for sending a request to the Google."""
+    _datastore_client: datastore.Client
+    _origin: Origin
 
-    def __init__(self):
+    def __init__(self, origin: Origin):
         self._check_envs()
-        self._datastore_client = datastore.Client(namespace=DatastoreProps.NAMESPACE, project=Config.GOOGLE_CLOUD_PROJECT)
+        self._datastore_client = datastore.Client(
+            namespace=DatastoreProps.NAMESPACE,
+            project=Config.GOOGLE_CLOUD_PROJECT
+        )
+        self._origin = origin
 
     def _check_envs(self):
         if Config.GOOGLE_CLOUD_PROJECT is None:
@@ -115,7 +121,10 @@ class DatastoreClient:
         Save catalogs to the Cloud Datastore
         """
         # save a schema version entity
-        schema_entity = datastore.Entity(self._get_key(DatastoreProps.SCHEMA_KIND, "0.0.1"), exclude_from_indexes=('descr',))
+        schema_entity = datastore.Entity(
+            self._get_key(DatastoreProps.SCHEMA_KIND, "0.0.1"),
+            exclude_from_indexes=('descr',)
+        )
         schema_entity.update(
             {
                 "descr": "Data initialization: a schema version, SDKs"
@@ -124,20 +133,23 @@ class DatastoreClient:
         self._datastore_client.put(schema_entity)
 
         # save a sdk catalog
+        sdk_objs: any = None
         with open(Config.SDK_CONFIG, encoding="utf-8") as sdks:
             sdk_objs = yaml.load(sdks.read(), Loader=yaml.SafeLoader)
-            sdk_entities = []
-            file_name = Path(Config.SDK_CONFIG).stem
-            for key in sdk_objs[file_name]:
-                default_example = sdk_objs[file_name][key]["default-example"]
-                sdk_entity = datastore.Entity(self._get_key(DatastoreProps.SDK_KIND, key))
-                sdk_entity.update(
-                    {
-                        "defaultExample": default_example
-                    }
-                )
-                sdk_entities.append(sdk_entity)
-            self._datastore_client.put_multi(sdk_entities)
+
+        sdk_entities = []
+        file_name = Path(Config.SDK_CONFIG).stem
+        for key in sdk_objs[file_name]:
+            default_example = sdk_objs[file_name][key]["default-example"]
+            sdk_entity = datastore.Entity(self._get_key(DatastoreProps.SDK_KIND, key))
+            sdk_entity.update(
+                {
+                    "defaultExample": default_example
+                }
+            )
+            sdk_entities.append(sdk_entity)
+
+        self._datastore_client.put_multi(sdk_entities)
 
     def _get_actual_schema_version_key(self) -> datastore.Key:
         schema_names = []
@@ -157,6 +169,7 @@ class DatastoreClient:
         examples_ids_before_updating = []
         all_examples_query = self._datastore_client.query(kind=DatastoreProps.EXAMPLE_KIND)
         all_examples_query.add_filter("sdk", "=", self._get_key(DatastoreProps.SDK_KIND, Sdk.Name(sdk)))
+        all_examples_query.add_filter("origin", "=", self._origin)
         all_examples_query.keys_only()
         examples_iterator = all_examples_query.fetch()
         for example_item in examples_iterator:
@@ -166,14 +179,21 @@ class DatastoreClient:
     def _get_key(self, kind: str, identifier: str) -> datastore.Key:
         return self._datastore_client.key(kind, identifier)
 
-    def _to_snippet_entities(self, example: Example, snp_id: str, sdk_key: datastore.Key, now: datetime, schema_key: datastore.Key, snippets: list):
+    def _to_snippet_entities(self,
+            example: Example,
+            snp_id: str,
+            sdk_key: datastore.Key,
+            now: datetime,
+            schema_key: datastore.Key,
+            snippets: list
+    ):
         snippet_entity = datastore.Entity(self._get_key(DatastoreProps.SNIPPET_KIND, snp_id))
         snippet_entity.update(
             {
                 "sdk": sdk_key,
                 "pipeOpts": self._get_pipeline_options(example),
                 "created": now,
-                "origin": DatastoreProps.ORIGIN_PROPERTY_VALUE,
+                "origin": self._origin,
                 "numberOfFiles": 1,
                 "schVer": schema_key
             }
@@ -196,7 +216,7 @@ class DatastoreClient:
                 "cats": example.tag.categories,
                 "path": example.link,
                 "type": PrecompiledObjectType.Name(example.type),
-                "origin": DatastoreProps.ORIGIN_PROPERTY_VALUE,
+                "origin": self._origin,
                 "schVer": schema_key
             }
         )
