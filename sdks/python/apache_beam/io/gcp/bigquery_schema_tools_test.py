@@ -61,6 +61,25 @@ class TestBigQueryToSchema(unittest.TestCase):
         the_table_schema=schema)
     self.assertEqual(usertype.__annotations__, {})
 
+  def test_check_schema_conversions_with_timestamp(self):
+    fields = [
+        bigquery.TableFieldSchema(name='stn', type='STRING', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(
+            name='times', type='TIMESTAMP', mode="NULLABLE")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(
+        the_table_schema=schema)
+    self.assertEqual(
+        usertype.__annotations__,
+        {
+            'stn': typing.Optional[str],
+            'temp': typing.Sequence[np.float64],
+            'times': typing.Optional[apache_beam.utils.timestamp.Timestamp]
+        })
+
   def test_unsupported_type(self):
     fields = [
         bigquery.TableFieldSchema(

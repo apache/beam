@@ -20,13 +20,13 @@ Classes, constants and functions in this file are experimental and have no
 backwards compatibility guarantees.
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
-
 from typing import Optional
 from typing import Sequence
 
 import numpy as np
 
 import apache_beam as beam
+import apache_beam.utils.timestamp
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.portability.api import schema_pb2
 
@@ -38,8 +38,10 @@ BIG_QUERY_TO_PYTHON_TYPES = {
     "STRING": str,
     "INTEGER": np.int64,
     "FLOAT64": np.float64,
+    "FLOAT": np.float64,
     "BOOLEAN": bool,
     "BYTES": bytes,
+    "TIMESTAMP": apache_beam.utils.timestamp.Timestamp
     #TODO(https://github.com/apache/beam/issues/20810):
     # Finish mappings for all BQ types
 }
@@ -80,7 +82,7 @@ def bq_field_to_type(field, mode):
     return Optional[BIG_QUERY_TO_PYTHON_TYPES[field]]
   elif mode == 'REPEATED':
     return Sequence[BIG_QUERY_TO_PYTHON_TYPES[field]]
-  elif mode is None or mode == '':
+  elif mode is None or mode == '' or mode == 'REQUIRED':
     return BIG_QUERY_TO_PYTHON_TYPES[field]
   else:
     raise ValueError(f"Encountered an unsupported mode: {mode!r}")
