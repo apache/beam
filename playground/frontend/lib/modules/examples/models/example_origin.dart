@@ -20,6 +20,7 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 
 enum ExampleOrigin {
   empty,
+  content,
   standard,
   userShared,
   catalogDefault,

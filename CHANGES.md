@@ -65,6 +65,7 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Added support for Zstd compression to the Python SDK.
+* Added support for Google Cloud Profiler to the Go SDK.
 * Added support for stateful DoFns to the Go SDK.
 
 ## Breaking Changes

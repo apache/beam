@@ -20,6 +20,7 @@ import 'dart:convert';
 
 import 'package:playground/constants/params.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/catalog_default_example_loading_descriptor.dart';
+import 'package:playground/modules/examples/models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor.dart';
@@ -37,8 +38,16 @@ class ExamplesLoadingDescriptorFactory {
   }) {
     return _tryParseOfMultipleExamples(params) ??
         _tryParseOfSingleExample(params) ??
-        _tryParseOfCatalogDefaultExamples() ??
+        _tryParseOfCatalogDefaultExamples(params) ??
         _getEmpty(params);
+  }
+
+  static ExamplesLoadingDescriptor fromMap(dynamic map) {
+    final descriptors = map is Map<String, dynamic> ? map['descriptors'] : [];
+
+    return ExamplesLoadingDescriptor(
+      descriptors: _parseMultipleInstantExamples(descriptors, null),
+    );
   }
 
   /// ?examples=[{"sdk":"go","example":"..."},...]
@@ -52,10 +61,12 @@ class ExamplesLoadingDescriptorFactory {
         return null;
       }
 
+      final sdk = SDK.tryParse(params[kSdkParam]);
+
       return ExamplesLoadingDescriptor(
-        descriptors: _parseMultipleInstantExamples(list),
+        descriptors: _parseMultipleInstantExamples(list, sdk),
         lazyLoadDescriptors: _getLazyLoadDescriptors(),
-        initialSdk: SDK.tryParse(params[kSdkParam]),
+        initialSdk: sdk,
       );
     } catch (ex) {
       return null;
@@ -63,7 +74,8 @@ class ExamplesLoadingDescriptorFactory {
   }
 
   static List<ExampleLoadingDescriptor> _parseMultipleInstantExamples(
-    List list,
+    List<dynamic> list,
+    SDK? sdk,
   ) {
     final result = <ExampleLoadingDescriptor>[];
 
@@ -75,7 +87,7 @@ class ExamplesLoadingDescriptorFactory {
     }
 
     return result.isEmpty
-        ? const [EmptyExampleLoadingDescriptor(sdk: _defaultSdk)]
+        ? [EmptyExampleLoadingDescriptor(sdk: sdk ?? _defaultSdk)]
         : result;
   }
 
@@ -84,7 +96,8 @@ class ExamplesLoadingDescriptorFactory {
       return null;
     }
 
-    return _tryParseSingleExample(map);
+    return _tryParseSingleExample(map) ??
+        ContentExampleLoadingDescriptor.tryParse(map);
   }
 
   /// ?example=...
@@ -112,14 +125,18 @@ class ExamplesLoadingDescriptorFactory {
     return _parseSingleExample(token);
   }
 
-  static ExamplesLoadingDescriptor? _tryParseOfCatalogDefaultExamples() {
+  static ExamplesLoadingDescriptor? _tryParseOfCatalogDefaultExamples(
+    Map<String, dynamic> params,
+  ) {
     if (isEmbedded()) {
       return null;
     }
 
+    final sdk = SDK.tryParse(params[kSdkParam]) ?? _defaultSdk;
+
     return ExamplesLoadingDescriptor(
       descriptors: [
-        const CatalogDefaultExampleLoadingDescriptor(sdk: _defaultSdk),
+        CatalogDefaultExampleLoadingDescriptor(sdk: sdk),
       ],
       lazyLoadDescriptors: _getLazyLoadDescriptors(),
     );
