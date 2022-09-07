@@ -32,47 +32,10 @@ class ProfileContent extends StatelessWidget {
     return _Body(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(BeamSizes.size16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Name Surname',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                Text(
-                  'email@mail.com',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          const BeamDivider(),
-          _IconLabel(
-            isSvg: false,
-            onTap: () {},
-            iconPath: Assets.png.profileWebsite.path,
-            label: 'ui.toWebsite'.tr(),
-          ),
-          _IconLabel(
-            onTap: () {},
-            iconPath: Assets.svg.profileAbout,
-            label: 'ui.about'.tr(),
-          ),
-          const BeamDivider(),
-          _IconLabel(
-            onTap: () {},
-            iconPath: Assets.svg.profileLogout,
-            label: 'ui.signOut'.tr(),
-          ),
-          const BeamDivider(),
-          _IconLabel(
-            onTap: () {},
-            iconPath: Assets.svg.profileDelete,
-            label: 'ui.deleteAccount'.tr(),
-          ),
+        children: const [
+          _Info(),
+          BeamDivider(),
+          _Buttons(),
         ],
       ),
     );
@@ -93,6 +56,65 @@ class _Body extends StatelessWidget {
         width: TobSizes.authOverlayWidth,
         child: child,
       ),
+    );
+  }
+}
+
+class _Info extends StatelessWidget {
+  const _Info();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(BeamSizes.size16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Name Surname',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          Text(
+            'email@mail.com',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Buttons extends StatelessWidget {
+  const _Buttons();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _IconLabel(
+          isSvg: false,
+          onTap: () {},
+          iconPath: Assets.png.profileWebsite.path,
+          label: 'ui.toWebsite'.tr(),
+        ),
+        _IconLabel(
+          onTap: () {},
+          iconPath: Assets.svg.profileAbout,
+          label: 'ui.about'.tr(),
+        ),
+        const BeamDivider(),
+        _IconLabel(
+          onTap: () {},
+          iconPath: Assets.svg.profileLogout,
+          label: 'ui.signOut'.tr(),
+        ),
+        const BeamDivider(),
+        _IconLabel(
+          onTap: () {},
+          iconPath: Assets.svg.profileDelete,
+          label: 'ui.deleteAccount'.tr(),
+        ),
+      ],
     );
   }
 }

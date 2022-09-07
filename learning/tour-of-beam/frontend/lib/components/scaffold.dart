@@ -33,6 +33,7 @@ class TobScaffold extends StatelessWidget {
     required this.child,
   });
 
+  // TODO(nausharipov): get state
   static const _isAuthorized = true;
 
   @override
