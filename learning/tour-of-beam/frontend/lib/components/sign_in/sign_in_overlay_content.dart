@@ -73,7 +73,7 @@ class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Theme.of(context).dividerColor,
+      color: BeamColors.grey3,
       margin: const EdgeInsets.symmetric(vertical: 20),
       width: BeamSizes.size32,
       height: BeamSizes.size1,
