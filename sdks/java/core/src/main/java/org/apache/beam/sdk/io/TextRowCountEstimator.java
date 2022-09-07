@@ -72,8 +72,8 @@ public abstract class TextRowCountEstimator {
    * has not sampled all the lines (due to sampling strategy) it throws Exception.
    *
    * @return Number of estimated rows.
-   * @throws org.apache.beam.sdk.io.TextRowCountEstimator.NoEstimationException if all the sampled
-   *     lines are empty and we have not read all the lines in the matched files.
+   * @throws NoEstimationException if all the sampled lines are empty and we have not read all the
+   *     lines in the matched files.
    */
   @SuppressFBWarnings(
       value = "RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE",
