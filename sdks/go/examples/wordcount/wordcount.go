@@ -109,7 +109,7 @@ var (
 // DoFns that potentially output zero or multiple elements can also be Go
 // functions, but have a different signature. For example,
 //
-//	extractFn : string x func(string) -> ()
+//	func extractFn(w string, emit func(string))
 //
 // uses an "emit" function argument instead of a string return type to allow it
 // to output any number of elements. It operates on a PCollection of type string
