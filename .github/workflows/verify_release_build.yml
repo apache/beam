@@ -41,8 +41,6 @@ jobs:
         run: |
           git config user.name $GITHUB_ACTOR
       - name: Set Dataflow Python Batch Tests Release Version
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git checkout -b ${{env.WORKING_BRANCH}} --quiet
           /bin/bash release/src/main/scripts/set_version.sh "$RELEASE_VER" --git-add
@@ -53,6 +51,8 @@ jobs:
           git push origin $WORKING_BRANCH --quiet
       - name: Create new Release PR
         id: create_pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           GITHUB_PR_URL=$(hub pull-request -b $GITHUB_ACTOR:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
           You can run many tests automatically using release/src/main/scripts/mass_comment.py.")
