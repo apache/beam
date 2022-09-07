@@ -91,7 +91,7 @@ abstract class BaseFirestoreIT {
   @Rule(order = 5)
   public final TestPipeline testPipeline2 = TestPipeline.create();
 
-  protected static final RpcQosOptions rpcQosOptions =
+  protected static final RpcQosOptions RPC_QOS_OPTIONS =
       RpcQosOptions.defaultOptions()
           .toBuilder()
           .withMaxAttempts(1)
@@ -169,7 +169,7 @@ abstract class BaseFirestoreIT {
                 FirestoreIO.v1()
                     .read()
                     .listCollectionIds()
-                    .withRpcQosOptions(rpcQosOptions)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build());
 
     PAssert.that(actualCollectionIds).containsInAnyOrder(allCollectionIds);
@@ -185,7 +185,7 @@ abstract class BaseFirestoreIT {
                     .read()
                     .listCollectionIds()
                     .withReadTime(readTime)
-                    .withRpcQosOptions(rpcQosOptions)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build());
     PAssert.that(actualCollectionIdsAtReadTime).containsInAnyOrder(collectionIds);
     testPipeline2.run(options);
@@ -214,7 +214,7 @@ abstract class BaseFirestoreIT {
         testPipeline
             .apply(Create.of("a"))
             .apply(getListDocumentsPTransform(testName.getMethodName()))
-            .apply(FirestoreIO.v1().read().listDocuments().withRpcQosOptions(rpcQosOptions).build())
+            .apply(FirestoreIO.v1().read().listDocuments().withRpcQosOptions(RPC_QOS_OPTIONS).build())
             .apply(ParDo.of(new DocumentToName()));
 
     PAssert.that(listDocumentPaths).containsInAnyOrder(allDocumentPaths);
@@ -230,7 +230,7 @@ abstract class BaseFirestoreIT {
                     .read()
                     .listDocuments()
                     .withReadTime(readTime)
-                    .withRpcQosOptions(rpcQosOptions)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build())
             .apply(ParDo.of(new DocumentToName()));
 
@@ -265,7 +265,7 @@ abstract class BaseFirestoreIT {
         testPipeline
             .apply(Create.of(collectionId))
             .apply(getRunQueryPTransform(testName.getMethodName()))
-            .apply(FirestoreIO.v1().read().runQuery().withRpcQosOptions(rpcQosOptions).build())
+            .apply(FirestoreIO.v1().read().runQuery().withRpcQosOptions(RPC_QOS_OPTIONS).build())
             .apply(ParDo.of(new RunQueryResponseToDocument()))
             .apply(ParDo.of(new DocumentToName()));
 
@@ -282,7 +282,7 @@ abstract class BaseFirestoreIT {
                     .read()
                     .runQuery()
                     .withReadTime(readTime)
-                    .withRpcQosOptions(rpcQosOptions)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build())
             .apply(ParDo.of(new RunQueryResponseToDocument()))
             .apply(ParDo.of(new DocumentToName()));
@@ -386,7 +386,7 @@ abstract class BaseFirestoreIT {
                 FirestoreIO.v1()
                     .read()
                     .batchGetDocuments()
-                    .withRpcQosOptions(rpcQosOptions)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build())
             .apply(Filter.by(BatchGetDocumentsResponse::hasFound))
             .apply(ParDo.of(new BatchGetDocumentsResponseToDocument()))
@@ -405,7 +405,7 @@ abstract class BaseFirestoreIT {
                     .read()
                     .batchGetDocuments()
                     .withReadTime(readTime)
-                    .withRpcQosOptions(rpcQosOptions)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build())
             .apply(Filter.by(BatchGetDocumentsResponse::hasFound))
             .apply(ParDo.of(new BatchGetDocumentsResponseToDocument()))
@@ -449,7 +449,7 @@ abstract class BaseFirestoreIT {
     testPipeline
         .apply(Create.of(Collections.singletonList(documentIds)))
         .apply(createWrite)
-        .apply(FirestoreIO.v1().write().batchWrite().withRpcQosOptions(rpcQosOptions).build());
+        .apply(FirestoreIO.v1().write().batchWrite().withRpcQosOptions(RPC_QOS_OPTIONS).build());
 
     testPipeline.run(options);
 
