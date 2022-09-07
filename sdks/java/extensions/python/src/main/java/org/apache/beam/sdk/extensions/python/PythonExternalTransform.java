@@ -449,7 +449,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       } else {
         int port = PythonService.findAvailablePort();
         ImmutableList.Builder<String> args = ImmutableList.builder();
-        args.add("--port", "" + port, "--fully_qualified_name_glob", "*");
+        args.add(
+            "--port=" + port, "--fully_qualified_name_glob=*", "--default_pickler=cloudpickle");
         if (!extraPackages.isEmpty()) {
           File requirementsFile = File.createTempFile("requirements", ".txt");
           requirementsFile.deleteOnExit();
