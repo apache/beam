@@ -18,7 +18,6 @@ jobs:
           echo "Verify hub installation."
           git version
           hub version
-
   # Run Gradle release build and all PostCommit Tests against Release Branch on Jenkins.
   # This create_release_pr task will create a PR against apache/beam.
   update_create_release_pr:
@@ -61,8 +60,8 @@ jobs:
           echo "GITHUB_PR_NUMBER=${GITHUB_PR_NUMBER}" >> $GITHUB_ENV
           echo $GITHUB_PR_NUMBER
           echo "::set-output name=git_pr_number::${GITHUB_PR_NUMBER}"
-      outputs:
-        git_pr_number: ${{ steps.create_pr.outputs.git_pr_number }}
+    outputs:
+      git_pr_number: ${{ steps.create_pr.outputs.git_pr_number }}
   comment_trigger_phrases:
       needs: update_create_release_pr
       runs-on: ubuntu-latest
