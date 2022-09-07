@@ -135,10 +135,8 @@ final class FirestoreV1ReadFn {
     }
 
     @Override
-    protected RunQueryRequest setReadTime(RunQueryRequest element, @Nullable Instant readTime) {
-      return readTime == null
-          ? element
-          : element.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
+    protected RunQueryRequest setReadTime(RunQueryRequest element, Instant readTime) {
+      return element.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
     }
 
     @Override
@@ -200,7 +198,7 @@ final class FirestoreV1ReadFn {
 
         try {
           PartitionQueryRequest request = setPageToken(element, aggregate);
-          request = setReadTime(request, readTime);
+          request = readTime == null ? request : setReadTime(request, readTime);
           attempt.recordRequestStart(clock.instant());
           PartitionQueryPagedResponse pagedResponse =
               firestoreStub.partitionQueryPagedCallable().call(request);
@@ -235,19 +233,16 @@ final class FirestoreV1ReadFn {
     }
 
     private PartitionQueryRequest setPageToken(
-        PartitionQueryRequest request, PartitionQueryResponse.@Nullable Builder aggregate) {
+        PartitionQueryRequest element, PartitionQueryResponse.@Nullable Builder aggregate) {
       if (aggregate != null && aggregate.getNextPageToken() != null) {
-        return request.toBuilder().setPageToken(aggregate.getNextPageToken()).build();
+        return element.toBuilder().setPageToken(aggregate.getNextPageToken()).build();
       }
-      return request;
+      return element;
     }
 
     @Override
-    protected PartitionQueryRequest setReadTime(
-        PartitionQueryRequest element, @Nullable Instant readTime) {
-      return readTime == null
-          ? element
-          : element.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
+    protected PartitionQueryRequest setReadTime(PartitionQueryRequest element, Instant readTime) {
+      return element.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
     }
   }
 
@@ -295,16 +290,13 @@ final class FirestoreV1ReadFn {
 
     @Override
     protected ListDocumentsRequest setPageToken(
-        ListDocumentsRequest request, String nextPageToken) {
-      return request.toBuilder().setPageToken(nextPageToken).build();
+        ListDocumentsRequest element, String nextPageToken) {
+      return element.toBuilder().setPageToken(nextPageToken).build();
     }
 
     @Override
-    protected ListDocumentsRequest setReadTime(
-        ListDocumentsRequest request, @Nullable Instant readTime) {
-      return readTime == null
-          ? request
-          : request.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
+    protected ListDocumentsRequest setReadTime(ListDocumentsRequest element, Instant readTime) {
+      return element.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
     }
   }
 
@@ -352,16 +344,14 @@ final class FirestoreV1ReadFn {
 
     @Override
     protected ListCollectionIdsRequest setPageToken(
-        ListCollectionIdsRequest request, String nextPageToken) {
-      return request.toBuilder().setPageToken(nextPageToken).build();
+        ListCollectionIdsRequest element, String nextPageToken) {
+      return element.toBuilder().setPageToken(nextPageToken).build();
     }
 
     @Override
     protected ListCollectionIdsRequest setReadTime(
-        ListCollectionIdsRequest request, @Nullable Instant readTime) {
-      return readTime == null
-          ? request
-          : request.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
+        ListCollectionIdsRequest element, Instant readTime) {
+      return element.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
     }
   }
 
@@ -406,9 +396,9 @@ final class FirestoreV1ReadFn {
 
     @Override
     protected BatchGetDocumentsRequest setStartFrom(
-        BatchGetDocumentsRequest originalRequest, BatchGetDocumentsResponse mostRecentResponse) {
+        BatchGetDocumentsRequest element, BatchGetDocumentsResponse mostRecentResponse) {
       int startIndex = -1;
-      ProtocolStringList documentsList = originalRequest.getDocumentsList();
+      ProtocolStringList documentsList = element.getDocumentsList();
       String missing = mostRecentResponse.getMissing();
       String foundName =
           mostRecentResponse.hasFound() ? mostRecentResponse.getFound().getName() : null;
@@ -424,7 +414,7 @@ final class FirestoreV1ReadFn {
         }
       }
       if (0 <= startIndex) {
-        BatchGetDocumentsRequest.Builder builder = originalRequest.toBuilder().clearDocuments();
+        BatchGetDocumentsRequest.Builder builder = element.toBuilder().clearDocuments();
         documentsList.stream()
             .skip(startIndex + 1) // start from the next entry from the one we found
             .forEach(builder::addDocuments);
@@ -445,10 +435,8 @@ final class FirestoreV1ReadFn {
 
     @Override
     protected BatchGetDocumentsRequest setReadTime(
-        BatchGetDocumentsRequest element, @Nullable Instant readTime) {
-      return readTime == null
-          ? element
-          : element.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
+        BatchGetDocumentsRequest element, Instant readTime) {
+      return element.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
     }
   }
 
@@ -503,7 +491,7 @@ final class FirestoreV1ReadFn {
         Instant start = clock.instant();
         InT request =
             lastReceivedValue == null ? element : setStartFrom(element, lastReceivedValue);
-        request = setReadTime(request, readTime);
+        request = readTime == null ? request : setReadTime(request, readTime);
         try {
           attempt.recordRequestStart(start);
           ServerStream<OutT> serverStream = getCallable(firestoreStub).call(request);
@@ -575,7 +563,7 @@ final class FirestoreV1ReadFn {
 
         try {
           RequestT request = nextPageToken == null ? element : setPageToken(element, nextPageToken);
-          request = setReadTime(request, readTime);
+          request = readTime == null ? request : setReadTime(request, readTime);
           attempt.recordRequestStart(clock.instant());
           PagedResponseT pagedResponse = getCallable(firestoreStub).call(request);
           for (PageT page : pagedResponse.iteratePages()) {
@@ -668,7 +656,7 @@ final class FirestoreV1ReadFn {
       builder.addIfNotNull(DisplayData.item("readTime", readTime).withLabel("ReadTime"));
     }
 
-    protected abstract InT setReadTime(InT element, @Nullable Instant readTime);
+    protected abstract InT setReadTime(InT element, Instant readTime);
   }
 
   /**
