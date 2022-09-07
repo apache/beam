@@ -1174,7 +1174,7 @@ public final class FirestoreV1 {
      */
     static final class PartitionQueryResponseToRunQueryRequest
         extends DoFn<PartitionQueryPair, RunQueryRequest> {
-      @Nullable private final Instant readTime;
+      private final @Nullable Instant readTime;
 
       PartitionQueryResponseToRunQueryRequest() {
         this(null);
@@ -1878,10 +1878,11 @@ public final class FirestoreV1 {
             TrfmT extends ReadTransform<InT, OutT, TrfmT, BldrT>,
             BldrT extends ReadTransform.Builder<InT, OutT, TrfmT, BldrT>>
         extends Transform.Builder<InT, OutT, TrfmT, BldrT> {
-      Instant readTime;
+      @Nullable Instant readTime;
 
       Builder() {
         super();
+        this.readTime = null;
       }
 
       private Builder(

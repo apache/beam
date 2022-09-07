@@ -604,7 +604,7 @@ final class FirestoreV1ReadFn {
     protected final FirestoreStatefulComponentFactory firestoreStatefulComponentFactory;
     protected final RpcQosOptions rpcQosOptions;
 
-    @Nullable protected final Instant readTime;
+    protected final @Nullable Instant readTime;
 
     // transient running state information, not important to any possible checkpointing
     protected transient FirestoreStub firestoreStub;
