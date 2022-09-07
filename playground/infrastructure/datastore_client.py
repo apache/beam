@@ -47,7 +47,7 @@ class DatastoreClient:
     """DatastoreClient is a datastore client for sending a request to the Google."""
     _datastore_client: datastore.Client
 
-    def __init__(self):
+    def __init__(self, origin: Origin):
         self._check_envs()
         self._datastore_client = datastore.Client(
             namespace=DatastoreProps.NAMESPACE,

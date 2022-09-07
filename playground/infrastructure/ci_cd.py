@@ -57,7 +57,6 @@ parser.add_argument(
     required=True,
     help="limit sub directories to walk through, relative to BEAM_ROOT_DIR")
 
-root_dir = os.getenv("BEAM_ROOT_DIR")
 categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
 
 
@@ -79,9 +78,6 @@ def _cd_step(examples: List[Example], sdk: Sdk, origin: Origin):
 
 
 def _check_envs():
-    if root_dir is None:
-        raise KeyError(
-            "BEAM_ROOT_DIR environment variable should be specified in os")
     if categories_file is None:
         raise KeyError(
             "BEAM_EXAMPLE_CATEGORIES environment variable should be specified in os"
