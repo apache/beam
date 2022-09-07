@@ -285,7 +285,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 \
-          --job-non-logged-store-base-dir $TMPDIR &
+          --job-non-logged-store-base-dir "$TMPDIR" &
     elif [[ "$RUNNER" == "spark" ]]; then
       java \
           -jar $SPARK_JOB_SERVER_JAR \
