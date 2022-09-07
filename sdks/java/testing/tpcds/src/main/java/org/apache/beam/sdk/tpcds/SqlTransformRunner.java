@@ -53,6 +53,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
 import org.apache.commons.csv.CSVFormat;
 import org.joda.time.Instant;
@@ -337,47 +338,48 @@ public class SqlTransformRunner {
   private static void savePerfsToInfluxDB(
       final TpcdsOptions options, final List<TpcdsRunResult> results, final long timestamp) {
     final InfluxDBSettings settings = getInfluxSettings(options);
-    final Map<String, String> tags = options.getInfluxTags();
-    final String runner = options.getRunner().getSimpleName();
-    final List<Map<String, Object>> schemaResults =
+
+    final List<InfluxDBPublisher.DataPoint> dataPoints =
         results.stream()
             .map(
-                entry ->
-                    getResultsFromSchema(
-                        entry, timestamp, runner, produceMeasurement(options, entry)))
+                entry -> createInfluxDBDataPoint(options, entry, getInfluxTags(options), timestamp))
             .collect(toList());
-    InfluxDBPublisher.publishTpcdsResults(schemaResults, settings, tags);
+    InfluxDBPublisher.publish(settings, dataPoints);
   }
 
-  private static String produceMeasurement(final TpcdsOptions options, TpcdsRunResult entry) {
+  @SuppressWarnings({"nullness"})
+  private static Map<String, String> getInfluxTags(TpcdsOptions options) {
+    Map<String, String> tags =
+        options.getInfluxTags() != null
+            ? new HashMap<>(options.getInfluxTags())
+            : new HashMap<String, String>();
+    tags.put("runner", options.getRunner().getSimpleName());
+    return tags;
+  }
+
+  private static InfluxDBPublisher.DataPoint createInfluxDBDataPoint(
+      final TpcdsOptions options,
+      final TpcdsRunResult entry,
+      final Map<String, String> tags,
+      final long timestamp) {
+    String measurement = generateMeasurementName(options, entry);
+
+    final int runtimeMs =
+        entry.getIsSuccessful()
+            ? (int) (entry.getElapsedTime() * 1000) // change sec to ms
+            : 0;
+
+    Map<String, Number> fields = ImmutableMap.of("runtimeMs", runtimeMs);
+    return InfluxDBPublisher.dataPoint(measurement, tags, fields, timestamp);
+  }
+
+  private static String generateMeasurementName(final TpcdsOptions options, TpcdsRunResult entry) {
     return String.format(
         "%s_%s_%s_%s",
         options.getBaseInfluxMeasurement(),
         entry.getQueryName(),
         entry.getDialect(),
         entry.getDataSize());
-  }
-
-  private static Map<String, Object> getResultsFromSchema(
-      final TpcdsRunResult results,
-      final long timestamp,
-      final String runner,
-      final String measurement) {
-    final Map<String, Object> schemaResults = new HashMap<>();
-    schemaResults.put("timestamp", timestamp);
-    schemaResults.put("runner", runner);
-    schemaResults.put("measurement", measurement);
-
-    // By default, InfluxDB treats all number values as floats. We need to add 'i' suffix to
-    // interpret the value as an integer.
-    final int runtimeMs =
-        results.getIsSuccessful()
-            ? (int) (results.getElapsedTime() * 1000)
-            : // change sec to ms
-            0;
-    schemaResults.put("runtimeMs", runtimeMs + "i");
-
-    return schemaResults;
   }
 
   @SuppressWarnings({"nullness"})
