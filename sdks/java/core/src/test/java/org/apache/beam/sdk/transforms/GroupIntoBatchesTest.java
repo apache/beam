@@ -59,8 +59,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -653,6 +651,7 @@ public class GroupIntoBatchesTest implements Serializable {
     ValidatesRunner.class,
     NeedsRunner.class,
     UsesTimersInParDo.class,
+    UsesTestStream.class,
     UsesStatefulParDo.class,
     UsesOnWindowExpiration.class
   })
@@ -675,9 +674,26 @@ public class GroupIntoBatchesTest implements Serializable {
             .stream()
             .map(s -> KV.of("key", s))
             .collect(Collectors.toList());
+
+    // to ensure ordered firing
+    TestStream.Builder<KV<String, String>> streamBuilder =
+        TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .advanceWatermarkTo(Instant.EPOCH);
+
+    long offset = 0L;
+    for (KV<String, String> kv : dataToUse) {
+      streamBuilder =
+          streamBuilder.addElements(
+              TimestampedValue.of(kv, Instant.EPOCH.plus(Duration.standardSeconds(offset))));
+      offset++;
+    }
+
+    // fire them all at once
+    TestStream<KV<String, String>> stream = streamBuilder.advanceWatermarkToInfinity();
+
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline
-            .apply("Input data", Create.of(dataToUse))
+            .apply("Input data", stream)
             .apply(
                 GroupIntoBatches.<String, String>ofSize(BATCH_SIZE).withByteSize(BATCH_SIZE_BYTES))
             // set output coder
@@ -693,7 +709,7 @@ public class GroupIntoBatchesTest implements Serializable {
                       Streams.stream(element.getValue())
                           .map(s -> Iterables.get(Splitter.on('-').split(s), 0))
                           .collect(Collectors.toSet());
-                  assertEquals("Found invalid batching: " + batchPrefixes, 1, batchPrefixes.size());
+                  assertEquals("Found invalid batching: " + listToCheck, 1, batchPrefixes.size());
                 }
               }
 
@@ -702,16 +718,16 @@ public class GroupIntoBatchesTest implements Serializable {
                 assertTrue(checkBatchSizes(input));
                 assertTrue(checkBatchByteSizes(input));
                 assertExpectedBatchPrefix(input);
+                assertEquals(
+                    Lists.newArrayList(3, 5, 1),
+                    Streams.stream(input)
+                        .map(KV::getValue)
+                        .map(Iterables::size)
+                        .collect(Collectors.toList()));
                 return null;
               }
             });
 
-    PAssert.thatSingleton("Incorrect batching", collection.apply("Count", Count.globally()))
-        .satisfies(
-            numberOfBatches -> {
-              MatcherAssert.assertThat(numberOfBatches, Matchers.equalTo(3L));
-              return null;
-            });
     pipeline.run();
   }
 
