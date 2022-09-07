@@ -21,7 +21,7 @@ jobs:
 
   # Run Gradle release build and all PostCommit Tests against Release Branch on Jenkins.
   # This create_release_pr task will create a PR against apache/beam.
-  create_release_pr:
+  update_create_release_pr:
     needs: check_environment
     runs-on: ubuntu-latest
     permissions:
@@ -52,23 +52,32 @@ jobs:
           git add CHANGES.md
           git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
           git push origin $WORKING_BRANCH --quiet
+      - name: Create new Release PR
+        id: create_pr
+        run: |
           GITHUB_PR_URL=$(hub pull-request -b $GITHUB_ACTOR:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
           You can run many tests automatically using release/src/main/scripts/mass_comment.py.")
           GITHUB_PR_NUMBER=$(echo $GITHUB_PR_URL |cut -d"/" -f7)
           echo "GITHUB_PR_NUMBER=${GITHUB_PR_NUMBER}" >> $GITHUB_ENV
           echo $GITHUB_PR_NUMBER
+          echo "::set-output name=git_pr_number::${GITHUB_PR_NUMBER}"
+      outputs:
+        git_pr_number: ${{ steps.create_pr.outputs.git_pr_number }}
   comment_trigger_phrases:
-      needs: create_release_pr
+      needs: update_create_release_pr
       runs-on: ubuntu-latest
       steps:
         - name: Create PR Comment
           run: |
-            echo ${{env.GITHUB_PR_NUMBER}}
+            echo ${{ env.GITHUB_PR_NUMBER }}
             echo 'Test'
-            echo $GITHUB_PR_NUMBER
-            gh pr comment $GITHUB_PR_NUMBER --body "Hi! This is a test from Verify Release Workflow."
+            echo ${{ needs.update_create_release_pr.outputs.git_pr_number }}
+            echo 'Test 2'
+            echo ${{ env.GH_PR_NUMBER}}
             env:
-              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              GH_PR_NUMBER: ${{ needs.create_release_pr.outputs.git_pr_number }}
+# gh pr comment $GITHUB_PR_NUMBER --body "Hi! This is a test from Verify Release Workflow."
 # Commenting this clean-up step 'cause I think this step is not needed, as the final self-hosted implementation has ephemeral runners.
 #  clean-up:
 #    if: always()
