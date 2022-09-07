@@ -214,7 +214,8 @@ abstract class BaseFirestoreIT {
         testPipeline
             .apply(Create.of("a"))
             .apply(getListDocumentsPTransform(testName.getMethodName()))
-            .apply(FirestoreIO.v1().read().listDocuments().withRpcQosOptions(RPC_QOS_OPTIONS).build())
+            .apply(
+                FirestoreIO.v1().read().listDocuments().withRpcQosOptions(RPC_QOS_OPTIONS).build())
             .apply(ParDo.of(new DocumentToName()));
 
     PAssert.that(listDocumentPaths).containsInAnyOrder(allDocumentPaths);
