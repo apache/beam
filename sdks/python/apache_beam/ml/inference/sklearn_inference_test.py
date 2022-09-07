@@ -221,7 +221,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
   def test_bad_input_type_raises(self):
     with self.assertRaisesRegex(AssertionError,
                                 'Unsupported serialization type'):
-      with tempfile.NamedTemporaryFile() as file:
+      with tempfile.NamedTemporaryFile(delete=False) as file:
         model_handler = SklearnModelHandlerNumpy(
             model_uri=file.name, model_file_type=None)
         model_handler.load_model()
