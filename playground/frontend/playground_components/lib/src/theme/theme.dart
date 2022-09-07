@@ -19,13 +19,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../constants/colors.dart';
-import '../constants/sizes.dart';
+import '../../playground_components.dart';
 
 final kLightTheme = ThemeData(
   brightness: Brightness.light,
   primaryColor: BeamLightThemeColors.primary,
   canvasColor: BeamLightThemeColors.primaryBackground,
+  dividerColor: BeamLightThemeColors.grey,
   scaffoldBackgroundColor: BeamLightThemeColors.secondaryBackground,
   backgroundColor: BeamLightThemeColors.primaryBackground,
   textTheme: _getTextTheme(BeamLightThemeColors.text),
@@ -42,6 +42,7 @@ final kDarkTheme = ThemeData(
   brightness: Brightness.dark,
   primaryColor: BeamDarkThemeColors.primary,
   canvasColor: BeamDarkThemeColors.primaryBackground,
+  dividerColor: BeamDarkThemeColors.grey,
   scaffoldBackgroundColor: BeamDarkThemeColors.secondaryBackground,
   backgroundColor: BeamDarkThemeColors.primaryBackground,
   textTheme: _getTextTheme(BeamDarkThemeColors.text),
@@ -110,7 +111,7 @@ TextTheme _getTextTheme(Color textColor) {
 TextButtonThemeData _getTextButtonTheme(Color textColor) {
   return TextButtonThemeData(
     style: TextButton.styleFrom(
-      primary: textColor,
+      foregroundColor: textColor,
       shape: _getButtonBorder(BeamBorderRadius.large),
     ),
   );
@@ -122,7 +123,7 @@ OutlinedButtonThemeData _getOutlineButtonTheme(
 ) {
   return OutlinedButtonThemeData(
     style: OutlinedButton.styleFrom(
-      primary: textColor,
+      foregroundColor: textColor,
       side: BorderSide(color: outlineColor, width: 3),
       padding: _buttonPadding,
       shape: _getButtonBorder(BeamBorderRadius.small),
@@ -133,8 +134,8 @@ OutlinedButtonThemeData _getOutlineButtonTheme(
 ElevatedButtonThemeData _getElevatedButtonTheme(Color color) {
   return ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
-      onPrimary: BeamColors.white,
-      primary: color,
+      foregroundColor: BeamColors.white,
+      backgroundColor: color,
       padding: _buttonPadding,
       elevation: BeamSizes.size0,
     ),

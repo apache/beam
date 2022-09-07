@@ -29,26 +29,6 @@ class SignInOverlayContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLightTheme = Theme.of(context).brightness == Brightness.light;
-    final brandedButtonTextStyle = MaterialStatePropertyAll(
-      Theme.of(context).textTheme.bodyMedium,
-    );
-    final darkButtonStyle = ButtonStyle(
-      textStyle: brandedButtonTextStyle,
-      backgroundColor: const MaterialStatePropertyAll(BeamColors.darkGrey),
-    );
-    final githubLightButtonStyle = ButtonStyle(
-      textStyle: brandedButtonTextStyle,
-      backgroundColor: const MaterialStatePropertyAll(BeamColors.darkBlue),
-    );
-    final googleLightButtonStyle = ButtonStyle(
-      elevation: const MaterialStatePropertyAll(BeamSizes.size4),
-      foregroundColor: const MaterialStatePropertyAll(BeamColors.black),
-      textStyle: brandedButtonTextStyle,
-      overlayColor: MaterialStatePropertyAll(Theme.of(context).hoverColor),
-      backgroundColor: const MaterialStatePropertyAll(BeamColors.white),
-    );
-
     return _Body(
       child: Column(
         children: [
@@ -62,19 +42,7 @@ class SignInOverlayContent extends StatelessWidget {
             textAlign: TextAlign.center,
           ).tr(),
           const _Divider(),
-          ElevatedButton.icon(
-            onPressed: () {},
-            style: isLightTheme ? githubLightButtonStyle : darkButtonStyle,
-            icon: SvgPicture.asset(Assets.svg.githubLogo),
-            label: const Text('ui.continueGitHub').tr(),
-          ),
-          const SizedBox(height: BeamSizes.size16),
-          ElevatedButton.icon(
-            onPressed: () {},
-            style: isLightTheme ? googleLightButtonStyle : darkButtonStyle,
-            icon: SvgPicture.asset(Assets.svg.googleLogo),
-            label: const Text('ui.continueGoogle').tr(),
-          ),
+          const _BrandedSignInButtons(),
         ],
       ),
     );
@@ -105,10 +73,68 @@ class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      color: Theme.of(context).dividerColor,
       margin: const EdgeInsets.symmetric(vertical: 20),
       width: BeamSizes.size32,
       height: BeamSizes.size1,
-      color: BeamColors.grey3,
+    );
+  }
+}
+
+class _BrandedSignInButtons extends StatelessWidget {
+  const _BrandedSignInButtons();
+
+  @override
+  Widget build(BuildContext context) {
+    final isLightTheme = Theme.of(context).brightness == Brightness.light;
+    final textStyle =
+        MaterialStatePropertyAll(Theme.of(context).textTheme.bodyMedium);
+    const padding = MaterialStatePropertyAll(
+      EdgeInsets.symmetric(
+        vertical: BeamSizes.size20,
+        horizontal: BeamSizes.size24,
+      ),
+    );
+    const minimumSize = MaterialStatePropertyAll(Size(double.infinity, 0));
+
+    final darkButtonStyle = ButtonStyle(
+      minimumSize: minimumSize,
+      padding: padding,
+      textStyle: textStyle,
+      backgroundColor: const MaterialStatePropertyAll(BeamColors.darkGrey),
+    );
+    final githubLightButtonStyle = ButtonStyle(
+      minimumSize: minimumSize,
+      padding: padding,
+      textStyle: textStyle,
+      backgroundColor: const MaterialStatePropertyAll(BeamColors.darkBlue),
+    );
+    final googleLightButtonStyle = ButtonStyle(
+      minimumSize: minimumSize,
+      padding: padding,
+      elevation: const MaterialStatePropertyAll(BeamSizes.size4),
+      foregroundColor: const MaterialStatePropertyAll(BeamColors.black),
+      textStyle: textStyle,
+      overlayColor: MaterialStatePropertyAll(Theme.of(context).hoverColor),
+      backgroundColor: const MaterialStatePropertyAll(BeamColors.white),
+    );
+
+    return Column(
+      children: [
+        ElevatedButton.icon(
+          onPressed: () {},
+          style: isLightTheme ? githubLightButtonStyle : darkButtonStyle,
+          icon: SvgPicture.asset(Assets.svg.githubLogo),
+          label: const Text('ui.continueGitHub').tr(),
+        ),
+        const SizedBox(height: BeamSizes.size16),
+        ElevatedButton.icon(
+          onPressed: () {},
+          style: isLightTheme ? googleLightButtonStyle : darkButtonStyle,
+          icon: SvgPicture.asset(Assets.svg.googleLogo),
+          label: const Text('ui.continueGoogle').tr(),
+        ),
+      ],
     );
   }
 }

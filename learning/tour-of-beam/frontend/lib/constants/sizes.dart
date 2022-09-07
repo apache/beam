@@ -18,7 +18,7 @@
 
 class TobSizes {
   static const double footerHeight = 35;
-  static const double authOverlayWidth = 300;
+  static const double authOverlayWidth = 260;
 }
 
 class ScreenSizes {
