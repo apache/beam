@@ -1,10 +1,10 @@
 {
     "unitId": "challenge1",
     "name": "Challenge Name",
-    "description": "## Challenge description\n\nbla bla bla",
+    "description": "## Challenge description\n\nawesome description\n",
     "hints" : [
-        "## Hint 1\n\napply yourself :)",
-        "## Hint 2\n\napply more"
+        "## Hint 1\n\nhint №1",
+        "## Hint 2\n\nhint №2"
      ],
 
     "taskSnippetId": "taskSnippetId",
