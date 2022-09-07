@@ -49,7 +49,7 @@ class CDHelper:
         Outputs for multifile examples are left empty.
         """
         single_file_examples = list(filter(
-            lambda example: example.tag.multifile is False, examples))
+            lambda example: example.tag.multifile is False, self._examples))
         logging.info("Start of executing only single-file Playground examples ...")
         asyncio.run(self._get_outputs(single_file_examples))
         logging.info("Finish of executing single-file Playground examples")
@@ -68,7 +68,7 @@ class CDHelper:
         datastore_client.save_catalogs()
         datastore_client.save_to_cloud_datastore(examples, self._sdk, self._origin)
 
-    async def _get_outputs(self, examples: List[Example]):
+    async def _get_outputs(self):
         """
         Run beam examples and keep their output.
 
@@ -79,26 +79,26 @@ class CDHelper:
             examples: beam examples that should be run
         """
         await get_statuses(
-            examples)  # run examples code and wait until all are executed
+            self._examples)  # run examples code and wait until all are executed
         client = GRPCClient()
-        tasks = [client.get_run_output(example.pipeline_id) for example in examples]
+        tasks = [client.get_run_output(example.pipeline_id) for example in self._examples]
         outputs = await asyncio.gather(*tasks)
 
-        tasks = [client.get_log(example.pipeline_id) for example in examples]
+        tasks = [client.get_log(example.pipeline_id) for example in self._examples]
         logs = await asyncio.gather(*tasks)
 
         if len(examples) > 0 and examples[0].sdk in [SDK_PYTHON, SDK_JAVA]:
             tasks = [
                 client.get_graph(example.pipeline_id, example.filepath)
-                for example in examples
+                for example in self._examples
             ]
             graphs = await asyncio.gather(*tasks)
 
-            for graph, example in zip(graphs, examples):
+            for graph, example in zip(graphs, self._examples):
                 example.graph = graph
 
-        for output, example in zip(outputs, examples):
+        for output, example in zip(outputs, self._examples):
             example.output = output
 
-        for log, example in zip(logs, examples):
+        for log, example in zip(logs, self._examples):
             example.logs = log
