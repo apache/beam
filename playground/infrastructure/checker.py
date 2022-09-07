@@ -25,11 +25,9 @@ from helper import get_tag
 
 root_dir = os.getenv("BEAM_ROOT_DIR")
 
-
-def _check_envs():
-    if root_dir is None:
-        raise KeyError(
-            "BEAM_ROOT_DIR environment variable should be specified in os")
+if root_dir is None:
+    raise KeyError(
+        "BEAM_ROOT_DIR environment variable should be specified in os")
 
 
 def check(paths) -> bool:
