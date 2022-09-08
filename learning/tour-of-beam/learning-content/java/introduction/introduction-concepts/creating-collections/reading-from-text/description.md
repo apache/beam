@@ -25,7 +25,7 @@ public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
     Pipeline pipeline = Pipeline.create(options);
 
-    // Now create the PCollection by reading text files. Separate elements will be added for each line in the input file 
+    // Now create the PCollection by reading text files. Separate elements will be added for each line in the input file
     PCollection<String> lines =
         pipeline.apply(“King Lear”,TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt")
 );

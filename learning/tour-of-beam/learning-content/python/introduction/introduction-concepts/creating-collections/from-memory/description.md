@@ -37,7 +37,7 @@ with beam.Pipeline() as p:
 
     # Create a numerical PCollection
     (p | beam.Create(range(1, 11)))
-     
+
      # Now create the PCollection using list of strings
     (p | beam.Create(['To', 'be', 'or', 'not', 'to', 'be', 'that', 'is', 'the', 'question']))
 
@@ -48,4 +48,3 @@ You can find the complete code of this example in the playground window you can 
 One of the differences you will notice is that it also contains the part to output `PCollection` elements to the console. Don’t worry if you don’t quite understand it, as the concept of `ParDo` transform will be explained later in the course. Feel free, however, to use it in exercises and challenges to explore results.
 
 Do you also notice in what order elements of PCollection appear in the console? Why is that? You can also run the example several times to see if the output stays the same or changes.
-

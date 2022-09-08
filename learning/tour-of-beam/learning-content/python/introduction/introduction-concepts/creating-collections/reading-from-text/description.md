@@ -23,9 +23,9 @@ Each data source adapter has a Read transform; to read, you must apply that tran
 # First create pipline
 with beam.Pipeline() as p:
 
-    # Now create the PCollection by reading text files. Separate elements will be added for each line in the input file 
+    # Now create the PCollection by reading text files. Separate elements will be added for each line in the input file
     (p | beam.io.ReadFromText('gs://some/inputData.txt'))
-     
+
 ```
 
 In the playground window, you can find an example that reads a king lear poem from the text file stored in the Google Storage bucket and fills PCollection with individual lines and then with individual words. Try it out and see what the output is.

@@ -20,4 +20,3 @@ Throughout the tour, you will find list of learning materials, examples, exercis
 The tour is Beam Introduction learning module contains an example that you can review in the right pane, run and see the output by clicking ‘Run’.
 Each module also contains a challenge based on the material learned. Try to solve as many as you can, and if you need help, just click on the ‘Hint’ button or examine the correct solution by clicking the ‘Solution’ button.
 Now let’s start the tour with learning core Beam principles.
- 

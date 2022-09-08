@@ -17,4 +17,4 @@ Data processing pipelines often work with tabular data. In many examples and cha
 
 Loading data from csv file requires some processing and consists of two main part:
 * Loading text lines using `TextIO.Read` transform
-* Parsing lines of text into tabular format 
+* Parsing lines of text into tabular format
