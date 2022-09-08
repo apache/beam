@@ -207,6 +207,8 @@ def cleanupTask = project.tasks.register("samzaJobServerCleanup", Exec) {
     args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name}"
 }
 
+def tempDir = File.createTempDir()
+
 createCrossLanguageValidatesRunnerTask(
         startJobServer: setupTask,
         cleanupJobServer: cleanupTask,
@@ -217,16 +219,19 @@ createCrossLanguageValidatesRunnerTask(
                 "--job_endpoint=localhost:${jobPort}",
                 "--environment_cache_millis=10000",
                 "--experiments=beam_fn_api",
+                "--job-non-logged-store-base-dir=${tempDir}",
         ],
         javaPipelineOptions: [
                 "--runner=PortableRunner",
                 "--jobEndpoint=localhost:${jobPort}",
                 "--environmentCacheMillis=10000",
                 "--experiments=beam_fn_api",
+                "--job-non-logged-store-base-dir=${tempDir}",
         ],
         goScriptOptions: [
             "--runner samza",
             "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
             "--endpoint localhost:${jobPort}",
+            "--job-non-logged-store-base-dir=${tempDir}",
         ],
 )
