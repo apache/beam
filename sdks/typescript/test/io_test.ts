@@ -69,7 +69,7 @@ function xlang_it(name, fn) {
 // TODO: Automatically set up/depend on such a venv in dev environments and/or
 // testing infra.
 describe("IO Tests", function () {
-  xit("textio file test", async function () {
+  xlang_it("textio file test", async function () {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "apache-beam-test"));
 
     await createRunner().run(async (root) => {
