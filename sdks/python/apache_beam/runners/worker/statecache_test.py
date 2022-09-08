@@ -21,7 +21,7 @@
 import logging
 import unittest
 
-from apache_beam.runners.worker.statecache import CacheAware
+from apache_beam.runners.worker.statecache import CacheIgnoredValue
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.statecache import WeightedValue
 
@@ -159,16 +159,16 @@ class StateCacheTest(unittest.TestCase):
         'used/max 0/0 MB, hit 100.00%, lookups 0, evictions 0')
 
   def test_get_referents_for_cache(self):
-    class GetReferentsForCache(CacheAware):
+    class PartialSizing(object):
       def __init__(self):
         self.measure_me = bytearray(1 << 20)
-        self.ignore_me = bytearray(2 << 20)
+        self.ignore_me = CacheIgnoredValue(bytearray(2 << 20))
 
       def get_referents_for_cache(self):
         return [self.measure_me]
 
     cache = StateCache(5 << 20)
-    cache.put("key", "cache_token", GetReferentsForCache())
+    cache.put("key", "cache_token", PartialSizing())
     self.assertEqual(
         cache.describe_stats(),
         'used/max 1/5 MB, hit 100.00%, lookups 0, evictions 0')

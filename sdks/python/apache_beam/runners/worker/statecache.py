@@ -20,15 +20,13 @@
 # mypy: disallow-untyped-defs
 
 import collections
-import gc
 import logging
 import threading
 from typing import Any
-from typing import List
 from typing import Optional
 from typing import Tuple
 
-import objsize
+from pympler import asizeof
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,34 +55,11 @@ class WeightedValue(object):
     return self._value
 
 
-class CacheAware(object):
-  def __init__(self):
-    # type: () -> None
-    pass
-
-  def get_referents_for_cache(self):
-    # type: () -> List[Any]
-
-    """Returns the list of objects accounted during cache measurement."""
-    raise NotImplementedError()
-
-
-def get_referents_for_cache(*objs):
-  # type: (List[Any]) -> List[Any]
-
-  """Returns the list of objects accounted during cache measurement.
-
-  Users can inherit CacheAware to override which referrents should be
-  used when measuring the deep size of the object. The default is to
-  use gc.get_referents(*objs).
-  """
-  rval = []
-  for obj in objs:
-    if isinstance(obj, CacheAware):
-      rval.extend(obj.get_referents_for_cache())
-    else:
-      rval.extend(gc.get_referents(obj))
-  return rval
+class CacheIgnoredValue(object):
+  """Used to wrap internal referencess to not be sized."""
+  def __init__(self, value):
+    # type: (Any) -> None
+    self.value = value
 
 
 class StateCache(object):
@@ -134,8 +109,9 @@ class StateCache(object):
     # type: (bytes, Optional[bytes], Any) -> None
     assert cache_token and self.is_cache_enabled()
     if not isinstance(value, WeightedValue):
-      weight = objsize.get_deep_size(
-          value, get_referents_func=get_referents_for_cache)
+      sizer = asizeof.Asizer()
+      sizer.exclude_types(CacheIgnoredValue)
+      weight = sizer.asizeof(value)
       if weight <= 0:
         _LOGGER.warning(
             'Expected object size to be >= 0 for %s but received %d.',

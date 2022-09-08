@@ -61,7 +61,7 @@ from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.data_plane import PeriodicThread
-from apache_beam.runners.worker.statecache import CacheAware
+from apache_beam.runners.worker.statecache import CacheIgnoredValue
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
@@ -1287,25 +1287,18 @@ class GlobalCachingStateHandler(CachingStateHandler):
           functools.partial(
               self._lazy_iterator, state_key, coder, continuation_token))
 
-  class ContinuationIterable(Generic[T], CacheAware):
+  class ContinuationIterable(Generic[T]):
     def __init__(self, head, continue_iterator_fn):
       # type: (Iterable[T], Callable[[], Iterable[T]]) -> None
       self.head = head
-      self.continue_iterator_fn = continue_iterator_fn
+      self.continue_iterator_fn = CacheIgnoredValue(continue_iterator_fn)
 
     def __iter__(self):
       # type: () -> Iterator[T]
       for item in self.head:
         yield item
-      for item in self.continue_iterator_fn():
+      for item in self.continue_iterator_fn.value():
         yield item
-
-    def get_referents_for_cache(self):
-      # type: () -> List[Any]
-      # Only capture the size of the elements and not the
-      # continuation iterator since it references objects
-      # we don't want to include in the cache measurement.
-      return [self.head]
 
   @staticmethod
   def _convert_to_cache_key(state_key):
