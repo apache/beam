@@ -1,0 +1,111 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+# This workflow takes the tests conformed by Java Precommit and run them in a matrix group
+name: Java Precommit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+  push:
+    branches: [ 'master', 'release-*' ]
+    tags: 'v*'
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+    paths: ['model/**',
+            'sdks/java/**',
+            'runners/**',
+            'examples/java/**',
+            'examples/kotlin/**',
+            'release/**']
+
+jobs:
+  java_precommit:
+    name: Run Java Precommit
+    runs-on: self-hosted
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        gradle-test-commands: [
+          ":sdks:java:harness:test",
+          ":runners:core-java:test",
+          ":runners:java-fn-execution:test",
+          ":runners:java-fn-execution:testDocker",
+          ":runners:extensions-java:metrics:test",
+          ":runners:java-job-service:test",
+          ":runners:local-java:test",
+          ":runners:portability:java:test",
+          ":sdks:java:expansion-service:test",
+          ":sdks:java:extensions:arrow:test",
+          ":sdks:java:extensions:euphoria:test --tests 'org.apache.beam.sdk.extensions.euphoria.core.*'",
+          ":sdks:java:extensions:google-cloud-platform-core:test",
+          ":sdks:java:extensions:google-cloud-platform-core:integrationTestKms",
+          ":sdks:java:extensions:jackson:test",
+          ":sdks:java:extensions:join-library:test",
+          ":sdks:java:extensions:kryo:test",
+          ":sdks:java:extensions:ml:test",
+          ":sdks:java:extensions:ml:integrationTest",
+          ":sdks:java:extensions:protobuf:test",
+          ":sdks:java:extensions:python:test",
+          ":sdks:java:extensions:sbe:test",
+          ":sdks:java:extensions:schemaio-expansion-service:test",
+          ":sdks:java:extensions:sketching:test",
+          ":sdks:java:extensions:sorter:test",
+          ":sdks:java:extensions:sorter:hadoopVersion2102Test",
+          ":sdks:java:extensions:sorter:hadoopVersion285Test",
+          ":sdks:java:extensions:sorter:hadoopVersion292Test",
+          ":sdks:java:extensions:sorter:hadoopVersion324Test",
+          ":sdks:java:extensions:sql:test",
+          ":sdks:java:extensions:sql:integrationTest",
+          ":sdks:java:extensions:sql:hadoopVersion2102Test",
+          ":sdks:java:extensions:sql:hadoopVersion285Test",
+          ":sdks:java:extensions:sql:hadoopVersion292Test",
+          ":sdks:java:extensions:sql:hadoopVersion324Test",
+          ":sdks:java:extensions:timeseries:test",
+          ":sdks:java:extensions:zetasketch:test",
+          ":sdks:java:extensions:zetasketch:integrationTest",
+          ":sdks:java:fn-execution:test",
+          ":sdks:java:core:test --tests 'org.apache.beam.sdk.io.*'",
+          ":sdks:java:testing:nexmark:test",
+          ":sdks:java:testing:test-utils:test --tests 'org.apache.beam.sdk.testutils.metrics.*'",
+          ":sdks:java:core:jmh:test",
+          ":sdks:java:io:common:test",
+          ":sdks:java:io:contextualtextio:test",
+          ":sdks:java:testing:tpcds:test"
+        ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Setup Environment
+        uses: ./.github/actions/setup-self-hosted-action
+      - name: Run ${{ matrix.gradle-test-commands }}
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: ${{ matrix.gradle-test-commands }}
+          arguments: -PdisableSpotlessCheck=true -PdisableCheckStyle=true
+
+
+
