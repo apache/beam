@@ -64,14 +64,10 @@ TWO_FEATURES_PREDICTIONS = [
 ]
 
 TWO_FEATURES_DICT_OUT_PREDICTIONS = [
-    PredictionResult(ex, pred) for ex,
-    pred in zip(
-        TWO_FEATURES_EXAMPLES,
-        [{
-            "output1": torch.Tensor([f1 * 2.0 + f2 * 3 + 0.5]),
-            "output2": torch.Tensor([f1 * 2.0 + f2 * 3 + 0.5])
-        } for f1,
-         f2 in TWO_FEATURES_EXAMPLES])
+    PredictionResult(
+        p.example, {
+            "output1": p.inference, "output2": p.inference
+        }) for p in TWO_FEATURES_PREDICTIONS
 ]
 
 KEYED_TORCH_EXAMPLES = [
@@ -102,15 +98,10 @@ KEYED_TORCH_PREDICTIONS = [
 ]
 
 KEYED_TORCH_DICT_OUT_PREDICTIONS = [
-    PredictionResult(ex, pred) for ex,
-    pred in zip(
-        KEYED_TORCH_EXAMPLES,
-        [{
-            "output1": torch.Tensor([(example['k1'] * 2.0 + 0.5) +
-                                     (example['k2'] * 2.0 + 0.5)]),
-            "output2": torch.Tensor([(example['k1'] * 2.0 + 0.5) +
-                                     (example['k2'] * 2.0 + 0.5)])
-        } for example in KEYED_TORCH_EXAMPLES])
+    PredictionResult(
+        p.example, {
+            "output1": p.inference, "output2": p.inference
+        }) for p in KEYED_TORCH_PREDICTIONS
 ]
 
 

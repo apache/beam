@@ -67,6 +67,10 @@ def _compare_dataframe_predictions(a_in, b_in):
     a = a_in
     b = b_in
   example_equal = pandas.DataFrame.equals(a.example, b.example)
+  if isinstance(a.inference, dict):
+    return all(
+        math.floor(a) == math.floor(b) for a,
+        b in zip(a.inference.values(), b.inference.values())) and example_equal
   inference_equal = math.floor(a.inference) == math.floor(b.inference)
   return inference_equal and example_equal and keys_equal
 
@@ -80,13 +84,23 @@ class FakeModel:
     return numpy.sum(input_vector, axis=1)
 
 
-class FakeModelDictOut:
+class FakeNumpyModelDictOut:
   def __init__(self):
     self.total_predict_calls = 0
 
   def predict(self, input_vector: numpy.ndarray):
     self.total_predict_calls += 1
     out = numpy.sum(input_vector, axis=1)
+    return {"out1": out, "out2": out}
+
+
+class FakePandasModelDictOut:
+  def __init__(self):
+    self.total_predict_calls = 0
+
+  def predict(self, df: pandas.DataFrame):
+    self.total_predict_calls += 1
+    out = df.loc[:, 'number_2']
     return {"out1": out, "out2": out}
 
 
@@ -159,7 +173,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       self.assertTrue(_compare_prediction_result(actual, expected))
 
   def test_predict_output_dict(self):
-    fake_model = FakeModelDictOut()
+    fake_model = FakeNumpyModelDictOut()
     inference_runner = SklearnModelHandlerNumpy(model_uri='unused')
     batched_examples = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
@@ -278,6 +292,37 @@ class SkLearnRunInferenceTest(unittest.TestCase):
           PredictionResult(splits[2], 1),
           PredictionResult(splits[3], 1),
           PredictionResult(splits[4], 2),
+      ]
+      assert_that(
+          actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
+
+  def test_pipeline_pandas_dict_out(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(FakePandasModelDictOut(), file)
+    with TestPipeline() as pipeline:
+      dataframe = pandas_dataframe()
+      splits = [dataframe.loc[[i]] for i in dataframe.index]
+      pcoll = pipeline | 'start' >> beam.Create(splits)
+      actual = pcoll | RunInference(
+          SklearnModelHandlerPandas(model_uri=temp_file_name))
+
+      expected = [
+          PredictionResult(splits[0], {
+              'out1': 5, 'out2': 5
+          }),
+          PredictionResult(splits[1], {
+              'out1': 8, 'out2': 8
+          }),
+          PredictionResult(splits[2], {
+              'out1': 1, 'out2': 1
+          }),
+          PredictionResult(splits[3], {
+              'out1': 1, 'out2': 1
+          }),
+          PredictionResult(splits[4], {
+              'out1': 4, 'out2': 4
+          }),
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
