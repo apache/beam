@@ -50,16 +50,17 @@ import org.openjdk.jmh.runner.options.CommandLineOptions;
  *
  * <h3>Schema</h3>
  *
- * <p>The wrapper writes an aggregated InfluxDB datapoint for each benchmark to a <b>single
- * measurement</b> according to environment variable {@code INFLUXDB_MEASUREMENT}. The
- * <b>timestamp</b> of the datapoint corresponds to the start time of the respective benchmark.
+ * <p>The wrapper writes an aggregated InfluxDB datapoint for each benchmark to <b> measurement</b>
+ * {@code {INFLUXDB_BASE_MEASUREMENT}_{mode}}. Typically this is {@code java_jmh_thrpt}.
+ *
+ * <p>The <b>timestamp</b> of the datapoint corresponds to the start time of the respective
+ * benchmark.
  *
  * <p>Individual timeseries are discriminated using the following <b>tags</b> including tags
  * corresponding to additional benchmark parameters in case of parameterized benchmarks:
  *
  * <ul>
  *   <li>{@code benchmark} (string) : Fully qualified name of the benchmark
- *   <li>{@code mode} (string): JMH benchmark mode
  *   <li>{@code scoreUnit} (string): JMH score unit
  *   <li>optionally, additional parameters in case of a parameterized benchmark (string)
  * </ul>
@@ -71,7 +72,8 @@ import org.openjdk.jmh.runner.options.CommandLineOptions;
  *   <li>{@code scoreMean} (float): Mean score of all iterations
  *   <li>{@code scoreMedian} (float): Median score of all iterations
  *   <li>{@code scoreError} (float): Mean error of the score
- *   <li>{@code durationMs} (integer): Total duration (including warmups)
+ *   <li>{@code sampleCount} (integer): Number of score samples
+ *   <li>{@code durationMs} (integer): Total benchmark duration (including warmups)
  * </ul>
  *
  * <h3>Configuration</h3>
@@ -85,13 +87,13 @@ import org.openjdk.jmh.runner.options.CommandLineOptions;
  * <ul>
  *   <li>{@link #INFLUXDB_HOST}
  *   <li>{@link #INFLUXDB_DATABASE}
- *   <li>{@link #INFLUXDB_MEASUREMENT}
+ *   <li>{@link #INFLUXDB_BASE_MEASUREMENT}
  * </ul>
  */
 public class Main {
   private static final String INFLUXDB_HOST = "INFLUXDB_HOST";
   private static final String INFLUXDB_DATABASE = "INFLUXDB_DATABASE";
-  private static final String INFLUXDB_MEASUREMENT = "INFLUXDB_MEASUREMENT";
+  private static final String INFLUXDB_BASE_MEASUREMENT = "INFLUXDB_BASE_MEASUREMENT";
 
   public static void main(String[] args)
       throws CommandLineOptionException, IOException, RunnerException {
@@ -126,7 +128,7 @@ public class Main {
     return !modes.isEmpty() && modes.stream().allMatch(SingleShotTime::equals);
   }
 
-  private static DataPoint dataPoint(String measurement, RunResult run) {
+  private static DataPoint dataPoint(String baseMeasurement, RunResult run) {
     final BenchmarkParams params = run.getParams();
     final Result<?> result = run.getPrimaryResult();
 
@@ -135,10 +137,13 @@ public class Main {
     final long stopTimeMs =
         metaDataStream(run).mapToLong(BenchmarkResultMetaData::getStopTime).max().getAsLong();
 
+    final String measurement =
+        String.format("%s_%s", baseMeasurement, params.getMode().shortLabel());
+
     final Map<String, String> tags = new HashMap<>();
     tags.put("benchmark", params.getBenchmark());
-    tags.put("mode", params.getMode().shortLabel());
     tags.put("scoreUnit", result.getScoreUnit());
+    // add params of parameterized benchmarks as tags
     tags.putAll(params.getParamsKeys().stream().collect(toMap(identity(), params::getParam)));
 
     final Map<String, Number> fields = new HashMap<>();
@@ -148,6 +153,7 @@ public class Main {
     if (!Double.isNaN(result.getScoreError())) {
       fields.put("scoreError", result.getScoreError());
     }
+    fields.put("sampleCount", result.getSampleCount());
     fields.put("durationMs", stopTimeMs - startTimeMs);
 
     return InfluxDBPublisher.dataPoint(
@@ -164,7 +170,7 @@ public class Main {
   private static @Nullable InfluxDBSettings influxDBSettings() {
     String host = System.getenv(INFLUXDB_HOST);
     String database = System.getenv(INFLUXDB_DATABASE);
-    String measurement = System.getenv(INFLUXDB_MEASUREMENT);
+    String measurement = System.getenv(INFLUXDB_BASE_MEASUREMENT);
     if (measurement == null || database == null) {
       return null;
     }

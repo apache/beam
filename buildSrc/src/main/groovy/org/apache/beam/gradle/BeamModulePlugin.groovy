@@ -1416,10 +1416,7 @@ class BeamModulePlugin implements Plugin<Project> {
           mainClass = "org.apache.beam.sdk.testutils.jmh.Main"
           classpath = project.sourceSets.main.runtimeClasspath
 
-          environment([
-            // Prefix all JMH measurement names for InfluxDB with `java_jmh_` and append the gradle module path excluding redudant components
-            'INFLUXDB_MEASUREMENT': 'java_jmh_' + (getPath().split(':') - ['', 'sdks', 'java', 'jmh']).join('_')
-          ])
+          environment 'INFLUXDB_BASE_MEASUREMENT', 'java_jmh'
 
           // For a list of arguments, see
           // https://github.com/guozheng/jmh-tutorial/blob/master/README.md
