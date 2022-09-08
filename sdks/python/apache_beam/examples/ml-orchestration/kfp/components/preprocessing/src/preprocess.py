@@ -21,7 +21,7 @@ LOCATION = "<project-location>"
 STAGING_DIR = "<uri-to-data-flow-staging-dir>"
 BEAM_RUNNER = "<beam-runner>"
 
-
+# [START preprocess_component_argparse]
 def parse_args():
   """Parse preprocessing arguments."""
   parser = argparse.ArgumentParser()
@@ -35,6 +35,7 @@ def parse_args():
     "--base-artifact-path", type=str,
     help="Base path to store pipeline artifacts.")
   return parser.parse_args()
+# [END preprocess_component_argparse]
 
 
 def preprocess_dataset(
@@ -49,6 +50,7 @@ def preprocess_dataset(
     base_artifact_path (str): path to the base directory of where artifacts can be stored for
       this component.
   """
+  # [START kfp_component_input_output]
   timestamp = time.time()
   target_path = f"{base_artifact_path}/preprocessing/preprocessed_dataset_{timestamp}"
 
@@ -57,7 +59,10 @@ def preprocess_dataset(
   Path(preprocessed_dataset_path).parent.mkdir(parents=True, exist_ok=True)
   with open(preprocessed_dataset_path, 'w') as f:
     f.write(target_path)
+  # [END kfp_component_input_output]
 
+
+  # [START deploy_preprocessing_beam_pipeline]
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(
@@ -92,6 +97,7 @@ def preprocess_dataset(
                                           ]},
                                   file_name_suffix=".avro")
     )
+  # [END deploy_preprocessing_beam_pipeline]
 
 
 class DownloadImageFromURL(beam.DoFn):

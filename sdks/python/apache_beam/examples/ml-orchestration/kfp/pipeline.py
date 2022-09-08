@@ -2,7 +2,11 @@ from kfp import components as comp
 from kfp.v2 import dsl
 from kfp.v2.compiler import Compiler
 
+PIPELINE_ROOT = "<pipeline-root-path>"
+BASE_ARTIFACT_PATH = "<base-path-to-store-pipeline-artifacts"
 
+
+# [START load_kfp_components]
 # load the kfp components from their yaml files
 DataIngestOp = comp.load_component(
   'components/ingestion/component.yaml'
@@ -14,10 +18,10 @@ DataPreprocessingOp = comp.load_component(
 TrainModelOp = comp.load_component(
   'components/train/component.yaml'
 )
+# [END load_kfp_components]
 
-PIPELINE_ROOT = "<pipeline-root-path>"
-BASE_ARTIFACT_PATH = "<base-path-to-store-pipeline-artifacts"
 
+# [START define_kfp_pipeline]
 @dsl.pipeline(
   pipeline_root=PIPELINE_ROOT,
   name="beam-preprocessing-kfp-example",
@@ -37,9 +41,14 @@ def pipeline(base_artifact_path: str = BASE_ARTIFACT_PATH):
     preprocessed_dataset_path=data_preprocessing_task.outputs["preprocessed_dataset_path"],
     base_artifact_path=base_artifact_path
   )
+# [END define_kfp_pipeline]
+
 
 if __name__ == "__main__":
+  # [START compile_kfp_pipeline]
   Compiler().compile(
     pipeline_func=pipeline,
     package_path="pipeline.json"
   )
+  # [END compile_kfp_pipeline]
+

@@ -24,7 +24,7 @@ BEAM_PIPELINE_ARGS_BY_RUNNER = {
   ]
 }
 
-
+# [START tfx_pipeline]
 def create_pipeline():
   example_gen = tfx.components.CsvExampleGen(
       input_base=INPUT_DATA_PATH
@@ -66,9 +66,12 @@ def create_pipeline():
     .sqlite_metadata_connection_config(METADATA_FILE),
     beam_pipeline_args=BEAM_PIPELINE_ARGS_BY_RUNNER[BEAM_RUNNER]
   )
+# [END tfx_pipeline]
 
 
 if __name__ == "__main__":
+  # [START tfx_execute_pipeline]
   tfx.orchestration.LocalDagRunner().run(
     create_pipeline()
   )
+  # [END tfx_execute_pipeline]

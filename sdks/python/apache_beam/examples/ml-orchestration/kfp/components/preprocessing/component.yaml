@@ -1,3 +1,4 @@
+# [START preprocessing_component_definition]
 name: preprocessing
 description: Component that mimicks scraping data from the web and outputs it to a jsonlines format file
 inputs:
@@ -24,3 +25,4 @@ implementation:
       --preprocessed-dataset-path,
       {outputPath: preprocessed_dataset_path}
     ]
+# [END preprocessing_component_definition]

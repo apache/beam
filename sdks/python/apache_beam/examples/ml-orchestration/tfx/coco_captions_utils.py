@@ -6,7 +6,7 @@ import tensorflow_transform as tft
 import tensorflow_transform.beam as tft_beam
 from tfx import v1 as tfx
 
-
+# [START tfx_run_fn]
 def run_fn(fn_args: tfx.components.FnArgs) -> None:
   """Build the TF model, train it and export it."""
   # create a model
@@ -19,8 +19,10 @@ def run_fn(fn_args: tfx.components.FnArgs) -> None:
 
   # Save model to fn_args.serving_model_dir.
   model.save(fn_args.serving_model_dir)
+# [END tfx_run_fn]
 
 
+# [START tfx_preprocessing_fn]
 def preprocessing_fn(inputs):
   """Transform raw data."""
   # convert the captions to lowercase
@@ -35,8 +37,9 @@ def preprocessing_fn(inputs):
   return {
     'caption_lower': lower,
   }
+# [END tfx_preprocessing_fn]
 
-
+# [START tfx_analyze_and_transform]
 if __name__ == "__main__":
   # Test processing_fn directly without the tfx pipeline
   raw_data = [{"caption": "A bicycle replica with a clock as the front wheel."},
@@ -54,3 +57,4 @@ if __name__ == "__main__":
       (raw_data, raw_data_metadata)
       | tft_beam.AnalyzeAndTransformDataset(preprocessing_fn))
   transformed_data, transformed_metadata = transformed_dataset
+# [END tfx_analyze_and_transform]
