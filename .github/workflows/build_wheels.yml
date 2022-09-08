@@ -31,6 +31,11 @@ on:
     paths: ['sdks/python/**', 'model/**', 'release/**']
   workflow_dispatch:
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
 env:
   GCP_PATH: "gs://${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
 
