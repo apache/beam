@@ -17,22 +17,41 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
+# Runs PostCommit Java Examples Flink via cron and on push to master
+
 name: PostCommit Java Examples Flink
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
+  push:
+    branches: [ 'master' ]
 
 jobs:
+  set-properties:
+    runs-on: self-hosted
+    outputs:
+      properties: ${{ steps.test-properties.outputs.properties }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - id: test-properties
+        uses: ./.github/actions/setup-default-test-properties
+
   postcommit-java-examples-flink:
+    needs: set-properties
     name: Run PostCommit Java Examples Flink
     runs-on: self-hosted
     strategy:
       fail-fast: true
-      matrix:
-        java: [ '8', '11' ]
-        flink: ['1.13', '1.14', '1.15']
+      matrix: #JDK17 execution will fail due to new access policies applied to the core JDK libraries starting at JDK 16.
+        java: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SUPPORTED_VERSIONS}}
+        flink: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.FLINK_VERSIONS}}
+        exclude: #TODO: Remove exclude and retest once issue https://github.com/apache/beam/issues/23066 gets resolved.
+          - java: "17"
     steps:
       - name: Checkout code
         uses: actions/checkout@v2

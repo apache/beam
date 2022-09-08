@@ -17,25 +17,43 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
+# Runs PostCommit Java Examples Spark via cron and on push to master
+
 name: PostCommit Java Examples Spark
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
+  push:
+    branches: [ 'master' ]
 
 jobs:
+  set-properties:
+    runs-on: self-hosted
+    outputs:
+      properties: ${{ steps.test-properties.outputs.properties }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - id: test-properties
+        uses: ./.github/actions/setup-default-test-properties
+
   postcommit-java-examples-spark:
+    needs: set-properties
     name: Run PostCommit Java Examples Spark
     runs-on: self-hosted
     strategy:
       fail-fast: true
-      matrix:
-        java: [ '8', '11' ]
-        spark: ['2', '3' ]
+      matrix: #JDK17 execution will fail due to new access policies applied to the core JDK libraries starting at JDK 16.
+        java: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SUPPORTED_VERSIONS}}
+        spark: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SPARK_VERSIONS}}
         exclude:
-          - java: 11
-            spark: 2
+          - java: "11"
+            spark: "2"
+          - java: "17" #TODO: Remove exclude and retest once issue https://github.com/apache/beam/issues/23066 gets resolved.
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
