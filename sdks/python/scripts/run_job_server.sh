@@ -114,7 +114,8 @@ case $STARTSTOP in
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 \
-          --job-non-logged-store-base-dir "$CURRENT_DIRECTORY" &
+          --job-non-logged-store-base-dir "$CURRENT_DIRECTORY" \
+          >$TEMP_DIR/$FILE_BASE.log 2>&1 </dev/null &
     else
       java \
           -jar $JOB_SERVER_JAR \
