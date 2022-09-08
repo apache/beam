@@ -36,7 +36,7 @@ def test_find_examples_with_valid_tag(mock_os_walk, mock_check_file):
     mock_os_walk.return_value = [("/root", (), ("file.java",))]
     mock_check_file.return_value = False
     sdk = SDK_UNSPECIFIED
-    result = find_examples(work_dir="", supported_categories=[], sdk=sdk)
+    result = find_examples(dirs=[""], supported_categories=[], sdk=sdk)
 
     assert not result
     mock_os_walk.assert_called_once_with("")
@@ -58,7 +58,7 @@ def test_find_examples_with_invalid_tag(mock_os_walk, mock_check_file):
           ValueError,
           match="Some of the beam examples contain beam playground tag with "
                 "an incorrect format"):
-        find_examples("", [], sdk=sdk)
+        find_examples([""], [], sdk=sdk)
 
     mock_os_walk.assert_called_once_with("")
     mock_check_file.assert_called_once_with(

@@ -71,8 +71,8 @@ def _cd_step(examples: List[Example], sdk: Sdk, origin: Origin):
     """
     CD step to save all beam examples/tests/katas and their outputs on the GCD
     """
-    cd_helper = CDHelper(examples, sdk, origin)
-    cd_helper.save_examples()
+    cd_helper = CDHelper(sdk, origin)
+    cd_helper.save_examples(examples)
 
 
 def _check_envs():
@@ -82,7 +82,7 @@ def _check_envs():
         )
 
 
-def _run_ci_cd(step: Config.CI_CD_LITERAL, sdk: Sdk, origin: Origin, dirs: list(str)):
+def _run_ci_cd(step: Config.CI_CD_LITERAL, sdk: Sdk, origin: Origin, dirs: List[str]):
     supported_categories = get_supported_categories(categories_file)
     logging.info("Start of searching Playground examples ...")
     examples = find_examples(dirs, supported_categories, sdk)

@@ -33,7 +33,7 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
     STATUS_COMPILING, STATUS_EXECUTING, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, \
     PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, \
     PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
-from config import Config, TagFields, PrecompiledExampleType, OptionalTagFields
+from config import Config, Origin, TagFields, PrecompiledExampleType, OptionalTagFields
 from grpc_client import GRPCClient
 
 Tag = namedtuple(
@@ -81,7 +81,7 @@ class ExampleTag:
     tag_as_string: str
 
 
-def find_examples(dirs: list(str), supported_categories: List[str],
+def find_examples(dirs: List[str], supported_categories: List[str],
                   sdk: Sdk) -> List[Example]:
     """
     Find and return beam examples.
