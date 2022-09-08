@@ -105,7 +105,7 @@ class DatastoreProps:
     SNIPPET_KIND = "pg_snippets"
     SCHEMA_KIND = "pg_schema_versions"
     PRECOMPILED_OBJECT_KIND = "pg_pc_objects"
-    FILED_KIND = "pg_files"
+    FILES_KIND = "pg_files"
     SDK_KIND = "pg_sdks"
 
 class Origin(str, Enum):

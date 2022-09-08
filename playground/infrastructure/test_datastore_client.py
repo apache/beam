@@ -19,6 +19,7 @@ from unittest.mock import MagicMock, ANY
 import mock
 import pytest
 from mock.mock import call
+from config import Origin
 
 from datastore_client import DatastoreClient, DatastoreException
 from api.v1.api_pb2 import SDK_JAVA
@@ -41,7 +42,7 @@ class TestDatastoreClient(unittest.TestCase):
         with pytest.raises(DatastoreException, match="Schema versions not found. Schema versions must be downloaded during application startup"):
             examples = _get_examples(1)
             client = DatastoreClient()
-            client.save_to_cloud_datastore(examples, SDK_JAVA)
+            client.save_to_cloud_datastore(examples, SDK_JAVA, Origin.PG_EXAMLPES)
 
     def test_save_to_cloud_datastore_when_google_cloud_project_id_not_set(self):
         """
@@ -66,15 +67,15 @@ class TestDatastoreClient(unittest.TestCase):
 
         examples = _get_examples(1)
         client = DatastoreClient()
-        client.save_to_cloud_datastore(examples, SDK_JAVA)
+        client.save_to_cloud_datastore(examples, SDK_JAVA, Origin.PG_EXAMLPES)
         mock_client.assert_called_once()
         mock_get_schema.assert_called_once()
         mock_get_examples.assert_called_once()
         calls = [call().key('pg_sdks', 'SDK_JAVA'),
-                 call().key('pg_examples', 'SDK_JAVA_MOCK_NAME_0'),
-                 call().key('pg_snippets', 'SDK_JAVA_MOCK_NAME_0'),
-                 call().key('pg_pc_objects', 'SDK_JAVA_MOCK_NAME_0_OUTPUT'),
-                 call().key('pg_files', 'SDK_JAVA_MOCK_NAME_0_0'),
+                 call().key('pg_examples', 'PG_EXAMPLES_SDK_JAVA_MOCK_NAME_0'),
+                 call().key('pg_snippets', 'PG_EXAMPLES_SDK_JAVA_MOCK_NAME_0'),
+                 call().key('pg_pc_objects', 'PG_EXAMPLES_SDK_JAVA_MOCK_NAME_0_OUTPUT'),
+                 call().key('pg_files', 'PG_EXAMPLES_SDK_JAVA_MOCK_NAME_0_0'),
                  call().put_multi(ANY),
                  call().put_multi(ANY),
                  call().put_multi(ANY),
