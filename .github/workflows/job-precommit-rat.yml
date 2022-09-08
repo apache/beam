@@ -17,6 +17,8 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
+# Runs RAT scheduled on cron, on push to master and on pull request
+
 name: PreCommit RAT
 
 on:
