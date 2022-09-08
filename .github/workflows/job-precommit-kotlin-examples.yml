@@ -24,10 +24,10 @@ on:
   schedule:
     - cron: '0 */6 * * *'
   push:
-    branches: ['main', 'release-*']
+    branches: ['master', 'release-*']
     tags: 'v*'
   pull_request:
-    branches: ['main', 'release-*']
+    branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['model/**',
             'sdks/java/**',
