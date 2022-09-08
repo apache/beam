@@ -17,16 +17,14 @@
  */
 
 import CommonJobProperties as common
+import CommonTestProperties
 import Kubernetes
 import InfluxDBCredentialsHelper
 import LoadTestsBuilder
 
+def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
+
 String jobName = "beam_PerformanceTests_Debezium"
-
-String kubernetesYmlPath = "src/.test-infra/kubernetes/postgres/postgres-service-for-debezium.yml"
-
-
-String task = ":sdks:python:apache_beam:testing:load_tests:run -PloadTest.mainClass=apache_beam.testing.load_tests.debezium_performance_test -Prunner=DirectRunner"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
@@ -42,24 +40,30 @@ job(jobName) {
   String postgresHostName = "LOAD_BALANCER_IP"
 
   Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
-  k8s.apply(common.makePathAbsolute(kubernetesYmlPath))
-  k8s.loadBalancerIP("postgres-for-dev", postgresHostName)
+  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/postgres/postgres-service-for-debezium.yml"))
+  k8s.loadBalancerIP("postgres-for-debezium", postgresHostName)
 
-  Map pipelineOptions = [
+  def testConfig = [
+    runner: CommonTestProperties.Runner.DATAFLOW,
     kubernetes_host : "\$LOAD_BALANCER_IP",
     kubernetes_port : "5432",
     postgres_user: 'postgres',
     postgres_password: 'uuinkks',
     input_options  : '\'{' +
-    '"num_records": 20000000 }\''
+    '"num_records": 20000000 }\'',
+    project: 'apache-beam-testing',
+    job_name: 'debezium-performance-test-20min' + now,
+    temp_location: 'gs://temp-storage-for-perf-tests/loadtests',
+    region: 'us-west1'
   ]
-
 
   steps {
     gradle {
       rootBuildScriptDir(common.checkoutDir)
-      switches("-PloadTest.args=\"${LoadTestsBuilder.parseOptions(pipelineOptions)}\"")
-      tasks(task)
+      switches("-Prunner=${testConfig.runner.getDependencyBySDK(CommonTestProperties.SDK.PYTHON)}")
+      switches("-PloadTest.mainClass=apache_beam.testing.load_tests.debezium_performance_test")
+      switches("-PloadTest.args=\"${LoadTestsBuilder.parseOptions(testConfig)}\"")
+      tasks(":sdks:python:apache_beam:testing:load_tests:run")
     }
   }
 }

@@ -41,15 +41,20 @@ from concurrent.futures import ThreadPoolExecutor
 
 import psycopg2
 
+from apache_beam import Pipeline
 from apache_beam.io.debezium import DriverClassName
 from apache_beam.io.debezium import ReadFromDebezium
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.load_tests.load_test import LoadTest
+
+SECONDS_IN_MINUTE = 60
+NUMBER_OF_OPERATIONS = SECONDS_IN_MINUTE * 20
 
 
 class DebeziumLoadTest(LoadTest):
   def __init__(self):
     super().__init__()
-    # self.runner = self.pipeline.get_option('runner')
+    self.runner = self.pipeline.get_option('runner')
     self.kubernetes_host = self.pipeline.get_option('kubernetes_host')
     self.kubernetes_port = self.pipeline.get_option('kubernetes_port')
     self.postgres_user = self.pipeline.get_option('postgres_user')
@@ -69,6 +74,12 @@ class DebeziumLoadTest(LoadTest):
         "include.schema.changes=false",
         "plugin.name=pgoutput"
     ]
+    self.pipeline_options = {
+        'project': self.pipeline.get_option('project'),
+        'job_name': self.pipeline.get_option('job_name'),
+        'temp_location': self.pipeline.get_option('temp_location'),
+        'region': self.pipeline.get_option('region')
+    }
 
   def initConnection(self):
     connection = psycopg2.connect(
@@ -94,68 +105,71 @@ class DebeziumLoadTest(LoadTest):
     cursor.execute(createTable)
     alterTableReplica = "ALTER TABLE postgres REPLICA IDENTITY FULL;"
     cursor.execute(alterTableReplica)
-    startTime = time.time()
-    testDuration = 60 * 22
-    timeFlag = True
 
-    logging.debug('INSERTING RANDOMLY')
-    while timeFlag:
+    operations_number = NUMBER_OF_OPERATIONS
+    # 60% inserts, 30% updates, 10% deletes
+    operations_distribution = [('insert', 0.6), ('update', 0.3),
+                               ('delete', 0.1)]
 
-      action = random.randint(1, 10)
-      if action == 1:  # Delete
-        deleteQuery = """DELETE FROM postgres
-                                    WHERE id IN (
-                                    SELECT id FROM
-                                    postgres WHERE word='apacheBeam' LIMIT 1
-                                    )"""
-        cursor.execute(deleteQuery)
-      elif action == 2:  # Update
-        updateQuery = """UPDATE postgres
-                                    SET word = 'apache'
-                                    WHERE id IN (SELECT max(id) from postgres
-                                    )"""
+    logging.debug('INSERTING INTO POSTGRES')
+    for operation, dist in operations_distribution:
+      n = int(operations_number * dist)
+      for _ in range(n):
+        if operation == 'insert':
+          number = random.randint(1, 1000)
+          boolean = bool(random.getrandbits(1))
+          insertQuery = """INSERT INTO postgres(id,word,number,date,bool)
+                                      VALUES(%s,%s,%s,%s,%s);"""
+          cursor.execute(
+              insertQuery,
+              (
+                  str(insert),
+                  "apacheBeam",
+                  str(number),
+                  "05/03/1999",
+                  str(boolean)))
+          insert += 1
 
-        cursor.execute(updateQuery)
-      else:  # Insert all the other numbers
-        number = random.randint(1, 1000)
-        boolean = bool(random.getrandbits(1))
-        insertQuery = """INSERT INTO postgres(id,word,number,date,bool)
-                                    VALUES(%s,%s,%s,%s,%s);"""
-        cursor.execute(
-            insertQuery, (
-                str(insert),
-                "apacheBeam",
-                str(number),
-                "05/03/1999",
-                str(boolean)))
-        insert += 1
+        if operation == 'update':
+          updateQuery = """UPDATE postgres
+                                  SET word = 'apache'
+                                  WHERE id IN (SELECT max(id) from postgres
+                                  )"""
+          cursor.execute(updateQuery)
 
-      currentTime = time.time()
-      elapsedTime = currentTime - startTime
-      time.sleep(1)
-      if elapsedTime > testDuration:
-        timeFlag = False
+        if operation == 'delete':
+          deleteQuery = """DELETE FROM postgres
+                                   WHERE id IN (
+                                   SELECT id FROM
+                                   postgres WHERE word='apacheBeam' LIMIT 1
+                                   )"""
+          cursor.execute(deleteQuery)
+
+        time.sleep(1)
 
     connection.commit()
     cursor.close()
+
     logging.debug("FINISHED INSERTING")
 
   def createPipeline(self):
     #if the max_number_of_records is not defined the pipeline doesn't finish
-    # TODO: Change runner to Dataflow
+    options = PipelineOptions.from_dictionary(self.pipeline_options)
+    self.pipeline = Pipeline(options=options)
     self.pipeline.not_use_test_runner_api = True
-    result = (
+
+    _ = (
         self.pipeline | 'Read from debezium' >> ReadFromDebezium(
             username=self.username,
             password=self.password,
             host=self.host,
             port=self.port,
-            max_number_of_records=60 * 20,
+            max_number_of_records=NUMBER_OF_OPERATIONS,
             connector_class=self.connector_class,
             connection_properties=self.connection_properties))
 
     logging.debug('RUNNING PIPELINE')
-    result.run().wait_until_finish(duration=5 * 1000)
+    self.pipeline.run().wait_until_finish()
 
     logging.debug("EXIT FROM PIPELINE")
 
