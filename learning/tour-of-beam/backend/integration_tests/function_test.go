@@ -55,7 +55,7 @@ func loadJson(path string, dst interface{}) error {
 func TestSdkList(t *testing.T) {
 	port := os.Getenv(PORT_SDK_LIST)
 	if port == "" {
-		log.Fatal(PORT_SDK_LIST, "env not set")
+		t.Fatal(PORT_SDK_LIST, "env not set")
 	}
 	url := "http://localhost:" + port
 	exp := sdkListResponse{
