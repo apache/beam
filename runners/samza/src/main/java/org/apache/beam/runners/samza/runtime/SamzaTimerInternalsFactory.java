@@ -25,7 +25,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -314,8 +313,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
            * <p>In case that the Buffer is full, we remove the largest timer from memory according
            * to {@link KeyedTimerData.compareTo()}
            */
-          if ((maxEventTimerBufferSize > eventTimeBuffer.size() && !eventsTimersInState) ||
-              newTimestamp < eventTimeBuffer.last().getTimerData().getTimestamp().getMillis()) {
+          if ((maxEventTimerBufferSize > eventTimeBuffer.size() && !eventsTimersInState)
+              || newTimestamp < eventTimeBuffer.last().getTimerData().getTimestamp().getMillis()) {
             eventTimeBuffer.add(keyedTimerData);
             if (eventTimeBuffer.size() > maxEventTimerBufferSize) {
               eventTimeBuffer.pollLast();
@@ -329,8 +328,9 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
           // The timer is added to the buffer if the new timestamp will be triggered earlier than
           // the oldest time in the current buffer.
           // Any timers removed from the buffer will also be deleted from the scheduler.
-          if ((maxProcessTimerBufferSize > processTimeBuffer.size() && !processTimersInState) ||
-              newTimestamp < processTimeBuffer.last().getTimerData().getTimestamp().getMillis()) {
+          if ((maxProcessTimerBufferSize > processTimeBuffer.size() && !processTimersInState)
+              || newTimestamp
+                  < processTimeBuffer.last().getTimerData().getTimestamp().getMillis()) {
             processTimeBuffer.add(keyedTimerData);
             timerRegistry.schedule(keyedTimerData, newTimestamp);
             if (processTimeBuffer.size() > maxProcessTimerBufferSize) {

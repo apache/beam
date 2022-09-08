@@ -69,8 +69,8 @@ import org.rocksdb.WriteOptions;
  * timers.
  */
 @SuppressWarnings({
-    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SamzaTimerInternalsFactoryTest {
   @Rule public transient TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -139,7 +139,6 @@ public class SamzaTimerInternalsFactoryTest {
     public void delete(KeyedTimerData<String> key) {
       timers.remove(key);
     }
-
   }
 
   @Test
@@ -590,12 +589,13 @@ public class SamzaTimerInternalsFactoryTest {
     // total number of event time timers to fire equals to the number of timers in store
     // Simulate events firing the scheduler
 
-    TreeSet<KeyedTimerData<String>> stringKeyedTimerDataSet = new TreeSet<>(timerInternalsFactory.getProcessTimeBuffer());
+    TreeSet<KeyedTimerData<String>> stringKeyedTimerDataSet =
+        new TreeSet<>(timerInternalsFactory.getProcessTimeBuffer());
     for (KeyedTimerData<String> stringKeyedTimerData : stringKeyedTimerDataSet) {
       timerInternalsFactory.removeProcessingTimer(stringKeyedTimerData);
     }
     // buffer should reload from store and all timers are supposed to be fired.
-    assertEquals(bufferSize*2, testTimerRegistry.scheduleCount);
+    assertEquals(bufferSize * 2, testTimerRegistry.scheduleCount);
     assertEquals(bufferSize, timerInternalsFactory.getProcessTimeBuffer().size());
 
     // Simulate firing one more timer
@@ -605,7 +605,7 @@ public class SamzaTimerInternalsFactoryTest {
       break;
     }
     // buffer should not reload from store until all timers are supposed to be fired.
-    assertEquals(bufferSize*2, testTimerRegistry.scheduleCount);
+    assertEquals(bufferSize * 2, testTimerRegistry.scheduleCount);
     assertEquals(1, timerInternalsFactory.getProcessTimeBuffer().size());
 
     // Simulate firing last more timer
