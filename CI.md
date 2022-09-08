@@ -125,6 +125,24 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PostCommit Workflows
+
+#### Java Nexmark Direct - [job-postcommit-java-nexmark-direct.yml](.github/workflows/job-postcommit-java-nexmark-direct.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java Nexmark direct | Runs Java Nexmark direct | No              | Yes                   | Yes           | No                       |
+#### Java Nexmark Flink - [job-postcommit-java-nexmark-flink.yml](.github/workflows/job-postcommit-java-nexmark-flink.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java Nexmark flink | Runs Java Nexmark flink| No              | Yes                   | Yes           | No                       |
+#### Java Nexmark Spark - [job-postcommit-java-nexmark-spark.yml](.github/workflows/job-postcommit-java-nexmark-spark.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java Nexmark Spark | Runs Java Nexmark Spark| No              | Yes                   | Yes           | No                       |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
