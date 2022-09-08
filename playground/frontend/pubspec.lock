@@ -200,7 +200,7 @@ packages:
     source: hosted
     version: "0.0.3"
   fake_async:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: fake_async
       url: "https://pub.dartlang.org"
@@ -443,6 +443,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.0.0"
+  onmessage:
+    dependency: "direct main"
+    description:
+      name: onmessage
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.2.0"
   package_config:
     dependency: transitive
     description:

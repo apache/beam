@@ -40,4 +40,8 @@ class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
     return other is UserSharedExampleLoadingDescriptor &&
         snippetId == other.snippetId;
   }
+
+  // Only ContentExampleLoadingDescriptor is serialized now.
+  @override
+  Map<String, dynamic> toJson() => throw UnimplementedError();
 }

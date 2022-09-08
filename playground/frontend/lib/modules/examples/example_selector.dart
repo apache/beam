@@ -18,7 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/components/horizonta_divider/horizontal_divider.dart';
+import 'package:playground/components/horizontal_divider/horizontal_divider.dart';
 import 'package:playground/components/loading_indicator/loading_indicator.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/links.dart';

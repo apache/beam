@@ -203,3 +203,59 @@ func constructArtifactInformation(t *testing.T, roleUrn string, path string, sha
 		TypePayload: typePayload,
 	}
 }
+
+func TestConfigureGoogleCloudProfilerEnvVars(t *testing.T) {
+	tests := []struct {
+		name          string
+		inputMetadata map[string]string
+		expectedName  string
+		expectedID    string
+		expectedError string
+	}{
+		{
+			"nil metadata",
+			nil,
+			"",
+			"",
+			"enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled",
+		},
+		{
+			"missing name",
+			map[string]string{"job_id": "12345"},
+			"",
+			"",
+			"required job_name missing from metadata, profiling will not be enabled without it",
+		},
+		{
+			"missing id",
+			map[string]string{"job_name": "my_job"},
+			"",
+			"",
+			"required job_id missing from metadata, profiling will not be enabled without it",
+		},
+		{
+			"correct",
+			map[string]string{"job_name": "my_job", "job_id": "42"},
+			"my_job",
+			"42",
+			"",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Cleanup(os.Clearenv)
+			err := configureGoogleCloudProfilerEnvVars(test.inputMetadata)
+			if err != nil {
+				if got, want := err.Error(), test.expectedError; got != want {
+					t.Errorf("got error %v, want error %v", got, want)
+				}
+			}
+			if got, want := os.Getenv(cloudProfilingJobName), test.expectedName; got != want {
+				t.Errorf("got job name %v, want %v", got, want)
+			}
+			if got, want := os.Getenv(cloudProfilingJobID), test.expectedID; got != want {
+				t.Errorf("got job id %v, want %v", got, want)
+			}
+		})
+	}
+}
