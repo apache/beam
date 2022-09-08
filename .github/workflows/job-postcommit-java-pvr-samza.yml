@@ -17,9 +17,9 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-# Runs PostCommit Java PVR Spark Batch via cron and on push to master
+# Runs PostCommit Java PVR Samza via cron and on push to master
 
-name: PostCommit Java PVR Spark Batch
+name: PostCommit Java PVR Samza
 
 on:
   schedule:
@@ -41,17 +41,15 @@ jobs:
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
-  postcommit-java-pvr-spark-batch:
+  postcommit-java-pvr-samza:
     needs: set-properties
-    name: Run PostCommit Java PVR Spark Batch
+    name: Run PostCommit Java PVR Samza
     runs-on: self-hosted
     strategy:
       fail-fast: true
       matrix:
         java: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SUPPORTED_VERSIONS}}
-        spark: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SPARK_VERSIONS}}
         exclude:
-          - java: "11"
           - java: "17"
     steps:
       - name: Checkout code
@@ -66,11 +64,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
-      - name: Run :runners:spark:${{ matrix.spark }}:job-server:validatesPortableRunnerBatch in Java-${{ matrix.java }}
+      - name: Run :runners:samza:job-server:validatesPortableRunner in Java-${{ matrix.java }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:spark:${{ matrix.spark }}:job-server:validatesPortableRunnerBatch
-      - name: Run :runners:spark:${{ matrix.spark }}:job-server:validatesPortableRunnerDocker in Java-${{ matrix.java }}
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :runners:spark:${{ matrix.spark }}:job-server:validatesPortableRunnerDocker
+          gradle-command: :runners:samza:job-server:validatesPortableRunner

@@ -17,9 +17,9 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-# Runs PostCommit Java PVR Spark Batch via cron and on push to master
+# Runs PostCommit Java PVR Spark Streaming via cron and on push to master
 
-name: PostCommit Java PVR Spark Batch
+name: PostCommit Java PVR Spark Streaming
 
 on:
   schedule:
@@ -41,9 +41,9 @@ jobs:
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
-  postcommit-java-pvr-spark-batch:
+  postcommit-java-pvr-spark-streaming:
     needs: set-properties
-    name: Run PostCommit Java PVR Spark Batch
+    name: Run PostCommit Java PVR Spark Streaming
     runs-on: self-hosted
     strategy:
       fail-fast: true
@@ -66,11 +66,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
-      - name: Run :runners:spark:${{ matrix.spark }}:job-server:validatesPortableRunnerBatch in Java-${{ matrix.java }}
+      - name: Run :runners:spark:${{ matrix.spark }}:job-server:validatesPortableRunnerStreaming in Java-${{ matrix.java }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:spark:${{ matrix.spark }}:job-server:validatesPortableRunnerBatch
-      - name: Run :runners:spark:${{ matrix.spark }}:job-server:validatesPortableRunnerDocker in Java-${{ matrix.java }}
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :runners:spark:${{ matrix.spark }}:job-server:validatesPortableRunnerDocker
+          gradle-command: :runners:spark:${{ matrix.spark }}:job-server:validatesPortableRunnerStreaming
