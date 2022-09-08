@@ -21,15 +21,15 @@ Each data source adapter has a Read transform; to read, you must apply that tran
 
 ```
 public static void main(String[] args) {
-    // First create the pipeline 
+    // First create the pipeline
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
     Pipeline pipeline = Pipeline.create(options);
-    
+
     // Now create the PCollection by reading text files. Separate elements will be added for each line in the input file 
     PCollection<String> lines =
         pipeline.apply(“King Lear”,TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt")
 );
- 
+
 }
 ```
 
