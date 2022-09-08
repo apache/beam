@@ -125,6 +125,26 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PreCommit Workflows
+
+#### Java PreCommit AWS v2 IO Direct- [job-precommit-java-aws2-io-direct.yml](.github/workflows/job-precommit-java-aws2-io-direct.yml)
+
+| Job                                  | Description                      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|--------------------------------------|----------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java PreCommit AWS v2 IO Direct  | Runs PreCommit AWS v2 IO Direct  | Yes              | Yes                   | Yes           | No                       |
+
+#### Java PreCommit AWS IO Direct- [job-precommit-java-aws-io-direct.yml](.github/workflows/job-precommit-java-aws-io-direct.yml)
+
+| Job                               | Description                        | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------------------------|------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java PreCommit AWS IO Direct  | Runs Java PreCommit AWS IO Direct  | Yes              | Yes                   | Yes           | No                       |
+
+#### Java PreCommit GCP IO Direct- [job-precommit-java-gcp-io-direct.yml](.github/workflows/job-precommit-java-gcp-io-direct.yml)
+
+| Job                               | Description                        | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------------------------|------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java PreCommit GCP IO Direct  | Runs Java PreCommit GCP IO Direct  | Yes              | Yes                   | Yes           | Yes                      |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.

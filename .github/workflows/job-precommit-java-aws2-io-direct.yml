@@ -17,6 +17,8 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
+# Runs Runs Java PreCommit AWS v2 IO Direct scheduled on cron, on push to master and on pull request
+
 name: PreCommit Java AWS2 IO Direct
 
 on:
