@@ -23,7 +23,7 @@ There are several options on how to do that:
 
 Through the tour, most of the examples use either `PCollection` created from in-memory data or data read from one of the cloud buckets: beam-examples, dataflow-samples. These buckets contain sample data sets specifically created for educational purposes.
 
-We encourage you to take a look, explore these data sets and use them while learning Apache Beam.  
+We encourage you to take a look, explore these data sets and use them while learning Apache Beam.
 
 ### Creating a PCollection from in-memory data
 
