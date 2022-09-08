@@ -17,12 +17,16 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
+# This workflow runs the :sdks:go:test:sparkValidatesRunner gradle task
+
 name: PostCommit Go Validates Runner Spark
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
+  push:
+    branches: [ 'master' ]
+    tags: 'v*'
 
 jobs:
   set-properties:
