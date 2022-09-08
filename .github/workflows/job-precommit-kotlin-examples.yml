@@ -17,17 +17,17 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: Precommit Kotlin Examples
+name: PreCommit Kotlin Examples
 
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
-    branches: ['master', 'release-*']
+    branches: ['main', 'release-*']
     tags: 'v*'
   pull_request:
-    branches: ['master', 'release-*']
+    branches: ['main', 'release-*']
     tags: 'v*'
     paths: ['model/**',
             'sdks/java/**',
@@ -40,7 +40,7 @@ on:
 
 jobs:
   precommit-kotlin-examples:
-    name: Run Precommit Kotlin Examples
+    name: Run PreCommit Kotlin Examples
     runs-on: self-hosted
     timeout-minutes: 120
     steps:
