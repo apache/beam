@@ -51,7 +51,9 @@ from apache_beam.testing.util import equal_to
 def _compare_prediction_result(a, b):
   example_equal = numpy.array_equal(a.example, b.example)
   if isinstance(a.inference, dict):
-    return all(x == y for x, y in zip(a.inference.values(), b.inference.values())) and example_equal
+    return all(
+        x == y for x, y in zip(a.inference.values(),
+                               b.inference.values())) and example_equal
   return a.inference == b.inference and example_equal
 
 
@@ -163,9 +165,15 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
     expected_predictions = [
-        PredictionResult(numpy.array([1, 2, 3]), {"out1": 6, "out2": 6}),
-        PredictionResult(numpy.array([4, 5, 6]), {"out1": 15, "out2": 15}),
-        PredictionResult(numpy.array([7, 8, 9]), {"out1": 24, "out2": 24})
+        PredictionResult(numpy.array([1, 2, 3]), {
+            "out1": 6, "out2": 6
+        }),
+        PredictionResult(numpy.array([4, 5, 6]), {
+            "out1": 15, "out2": 15
+        }),
+        PredictionResult(numpy.array([7, 8, 9]), {
+            "out1": 24, "out2": 24
+        })
     ]
     inferences = inference_runner.run_inference(batched_examples, fake_model)
     for actual, expected in zip(inferences, expected_predictions):
