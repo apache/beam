@@ -12,6 +12,11 @@
     "DEFAULT_INTERPRETER": "python3.8"
   },
   "JavaTestProperties": {
-    "SUPPORTED_CONTAINER_TASKS": ["java8", "java11", "java17"]
+    "SUPPORTED_VERSIONS": ["8", "11", "17"],
+    "FLINK_VERSIONS": ["1.13", "1.14", "1.15"],
+    "SPARK_VERSIONS": ["2", "3"]
+  },
+  "GoTestProperties": {
+    "SUPPORTED_VERSIONS": ["1.18"]
   }
 }
