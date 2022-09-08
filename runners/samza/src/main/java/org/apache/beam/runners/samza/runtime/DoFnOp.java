@@ -208,6 +208,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.timerInternalsFactory =
         SamzaTimerInternalsFactory.createTimerInternalFactory(
             keyCoder,
+            (Scheduler) timerRegistry,
             getTimerStateId(signature),
             nonKeyedStateInternalsFactory,
             windowingStrategy,

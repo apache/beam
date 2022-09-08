@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.samza.operators.Scheduler;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -69,7 +70,9 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaTimerInternalsFactory.class);
   private final NavigableSet<KeyedTimerData<K>> eventTimeBuffer;
   private final Coder<K> keyCoder;
-  private final Set<KeyedTimerData<K>> processTimeBuffer;
+  // Buffer size maintained to represent the timers scheduled in the timerRegistry
+  private final NavigableSet<KeyedTimerData<K>> processTimeBuffer;
+  private final Scheduler<KeyedTimerData<K>> timerRegistry;
   private final SamzaTimerState state;
   private final IsBounded isBounded;
 
@@ -79,37 +82,40 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   // Size of each event timer is around 200B, by default with buffer size 50k, the default size is
   // 10M
   private final int maxEventTimerBufferSize;
-  // Max event time stored in eventTimerBuffer
-  // If it is set to long.MAX_VALUE, it indicates the State does not contain any KeyedTimerData
-  private long maxEventTimeInBuffer;
+  // Flag variable to indicate whether events timers are present in state
+  private boolean eventsTimersInState = true;
 
   // Size of each processing timer
-  private long maxProcessTimerBufferSize;
+  private final long maxProcessTimerBufferSize;
+  // Flag variable to indicate whether process timers are present in state
+  private boolean processTimersInState = true;
 
   // The maximum number of ready timers to process at once per watermark.
   private final long maxReadyTimersToProcessOnce;
 
   private SamzaTimerInternalsFactory(
       Coder<K> keyCoder,
+      Scheduler<KeyedTimerData<K>> timerRegistry,
       String timerStateId,
       SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
       Coder<BoundedWindow> windowCoder,
       IsBounded isBounded,
       SamzaPipelineOptions pipelineOptions) {
     this.keyCoder = keyCoder;
-    this.processTimeBuffer = new HashSet<>();
+    this.processTimeBuffer = new TreeSet<>();
     this.eventTimeBuffer = new TreeSet<>();
     this.maxEventTimerBufferSize =
         pipelineOptions.getEventTimerBufferSize(); // must be placed before state initialization
-    this.maxEventTimeInBuffer = Long.MAX_VALUE;
     this.maxProcessTimerBufferSize = pipelineOptions.getProcessingTimerBufferSize();
     this.maxReadyTimersToProcessOnce = pipelineOptions.getMaxReadyTimersToProcessOnce();
+    this.timerRegistry = timerRegistry;
     this.state = new SamzaTimerState(timerStateId, nonKeyedStateInternalsFactory, windowCoder);
     this.isBounded = isBounded;
   }
 
   static <K> SamzaTimerInternalsFactory<K> createTimerInternalFactory(
       Coder<K> keyCoder,
+      Scheduler<KeyedTimerData<K>> timerRegistry,
       String timerStateId,
       SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
@@ -120,6 +126,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     return new SamzaTimerInternalsFactory<>(
         keyCoder,
+        timerRegistry,
         timerStateId,
         nonKeyedStateInternalsFactory,
         windowCoder,
@@ -193,26 +200,11 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         state.reloadEventTimeTimers();
       }
     }
-
-    // Flush all timers for process time
-    final Iterator<KeyedTimerData<K>> processBufferIterator = processTimeBuffer.iterator();
-    while (processBufferIterator.hasNext() && readyTimers.size() < maxReadyTimersToProcessOnce) {
-      KeyedTimerData<K> processTimerData = processBufferIterator.next();
-      readyTimers.add(processTimerData);
-      processBufferIterator.remove();
-      state.deletePersisted(processTimerData);
-
-      if (processTimeBuffer.isEmpty()) {
-        state.reloadProcessingTimeTimers();
-      }
-    }
-
     LOG.debug("Removed {} ready timers", readyTimers.size());
 
     if (readyTimers.size() >= maxReadyTimersToProcessOnce
-        && ((!eventTimeBuffer.isEmpty()
-                && eventTimeBuffer.first().getTimerData().getTimestamp().isBefore(inputWatermark))
-            || !processTimeBuffer.isEmpty())) {
+        && !eventTimeBuffer.isEmpty()
+        && eventTimeBuffer.first().getTimerData().getTimestamp().isBefore(inputWatermark)) {
       LOG.warn(
           "Loaded {} expired timers, the remaining will be processed at next watermark.",
           maxReadyTimersToProcessOnce);
@@ -222,6 +214,11 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
   public void removeProcessingTimer(KeyedTimerData<K> keyedTimerData) {
     state.deletePersisted(keyedTimerData);
+    processTimeBuffer.remove(keyedTimerData);
+    // Reload timers for process time if buffer is empty
+    if (processTimeBuffer.isEmpty()) {
+      state.reloadProcessingTimeTimers();
+    }
   }
 
   public Instant getInputWatermark() {
@@ -310,26 +307,38 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
            * guaranteeing the Buffer's timestamps are all <= than those in State Store to preserve
            * timestamp eviction priority:
            *
-           * <p>If newTimestamp < maxEventTimeInBuffer, it indicates that there are entries
-           * greater than newTimestamp, so it is safe to add it to the buffer
+           * <p>If eventTimeBuffer size < maxEventTimerBufferSize and there are no more potential earlier timers
+           * in state, or newTimestamp < maxEventTimeInBuffer then it indicates that there are entries greater than
+           * newTimestamp, so it is safe to add it to the buffer
            *
            * <p>In case that the Buffer is full, we remove the largest timer from memory according
            * to {@link KeyedTimerData.compareTo()}
            */
-          if (newTimestamp < maxEventTimeInBuffer) {
+          if ((maxEventTimerBufferSize > eventTimeBuffer.size() && !eventsTimersInState) ||
+              newTimestamp < eventTimeBuffer.last().getTimerData().getTimestamp().getMillis()) {
             eventTimeBuffer.add(keyedTimerData);
             if (eventTimeBuffer.size() > maxEventTimerBufferSize) {
               eventTimeBuffer.pollLast();
-              maxEventTimeInBuffer =
-                  eventTimeBuffer.last().getTimerData().getTimestamp().getMillis();
             }
+          } else {
+            eventsTimersInState = true;
           }
           break;
 
         case PROCESSING_TIME:
-          // Append to buffer iff not full
-          if (processTimeBuffer.size() < maxProcessTimerBufferSize) {
+          // The timer is added to the buffer if the new timestamp will be triggered earlier than
+          // the oldest time in the current buffer.
+          // Any timers removed from the buffer will also be deleted from the scheduler.
+          if ((maxProcessTimerBufferSize > processTimeBuffer.size() && !processTimersInState) ||
+              newTimestamp < processTimeBuffer.last().getTimerData().getTimestamp().getMillis()) {
             processTimeBuffer.add(keyedTimerData);
+            timerRegistry.schedule(keyedTimerData, newTimestamp);
+            if (processTimeBuffer.size() > maxProcessTimerBufferSize) {
+              KeyedTimerData oldKeyedTimerData = processTimeBuffer.pollLast();
+              timerRegistry.delete(oldKeyedTimerData);
+            }
+          } else {
+            processTimersInState = true;
           }
 
           break;
@@ -394,6 +403,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
         case PROCESSING_TIME:
           processTimeBuffer.remove(keyedTimerData);
+          timerRegistry.delete(keyedTimerData);
           break;
 
         default:
@@ -580,7 +590,6 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       while (iter.hasNext() && eventTimeBuffer.size() < maxEventTimerBufferSize) {
         final KeyedTimerData<K> keyedTimerData = iter.next();
         eventTimeBuffer.add(keyedTimerData);
-        maxEventTimeInBuffer = keyedTimerData.getTimerData().getTimestamp().getMillis();
       }
 
       timestampSortedEventTimeTimerState.closeIterators();
@@ -590,9 +599,9 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         LOG.debug(
             "Event time timers in State is empty, filled {} timers out of {} buffer capacity",
             eventTimeBuffer.size(),
-            maxEventTimeInBuffer);
+            maxEventTimerBufferSize);
         // Reset the flag variable to indicate there are no more KeyedTimerData in State
-        maxEventTimeInBuffer = Long.MAX_VALUE;
+        eventsTimersInState = false;
       }
     }
 
@@ -603,11 +612,20 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       while (iter.hasNext() && processTimeBuffer.size() < maxProcessTimerBufferSize) {
         final KeyedTimerData keyedTimerData = iter.next();
         processTimeBuffer.add(keyedTimerData);
+        timerRegistry.schedule(
+            keyedTimerData, keyedTimerData.getTimerData().getTimestamp().getMillis());
       }
       timestampSortedProcessTimeTimerState.closeIterators();
-
-      timestampSortedProcessTimeTimerState.closeIterators();
       LOG.info("Loaded {} processing time timers in memory", processTimeBuffer.size());
+
+      if (processTimeBuffer.size() < maxProcessTimerBufferSize) {
+        LOG.debug(
+            "Process time timers in State is empty, filled {} timers out of {} buffer capacity",
+            processTimeBuffer.size(),
+            maxProcessTimerBufferSize);
+        // Reset the flag variable to indicate there are no more KeyedTimerData in State
+        processTimersInState = false;
+      }
     }
 
     /** Restore timer state from RocksDB. */
