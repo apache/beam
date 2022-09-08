@@ -234,8 +234,7 @@ def run(argv=None, save_main_session=True):
   with beam.Pipeline(options=pipeline_options) as p:
     filename_value_pair = (
         p
-        | 'ReadImageNames' >> beam.io.ReadFromText(
-            known_args.input)
+        | 'ReadImageNames' >> beam.io.ReadFromText(known_args.input)
         | 'ReadImageData' >> beam.Map(
             lambda image_name: read_image(
                 image_file_name=image_name, path_to_dir=known_args.images_dir))
