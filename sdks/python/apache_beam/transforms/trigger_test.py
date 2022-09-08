@@ -589,7 +589,7 @@ class TriggerPipelineTest(unittest.TestCase):
   def test_repeatedly_after_processing_time(self):
     test_options = PipelineOptions(flags=['--streaming'])
     with TestPipeline(options=test_options) as p:
-      total_elements = 8
+      total_elements = 7
       processing_time_delay = 2
       window_size = 10
       # yapf: disable
