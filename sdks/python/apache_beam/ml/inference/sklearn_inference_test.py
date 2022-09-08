@@ -50,6 +50,8 @@ from apache_beam.testing.util import equal_to
 
 def _compare_prediction_result(a, b):
   example_equal = numpy.array_equal(a.example, b.example)
+  if isinstance(a.inference, dict):
+    return all(x == y for x, y in zip(a.inference.values(), b.inference.values())) and example_equal
   return a.inference == b.inference and example_equal
 
 
@@ -74,6 +76,16 @@ class FakeModel:
   def predict(self, input_vector: numpy.ndarray):
     self.total_predict_calls += 1
     return numpy.sum(input_vector, axis=1)
+
+
+class FakeModelDictOut:
+  def __init__(self):
+    self.total_predict_calls = 0
+
+  def predict(self, input_vector: numpy.ndarray):
+    self.total_predict_calls += 1
+    out = numpy.sum(input_vector, axis=1)
+    return {"out1": out, "out2": out}
 
 
 def build_model():
@@ -139,6 +151,21 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         PredictionResult(numpy.array([1, 2, 3]), 6),
         PredictionResult(numpy.array([4, 5, 6]), 15),
         PredictionResult(numpy.array([7, 8, 9]), 24)
+    ]
+    inferences = inference_runner.run_inference(batched_examples, fake_model)
+    for actual, expected in zip(inferences, expected_predictions):
+      self.assertTrue(_compare_prediction_result(actual, expected))
+
+  def test_predict_output_dict(self):
+    fake_model = FakeModelDictOut()
+    inference_runner = SklearnModelHandlerNumpy(model_uri='unused')
+    batched_examples = [
+        numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
+    ]
+    expected_predictions = [
+        PredictionResult(numpy.array([1, 2, 3]), {"out1": 6, "out2": 6}),
+        PredictionResult(numpy.array([4, 5, 6]), {"out1": 15, "out2": 15}),
+        PredictionResult(numpy.array([7, 8, 9]), {"out1": 24, "out2": 24})
     ]
     inferences = inference_runner.run_inference(batched_examples, fake_model)
     for actual, expected in zip(inferences, expected_predictions):

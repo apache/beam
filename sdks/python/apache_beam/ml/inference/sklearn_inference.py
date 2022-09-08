@@ -113,6 +113,12 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
+    if isinstance(predictions, dict):
+      # Go from one dictionary of type: {key_type1: Iterable<value_type1>, key_type2: Iterable<value_type2>, ...}
+      # where each Iterable is of length batch_size, to a list of dictionaries:
+      # [{key_type1: value_type1, key_type2: value_type2}]
+      predictions_per_np_array = [dict(zip(predictions, v)) for v in zip(*predictions.values())]
+      return [PredictionResult(x, y) for x, y in zip(batch, predictions_per_np_array)]
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
@@ -183,6 +189,15 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     splits = [
         vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
     ]
+    if isinstance(predictions, dict):
+      # Go from one dictionary of type: {key_type1: Iterable<value_type1>, key_type2: Iterable<value_type2>, ...}
+      # where each Iterable is of length batch_size, to a list of dictionaries:
+      # [{key_type1: value_type1, key_type2: value_type2}]
+      predictions_per_split = [dict(zip(predictions, v)) for v in zip(*predictions.values())]
+      return [
+          PredictionResult(example, inference) for example,
+          inference in zip(splits, predictions_per_split)
+      ]
     return [
         PredictionResult(example, inference) for example,
         inference in zip(splits, predictions)

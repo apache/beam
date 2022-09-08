@@ -164,6 +164,12 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       batched_tensors = torch.stack(batch)
       batched_tensors = _convert_to_device(batched_tensors, self._device)
       predictions = model(batched_tensors, **inference_args)
+      if isinstance(predictions, dict):
+        # Go from one dictionary of type: {key_type1: Iterable<value_type1>, key_type2: Iterable<value_type2>, ...}
+        # where each Iterable is of length batch_size, to a list of dictionaries:
+        # [{key_type1: value_type1, key_type2: value_type2}]
+        predictions_per_tensor = [dict(zip(predictions, v)) for v in zip(*predictions.values())]
+        return [PredictionResult(x, y) for x, y in zip(batch, predictions_per_tensor)]
       return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
@@ -281,6 +287,12 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         batched_tensors = _convert_to_device(batched_tensors, self._device)
         key_to_batched_tensors[key] = batched_tensors
       predictions = model(**key_to_batched_tensors, **inference_args)
+      if isinstance(predictions, dict):
+        # Go from one dictionary of type: {key_type1: Iterable<value_type1>, key_type2: Iterable<value_type2>, ...}
+        # where each Iterable is of length batch_size, to a list of dictionaries:
+        # [{key_type1: value_type1, key_type2: value_type2}]
+        predictions_per_tensor = [dict(zip(predictions, v)) for v in zip(*predictions.values())]
+        return [PredictionResult(x, y) for x, y in zip(batch, predictions_per_tensor)]
       return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
