@@ -125,6 +125,34 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+
+### PostCommit Workflows
+
+#### Java JPMS Dataflow - [job-postcommit-java-jpms-dataflow.yml](.github/workflows/job-postcommit-java-jpms-dataflow.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java JPMS Dataflow | Runs Java JPMS Dataflow | No              | Yes                   | Yes           | No                       |
+
+#### Java JPMS Direct - [job-postcommit-java-jpms-direct.yml](.github/workflows/job-postcommit-java-jpms-direct.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java JPMS Direct | Runs Java JPMS Direct | No              | Yes                   | Yes           | No                       |
+
+#### Java JPMS Flink - [job-postcommit-java-jpms-flink.yml](.github/workflows/job-postcommit-java-jpms-flink.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java JPMS Flink | Runs Java JPMS Flink | No              | Yes                   | Yes           | No                       |
+
+#### Java JPMS Spark - [job-postcommit-java-jpms-spark.yml](.github/workflows/job-postcommit-java-jpms-spark.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java JPMS Spark | Runs Java JPMS Spark | No              | Yes                   | Yes           | No                       |
+
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
