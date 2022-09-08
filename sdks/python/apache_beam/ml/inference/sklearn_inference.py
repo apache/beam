@@ -114,8 +114,9 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
     if isinstance(predictions, dict):
-      # Go from one dictionary of type: {key_type1: Iterable<value_type1>, key_type2: Iterable<value_type2>, ...}
-      # where each Iterable is of length batch_size, to a list of dictionaries:
+      # Go from one dictionary of type: {key_type1: Iterable<value_type1>,
+      # key_type2: Iterable<value_type2>, ...} where each Iterable is of
+      # length batch_size, to a list of dictionaries:
       # [{key_type1: value_type1, key_type2: value_type2}]
       predictions_per_np_array = [
           dict(zip(predictions, v)) for v in zip(*predictions.values())
@@ -195,8 +196,9 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
         vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
     ]
     if isinstance(predictions, dict):
-      # Go from one dictionary of type: {key_type1: Iterable<value_type1>, key_type2: Iterable<value_type2>, ...}
-      # where each Iterable is of length batch_size, to a list of dictionaries:
+      # Go from one dictionary of type: {key_type1: Iterable<value_type1>,
+      # key_type2: Iterable<value_type2>, ...} where each Iterable is of
+      # length batch_size, to a list of dictionaries:
       # [{key_type1: value_type1, key_type2: value_type2}]
       predictions_per_split = [
           dict(zip(predictions, v)) for v in zip(*predictions.values())
