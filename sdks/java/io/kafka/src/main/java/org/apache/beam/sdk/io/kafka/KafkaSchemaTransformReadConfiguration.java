@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import com.google.auto.value.AutoValue;
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -38,11 +39,15 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 public abstract class KafkaSchemaTransformReadConfiguration {
 
   public static final Set<String> VALID_START_OFFSET_VALUES = Sets.newHashSet("earliest", "latest");
+  public static final Set<String> VALID_DATA_FORMATS = Sets.newHashSet("AVRO", "JSON");
 
   public void validate() {
-    final String startOffset = this.getStartOffset();
+    final String startOffset = this.getAutoOffsetResetConfig();
     assert startOffset == null || VALID_START_OFFSET_VALUES.contains(startOffset)
         : "Valid Kafka Start offset values are " + VALID_START_OFFSET_VALUES;
+    final String dataFormat = this.getDataFormat();
+    assert dataFormat == null || VALID_DATA_FORMATS.contains(dataFormat)
+        : "Valid data formats are " + VALID_DATA_FORMATS;
   }
 
   /** Instantiates a {@link KafkaSchemaTransformReadConfiguration.Builder} instance. */
@@ -52,12 +57,6 @@ public abstract class KafkaSchemaTransformReadConfiguration {
 
   /** Sets the bootstrap servers for the Kafka consumer. */
   public abstract String getBootstrapServers();
-
-  /**
-   * A timestamp policy to assign event time for messages in a Kafka partition and watermark for it.
-   */
-  @Nullable
-  public abstract TimestampPolicyConfiguration getTimestampPolicy();
 
   @Nullable
   public abstract String getConfluentSchemaRegistryUrl();
@@ -73,7 +72,10 @@ public abstract class KafkaSchemaTransformReadConfiguration {
   public abstract String getAvroSchema();
 
   @Nullable
-  public abstract String getStartOffset();
+  public abstract String getAutoOffsetResetConfig();
+
+  @Nullable
+  public abstract Map<String, String> getConsumerConfigUpdates();
 
   /** Sets the topic from which to read. */
   public abstract String getTopic();
@@ -85,8 +87,6 @@ public abstract class KafkaSchemaTransformReadConfiguration {
     /** Sets the bootstrap servers for the Kafka consumer. */
     public abstract Builder setBootstrapServers(String value);
 
-    public abstract Builder setTimestampPolicy(TimestampPolicyConfiguration timestampPolicy);
-
     public abstract Builder setConfluentSchemaRegistryUrl(String schemaRegistry);
 
     public abstract Builder setConfluentSchemaRegistrySubject(String subject);
@@ -95,37 +95,14 @@ public abstract class KafkaSchemaTransformReadConfiguration {
 
     public abstract Builder setDataFormat(String dataFormat);
 
-    public abstract Builder setStartOffset(String startOffset);
+    public abstract Builder setAutoOffsetResetConfig(String startOffset);
+
+    public abstract Builder setConsumerConfigUpdates(Map<String, String> consumerConfigUpdates);
 
     /** Sets the topic from which to read. */
     public abstract Builder setTopic(String value);
 
     /** Builds a {@link KafkaSchemaTransformReadConfiguration} instance. */
     public abstract KafkaSchemaTransformReadConfiguration build();
-  }
-
-  /**
-   * A timestamp policy to assign event time for messages in a Kafka partition and watermark for it.
-   *
-   * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
-   * provide no backwards compatibility guarantees, and it should not be implemented outside the
-   * Beam repository.
-   */
-  @Experimental
-  public enum TimestampPolicyConfiguration {
-
-    /**
-     * Assigns Kafka's log append time (server side ingestion time) to each record. The watermark
-     * for each Kafka partition is the timestamp of the last record read. If a partition is idle,
-     * the watermark advances roughly to 'current time - 2 seconds'. See {@link
-     * KafkaIO.Read#withLogAppendTime()} for longer description.
-     */
-    LOG_APPEND_TIME,
-
-    /**
-     * A simple policy that uses current time for event time and watermark. This should be used when
-     * better timestamps like LogAppendTime are not available for a topic.
-     */
-    PROCESSING_TIME,
   }
 }

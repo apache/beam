@@ -35,9 +35,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.joda.time.Instant;
 
 @AutoService(SchemaTransformProvider.class)
 public class KafkaSchemaTransformReadProvider
@@ -79,6 +80,11 @@ public class KafkaSchemaTransformReadProvider
     @Override
     public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
       final String avroSchema = configuration.getAvroSchema();
+      final Integer groupId = Math.abs(configuration.hashCode());
+      final String autoOffsetReset =
+          configuration.getAutoOffsetResetConfig() == null
+              ? "latest"
+              : configuration.getAutoOffsetResetConfig();
       if (avroSchema != null) {
         assert configuration.getConfluentSchemaRegistryUrl() == null
             : "To read from Kafka, a schema must be provided directly or though Confluent "
@@ -92,14 +98,19 @@ public class KafkaSchemaTransformReadProvider
           public PCollectionRowTuple expand(PCollectionRowTuple input) {
             KafkaIO.Read<byte[], byte[]> kafkaRead =
                 KafkaIO.readBytes()
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(
+                            ConsumerConfig.GROUP_ID_CONFIG,
+                            "kafka-read-provider-" + groupId,
+                            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+                            true,
+                            ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
+                            100,
+                            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                            autoOffsetReset))
                     .withTopic(configuration.getTopic())
                     .withBootstrapServers(configuration.getBootstrapServers());
 
-            // Initialize kafka read from first offset or from latest offset.
-            kafkaRead =
-                "earliest".equals(configuration.getStartOffset())
-                    ? kafkaRead.withStartReadTime(Instant.EPOCH)
-                    : kafkaRead;
             return PCollectionRowTuple.of(
                 "OUTPUT",
                 input
@@ -126,16 +137,21 @@ public class KafkaSchemaTransformReadProvider
                 KafkaIO.<byte[], GenericRecord>read()
                     .withTopic(configuration.getTopic())
                     .withBootstrapServers(configuration.getBootstrapServers())
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(
+                            ConsumerConfig.GROUP_ID_CONFIG,
+                            "kafka-read-provider-" + groupId,
+                            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+                            true,
+                            ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
+                            100,
+                            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                            autoOffsetReset))
                     .withKeyDeserializer(ByteArrayDeserializer.class)
                     .withValueDeserializer(
                         ConfluentSchemaRegistryDeserializerProvider.of(
                             confluentSchemaRegUrl, confluentSchemaRegSubject));
 
-            // Initialize kafka read from first offset or from latest offset.
-            kafkaRead =
-                "earliest".equals(configuration.getStartOffset())
-                    ? kafkaRead.withStartReadTime(Instant.EPOCH)
-                    : kafkaRead;
             PCollection<GenericRecord> kafkaValues =
                 input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
 
