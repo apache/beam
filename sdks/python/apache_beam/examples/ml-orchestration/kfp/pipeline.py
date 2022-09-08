@@ -51,4 +51,3 @@ if __name__ == "__main__":
     package_path="pipeline.json"
   )
   # [END compile_kfp_pipeline]
-

@@ -157,3 +157,4 @@ class SerializeExample(beam.DoFn):
 if __name__ == "__main__":
   args = parse_args()
   preprocess_dataset(**vars(args))
+
