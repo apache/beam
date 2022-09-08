@@ -377,6 +377,9 @@ class AfterProcessingTime(TriggerFn):
 
   AfterProcessingTime is experimental. No backwards compatibility guarantees.
   """
+
+  COUNT_TAG = _CombiningValueStateTag('count', combiners.CountCombineFn())
+
   def __init__(self, delay=0):
     """Initialize a processing time trigger with a delay in seconds."""
     self.delay = delay
@@ -385,8 +388,10 @@ class AfterProcessingTime(TriggerFn):
     return 'AfterProcessingTime(delay=%d)' % self.delay
 
   def on_element(self, element, window, context):
-    context.set_timer(
-        '', TimeDomain.REAL_TIME, context.get_current_time() + self.delay)
+    context.add_state(self.COUNT_TAG, 1)
+    if context.get_state(self.COUNT_TAG) == 1:
+      context.set_timer(
+          '', TimeDomain.REAL_TIME, context.get_current_time() + self.delay)
 
   def on_merge(self, to_be_merged, merge_result, context):
     # timers will be kept through merging
@@ -400,7 +405,7 @@ class AfterProcessingTime(TriggerFn):
     return True
 
   def reset(self, window, context):
-    pass
+    context.clear_state(self.COUNT_TAG)
 
   def may_lose_data(self, unused_windowing):
     """AfterProcessingTime may finish."""
