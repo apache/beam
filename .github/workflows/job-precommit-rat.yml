@@ -17,7 +17,7 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: Precommit RAT
+name: PreCommit RAT
 
 on:
   push:
@@ -28,8 +28,8 @@ on:
     tags: 'v*'
 
 jobs:
-  precommit-rat:
-    name: Run Precommit RAT
+  rat:
+    name: Run PreCommit RAT
     runs-on: self-hosted
     steps:
       - name: Checkout code
@@ -39,7 +39,7 @@ jobs:
           submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
-      - name: Run RAT
+      - name: Run PreCommit RAT
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: rat
