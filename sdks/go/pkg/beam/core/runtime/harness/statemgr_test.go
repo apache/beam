@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"strings"
 	"sync"
@@ -74,7 +73,7 @@ func (f *fakeStateClient) setSendErr(err error) {
 
 func TestStateChannel(t *testing.T) {
 	// The logging of channels closed is quite noisy for this test
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	expectedError := fmt.Errorf("EXPECTED ERROR")
 
