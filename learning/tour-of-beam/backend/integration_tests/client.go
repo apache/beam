@@ -43,7 +43,6 @@ func GetUnitContent(url, sdk, unitId string) (Unit, error) {
 // * url: request  url
 // * query_params: url query params, as a map (we don't use multiple-valued params)
 func Get(dst interface{}, url string, queryParams map[string]string) error {
-
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return err
