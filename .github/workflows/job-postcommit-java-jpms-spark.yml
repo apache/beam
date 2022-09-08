@@ -1,0 +1,57 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Tests for PostCommit JPMS using Spark runner with Java 11
+
+
+name: PostCommit Java JPMS Spark Java 11
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+  push:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+    paths: []
+
+jobs:
+  java-postcommit-jpms-spark:
+    name: Run PostCommit Java JPMS Spark - Java 11
+    runs-on: self-hosted
+    strategy:
+      fail-fast: true
+    timeout-minutes: 240
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/checkout@v3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin' 
+      - name: Run :sdks:java:testing:jpms-tests:sparkRunnerIntegrationTest
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command:  >-
+            :sdks:java:testing:jpms-tests:sparkRunnerIntegrationTest 
+            -Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4 
