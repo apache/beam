@@ -80,9 +80,9 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   @Default.Integer(50000)
   int getEventTimerBufferSize();
 
-  void setEventTimerBufferSize(int processingTimerBufferSize);
+  void setEventTimerBufferSize(int eventTimerBufferSize);
 
-  @Description("The maximum number of event-time timers to buffer in memory for a PTransform")
+  @Description("The maximum number of process-time timers to buffer in memory for a PTransform")
   @Default.Integer(50000)
   int getProcessingTimerBufferSize();
 
