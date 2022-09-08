@@ -553,7 +553,8 @@ class TriggerPipelineTest(unittest.TestCase):
       test_stream = TestStream()
       for i in range(total_elements_in_trigger):
         (test_stream
-         .advance_processing_time(processing_time_delay / total_elements_in_trigger )
+         .advance_processing_time(
+            processing_time_delay / total_elements_in_trigger)
          .add_elements([('key', i)])
          )
 
