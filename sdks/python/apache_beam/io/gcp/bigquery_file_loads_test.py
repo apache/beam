@@ -577,12 +577,15 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     sleep_mock.assert_called_once()
 
   @mock.patch('time.sleep')
-  def test_one_job_failed_after_waiting(self, sleep_mock):
-    job_references = [bigquery_api.JobReference(), bigquery_api.JobReference()]
-    job_references[0].projectId = 'project1'
-    job_references[0].jobId = 'jobId1'
-    job_references[1].projectId = 'project1'
-    job_references[1].jobId = 'jobId2'
+  def test_one_load_job_failed_after_waiting(self, sleep_mock):
+    job_1 = bigquery_api.Job()
+    job_1.jobReference = bigquery_api.JobReference()
+    job_1.jobReference.projectId = 'project1'
+    job_1.jobReference.jobId = 'jobId1'
+    job_2 = bigquery_api.Job()
+    job_2.jobReference = bigquery_api.JobReference()
+    job_2.jobReference.projectId = 'project1'
+    job_2.jobReference.jobId = 'jobId2'
 
     job_1_waiting = mock.Mock()
     job_1_waiting.status.state = 'RUNNING'
@@ -598,16 +601,17 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Get.side_effect = [
         job_1_waiting, job_2_done, job_1_error, job_2_done
     ]
-
-    waiting_dofn = bqfl.WaitForBQJobs(bq_client)
-
-    dest_list = [(i, job) for i, job in enumerate(job_references)]
+    partition_1 = ('project:dataset.table0', ['file0'])
+    partition_2 = ('project:dataset.table1', ['file1'])
+    bq_client.jobs.Insert.side_effect = [job_1, job_2]
+    test_job_prefix = "test_job"
 
     with self.assertRaises(Exception):
       with TestPipeline('DirectRunner') as p:
-        references = beam.pvalue.AsList(p | 'job_ref' >> beam.Create(dest_list))
-        _ = (p | beam.Create(['']) | beam.ParDo(waiting_dofn, references))
-
+        partitions = p | beam.Create([partition_1, partition_2])
+        _ = (partitions
+             | beam.ParDo(bqfl.TriggerLoadJobs(test_client=bq_client), test_job_prefix))
+        
     sleep_mock.assert_called_once()
 
   def test_multiple_partition_files(self):
