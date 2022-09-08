@@ -17,7 +17,7 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-# Runs Java Examples on Dataflow runner v2 via cron.
+# Runs Java Examples on Dataflow runner v2 via cron and on push to master
 
 name: PostCommit Java Examples Dataflow v2
 
