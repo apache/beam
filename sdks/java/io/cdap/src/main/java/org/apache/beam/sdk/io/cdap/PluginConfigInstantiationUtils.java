@@ -30,11 +30,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.checkerframework.checker.initialization.qual.Initialized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Class for getting any filled {@link PluginConfig} configuration object. */
-@SuppressWarnings({"assignment.type.incompatible", "UnstableApiUsage", "return.type.incompatible"})
 public class PluginConfigInstantiationUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(PluginConfigInstantiationUtils.class);
@@ -66,7 +66,7 @@ public class PluginConfigInstantiationUtils {
     }
     InstantiatorFactory instantiatorFactory = new InstantiatorFactory(false);
 
-    T config = instantiatorFactory.get(TypeToken.of(configClass)).create();
+    @Initialized T config = instantiatorFactory.get(TypeToken.of(configClass)).create();
 
     if (config != null) {
       for (Field field : allFields) {

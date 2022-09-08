@@ -144,9 +144,9 @@ public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<
         return false;
       }
       ShuffleEntry record = iterator.next();
-      K key = CoderUtils.decodeFromByteArray(shuffleReader.keyCoder, record.getKey());
+      K key = CoderUtils.decodeFromByteString(shuffleReader.keyCoder, record.getKey());
       WindowedValue<V> windowedValue =
-          CoderUtils.decodeFromByteArray(shuffleReader.windowedValueCoder, record.getValue());
+          CoderUtils.decodeFromByteString(shuffleReader.windowedValueCoder, record.getValue());
       shuffleReader.notifyElementRead(record.length());
       current = windowedValue.withValue(KV.of(key, windowedValue.getValue()));
       return true;

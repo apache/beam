@@ -249,6 +249,39 @@ message GetDefaultPrecompiledObjectResponse {
   PrecompiledObject precompiled_object = 1;
 }
 
+// SnippetFile represents the snippet file content and its name to save.
+message SnippetFile {
+  string name = 1;
+  string content = 2;
+  bool is_main = 3;
+}
+
+// SaveSnippetRequest represents a snippet content and options of SDK which executes the snippet.
+message SaveSnippetRequest {
+  repeated SnippetFile files = 1;
+  Sdk sdk = 2;
+  // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
+  string pipeline_options = 3;
+}
+
+// SaveSnippetResponse contains information of the generated ID.
+message SaveSnippetResponse {
+  string id = 1;
+}
+
+// GetSnippetRequest represents the generated ID.
+message GetSnippetRequest {
+  string id = 1;
+}
+
+// GetSnippetResponse contains information of a snippet content and options of SDK which executes the snippet.
+message GetSnippetResponse {
+  repeated SnippetFile files = 1;
+  Sdk sdk = 2;
+  // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
+  string pipeline_options = 3;
+}
+
 service PlaygroundService {
 
   // Submit the job for an execution and get the pipeline uuid.
@@ -301,4 +334,10 @@ service PlaygroundService {
 
   // Get the default precompile object for the sdk.
   rpc GetDefaultPrecompiledObject(GetDefaultPrecompiledObjectRequest) returns (GetDefaultPrecompiledObjectResponse);
+
+  // Save the snippet required for the sharing.
+  rpc SaveSnippet(SaveSnippetRequest) returns (SaveSnippetResponse);
+
+  // Get the snippet of playground.
+  rpc GetSnippet(GetSnippetRequest) returns (GetSnippetResponse);
 }

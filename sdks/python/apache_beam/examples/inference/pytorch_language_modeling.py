@@ -25,8 +25,10 @@ file in which users can then compare against the original sentence.
 """
 
 import argparse
+import logging
 from typing import Dict
 from typing import Iterable
+from typing import Iterator
 from typing import Tuple
 
 import apache_beam as beam
@@ -37,11 +39,10 @@ from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.runner import PipelineResult
 from transformers import BertConfig
 from transformers import BertForMaskedLM
 from transformers import BertTokenizer
-
-BERT_TOKENIZER = BertTokenizer.from_pretrained('bert-base-uncased')
 
 
 # TODO(https://github.com/apache/beam/issues/21863): Remove once optional
@@ -92,9 +93,10 @@ def add_mask_to_last_word(text: str) -> Tuple[str, str]:
 
 
 def tokenize_sentence(
-    text_and_mask: Tuple[str, str]) -> Tuple[str, Dict[str, torch.Tensor]]:
+    text_and_mask: Tuple[str, str],
+    bert_tokenizer: BertTokenizer) -> Tuple[str, Dict[str, torch.Tensor]]:
   text, masked_text = text_and_mask
-  tokenized_sentence = BERT_TOKENIZER.encode_plus(
+  tokenized_sentence = bert_tokenizer.encode_plus(
       masked_text, return_tensors="pt")
 
   # Workaround to manually remove batch dim until we have the feature to
@@ -107,6 +109,11 @@ def tokenize_sentence(
   }
 
 
+def filter_empty_lines(text: str) -> Iterator[str]:
+  if len(text.strip()) > 0:
+    yield text
+
+
 class PostProcessor(beam.DoFn):
   """Processes the PredictionResult to get the predicted word.
 
@@ -115,15 +122,19 @@ class PostProcessor(beam.DoFn):
   of the words in BERT’s vocabulary. We can get the word with the highest
   probability of being a candidate replacement word by taking the argmax.
   """
+  def __init__(self, bert_tokenizer: BertTokenizer):
+    super().__init__()
+    self.bert_tokenizer = bert_tokenizer
+
   def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     text, prediction_result = element
     inputs = prediction_result.example
     logits = prediction_result.inference['logits']
     mask_token_index = (
-        inputs['input_ids'] == BERT_TOKENIZER.mask_token_id).nonzero(
+        inputs['input_ids'] == self.bert_tokenizer.mask_token_id).nonzero(
             as_tuple=True)[0]
     predicted_token_id = logits[mask_token_index].argmax(axis=-1)
-    decoded_word = BERT_TOKENIZER.decode(predicted_token_id)
+    decoded_word = self.bert_tokenizer.decode(predicted_token_id)
     yield text + ';' + decoded_word
 
 
@@ -140,6 +151,11 @@ def parse_known_args(argv):
       required=True,
       help='Path of file in which to save the output predictions.')
   parser.add_argument(
+      '--bert_tokenizer',
+      dest='bert_tokenizer',
+      default='bert-base-uncased',
+      help='bert uncased model. This can be base model or large model')
+  parser.add_argument(
       '--model_state_dict_path',
       dest='model_state_dict_path',
       required=True,
@@ -147,7 +163,12 @@ def parse_known_args(argv):
   return parser.parse_known_args(argv)
 
 
-def run(argv=None, model_class=None, model_params=None, save_main_session=True):
+def run(
+    argv=None,
+    model_class=None,
+    model_params=None,
+    save_main_session=True,
+    test_pipeline=None) -> PipelineResult:
   """
   Args:
     argv: Command line arguments defined for this example.
@@ -156,13 +177,16 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
     model_params: Parameters passed to the constructor of the model_class.
                   These will be used to instantiate the model object in the
                   RunInference API.
+    save_main_session: Used for internal testing.
+    test_pipeline: Used for internal testing.
   """
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
   if not model_class:
-    model_config = BertConfig(is_decoder=False, return_dict=True)
+    model_config = BertConfig.from_pretrained(
+        known_args.bert_tokenizer, is_decoder=False, return_dict=True)
     model_class = HuggingFaceStripBatchingWrapper
     model_params = {'config': model_config}
 
@@ -186,36 +210,49 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
       model_class=model_class,
       model_params=model_params)
 
-  with beam.Pipeline(options=pipeline_options) as p:
-    if not known_args.input:
-      text = (p | 'CreateSentences' >> beam.Create([
-        'The capital of France is Paris .',
-        'It is raining cats and dogs .',
-        'He looked up and saw the sun and stars .',
-        'Today is Monday and tomorrow is Tuesday .',
-        'There are 5 coconuts on this palm tree .',
-        'The richest person in the world is not here .',
-        'Malls are amazing places to shop because you can find everything you need under one roof .', # pylint: disable=line-too-long
-        'This audiobook is sure to liquefy your brain .',
-        'The secret ingredient to his wonderful life was gratitude .',
-        'The biggest animal in the world is the whale .',
-      ]))
-    else:
-      text = (p | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
-    text_and_tokenized_text_tuple = (
-        text
-        | 'AddMask' >> beam.Map(add_mask_to_last_word)
-        | 'TokenizeSentence' >> beam.Map(tokenize_sentence))
-    output = (
-        text_and_tokenized_text_tuple
-        |
-        'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
-        | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
-    output | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
-      known_args.output,
-      shard_name_template='',
-      append_trailing_newlines=True)
+  pipeline = test_pipeline
+  if not test_pipeline:
+    pipeline = beam.Pipeline(options=pipeline_options)
+
+  bert_tokenizer = BertTokenizer.from_pretrained(known_args.bert_tokenizer)
+
+  if not known_args.input:
+    text = (pipeline | 'CreateSentences' >> beam.Create([
+      'The capital of France is Paris .',
+      'It is raining cats and dogs .',
+      'He looked up and saw the sun and stars .',
+      'Today is Monday and tomorrow is Tuesday .',
+      'There are 5 coconuts on this palm tree .',
+      'The richest person in the world is not here .',
+      'Malls are amazing places to shop because you can find everything you need under one roof .', # pylint: disable=line-too-long
+      'This audiobook is sure to liquefy your brain .',
+      'The secret ingredient to his wonderful life was gratitude .',
+      'The biggest animal in the world is the whale .',
+    ]))
+  else:
+    text = (
+        pipeline | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
+  text_and_tokenized_text_tuple = (
+      text
+      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
+      | 'AddMask' >> beam.Map(add_mask_to_last_word)
+      | 'TokenizeSentence' >>
+      beam.Map(lambda x: tokenize_sentence(x, bert_tokenizer)))
+  output = (
+      text_and_tokenized_text_tuple
+      | 'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
+      | 'ProcessOutput' >> beam.ParDo(
+          PostProcessor(bert_tokenizer=bert_tokenizer)))
+  output | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+    known_args.output,
+    shard_name_template='',
+    append_trailing_newlines=True)
+
+  result = pipeline.run()
+  result.wait_until_finish()
+  return result
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   run()

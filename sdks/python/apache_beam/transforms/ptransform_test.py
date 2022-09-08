@@ -1498,6 +1498,36 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | 'ToBool' >> beam.Map(lambda x: bool(x)).with_input_types(
             int).with_output_types(bool))
 
+  def test_pardo_like_inheriting_output_types_from_annotation(self):
+    def fn1(x: str) -> int:
+      return 1
+
+    def fn1_flat(x: str) -> typing.List[int]:
+      return [1]
+
+    def fn2(x: int, y: str) -> str:
+      return y
+
+    def fn2_flat(x: int, y: str) -> typing.List[str]:
+      return [y]
+
+    # We only need the args section of the hints.
+    def output_hints(transform):
+      return transform.default_type_hints().output_types[0][0]
+
+    self.assertEqual(int, output_hints(beam.Map(fn1)))
+    self.assertEqual(int, output_hints(beam.FlatMap(fn1_flat)))
+
+    self.assertEqual(str, output_hints(beam.MapTuple(fn2)))
+    self.assertEqual(str, output_hints(beam.FlatMapTuple(fn2_flat)))
+
+    def add(a: typing.Iterable[int]) -> int:
+      return sum(a)
+
+    self.assertCompatible(
+        typing.Tuple[typing.TypeVar('K'), int],
+        output_hints(beam.CombinePerKey(add)))
+
   def test_group_by_key_only_output_type_deduction(self):
     d = (
         self.p

@@ -16,6 +16,18 @@
 package code_processing
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"reflect"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/environment"
@@ -27,16 +39,6 @@ import (
 	"beam.apache.org/playground/backend/internal/streaming"
 	"beam.apache.org/playground/backend/internal/utils"
 	"beam.apache.org/playground/backend/internal/validators"
-	"bytes"
-	"context"
-	"fmt"
-	"github.com/google/uuid"
-	"io"
-	"os"
-	"os/exec"
-	"reflect"
-	"sync"
-	"time"
 )
 
 const (
@@ -417,7 +419,11 @@ func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheSer
 		select {
 		// waiting when graph file appears
 		case <-ticker.C:
-			if _, err := os.Stat(graphFilePath); err == nil {
+			_, err := os.Stat(graphFilePath)
+			if err != nil {
+				logger.Debugf("%s: Graph file not found. File reading will repeat in : %.2f sec", pipelineId, pauseDuration.Seconds())
+			}
+			if err == nil {
 				ticker.Stop()
 				graph, err := utils.ReadFile(pipelineId, graphFilePath)
 				if err != nil {

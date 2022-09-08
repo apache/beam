@@ -314,11 +314,16 @@ import org.slf4j.LoggerFactory;
  * <p>For more information about configuratiom parameters, see the <a
  * href="https://github.com/awslabs/amazon-kinesis-producer/blob/master/java/amazon-kinesis-producer-sample/default_config.properties">sample
  * of configuration file</a>.
+ *
+ * @deprecated Module <code>beam-sdks-java-io-kinesis</code> is deprecated and will be eventually
+ *     removed. Please migrate to {@link org.apache.beam.sdk.io.aws2.kinesis.KinesisIO} in module
+ *     <code>beam-sdks-java-io-amazon-web-services2</code>.
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public final class KinesisIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisIO.class);
@@ -655,6 +660,10 @@ public final class KinesisIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
+      LOG.warn(
+          "You are using a deprecated IO for Kinesis. Please migrate to module "
+              + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       Unbounded<KinesisRecord> unbounded =
           org.apache.beam.sdk.io.Read.from(
               new KinesisSource(
@@ -875,6 +884,10 @@ public final class KinesisIO {
 
     @Override
     public PDone expand(PCollection<byte[]> input) {
+      LOG.warn(
+          "You are using a deprecated IO for Kinesis. Please migrate to module "
+              + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       checkArgument(getStreamName() != null, "withStreamName() is required");
       checkArgument(
           (getPartitionKey() != null) || (getPartitioner() != null),

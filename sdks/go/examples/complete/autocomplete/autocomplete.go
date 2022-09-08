@@ -24,6 +24,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
@@ -39,8 +40,9 @@ var (
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
 func init() {
-	beam.RegisterFunction(extractFn)
-	beam.RegisterFunction(less)
+	register.Function2x0(extractFn)
+	register.Function2x1(less)
+	register.Emitter1[string]()
 }
 
 func extractFn(line string, emit func(string)) {

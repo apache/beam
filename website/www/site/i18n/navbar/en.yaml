@@ -46,3 +46,5 @@
   translation: "Case Studies"
 - id: nav-about
   translation: "About"
+- id: nav-connectors
+  translation: "I/O Connectors"

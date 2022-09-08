@@ -23,7 +23,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Java_GCP_IO_Direct',
     gradleTask: ':sdks:java:io:google-cloud-platform:postCommit',
     gradleSwitches: [
-      '-PdisableSpotlessCheck=true'
+      '-PdisableSpotlessCheck=true',
+      '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     timeoutMins: 120,
     triggerPathPatterns: [

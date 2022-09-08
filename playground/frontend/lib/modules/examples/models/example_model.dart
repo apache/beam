@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'package:playground/modules/sdk/models/sdk.dart';
+
 enum ExampleType {
   all,
   example,
@@ -39,6 +41,7 @@ extension ExampleTypeToString on ExampleType {
 }
 
 class ExampleModel with Comparable<ExampleModel> {
+  final SDK sdk;
   final ExampleType type;
   final String name;
   final String path;
@@ -53,6 +56,7 @@ class ExampleModel with Comparable<ExampleModel> {
   String? graph;
 
   ExampleModel({
+    required this.sdk,
     required this.name,
     required this.path,
     required this.description,

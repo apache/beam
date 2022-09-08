@@ -52,7 +52,7 @@ import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -453,30 +453,40 @@ class WindmillStateReader {
   public void startBatchAndBlock() {
     // First, drain work out of the pending lookups into a set. These will be the items we fetch.
     HashSet<StateTag<?>> toFetch = Sets.newHashSet();
-    while (!pendingLookups.isEmpty()) {
-      StateTag<?> stateTag = pendingLookups.poll();
-      if (stateTag == null) {
-        break;
+    try {
+      while (!pendingLookups.isEmpty()) {
+        StateTag<?> stateTag = pendingLookups.poll();
+        if (stateTag == null) {
+          break;
+        }
+
+        if (!toFetch.add(stateTag)) {
+          throw new IllegalStateException("Duplicate tags being fetched.");
+        }
       }
 
-      if (!toFetch.add(stateTag)) {
-        throw new IllegalStateException("Duplicate tags being fetched.");
+      // If we failed to drain anything, some other thread pulled it off the queue. We have no work
+      // to do.
+      if (toFetch.isEmpty()) {
+        return;
       }
-    }
 
-    // If we failed to drain anything, some other thread pulled it off the queue. We have no work
-    // to do.
-    if (toFetch.isEmpty()) {
-      return;
-    }
+      Windmill.KeyedGetDataRequest request = createRequest(toFetch);
+      Windmill.KeyedGetDataResponse response = server.getStateData(computation, request);
+      if (response == null) {
+        throw new RuntimeException("Windmill unexpectedly returned null for request " + request);
+      }
 
-    Windmill.KeyedGetDataRequest request = createRequest(toFetch);
-    Windmill.KeyedGetDataResponse response = server.getStateData(computation, request);
-    if (response == null) {
-      throw new RuntimeException("Windmill unexpectedly returned null for request " + request);
+      // Removes tags from toFetch as they are processed.
+      consumeResponse(response, toFetch);
+    } catch (Exception e) {
+      // Set up all the remaining futures for this key to throw an exception. This ensures that if
+      // the exception is caught that all futures have been completed and do not block.
+      for (StateTag<?> stateTag : toFetch) {
+        waiting.get(stateTag).future.setException(e);
+      }
+      throw e;
     }
-
-    consumeResponse(response, toFetch);
   }
 
   public long getBytesRead() {
@@ -576,15 +586,8 @@ class WindmillStateReader {
 
   private void consumeResponse(Windmill.KeyedGetDataResponse response, Set<StateTag<?>> toFetch) {
     bytesRead += response.getSerializedSize();
-
     if (response.getFailed()) {
-      // Set up all the futures for this key to throw an exception:
-      KeyTokenInvalidException keyTokenInvalidException =
-          new KeyTokenInvalidException(key.toStringUtf8());
-      for (StateTag<?> stateTag : toFetch) {
-        waiting.get(stateTag).future.setException(keyTokenInvalidException);
-      }
-      return;
+      throw new KeyTokenInvalidException(key.toStringUtf8());
     }
 
     if (!key.equals(response.getKey())) {
@@ -773,11 +776,15 @@ class WindmillStateReader {
         getWaiting(stateTag, shouldRemove);
     SettableFuture<ValuesAndContPosition<T, Long>> future =
         coderAndFuture.getNonDoneFuture(stateTag);
-    Coder<T> coder = coderAndFuture.<T>getAndClearCoder();
-    List<T> values = this.bagPageValues(bag, coder);
-    future.set(
-        new ValuesAndContPosition<>(
-            values, bag.hasContinuationPosition() ? bag.getContinuationPosition() : null));
+    try {
+      Coder<T> coder = coderAndFuture.<T>getAndClearCoder();
+      List<T> values = this.bagPageValues(bag, coder);
+      future.set(
+          new ValuesAndContPosition<>(
+              values, bag.hasContinuationPosition() ? bag.getContinuationPosition() : null));
+    } catch (Exception e) {
+      future.setException(new RuntimeException("Error parsing bag response", e));
+    }
   }
 
   private void consumeWatermark(Windmill.WatermarkHold watermarkHold, StateTag<Long> stateTag) {
@@ -813,7 +820,7 @@ class WindmillStateReader {
         T value = coder.decode(inputStream, Coder.Context.OUTER);
         future.set(value);
       } catch (IOException e) {
-        throw new IllegalStateException("Unable to decode value using " + coder, e);
+        future.setException(new IllegalStateException("Unable to decode value using " + coder, e));
       }
     } else {
       future.set(null);
@@ -840,14 +847,18 @@ class WindmillStateReader {
     SettableFuture<ValuesAndContPosition<Map.Entry<ByteString, V>, ByteString>> future =
         coderAndFuture.getNonDoneFuture(stateTag);
     Coder<V> valueCoder = coderAndFuture.getAndClearCoder();
-    List<Map.Entry<ByteString, V>> values =
-        this.tagPrefixPageTagValues(tagValuePrefixResponse, valueCoder);
-    future.set(
-        new ValuesAndContPosition<>(
-            values,
-            tagValuePrefixResponse.hasContinuationPosition()
-                ? tagValuePrefixResponse.getContinuationPosition()
-                : null));
+    try {
+      List<Map.Entry<ByteString, V>> values =
+          this.tagPrefixPageTagValues(tagValuePrefixResponse, valueCoder);
+      future.set(
+          new ValuesAndContPosition<>(
+              values,
+              tagValuePrefixResponse.hasContinuationPosition()
+                  ? tagValuePrefixResponse.getContinuationPosition()
+                  : null));
+    } catch (Exception e) {
+      future.setException(new RuntimeException("Error parsing tag value prefix", e));
+    }
   }
 
   private <T> void consumeSortedList(
@@ -870,13 +881,17 @@ class WindmillStateReader {
     SettableFuture<ValuesAndContPosition<TimestampedValue<T>, ByteString>> future =
         coderAndFuture.getNonDoneFuture(stateTag);
     Coder<T> coder = coderAndFuture.getAndClearCoder();
-    List<TimestampedValue<T>> values = this.sortedListPageValues(sortedListFetchResponse, coder);
-    future.set(
-        new ValuesAndContPosition<>(
-            values,
-            sortedListFetchResponse.hasContinuationPosition()
-                ? sortedListFetchResponse.getContinuationPosition()
-                : null));
+    try {
+      List<TimestampedValue<T>> values = this.sortedListPageValues(sortedListFetchResponse, coder);
+      future.set(
+          new ValuesAndContPosition<>(
+              values,
+              sortedListFetchResponse.hasContinuationPosition()
+                  ? sortedListFetchResponse.getContinuationPosition()
+                  : null));
+    } catch (Exception e) {
+      future.setException(new RuntimeException("Error parsing ordered list", e));
+    }
   }
   /**
    * An iterable over elements backed by paginated GetData requests to Windmill. The iterable may be

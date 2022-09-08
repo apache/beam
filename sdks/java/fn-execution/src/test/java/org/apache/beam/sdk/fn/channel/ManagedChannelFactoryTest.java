@@ -22,7 +22,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,7 +48,7 @@ public class ManagedChannelFactoryTest {
   @Test
   public void testEpollHostPortChannel() {
     assumeTrue(SystemUtils.IS_OS_LINUX);
-    assertTrue(org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.Epoll.isAvailable());
+    assertTrue(org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.Epoll.isAvailable());
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl("localhost:123").build();
     ManagedChannel channel =
@@ -60,7 +60,7 @@ public class ManagedChannelFactoryTest {
   @Test
   public void testEpollDomainSocketChannel() throws Exception {
     assumeTrue(SystemUtils.IS_OS_LINUX);
-    assertTrue(org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.Epoll.isAvailable());
+    assertTrue(org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.Epoll.isAvailable());
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl("unix://" + tmpFolder.newFile().getAbsolutePath())

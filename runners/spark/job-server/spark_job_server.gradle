@@ -102,7 +102,7 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
   } else {
     if (streaming) {
       pipelineOptions += "--streaming"
-      pipelineOptions += "--streamingTimeoutMs=30000"
+      pipelineOptions += "--streamingTimeoutMs=120000"
 
       testCategories = {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'

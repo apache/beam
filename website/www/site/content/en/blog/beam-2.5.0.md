@@ -3,6 +3,7 @@ title:  "Apache Beam 2.5.0"
 date:   2018-06-26 00:00:01 -0800
 categories:
   - blog
+  - release
 aliases:
   - /blog/2018/06/26/beam-2.5.0.html
 authors:

@@ -27,6 +27,7 @@ from datetime import datetime
 from io import BytesIO
 from io import StringIO
 
+import mock
 import pandas as pd
 import pandas.testing
 import pyarrow
@@ -35,11 +36,20 @@ from pandas.testing import assert_frame_equal
 from parameterized import parameterized
 
 import apache_beam as beam
+import apache_beam.io.gcp.bigquery
 from apache_beam.dataframe import convert
 from apache_beam.dataframe import io
+from apache_beam.io import fileio
 from apache_beam.io import restriction_trackers
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
 
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
@@ -106,6 +116,17 @@ A     B
       df.to_csv(output + 'out.csv', index=False)
     self.assertCountEqual(['a,b,c', '1,2,3', '3,4,7'],
                           set(self.read_all_lines(output + 'out.csv*')))
+
+  def test_sharding_parameters(self):
+    data = pd.DataFrame({'label': ['11a', '37a', '389a'], 'rank': [0, 1, 2]})
+    output = self.temp_dir()
+    with beam.Pipeline() as p:
+      df = convert.to_dataframe(p | beam.Create([data]), proxy=data[:0])
+      df.to_csv(
+          output,
+          num_shards=1,
+          file_naming=fileio.single_file_naming('out.csv'))
+    self.assertEqual(glob.glob(output + '*'), [output + 'out.csv'])
 
   @pytest.mark.uses_pyarrow
   @unittest.skipIf(
@@ -371,7 +392,7 @@ X     , c1, c2
         f'{output}out.csv-'
         f'{datetime.utcfromtimestamp(0).isoformat()}*')
     self.assertCountEqual(
-        ['timestamp,value'] + [f'{i},{i%3}' for i in range(10)],
+        ['timestamp,value'] + [f'{i},{i % 3}' for i in range(10)],
         set(self.read_all_lines(first_window_files, delete=True)))
 
     second_window_files = (
@@ -408,6 +429,52 @@ X     , c1, c2
                           set(self.read_all_lines(output + 'out1.csv*')))
     self.assertCountEqual(['value', '3', '4'],
                           set(self.read_all_lines(output + 'out2.csv*')))
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class ReadGbqTransformTests(unittest.TestCase):
+  @mock.patch.object(BigQueryWrapper, 'get_table')
+  def test_bad_schema_public_api_direct_read(self, get_table):
+    try:
+      bigquery.TableFieldSchema
+    except AttributeError:
+      raise ValueError('Please install GCP Dependencies.')
+    fields = [
+        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    table = apache_beam.io.gcp.internal.clients.bigquery. \
+        bigquery_v2_messages.Table(
+        schema=schema)
+    get_table.return_value = table
+
+    with self.assertRaisesRegex(ValueError,
+                                "Encountered an unsupported type: 'DOUBLE'"):
+      p = apache_beam.Pipeline()
+      _ = p | apache_beam.dataframe.io.read_gbq(
+          table="dataset.sample_table", use_bqstorage_api=True)
+
+  def test_unsupported_callable(self):
+    def filterTable(table):
+      if table is not None:
+        return table
+
+    res = filterTable
+    with self.assertRaisesRegex(TypeError,
+                                'ReadFromBigQuery: table must be of type string'
+                                '; got a callable instead'):
+      p = beam.Pipeline()
+      _ = p | beam.dataframe.io.read_gbq(table=res)
+
+  def test_ReadGbq_unsupported_param(self):
+    with self.assertRaisesRegex(ValueError,
+                                r"""Encountered unsupported parameter\(s\) """
+                                r"""in read_gbq: dict_keys\(\['reauth']\)"""):
+      p = beam.Pipeline()
+      _ = p | beam.dataframe.io.read_gbq(
+          table="table", use_bqstorage_api=False, reauth="true_config")
 
 
 if __name__ == '__main__':

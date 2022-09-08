@@ -173,9 +173,6 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         sys.getsizeof(batched_examples_float[0]) * 3,
         inference_runner.get_num_bytes(batched_examples_float))
 
-  @unittest.skipIf(
-      platform.system() == 'Windows',
-      'https://github.com/apache/beam/issues/21449')
   def test_pipeline_pickled(self):
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'
     with open(temp_file_name, 'wb') as file:
@@ -193,9 +190,6 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
-  @unittest.skipIf(
-      platform.system() == 'Windows',
-      'https://github.com/apache/beam/issues/21449')
   def test_pipeline_joblib(self):
     temp_file_name = self.tmpdir + os.sep + 'joblib_file'
     with open(temp_file_name, 'wb') as file:
@@ -224,20 +218,14 @@ class SkLearnRunInferenceTest(unittest.TestCase):
             SklearnModelHandlerNumpy(model_uri='/var/bad_file_name'))
         pipeline.run()
 
-  @unittest.skipIf(
-      platform.system() == 'Windows',
-      'https://github.com/apache/beam/issues/21449')
   def test_bad_input_type_raises(self):
     with self.assertRaisesRegex(AssertionError,
                                 'Unsupported serialization type'):
-      with tempfile.NamedTemporaryFile() as file:
+      with tempfile.NamedTemporaryFile(delete=False) as file:
         model_handler = SklearnModelHandlerNumpy(
             model_uri=file.name, model_file_type=None)
         model_handler.load_model()
 
-  @unittest.skipIf(
-      platform.system() == 'Windows',
-      'https://github.com/apache/beam/issues/21449')
   def test_pipeline_pandas(self):
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'
     with open(temp_file_name, 'wb') as file:
@@ -282,9 +270,6 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
 
-  @unittest.skipIf(
-      platform.system() == 'Windows',
-      'https://github.com/apache/beam/issues/21449')
   def test_pipeline_pandas_with_keys(self):
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'
     with open(temp_file_name, 'wb') as file:
@@ -316,15 +301,6 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       fake_model = FakeModel()
       inference_runner = SklearnModelHandlerPandas(model_uri='unused')
       inference_runner.run_inference([data_frame_too_many_rows], fake_model)
-
-  def test_inference_args_passed(self):
-    with self.assertRaisesRegex(ValueError, r'inference_args were provided'):
-      data_frame = pandas_dataframe()
-      fake_model = FakeModel()
-      inference_runner = SklearnModelHandlerPandas(model_uri='unused')
-      inference_runner.run_inference([data_frame],
-                                     fake_model,
-                                     inference_args={'key1': 'value1'})
 
 
 if __name__ == '__main__':

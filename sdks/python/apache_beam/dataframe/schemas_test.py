@@ -34,6 +34,7 @@ from apache_beam.dataframe import transforms
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 
@@ -52,10 +53,7 @@ def matches_df(expected):
         drop=True)
     sorted_expected = expected.sort_values(
         by=list(expected.columns)).reset_index(drop=True)
-    if not sorted_actual.equals(sorted_expected):
-      raise AssertionError(
-          'Dataframes not equal: \n\nActual:\n%s\n\nExpected:\n%s' %
-          (sorted_actual, sorted_expected))
+    pd.testing.assert_frame_equal(sorted_actual, sorted_expected)
 
   return check_df_pcoll_equal
 
@@ -119,7 +117,22 @@ INDEX_DF_TESTS = [(
 
 NOINDEX_DF_TESTS = [(NICE_TYPES_DF, DF_RESULT, BEAM_SCHEMA)]
 
-PD_VERSION = tuple(int(n) for n in pd.__version__.split('.'))
+# Get major, minor, bugfix version
+PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:3]))
+
+
+def test_name_func(testcase_func, param_num, params):
+  df_or_series, _, _ = params.args
+  if isinstance(df_or_series, pd.Series):
+    return f"{testcase_func.__name__}_Series[{df_or_series.dtype}]"
+  elif isinstance(df_or_series, pd.DataFrame):
+    return (
+        f"{testcase_func.__name__}_DataFrame"
+        f"[{','.join(str(dtype) for dtype in df_or_series.dtypes)}]")
+  else:
+    raise ValueError(
+        f"Encountered unsupported param in {testcase_func.__name__}. "
+        "Expected Series or DataFrame, got:\n" + str(df_or_series))
 
 
 class SchemasTest(unittest.TestCase):
@@ -130,6 +143,8 @@ class SchemasTest(unittest.TestCase):
         'height': list(float(i) for i in range(5))
     },
                             columns=['name', 'id', 'height'])
+
+    expected.name = expected.name.astype(pd.StringDtype())
 
     with TestPipeline() as p:
       res = (
@@ -146,6 +161,7 @@ class SchemasTest(unittest.TestCase):
         'height': list(float(i) for i in range(5))
     },
                             columns=['name', 'id', 'height'])
+    expected.name = expected.name.astype(pd.StringDtype())
 
     with TestPipeline() as p:
       res = (
@@ -164,7 +180,14 @@ class SchemasTest(unittest.TestCase):
         'max_speed': pd.Series(dtype=np.float64)
     })
 
-    self.assertTrue(schemas.generate_proxy(Animal).equals(expected))
+    pd.testing.assert_frame_equal(schemas.generate_proxy(Animal), expected)
+
+  def test_generate_proxy_beam_typehint(self):
+    expected = pd.Series(dtype=pd.Int32Dtype())
+
+    actual = schemas.generate_proxy(typehints.Optional[np.int32])
+
+    pd.testing.assert_series_equal(actual, expected)
 
   def test_nice_types_proxy_roundtrip(self):
     roundtripped = schemas.generate_proxy(
@@ -221,8 +244,14 @@ class SchemasTest(unittest.TestCase):
         assert_that(res, equal_to([('Falcon', 375.), ('Parrot', 25.)]))
 
   def assert_typehints_equal(self, left, right):
-    left = typehints.normalize(left)
-    right = typehints.normalize(right)
+    def maybe_drop_rowtypeconstraint(typehint):
+      if isinstance(typehint, row_type.RowTypeConstraint):
+        return typehint.user_type
+      else:
+        return typehint
+
+    left = maybe_drop_rowtypeconstraint(typehints.normalize(left))
+    right = maybe_drop_rowtypeconstraint(typehints.normalize(right))
 
     if match_is_named_tuple(left):
       self.assertTrue(match_is_named_tuple(right))
@@ -230,7 +259,8 @@ class SchemasTest(unittest.TestCase):
     else:
       self.assertEqual(left, right)
 
-  @parameterized.expand(SERIES_TESTS + NOINDEX_DF_TESTS)
+  @parameterized.expand(
+      SERIES_TESTS + NOINDEX_DF_TESTS, name_func=test_name_func)
   def test_unbatch_no_index(self, df_or_series, rows, beam_type):
     proxy = df_or_series[:0]
 
@@ -247,9 +277,15 @@ class SchemasTest(unittest.TestCase):
 
       assert_that(res, equal_to(rows))
 
-  @parameterized.expand(SERIES_TESTS + INDEX_DF_TESTS)
+  @parameterized.expand(SERIES_TESTS + INDEX_DF_TESTS, name_func=test_name_func)
   def test_unbatch_with_index(self, df_or_series, rows, _):
     proxy = df_or_series[:0]
+
+    if (PD_VERSION < (1, 2) and
+        set(['i32_nullable', 'i64_nullable']).intersection(proxy.index.names)):
+      self.skipTest(
+          "pandas<1.2 incorrectly changes Int64Dtype to int64 when "
+          "moved to index.")
 
     with TestPipeline() as p:
       res = (
@@ -257,6 +293,16 @@ class SchemasTest(unittest.TestCase):
           | schemas.UnbatchPandas(proxy, include_indexes=True))
 
       assert_that(res, equal_to(rows))
+
+  @parameterized.expand(SERIES_TESTS, name_func=test_name_func)
+  def test_unbatch_series_with_index_warns(
+      self, series, unused_rows, unused_type):
+    proxy = series[:0]
+
+    with TestPipeline() as p:
+      input_pc = p | beam.Create([series[::2], series[1::2]])
+      with self.assertWarns(UserWarning):
+        _ = input_pc | schemas.UnbatchPandas(proxy, include_indexes=True)
 
   def test_unbatch_include_index_unnamed_index_raises(self):
     df = pd.DataFrame({'foo': [1, 2, 3, 4]})

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -184,6 +185,7 @@ public class SamzaDoFnRunners {
   @SuppressWarnings("unchecked")
   public static <InT, FnOutT> DoFnRunner<InT, FnOutT> createPortable(
       String transformId,
+      String stepName,
       String bundleStateId,
       Coder<WindowedValue<InT>> windowedValueCoder,
       ExecutableStage executableStage,
@@ -194,6 +196,7 @@ public class SamzaDoFnRunners {
       SamzaPipelineOptions pipelineOptions,
       DoFnRunners.OutputManager outputManager,
       StageBundleFactory stageBundleFactory,
+      SamzaExecutionContext samzaExecutionContext,
       TupleTag<FnOutT> mainOutputTag,
       Map<String, TupleTag<?>> idToTupleTagMap,
       Context context,
@@ -219,6 +222,7 @@ public class SamzaDoFnRunners {
         (SamzaExecutionContext) context.getApplicationContainerContext();
     final DoFnRunner<InT, FnOutT> underlyingRunner =
         new SdkHarnessDoFnRunner<>(
+            stepName,
             timerInternalsFactory,
             WindowUtils.getWindowStrategy(
                 executableStage.getInputPCollection().getId(), executableStage.getComponents()),
@@ -226,7 +230,8 @@ public class SamzaDoFnRunners {
             stageBundleFactory,
             idToTupleTagMap,
             bundledEventsBag,
-            stateRequestHandler);
+            stateRequestHandler,
+            samzaExecutionContext);
     return pipelineOptions.getEnableMetrics()
         ? DoFnRunnerWithMetrics.wrap(
             underlyingRunner, executionContext.getMetricsContainer(), transformFullName)
@@ -234,6 +239,9 @@ public class SamzaDoFnRunners {
   }
 
   private static class SdkHarnessDoFnRunner<InT, FnOutT> implements DoFnRunner<InT, FnOutT> {
+
+    private static final int DEFAULT_METRIC_SAMPLE_RATE = 100;
+
     private final SamzaTimerInternalsFactory timerInternalsFactory;
     private final WindowingStrategy windowingStrategy;
     private final DoFnRunners.OutputManager outputManager;
@@ -243,16 +251,21 @@ public class SamzaDoFnRunners {
     private final BagState<WindowedValue<InT>> bundledEventsBag;
     private RemoteBundle remoteBundle;
     private FnDataReceiver<WindowedValue<?>> inputReceiver;
-    private StateRequestHandler stateRequestHandler;
+    private final StateRequestHandler stateRequestHandler;
+    private final SamzaExecutionContext samzaExecutionContext;
+    private long startBundleTime;
+    private final String metricName;
 
     private SdkHarnessDoFnRunner(
+        String stepName,
         SamzaTimerInternalsFactory<?> timerInternalsFactory,
         WindowingStrategy windowingStrategy,
         DoFnRunners.OutputManager outputManager,
         StageBundleFactory stageBundleFactory,
         Map<String, TupleTag<?>> idToTupleTagMap,
         BagState<WindowedValue<InT>> bundledEventsBag,
-        StateRequestHandler stateRequestHandler) {
+        StateRequestHandler stateRequestHandler,
+        SamzaExecutionContext samzaExecutionContext) {
       this.timerInternalsFactory = timerInternalsFactory;
       this.windowingStrategy = windowingStrategy;
       this.outputManager = outputManager;
@@ -260,6 +273,8 @@ public class SamzaDoFnRunners {
       this.idToTupleTagMap = idToTupleTagMap;
       this.bundledEventsBag = bundledEventsBag;
       this.stateRequestHandler = stateRequestHandler;
+      this.samzaExecutionContext = samzaExecutionContext;
+      this.metricName = "ExecutableStage-" + stepName + "-process-ns";
     }
 
     @SuppressWarnings("unchecked")
@@ -298,6 +313,8 @@ public class SamzaDoFnRunners {
                 stateRequestHandler,
                 BundleProgressHandler.ignored());
 
+        startBundleTime = getStartBundleTime();
+
         inputReceiver = Iterables.getOnlyElement(remoteBundle.getInputReceivers().values());
         bundledEventsBag
             .read()
@@ -312,6 +329,20 @@ public class SamzaDoFnRunners {
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
+    }
+
+    @SuppressWarnings({
+      "RandomModInteger" // https://errorprone.info/bugpattern/RandomModInteger
+    })
+    private long getStartBundleTime() {
+      /*
+       * Use random number for sampling purpose instead of counting as
+       * SdkHarnessDoFnRunner is stateless and counters won't persist
+       * between invocations of DoFn(s).
+       */
+      return ThreadLocalRandom.current().nextInt() % DEFAULT_METRIC_SAMPLE_RATE == 0
+          ? System.nanoTime()
+          : 0;
     }
 
     @Override
@@ -331,6 +362,25 @@ public class SamzaDoFnRunners {
         outputManager.output(
             idToTupleTagMap.get(result.getKey()), (WindowedValue) result.getValue());
       }
+    }
+
+    private void emitMetrics() {
+      if (startBundleTime <= 0) {
+        return;
+      }
+
+      final long count = Iterables.size(bundledEventsBag.read());
+
+      if (count <= 0) {
+        return;
+      }
+
+      final long finishBundleTime = System.nanoTime();
+      final long averageProcessTime = (finishBundleTime - startBundleTime) / count;
+
+      samzaExecutionContext
+          .getMetricsContainer()
+          .updateExecutableStageBundleMetric(metricName, averageProcessTime);
     }
 
     @Override
@@ -369,6 +419,7 @@ public class SamzaDoFnRunners {
         // RemoteBundle close blocks until all results are received
         remoteBundle.close();
         emitResults();
+        emitMetrics();
         bundledEventsBag.clear();
       } catch (Exception e) {
         throw new RuntimeException("Failed to finish remote bundle", e);

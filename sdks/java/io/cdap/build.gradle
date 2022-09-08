@@ -38,26 +38,39 @@ interface for integration with CDAP plugins."""
  */
 
 dependencies {
-    implementation library.java.avro
     implementation library.java.cdap_api
     implementation library.java.cdap_api_commons
     implementation (library.java.cdap_common) {
-        exclude module: "log4j-over-slf4j"
+        exclude module: 'log4j-over-slf4j'
     }
     implementation library.java.cdap_etl_api
     implementation library.java.cdap_etl_api_spark
+    implementation library.java.cdap_hydrator_common
+    implementation library.java.cdap_plugin_hubspot
+    implementation library.java.cdap_plugin_salesforce
+    implementation library.java.cdap_plugin_service_now
+    implementation library.java.cdap_plugin_zendesk
+    implementation library.java.commons_lang3
+    implementation library.java.guava
     implementation library.java.hadoop_common
     implementation library.java.hadoop_mapreduce_client_core
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
-    implementation library.java.guava
     implementation library.java.slf4j_api
     implementation library.java.tephra
+    implementation library.java.vendored_guava_26_0_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":sdks:java:io:hadoop-format")
     testImplementation library.java.cdap_plugin_service_now
     testImplementation library.java.cdap_etl_api
     testImplementation library.java.hadoop_common
     testImplementation library.java.vendored_guava_26_0_jre
     testImplementation library.java.junit
+    testImplementation library.java.mockito_core
+    testImplementation library.java.testcontainers_postgresql
+    testImplementation project(":sdks:java:io:hadoop-common")
+    testImplementation project(":sdks:java:io:hadoop-format")
+    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
 }

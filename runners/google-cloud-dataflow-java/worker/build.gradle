@@ -82,7 +82,7 @@ dependencies {
   implementation project(":runners:java-fn-execution")
   implementation project(":sdks:java:fn-execution")
   implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   implementation google_api_services_dataflow
   implementation library.java.avro
   implementation library.java.google_api_client
@@ -122,6 +122,7 @@ dependencies {
   shadowTest library.java.jsonassert
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
+  shadowTest library.java.powermock
 }
 
 //TODO(https://github.com/apache/beam/issues/19115): checktyle task should be enabled in the future.

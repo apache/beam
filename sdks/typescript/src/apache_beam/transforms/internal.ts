@@ -34,6 +34,8 @@ import { GeneralObjectCoder } from "../coders/js_coders";
 import { RowCoder } from "../coders/row_coder";
 import { KV } from "../values";
 import { CombineFn } from "./group_and_combine";
+import { serializeFn } from "../internal/serialize";
+import { CombinePerKeyPrecombineOperator } from "../worker/operators";
 
 /**
  * `Impulse` is the basic *source* primitive `PTransformClass`. It receives a Beam
@@ -170,21 +172,84 @@ groupByKey.urn = "beam:transform:group_by_key:v1";
 export function combinePerKey<K, InputT, AccT, OutputT>(
   combineFn: CombineFn<InputT, AccT, OutputT>
 ): PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
-  function expandInternal(input: PCollection<KV<any, InputT>>) {
+  function expandInternal(
+    input: PCollection<KV<any, InputT>>,
+    pipeline: Pipeline,
+    transformProto: runnerApi.PTransform
+  ) {
+    const pipelineComponents: runnerApi.Components =
+      pipeline.getProto().components!;
+    const inputProto = pipelineComponents.pcollections[input.getId()];
+
+    try {
+      // If this fails, we cannot lift, so we skip setting the liftable URN.
+      CombinePerKeyPrecombineOperator.checkSupportsWindowing(
+        pipelineComponents.windowingStrategies[inputProto.windowingStrategyId]
+      );
+
+      // Ensure the input is using the KV coder.
+      const inputCoderProto = pipelineComponents.coders[inputProto.coderId];
+      if (inputCoderProto.spec!.urn !== KVCoder.URN) {
+        return input
+          .apply(
+            withCoderInternal(
+              new KVCoder(new GeneralObjectCoder(), new GeneralObjectCoder())
+            )
+          )
+          .apply(combinePerKey(combineFn));
+      }
+
+      const inputValueCoder = pipeline.context.getCoder<InputT>(
+        inputCoderProto.componentCoderIds[1]
+      );
+
+      transformProto.spec = runnerApi.FunctionSpec.create({
+        urn: combinePerKey.urn,
+        payload: runnerApi.CombinePayload.toBinary({
+          combineFn: {
+            urn: urns.SERIALIZED_JS_COMBINEFN_INFO,
+            payload: serializeFn({ combineFn }),
+          },
+          accumulatorCoderId: pipeline.context.getCoderId(
+            combineFn.accumulatorCoder
+              ? combineFn.accumulatorCoder(inputValueCoder)
+              : new GeneralObjectCoder()
+          ),
+        }),
+      });
+    } catch (err) {
+      // Execute this as an unlifted combine.
+    }
+
     return input //
       .apply(groupByKey())
       .map(
-        withName("applyCombine", (kv) => ({
-          key: kv.key,
-          value: combineFn.extractOutput(
-            kv.value.reduce(
-              combineFn.addInput.bind(combineFn),
-              combineFn.createAccumulator()
-            )
-          ),
-        }))
+        withName("applyCombine", (kv) => {
+          // Artificially use multiple accumulators to emulate what would
+          // happen in a distributed combine for better testing.
+          const accumulators = [
+            combineFn.createAccumulator(),
+            combineFn.createAccumulator(),
+            combineFn.createAccumulator(),
+          ];
+          let ix = 0;
+          for (const value of kv.value) {
+            accumulators[ix % 3] = combineFn.addInput(
+              accumulators[ix % 3],
+              value
+            );
+          }
+          return {
+            key: kv.key,
+            value: combineFn.extractOutput(
+              combineFn.mergeAccumulators(accumulators)
+            ),
+          };
+        })
       );
   }
 
   return withName(`combinePerKey(${extractName(combineFn)})`, expandInternal);
 }
+
+combinePerKey.urn = "beam:transform:combine_per_key:v1";

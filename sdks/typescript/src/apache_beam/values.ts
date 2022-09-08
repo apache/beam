@@ -66,4 +66,4 @@ export enum Timing {
 }
 
 import { requireForSerialization } from "./serialization";
-requireForSerialization("apache_beam.values", exports);
+requireForSerialization("apache-beam/values", exports);

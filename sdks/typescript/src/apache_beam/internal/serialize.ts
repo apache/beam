@@ -25,7 +25,7 @@ const BIGINT_PREFIX = ":bigint:";
 
 const generator = function* () {};
 
-requireForSerialization("apache_beam", {
+requireForSerialization("apache-beam", {
   generator: generator,
   generator_prototype: generator.prototype,
   TextEncoder: TextEncoder,

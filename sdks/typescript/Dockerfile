@@ -23,15 +23,11 @@ ENV NODE_ENV=development
 
 WORKDIR /app
 
-# Copy configs for dependencies and TypeScript complilation settings.
-COPY ["package.json", "package-lock.json*", "tsconfig.json", "./"]
-
-# Copy source code
-COPY src ./src
+# Copy beam package.
+COPY apache-beam-0.38.0.tgz ./apache-beam-0.38.0.tgz
 
 # Install dependencies and compile
-RUN npm install
-RUN npm run build
+RUN npm install apache-beam-0.38.0.tgz
 
 # Check that filesystem is set up as expected
 RUN ls -a

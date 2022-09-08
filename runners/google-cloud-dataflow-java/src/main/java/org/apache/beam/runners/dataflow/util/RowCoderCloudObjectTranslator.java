@@ -27,7 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.util.JsonFormat;
 
 /** Translator for row coders. */
 @Experimental(Kind.SCHEMAS)

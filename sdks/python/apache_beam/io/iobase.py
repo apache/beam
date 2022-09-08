@@ -849,7 +849,8 @@ class Writer(object):
   writing to a sink.
   """
   def write(self, value):
-    """Writes a value to the sink using the current writer."""
+    """Writes a value to the sink using the current writer.
+    """
     raise NotImplementedError
 
   def close(self):
@@ -862,6 +863,12 @@ class Writer(object):
       writer.
     """
     raise NotImplementedError
+
+  def at_capacity(self) -> bool:
+    """Returns whether this writer should be considered at capacity
+    and a new one should be created.
+    """
+    return False
 
 
 class Read(ptransform.PTransform):
@@ -1185,6 +1192,9 @@ class _WriteBundleDoFn(core.DoFn):
       # We ignore UUID collisions here since they are extremely rare.
       self.writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
     self.writer.write(element)
+    if self.writer.at_capacity():
+      yield self.writer.close()
+      self.writer = None
 
   def finish_bundle(self):
     if self.writer is not None:

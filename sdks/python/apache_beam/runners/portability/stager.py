@@ -54,7 +54,6 @@ import os
 import shutil
 import sys
 import tempfile
-from distutils.version import StrictVersion
 from typing import Callable
 from typing import List
 from typing import Optional
@@ -62,6 +61,7 @@ from typing import Tuple
 from urllib.parse import urlparse
 
 import pkg_resources
+from pkg_resources import parse_version
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
@@ -698,7 +698,7 @@ class Stager(object):
     # addressed, download wheel based on glibc version in Beam's Python
     # Base image
     pip_version = pkg_resources.get_distribution('pip').version
-    if StrictVersion(pip_version) >= StrictVersion('19.3'):
+    if parse_version(pip_version) >= parse_version('19.3'):
       return 'manylinux2014_x86_64'
     else:
       return 'manylinux2010_x86_64'

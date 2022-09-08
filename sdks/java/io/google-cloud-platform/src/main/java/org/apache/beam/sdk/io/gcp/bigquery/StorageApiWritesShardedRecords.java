@@ -67,6 +67,7 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.Preconditions;
@@ -529,13 +530,15 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     private void finalizeStream(
         @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
-        OutputReceiver<KV<String, Operation>> o) {
+        OutputReceiver<KV<String, Operation>> o,
+        org.joda.time.Instant finalizeElementTs) {
       String stream = MoreObjects.firstNonNull(streamName.read(), "");
 
       if (!Strings.isNullOrEmpty(stream)) {
         // Finalize the stream
         long nextOffset = MoreObjects.firstNonNull(streamOffset.read(), 0L);
-        o.output(KV.of(stream, new Operation(nextOffset - 1, true)));
+        o.outputWithTimestamp(
+            KV.of(stream, new Operation(nextOffset - 1, true)), finalizeElementTs);
         streamName.clear();
         streamOffset.clear();
         // Make sure that the stream object is closed.
@@ -547,9 +550,15 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     public void onTimer(
         @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
-        OutputReceiver<KV<String, Operation>> o) {
+        OutputReceiver<KV<String, Operation>> o,
+        BoundedWindow window) {
       // Stream is idle - clear it.
-      finalizeStream(streamName, streamOffset, o);
+      // Note: this is best effort. We are explicitly emiting a timestamp that is before
+      // the default output timestamp, which means that in some cases (usually when draining
+      // a pipeline) this finalize element will be dropped as late. This is usually ok as
+      // BigQuery will eventually garbage collect the stream. We attempt to finalize idle streams
+      // merely to remove the pressure of large numbers of orphaned streams from BigQuery.
+      finalizeStream(streamName, streamOffset, o, window.maxTimestamp());
       streamsIdle.inc();
     }
 
@@ -557,10 +566,16 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     public void onWindowExpiration(
         @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
-        OutputReceiver<KV<String, Operation>> o) {
+        OutputReceiver<KV<String, Operation>> o,
+        BoundedWindow window) {
       // Window is done - usually because the pipeline has been drained. Make sure to clean up
       // streams so that they are not leaked.
-      finalizeStream(streamName, streamOffset, o);
+      finalizeStream(streamName, streamOffset, o, window.maxTimestamp());
+    }
+
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      return Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
     }
   }
 }

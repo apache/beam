@@ -84,7 +84,7 @@ export function sqlTransform<
       ) as InputT;
     }
 
-    return await P(input).asyncApply(
+    return await P(input).applyAsync(
       external.rawExternalTransform(
         "beam:external:java:sql:v1",
         { query: query },

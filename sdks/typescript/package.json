@@ -1,5 +1,5 @@
 {
-  "name": "apache_beam",
+  "name": "apache-beam",
   "version": "0.38.0",
   "devDependencies": {
     "@google-cloud/bigquery": "^5.12.0",
@@ -17,12 +17,15 @@
   "files": [
     "dist"
   ],
+  "bin": {
+    "apache-beam-worker": "dist/src/apache_beam/worker/worker_main.js"
+  },
   "scripts": {
-    "build": "ttsc -p .",
+    "build": "bash build.sh",
     "clean": "tsc --clean",
     "worker": "node dist/src/apache_beam/worker/external_worker_service.js",
     "pretest": "npm run build",
-    "test": "mocha dist/test",
+    "test": "mocha dist/test dist/test/docs",
     "codecovTest": "istanbul cover mocha dist/test --reporter lcovonly -- -R spec && codecov",
     "prettier": "prettier --write src/",
     "prettier-check": "prettier --check src/",
@@ -40,13 +43,16 @@
     "fast-deep-equal": "^3.1.3",
     "find-git-root": "^1.0.4",
     "long": "^4.0.0",
-    "protobufjs": "^6.10.2",
+    "protobufjs": "^6.11.3",
     "queue-typescript": "^1.0.1",
     "serialize-closures": "^0.2.7",
     "ts-closure-transform": "^0.1.7",
     "ttypescript": "^1.5.13",
     "uuid": "^8.3.2"
   },
-  "main": "./dist/apache_beam/index.js",
-  "exports": "./dist/apache_beam/index.js"
+  "main": "./dist/src/apache_beam/index.js",
+  "exports": {
+    ".": "./dist/src/apache_beam/index.js",
+    "./": "./dist/src/apache_beam/"
+  }
 }

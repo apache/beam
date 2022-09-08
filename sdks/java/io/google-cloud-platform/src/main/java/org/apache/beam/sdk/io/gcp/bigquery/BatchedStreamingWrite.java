@@ -77,6 +77,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
+  private final boolean propagateSuccessful;
   private final @Nullable SerializableFunction<ElementT, TableRow> toTableRow;
   private final @Nullable SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
   private final Set<String> allowedMetricUrns;
@@ -96,6 +97,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
+      boolean propagateSuccessful,
       @Nullable SerializableFunction<ElementT, TableRow> toTableRow,
       @Nullable SerializableFunction<ElementT, TableRow> toFailsafeTableRow) {
     this.bqServices = bqServices;
@@ -106,6 +108,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     this.skipInvalidRows = skipInvalidRows;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
+    this.propagateSuccessful = propagateSuccessful;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
     this.allowedMetricUrns = getAllowedMetricUrns();
@@ -121,6 +124,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
+      boolean propagateSuccessful,
       @Nullable SerializableFunction<ElementT, TableRow> toTableRow,
       @Nullable SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
       boolean batchViaStateful) {
@@ -132,6 +136,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     this.skipInvalidRows = skipInvalidRows;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
+    this.propagateSuccessful = propagateSuccessful;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
     this.allowedMetricUrns = getAllowedMetricUrns();
@@ -159,6 +164,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        propagateSuccessful,
         toTableRow,
         toFailsafeTableRow,
         false);
@@ -179,6 +185,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        propagateSuccessful,
         toTableRow,
         toFailsafeTableRow,
         true);
@@ -197,11 +204,16 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     public PCollectionTuple expand(PCollection<KV<String, TableRowInfo<ElementT>>> input) {
       PCollectionTuple result =
           input.apply(
-              ParDo.of(new BatchAndInsertElements())
+              ParDo.of(new BatchAndInsertElements(propagateSuccessful))
                   .withOutputTags(
-                      mainOutputTag, TupleTagList.of(failedOutputTag).and(SUCCESSFUL_ROWS_TAG)));
+                      mainOutputTag,
+                      propagateSuccessful
+                          ? TupleTagList.of(failedOutputTag).and(SUCCESSFUL_ROWS_TAG)
+                          : TupleTagList.of(failedOutputTag)));
       result.get(failedOutputTag).setCoder(failedOutputCoder);
-      result.get(SUCCESSFUL_ROWS_TAG).setCoder(TableRowJsonCoder.of());
+      if (propagateSuccessful) {
+        result.get(SUCCESSFUL_ROWS_TAG).setCoder(TableRowJsonCoder.of());
+      }
       return result;
     }
   }
@@ -217,6 +229,12 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     private transient @Nullable Map<String, List<String>> uniqueIdsForTableRows = null;
 
     private transient @Nullable DatasetService datasetService;
+
+    private final boolean propagateSuccessfulInserts;
+
+    BatchAndInsertElements(boolean propagateSuccessful) {
+      this.propagateSuccessfulInserts = propagateSuccessful;
+    }
 
     private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
       if (datasetService == null) {
@@ -279,8 +297,10 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       for (ValueInSingleWindow<ErrorT> row : failedInserts) {
         context.output(failedOutputTag, row.getValue(), row.getTimestamp(), row.getWindow());
       }
-      for (ValueInSingleWindow<TableRow> row : successfulInserts) {
-        context.output(SUCCESSFUL_ROWS_TAG, row.getValue(), row.getTimestamp(), row.getWindow());
+      if (propagateSuccessfulInserts) {
+        for (ValueInSingleWindow<TableRow> row : successfulInserts) {
+          context.output(SUCCESSFUL_ROWS_TAG, row.getValue(), row.getTimestamp(), row.getWindow());
+        }
       }
       reportStreamingApiLogging(options);
     }
@@ -354,12 +374,16 @@ class BatchedStreamingWrite<ErrorT, ElementT>
               // opposed to using the annotation @RequiresStableInputs, to avoid potential
               // performance penalty due to extra data shuffling.
               .apply(
-                  ParDo.of(new BatchAndInsertElements())
+                  ParDo.of(new BatchAndInsertElements(propagateSuccessful))
                       .withOutputTags(
                           mainOutputTag,
-                          TupleTagList.of(failedOutputTag).and(SUCCESSFUL_ROWS_TAG)));
+                          propagateSuccessful
+                              ? TupleTagList.of(failedOutputTag).and(SUCCESSFUL_ROWS_TAG)
+                              : TupleTagList.of(failedOutputTag)));
       result.get(failedOutputTag).setCoder(failedOutputCoder);
-      result.get(SUCCESSFUL_ROWS_TAG).setCoder(TableRowJsonCoder.of());
+      if (propagateSuccessful) {
+        result.get(SUCCESSFUL_ROWS_TAG).setCoder(TableRowJsonCoder.of());
+      }
       return result;
     }
   }

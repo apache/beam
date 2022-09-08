@@ -3,6 +3,7 @@ title:  "Apache Beam 2.40.0"
 date:   2022-06-25 9:00:00 -0700
 categories:
   - blog
+  - release
 authors:
   - pabloem
 ---
@@ -64,6 +65,10 @@ For more information on changes in 2.40.0 check out the [detailed release notes]
   constructed with some
   [built-ins](https://docs.python.org/3/library/functions.html), like ``sum``
   and ``len`` ([#22091](https://github.com/apache/beam/issues/22091)).
+* Java's ``BigQueryIO.Write`` can have an exception where it attempts to output a timestamp beyond the max timestamp range
+    ``Cannot output with timestamp 294247-01-10T04:00:54.776Z. Output timestamps must be no earlier than the timestamp of the current input or timer (294247-01-10T04:00:54.776Z) minus the allowed skew (0 milliseconds) and no later than 294247-01-10T04:00:54.775Z. See the DoFn#getAllowedTimestampSkew() Javadoc for details on changing the allowed skew.``
+    This happens when a sink is idle, causing the idle timeout to trigger, or when a specific table is idle long enough when using dynamic destinations.
+    When this happens, the job is no longer able to be drained. This has been fixed for the 2.41 release.
 
 ## List of Contributors
 

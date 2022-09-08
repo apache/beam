@@ -47,13 +47,13 @@ export class Root {
     return this.pipeline.applyTransform(transform, this);
   }
 
-  async asyncApply<OutputT extends PValue<any>>(
+  async applyAsync<OutputT extends PValue<any>>(
     transform: AsyncPTransform<Root, OutputT>
   ) {
     if (!(transform instanceof AsyncPTransformClass)) {
       transform = new AsyncPTransformClassFromCallable(transform);
     }
-    return await this.pipeline.asyncApplyTransform(transform, this);
+    return await this.pipeline.applyAsyncTransform(transform, this);
   }
 }
 
@@ -91,13 +91,13 @@ export class PCollection<T> {
     return this.pipeline.applyTransform(transform, this);
   }
 
-  asyncApply<OutputT extends PValue<any>>(
+  applyAsync<OutputT extends PValue<any>>(
     transform: AsyncPTransform<PCollection<T>, OutputT>
   ) {
     if (!(transform instanceof AsyncPTransformClass)) {
       transform = new AsyncPTransformClassFromCallable(transform);
     }
-    return this.pipeline.asyncApplyTransform(transform, this);
+    return this.pipeline.applyAsyncTransform(transform, this);
   }
 
   map<OutputT, ContextT>(
@@ -228,14 +228,14 @@ class PValueWrapper<T extends PValue<any>> {
     return this.pipeline(root).applyTransform(transform, this.pvalue);
   }
 
-  async asyncApply<O extends PValue<any>>(
+  async applyAsync<O extends PValue<any>>(
     transform: AsyncPTransform<T, O>,
     root: Root | null = null
   ) {
     if (!(transform instanceof AsyncPTransformClass)) {
       transform = new AsyncPTransformClassFromCallable(transform);
     }
-    return await this.pipeline(root).asyncApplyTransform(
+    return await this.pipeline(root).applyAsyncTransform(
       transform,
       this.pvalue
     );
@@ -302,7 +302,7 @@ class AsyncPTransformClassFromCallable<
     this.expander = expander;
   }
 
-  async asyncExpandInternal(
+  async expandInternalAsync(
     input: InputT,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
@@ -312,4 +312,4 @@ class AsyncPTransformClassFromCallable<
 }
 
 import { requireForSerialization } from "./serialization";
-requireForSerialization("apache_beam.pvalue", exports);
+requireForSerialization("apache-beam/pvalue", exports);

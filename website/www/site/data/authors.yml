@@ -37,6 +37,9 @@ chadrik:
 chamikara:
   name: Chamikara Jayalath
   email: chamikara@apache.org
+damccorm:
+  name: Danny McCormick
+  email: dannymccormick@google.com
 davor:
   name: Davor Bonaci
   email: davor@apache.org
@@ -79,6 +82,10 @@ jphalip:
   name: Julien Phalip
   email: jphalip@google.com
   twitter: julienphalip
+kileysok:
+  name: Kiley Sok
+  email: kileysok@apache.org
+  twitter:
 klk:
   name: Kenneth Knowles
   email: kenn@apache.org

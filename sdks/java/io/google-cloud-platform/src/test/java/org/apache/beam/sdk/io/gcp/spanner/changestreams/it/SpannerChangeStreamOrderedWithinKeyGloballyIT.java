@@ -53,7 +53,6 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -88,7 +87,6 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     databaseClient = ENV.getDatabaseClient();
   }
 
-  @Ignore
   @Test
   public void testOrderedWithinKey() {
     final SpannerConfig spannerConfig =
@@ -160,38 +158,38 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             // First batch of records ordered within key.
             "{\"SingerId\":\"0\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 0\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
+                + "{};",
             "{\"SingerId\":\"1\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
+                + "{};",
             "{\"SingerId\":\"2\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 2\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
+                + "{};",
             "{\"SingerId\":\"3\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 3\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
+                + "{};",
 
             // Second batch of records ordered within key.
             "{\"SingerId\":\"1\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
+                + "{};",
             "{\"SingerId\":\"2\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 2\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
+                + "{};",
             "{\"SingerId\":\"3\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 3\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
+                + "{};",
 
             // Third batch of records ordered within key.
             "{\"SingerId\":\"1\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
+                + "{};",
             "{\"SingerId\":\"2\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 2\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
+                + "{};",
             "{\"SingerId\":\"3\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 3\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;");
+                + "{};");
 
     pipeline
         .runWithAdditionalOptionArgs(Collections.singletonList("--streaming"))
@@ -222,6 +220,8 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
                       record.getValueCaptureType(),
                       record.getNumberOfRecordsInTransaction(),
                       record.getNumberOfPartitionsInTransaction(),
+                      record.getTransactionTag(),
+                      record.isSystemTransaction(),
                       record.getMetadata()))
           .forEach(outputReceiver::output);
     }
@@ -353,10 +353,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             records) {
           Instant recordCommitTimestamp =
               new Instant(record.getValue().getCommitTimestamp().toSqlTimestamp());
-          final String recordString =
-              record.getValue().getMods().get(0).getNewValuesJson().isEmpty()
-                  ? "Deleted record"
-                  : record.getValue().getMods().get(0).getNewValuesJson();
+          final String recordString = record.getValue().getMods().get(0).getNewValuesJson();
           // When the watermark passes time T, this means that all records with event time < T
           // have been processed and successfully committed. Since the timer fires when the
           // watermark passes the expiration time, we should only output records with event time
@@ -427,10 +424,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
       builder.append(recordsByKey.getKey());
       builder.append("\n");
       for (KV<SortKey, DataChangeRecord> record : sortedRecords) {
-        builder.append(
-            record.getValue().getMods().get(0).getNewValuesJson().isEmpty()
-                ? "Deleted record;"
-                : record.getValue().getMods().get(0).getNewValuesJson() + ";");
+        builder.append(record.getValue().getMods().get(0).getNewValuesJson() + ";");
       }
       outputReceiver.output(builder.toString());
     }

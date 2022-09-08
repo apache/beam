@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.util.common.Reiterator;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -52,6 +53,11 @@ public final class BatchingShuffleEntryReaderTest {
   private static final ShufflePosition SECOND_NEXT_START_POSITION =
       ByteArrayShufflePosition.of("next-second".getBytes(StandardCharsets.UTF_8));
 
+  static ShuffleEntry newShuffleEntry(byte[] key, byte[] secondaryKey, byte[] value) {
+    return new ShuffleEntry(
+        ByteString.copyFrom(key), ByteString.copyFrom(secondaryKey), ByteString.copyFrom(value));
+  }
+
   @Mock private ShuffleBatchReader batchReader;
   private ShuffleEntryReader reader;
 
@@ -63,8 +69,8 @@ public final class BatchingShuffleEntryReaderTest {
 
   @Test
   public void readerCanRead() throws Exception {
-    ShuffleEntry e1 = new ShuffleEntry(KEY, SKEY, VALUE);
-    ShuffleEntry e2 = new ShuffleEntry(KEY, SKEY, VALUE);
+    ShuffleEntry e1 = newShuffleEntry(KEY, SKEY, VALUE);
+    ShuffleEntry e2 = newShuffleEntry(KEY, SKEY, VALUE);
     ArrayList<ShuffleEntry> entries = new ArrayList<>();
     entries.add(e1);
     entries.add(e2);
@@ -76,8 +82,8 @@ public final class BatchingShuffleEntryReaderTest {
 
   @Test
   public void readerIteratorCanBeCopied() throws Exception {
-    ShuffleEntry e1 = new ShuffleEntry(KEY, SKEY, VALUE);
-    ShuffleEntry e2 = new ShuffleEntry(KEY, SKEY, VALUE);
+    ShuffleEntry e1 = newShuffleEntry(KEY, SKEY, VALUE);
+    ShuffleEntry e2 = newShuffleEntry(KEY, SKEY, VALUE);
     ArrayList<ShuffleEntry> entries = new ArrayList<>();
     entries.add(e1);
     entries.add(e2);
@@ -97,9 +103,9 @@ public final class BatchingShuffleEntryReaderTest {
 
   @Test
   public void readerShouldMergeMultipleBatchResults() throws Exception {
-    ShuffleEntry e1 = new ShuffleEntry(KEY, SKEY, VALUE);
+    ShuffleEntry e1 = newShuffleEntry(KEY, SKEY, VALUE);
     List<ShuffleEntry> e1s = Collections.singletonList(e1);
-    ShuffleEntry e2 = new ShuffleEntry(KEY, SKEY, VALUE);
+    ShuffleEntry e2 = newShuffleEntry(KEY, SKEY, VALUE);
     List<ShuffleEntry> e2s = Collections.singletonList(e2);
     when(batchReader.read(START_POSITION, END_POSITION))
         .thenReturn(new ShuffleBatchReader.Batch(e1s, NEXT_START_POSITION));
@@ -117,7 +123,7 @@ public final class BatchingShuffleEntryReaderTest {
   public void readerShouldMergeMultipleBatchResultsIncludingEmptyShards() throws Exception {
     List<ShuffleEntry> e1s = new ArrayList<>();
     List<ShuffleEntry> e2s = new ArrayList<>();
-    ShuffleEntry e3 = new ShuffleEntry(KEY, SKEY, VALUE);
+    ShuffleEntry e3 = newShuffleEntry(KEY, SKEY, VALUE);
     List<ShuffleEntry> e3s = Collections.singletonList(e3);
     when(batchReader.read(START_POSITION, END_POSITION))
         .thenReturn(new ShuffleBatchReader.Batch(e1s, NEXT_START_POSITION));

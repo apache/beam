@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -30,9 +31,9 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link ShuffleEntry}. */
 @RunWith(JUnit4.class)
 public class ShuffleEntryTest {
-  private static final byte[] KEY = {0xA};
-  private static final byte[] SKEY = {0xB};
-  private static final byte[] VALUE = {0xC};
+  private static final ByteString KEY = ByteString.copyFrom(new byte[] {0xA});
+  private static final ByteString SKEY = ByteString.copyFrom(new byte[] {0xB});
+  private static final ByteString VALUE = ByteString.copyFrom(new byte[] {0xC});
 
   @Test
   public void accessors() {
@@ -52,7 +53,7 @@ public class ShuffleEntryTest {
   @Test
   public void equalsForEqualEntries() {
     ShuffleEntry entry0 = new ShuffleEntry(KEY, SKEY, VALUE);
-    ShuffleEntry entry1 = new ShuffleEntry(KEY.clone(), SKEY.clone(), VALUE.clone());
+    ShuffleEntry entry1 = new ShuffleEntry(KEY.concat(ByteString.EMPTY), SKEY, VALUE);
 
     assertEquals(entry0, entry1);
     assertEquals(entry1, entry0);
@@ -71,7 +72,7 @@ public class ShuffleEntryTest {
 
   @Test
   public void notEqualsWhenKeysDiffer() {
-    final byte[] otherKey = {0x1};
+    final ByteString otherKey = ByteString.copyFrom(new byte[] {0x1});
     ShuffleEntry entry0 = new ShuffleEntry(KEY, SKEY, VALUE);
     ShuffleEntry entry1 = new ShuffleEntry(otherKey, SKEY, VALUE);
 
@@ -92,7 +93,7 @@ public class ShuffleEntryTest {
 
   @Test
   public void notEqualsWhenSecondaryKeysDiffer() {
-    final byte[] otherSKey = {0x2};
+    final ByteString otherSKey = ByteString.copyFrom(new byte[] {0x2});
     ShuffleEntry entry0 = new ShuffleEntry(KEY, SKEY, VALUE);
     ShuffleEntry entry1 = new ShuffleEntry(KEY, otherSKey, VALUE);
 
@@ -113,7 +114,7 @@ public class ShuffleEntryTest {
 
   @Test
   public void notEqualsWhenValuesDiffer() {
-    final byte[] otherValue = {0x2};
+    final ByteString otherValue = ByteString.copyFrom(new byte[] {0x2});
     ShuffleEntry entry0 = new ShuffleEntry(KEY, SKEY, VALUE);
     ShuffleEntry entry1 = new ShuffleEntry(KEY, SKEY, otherValue);
 
@@ -134,7 +135,7 @@ public class ShuffleEntryTest {
 
   @Test
   public void emptyNotTheSameAsNull() {
-    final byte[] empty = {};
+    final ByteString empty = ByteString.EMPTY;
     ShuffleEntry entry0 = new ShuffleEntry(null, null, null);
     ShuffleEntry entry1 = new ShuffleEntry(empty, empty, empty);
 

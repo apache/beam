@@ -32,12 +32,12 @@ The upgrading of the vendored dependencies should be performed in two steps:
 The [linkage tool](https://lists.apache.org/thread.html/eb5d95b9a33d7e32dc9bcd0f7d48ba8711d42bd7ed03b9cf0f1103f1%40%3Cdev.beam.apache.org%3E)
 is useful for the vendored dependency upgrades. It reports the linkage errors across multiple Apache Beam artifact ids.
 
-For example, when we upgrade the version of gRPC to 1.43.2 and the version of the vendored gRPC is 0.1-SNAPSHOT,
+For example, when we upgrade the version of gRPC to 1.48.1 and the version of the vendored gRPC is 0.1-SNAPSHOT,
 we could run the linkage tool as following:
 
 ```
-$ ./gradlew -p vendor/grpc-1_43_2 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
-$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_43_2:0.1-SNAPSHOT :checkJavaLinkage
+$ ./gradlew -p vendor/grpc-1_48_1 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
+$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_48_1:0.1-SNAPSHOT :checkJavaLinkage
 ```
 
 ### Known Linkage Errors in the Vendored gRPC Dependencies
@@ -62,7 +62,7 @@ references to the missing classes. Here are the known linkage errors:
   The `io.netty.handler.ssl` package has classes that have references to missing classes in other
   unused optional SSL implementations.
 - References from `io.netty.handler.codec.compression`: Beam does not use the optional dependencies
-  for compression algorithms (jzlib, lzma, and lzf) through Netty's features.
+  for compression algorithms (brotli, jzlib, lzma, lzf, and zstd) through Netty's features.
 - References to `com.google.protobuf.nano` and `org.jboss.marshalling`: Beam does not use the
   optional serialization algorithms.
 - References from `io.netty.util.internal.logging`: Netty's logging framework can choose available
@@ -77,19 +77,22 @@ Once you've verified using the linkage tool, you can test new artifacts by runni
 
 Example PRs:
 - Updating gRPC version (large) https://github.com/apache/beam/pull/16460
+- Testing updated gRPC version (large) https://github.com/apache/beam/pull/22595
 - Updating protobuf for calcite (minor version update): https://github.com/apache/beam/pull/16476
 
 Steps:
 
 1. Generate new artifact files with `publishMavenJavaPublicationToMavenLocal` and
-   copy to a folder in Beam (e.g. `tempLib`):
+   copy to the `tempLib` folder in Beam:
 
 ```
-./gradlew -p vendor/grpc-1_43_2 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
+./gradlew -p vendor/grpc-1_48_1 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
+
+mkdir -p tempLib/org/apache/beam
 
 # Copy files (jar/poms/metadata) to your beam repository
-cp -R ~/.m2/repository/org/apache/beam/beam-vendor-grpc-1_43_2/ \
-      $BEAMDIR/tempLib/org/apache/beam/beam-vendor-grpc-1_43_2
+cp -R ~/.m2/repository/org/apache/beam/beam-vendor-grpc-1_48_1/ \
+      tempLib/org/apache/beam
 ```
 
 2. Add the folder to the expected project repositories:

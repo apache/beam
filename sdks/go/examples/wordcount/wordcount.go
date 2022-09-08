@@ -71,12 +71,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
@@ -118,8 +118,15 @@ var (
 // done automatically by the starcgen code generator, or it can be done manually
 // by calling beam.RegisterFunction in an init() call.
 func init() {
-	beam.RegisterFunction(formatFn)
-	beam.RegisterType(reflect.TypeOf((*extractFn)(nil)))
+	// register.DoFnXxY registers a struct DoFn so that it can be correctly serialized and does some optimization
+	// to avoid runtime reflection. Since extractFn has 3 inputs and 0 outputs, we use register.DoFn3x0 and provide
+	// its input types as its constraints (if it had any outputs, we would add those as constraints as well).
+	// Struct DoFns must be registered for a pipeline to run.
+	register.DoFn3x0[context.Context, string, func(string)](&extractFn{})
+	// register.EmitterX is optional and will provide some optimization to make things run faster. Any emitters
+	// (functions that produce output for the next step) should be registered. Here we register all emitters with
+	// the signature func(string).
+	register.Emitter1[string]()
 }
 
 var (

@@ -52,7 +52,7 @@ def sdk_provided_dependencies = [
         library.java.jackson_databind,
         library.java.joda_time,
         library.java.slf4j_api,
-        library.java.vendored_grpc_1_43_2,
+        library.java.vendored_grpc_1_48_1,
 ]
 
 def sdk_provided_shaded_project_dependencies = [
@@ -79,8 +79,8 @@ def excluded_dependencies = [
 ]
 
 applyJavaNature(
+        automaticModuleName: 'org.apache.beam.runners.dataflow.worker',
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
-        publish: false,
         classesTriggerCheckerBugs: [
           'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
           'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
@@ -228,7 +228,7 @@ dependencies {
     implementation library.java.joda_time
     implementation library.java.slf4j_api
     implementation "io.opencensus:opencensus-api:0.31.0"
-    implementation library.java.vendored_grpc_1_43_2
+    implementation library.java.vendored_grpc_1_48_1
     implementation library.java.error_prone_annotations
     permitUnusedDeclared library.java.error_prone_annotations
     runtimeOnly library.java.slf4j_jdk14
@@ -244,6 +244,7 @@ dependencies {
     shadowTest library.java.jsonassert
     shadowTest library.java.junit
     shadowTest library.java.mockito_core
+    shadowTest library.java.powermock
 }
 
 project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {

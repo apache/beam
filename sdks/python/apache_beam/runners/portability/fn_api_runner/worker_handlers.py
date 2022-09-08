@@ -65,6 +65,7 @@ from apache_beam.runners.portability.fn_api_runner.execution import Buffer
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.log_handler import LOGENTRY_TO_LOG_LEVEL_MAP
 from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.utils import proto_utils
@@ -80,7 +81,8 @@ if TYPE_CHECKING:
 # State caching is enabled in the fn_api_runner for testing, except for one
 # test which runs without state caching (FnApiRunnerTestWithDisabledCaching).
 # The cache is disabled in production for other runners.
-STATE_CACHE_SIZE = 100
+STATE_CACHE_SIZE_MB = 100
+MB_TO_BYTES = 1 << 20
 
 # Time-based flush is enabled in the fn_api_runner by default.
 DATA_BUFFER_TIME_LIMIT_MS = 1000
@@ -359,16 +361,14 @@ class EmbeddedWorkerHandler(WorkerHandler):
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.control_conn = self  # type: ignore  # need Protocol to describe this
     self.data_conn = self.data_plane_handler
-    state_cache = StateCache(STATE_CACHE_SIZE)
+    state_cache = StateCache(STATE_CACHE_SIZE_MB * MB_TO_BYTES)
     self.bundle_processor_cache = sdk_worker.BundleProcessorCache(
         SingletonStateHandlerFactory(
             sdk_worker.GlobalCachingStateHandler(state_cache, state)),
         data_plane.InMemoryDataChannelFactory(
             self.data_plane_handler.inverse()),
         worker_manager._process_bundle_descriptors)
-    self.worker = sdk_worker.SdkWorker(
-        self.bundle_processor_cache,
-        state_cache_metrics_fn=state_cache.get_monitoring_infos)
+    self.worker = sdk_worker.SdkWorker(self.bundle_processor_cache)
     self._uid_counter = 0
 
   def push(self, request):
@@ -407,24 +407,12 @@ class EmbeddedWorkerHandler(WorkerHandler):
 
 
 class BasicLoggingService(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
-  LOG_LEVEL_MAP = {
-      beam_fn_api_pb2.LogEntry.Severity.CRITICAL: logging.CRITICAL,
-      beam_fn_api_pb2.LogEntry.Severity.ERROR: logging.ERROR,
-      beam_fn_api_pb2.LogEntry.Severity.WARN: logging.WARNING,
-      beam_fn_api_pb2.LogEntry.Severity.NOTICE: logging.INFO + 1,
-      beam_fn_api_pb2.LogEntry.Severity.INFO: logging.INFO,
-      beam_fn_api_pb2.LogEntry.Severity.DEBUG: logging.DEBUG,
-      beam_fn_api_pb2.LogEntry.Severity.TRACE: logging.DEBUG - 1,
-      beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED: logging.NOTSET,
-  }
-
   def Logging(self, log_messages, context=None):
     # type: (Iterable[beam_fn_api_pb2.LogEntry.List], Any) -> Iterator[beam_fn_api_pb2.LogControl]
     yield beam_fn_api_pb2.LogControl()
     for log_message in log_messages:
       for log in log_message.log_entries:
-        logging.log(self.LOG_LEVEL_MAP[log.severity], str(log))
+        logging.log(LOGENTRY_TO_LOG_LEVEL_MAP[log.severity], str(log))
 
 
 class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
@@ -664,7 +652,8 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
 
     from apache_beam.transforms.environments import EmbeddedPythonGrpcEnvironment
     config = EmbeddedPythonGrpcEnvironment.parse_config(payload.decode('utf-8'))
-    self._state_cache_size = config.get('state_cache_size') or STATE_CACHE_SIZE
+    self._state_cache_size = (
+        config.get('state_cache_size') or STATE_CACHE_SIZE_MB) << 20
     self._data_buffer_time_limit_ms = \
         config.get('data_buffer_time_limit_ms') or DATA_BUFFER_TIME_LIMIT_MS
 

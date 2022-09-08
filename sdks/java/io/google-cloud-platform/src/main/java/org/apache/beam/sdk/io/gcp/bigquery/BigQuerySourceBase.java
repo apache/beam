@@ -211,9 +211,21 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
             .setUseAvroLogicalTypes(useAvroLogicalTypes)
             .setDestinationUris(ImmutableList.of(destinationUri));
 
-    LOG.info("Starting BigQuery extract job: {}", jobId);
-    jobService.startExtractJob(jobRef, extract);
-    Job extractJob = jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
+    Job extractJob;
+    try {
+      LOG.info("Starting BigQuery extract job: {}", jobId);
+      jobService.startExtractJob(jobRef, extract);
+      extractJob = jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
+    } catch (IOException exn) {
+      // The error messages thrown in this case are generic and misleading, so leave this breadcrumb
+      // in case it's the root cause.
+      LOG.warn(
+          "Error extracting table: {} "
+              + "Note that external tables cannot be exported: "
+              + "https://cloud.google.com/bigquery/docs/external-tables#external_table_limitations",
+          exn);
+      throw exn;
+    }
     if (BigQueryHelpers.parseStatus(extractJob) != Status.SUCCEEDED) {
       throw new IOException(
           String.format(

@@ -96,6 +96,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigqueryio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
@@ -110,10 +111,7 @@ var (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*ShakesRow)(nil)))
-	beam.RegisterType(reflect.TypeOf((*WordsCombine)(nil)))
-	beam.RegisterType(reflect.TypeOf((*CountsRow)(nil)))
-	beam.RegisterType(reflect.TypeOf((*WordsAccum)(nil)))
+	register.Combiner3[WordsAccum, ShakesRow, CountsRow](&WordsCombine{})
 }
 
 // ShakesRow is a struct corresponding to the schema of the Shakespeare input table. In order to

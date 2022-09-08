@@ -23,11 +23,10 @@ String jobName = "beam_PerformanceTests_InfluxDbIO_IT"
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
   common.setAutoJob(delegate,'H H/6 * * *')
-  // [Issue#21824] Disable trigger
-  //  common.enablePhraseTriggeringFromPullRequest(
-  //      delegate,
-  //      'Java InfluxDbIO Performance Test',
-  //      'Run Java InfluxDbIO Performance Test')
+  common.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Java InfluxDbIO Performance Test',
+      'Run Java InfluxDbIO Performance Test')
 
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)
