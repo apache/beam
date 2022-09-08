@@ -25,10 +25,6 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
-  pull_request:
-    branches: ['master', 'release-*']
-    tags: 'v*'
-    paths: []
 
 
 jobs:
