@@ -20,6 +20,7 @@ read -r -d '' USAGE <<END
 Usage: run_job_server.sh (start|stop) [options]
 Options:
   --group_id [unique id for stop services later]
+  --runner [runner to test, default portable]
   --job_port [port for job endpoint, default 8099]
   --artifact_port [port for artifact service, default 8098]
   --job_server_jar [path to job server jar]
@@ -27,12 +28,18 @@ END
 
 JOB_PORT=8099
 ARTIFACT_PORT=8098
+RUNNER=portable
 
 while [[ $# -gt 0 ]]; do
   key="$1"
   case $key in
     --group_id)
       GROUP_ID="$2"
+      shift
+      shift
+      ;;
+    --runner)
+      RUNNER="$2"
       shift
       shift
       ;;
@@ -97,7 +104,26 @@ case $STARTSTOP in
     fi
 
     echo "Launching job server @ $JOB_PORT ..."
-    java -jar $JOB_SERVER_JAR --job-port=$JOB_PORT --artifact-port=$ARTIFACT_PORT --expansion-port=0 >$TEMP_DIR/$FILE_BASE.log 2>&1 </dev/null &
+
+    if [[ "$RUNNER" == "samza" ]]; then
+      echo "Start Samza Runner"
+      # Resolve current directory
+      CURRENT_DIRECTORY=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+      java \
+          -jar $SAMZA_JOB_SERVER_JAR \
+          --job-port $JOB_PORT \
+          --expansion-port 0 \
+          --artifact-port 0 \
+          --job-non-logged-store-base-dir "$CURRENT_DIRECTORY" &
+    else
+      java \
+          -jar $JOB_SERVER_JAR \
+          --job-port=$JOB_PORT \
+          --artifact-port=$ARTIFACT_PORT \
+          --expansion-port=0 \
+          >$TEMP_DIR/$FILE_BASE.log 2>&1 </dev/null &
+    fi
+
     mypid=$!
     if kill -0 $mypid >/dev/null 2>&1; then
       echo $mypid >> $pid
