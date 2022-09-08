@@ -114,7 +114,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           self.instance,
           self.TEST_DATABASE,
           table="Users",
-          columns=["UserId", "Key"]) # | 'To string' >> beam.ToString.Element() | beam.Map(print)
+          columns=["UserId", "Key"])
       assert_that(r, equal_to(self._data))
 
   @pytest.mark.spannerio_it
