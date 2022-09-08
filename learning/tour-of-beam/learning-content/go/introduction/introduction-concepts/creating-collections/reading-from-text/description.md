@@ -128,16 +128,16 @@ The following example code shows how to do this:
 ```
 func main() {
 	ctx := context.Background()
-    
+
     // First create pipline
 	p, s := beam.NewPipelineWithRoot()
 
     //Now create the PCollection using list of strings
 	numbers := beam.Create(s, "To", "be", "or", "not", "to", "be","that", "is", "the", "question")
-    
+
     //Create a numerical PCollection
 	numbers := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-   
+
 }
 ```
 
@@ -158,13 +158,13 @@ Each data source adapter has a Read transform; to read, you must apply that tran
 ```
 func main() {
 	ctx := context.Background()
-    
+
     // First create pipline
 	p, s := beam.NewPipelineWithRoot()
 
-    // Now create the PCollection by reading text files. Separate elements will be added for each line in the input file 
+    // Now create the PCollection by reading text files. Separate elements will be added for each line in the input file
     lines :=  textio.Read(scope, 'gs://some/inputData.txt')
-    
+
 }
 ```
 
@@ -178,4 +178,4 @@ Data processing pipelines often work with tabular data. In many examples and cha
 
 Loading data from csv file requires some processing and consists of two main part:
 * Loading text lines using `TextIO.Read` transform
-* Parsing lines of text into tabular format 
+* Parsing lines of text into tabular format
