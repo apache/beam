@@ -1,6 +1,5 @@
 """Dummy training function that loads a pretrained model from the torch hub and saves it."""
 
-import logging
 import argparse
 from pathlib import Path
 import time

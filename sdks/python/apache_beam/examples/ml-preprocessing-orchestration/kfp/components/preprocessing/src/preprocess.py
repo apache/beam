@@ -1,6 +1,4 @@
 """Dummy ingestion function that fetches data from one file and simply copies it to another."""
-
-import logging
 import re
 import json
 import io

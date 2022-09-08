@@ -1,6 +1,3 @@
-import logging
-import argparse
-
 from kfp import components as comp
 from kfp.v2 import dsl
 from kfp.v2.compiler import Compiler

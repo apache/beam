@@ -23,7 +23,7 @@ def run_fn(fn_args: tfx.components.FnArgs) -> None:
 
 def preprocessing_fn(inputs):
   """Transform raw data."""
-  # convert the captions to lowercase 
+  # convert the captions to lowercase
   # split the captions into separate words
   lower = tf.strings.lower(inputs['caption'])
 
