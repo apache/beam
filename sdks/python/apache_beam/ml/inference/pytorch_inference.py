@@ -92,7 +92,7 @@ def _convert_to_result(
     # length batch_size, to a list of dictionaries:
     # [{key_type1: value_type1, key_type2: value_type2}]
     predictions_per_tensor = [
-        dict(zip(predictions, v)) for v in zip(*predictions.values())
+        dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
     ]
     return [
         PredictionResult(x, y) for x, y in zip(batch, predictions_per_tensor)
