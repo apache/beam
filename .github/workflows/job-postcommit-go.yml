@@ -25,9 +25,27 @@ on:
     - cron: '0 */6 * * *'
 
 jobs:
-  postcommit-go:
-    name: Run PostCommit Go
+  set-properties:
     runs-on: self-hosted
+    outputs:
+      properties: ${{ steps.test-properties.outputs.properties }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - id: test-properties
+        uses: ./.github/actions/setup-default-test-properties
+
+  postcommit-go:
+    needs: set-properties
+    name: Run Go PostCommit
+    runs-on: self-hosted
+    strategy:
+      fail-fast: true
+      matrix:
+        golang: ${{fromJson(needs.set-properties.outputs.properties).GoTestProperties.SUPPORTED_VERSIONS}}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -36,8 +54,13 @@ jobs:
           submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
+      - name: Set Go Version
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.golang }}
       - name: Run :goPostCommit
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :goPostCommit
           arguments: --no-parallel
+
