@@ -46,7 +46,7 @@ When a post-commit test fails, follow the provided steps for your situation.
 
 ### I found a test failure {#found-failing-test}
 
-1.  Create a [GitHub issue](https://github.com/apache/tag-beam-it/issues/new/choose) and assign it to yourself.
+1.  Create a [GitHub issue](https://github.com/apache/beam/issues/new/choose) and assign it to yourself.
   - Components: testing, anything else relevant
   - Label: precommit
   - Reference this page in the description.
