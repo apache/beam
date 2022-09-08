@@ -34,9 +34,9 @@ const (
 // scenarios:
 // + Get SDK list
 // + Get content tree for existing SDK
-// - Get content tree for non-existing SDK: 404 Not Found
-// - Get unit content for existing SDK, existing unitId
-// - Get unit content for non-existing SDK/unitId: 404 Not Found
+// + Get content tree for non-existing SDK: 404 Not Found
+// + Get unit content for existing SDK, existing unitId
+// + Get unit content for non-existing SDK/unitId: 404 Not Found
 // TODO:
 // - Get content tree for a registered user
 // - Get unit content for a registered user
@@ -72,7 +72,7 @@ func TestSdkList(t *testing.T) {
 func TestGetContentTree(t *testing.T) {
 	port := os.Getenv(PORT_GET_CONTENT_TREE)
 	if port == "" {
-		log.Fatal(PORT_GET_CONTENT_TREE, "env not set")
+		t.Fatal(PORT_GET_CONTENT_TREE, "env not set")
 	}
 	url := "http://localhost:" + port
 
@@ -92,7 +92,7 @@ func TestGetContentTree(t *testing.T) {
 func TestGetUnitContent(t *testing.T) {
 	port := os.Getenv(PORT_GET_UNIT_CONTENT)
 	if port == "" {
-		log.Fatal(PORT_GET_UNIT_CONTENT, "env not set")
+		t.Fatal(PORT_GET_UNIT_CONTENT, "env not set")
 	}
 	url := "http://localhost:" + port
 
@@ -135,7 +135,7 @@ func TestNegative(t *testing.T) {
 		t.Log("Scenario", i)
 		port := os.Getenv(params.portEnvName)
 		if port == "" {
-			log.Fatal(params.portEnvName, "env not set")
+			t.Fatal(params.portEnvName, "env not set")
 		}
 		url := "http://localhost:" + port
 
