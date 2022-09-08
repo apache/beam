@@ -28,8 +28,8 @@ func genUnitNode(id string) tob.Node {
 		Id: id, Name: "Challenge Name",
 		Description: "## Challenge description\n\nawesome description\n",
 		Hints: []string{
-			"## Hint 1\n\nhint №1",
-			"## Hint 2\n\nhint №2",
+			"## Hint 1\n\nhint 1",
+			"## Hint 2\n\nhint 2",
 		},
 	}}
 }
