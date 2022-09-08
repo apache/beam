@@ -17,7 +17,7 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: Go Portable PreCommit
+name: PreCommit Go Portable
 
 on:
   workflow_dispatch:
@@ -32,9 +32,27 @@ on:
     paths: ['sdks/go**', 'model/**', 'release/**']
 
 jobs:
-  go-precommit:
-    name: Run Go Portable PreCommit
+  set-properties:
     runs-on: self-hosted
+    outputs:
+      properties: ${{ steps.test-properties.outputs.properties }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - id: test-properties
+        uses: ./.github/actions/setup-default-test-properties
+
+  precommit-go-portable:
+    needs: set-properties
+    name: Run PreCommit Go Portable
+    runs-on: self-hosted
+    strategy:
+      fail-fast: true
+      matrix:
+        golang: ${{fromJson(needs.set-properties.outputs.properties).GoTestProperties.SUPPORTED_VERSIONS}}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -43,7 +61,12 @@ jobs:
           submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
+      - name: Set Go Version
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.golang }}
       - name: Run :goPortablePreCommit
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :goPortablePreCommit
+            gradle-command: :goPortablePreCommit
+
