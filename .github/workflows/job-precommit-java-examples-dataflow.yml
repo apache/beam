@@ -16,6 +16,7 @@
 # under the License.
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
+# Runs PreCommit Java Examples Dataflow scheduled on cron, on push to master and on pull request
 
 name: PreCommit Java Examples Dataflow
 
