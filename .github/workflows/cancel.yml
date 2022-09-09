@@ -16,7 +16,6 @@
 # under the License.
 
 name: Cancel
-
 on:
   workflow_run:
     workflows:
@@ -24,11 +23,10 @@ on:
       - "Java Tests"
       - "Python tests"
     types: ['requested']
-
 jobs:
   cancel-duplicate-workflow-runs:
     name: "Cancel duplicate workflow runs"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
