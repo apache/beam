@@ -20,6 +20,7 @@
 //   name: setting-pipeline
 //   description: Setting pipeline example.
 //   multifile: false
+//   pipeline_options: --output output.txt
 //   context_line: 33
 //   categories:
 //     - Quickstart
