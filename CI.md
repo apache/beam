@@ -125,6 +125,20 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PreCommit Workflows
+
+#### Java PreCommit PVR Flink Batch - [job-precommit-java-pvr-flink-batch.yml](.github/workflows/job-precommit-java-pvr-flink-batch.yml)
+
+| Job                                | Description                         | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|------------------------------------|-------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java PreCommit PVR Flink Batch | Runs Java PreCommit PVR Flink Batch | Yes              | Yes                   | Yes           | No                       |
+
+#### Java PreCommit PVR Flink Docker - [job-precommit-java-pvr-flink-docker.yml](.github/workflows/job-precommit-java-pvr-flink-docker.yml)
+
+| Job                                 | Description                          | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-------------------------------------|--------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java PreCommit PVR Flink Docker | Runs Java PreCommit PVR Flink Docker | Yes              | Yes                   | Yes           | No                       |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
