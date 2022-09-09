@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "apache-beam-testing",
+  "private_key_id": "bace7dc65f3489bb226ba23bab4207a642260882",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDkG87yZp9j++hW\nStcVg1cHh3baAHTFIocd4L7gZp87SE9lq9WPcpC8XzqDQ+1FUUUxeDvXot4aGUtf\nN1BWdJmY+rsHwc4fBz7IhQs51Ys/MRK75SxnuZ4b6ebwGwvbaSTDfJfz8U7ZeN5j\na0OJkagvMPv6bLkYkKoABNpcHJRICywkRAXcasyfCxZS+W/BuIxB0QrIgcYNpO55\ntNclI8+g0xqEv4Kv8bvEHEUz4lmlprUPLoSOIWdBY4qXjcs2SjjUVTiJt0PR0AEy\n9w90NBnO+5QcfCdCrU3oEV/nZOFaZs179VXOQzwP4AC68ADSvgrqB2yFE2ROt8vR\nXbTeOQiXAgMBAAECggEADllLdscKzrTJZCg4CGPnJROZ39O4hLAL1M7O4vnBmW6O\nhAQ/nlLkFN1epmQu+DXJBvgbt5BIrVaa/aXSmWWjRdK70hyYVS5U/jMURjKPHE3/\nci9T0ECGWBYqDz98SvR9ughL3K34ukhWoOVd7bjqXfGUYCfXqtpqvy6O981abH+c\n/tLQBvVoKrJ/yVCS+kjbHsn4wabc/1stx/RR5CdlX4ny2s80z3TQfRBfkCfxIp1y\n8RLr7HVG93+IX2aQHa9z1dX4AbHwyUPYl+ag0QUJj7xfsykm9GOZHtWY874LkJM0\ncoy9IOuABRYwemW5xz18wPvGjnibPH5uaf1d9cD2IQKBgQD6eAmVyDY+8+3J6mBf\nouLPGp+lGbrGJM162i6STNjhtkX/+lofw/f+CcUCNVBqtMkSlvEP4eaM83ExvkBL\nqddRxZ9KIvm1q+9QNGbe1tq70erq+f65ML03H1wo6eFbkH6Z5UUXlfWxwUXEmp5Q\nv4BPcZKui4BuQfWCFDrRFEr6dwKBgQDpJVzhbCP3IsR3y7chpBO4BV/v3+uwwG+N\ngoSx7A2bDNcplVpDbYkpEn92YP7V6WijVm+hm7r3UXx+HKb7E+F/jYcGnAYmNrqq\nPcvqN5RDJSdMqxWQQKna9OCSmFsbz4KbfoVKgWpjfYE0i3ztpc67aQXVB3FiV8tU\nPQKaEhfK4QKBgQDgWNDNFu5v6PIfIA5+21mpBEHnEmrXvHNJDVEVvjutwSRmKoq7\nVT82ju2mErcbPR+1xPnbrg5iRlQnqC/TFihFmGwbbcSZ042iG63hADYgceCn5JEi\ns+NoEnDsPMGc0Ip1soT2oV3XgDTL62rPDRkTD7nBGjdJi08q2o/sYu7d9QKBgQCA\nrzO15KdxSApjCNkaw2Jy5tyOHO0NURoBZHHzdpQH6a108U+x+eqD9gbOgzkFPuCX\njyTscXVf/uUVAqGT4eRMMATAPCwUuY6MWrGLpIO8D+zCH4g2Z8qY5SJzJ47aKc4w\nH0RY3FepdGN1aixZS3Rw8sXaUFJf8o9y/n3KJoRlYQKBgBxafgHPzvakg8nMsFGx\nhN6QAktazugBCy59kirUf10B+oJJW8zHIiM7ZqAIL3DwBeFOit6ciJvUK4P7dR8X\nepoK882bi8Cvl7u5EB7V57miavuX31yhVF7IVCEF9X+koRPCxVEF+cnt3qTIQzIM\nRVRpgjPDQjkkatqGi+CVxQyR\n-----END PRIVATE KEY-----\n",
+  "client_email": "beam-ai@apache-beam-testing.iam.gserviceaccount.com",
+  "client_id": "102739411969633902408",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/beam-ai%40apache-beam-testing.iam.gserviceaccount.com"
+}

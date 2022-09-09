@@ -1,6 +1,29 @@
 // reformat results to json type
 import fs from 'fs';
-import data from './testresults.json';
+import { Storage } from '@google-cloud/storage';
+
+// import data from './testresults.json';
+
+const argv = process.argv;
+
+const gcs = new Storage({
+  projectId: 'apache-beam-testing',
+  keyFilename:
+    '.test-infra/validate-runner/src/main/js/apache-beam-testing-keys.json',
+});
+
+const bucket = gcs.bucket('beam-validates-runner-info');
+
+// no input or output files
+if (argv.length <= 2) {
+  console.log('ERROR: Please provide input and output files');
+  process.exit();
+}
+
+const inputFile = argv[2];
+
+// read input file into data
+const data = JSON.parse(fs.readFileSync(inputFile, 'utf8'));
 
 const statusDescription = {
   yes: 'Yes',
@@ -93,7 +116,7 @@ Object.values(updatedCategoriesWithClasses).forEach((cat) => {
 
     if (temp.length !== classes.length) {
       let difference = classes.filter((x) => !temp.includes(x));
-      console.log('difff', difference, cat.values);
+
       let allTest = [];
       cat.values.forEach((el) => {
         el.l3.forEach((test) => allTest.push(test));
@@ -161,27 +184,26 @@ formattedData.capability_matrix.categories[0]['rows'] = Object.keys(
 
 let jsonFormatted = JSON.stringify(formattedData);
 
-fs.writeFile(
-  'website/www/site/data/latest_capability_matrix.json',
-  jsonFormatted,
-  'utf8',
-  () => {}
-);
+const outputFile = argv[3];
 
-// import { Storage } from '@google-cloud/storage';
-
-// const gcs = new Storage({
-//   projectId: 'apache-beam-testing',
-//   keyFilename: 'website/www/site/data/latest-capability-matrix.json',
-// });
-
-// gcs.getBuckets().then((x) => console.log(x));
-
-// const up = () => {
-//   const bucket = gcs.bucket('beam-validates-runner-info');
-//   bucket.upload('./latest_capability_matrix.json', function (err, file) {
-//     if (err) throw new Error(err);
-//   });
-// };
-
-console.log('resultRows', jsonFormatted);
+if (outputFile) {
+  if (outputFile.startsWith('gs://')) {
+    fs.writeFile(
+      'website/www/site/data/latest_capability_matrix.json',
+      jsonFormatted,
+      'utf8',
+      () => {}
+    );
+    bucket.upload('website/www/site/data/latest_capability_matrix.json', {
+      destination: outputFile.substring(5),
+    });
+    console.log(
+      'Successfully wrote to gs://beam-validates-runner-info/latest_capability_matrix.json'
+    );
+  } else {
+    fs.writeFile(outputFile, jsonFormatted, 'utf8', () => {});
+    console.log('Successfully wrote to ' + outputFile);
+  }
+} else {
+  console.log(jsonFormatted);
+}

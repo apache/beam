@@ -18,6 +18,7 @@
 -->
 
 # Overview
+
 Apache Beam provides a portable API layer for building sophisticated data-parallel processing pipelines that may be executed across a diversity of execution engines, or runners. The core concepts of this layer are based upon the Beam Model (formerly referred to as the Dataflow Model), and implemented to varying degrees in each Beam runner.
 Apache Beam maintains a capability matrix to track which Beam features are supported by which set of language SDKs + Runners.
 
@@ -36,3 +37,11 @@ This module can be run using the below command. It accepts a single argument whi
 ####Run Configurations
 The project includes a [configuration file](src/main/resources/configuration.yaml) which includes the different configurations to generate the capablities.
 Inoreder to add a new runner, the runner name and the Jenkins job name needs to be added to the [configuration file](src/main/resources/configuration.yaml) in the respective mode(batch/stream).
+
+#### To generate latest_capability_matrix:
+
+`npm run start .test-infra/validate-runner/src/main/js/testresults.json website/www/site/data/latest_capability_matrix.json`
+
+#### To upload generated latest_capability_matrix to GCLOUD:
+
+`npm run start .test-infra/validate-runner/src/main/js/testresults.json gs://latest_capability_matrix.json`
