@@ -80,7 +80,7 @@ public class KafkaSchemaTransformReadProvider
     @Override
     public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
       final String avroSchema = configuration.getAvroSchema();
-      final Integer groupId = Math.abs(configuration.hashCode());
+      final Integer groupId = configuration.hashCode() % Integer.MAX_VALUE;
       final String autoOffsetReset =
           configuration.getAutoOffsetResetConfig() == null
               ? "latest"
