@@ -1324,15 +1324,6 @@ class DecoratorHelpers(TypeHintTestCase):
       },
                        getcallargs_forhints(str.join, str, typehints.List[int]))
 
-  # def test_unified_repr(self):
-  #   self.assertIn('int', typehints._unified_repr(int))
-  #   self.assertIn('PCollection', typehints._unified_repr(PCollection))
-  #   if sys.version_info < (3, 7):
-  #     self.assertIn('PCollection', typehints._unified_repr(PCollection[int]))
-  #   else:
-  #     self.assertIn(
-  #         'PCollection[int]', typehints._unified_repr(PCollection[int]))
-
 
 class TestGetYieldedType(unittest.TestCase):
   def test_iterables(self):
