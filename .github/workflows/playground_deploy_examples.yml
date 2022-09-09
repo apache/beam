@@ -30,6 +30,8 @@ env:
   GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
 jobs:
   check_examples:
+    name: Check examples
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
@@ -37,8 +39,6 @@ jobs:
             origin: PG_EXAMPLES
           - dirs: "./learning/tour-of-beam"
             origin: TB_EXAMPLES
-  name: Check examples
-    runs-on: ubuntu-latest
     outputs:
       example_has_changed: ${{ steps.check_has_example.outputs.example_has_changed }}
     steps:
