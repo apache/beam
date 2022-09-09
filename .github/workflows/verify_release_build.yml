@@ -6,6 +6,10 @@ on:
         description: Beam version of current release
         required: true
         default: vtest # remove default before merging
+      COMMENT_TRIGGER_PHRASES:
+        description: Flag to comment the Jenkins Trigger Phrases in the new PR
+        required: true
+        default: false
 env:
   #WORKING_BRANCH: postcommit_validation_pr # Is it always the same branch name? or should we need to add it as input?
   WORKING_BRANCH: 'verify-release-pr-test'
@@ -60,6 +64,7 @@ jobs:
     outputs:
       git_pr: ${{ steps.create_pr.outputs.git_pr }}
   comment_trigger_phrases:
+      if: ${{ github.event.inputs.COMMENT_TRIGGER_PHRASES }}
       needs: update_create_release_pr
       runs-on: ubuntu-latest
       permissions:
@@ -68,21 +73,7 @@ jobs:
         - name: Create PR Comment
           run: |
             GITHUB_PR=${{ needs.update_create_release_pr.outputs.git_pr }}
-            gh pr comment $GITHUB_PR --body "Hi! This is a test from Verify Release Workflow."
+            sh ./comment_pr_trigger_phrases.sh $GITHUB_PR
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#
-# Commenting this clean-up step 'cause I think this step is not needed, as the final self-hosted implementation has ephemeral runners.
-#  clean-up:
-#    if: always()
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Clean Temporal Directory
-#        run: |
-#          echo "==================== Final Cleanup ===================="
-#          rm -rf $LOCAL_BEAM_DIR
-#          echo "* Deleted workspace ${LOCAL_BEAM_DIR}"
-
-
-# echo "[NOTE]: Please make sure all test targets have been invoked."
-# echo "Please check the test results. If there is any failure, follow the policy in release guide."
+          working-directory: scripts/ci/release

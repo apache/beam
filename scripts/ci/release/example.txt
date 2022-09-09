@@ -1,0 +1,4 @@
+Run PythonFormatter PreCommit
+Run PythonLint PreCommit
+Run RAT PreCommit
+Run Whitespace PreCommit
