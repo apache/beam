@@ -21,6 +21,8 @@
 //   description: Setting pipeline example.
 //   multifile: false
 //   context_line: 33
+//   categories:
+//     - Quickstart
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;

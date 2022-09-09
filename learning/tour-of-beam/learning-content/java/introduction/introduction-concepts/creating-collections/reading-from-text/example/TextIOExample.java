@@ -20,6 +20,8 @@
 //   description: TextIO example.
 //   multifile: false
 //   context_line: 36
+//   categories:
+//     - Quickstart
 
 package org.apache.beam.examples;
 

@@ -21,6 +21,8 @@
 //   description: CSV example.
 //   multifile: false
 //   context_line: 50
+//   categories:
+//     - Quickstart
 
 package org.apache.beam.examples;
 

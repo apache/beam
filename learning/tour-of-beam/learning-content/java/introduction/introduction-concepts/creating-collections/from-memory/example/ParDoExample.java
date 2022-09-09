@@ -21,6 +21,8 @@
 //   description: ParDo example.
 //   multifile: false
 //   context_line: 36
+//   categories:
+//     - Quickstart
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

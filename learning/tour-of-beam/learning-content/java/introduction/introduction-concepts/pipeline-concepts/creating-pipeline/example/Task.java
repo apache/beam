@@ -21,6 +21,8 @@
 //   description: Creating pipeline example.
 //   multifile: false
 //   context_line: 33
+//   categories:
+//     - Quickstart
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
