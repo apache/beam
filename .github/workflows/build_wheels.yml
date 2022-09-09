@@ -367,7 +367,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: Branch commit
         run: |
           BRANCH_NAME=${GITHUB_REF##*/}
