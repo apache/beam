@@ -21,7 +21,7 @@ jobs:
   assign:
     name: Take or close an issue
     if: ${{ !github.event.issue.pull_request }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     steps:
     - uses: actions/github-script@v6
       with:
