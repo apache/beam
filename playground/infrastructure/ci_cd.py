@@ -49,12 +49,14 @@ parser.add_argument(
     type=Origin,
     required=True,
     help="ORIGIN field of pg_examples/pg_snippets",
-    choices=[o.value for o in Origin])
+    choices=[o.value for o in [Origin.PG_EXAMLPES, Origin.TB_EXAMLPES]])
 parser.add_argument(
-    "--dirs",
-    nargs='+',
-    help="directories to parse")
+    "--subdirs",
+    nargs="+",
+    required=True,
+    help="limit sub directories to walk through, relative to BEAM_ROOT_DIR")
 
+root_dir = os.getenv("BEAM_ROOT_DIR")
 categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
 
 
@@ -76,16 +78,19 @@ def _cd_step(examples: List[Example], sdk: Sdk, origin: Origin):
 
 
 def _check_envs():
+    if root_dir is None:
+        raise KeyError(
+            "BEAM_ROOT_DIR environment variable should be specified in os")
     if categories_file is None:
         raise KeyError(
             "BEAM_EXAMPLE_CATEGORIES environment variable should be specified in os"
         )
 
 
-def _run_ci_cd(step: Config.CI_CD_LITERAL, sdk: Sdk, origin: Origin, dirs: List[str]):
+def _run_ci_cd(step: Config.CI_CD_LITERAL, sdk: Sdk, origin: Origin, subdirs: List[str]):
     supported_categories = get_supported_categories(categories_file)
     logging.info("Start of searching Playground examples ...")
-    examples = find_examples(dirs, supported_categories, sdk)
+    examples = find_examples(root_dir, subdirs, supported_categories, sdk)
     validate_examples_for_duplicates_by_name(examples)
     logging.info("Finish of searching Playground examples")
     logging.info("Number of found Playground examples: %s", len(examples))
@@ -105,4 +110,4 @@ if __name__ == "__main__":
     parser = parser.parse_args()
     _check_envs()
     setup_logger()
-    _run_ci_cd(parser.step, Sdk.Value(parser.sdk), parser.origin, parser.dirs)
+    _run_ci_cd(parser.step, Sdk.Value(parser.sdk), parser.origin, parser.subdirs)

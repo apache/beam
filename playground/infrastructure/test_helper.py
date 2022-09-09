@@ -33,17 +33,17 @@ from helper import find_examples, Example, _get_example, _get_name, get_tag, \
 @mock.patch("helper._check_file")
 @mock.patch("helper.os.walk")
 def test_find_examples_with_valid_tag(mock_os_walk, mock_check_file):
-    mock_os_walk.return_value = [("/root", (), ("file.java",))]
+    mock_os_walk.return_value = [("/root/sub1", (), ("file.java",))]
     mock_check_file.return_value = False
     sdk = SDK_UNSPECIFIED
-    result = find_examples(dirs=[""], supported_categories=[], sdk=sdk)
+    result = find_examples(root_dir="/root", subdirs=["sub1"], supported_categories=[], sdk=sdk)
 
     assert not result
-    mock_os_walk.assert_called_once_with("")
+    mock_os_walk.assert_called_once_with("/root/sub1")
     mock_check_file.assert_called_once_with(
         examples=[],
         filename="file.java",
-        filepath="/root/file.java",
+        filepath="/root/sub1/file.java",
         supported_categories=[],
         sdk=sdk)
 
@@ -51,20 +51,20 @@ def test_find_examples_with_valid_tag(mock_os_walk, mock_check_file):
 @mock.patch("helper._check_file")
 @mock.patch("helper.os.walk")
 def test_find_examples_with_invalid_tag(mock_os_walk, mock_check_file):
-    mock_os_walk.return_value = [("/root", (), ("file.java",))]
+    mock_os_walk.return_value = [("/root/sub1", (), ("file.java",))]
     mock_check_file.return_value = True
     sdk = SDK_UNSPECIFIED
     with pytest.raises(
           ValueError,
           match="Some of the beam examples contain beam playground tag with "
                 "an incorrect format"):
-        find_examples([""], [], sdk=sdk)
+        find_examples("/root", ["sub1"], [], sdk=sdk)
 
-    mock_os_walk.assert_called_once_with("")
+    mock_os_walk.assert_called_once_with("/root/sub1")
     mock_check_file.assert_called_once_with(
         examples=[],
         filename="file.java",
-        filepath="/root/file.java",
+        filepath="/root/sub1/file.java",
         supported_categories=[],
         sdk=sdk)
 
