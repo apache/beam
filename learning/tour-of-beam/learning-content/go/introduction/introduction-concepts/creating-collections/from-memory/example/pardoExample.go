@@ -34,7 +34,7 @@ import (
 func main() {
   p, s := beam.NewPipelineWithRoot()
 
-  elements := beam.Create(s, "Hello", "world", "it`s", "Beam")
+  words := beam.Create(s, "Hello", "world", "it`s", "Beam")
 
   output(s, words)
 
