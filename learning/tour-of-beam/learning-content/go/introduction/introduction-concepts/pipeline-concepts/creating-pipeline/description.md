@@ -11,11 +11,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-# Tour of Beam Programming Guide
-
-The Beam Programming Guide is intended for Beam users who want to use the Beam SDKs to create data processing pipelines. This guide provides guidance for using the Beam SDK classes to build and test pipelines. The programming guide is not intended to be an exhaustive reference, but rather a language-agnostic, high-level guide to programmatically building your Beam pipeline. As the programming guide is filled out, the text will include code samples in multiple languages to help illustrate how to implement Beam concepts in your pipelines.
-
-For a brief introduction to Beam’s basic concepts,take a look at the Basics of the Beam model page before reading the programming guide.
 
 ### Overview
 
@@ -60,47 +55,4 @@ beam.Init()
 
 // Create the Pipeline object and root scope.
 pipeline, scope := beam.NewPipelineWithRoot()
-```
-
-### Configuring pipeline options
-
-Use the pipeline options to configure different aspects of your pipeline, such as the pipeline runner that will execute your pipeline and any runner-specific configuration required by the chosen runner. Your pipeline options will potentially include information such as your project ID or a location for storing files.
-
-### Setting PipelineOptions from command-line arguments
-
-Use Go flags to parse command line arguments to configure your pipeline. Flags must be parsed before `beam.Init()` is called.
-
-```
-// If beamx or Go flags are used, flags must be parsed first,
-// before beam.Init() is called.
-flag.Parse()
-```
-
-This interprets command-line arguments this follow the format:
-
-```
---<option>=<value>
-```
-
-### Creating custom options
-
-You can add your own custom options in addition to the standard `PipelineOptions`.
-
-The following example shows how to add `input` and `output` custom options:
-
-```
-// Use standard Go flags to define pipeline options.
-var (
-	input  = flag.String("input", "", "")
-	output = flag.String("output", "", "")
-)
-```
-
-You can also specify a description, which appears when a user passes `--help` as a command-line argument, and a default value.
-
-```
-var (
-	input  = flag.String("input", "gs://my-bucket/input", "Input for the pipeline")
-	output = flag.String("output", "gs://my-bucket/output", "Output for the pipeline")
-)
 ```

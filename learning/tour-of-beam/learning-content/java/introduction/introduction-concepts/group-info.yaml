@@ -20,7 +20,7 @@
 id: concepts
 name: Beam Concepts
 content:
-- basic-concepts
+- pipeline-concepts
 - creating-collections
 
 

@@ -17,6 +17,8 @@
 # under the License.
 #
 
-id: basic
-name: Basic Concepts
-taskName: HelloBeam
+id: pipeline-concepts
+name: Pipeline concepts
+content:
+- creating-pipeline
+- setting-pipeline

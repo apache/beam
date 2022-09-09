@@ -17,9 +17,6 @@
 # under the License.
 #
 
-id: creating-collections
-name: Creating Collections
-content:
-- from-memory
-- reading-from-text
-- reading-from-csv
+id: setting-pipeline
+name: Pipeline setting concepts
+taskName: HelloBeam
