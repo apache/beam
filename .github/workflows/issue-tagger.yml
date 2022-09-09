@@ -20,9 +20,7 @@ on:
 
 jobs:
   label:
-
-    runs-on: ubuntu-latest
-
+    runs-on: [self-hosted, ubuntu-20.04]
     steps:
     - uses: actions/checkout@v3
     - uses: damccorm/tag-ur-it@6fa72bbf1a2ea157b533d7e7abeafdb5855dbea5
