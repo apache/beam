@@ -17,9 +17,9 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-# Runs PostCommit Java Validates Runner Direct on JDK8 via cron and on push to master
+# Runs PostCommit Java Validates Runner Dataflow on JDK8 via cron and on push to master
 
-name: PostCommit Java Validates Runner Direct JDK8
+name: PostCommit Java Validates Runner Dataflow JDK8
 
 on:
   schedule:
@@ -28,8 +28,8 @@ on:
     branches: [ 'master' ]
 
 jobs:
-  postcommit-java-validates-runner-direct-jdk-8:
-    name: Run PostCommit Java Validates Runner Direct JDK8
+  postcommit-java-validates-runner-dataflow-jdk8:
+    name: Run PostCommit Java Validates Runner Dataflow JDK8
     runs-on: self-hosted
     steps:
       - name: Checkout code
@@ -39,7 +39,7 @@ jobs:
           submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
-      - name: Run :runners:direct-java:validatesRunner
+      - name: Run :runners:google-cloud-dataflow-java:validatesRunner
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:direct-java:validatesRunner
+          gradle-command: :runners:google-cloud-dataflow-java:validatesRunner
