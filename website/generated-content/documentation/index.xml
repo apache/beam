@@ -4637,17 +4637,18 @@ a &lt;code>PCollection&lt;/code>:&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">lines&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">textio&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Read&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;gs://some/inputData.txt&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;div class='language-go snippet'>
+&lt;div class='language-typescript snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">async&lt;/span> &lt;span class="nx">function&lt;/span> &lt;span class="nf">pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">root&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Root&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="nx">async&lt;/span> &lt;span class="kd">function&lt;/span> &lt;span class="nx">pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">root&lt;/span>: &lt;span class="kt">beam.Root&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
 &lt;span class="c1">// Note that textio.ReadFromText is an AsyncPTransform.
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kd">const&lt;/span> &lt;span class="nx">pcoll&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">&amp;lt;&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">await&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">applyAsync&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="nx">textio&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;path/to/text_pattern&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kr">const&lt;/span> &lt;span class="nx">pcoll&lt;/span>: &lt;span class="kt">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">await&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">applyAsync&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">textio&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;path/to/text_pattern&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="p">);&lt;/span>
-&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="p">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>See the &lt;a href="#pipeline-io">section on I/O&lt;/a> to learn more about how to read from the
@@ -6367,25 +6368,26 @@ mean average:&lt;/p>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;div class='language-go snippet'>
+&lt;div class='language-typescript snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">const&lt;/span> &lt;span class="nx">meanCombineFn&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">CombineFn&lt;/span>&lt;span class="p">&amp;lt;&lt;/span>&lt;span class="nx">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">number&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="nx">number&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="p">=&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">meanCombineFn&lt;/span>: &lt;span class="kt">beam.CombineFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="kt">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">number&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="kt">number&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">=&lt;/span>
 &lt;span class="p">{&lt;/span>
-&lt;span class="nx">createAccumulator&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">()&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">],&lt;/span>
-&lt;span class="nx">addInput&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">([&lt;/span>&lt;span class="nx">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">count&lt;/span>&lt;span class="p">]:&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">number&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">number&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="nx">createAccumulator&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">()&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;span class="nx">addInput&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">([&lt;/span>&lt;span class="nx">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">count&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="kt">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">number&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="nx">i&lt;/span>: &lt;span class="kt">number&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="p">[&lt;/span>
 &lt;span class="nx">sum&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="nx">count&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="p">],&lt;/span>
-&lt;span class="nx">mergeAccumulators&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">accumulators&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">number&lt;/span>&lt;span class="p">][])&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span>
-&lt;span class="nx">accumulators&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">reduce&lt;/span>&lt;span class="p">(([&lt;/span>&lt;span class="nx">sum0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">count0&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">sum1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">count1&lt;/span>&lt;span class="p">])&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="nx">mergeAccumulators&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">accumulators&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="kt">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">number&lt;/span>&lt;span class="p">][])&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span>
+&lt;span class="nx">accumulators&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">reduce&lt;/span>&lt;span class="p">(([&lt;/span>&lt;span class="nx">sum0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">count0&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">sum1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">count1&lt;/span>&lt;span class="p">])&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="p">[&lt;/span>
 &lt;span class="nx">sum0&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="nx">sum1&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="nx">count0&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="nx">count1&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="p">]),&lt;/span>
-&lt;span class="nx">extractOutput&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">([&lt;/span>&lt;span class="nx">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">count&lt;/span>&lt;span class="p">]:&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">number&lt;/span>&lt;span class="p">])&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="nx">sum&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="nx">count&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="p">};&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="nx">extractOutput&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">([&lt;/span>&lt;span class="nx">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">count&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="kt">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">number&lt;/span>&lt;span class="p">])&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">sum&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="nx">count&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">};&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;span class="language-go">
@@ -6432,15 +6434,16 @@ of integers.&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">average&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Combine&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">averageFn&lt;/span>&lt;span class="p">{},&lt;/span> &lt;span class="nx">ints&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;div class='language-go snippet'>
+&lt;div class='language-typescript snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">const&lt;/span> &lt;span class="nx">pcoll&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">4&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">5&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">6&lt;/span>&lt;span class="p">]));&lt;/span>
-&lt;span class="kd">const&lt;/span> &lt;span class="nx">result&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">pcoll&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">apply&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">groupGlobally&lt;/span>&lt;span class="p">().&lt;/span>&lt;span class="nf">combining&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">c&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">meanCombineFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;mean&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="p">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">4&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">5&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">6&lt;/span>&lt;span class="p">]));&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">pcoll&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">groupGlobally&lt;/span>&lt;span class="p">().&lt;/span>&lt;span class="nx">combining&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">c&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">meanCombineFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;mean&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h5 id="combine-global-windowing">4.2.4.4. Combine and global windowing&lt;/h5>
