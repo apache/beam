@@ -18,6 +18,7 @@
 #   name: setting-pipeline
 #   description: Setting pipeline example.
 #   multifile: false
+#   context_line: 35
 #   categories:
 #     - Quickstart
 #   context_line: 47
