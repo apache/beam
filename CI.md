@@ -125,6 +125,24 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PreCommit Workflows
+
+#### XVR Spark - [job-postcommit-xvr-spark.yml](.github/workflows/job-postcommit-xvr-spark.yml)
+| Job       | Description                                 | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------|---------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| XVR Spark | Runs Cross Validates Runner tests for Spark | -                | Yes                   | Yes           | -                        |
+
+#### XVR Samza - [job-postcommit-xvr-samza.yml](.github/workflows/job-postcommit-xvr-samza.yml)
+| Job       | Description                                 | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------|---------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| XVR Samza | Runs Cross Validates Runner tests for Samza | -                | Yes                   | Yes           | -                        |
+
+#### XVR PythonUsingJavaSQL_Dataflow - [job-postcommit-xvr-job-postcommit-pythonusingjavasql-dataflow.yml](.github/workflows/job-postcommit-xvr-job-postcommit-pythonusingjavasql-dataflow.yml)
+| Job                             | Description                                                             | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|---------------------------------|-------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| XVR PythonUsingJavaSQL_Dataflow | Runs Cross Validates Runner tests for Dataflow with Python UsingJavaSQL | -                | Yes                   | Yes           | -                        |
+
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
