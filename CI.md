@@ -125,6 +125,32 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PreCommit Workflows
+
+#### Java IO ClickHouse - [job-precommit-java-io-clickhouse.yml](.github/workflows/job-precommit-java-io-clickhouse.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java IO Clickhouse| Runs Java IO Clickhouse | No              | Yes                   | Yes           | No                       |
+
+#### Java IO Elastic Search - [job-precommit-java-io-elasticsearch.yml](.github/workflows/job-precommit-java-io-elasticsearch.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java IO ElasticSearch| Runs Java IO ElasticSearch | No              | Yes                   | Yes           | No                       |
+
+#### Java IO GCP - [job-precommit-java-io-gcp.yml](.github/workflows/job-precommit-java-io-gcp.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java IO GCP| Runs Java IO GCP | No              | Yes                   | Yes           | No                       |
+
+#### Java IO File Based - [job-precommit-java-io-file-based.yml](.github/workflows/job-precommit-java-io-file-based.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java IO File Based | Runs Java IO FileBased | No              | Yes                   | Yes           | No                       |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
