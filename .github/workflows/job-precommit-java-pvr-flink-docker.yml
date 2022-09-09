@@ -53,6 +53,7 @@ jobs:
         uses: ./.github/actions/setup-default-test-properties
 
   precommit-java-pvr-flink-docker:
+    needs: set-properties
     name: Run PreCommit Java PVR Flink Docker
     runs-on: self-hosted
     strategy:
