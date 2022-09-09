@@ -52,6 +52,7 @@ parser.add_argument(
     choices=[o.value for o in [Origin.PG_EXAMLPES, Origin.TB_EXAMLPES]])
 parser.add_argument(
     "--subdirs",
+    default=[],
     nargs="+",
     required=True,
     help="limit sub directories to walk through, relative to BEAM_ROOT_DIR")

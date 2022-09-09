@@ -109,6 +109,7 @@ def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[
     examples = []
     for subdir in subdirs:
         subdir = os.path.join(root_dir, subdir)
+        logging.info("subdir: %s", subdir)
         for root, _, files in os.walk(subdir):
             for filename in files:
                 filepath = os.path.join(root, filename)
