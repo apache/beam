@@ -17,29 +17,49 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: PreCommit Runners Flink
+# Runs PreCommit Java Runners Flink scheduled on cron, on push to master and on pull request
+
+name: PreCommit Java Runners Flink
 
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
-    branches: ['main', 'release-*']
+    branches: ['master', 'release-*']
     tags: 'v*'
   pull_request:
-    branches: ['main', 'release-*']
+    branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['runners/flink/**']
 
 
 jobs:
+  set-properties:
+    runs-on: self-hosted
+    outputs:
+      properties: ${{ steps.test-properties.outputs.properties }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - id: test-properties
+        uses: ./.github/actions/setup-default-test-properties
+
   precommit-runners-flink:
-    name: Run PreCommit Runners Flink
+    needs: set-properties
+    name: Run PreCommit Java Runners Flink
     runs-on: self-hosted
     strategy:
       fail-fast: true
       matrix:
-        java: ['8']
+        java: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SUPPORTED_VERSIONS}}
+        flink: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.FLINK_VERSIONS}}
+        exclude: #Skipping Java 11 and 17 due to issues caused by new access options added in JDK 9 and onwards.
+          - java: "11"
+          - java: "17"
     timeout-minutes: 120
     steps:
       - name: Checkout code
@@ -54,13 +74,13 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
-      - name: Run :runners:flink:test in Java-${{ matrix.java }}
+      - name: Run :runners:flink:${{ matrix.flink }}:test in Java-${{ matrix.java }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:flink:test
+          gradle-command: :runners:flink:${{ matrix.flink }}:test
           arguments: -PdisableSpotlessCheck=true -PdisableCheckStyle=true --info
-      - name: Run :runners:flink:examplesIntegrationTest in Java-${{ matrix.java }}
+      - name: Run :runners:flink:${{ matrix.flink }}:examplesIntegrationTest in Java-${{ matrix.java }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:flink:examplesIntegrationTest
+          gradle-command: :runners:flink:${{ matrix.flink }}:examplesIntegrationTest
           arguments: -PdisableSpotlessCheck=true -PdisableCheckStyle=true --info
