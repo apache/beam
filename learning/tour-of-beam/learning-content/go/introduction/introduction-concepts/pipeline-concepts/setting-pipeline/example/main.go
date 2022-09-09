@@ -46,10 +46,11 @@ func main() {
   // If beamx or Go flags are used, flags must be parsed first.
   flag.Parse()
 
+  ctx := context.Background()
 
   // Input validation is done as usual. Note that it must be after Init().
   if *output == "" {
-    log.Fatal("No output provided")
+    log.Exitf(ctx,"No output provided")
   }
 
   p := beam.NewPipeline()
@@ -61,7 +62,9 @@ func main() {
   // Write to option output file
   textio.Write(s, *output, lines)
 
-  if err := beamx.Run(context.Background(), p); err != nil {
-    log.Fatalf("Failed to execute job: %v", err)
-  }
+  err := beamx.Run(ctx, p)
+
+  if err != nil {
+  		log.Exitf(ctx, "Failed to execute job: %v", err)
+  	}
 }

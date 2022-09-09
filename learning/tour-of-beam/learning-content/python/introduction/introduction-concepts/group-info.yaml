@@ -20,6 +20,7 @@
 id: concepts
 name: Beam Concepts
 content:
+- runner-concepts
 - pipeline-concepts
 - creating-collections
 

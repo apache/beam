@@ -16,7 +16,7 @@
 
 # beam-playground:
 #   name: creating-pipeline
-#   description: Hello Beam example.
+#   description: Creating pipeline example.
 #   multifile: false
 #   context_line: 35
 #   categories:
