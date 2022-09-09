@@ -17,9 +17,5 @@
 # under the License.
 #
 
-id: concepts
-name: Beam Concepts
-content:
-- runner-concepts
-- pipeline-concepts
-- creating-collections
+id: runner-concepts
+name: Runners
