@@ -127,7 +127,7 @@ def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[
     return examples
 
 
-async def get_statuses(examples: List[Example]):
+async def get_statuses(examples: List[Example], concurrency: int = 10):
     """
     Receive status and update example.status and example.pipeline_id for
     each example
@@ -138,9 +138,17 @@ async def get_statuses(examples: List[Example]):
     """
     tasks = []
     client = GRPCClient()
-    for example in examples:
-        tasks.append(_update_example_status(example, client))
-    await tqdm.gather(*tasks)
+
+    try:
+        concurrency = int(os.environ["BEAM_CONCURRENCY"])
+        logging.info("override default concurrency: %d", concurrency)
+    except (KeyError, ValueError):
+        pass
+
+    async with asyncio.Semaphore(concurrency):
+        for example in examples:
+            tasks.append(_update_example_status(example, client))
+        await tqdm.gather(*tasks)
 
 
 def get_tag(filepath) -> Optional[ExampleTag]:

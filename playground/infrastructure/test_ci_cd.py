@@ -23,8 +23,8 @@ from config import Origin
 
 @mock.patch("ci_helper.CIHelper.verify_examples")
 def test_ci_step(mock_verify_examples):
-    _ci_step([])
-    mock_verify_examples.assert_called_once_with([])
+    _ci_step([], Origin.PG_EXAMLPES)
+    mock_verify_examples.assert_called_once_with([], Origin.PG_EXAMLPES)
 
 
 @mock.patch("cd_helper.CDHelper.save_examples")
