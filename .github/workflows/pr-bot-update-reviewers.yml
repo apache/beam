@@ -25,13 +25,16 @@ jobs:
   update-reviewers:
     # Don't run on forks
     if: github.repository == 'apache/beam'
-    runs-on: ubuntu-latest
-
+    runs-on: [self-hosted, ubuntu-20.04]
     steps:
       - uses: actions/checkout@v3
-      - run: npm ci
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: Install pr-bot npm dependencies
+        run: npm ci
         working-directory: 'scripts/ci/pr-bot'
-
       # Runs a set of commands using the runners shell
       - run: npm run updateReviewers
         env:
