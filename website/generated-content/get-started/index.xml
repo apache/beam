@@ -4424,6 +4424,7 @@ This serves both as comments and makes your pipeline easier to debug.&lt;/p>
 &lt;/div>
 &lt;h2 id="setup">Setup&lt;/h2>
 &lt;p>Here&amp;rsquo;s a comparison on how to get started both in PySpark and Beam.&lt;/p>
+&lt;div class="table-container-wrapper">
 &lt;div class="table-wrapper">&lt;table style="width:100%">
 &lt;tr>
 &lt;th style="width:20%">&lt;/th>
@@ -4479,8 +4480,10 @@ This serves both as comments and makes your pipeline easier to debug.&lt;/p>
 &lt;td>&lt;code>$ python beam_pipeline.py&lt;/code>&lt;/td>
 &lt;/tr>
 &lt;/table>&lt;/div>
+&lt;/div>
 &lt;h2 id="transforms">Transforms&lt;/h2>
 &lt;p>Here are the equivalents of some common transforms in both PySpark and Beam.&lt;/p>
+&lt;div class="table-container-wrapper">
 &lt;div class="table-wrapper">&lt;table style="width:100%">
 &lt;tr>
 &lt;th style="width:20%">&lt;/th>
@@ -4558,6 +4561,7 @@ This serves both as comments and makes your pipeline easier to debug.&lt;/p>
 &lt;td>&lt;code>{'Xs': pairs, 'Ys': otherPairs} | beam.CoGroupByKey()&lt;/code>&lt;/td>
 &lt;/tr>
 &lt;/table>&lt;/div>
+&lt;/div>
 &lt;blockquote>
 &lt;p>ℹ️ To learn more about the transforms available in Beam, check the
 &lt;a href="/documentation/transforms/python/overview">Python transform gallery&lt;/a>.&lt;/p>
