@@ -31,6 +31,10 @@ on:
     tags: 'v*'
     paths: ['sdks/typescript/**']
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
 
 jobs:
 
@@ -64,3 +68,38 @@ jobs:
       - run: npm test
         working-directory: ./sdks/typescript
 #        if: ${{ matrix.os != 'ubuntu-latest' }}
+
+  typescript_xlang_tests:
+    name: 'TypeScript xlang Tests'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Install node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      - name: Install python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+      - name: Setup Beam Python
+        working-directory: ./sdks/python
+        run: |
+          pip install pip setuptools --upgrade
+          pip install -r build-requirements.txt
+          pip install 'pandas>=1.0,<1.5'
+          python setup.py develop
+      - run: npm ci
+        working-directory: ./sdks/typescript
+      - run: npm run build
+        working-directory: ./sdks/typescript
+      - run: npm test -- --grep "@xlang"
+        working-directory: ./sdks/typescript
+        env:
+          BEAM_SERVICE_OVERRIDES: '{"python:*": "python"}'

@@ -16,7 +16,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -152,14 +151,14 @@ func TestCopyExe(t *testing.T) {
 	testExeContent := []byte("testContent")
 
 	// Make temp directory to cleanup at the end
-	d, err := ioutil.TempDir(os.Getenv("TEST_TMPDIR"), "copyExe-*")
+	d, err := os.MkdirTemp(os.Getenv("TEST_TMPDIR"), "copyExe-*")
 	if err != nil {
 		t.Fatalf("failed to make temp directory, got %v", err)
 	}
 	t.Cleanup(func() { os.RemoveAll(d) })
 
 	// Make our source file and write to it
-	src, err := ioutil.TempFile(d, "src.exe")
+	src, err := os.CreateTemp(d, "src.exe")
 	if err != nil {
 		t.Fatalf("failed to make temp file, got %v", err)
 	}
@@ -183,12 +182,12 @@ func TestCopyExe(t *testing.T) {
 	if _, err := os.Stat(destPath); err != nil {
 		t.Fatalf("After running copyExe, os.Stat() = %v, want nil", err)
 	}
-	destContents, err := ioutil.ReadFile(destPath)
+	destContents, err := os.ReadFile(destPath)
 	if err != nil {
-		t.Fatalf("After running copyExe, ioutil.ReadFile() = %v, want nil", err)
+		t.Fatalf("After running copyExe, os.ReadFile() = %v, want nil", err)
 	}
 	if got, want := string(destContents), string(testExeContent); got != want {
-		t.Fatalf("After running copyExe, ioutil.ReadFile() = %v, want %v", got, want)
+		t.Fatalf("After running copyExe, os.ReadFile() = %v, want %v", got, want)
 	}
 }
 
