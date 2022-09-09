@@ -14,8 +14,8 @@
 // limitations under the License.
 
 // beam-playground:
-//   name: HelloBeam
-//   description: Hello Beam example.
+//   name: setting-pipeline
+//   description: Setting pipeline example.
 //   multifile: false
 //   context_line: 34
 
@@ -23,26 +23,43 @@ package main
 
 import (
   "context"
+  "flag"
+  "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
   "github.com/apache/beam/sdks/v2/go/pkg/beam"
   "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
   "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
   "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
 
+var (
+  // By default, this example reads from a public dataset containing the text of
+  // King Lear. Set this option to choose a different input file or glob.
+  input = flag.String("input", "gs://apache-beam-samples/shakespeare/kinglear.txt", "File(s) to read.")
 
+  // Set this required option to specify where to write the output.
+  output = flag.String("output", "", "Output file (required).")
+)
 
 func main() {
-  p, s := beam.NewPipelineWithRoot()
+  // If beamx or Go flags are used, flags must be parsed first.
+  flag.Parse()
 
-  hello := helloBeam(s)
-  debug.Print(s, hello)
 
-  err := beamx.Run(context.Background(), p)
-  if err != nil {
-    log.Exitf(context.Background(), "Failed to execute job: %v", err)
+  // Input validation is done as usual. Note that it must be after Init().
+  if *output == "" {
+    log.Fatal("No output provided")
   }
-}
 
-func helloBeam(s beam.Scope) beam.PCollection {
-  return beam.Create(s, "Hello Beam")
+  p := beam.NewPipeline()
+  s := p.Root()
+
+  // Read from option input file
+  lines := textio.Read(s, *input)
+
+  // Write to option output file
+  textio.Write(s, *output, formatted)
+
+  if err := beamx.Run(context.Background(), p); err != nil {
+    log.Fatalf("Failed to execute job: %v", err)
+  }
 }

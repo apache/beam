@@ -17,14 +17,14 @@
  */
 
 // beam-playground:
-//   name: HelloBeam
-//   description: Hello Beam example.
+//   name: setting-pipeline
+//   description: Setting pipeline example.
 //   multifile: false
-//   context_line: 32
+//   context_line: 33
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.*;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.transforms.*;
 import org.slf4j.Logger;
@@ -34,20 +34,36 @@ public class Task {
 
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
+    public interface MyOptions extends PipelineOptions {
+        // Default value if [--output] equal null
+        @Description("Path of the file to read from")
+        @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
+        String getInputFile();
 
-    public static void main(String[] args) {
-        PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-        Pipeline pipeline = Pipeline.create(options);
+        void setInputFile(String value);
 
-        PCollection<String> output = setupPipeline(pipeline);
 
-        output.apply("Log", ParDo.of(new LogOutput<String>()));
+        // Set this required option to specify where to write the output.
+        @Description("Path of the file to write to")
+        @Validation.Required
+        String getOutput();
 
-        pipeline.run();
+        void setOutput(String value);
     }
 
-    static PCollection<String> setupPipeline(Pipeline pipeline) {
-        return pipeline.apply(Create.of("Hello Beam"));
+    public static void main(String[] args) {
+        MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
+
+        readLines(options);
+    }
+
+    static void readLines(MyOptions options) {
+        Pipeline pipeline = Pipeline.create(options);
+        PCollection<String> output = pipeline.apply("ReadLines", TextIO.read().from(options.getInputFile()))
+                .apply(Filter.by((String line) -> !line.isEmpty()));
+
+        output.apply("Log", ParDo.of(new LogOutput<String>()));
+        pipeline.run().waitUntilFinish();
     }
 
     static class LogOutput<T> extends DoFn<T, T> {

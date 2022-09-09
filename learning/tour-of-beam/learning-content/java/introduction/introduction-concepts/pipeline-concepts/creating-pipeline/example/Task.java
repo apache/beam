@@ -17,10 +17,10 @@
  */
 
 // beam-playground:
-//   name: HelloBeam
-//   description: Hello Beam example.
+//   name: creating-pipeline
+//   description: Creating pipeline example.
 //   multifile: false
-//   context_line: 32
+//   context_line: 33
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

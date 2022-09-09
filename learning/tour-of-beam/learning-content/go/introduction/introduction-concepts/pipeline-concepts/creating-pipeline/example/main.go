@@ -14,8 +14,8 @@
 // limitations under the License.
 
 // beam-playground:
-//   name: HelloBeam
-//   description: Hello Beam example.
+//   name: creating-pipeline
+//   description: Creating pipeline example.
 //   multifile: false
 //   context_line: 34
 
