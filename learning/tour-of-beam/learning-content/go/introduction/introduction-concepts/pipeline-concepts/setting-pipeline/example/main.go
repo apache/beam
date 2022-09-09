@@ -18,6 +18,8 @@
 //   description: Setting pipeline example.
 //   multifile: false
 //   context_line: 34
+//   categories:
+//     - Quickstart
 
 package main
 

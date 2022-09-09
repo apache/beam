@@ -21,6 +21,8 @@
 //   description: CSV example.
 //   multifile: false
 //   context_line: 44
+//   categories:
+//     - Quickstart
 
 package main
 

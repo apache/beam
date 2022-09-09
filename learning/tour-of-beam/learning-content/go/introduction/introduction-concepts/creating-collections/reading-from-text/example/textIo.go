@@ -20,6 +20,8 @@
 //   description: TextIO example.
 //   multifile: false
 //   context_line: 46
+//   categories:
+//     - Quickstart
 
 package main
 

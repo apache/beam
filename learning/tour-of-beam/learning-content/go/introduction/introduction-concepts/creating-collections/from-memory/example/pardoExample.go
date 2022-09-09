@@ -18,6 +18,8 @@
 //   description: ParDo example.
 //   multifile: false
 //   context_line: 32
+//   categories:
+//     - Quickstart
 
 package main
 
