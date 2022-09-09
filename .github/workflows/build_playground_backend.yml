@@ -28,13 +28,14 @@ permissions: read-all
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
+  
 jobs:
   build_playground_backend_docker_image:
     name: Build Playground Backend App
     runs-on: [self-hosted, ubuntu-20.04]
     env:
-      GO_VERSION: 1.17.0
-      BEAM_VERSION: 2.33.0
+      GO_VERSION: 1.18.0
+      BEAM_VERSION: 2.40.0
       TERRAFORM_VERSION: 1.0.9
       STAND_SUFFIX: ''
       DATASTORE_EMULATOR_HOST: 127.0.0.1:8888
@@ -69,7 +70,7 @@ jobs:
             version: '389.0.0'
 
       - name: Run PreCommit
-        run:  ./gradlew playground:backend:precommit
+        run: ./gradlew playground:backend:precommit
       - name: install npm
         uses: actions/setup-node@v3
         with:
@@ -102,8 +103,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
       - name: DB Index creation
         run: |
-          gcloud auth activate-service-account --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }} --key-file=/tmp/gcp_access.json
-          gcloud app deploy playground/index.yaml --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+         gcloud auth activate-service-account --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }} --key-file=/tmp/gcp_access.json
+         gcloud app deploy playground/index.yaml --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
