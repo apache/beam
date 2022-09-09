@@ -24,32 +24,28 @@ on:
     - cron: '10 2 * * *'
   push:
     branches: ['master', 'release-*']
-    tags: 'v*'
-  pull_request:
+    tags: ['v*']
+  pull_request_target:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
     paths: ['sdks/python/**', 'model/**', 'release/**']
   workflow_dispatch:
-
-# This allows a subsequently queued workflow run to interrupt previous runs
-concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
-  cancel-in-progress: true
-
 env:
   GCP_PATH: "gs://${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
-
-
+permissions: read-all
 jobs:
 
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -62,7 +58,7 @@ jobs:
           GCP_TESTING_BUCKET: "not-needed-here"
 
   build_source:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     name: Build python source distribution
     outputs:
       is_rc: ${{ steps.is_rc.outputs.is_rc }}
@@ -70,6 +66,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python
         uses: actions/setup-python@v4
         with:
@@ -171,7 +169,7 @@ jobs:
     needs:
       - build_source
       - check_gcp_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
@@ -187,7 +185,7 @@ jobs:
     needs:
       - prepare_gcs
       - check_gcp_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
@@ -204,7 +202,7 @@ jobs:
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
   build_wheels:
-    name: Build python wheels on ${{matrix.arch}} for ${{ matrix.os_python.os }}
+    name: Build python wheels on ${{matrix.arch}} for ${{ join(matrix.os_python.os, ', ')}}
     needs: build_source
     env:
       CIBW_ARCHS_LINUX: ${{matrix.arch}}
@@ -212,15 +210,18 @@ jobs:
     strategy:
       matrix:
         os_python: [
-          {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-*"},
-          {"os": "macos-latest", "python": "cp37-* cp38-* cp39-*"},
-          {"os": "windows-latest", "python": "cp37-* cp38-* cp39-*"},
+          {"os": [self-hosted, ubuntu-20.04], "python": "cp37-* cp38-* cp39-*"},
+          {"os": [macos-latest], "python": "cp37-* cp38-* cp39-*"},
+          {"os": [self-hosted, windows-server-2019], "python": "cp37-* cp38-* cp39-*"},
         ]
         arch: [auto]
         include:
-          - os_python: {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-*"}
+          - os_python: {"os": [self-hosted, ubuntu-20.04], "python": "cp37-* cp38-* cp39-*"}
             arch: aarch64
     steps:
+    - name: Clean wheels folder (Windows)
+      if: contains(matrix.os_python.os, 'windows-server-2019')
+      run: if ((Test-Path C:\actionsDir\_work\beam\beam\apache-beam-source\wheelhouse)) { Get-ChildItem -Path C:\actionsDir\_work\beam\beam\apache-beam-source\wheelhouse -Include *.* -File -Recurse | foreach { $_.Delete()}}
     - name: Download python source distribution from artifacts
       uses: actions/download-artifact@v3
       with:
@@ -249,8 +250,8 @@ jobs:
         CIBW_BEFORE_BUILD: pip install cython && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
-    - name: install sha512sum on MacOS
-      if: startsWith(matrix.os_python.os, 'macos')
+    - name: Install sha512sum on MacOS
+      if: contains(matrix.os_python.os, 'macos-latest')
       run: brew install coreutils
     - name: Add checksums
       working-directory: apache-beam-source/wheelhouse/
@@ -293,11 +294,11 @@ jobs:
     needs:
       - build_wheels
       - check_gcp_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
-        os : [ubuntu-latest, macos-latest, windows-latest]
+        os : [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted, windows-server-2019]]
     steps:
     - name: Download wheels from artifacts
       uses: actions/download-artifact@v3
@@ -337,7 +338,7 @@ jobs:
     needs:
      - upload_wheels_to_gcs
      - check_gcp_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
@@ -353,7 +354,7 @@ jobs:
     needs:
       - build_source
       - build_wheels
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 60
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
@@ -362,6 +363,7 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Branch commit
         run: |
           BRANCH_NAME=${GITHUB_REF##*/}
