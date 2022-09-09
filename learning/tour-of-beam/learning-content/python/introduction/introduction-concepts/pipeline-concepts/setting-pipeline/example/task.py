@@ -15,7 +15,7 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: HelloBeam
+#   name: setting-pipeline
 #   description: Hello Beam example.
 #   multifile: false
 #   context_line: 35
