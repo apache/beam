@@ -19,6 +19,8 @@
 #   description: ParDo example.
 #   multifile: false
 #   context_line: 48
+#   categories:
+#     - Quickstart
 
 import apache_beam as beam
 

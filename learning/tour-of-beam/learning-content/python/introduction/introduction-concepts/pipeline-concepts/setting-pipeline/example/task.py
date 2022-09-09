@@ -19,6 +19,8 @@
 #   description: Hello Beam example.
 #   multifile: false
 #   context_line: 35
+#   categories:
+#     - Quickstart
 
 import apache_beam as beam
 

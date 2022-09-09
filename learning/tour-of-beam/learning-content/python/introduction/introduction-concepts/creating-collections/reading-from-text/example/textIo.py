@@ -19,6 +19,8 @@
 #   description: TextIO example.
 #   multifile: false
 #   context_line: 43
+#   categories:
+#     - Quickstart
 
 import apache_beam as beam
 
