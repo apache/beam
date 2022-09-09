@@ -125,6 +125,20 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PreCommit Workflows
+
+#### Python Portable Commit - [job-precommit-python-portable-commit.yml](.github/workflows/job-precommit-python-portable-commit.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Python Portable Commit | Runs Python Portable Commit | No              | Yes                   | Yes           | No                       |
+
+#### Python Validates Runner Flink - [job-precommit-python-validates-runner-flink.yml](.github/workflows/job-precommit-python-validates-runner-flink.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Python Validates Runner Flink | Runs Python Validates Runner Flink | No              | Yes                   | Yes           | No                       |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
