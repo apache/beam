@@ -1584,7 +1584,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         e.exception.args[0],
         "Input type hint violation at T: "
         "expected Tuple[TypeVariable[K], TypeVariable[V]], "
-        "got Iterable[int]")
+        "got Iterable[<class 'int'>]")
 
   def test_pipeline_checking_pardo_insufficient_type_information(self):
     self.p._options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
@@ -1705,9 +1705,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertStartswith(
         e.exception.args[0],
         "Runtime type violation detected within ParDo(IsEven): "
-        "Tuple[bool, int] hint type-constraint violated. "
+        "Tuple[<class 'bool'>, <class 'int'>] hint type-constraint violated. "
         "The type of element #0 in the passed tuple is incorrect. "
-        "Expected an instance of type bool, "
+        "Expected an instance of type <class 'bool'>, "
         "instead received an instance of type int.")
 
   def test_pipeline_checking_satisfied_run_time_checking_satisfied(self):
@@ -1771,10 +1771,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         e.exception.args[0],
         "Runtime type violation detected within ParDo(Add): "
         "Type-hint for argument: 'x_y' violated: "
-        "Tuple[int, int] hint type-constraint violated. "
+        "Tuple[<class 'int'>, <class 'int'>] hint type-constraint violated. "
         "The type of element #1 in the passed tuple is incorrect. "
-        "Expected an instance of type int, instead received an instance "
-        "of type float.")
+        "Expected an instance of type <class 'int'>, instead received an "
+        "instance of type float.")
 
   def test_pipeline_runtime_checking_violation_simple_type_output(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
@@ -2097,8 +2097,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     expected_msg = \
       "Type hint violation for 'CombinePerKey': " \
-      "requires Tuple[TypeVariable[K], Union[float, float64, int, int64]] " \
-      "but got Tuple[None, str] for element"
+      "requires Tuple[TypeVariable[K], Union[<class 'float'>, <class 'int'>, " \
+      "<class 'numpy.float64'>, <class 'numpy.int64'>]] " \
+      "but got Tuple[None, <class 'str'>] for element"
 
     self.assertStartswith(e.exception.args[0], expected_msg)
 
@@ -2163,8 +2164,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     expected_msg = \
       "Type hint violation for 'CombinePerKey(MeanCombineFn)': " \
-      "requires Tuple[TypeVariable[K], Union[float, float64, int, int64]] " \
-      "but got Tuple[str, str] for element"
+      "requires Tuple[TypeVariable[K], Union[<class 'float'>, <class 'int'>, " \
+      "<class 'numpy.float64'>, <class 'numpy.int64'>]] " \
+      "but got Tuple[<class 'str'>, <class 'str'>] for element"
 
     self.assertStartswith(e.exception.args[0], expected_msg)
 
@@ -2203,8 +2205,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       "Runtime type violation detected within " \
       "OddMean/CombinePerKey(MeanCombineFn): " \
       "Type-hint for argument: 'element' violated: " \
-      "Union[float, float64, int, int64] type-constraint violated. " \
-      "Expected an instance of one of: ('float', 'float64', 'int', 'int64'), " \
+      "Union[<class 'float'>, <class 'int'>, <class 'numpy.float64'>, <class " \
+      "'numpy.int64'>] type-constraint violated. " \
+      "Expected an instance of one of: (\"<class 'float'>\", \"<class " \
+      "'int'>\", \"<class 'numpy.float64'>\", \"<class 'numpy.int64'>\"), " \
       "received str instead"
 
     self.assertStartswith(e.exception.args[0], expected_msg)
@@ -2570,9 +2574,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertStartswith(
         e.exception.args[0],
-        'Input type hint violation at GroupByKey: '
-        'expected Tuple[TypeVariable[K], TypeVariable[V]], '
-        'got Tuple[str, int, float]')
+        "Input type hint violation at GroupByKey: "
+        "expected Tuple[TypeVariable[K], TypeVariable[V]], "
+        "got Tuple[<class 'str'>, <class 'int'>, <class 'float'>]")
 
   def test_type_inference_command_line_flag_toggle(self):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
