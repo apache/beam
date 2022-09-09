@@ -61,13 +61,13 @@ root_dir = os.getenv("BEAM_ROOT_DIR")
 categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
 
 
-def _ci_step(examples: List[Example]):
+def _ci_step(examples: List[Example], origin: Origin):
     """
     CI step to verify single-file beam examples/tests/katas
     """
 
     ci_helper = CIHelper()
-    asyncio.run(ci_helper.verify_examples(examples))
+    asyncio.run(ci_helper.verify_examples(examples, origin))
 
 
 def _cd_step(examples: List[Example], sdk: Sdk, origin: Origin):
@@ -99,7 +99,7 @@ def _run_ci_cd(step: Config.CI_CD_LITERAL, sdk: Sdk, origin: Origin, subdirs: Li
     if step == Config.CI_STEP_NAME:
         logging.info(
             "Start of verification only single_file Playground examples ...")
-        _ci_step(examples=examples)
+        _ci_step(examples=examples, origin=origin)
         logging.info("Finish of verification single_file Playground examples")
     if step == Config.CD_STEP_NAME:
         logging.info("Start of saving Playground examples ...")
