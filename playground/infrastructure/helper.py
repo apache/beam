@@ -78,7 +78,7 @@ class ExampleTag:
     tag_as_string: str
 
 
-def find_examples(dirs: List[str], supported_categories: List[str],
+def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[str],
                   sdk: Sdk) -> List[Example]:
     """
     Find and return beam examples.
@@ -97,7 +97,8 @@ def find_examples(dirs: List[str], supported_categories: List[str],
     If some example contain beam tag with incorrect format raise an error.
 
     Args:
-        dirs: directories where to search examples.
+        root_dir: project root dir
+        subdirs: sub-directories where to search examples.
         supported_categories: list of supported categories.
         sdk: sdk that using to find examples for the specific sdk.
 
@@ -106,8 +107,9 @@ def find_examples(dirs: List[str], supported_categories: List[str],
     """
     has_error = False
     examples = []
-    for dir in dirs:
-        for root, _, files in os.walk(dir):
+    for subdir in subdirs:
+        subdir = os.path.join(root_dir, subdir)
+        for root, _, files in os.walk(subdir):
             for filename in files:
                 filepath = os.path.join(root, filename)
                 error_during_check_file = _check_file(
