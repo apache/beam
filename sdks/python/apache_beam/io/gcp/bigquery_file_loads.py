@@ -579,12 +579,11 @@ class TriggerCopyJobs(beam.DoFn):
       job_ref = windowed_value.value[1]
       self.bq_wrapper.wait_for_bq_job(
           job_ref, sleep_duration_sec=_SLEEP_DURATION_BETWEEN_POLLS)
+      yield windowed_value
 
     yield pvalue.TaggedOutput(
         TriggerCopyJobs.TRIGGER_DELETE_TEMP_TABLES,
         GlobalWindows.windowed_value(None))
-    return self.pending_jobs
-
 
 class TriggerLoadJobs(beam.DoFn):
   """Triggers the import jobs to BQ.

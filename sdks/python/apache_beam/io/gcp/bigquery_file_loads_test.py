@@ -1003,7 +1003,6 @@ class BigQueryFileLoadsIT(unittest.TestCase):
   def test_bqfl_streaming_with_dynamic_destinations(self):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
       self.skipTest("TestStream is not supported on TestDataflowRunner")
-    # self.output_table = "ahmedabualsaud_test.bq_fl_stream_test"
     even_table = '%s_%s' % (self.output_table, "dynamic_dest_0")
     odd_table = '%s_%s' % (self.output_table, "dynamic_dest_1")
     output_table = lambda row: even_table if (
