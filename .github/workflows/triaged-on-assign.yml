@@ -17,11 +17,10 @@ name: Mark issue as triaged when assigned
 on:
   issues:
     types: [assigned]
-
 jobs:
   assign:
     name: Mark issue as triaged when assigned
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     steps:
     - run: |
         ISSUE_NUMBER="$(jq '.issue.number' $GITHUB_EVENT_PATH)"
