@@ -125,6 +125,28 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PostCommit Workflows
+
+#### Python Validates Container Dataflow - [job-postcommit-python-validates-container-dataflow.yml](.github/workflows/job-postcommit-python-validates-container-dataflow.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Python Validates Container Dataflow | Runs Python Validates Container Dataflow | No              | Yes                   | Yes           | No                       |
+
+#### Python Validates Runner Dataflow - [job-postcommit-python-validates-runner-dataflow.yml](.github/workflows/job-postcommit-python-validates-runner-dataflow.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Python Validates Runner Dataflow | Runs Python Validates Runner Dataflow | No              | Yes                   | Yes           | No                       |
+
+#### Java tpcds Spark - [job-postcommit-java-tpcds-spark.yml](.github/workflows/job-postcommit-java-tpcds-spark.yml)
+
+#### Python Validates Runner  Dataflow V2 - [job-postcommit-python-validates-runner-dataflowV2.yml](.github/workflows/job-postcommit-python-validates-runner-dataflowV2.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Python Validates Runner Dataflow V2 | Runs Python Validates Runner  Dataflow V2 | No              | Yes                   | Yes           | No                       |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
