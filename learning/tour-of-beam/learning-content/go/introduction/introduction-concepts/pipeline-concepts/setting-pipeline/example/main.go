@@ -18,6 +18,7 @@
 //   description: Setting pipeline example.
 //   multifile: false
 //   context_line: 34
+//   pipeline_options: --output output.txt
 //   categories:
 //     - Quickstart
 
@@ -26,11 +27,10 @@ package main
 import (
   "context"
   "flag"
+  "log"
   "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
   "github.com/apache/beam/sdks/v2/go/pkg/beam"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
   "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
 
 var (
@@ -59,7 +59,7 @@ func main() {
   lines := textio.Read(s, *input)
 
   // Write to option output file
-  textio.Write(s, *output, formatted)
+  textio.Write(s, *output, lines)
 
   if err := beamx.Run(context.Background(), p); err != nil {
     log.Fatalf("Failed to execute job: %v", err)
