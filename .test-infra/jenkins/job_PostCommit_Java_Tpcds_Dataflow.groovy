@@ -17,12 +17,12 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import CommonTestProperties.Runner
-import CommonTestProperties.SDK
-import CommonTestProperties.TriggeringContext
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
+
+import static TpcdsDatabaseProperties.tpcdsBigQueryArgs
+import static TpcdsDatabaseProperties.tpcdsInfluxDBArgs
 
 
 // This job runs the suite of Tpcds tests against the Dataflow runner.
@@ -36,7 +36,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Da
 
       // Gradle goals for this job.
       steps {
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING DATAFLOW RUNNER ***"')
+        shell('echo "*** RUN TPC-DS USING DATAFLOW RUNNER ***"')
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:tpcds:run')
@@ -44,9 +44,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Da
           switches('-Ptpcds.runner=":runners:google-cloud-dataflow-java"' +
               ' -Ptpcds.args="' +
               [
+                commonJobProperties.mapToArgString(tpcdsBigQueryArgs),
+                commonJobProperties.mapToArgString(tpcdsInfluxDBArgs),
                 '--runner=DataflowRunner',
                 '--region=us-central1',
-                '--project=apache-beam-testing',
                 '--numWorkers=4',
                 '--maxNumWorkers=4',
                 '--autoscalingAlgorithm=NONE',
@@ -70,7 +71,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Data
 
       // Gradle goals for this job.
       steps {
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING DATAFLOW RUNNER ***"')
+        shell('echo "*** RUN TPC-DS USING DATAFLOW RUNNER ***"')
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:tpcds:run')
@@ -78,9 +79,10 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Data
           switches('-Ptpcds.runner=":runners:google-cloud-dataflow-java"' +
               ' -Ptpcds.args="' +
               [
+                commonJobProperties.mapToArgString(tpcdsBigQueryArgs),
+                commonJobProperties.mapToArgString(tpcdsInfluxDBArgs),
                 '--runner=DataflowRunner',
                 '--region=us-central1',
-                '--project=apache-beam-testing',
                 '--numWorkers=4',
                 '--maxNumWorkers=4',
                 '--autoscalingAlgorithm=NONE',
@@ -89,7 +91,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Data
                 '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/dataflow/',
                 '--tpcParallel=1',
-                '--queries=3'
+                '--queries=3,7,10,25,26,29,35,38,40,42,43,52,55,69,79,83,84,87,93,96'
               ].join(' '))
         }
       }

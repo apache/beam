@@ -21,6 +21,9 @@ import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
 
+import static TpcdsDatabaseProperties.tpcdsBigQueryArgs
+import static TpcdsDatabaseProperties.tpcdsInfluxDBArgs
+
 // This job runs the Tpcds benchmark suite against the Flink runner.
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Flink',
     'Flink Runner Tpcds Tests', this) {
@@ -32,7 +35,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Fl
 
       // Gradle goals for this job.
       steps {
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING FLINK RUNNER ***"')
+        shell('echo "*** RUN TPC-DS USING FLINK RUNNER ***"')
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:tpcds:run')
@@ -40,6 +43,8 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Fl
           switches('-Ptpcds.runner=":runners:flink:1.13"' +
               ' -Ptpcds.args="' +
               [
+                commonJobProperties.mapToArgString(tpcdsBigQueryArgs),
+                commonJobProperties.mapToArgString(tpcdsInfluxDBArgs),
                 '--runner=FlinkRunner',
                 '--parallelism=4',
                 '--dataSize=1GB',
@@ -47,7 +52,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Fl
                 '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/flink/',
                 '--tpcParallel=1',
-                '--queries=3'
+                '--queries=3,7,10,25,26,29,35,38,40,42,43,52,55,69,79,83,84,87,93,96'
               ].join(' '))
         }
       }
@@ -64,7 +69,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Flin
 
       // Gradle goals for this job.
       steps {
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING FLINK RUNNER ***"')
+        shell('echo "*** RUN TPC-DS USING FLINK RUNNER ***"')
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:tpcds:run')
@@ -72,6 +77,8 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Flin
           switches('-Ptpcds.runner=":runners:flink:1.13"' +
               ' -Ptpcds.args="' +
               [
+                commonJobProperties.mapToArgString(tpcdsBigQueryArgs),
+                commonJobProperties.mapToArgString(tpcdsInfluxDBArgs),
                 '--runner=FlinkRunner',
                 '--parallelism=4',
                 '--dataSize=1GB',
@@ -79,7 +86,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Flin
                 '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/flink/',
                 '--tpcParallel=1',
-                '--queries=3'
+                '--queries=3,7,10,25,26,29,35,38,40,42,43,52,55,69,79,83,84,87,93,96'
               ].join(' '))
         }
       }
