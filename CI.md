@@ -125,6 +125,28 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PreCommit Workflows
+
+#### Python Examples  Dataflow - [job-postcommit-python-examples-dataflow.yml](.github/workflows/job-postcommit-python-examples-dataflow.yml)
+| Job                             | Description                          | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|---------------------------------|--------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Python Dataflow Runner Examples | Runs Python Dataflow Runner Examples | -                | Yes                   | Yes           | -                        |
+
+#### Python Examples Direct - [job-postcommit-python-examples-direct.yml](.github/workflows/job-postcommit-python-examples-direct.yml)
+| Job                           | Description                        | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-------------------------------|------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Python Direct Runner Examples | Runs Python Direct Runner Examples | -                | Yes                   | Yes           | -                        |
+
+#### Python Examples Flink - [job-postcommit-python-examples-flink.yml](.github/workflows/job-postcommit-python-examples-flink.yml)
+| Job                          | Description                       | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|------------------------------|-----------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Python Flink Runner Examples | Runs Python Flink Runner Examples | -                | Yes                   | Yes           | -                        |
+
+#### Python Examples Spark - [job-postcommit-python-examples-spark.yml](.github/workflows/job-postcommit-python-examples-spark.yml)
+| Job                          | Description                       | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|------------------------------|-----------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Python Spark Runner Examples | Runs Python Spark Runner Examples | -                | Yes                   | Yes           | -                        |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
