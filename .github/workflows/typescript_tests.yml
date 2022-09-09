@@ -69,20 +69,21 @@ jobs:
 #        if: ${{ matrix.os != 'ubuntu-latest' }}
   typescript_xlang_tests:
     name: 'TypeScript xlang Tests'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: false
     steps:
-      - name: Checkout code
+      - name: Check out code
         uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Install node
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Install Node
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Install python
+      - name: Install Python
         uses: actions/setup-python@v4
         with:
           python-version: 3.8
