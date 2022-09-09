@@ -121,7 +121,13 @@ except DistributionNotFound:
 
 try:
   # pylint: disable=wrong-import-position
-  from Cython.Build import cythonize
+  from Cython.Build import cythonize as cythonize0
+  def cythonize(*args, **kwargs):
+    import numpy
+    extensions = cythonize0(*args, **kwargs)
+    for e in extensions:
+      e.include_dirs.append(numpy.get_include())
+    return extensions
 except ImportError:
   cythonize = lambda *args, **kwargs: []
 

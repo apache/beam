@@ -18,6 +18,7 @@
 # cython: profile=True
 
 cimport cython
+cimport numpy as np
 
 cimport cpython.ref
 cimport cpython.tuple
@@ -27,6 +28,8 @@ cimport libc.string
 
 cdef extern from "math.h":
   libc.stdint.int64_t abs "llabs"(libc.stdint.int64_t)
+
+ctypedef char* char_ptr
 
 from .stream cimport InputStream, OutputStream
 from apache_beam.utils cimport windowed_value
@@ -241,6 +244,16 @@ cdef class LengthPrefixCoderImpl(StreamCoderImpl):
   cdef CoderImpl _value_coder
 
 
+cdef class RowColumnEncoder:
+  cdef bint encode_to_stream(self, size_t index, OutputStream stream) except -1
+  cdef bint decode_from_stream(self, size_t index, InputStream stream) except -1
+
+
+cdef class GenericRowColumnEncoder(RowColumnEncoder):
+  cdef object column
+  cdef CoderImpl coder_impl
+
+
 cdef class RowCoderImpl(StreamCoderImpl):
   cdef object schema
   cdef int num_fields
@@ -253,11 +266,21 @@ cdef class RowCoderImpl(StreamCoderImpl):
   cdef list components
   cdef bint has_nullable_fields
 
-  @cython.locals(i=int, nvals=libc.stdint.int64_t, running=int, component_coder=CoderImpl)
+  @cython.locals(i=int, nvals=libc.stdint.int64_t, running=int, component_coder=CoderImpl,
+                 null_mask=bytes, null_mask_c=char_ptr)
   cpdef decode_from_stream(self, InputStream stream, bint nested)
+
+  @cython.locals(i=int, nvals=libc.stdint.int64_t, k=size_t, n=size_t,
+                 null_mask=bytes, null_mask_c=char_ptr)
+  cpdef decode_batch_from_stream(self, dict dest, InputStream stream)
 
   @cython.locals(i=int, running=int, component_coder=CoderImpl)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
+
+  @cython.locals(i=int, k=size_t, n=size_t,
+                 null_flags=np.uint8_t[:,::1], null_bits=np.uint8_t[:,::1],
+                 has_null_bits=np.uint8_t[::1])
+  cpdef encode_batch_to_stream(self, dict values, OutputStream stream)
 
 
 cdef class LogicalTypeCoderImpl(StreamCoderImpl):
