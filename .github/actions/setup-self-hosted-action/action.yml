@@ -36,7 +36,7 @@ runs:
     - name: Set Java Version
       uses: actions/setup-java@v3
       with:
-        distribution: 'zulu'
+        distribution: 'temurin'
         java-version: 8
     - name: Set Go Version
       uses: actions/setup-go@v3
