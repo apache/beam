@@ -23,6 +23,8 @@ import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianShortCoder;
 import org.apache.beam.sdk.coders.BooleanCoder;
@@ -47,6 +49,8 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.ReadableInstant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
@@ -69,6 +73,14 @@ class SchemaCoderHelpers {
           .put(TypeName.BOOLEAN, BooleanCoder.of())
           .build();
 
+  private static final String URN_BEAM_LOGICAL_MILLIS_INSTANT =
+      SchemaApi.LogicalTypes.Enum.MILLIS_INSTANT
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(RunnerApi.beamUrn);
+
+  private static final Logger LOG = LoggerFactory.getLogger(SchemaCoderHelpers.class);
+
   private static class LogicalTypeCoder<InputT, BaseT> extends Coder<InputT> {
     private final LogicalType<InputT, BaseT> logicalType;
     private final Coder<BaseT> baseTypeCoder;
@@ -77,20 +89,29 @@ class SchemaCoderHelpers {
     LogicalTypeCoder(LogicalType<InputT, BaseT> logicalType, Coder baseTypeCoder) {
       this.logicalType = logicalType;
       this.baseTypeCoder = baseTypeCoder;
-      this.isDateTime = logicalType.getBaseType().equals(FieldType.DATETIME);
+      // the MILLIS_INSTANT logical type decodes/encodes joda.time.Instant
+      this.isDateTime =
+          logicalType.getBaseType().equals(FieldType.DATETIME)
+              || logicalType.getIdentifier().equals(URN_BEAM_LOGICAL_MILLIS_INSTANT);
     }
 
     @Override
     public void encode(InputT value, OutputStream outStream) throws CoderException, IOException {
-      BaseT baseType = logicalType.toBaseType(value);
-      if (isDateTime) {
-        baseType = (BaseT) ((ReadableInstant) baseType).toInstant();
+      try {
+        BaseT baseType = logicalType.toBaseType(value);
+        LOG.info("Encoding type {}", logicalType.getIdentifier());
+        if (isDateTime) {
+          baseType = (BaseT) ((ReadableInstant) baseType).toInstant();
+        }
+        baseTypeCoder.encode(baseType, outStream);
+      } catch (Exception e) {
+        throw new RuntimeException("logical type identifier: " + logicalType.getIdentifier(), e);
       }
-      baseTypeCoder.encode(baseType, outStream);
     }
 
     @Override
     public InputT decode(InputStream inStream) throws CoderException, IOException {
+      LOG.info("Decoding type {}", logicalType.getIdentifier());
       BaseT baseType = baseTypeCoder.decode(inStream);
       return logicalType.toInputType(baseType);
     }
@@ -155,10 +176,18 @@ class SchemaCoderHelpers {
                     coderForFieldType(fieldType.getMapValueType()));
         break;
       case LOGICAL_TYPE:
-        coder =
-            new LogicalTypeCoder(
-                fieldType.getLogicalType(),
-                coderForFieldType(fieldType.getLogicalType().getBaseType()));
+        // The millis_instant logical type decodes/encodes joda.time.Instant
+        // TODO(yathu): Implement CoderLogicalType and make millis_instant as CoderLogicalType
+        // then assign the corresponding coder here.
+        LogicalType logicalType = fieldType.getLogicalType();
+        if (logicalType.getIdentifier().equals(URN_BEAM_LOGICAL_MILLIS_INSTANT)) {
+          coder = (Coder<T>) InstantCoder.of();
+        } else {
+          coder =
+              new LogicalTypeCoder(
+                  fieldType.getLogicalType(),
+                  coderForFieldType(fieldType.getLogicalType().getBaseType()));
+        }
         break;
       default:
         coder = (Coder<T>) CODER_MAP.get(fieldType.getTypeName());
