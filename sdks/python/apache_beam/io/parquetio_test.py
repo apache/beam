@@ -286,8 +286,6 @@ class TestParquet(unittest.TestCase):
         file_name,
         self.SCHEMA,
         'none',
-        1024 * 1024,
-        1000,
         False,
         False,
         '.end',
@@ -301,7 +299,6 @@ class TestParquet(unittest.TestCase):
             'file_pattern',
             'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d.end'),
         DisplayDataItemMatcher('codec', 'none'),
-        DisplayDataItemMatcher('row_group_buffer_size', str(1024 * 1024)),
         DisplayDataItemMatcher('compression', 'uncompressed')
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
@@ -310,10 +307,26 @@ class TestParquet(unittest.TestCase):
     file_name = 'some_parquet_sink'
     write = WriteToParquet(file_name, self.SCHEMA)
     dd = DisplayData.create_from(write)
+
     expected_items = [
         DisplayDataItemMatcher('codec', 'none'),
         DisplayDataItemMatcher('schema', str(self.SCHEMA)),
         DisplayDataItemMatcher('row_group_buffer_size', str(64 * 1024 * 1024)),
+        DisplayDataItemMatcher(
+            'file_pattern',
+            'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d'),
+        DisplayDataItemMatcher('compression', 'uncompressed')
+    ]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_write_batched_display_data(self):
+    file_name = 'some_parquet_sink'
+    write = WriteToParquetBatched(file_name, self.SCHEMA)
+    dd = DisplayData.create_from(write)
+
+    expected_items = [
+        DisplayDataItemMatcher('codec', 'none'),
+        DisplayDataItemMatcher('schema', str(self.SCHEMA)),
         DisplayDataItemMatcher(
             'file_pattern',
             'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d'),
