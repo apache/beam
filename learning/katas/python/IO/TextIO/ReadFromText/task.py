@@ -30,7 +30,5 @@ with beam.Pipeline() as p:
 
   file_path = 'countries.txt'
 
-  (p | beam.io.ReadFromText(file_path)
-     | beam.Map(lambda country: country.upper())
+  (p | beam.io.ReadFromText(file_path) | beam.Map(lambda country: country.upper())
      | LogElements())
-
