@@ -43,7 +43,6 @@ from apache_beam.io.iobase import Write
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
-from apache_beam.transforms.util import BatchElements
 from apache_beam.transforms import window
 
 try:
@@ -551,7 +550,8 @@ class WriteToParquetBatched(PTransform):
   """Initialize a WriteToParquetBatched transform.
 
      Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
-     batches. Each batch is a pa.Table. Schema must be specified like the example below.
+     batches. Each batch is a pa.Table. Schema must be specified like the
+     example below.
      """
   def __init__(
       self,
