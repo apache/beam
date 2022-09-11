@@ -41,7 +41,6 @@ from apache_beam.io.parquetio import ReadFromParquet
 from apache_beam.io.parquetio import ReadFromParquetBatched
 from apache_beam.io.parquetio import WriteToParquet
 from apache_beam.io.parquetio import WriteToParquetBatched
-
 from apache_beam.io.parquetio import _create_parquet_sink
 from apache_beam.io.parquetio import _create_parquet_source
 from apache_beam.testing.test_pipeline import TestPipeline
