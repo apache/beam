@@ -125,6 +125,33 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PreCommit Workflows
+
+#### Java MQTT IO - [job-precommit-java-mqtt-io.yml](.github/workflows/job-precommit-java-mqtt-io.yml)
+| Job              | Description                  | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|------------------|------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java MQTT IO | Runs Java MQTT IO Unit Tests | Yes              | Yes                   | Yes           | -                        |
+
+#### Java Parquet IO - [job-precommit-java-parquet-io.yml](.github/workflows/job-precommit-java-parquet-io.yml)
+| Job                 | Description                     | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|---------------------|---------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java Parquet IO | Runs Java Parquet IO Unit Tests | Yes              | Yes                   | Yes           | -                        |
+
+#### Java Pulsar IO - [job-precommit-java-pulsar-io.yml](.github/workflows/job-precommit-java-pulsar-io.yml)
+| Job                | Description                    | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|--------------------|--------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java Pulsar IO | Runs Java Pulsar IO Unit Tests | Yes              | Yes                   | Yes           | -                        |
+
+#### Java RabbitMQ IO - [job-precommit-java-rabbitmq-io.yml](.github/workflows/job-precommit-java-rabbitmq-io.yml)
+| Job                  | Description                      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|----------------------|----------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java RabbitMQ IO | Runs Java RabbitMQ IO Unit Tests | Yes              | Yes                   | Yes           | -                        |
+
+#### Java Redis IO - [job-precommit-java-redis-io.yml](.github/workflows/job-precommit-java-redis-io.yml)
+| Job               | Description                   | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-------------------|-------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java Redis IO | Runs Java Redis IO Unit Tests | Yes              | Yes                   | Yes           | -                        |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
