@@ -125,6 +125,32 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PreCommit Workflows
+
+#### Java IO Snowflake - [job-precommit-java-io-snowflake.yml](.github/workflows/job-precommit-java-io-snowflake.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java IO Snowflake| Runs Java IO Snowflake | No              | Yes                   | Yes           | No                       |
+
+#### Java IO Solr - [job-precommit-java-io-solr.yml](.github/workflows/job-precommit-java-io-solr.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java IO Solr| Runs Java IO Solr | No              | Yes                   | Yes           | No                       |
+
+#### Java IO Spark Receiver - [job-precommit-java-io-sparkreceiver.yml](.github/workflows/job-precommit-java-io-sparkreceiver.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java IO Spark Receiver| Runs Java IO Spark Receiver | No              | Yes                   | Yes           | No                       |
+
+#### Java IO Splunk - [job-precommit-java-io-splunk.yml](.github/workflows/job-precommit-java-io-splunk.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java IO Splunk | Runs Java IO Splunk | No              | Yes                   | Yes           | No                       |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
