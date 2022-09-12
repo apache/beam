@@ -37,4 +37,6 @@ class TpcdsDatabaseProperties {
     'exportSummaryToInfluxDB': true,
     'influxRetentionPolicy'  : 'forever',
   ]
+
+  static String tpcdsQueriesArg = '3,7,10,25,26,29,35,38,40,42,43,52,55,69,79,83,84,87,93,96'
 }

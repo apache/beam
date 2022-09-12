@@ -23,6 +23,7 @@ import InfluxDBCredentialsHelper
 
 import static TpcdsDatabaseProperties.tpcdsBigQueryArgs
 import static TpcdsDatabaseProperties.tpcdsInfluxDBArgs
+import static TpcdsDatabaseProperties.tpcdsQueriesArg
 
 
 // This job runs the suite of Tpcds tests against the Dataflow runner.
@@ -56,7 +57,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Da
                 '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/dataflow/',
                 '--tpcParallel=1',
-                '--queries=3'
+                '--queries=' + tpcdsQueriesArg
               ].join(' '))
         }
       }
@@ -91,7 +92,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Data
                 '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/dataflow/',
                 '--tpcParallel=1',
-                '--queries=3,7,10,25,26,29,35,38,40,42,43,52,55,69,79,83,84,87,93,96'
+                '--queries=' + tpcdsQueriesArg
               ].join(' '))
         }
       }
