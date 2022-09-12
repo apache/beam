@@ -2090,8 +2090,7 @@ class WriteToBigQuery(PTransform):
       dataset (str): The ID of the dataset containing this table or
         :data:`None` if the table reference is specified entirely by the table
         argument.
-      project (str): The ID of the project containing this table. This will
-        take precedence over the project the pipeline is running in. Is
+      project (str): The ID of the project containing this table or
         :data:`None` if the table reference is specified entirely by the table
         argument.
       schema (str,dict,ValueProvider,callable): The schema to be used if the
@@ -2279,9 +2278,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
 
     if (isinstance(self.table_reference, TableReference) and
         self.table_reference.projectId is None):
-      # project argument takes precedence over pipeline project
-      self.table_reference.projectId = self._project or \
-          pcoll.pipeline.options.view_as(GoogleCloudOptions).project
+      self.table_reference.projectId = pcoll.pipeline.options.view_as(
+          GoogleCloudOptions).project
 
     # TODO(pabloem): Use a different method to determine if streaming or batch.
     is_streaming_pipeline = p.options.view_as(StandardOptions).streaming
