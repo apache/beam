@@ -124,7 +124,7 @@ jobs:
           DOCKER_REGISTRY: ${{ env.REGION }}-docker.pkg.dev/${{ env.GOOGLE_CLOUD_PROJECT }}/playground-repository
   
       - name: Get K8s Config
-        run: gcloud container clusters get-credentials --region     us-central1-a playground-examples
+        run: gcloud container clusters get-credentials --region us-central1-a playground-examples
       - name: Login to Docker Registry
         run: cat $GOOGLE_APPLICATION_CREDENTIALS | docker login -u _json_key --password-stdin "$PLAYGROUND_REGISTRY_URL"
         env:
