@@ -575,9 +575,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                                  (partition_2[0], job_2.jobReference)]
     with TestPipeline('DirectRunner') as p:
       partitions = p | beam.Create([partition_1, partition_2])
-      outputs = (partitions
-           | beam.ParDo(bqfl.TriggerLoadJobs(test_client=bq_client),
-                        test_job_prefix))
+      outputs = (
+          partitions
+          | beam.ParDo(
+              bqfl.TriggerLoadJobs(test_client=bq_client), test_job_prefix))
 
       assert_that(outputs, equal_to(expected_dest_jobref_list))
 
@@ -616,9 +617,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     with self.assertRaises(Exception):
       with TestPipeline('DirectRunner') as p:
         partitions = p | beam.Create([partition_1, partition_2])
-        _ = (partitions
-             | beam.ParDo(bqfl.TriggerLoadJobs(test_client=bq_client),
-                          test_job_prefix))
+        _ = (
+            partitions
+            | beam.ParDo(
+                bqfl.TriggerLoadJobs(test_client=bq_client), test_job_prefix))
 
     sleep_mock.assert_called_once()
 

@@ -585,6 +585,7 @@ class TriggerCopyJobs(beam.DoFn):
         TriggerCopyJobs.TRIGGER_DELETE_TEMP_TABLES,
         GlobalWindows.windowed_value(None))
 
+
 class TriggerLoadJobs(beam.DoFn):
   """Triggers the import jobs to BQ.
 
