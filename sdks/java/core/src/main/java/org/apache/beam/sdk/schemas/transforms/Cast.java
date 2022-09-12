@@ -298,7 +298,7 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
                 new DoFn<T, Row>() {
                   // TODO: This should be the same as resolved so that Beam knows which fields
                   // are being accessed. Currently Beam only supports wildcard descriptors.
-                  // Once BEAM-4457 is fixed, fix this.
+                  // Once https://github.com/apache/beam/issues/18903 is fixed, fix this.
                   @FieldAccess("filterFields")
                   final FieldAccessDescriptor fieldAccessDescriptor =
                       FieldAccessDescriptor.withAllFields();

@@ -69,6 +69,7 @@ def _import_beam_plugins(plugins):
 
 def create_harness(environment, dry_run=False):
   """Creates SDK Fn Harness."""
+
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in environment:
     try:
       logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
@@ -78,8 +79,6 @@ def create_harness(environment, dry_run=False):
 
       # Send all logs to the runner.
       fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
-      # TODO(BEAM-5468): This should be picked up from pipeline options.
-      logging.getLogger().setLevel(logging.INFO)
       logging.getLogger().addHandler(fn_log_handler)
       _LOGGER.info('Logging handler created.')
     except Exception:
@@ -92,6 +91,10 @@ def create_harness(environment, dry_run=False):
 
   pipeline_options_dict = _load_pipeline_options(
       environment.get('PIPELINE_OPTIONS'))
+  default_log_level = _get_log_level_from_options_dict(pipeline_options_dict)
+  logging.getLogger().setLevel(default_log_level)
+  _set_log_level_overrides(pipeline_options_dict)
+
   # These are used for dataflow templates.
   RuntimeValueProvider.set_runtime_options(pipeline_options_dict)
   sdk_pipeline_options = PipelineOptions.from_dictionary(pipeline_options_dict)
@@ -216,8 +219,8 @@ def _get_state_cache_size(experiments):
   future releases.
 
   Returns:
-    an int indicating the maximum number of items to cache.
-      Default is 0 (disabled)
+    an int indicating the maximum number of megabytes to cache.
+      Default is 0 MB
   """
 
   for experiment in experiments:
@@ -225,7 +228,7 @@ def _get_state_cache_size(experiments):
     if re.match(r'state_cache_size=', experiment):
       return int(
           re.match(r'state_cache_size=(?P<state_cache_size>.*)',
-                   experiment).group('state_cache_size'))
+                   experiment).group('state_cache_size')) << 20
   return 0
 
 
@@ -236,7 +239,7 @@ def _get_data_buffer_time_limit_ms(experiments):
   not be available in future releases.
 
   Returns:
-    an int indicating the time limit in milliseconds of the the outbound
+    an int indicating the time limit in milliseconds of the outbound
       data buffering. Default is 0 (disabled)
   """
 
@@ -248,6 +251,58 @@ def _get_data_buffer_time_limit_ms(experiments):
               r'data_buffer_time_limit_ms=(?P<data_buffer_time_limit_ms>.*)',
               experiment).group('data_buffer_time_limit_ms'))
   return 0
+
+
+def _get_log_level_from_options_dict(options_dict: dict) -> int:
+  """Get log level from options dict's entry `default_sdk_harness_log_level`.
+  If not specified, default log level is logging.INFO.
+  """
+  dict_level = options_dict.get('default_sdk_harness_log_level', 'INFO')
+  log_level = dict_level
+  if log_level.isdecimal():
+    log_level = int(log_level)
+  else:
+    # labeled log level
+    log_level = getattr(logging, log_level, None)
+    if not isinstance(log_level, int):
+      # unknown log level.
+      _LOGGER.error("Unknown log level %s. Use default value INFO.", dict_level)
+      log_level = logging.INFO
+
+  return log_level
+
+
+def _set_log_level_overrides(options_dict: dict) -> None:
+  """Set module log level overrides from options dict's entry
+  `sdk_harness_log_level_overrides`.
+  """
+  option_raw = options_dict.get('sdk_harness_log_level_overrides', None)
+
+  if option_raw is None:
+    return
+
+  parsed_overrides = {}
+
+  try:
+    # parsing and flatten the appended option
+    deserialized = [json.loads(line) for line in option_raw]
+    for line in deserialized:
+      parsed_overrides.update(line)
+  except Exception:
+    _LOGGER.error(
+        "Unable to parse sdk_harness_log_level_overrides %s. "
+        "Log level overrides won't take effect.",
+        option_raw)
+    return
+
+  for module_name, log_level in parsed_overrides.items():
+    try:
+      logging.getLogger(module_name).setLevel(log_level)
+    except Exception as e:
+      # Never crash the worker when exception occurs during log level setting
+      # but logging the error.
+      _LOGGER.error(
+          "Error occurred when setting log level for %s: %s", module_name, e)
 
 
 class CorruptMainSessionException(Exception):

@@ -34,6 +34,7 @@ Imposes a mapping between common Python types and Beam portable schemas
   bytes       <-----> BYTES
   ByteString  ------> BYTES
   Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
+  Timestamp   <------ LogicalType(urn="beam:logical_type:millis_instant:v1")
   Mapping     <-----> MapType
   Sequence    <-----> ArrayType
   NamedTuple  <-----> RowType
@@ -56,6 +57,7 @@ any backwards-compatibility guarantee.
 
 from typing import Any
 from typing import ByteString
+from typing import Dict
 from typing import Generic
 from typing import List
 from typing import Mapping
@@ -78,46 +80,13 @@ from apache_beam.typehints.native_type_compatibility import _match_is_optional
 from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
+from apache_beam.typehints.schema_registry import SCHEMA_REGISTRY
+from apache_beam.typehints.schema_registry import SchemaTypeRegistry
 from apache_beam.utils import proto_utils
 from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
 
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
-
-
-# Registry of typings for a schema by UUID
-class SchemaTypeRegistry(object):
-  def __init__(self):
-    self.by_id = {}
-    self.by_typing = {}
-
-  def generate_new_id(self):
-    # Import uuid locally to guarantee we don't actually generate a uuid
-    # elsewhere in this file.
-    from uuid import uuid4
-    for _ in range(100):
-      schema_id = str(uuid4())
-      if schema_id not in self.by_id:
-        return schema_id
-
-    raise AssertionError(
-        "Failed to generate a unique UUID for schema after "
-        f"100 tries! Registry contains {len(self.by_id)} "
-        "schemas.")
-
-  def add(self, typing, schema):
-    self.by_id[schema.id] = (typing, schema)
-
-  def get_typing_by_id(self, unique_id):
-    result = self.by_id.get(unique_id, None)
-    return result[0] if result is not None else None
-
-  def get_schema_by_id(self, unique_id):
-    result = self.by_id.get(unique_id, None)
-    return result[1] if result is not None else None
-
-
-SCHEMA_REGISTRY = SchemaTypeRegistry()
 
 # Bi-directional mappings
 _PRIMITIVES = (
@@ -145,21 +114,38 @@ PRIMITIVE_TO_ATOMIC_TYPE.update({
     float: schema_pb2.DOUBLE,
 })
 
-# Name of the attribute added to user types (existing and generated) to store
-# the corresponding schema ID
-_BEAM_SCHEMA_ID = "_beam_schema_id"
 
+def named_fields_to_schema(
+    names_and_types: Union[Dict[str, type], Sequence[Tuple[str, type]]],
+    schema_id: Optional[str] = None,
+    schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
+    field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None,
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY,
+):
+  schema_options = schema_options or []
+  field_options = field_options or {}
 
-def named_fields_to_schema(names_and_types):
-  # type: (Union[Dict[str, type], Sequence[Tuple[str, type]]]) -> schema_pb2.Schema
   if isinstance(names_and_types, dict):
     names_and_types = names_and_types.items()
+
+  if schema_id is None:
+    schema_id = schema_registry.generate_new_id()
+
   return schema_pb2.Schema(
       fields=[
-          schema_pb2.Field(name=name, type=typing_to_runner_api(type))
-          for (name, type) in names_and_types
+          schema_pb2.Field(
+              name=name,
+              type=typing_to_runner_api(type),
+              options=[
+                  option_to_runner_api(option_tuple)
+                  for option_tuple in field_options.get(name, [])
+              ],
+          ) for (name, type) in names_and_types
       ],
-      id=SCHEMA_REGISTRY.generate_new_id())
+      options=[
+          option_to_runner_api(option_tuple) for option_tuple in schema_options
+      ],
+      id=schema_id)
 
 
 def named_fields_from_schema(
@@ -183,6 +169,20 @@ def typing_from_runner_api(
       schema_registry=schema_registry).typing_from_runner_api(fieldtype_proto)
 
 
+def option_to_runner_api(
+    option: Tuple[str, Any],
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> schema_pb2.Option:
+  return SchemaTranslation(
+      schema_registry=schema_registry).option_to_runner_api(option)
+
+
+def option_from_runner_api(
+    option_proto: schema_pb2.Option,
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> Tuple[str, Any]:
+  return SchemaTranslation(
+      schema_registry=schema_registry).option_from_runner_api(option_proto)
+
+
 class SchemaTranslation(object):
   def __init__(self, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY):
     self.schema_registry = schema_registry
@@ -191,46 +191,53 @@ class SchemaTranslation(object):
     if isinstance(type_, schema_pb2.Schema):
       return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=type_))
 
-    elif match_is_named_tuple(type_):
-      if hasattr(type_, _BEAM_SCHEMA_ID):
-        schema_id = getattr(type_, _BEAM_SCHEMA_ID)
-        schema = self.schema_registry.get_schema_by_id(
-            getattr(type_, _BEAM_SCHEMA_ID))
-      else:
-        schema_id = self.schema_registry.generate_new_id()
+    if isinstance(type_, row_type.RowTypeConstraint):
+      if type_.schema_id is None:
+        schema_id = SCHEMA_REGISTRY.generate_new_id()
+        type_.set_schema_id(schema_id)
         schema = None
-        setattr(type_, _BEAM_SCHEMA_ID, schema_id)
+      else:
+        schema_id = type_.schema_id
+        schema = self.schema_registry.get_schema_by_id(schema_id)
 
       if schema is None:
-        fields = [
-            schema_pb2.Field(
-                name=name,
-                type=typing_to_runner_api(type_.__annotations__[name]))
-            for name in type_._fields
-        ]
-        schema = schema_pb2.Schema(fields=fields, id=schema_id)
-        self.schema_registry.add(type_, schema)
-
+        # Either user_type was not annotated with a schema id, or there was
+        # no schema in the registry with the id. The latter should only happen
+        # in tests.
+        # Either way, we need to generate a new schema proto.
+        schema = schema_pb2.Schema(
+            fields=[
+                schema_pb2.Field(
+                    name=field_name,
+                    type=self.typing_to_runner_api(field_type),
+                    options=[
+                        self.option_to_runner_api(option_tuple)
+                        for option_tuple in type_.field_options(field_name)
+                    ],
+                ) for (field_name, field_type) in type_._fields
+            ],
+            id=schema_id,
+            options=[
+                self.option_to_runner_api(option_tuple)
+                for option_tuple in type_.schema_options
+            ],
+        )
+        self.schema_registry.add(type_.user_type, schema)
       return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema))
-
-    elif isinstance(type_, row_type.RowTypeConstraint):
-      return schema_pb2.FieldType(
-          row_type=schema_pb2.RowType(
-              schema=schema_pb2.Schema(
-                  fields=[
-                      schema_pb2.Field(
-                          name=name, type=typing_to_runner_api(field_type))
-                      for (name, field_type) in type_._fields
-                  ],
-                  id=self.schema_registry.generate_new_id())))
+    else:
+      # See if this is coercible to a RowTypeConstraint (e.g. a NamedTuple or
+      # dataclass)
+      row_type_constraint = row_type.RowTypeConstraint.from_user_type(type_)
+      if row_type_constraint is not None:
+        return self.typing_to_runner_api(row_type_constraint)
 
     # All concrete types (other than NamedTuple sub-classes) should map to
     # a supported primitive type.
-    elif type_ in PRIMITIVE_TO_ATOMIC_TYPE:
+    if type_ in PRIMITIVE_TO_ATOMIC_TYPE:
       return schema_pb2.FieldType(atomic_type=PRIMITIVE_TO_ATOMIC_TYPE[type_])
 
     elif _match_is_exactly_mapping(type_):
-      key_type, value_type = map(typing_to_runner_api, _get_args(type_))
+      key_type, value_type = map(self.typing_to_runner_api, _get_args(type_))
       return schema_pb2.FieldType(
           map_type=schema_pb2.MapType(key_type=key_type, value_type=value_type))
 
@@ -238,17 +245,17 @@ class SchemaTranslation(object):
       # It's possible that a user passes us Optional[Optional[T]], but in python
       # typing this is indistinguishable from Optional[T] - both resolve to
       # Union[T, None] - so there's no need to check for that case here.
-      result = typing_to_runner_api(extract_optional_type(type_))
+      result = self.typing_to_runner_api(extract_optional_type(type_))
       result.nullable = True
       return result
 
     elif _safe_issubclass(type_, Sequence):
-      element_type = typing_to_runner_api(_get_args(type_)[0])
+      element_type = self.typing_to_runner_api(_get_args(type_)[0])
       return schema_pb2.FieldType(
           array_type=schema_pb2.ArrayType(element_type=element_type))
 
     elif _safe_issubclass(type_, Mapping):
-      key_type, value_type = map(typing_to_runner_api, _get_args(type_))
+      key_type, value_type = map(self.typing_to_runner_api, _get_args(type_))
       return schema_pb2.FieldType(
           map_type=schema_pb2.MapType(key_type=key_type, value_type=value_type))
 
@@ -264,8 +271,88 @@ class SchemaTranslation(object):
       return schema_pb2.FieldType(
           logical_type=schema_pb2.LogicalType(
               urn=logical_type.urn(),
-              representation=typing_to_runner_api(
+              representation=self.typing_to_runner_api(
                   logical_type.representation_type())))
+
+  def option_from_runner_api(
+      self, option_proto: schema_pb2.Option) -> Tuple[str, Any]:
+    if not option_proto.HasField('type'):
+      return option_proto.name, None
+
+    fieldtype_proto = option_proto.type
+    if fieldtype_proto.WhichOneof("type_info") != "atomic_type":
+      raise ValueError(
+          "Encounterd option with unsupported type. Only "
+          f"atomic_type options are supported: {option_proto}")
+
+    if fieldtype_proto.atomic_type == schema_pb2.BYTE:
+      value = np.int8(option_proto.value.atomic_value.byte)
+    elif fieldtype_proto.atomic_type == schema_pb2.INT16:
+      value = np.int16(option_proto.value.atomic_value.int16)
+    elif fieldtype_proto.atomic_type == schema_pb2.INT32:
+      value = np.int32(option_proto.value.atomic_value.int32)
+    elif fieldtype_proto.atomic_type == schema_pb2.INT64:
+      value = np.int64(option_proto.value.atomic_value.int64)
+    elif fieldtype_proto.atomic_type == schema_pb2.FLOAT:
+      value = np.float32(option_proto.value.atomic_value.float)
+    elif fieldtype_proto.atomic_type == schema_pb2.DOUBLE:
+      value = np.float64(option_proto.value.atomic_value.double)
+    elif fieldtype_proto.atomic_type == schema_pb2.STRING:
+      value = option_proto.value.atomic_value.string
+    elif fieldtype_proto.atomic_type == schema_pb2.BOOLEAN:
+      value = option_proto.value.atomic_value.boolean
+    elif fieldtype_proto.atomic_type == schema_pb2.BYTES:
+      value = option_proto.value.atomic_value.bytes
+    else:
+      raise ValueError(
+          f"Unrecognized atomic_type ({fieldtype_proto.atomic_type}) "
+          f"when decoding option {option_proto!r}")
+
+    return option_proto.name, value
+
+  def option_to_runner_api(self, option: Tuple[str, Any]) -> schema_pb2.Option:
+    name, value = option
+
+    if value is None:
+      # a value of None indicates the option is just a flag.
+      # Don't set type, value
+      return schema_pb2.Option(name=name)
+
+    fieldtype_proto = self.typing_to_runner_api(type(value))
+    if fieldtype_proto.WhichOneof("type_info") != "atomic_type":
+      # TODO: Allow other value types
+      raise ValueError(
+          "Only atomic_type option values are currently supported in Python. "
+          f"Got {value!r}, which maps to fieldtype {fieldtype_proto!r}.")
+
+    if fieldtype_proto.atomic_type == schema_pb2.BYTE:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(byte=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.INT16:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(int16=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.INT32:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(int32=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.INT64:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(int64=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.FLOAT:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(float=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.DOUBLE:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(double=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.STRING:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(string=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.BOOLEAN:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(boolean=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.BYTES:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(bytes=value)
+    else:
+      raise ValueError(
+          "Unrecognized atomic_type in fieldtype_proto="
+          f"{fieldtype_proto!r} when encoding option {option!r}")
+
+    return schema_pb2.Option(
+        name=name,
+        type=fieldtype_proto,
+        value=schema_pb2.FieldValue(atomic_value=atomictypevalue_proto),
+    )
 
   def typing_from_runner_api(
       self, fieldtype_proto: schema_pb2.FieldType) -> type:
@@ -297,39 +384,38 @@ class SchemaTranslation(object):
           self.typing_from_runner_api(fieldtype_proto.map_type.value_type)]
     elif type_info == "row_type":
       schema = fieldtype_proto.row_type.schema
+      schema_options = [
+          self.option_from_runner_api(option_proto)
+          for option_proto in schema.options
+      ]
+      field_options = {
+          field.name: [
+              self.option_from_runner_api(option_proto)
+              for option_proto in field.options
+          ]
+          for field in schema.fields if field.options
+      }
+      # First look for user type in the registry
       user_type = self.schema_registry.get_typing_by_id(schema.id)
+
       if user_type is None:
-        from apache_beam import coders
+        # If not in SDK options (the coder likely came from another SDK),
+        # generate a NamedTuple type to use.
 
-        type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
-
-        subfields = []
-        for field in schema.fields:
-          try:
-            field_py_type = self.typing_from_runner_api(field.type)
-          except ValueError as e:
-            raise ValueError(
-                "Failed to decode schema due to an issue with Field proto:\n\n"
-                f"{text_format.MessageToString(field)}") from e
-
-          subfields.append((field.name, field_py_type))
-
-        user_type = NamedTuple(type_name, subfields)
-
-        setattr(user_type, _BEAM_SCHEMA_ID, schema.id)
-
-        # Define a reduce function, otherwise these types can't be pickled
-        # (See BEAM-9574)
-        def __reduce__(self):
-          return (
-              _hydrate_namedtuple_instance,
-              (schema.SerializeToString(), tuple(self)))
-
-        setattr(user_type, '__reduce__', __reduce__)
-
-        self.schema_registry.add(user_type, schema)
-        coders.registry.register_coder(user_type, coders.RowCoder)
-      return user_type
+        fields = named_fields_from_schema(schema)
+        result = row_type.RowTypeConstraint.from_fields(
+            fields=fields,
+            schema_id=schema.id,
+            schema_options=schema_options,
+            field_options=field_options,
+            schema_registry=self.schema_registry,
+        )
+        return result
+      else:
+        return row_type.RowTypeConstraint.from_user_type(
+            user_type,
+            schema_options=schema_options,
+            field_options=field_options)
 
     elif type_info == "logical_type":
       if fieldtype_proto.logical_type.urn == PYTHON_ANY_URN:
@@ -341,6 +427,40 @@ class SchemaTranslation(object):
     else:
       raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
+  def named_tuple_from_schema(self, schema: schema_pb2.Schema) -> type:
+    from apache_beam import coders
+
+    type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
+
+    subfields = []
+    for field in schema.fields:
+      try:
+        field_py_type = self.typing_from_runner_api(field.type)
+        if isinstance(field_py_type, row_type.RowTypeConstraint):
+          field_py_type = field_py_type.user_type
+      except ValueError as e:
+        raise ValueError(
+            "Failed to decode schema due to an issue with Field proto:\n\n"
+            f"{text_format.MessageToString(field)}") from e
+
+      subfields.append((field.name, field_py_type))
+
+    user_type = NamedTuple(type_name, subfields)
+
+    # Define a reduce function, otherwise these types can't be pickled
+    # (See BEAM-9574)
+    def __reduce__(self):
+      return (
+          _hydrate_namedtuple_instance,
+          (schema.SerializeToString(), tuple(self)))
+
+    setattr(user_type, '__reduce__', __reduce__)
+
+    self.schema_registry.add(user_type, schema)
+    coders.registry.register_coder(user_type, coders.RowCoder)
+
+    return user_type
+
 
 def _hydrate_namedtuple_instance(encoded_schema, values):
   return named_tuple_from_schema(
@@ -349,9 +469,8 @@ def _hydrate_namedtuple_instance(encoded_schema, values):
 
 def named_tuple_from_schema(
     schema, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> type:
-  return typing_from_runner_api(
-      schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema)),
-      schema_registry)
+  return SchemaTranslation(
+      schema_registry=schema_registry).named_tuple_from_schema(schema)
 
 
 def named_tuple_to_schema(
@@ -453,13 +572,13 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     """Return the argument for this instance of the LogicalType."""
     raise NotImplementedError()
 
-  def to_representation_type(value):
+  def to_representation_type(self, value):
     # type: (LanguageT) -> RepresentationT
 
     """Convert an instance of LanguageT to RepresentationT."""
     raise NotImplementedError()
 
-  def to_language_type(value):
+  def to_language_type(self, value):
     # type: (RepresentationT) -> LanguageT
 
     """Convert an instance of RepresentationT to LanguageT."""
@@ -469,6 +588,7 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
   def register_logical_type(cls, logical_type_cls):
     """Register an implementation of LogicalType."""
     cls._known_logical_types.add(logical_type_cls.urn(), logical_type_cls)
+    return logical_type_cls
 
   @classmethod
   def from_typing(cls, typ):
@@ -538,8 +658,53 @@ MicrosInstantRepresentation = NamedTuple(
 
 
 @LogicalType.register_logical_type
+class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
+  """Millisecond-precision instant logical type handles values consistent with
+  that encoded by ``InstantCoder`` in the Java SDK.
+
+  This class handles :class:`apache_beam.utils.timestamp.Timestamp` language
+  type as :class:`MicrosInstant`, but it only provides millisecond precision,
+  because it is aimed to handle data encoded by Java sdk's InstantCoder which
+  has same precision level.
+
+  Timestamp is handled by `MicrosInstant` by default. In some scenario, such as
+  read from cross-language transform with rows containing InstantCoder encoded
+  timestamps, one may need to override the mapping of Timetamp to MillisInstant.
+  To do this, re-register this class with
+  :func:`~LogicalType.register_logical_type`.
+  """
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return np.int64
+
+  @classmethod
+  def urn(cls):
+    return common_urns.millis_instant.urn
+
+  @classmethod
+  def language_type(cls):
+    return Timestamp
+
+  def to_language_type(self, value):
+    # type: (np.int64) -> Timestamp
+
+    # value shifted as in apache_beams.coders.coder_impl.TimestampCoderImpl
+    if value < 0:
+      millis = int(value) + (1 << 63)
+    else:
+      millis = int(value) - (1 << 63)
+
+    return Timestamp(micros=millis * 1000)
+
+
+# Make sure MicrosInstant is registered after MillisInstant so that it
+# overwrites the mapping of Timestamp language type representation choice and
+# thus does not lose microsecond precision inside python sdk.
+@LogicalType.register_logical_type
 class MicrosInstant(NoArgumentLogicalType[Timestamp,
                                           MicrosInstantRepresentation]):
+  """Microsecond-precision instant logical type that handles ``Timestamp``."""
   @classmethod
   def urn(cls):
     return common_urns.micros_instant.urn
@@ -565,6 +730,7 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
 
 @LogicalType.register_logical_type
 class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
+  """A logical type for PythonCallableSource objects."""
   @classmethod
   def urn(cls):
     return common_urns.python_callable.urn

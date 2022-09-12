@@ -28,9 +28,13 @@ when running the workflow for remote execution.
 # pytype: skip-file
 
 import subprocess
-from distutils.command.build import build as _build  # type: ignore
 
 import setuptools
+
+# It is recommended to import setuptools prior to importing distutils to avoid
+# using legacy behavior from distutils.
+# https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
+from distutils.command.build import build as _build  # isort:skip
 
 
 # This class handles the pip install mechanism.
@@ -69,9 +73,9 @@ class build(_build):  # pylint: disable=invalid-name
 #
 #     ['pip', 'install', 'my_package'],
 #
-# TODO(BEAM-3237): Output from the custom commands are missing from the logs.
-# The output of custom commands (including failures) will be logged in the
-# worker-startup log.
+# TODO(https://github.com/apache/beam/issues/18568): Output from the custom
+# commands are missing from the logs. The output of custom commands (including
+# failures) will be logged in the worker-startup log.
 CUSTOM_COMMANDS = [['echo', 'Custom command worked!']]
 
 

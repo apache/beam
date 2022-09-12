@@ -420,7 +420,7 @@ public class GroupingTables {
      * The degree of confidence required in our expected value predictions before we allow
      * under-sampling.
      *
-     * <p>The value of 3.0 is a confidence interval of about 99.7% for a a high-degree-of-freedom
+     * <p>The value of 3.0 is a confidence interval of about 99.7% for a high-degree-of-freedom
      * t-distribution.
      */
     public static final double CONFIDENCE_INTERVAL_SIGMA = 3;

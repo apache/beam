@@ -108,7 +108,7 @@ class ShardCheckpoint implements Serializable {
   }
 
   /**
-   * Used to compare {@link ShardCheckpoint} object to {@link KinesisRecord}. Depending on the the
+   * Used to compare {@link ShardCheckpoint} object to {@link KinesisRecord}. Depending on the
    * underlying shardIteratorType, it will either compare the timestamp or the {@link
    * ExtendedSequenceNumber}.
    *

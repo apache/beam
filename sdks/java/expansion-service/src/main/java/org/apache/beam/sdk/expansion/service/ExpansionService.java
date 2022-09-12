@@ -74,10 +74,10 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Converter;
@@ -465,7 +465,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     if (!isUseDeprecatedRead) {
       ExperimentalOptions.addExperiment(
           pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
-      // TODO(BEAM-10670): Remove this when we address performance issue.
+      // TODO(https://github.com/apache/beam/issues/20530): Remove this when we address performance
+      // issue.
       ExperimentalOptions.addExperiment(
           pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
     } else {
@@ -568,7 +569,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   protected Pipeline createPipeline() {
-    // TODO: [BEAM-12599]: implement proper validation
+    // TODO: [https://github.com/apache/beam/issues/21064]: implement proper validation
     PipelineOptions effectiveOpts = PipelineOptionsFactory.create();
     PortablePipelineOptions portableOptions = effectiveOpts.as(PortablePipelineOptions.class);
     PortablePipelineOptions specifiedOptions = pipelineOptions.as(PortablePipelineOptions.class);

@@ -122,7 +122,7 @@ disable =
   not-callable,
   pointless-statement,
   protected-access,
-  raise-missing-from, #TODO(BEAM-12991) Enable and fix warnings
+  raise-missing-from, #TODO(https://github.com/apache/beam/issues/21169) Enable and fix warnings
   raising-format-tuple,
   redefined-builtin,
   redefined-outer-name,
@@ -142,7 +142,7 @@ disable =
   unnecessary-pass,
   unneeded-not,
   unsubscriptable-object,
-  unspecified-encoding, #TODO(BEAM-12992) Enable explicit encoding
+  unspecified-encoding, #TODO(https://github.com/apache/beam/issues/21236) Enable explicit encoding
   unused-argument,
   unused-wildcard-import,
   useless-object-inheritance,

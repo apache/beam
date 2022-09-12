@@ -66,6 +66,7 @@ from apache_beam.typehints.decorators import with_output_types
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import TypeConstraint
 from apache_beam.typehints.typehints import is_consistent_with
+from apache_beam.typehints.typehints import visit_inner_types
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
@@ -583,6 +584,13 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   @staticmethod
   def yields_elements(fn):
+    """A decorator to apply to ``process_batch`` indicating it yields elements.
+
+    By default ``process_batch`` is assumed to both consume and produce
+    "batches", which are collections of multiple logical Beam elements. This
+    decorator indicates that ``process_batch`` **produces** individual elements
+    at a time. ``process_batch`` is always expected to consume batches.
+    """
     if not fn.__name__ in ('process', 'process_batch'):
       raise TypeError(
           "@yields_elements must be applied to a process or "
@@ -593,6 +601,13 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   @staticmethod
   def yields_batches(fn):
+    """A decorator to apply to ``process`` indicating it yields batches.
+
+    By default ``process`` is assumed to both consume and produce
+    individual elements at a time. This decorator indicates that ``process``
+    **produces** "batches", which are collections of multiple logical Beam
+    elements.
+    """
     if not fn.__name__ in ('process', 'process_batch'):
       raise TypeError(
           "@yields_elements must be applied to a process or "
@@ -693,63 +708,124 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return get_function_arguments(self, func)
 
   def default_type_hints(self):
-    fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self.process)
-    if fn_type_hints is not None:
-      try:
-        fn_type_hints = fn_type_hints.strip_iterable()
-      except ValueError as e:
-        raise ValueError('Return value not iterable: %s: %s' % (self, e))
+    process_type_hints = typehints.decorators.IOTypeHints.from_callable(
+        self.process) or typehints.decorators.IOTypeHints.empty()
+
+    if self._process_yields_batches:
+      # process() produces batches, don't use it's output typehint
+      process_type_hints = process_type_hints.with_output_types_from(
+          typehints.decorators.IOTypeHints.empty())
+
+    if self._process_batch_yields_elements:
+      # process_batch() produces elements, *do* use it's output typehint
+
+      # First access the typehint
+      process_batch_type_hints = typehints.decorators.IOTypeHints.from_callable(
+          self.process_batch) or typehints.decorators.IOTypeHints.empty()
+
+      # Then we deconflict with the typehint from process, if it exists
+      if (process_batch_type_hints.output_types !=
+          typehints.decorators.IOTypeHints.empty().output_types):
+        if (process_type_hints.output_types !=
+            typehints.decorators.IOTypeHints.empty().output_types and
+            process_batch_type_hints.output_types !=
+            process_type_hints.output_types):
+          raise TypeError(
+              f"DoFn {self!r} yields element from both process and "
+              "process_batch, but they have mismatched output typehints:\n"
+              f" process: {process_type_hints.output_types}\n"
+              f" process_batch: {process_batch_type_hints.output_types}")
+
+        process_type_hints = process_type_hints.with_output_types_from(
+            process_batch_type_hints)
+
+    try:
+      process_type_hints = process_type_hints.strip_iterable()
+    except ValueError as e:
+      raise ValueError('Return value not iterable: %s: %s' % (self, e))
+
     # Prefer class decorator type hints for backwards compatibility.
-    return get_type_hints(self.__class__).with_defaults(fn_type_hints)
+    return get_type_hints(self.__class__).with_defaults(process_type_hints)
 
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
   def infer_output_type(self, input_type):
-    # TODO(BEAM-8247): Side inputs types.
+    # TODO(https://github.com/apache/beam/issues/19824): Side inputs types.
     return trivial_inference.element_type(
-        self._strip_output_annotations(
+        _strip_output_annotations(
             trivial_inference.infer_return_type(self.process, [input_type])))
 
   @property
-  def process_defined(self) -> bool:
-    return (
-        self.process.__func__  # type: ignore
-        if hasattr(self.process, '__self__') else self.process) != DoFn.process
+  def _process_defined(self) -> bool:
+    # Check if this DoFn's process method has heen overriden
+    # Note that we retrieve the __func__ attribute, if it exists, to get the
+    # underlying function from the bound method.
+    # If __func__ doesn't exist, self.process was likely overriden with a free
+    # function, as in CallableWrapperDoFn.
+    return getattr(self.process, '__func__', self.process) != DoFn.process
 
   @property
-  def process_batch_defined(self) -> bool:
-    return (
-        self.process_batch.__func__  # type: ignore
-        if hasattr(self.process_batch, '__self__')
-        else self.process_batch) != DoFn.process_batch
+  def _process_batch_defined(self) -> bool:
+    # Check if this DoFn's process_batch method has heen overriden
+    # Note that we retrieve the __func__ attribute, if it exists, to get the
+    # underlying function from the bound method.
+    # If __func__ doesn't exist, self.process_batch was likely overriden with
+    # a free function.
+    return getattr(
+        self.process_batch, '__func__',
+        self.process_batch) != DoFn.process_batch
 
   @property
-  def can_yield_batches(self) -> bool:
-    return (
-        (self.process_defined and self.process_yields_batches) or
-        (self.process_batch_defined and not self.process_batch_yields_elements))
+  def _can_yield_batches(self) -> bool:
+    return ((self._process_defined and self._process_yields_batches) or (
+        self._process_batch_defined and
+        not self._process_batch_yields_elements))
 
   @property
-  def process_yields_batches(self) -> bool:
+  def _process_yields_batches(self) -> bool:
     return getattr(self.process, '_beam_yields_batches', False)
 
   @property
-  def process_batch_yields_elements(self) -> bool:
+  def _process_batch_yields_elements(self) -> bool:
     return getattr(self.process_batch, '_beam_yields_elements', False)
 
-  def get_input_batch_type(self) -> typing.Optional[TypeConstraint]:
-    if not self.process_batch_defined:
+  def get_input_batch_type(
+      self, input_element_type
+  ) -> typing.Optional[typing.Union[TypeConstraint, type]]:
+    """Determine the batch type expected as input to process_batch.
+
+    The default implementation of ``get_input_batch_type`` simply observes the
+    input typehint for the first parameter of ``process_batch``. A Batched DoFn
+    may override this method if a dynamic approach is required.
+
+    Args:
+      input_element_type: The **element type** of the input PCollection this
+        DoFn is being applied to.
+
+    Returns:
+      ``None`` if this DoFn cannot accept batches, else a Beam typehint or
+      a native Python typehint.
+    """
+    if not self._process_batch_defined:
       return None
     input_type = list(
         inspect.signature(self.process_batch).parameters.values())[0].annotation
     if input_type == inspect.Signature.empty:
-      # TODO(BEAM-14340): Consider supporting an alternative (dynamic?) approach
-      # for declaring input type
+      # TODO(https://github.com/apache/beam/issues/21652): Consider supporting
+      # an alternative (dynamic?) approach for declaring input type
       raise TypeError(
-          f"{self.__class__.__name__}.process_batch() does not have a type "
-          "annotation on its first parameter. This is required for "
-          "process_batch implementations.")
-    return typehints.native_type_compatibility.convert_to_beam_type(input_type)
+          f"Either {self.__class__.__name__}.process_batch() must have a type "
+          f"annotation on its first parameter, or {self.__class__.__name__} "
+          "must override get_input_batch_type.")
+    return input_type
+
+  def _get_input_batch_type_normalized(self, input_element_type):
+    return typehints.native_type_compatibility.convert_to_beam_type(
+        self.get_input_batch_type(input_element_type))
+
+  def _get_output_batch_type_normalized(self, input_element_type):
+    return typehints.native_type_compatibility.convert_to_beam_type(
+        self.get_output_batch_type(input_element_type))
 
   @staticmethod
   def _get_element_type_from_return_annotation(method, input_type):
@@ -770,16 +846,32 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
           f"{method!r}, did you mean Iterator[{return_type}]?")
 
   def get_output_batch_type(
-      self, input_element_type) -> typing.Optional[TypeConstraint]:
+      self, input_element_type
+  ) -> typing.Optional[typing.Union[TypeConstraint, type]]:
+    """Determine the batch type produced by this DoFn's ``process_batch``
+    implementation and/or its ``process`` implementation with
+    ``@yields_batch``.
+
+    The default implementation of this method observes the return type
+    annotations on ``process_batch`` and/or ``process``.  A Batched DoFn may
+    override this method if a dynamic approach is required.
+
+    Args:
+      input_element_type: The **element type** of the input PCollection this
+        DoFn is being applied to.
+
+    Returns:
+      ``None`` if this DoFn will never yield batches, else a Beam typehint or
+      a native Python typehint.
+    """
     output_batch_type = None
-    if self.process_defined and self.process_yields_batches:
-      # TODO: Use the element_type passed to infer_output_type instead of
-      # typehints.Any
+    if self._process_defined and self._process_yields_batches:
       output_batch_type = self._get_element_type_from_return_annotation(
           self.process, input_element_type)
-    if self.process_batch_defined and not self.process_batch_yields_elements:
+    if self._process_batch_defined and not self._process_batch_yields_elements:
       process_batch_type = self._get_element_type_from_return_annotation(
-          self.process_batch, self.get_input_batch_type())
+          self.process_batch,
+          self._get_input_batch_type_normalized(input_element_type))
 
       # TODO: Consider requiring an inheritance relationship rather than
       # equality
@@ -794,15 +886,6 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       output_batch_type = process_batch_type
 
     return output_batch_type
-
-  def _strip_output_annotations(self, type_hint):
-    annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
-    # TODO(robertwb): These should be parameterized types that the
-    # type inferencer understands.
-    if (type_hint in annotations or
-        trivial_inference.element_type(type_hint) in annotations):
-      return typehints.Any
-    return type_hint
 
   def _process_argspec_fn(self):
     """Returns the Python callable that will eventually be invoked.
@@ -877,7 +960,7 @@ class CallableWrapperDoFn(DoFn):
 
   def infer_output_type(self, input_type):
     return trivial_inference.element_type(
-        self._strip_output_annotations(
+        _strip_output_annotations(
             trivial_inference.infer_return_type(self._fn, [input_type])))
 
   def _process_argspec_fn(self):
@@ -1162,12 +1245,13 @@ class CallableWrapperCombineFn(CombineFn):
     return self._fn(accumulator, *args, **kwargs)
 
   def default_type_hints(self):
-    fn_hints = get_type_hints(self._fn)
-    if fn_hints.input_types is None:
-      return fn_hints
+    fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self._fn)
+    type_hints = get_type_hints(self._fn).with_defaults(fn_type_hints)
+    if type_hints.input_types is None:
+      return type_hints
     else:
       # fn(Iterable[V]) -> V becomes CombineFn(V) -> V
-      input_args, input_kwargs = fn_hints.input_types
+      input_args, input_kwargs = type_hints.input_types
       if not input_args:
         if len(input_kwargs) == 1:
           input_args, input_kwargs = tuple(input_kwargs.values()), {}
@@ -1182,7 +1266,11 @@ class CallableWrapperCombineFn(CombineFn):
             input_args[0])
       input_args = (element_type(input_args[0]), ) + input_args[1:]
       # TODO(robertwb): Assert output type is consistent with input type?
-      return fn_hints.with_input_types(*input_args, **input_kwargs)
+      return type_hints.with_input_types(*input_args, **input_kwargs)
+
+  def infer_output_type(self, input_type):
+    return _strip_output_annotations(
+        trivial_inference.infer_return_type(self._fn, [input_type]))
 
   def for_input_type(self, input_type):
     # Avoid circular imports.
@@ -1414,8 +1502,9 @@ class ParDo(PTransformWithSideInputs):
 
   def infer_batch_converters(self, input_element_type):
     # TODO: Test this code (in batch_dofn_test)
-    if self.fn.process_batch_defined:
-      input_batch_type = self.fn.get_input_batch_type()
+    if self.fn._process_batch_defined:
+      input_batch_type = self.fn._get_input_batch_type_normalized(
+          input_element_type)
 
       if input_batch_type is None:
         raise TypeError(
@@ -1429,8 +1518,9 @@ class ParDo(PTransformWithSideInputs):
     else:
       self.fn.input_batch_converter = None
 
-    if self.fn.can_yield_batches:
-      output_batch_type = self.fn.get_output_batch_type(input_element_type)
+    if self.fn._can_yield_batches:
+      output_batch_type = self.fn._get_output_batch_type_normalized(
+          input_element_type)
       if output_batch_type is None:
         # TODO: Mention process method in this error
         raise TypeError(
@@ -1482,9 +1572,14 @@ class ParDo(PTransformWithSideInputs):
             key_coder,
             self)
 
+    if self._signature.is_unbounded_per_element():
+      is_bounded = False
+    else:
+      is_bounded = pcoll.is_bounded
+
     self.infer_batch_converters(pcoll.element_type)
 
-    return pvalue.PCollection.from_(pcoll)
+    return pvalue.PCollection.from_(pcoll, is_bounded=is_bounded)
 
   def with_outputs(self, *tags, main=None, allow_unknown_tags=None):
     """Returns a tagged tuple allowing access to the outputs of a
@@ -1799,7 +1894,9 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
             wrapper)
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    wrapper = with_output_types(typehints.Iterable[output_hint])(wrapper)
+    wrapper = with_output_types(
+        typehints.Iterable[_strip_output_annotations(output_hint)])(
+            wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
@@ -1860,14 +1957,17 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
-  type_hints = get_type_hints(fn)
+  type_hints = get_type_hints(fn).with_defaults(
+      typehints.decorators.IOTypeHints.from_callable(fn))
   if type_hints.input_types is not None:
-    wrapper = with_input_types(
-        *type_hints.input_types[0], **type_hints.input_types[1])(
-            wrapper)
+    # TODO(BEAM-14052): ignore input hints, as we do not have enough
+    # information to infer the input type hint of the wrapper function.
+    pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    wrapper = with_output_types(typehints.Iterable[output_hint])(wrapper)
+    wrapper = with_output_types(
+        typehints.Iterable[_strip_output_annotations(output_hint)])(
+            wrapper)
 
   # Replace the first (args) component.
   modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
@@ -1935,14 +2035,15 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
-  type_hints = get_type_hints(fn)
+  type_hints = get_type_hints(fn).with_defaults(
+      typehints.decorators.IOTypeHints.from_callable(fn))
   if type_hints.input_types is not None:
-    wrapper = with_input_types(
-        *type_hints.input_types[0], **type_hints.input_types[1])(
-            wrapper)
+    # TODO(BEAM-14052): ignore input hints, as we do not have enough
+    # information to infer the input type hint of the wrapper function.
+    pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    wrapper = with_output_types(output_hint)(wrapper)
+    wrapper = with_output_types(_strip_output_annotations(output_hint))(wrapper)
 
   # Replace the first (args) component.
   modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
@@ -2190,7 +2291,9 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
       get_type_hints(wrapper).input_types[0]):
     output_hint = get_type_hints(wrapper).input_types[0][0]
   if output_hint:
-    wrapper = with_output_types(typehints.Iterable[output_hint])(wrapper)
+    wrapper = with_output_types(
+        typehints.Iterable[_strip_output_annotations(output_hint)])(
+            wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
@@ -2874,7 +2977,7 @@ class GroupBy(PTransform):
       expr = self._key_fields[0][1]
       return trivial_inference.infer_return_type(expr, [input_type])
     else:
-      return row_type.RowTypeConstraint([
+      return row_type.RowTypeConstraint.from_fields([
           (name, trivial_inference.infer_return_type(expr, [input_type]))
           for (name, expr) in self._key_fields
       ])
@@ -2986,7 +3089,7 @@ class Select(PTransform):
                                 for name, expr in self._fields}))
 
   def infer_output_type(self, input_type):
-    return row_type.RowTypeConstraint([
+    return row_type.RowTypeConstraint.from_fields([
         (name, trivial_inference.infer_return_type(expr, [input_type]))
         for (name, expr) in self._fields
     ])
@@ -3339,7 +3442,8 @@ class Create(PTransform):
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> typing.Tuple[str, bytes]
     # Required as this is identified by type in PTransformOverrides.
-    # TODO(BEAM-3812): Use an actual URN here.
+    # TODO(https://github.com/apache/beam/issues/18713): Use an actual URN
+    # here.
     return self.to_runner_api_pickled(context)
 
   def infer_output_type(self, unused_input_type):
@@ -3424,3 +3528,24 @@ class Impulse(PTransform):
   def from_runner_api_parameter(
       unused_ptransform, unused_parameter, unused_context):
     return Impulse()
+
+
+def _strip_output_annotations(type_hint):
+  # TODO(robertwb): These should be parameterized types that the
+  # type inferencer understands.
+  # Then we can replace them with the correct element types instead of
+  # using Any. Refer to typehints.WindowedValue when doing this.
+  annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
+
+  contains_annotation = False
+
+  def visitor(t, unused_args):
+    if t in annotations:
+      raise StopIteration
+
+  try:
+    visit_inner_types(type_hint, visitor, [])
+  except StopIteration:
+    contains_annotation = True
+
+  return typehints.Any if contains_annotation else type_hint

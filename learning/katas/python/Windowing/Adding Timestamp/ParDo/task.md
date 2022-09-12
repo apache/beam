@@ -25,7 +25,7 @@ timestamps, you must add them to your PCollection’s elements.
 You can assign new timestamps to the elements of a PCollection by applying a ParDo transform that
 outputs new elements with timestamps that you set.
 
-**Kata:** Please assign each element a timestamp based on the the `Event.timestamp`.
+**Kata:** Please assign each element a timestamp based on the `Event.timestamp`.
 
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">

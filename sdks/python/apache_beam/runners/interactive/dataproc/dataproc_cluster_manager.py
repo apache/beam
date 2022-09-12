@@ -122,8 +122,9 @@ class DataprocClusterManager:
         'cluster_name': self.cluster_metadata.cluster_name,
         'config': {
             'software_config': {
-                # TODO(BEAM-14142): Uncomment these lines when a Dataproc
-                # image is released with previously missing dependencies.
+                # TODO(https://github.com/apache/beam/issues/21527): Uncomment
+                # these lines when a Dataproc image is released with previously
+                # missing dependencies.
                 # 'image_version': ie.current_env().clusters.
                 # DATAPROC_IMAGE_VERSION,
                 'optional_components': ['DOCKER', 'FLINK']

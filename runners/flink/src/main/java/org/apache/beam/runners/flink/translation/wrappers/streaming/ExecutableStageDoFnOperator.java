@@ -103,8 +103,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -708,9 +708,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         // Manually drain processing time timers since Flink will ignore pending
         // processing-time timers when upstream operators have shut down and will also
         // shut down this operator with pending processing-time timers.
-        // TODO(BEAM-11210, FLINK-18647): It doesn't work efficiently when the watermark of upstream
-        // advances
-        // to MAX_TIMESTAMP immediately.
+        // TODO(https://github.com/apache/beam/issues/20600, FLINK-18647): It doesn't work
+        // efficiently when the watermark of upstream advances to MAX_TIMESTAMP
+        // immediately.
         if (numProcessingTimeTimers() > 0) {
           timerInternals.processPendingProcessingTimeTimers();
         }

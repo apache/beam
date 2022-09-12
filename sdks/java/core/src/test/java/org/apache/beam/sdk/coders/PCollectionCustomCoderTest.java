@@ -220,7 +220,7 @@ public class PCollectionCustomCoderTest {
     p.run().waitUntilFinish();
   }
 
-  // TODO(BEAM-6004) Have DirectRunner trigger deserialization.
+  // TODO(https://github.com/apache/beam/issues/19185) Have DirectRunner trigger deserialization.
   @Ignore("DirectRunner doesn't decode coders so this test does not pass.")
   @Test
   @Category(NeedsRunner.class)
@@ -232,7 +232,7 @@ public class PCollectionCustomCoderTest {
     p.run().waitUntilFinish();
   }
 
-  // TODO(BEAM-6004) Have DirectRunner trigger deserialization.
+  // TODO(https://github.com/apache/beam/issues/19185) Have DirectRunner trigger deserialization.
   @Ignore("DirectRunner doesn't decode coders so this test does not pass.")
   @Test
   @Category(NeedsRunner.class)

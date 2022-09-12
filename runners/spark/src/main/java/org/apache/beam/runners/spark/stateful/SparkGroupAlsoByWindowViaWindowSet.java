@@ -279,7 +279,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                   FluentIterable.from(JavaConversions.asJavaIterable(encodedElements))
                       .transform(bytes -> CoderHelpers.fromByteArray(bytes, wvCoder));
 
-              LOG.trace(logPrefix + ": input elements: {}", elements);
+              LOG.trace("{}: input elements: {}", logPrefix, elements);
 
               // Incoming expired windows are filtered based on
               // timerInternals.currentInputWatermarkTime() and the configured allowed
@@ -294,7 +294,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                       LateDataUtils.dropExpiredWindows(
                           key, elements, timerInternals, windowingStrategy, droppedDueToLateness));
 
-              LOG.trace(logPrefix + ": non expired input elements: {}", nonExpiredElements);
+              LOG.trace("{}: non expired input elements: {}", logPrefix, nonExpiredElements);
 
               reduceFnRunner.processElements(nonExpiredElements);
             } catch (final Exception e) {
@@ -306,8 +306,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
           }
           try {
             // advance the watermark to HWM to fire by timers.
-            LOG.debug(
-                logPrefix + ": timerInternals before advance are {}", timerInternals.toString());
+            LOG.debug("{}: timerInternals before advance are {}", logPrefix, timerInternals);
 
             // store the highWatermark as the new inputWatermark to calculate triggers
             timerInternals.advanceWatermark();
@@ -317,7 +316,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                     timerInternals.getTimers(), timerInternals.currentInputWatermarkTime());
 
             LOG.debug(
-                logPrefix + ": timers eligible for processing are {}", timersEligibleForProcessing);
+                "{}: timers eligible for processing are {}",
+                logPrefix,
+                timersEligibleForProcessing);
 
             // Note that at this point, the watermark has already advanced since
             // timerInternals.advanceWatermark() has been called and the highWatermark
@@ -352,12 +353,10 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                     SparkTimerInternals.serializeTimers(
                         timerInternals.getTimers(), timerDataCoder));
 
-            /*
-            Not something we want to happen in production, but is very helpful
-            when debugging - TRACE.
-             */
-            LOG.trace(logPrefix + ": output elements are {}", Joiner.on(", ").join(outputs));
-
+            if (LOG.isTraceEnabled()) {
+              // Not something we want to happen in production, but is very helpful when debugging.
+              LOG.trace("{}: output elements are {}", logPrefix, Joiner.on(", ").join(outputs));
+            }
             // persist Spark's state by outputting.
             final List<byte[]> serOutput = CoderHelpers.toByteArrays(outputs, wvKvIterCoder);
             return new Tuple2<>(encodedKey, new Tuple2<>(updated, serOutput));
@@ -440,12 +439,12 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       // log if there's something to log.
       final long lateDropped = droppedDueToLateness.getCumulative();
       if (lateDropped > 0) {
-        LOG.info(String.format("Dropped %d elements due to lateness.", lateDropped));
+        LOG.info("Dropped {} elements due to lateness.", lateDropped);
         droppedDueToLateness.inc(-droppedDueToLateness.getCumulative());
       }
       final long closedWindowDropped = droppedDueToClosedWindow.getCumulative();
       if (closedWindowDropped > 0) {
-        LOG.info(String.format("Dropped %d elements due to closed window.", closedWindowDropped));
+        LOG.info("Dropped {} elements due to closed window.", closedWindowDropped);
         droppedDueToClosedWindow.inc(-droppedDueToClosedWindow.getCumulative());
       }
 

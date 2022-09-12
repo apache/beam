@@ -61,7 +61,7 @@ public class SqlQuery5Test {
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-7072")
+  @Ignore("https://github.com/apache/beam/issues/19541")
   public void testBids() throws Exception {
     assertEquals(Long.valueOf(config.windowSizeSec), Long.valueOf(config.windowPeriodSec * 2));
 

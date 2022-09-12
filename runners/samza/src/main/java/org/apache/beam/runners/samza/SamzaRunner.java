@@ -114,8 +114,8 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
   @Override
   public SamzaPipelineResult run(Pipeline pipeline) {
-    // TODO(BEAM-10670): Use SDF read as default for non-portable execution when we address
-    // performance issue.
+    // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default for non-portable
+    // execution when we address performance issue.
     if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }

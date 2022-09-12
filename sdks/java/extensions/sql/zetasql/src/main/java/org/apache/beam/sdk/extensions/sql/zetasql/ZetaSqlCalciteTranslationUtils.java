@@ -235,7 +235,8 @@ public final class ZetaSqlCalciteTranslationUtils {
         if (wrapperFun == null) {
           return rexBuilder.makeApproxLiteral(new BigDecimal(val), returnType);
         } else if (BeamBigQuerySqlDialect.DOUBLE_NAN_WRAPPER.equals(wrapperFun)) {
-          // TODO[BEAM-10550]: Update the temporary workaround below after vendored Calcite version.
+          // TODO[https://github.com/apache/beam/issues/20354]: Update the temporary workaround
+          // below after vendored Calcite version.
           // Adding an additional random parameter for the wrapper function of NaN, to avoid
           // triggering Calcite operation simplification. (e.g. 'NaN == NaN' would be simplify to
           // 'null or NaN is not null' in Calcite. This would miscalculate the expression to be

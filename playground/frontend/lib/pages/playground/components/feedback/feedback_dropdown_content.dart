@@ -17,13 +17,13 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/components/horizontal_divider/horizontal_divider.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/fonts.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
-
-import 'feedback_dropdown_icon_button.dart';
+import 'package:playground/pages/playground/components/feedback/feedback_dropdown_icon_button.dart';
 
 const double kTextFieldWidth = 365.0;
 const double kTextFieldHeight = 68.0;
@@ -35,7 +35,7 @@ const String kFeedbackContentText = 'Have feedback? We\'d love to hear it,'
     '\nHave questions? Try help or support.';
 
 class FeedbackDropdownContent extends StatelessWidget {
-  final Function close;
+  final void Function() close;
   final TextEditingController textController;
 
   const FeedbackDropdownContent({
@@ -124,7 +124,7 @@ class FeedbackDropdownContent extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(height: kDividerHeight),
+          const HorizontalDivider(),
           Padding(
             padding: const EdgeInsets.only(
               top: kXlSpacing,
@@ -171,10 +171,10 @@ class FeedbackDropdownContent extends StatelessWidget {
                     },
                     child: const Text(kSendFeedbackButtonTitle),
                   ),
-                )
+                ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );

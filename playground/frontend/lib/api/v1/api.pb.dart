@@ -1920,3 +1920,310 @@ class GetDefaultPrecompiledObjectResponse extends $pb.GeneratedMessage {
   PrecompiledObject ensurePrecompiledObject() => $_ensure(0);
 }
 
+class SnippetFile extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'SnippetFile', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'name')
+    ..aOS(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'content')
+    ..aOB(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'isMain')
+    ..hasRequiredFields = false
+  ;
+
+  SnippetFile._() : super();
+  factory SnippetFile({
+    $core.String? name,
+    $core.String? content,
+    $core.bool? isMain,
+  }) {
+    final _result = create();
+    if (name != null) {
+      _result.name = name;
+    }
+    if (content != null) {
+      _result.content = content;
+    }
+    if (isMain != null) {
+      _result.isMain = isMain;
+    }
+    return _result;
+  }
+  factory SnippetFile.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory SnippetFile.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  SnippetFile clone() => SnippetFile()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  SnippetFile copyWith(void Function(SnippetFile) updates) => super.copyWith((message) => updates(message as SnippetFile)) as SnippetFile; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static SnippetFile create() => SnippetFile._();
+  SnippetFile createEmptyInstance() => create();
+  static $pb.PbList<SnippetFile> createRepeated() => $pb.PbList<SnippetFile>();
+  @$core.pragma('dart2js:noInline')
+  static SnippetFile getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SnippetFile>(create);
+  static SnippetFile? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get name => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set name($core.String v) { $_setString(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasName() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearName() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get content => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set content($core.String v) { $_setString(1, v); }
+  @$pb.TagNumber(2)
+  $core.bool hasContent() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearContent() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.bool get isMain => $_getBF(2);
+  @$pb.TagNumber(3)
+  set isMain($core.bool v) { $_setBool(2, v); }
+  @$pb.TagNumber(3)
+  $core.bool hasIsMain() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearIsMain() => clearField(3);
+}
+
+class SaveSnippetRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'SaveSnippetRequest', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..pc<SnippetFile>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'files', $pb.PbFieldType.PM, subBuilder: SnippetFile.create)
+    ..e<Sdk>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
+    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
+    ..hasRequiredFields = false
+  ;
+
+  SaveSnippetRequest._() : super();
+  factory SaveSnippetRequest({
+    $core.Iterable<SnippetFile>? files,
+    Sdk? sdk,
+    $core.String? pipelineOptions,
+  }) {
+    final _result = create();
+    if (files != null) {
+      _result.files.addAll(files);
+    }
+    if (sdk != null) {
+      _result.sdk = sdk;
+    }
+    if (pipelineOptions != null) {
+      _result.pipelineOptions = pipelineOptions;
+    }
+    return _result;
+  }
+  factory SaveSnippetRequest.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory SaveSnippetRequest.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  SaveSnippetRequest clone() => SaveSnippetRequest()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  SaveSnippetRequest copyWith(void Function(SaveSnippetRequest) updates) => super.copyWith((message) => updates(message as SaveSnippetRequest)) as SaveSnippetRequest; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static SaveSnippetRequest create() => SaveSnippetRequest._();
+  SaveSnippetRequest createEmptyInstance() => create();
+  static $pb.PbList<SaveSnippetRequest> createRepeated() => $pb.PbList<SaveSnippetRequest>();
+  @$core.pragma('dart2js:noInline')
+  static SaveSnippetRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SaveSnippetRequest>(create);
+  static SaveSnippetRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.List<SnippetFile> get files => $_getList(0);
+
+  @$pb.TagNumber(2)
+  Sdk get sdk => $_getN(1);
+  @$pb.TagNumber(2)
+  set sdk(Sdk v) { setField(2, v); }
+  @$pb.TagNumber(2)
+  $core.bool hasSdk() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSdk() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get pipelineOptions => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set pipelineOptions($core.String v) { $_setString(2, v); }
+  @$pb.TagNumber(3)
+  $core.bool hasPipelineOptions() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPipelineOptions() => clearField(3);
+}
+
+class SaveSnippetResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'SaveSnippetResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'id')
+    ..hasRequiredFields = false
+  ;
+
+  SaveSnippetResponse._() : super();
+  factory SaveSnippetResponse({
+    $core.String? id,
+  }) {
+    final _result = create();
+    if (id != null) {
+      _result.id = id;
+    }
+    return _result;
+  }
+  factory SaveSnippetResponse.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory SaveSnippetResponse.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  SaveSnippetResponse clone() => SaveSnippetResponse()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  SaveSnippetResponse copyWith(void Function(SaveSnippetResponse) updates) => super.copyWith((message) => updates(message as SaveSnippetResponse)) as SaveSnippetResponse; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static SaveSnippetResponse create() => SaveSnippetResponse._();
+  SaveSnippetResponse createEmptyInstance() => create();
+  static $pb.PbList<SaveSnippetResponse> createRepeated() => $pb.PbList<SaveSnippetResponse>();
+  @$core.pragma('dart2js:noInline')
+  static SaveSnippetResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SaveSnippetResponse>(create);
+  static SaveSnippetResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String v) { $_setString(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => clearField(1);
+}
+
+class GetSnippetRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetSnippetRequest', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'id')
+    ..hasRequiredFields = false
+  ;
+
+  GetSnippetRequest._() : super();
+  factory GetSnippetRequest({
+    $core.String? id,
+  }) {
+    final _result = create();
+    if (id != null) {
+      _result.id = id;
+    }
+    return _result;
+  }
+  factory GetSnippetRequest.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetSnippetRequest.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  GetSnippetRequest clone() => GetSnippetRequest()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  GetSnippetRequest copyWith(void Function(GetSnippetRequest) updates) => super.copyWith((message) => updates(message as GetSnippetRequest)) as GetSnippetRequest; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static GetSnippetRequest create() => GetSnippetRequest._();
+  GetSnippetRequest createEmptyInstance() => create();
+  static $pb.PbList<GetSnippetRequest> createRepeated() => $pb.PbList<GetSnippetRequest>();
+  @$core.pragma('dart2js:noInline')
+  static GetSnippetRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetSnippetRequest>(create);
+  static GetSnippetRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String v) { $_setString(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => clearField(1);
+}
+
+class GetSnippetResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetSnippetResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..pc<SnippetFile>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'files', $pb.PbFieldType.PM, subBuilder: SnippetFile.create)
+    ..e<Sdk>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
+    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
+    ..hasRequiredFields = false
+  ;
+
+  GetSnippetResponse._() : super();
+  factory GetSnippetResponse({
+    $core.Iterable<SnippetFile>? files,
+    Sdk? sdk,
+    $core.String? pipelineOptions,
+  }) {
+    final _result = create();
+    if (files != null) {
+      _result.files.addAll(files);
+    }
+    if (sdk != null) {
+      _result.sdk = sdk;
+    }
+    if (pipelineOptions != null) {
+      _result.pipelineOptions = pipelineOptions;
+    }
+    return _result;
+  }
+  factory GetSnippetResponse.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetSnippetResponse.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  GetSnippetResponse clone() => GetSnippetResponse()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  GetSnippetResponse copyWith(void Function(GetSnippetResponse) updates) => super.copyWith((message) => updates(message as GetSnippetResponse)) as GetSnippetResponse; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static GetSnippetResponse create() => GetSnippetResponse._();
+  GetSnippetResponse createEmptyInstance() => create();
+  static $pb.PbList<GetSnippetResponse> createRepeated() => $pb.PbList<GetSnippetResponse>();
+  @$core.pragma('dart2js:noInline')
+  static GetSnippetResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetSnippetResponse>(create);
+  static GetSnippetResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.List<SnippetFile> get files => $_getList(0);
+
+  @$pb.TagNumber(2)
+  Sdk get sdk => $_getN(1);
+  @$pb.TagNumber(2)
+  set sdk(Sdk v) { setField(2, v); }
+  @$pb.TagNumber(2)
+  $core.bool hasSdk() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSdk() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get pipelineOptions => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set pipelineOptions($core.String v) { $_setString(2, v); }
+  @$pb.TagNumber(3)
+  $core.bool hasPipelineOptions() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPipelineOptions() => clearField(3);
+}
+

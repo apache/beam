@@ -17,23 +17,58 @@
  */
 package org.apache.beam.runners.spark.metrics;
 
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricFilter;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/** An adapter between the {@link NamedAggregators} and Codahale's {@link Metric} interface. */
-public class AggregatorMetric implements Metric {
+/** An adapter between the {@link NamedAggregators} and the Dropwizard {@link Metric} interface. */
+public class AggregatorMetric extends BeamMetricSet {
+
+  private static final Logger LOG = LoggerFactory.getLogger(AggregatorMetric.class);
 
   private final NamedAggregators namedAggregators;
 
-  private AggregatorMetric(final NamedAggregators namedAggregators) {
+  private AggregatorMetric(NamedAggregators namedAggregators) {
     this.namedAggregators = namedAggregators;
   }
 
-  public static AggregatorMetric of(final NamedAggregators namedAggregators) {
+  public static AggregatorMetric of(NamedAggregators namedAggregators) {
     return new AggregatorMetric(namedAggregators);
   }
 
-  NamedAggregators getNamedAggregators() {
-    return namedAggregators;
+  @Override
+  public Map<String, Gauge<Double>> getValue(String prefix, MetricFilter filter) {
+    Map<String, Gauge<Double>> metrics = new HashMap<>();
+    for (Map.Entry<String, ?> entry : namedAggregators.renderAll().entrySet()) {
+      String name = prefix + "." + entry.getKey();
+      Object rawValue = entry.getValue();
+      if (rawValue != null) {
+        try {
+          Gauge<Double> gauge = staticGauge(rawValue);
+          if (filter.matches(name, gauge)) {
+            metrics.put(name, gauge);
+          }
+        } catch (NumberFormatException e) {
+          LOG.warn(
+              "Metric `{}` of type {} can't be reported, conversion to double failed.",
+              name,
+              rawValue.getClass().getSimpleName(),
+              e);
+        }
+      }
+    }
+    return metrics;
+  }
+
+  // Metric type is assumed to be compatible with Double
+  protected Gauge<Double> staticGauge(Object rawValue) throws NumberFormatException {
+    return rawValue instanceof Number
+        ? super.staticGauge((Number) rawValue)
+        : super.staticGauge(Double.parseDouble(rawValue.toString()));
   }
 }

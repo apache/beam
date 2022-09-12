@@ -26,6 +26,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import javax.annotation.CheckForNull;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -50,7 +51,6 @@ import org.slf4j.LoggerFactory;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public @interface DefaultCoder {
@@ -115,7 +115,9 @@ public @interface DefaultCoder {
 
         CoderProvider coderProvider;
         try {
-          coderProvider = (CoderProvider) coderProviderMethod.invoke(null);
+          coderProvider =
+              Preconditions.checkStateNotNull(
+                  (CoderProvider) coderProviderMethod.invoke(clazz /* ignored */));
         } catch (IllegalAccessException
             | IllegalArgumentException
             | InvocationTargetException

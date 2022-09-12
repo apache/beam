@@ -232,7 +232,8 @@ class JobServiceHandle(object):
           beam_job_api_pb2.JobMessagesRequest(job_id=preparation_id),
           timeout=self.timeout)
     except Exception:
-      # TODO(BEAM-6442): Unify preparation_id and job_id for all runners.
+      # TODO(https://github.com/apache/beam/issues/19284): Unify preparation_id
+      # and job_id for all runners.
       state_stream = message_stream = None
 
     # Run the job and wait for a result, we don't set a timeout here because
@@ -361,8 +362,8 @@ class PortableRunner(runner.PipelineRunner):
         ]
         partial = False
       elif pre_optimize == 'all_except_fusion':
-        # TODO(BEAM-7248): Delete this branch after PortableRunner supports
-        # beam:runner:executable_stage:v1.
+        # TODO(https://github.com/apache/beam/issues/19422): Delete this branch
+        # after PortableRunner supports beam:runner:executable_stage:v1.
         phases = [
             translations.annotate_downstream_side_inputs,
             translations.annotate_stateful_dofns_as_roots,

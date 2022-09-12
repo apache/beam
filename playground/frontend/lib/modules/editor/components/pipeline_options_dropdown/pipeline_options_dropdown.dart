@@ -26,7 +26,7 @@ const kDropdownHeight = 375.0;
 
 class PipelineOptionsDropdown extends StatelessWidget {
   final String pipelineOptions;
-  final Function(String) setPipelineOptions;
+  final void Function(String) setPipelineOptions;
 
   const PipelineOptionsDropdown({
     Key? key,

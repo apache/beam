@@ -193,7 +193,8 @@ class PipelineContext(object):
     self.component_id_map = component_id_map or ComponentIdMap(namespace)
     assert self.component_id_map.namespace == namespace
 
-    # TODO(BEAM-12084) Initialize component_id_map with objects from proto.
+    # TODO(https://github.com/apache/beam/issues/20827) Initialize
+    # component_id_map with objects from proto.
     self.transforms = _PipelineContextMap(
         self,
         pipeline.AppliedPTransform,
@@ -242,7 +243,8 @@ class PipelineContext(object):
   # If fake coders are requested, return a pickled version of the element type
   # rather than an actual coder. The element type is required for some runners,
   # as well as performing a round-trip through protos.
-  # TODO(BEAM-2717): Remove once this is no longer needed.
+  # TODO(https://github.com/apache/beam/issues/18490): Remove once this is no
+  # longer needed.
   def coder_id_from_element_type(
       self, element_type, requires_deterministic_key_coder=None):
     # type: (Any, Optional[str]) -> str

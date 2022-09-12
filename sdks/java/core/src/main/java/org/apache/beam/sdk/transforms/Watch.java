@@ -1112,8 +1112,8 @@ public class Watch {
 
     @Override
     public SplitResult<GrowthState> trySplit(double fractionOfRemainder) {
-      // TODO(BEAM-8873): Add support for splitting off a fixed amount of work for this restriction
-      // instead of only supporting checkpointing.
+      // TODO(https://github.com/apache/beam/issues/19908): Add support for splitting off a fixed
+      // amount of work for this restriction instead of only supporting checkpointing.
 
       // residual should contain exactly the work *not* claimed in the current ProcessElement call -
       // unclaimed pending outputs or future polling output

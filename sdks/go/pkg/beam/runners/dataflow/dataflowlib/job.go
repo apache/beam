@@ -92,24 +92,6 @@ type JobOptions struct {
 func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL string) (*df.Job, error) {
 	// (1) Translate pipeline to v1b3 speak.
 
-	isPortableJob := false
-	for _, exp := range opts.Experiments {
-		if exp == "use_portable_job_submission" {
-			isPortableJob = true
-		}
-	}
-
-	var steps []*df.Step
-	if isPortableJob { // Portable jobs do not need to provide dataflow steps.
-		steps = make([]*df.Step, 0)
-	} else {
-		var err error
-		steps, err = translate(p)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	jobType := "JOB_TYPE_BATCH"
 	apiJobType := "FNAPI_BATCH"
 
@@ -215,7 +197,7 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		},
 		Labels:               opts.Labels,
 		TransformNameMapping: opts.TransformNameMapping,
-		Steps:                steps,
+		Steps:                make([]*df.Step, 0),
 	}
 
 	workerPool := job.Environment.WorkerPools[0]

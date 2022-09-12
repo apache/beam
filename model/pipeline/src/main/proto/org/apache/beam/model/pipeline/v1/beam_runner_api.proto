@@ -362,6 +362,10 @@ message StandardPTransforms {
     // Payload: PubSubWritePayload.
     PUBSUB_WRITE = 5 [(beam_urn) = "beam:transform:pubsub_write:v1"];
 
+    // Used for pubsub dynamic destinations.
+    // Payload: PubSubWritePayload.
+    PUBSUB_WRITE_V2 = 7 [(beam_urn) = "beam:transform:pubsub_write:v2"];
+
     // Represents the GroupIntoBatches.WithShardedKey operation.
     // Payload: GroupIntoBatchesPayload
     GROUP_INTO_BATCHES_WITH_SHARDED_KEY = 6 [(beam_urn) = "beam:transform:group_into_batches_with_sharded_key:v1"];
@@ -471,7 +475,7 @@ message StandardUserStateTypes {
     // StateKey.MultimapKeysUserState or StateKey.MultimapUserState.
     MULTIMAP = 1 [(beam_urn) = "beam:user_state:multimap:v1"];
 
-    // TODO(BEAM-10650): Add protocol to support OrderedListState
+    // TODO(https://github.com/apache/beam/issues/20486): Add protocol to support OrderedListState
   }
 }
 
@@ -1024,11 +1028,11 @@ message StandardCoders {
     //
     // Schema types are mapped to coders as follows:
     //   AtomicType:
-    //     BYTE:      not yet a standard coder (BEAM-7996)
-    //     INT16:     not yet a standard coder (BEAM-7996)
+    //     BYTE:      not yet a standard coder (https://github.com/apache/beam/issues/19815)
+    //     INT16:     not yet a standard coder (https://github.com/apache/beam/issues/19815)
     //     INT32:     beam:coder:varint:v1
     //     INT64:     beam:coder:varint:v1
-    //     FLOAT:     not yet a standard coder (BEAM-7996)
+    //     FLOAT:     not yet a standard coder (https://github.com/apache/beam/issues/19815)
     //     DOUBLE:    beam:coder:double:v1
     //     STRING:    beam:coder:string_utf8:v1
     //     BOOLEAN:   beam:coder:bool:v1

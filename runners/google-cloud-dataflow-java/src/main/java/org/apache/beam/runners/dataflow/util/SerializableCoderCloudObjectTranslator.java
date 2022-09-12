@@ -42,7 +42,8 @@ class SerializableCoderCloudObjectTranslator implements CloudObjectTranslator<Se
     String className = Structs.getString(cloudObject, TYPE_FIELD);
     try {
       Class<? extends Serializable> targetClass =
-          (Class<? extends Serializable>) Class.forName(className);
+          (Class<? extends Serializable>)
+              Class.forName(className, false, Thread.currentThread().getContextClassLoader());
       checkArgument(
           Serializable.class.isAssignableFrom(targetClass),
           "Target class %s does not extend %s",

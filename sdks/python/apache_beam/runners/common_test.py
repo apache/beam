@@ -154,6 +154,24 @@ class DoFnProcessTest(unittest.TestCase):
       test_stream = (TestStream().advance_watermark_to(10).add_elements([1, 2]))
       (p | test_stream | beam.ParDo(DoFnProcessWithKeyparam()))
 
+  def test_pardo_with_unbounded_per_element_dofn(self):
+    class UnboundedDoFn(beam.DoFn):
+      @beam.DoFn.unbounded_per_element()
+      def process(self, element):
+        pass
+
+    class BoundedDoFn(beam.DoFn):
+      def process(self, element):
+        pass
+
+    with TestPipeline() as p:
+      source = p | beam.Impulse()
+      unbounded_pcoll = source | beam.ParDo(UnboundedDoFn())
+      bounded_pcoll = source | beam.ParDo(BoundedDoFn())
+
+      self.assertEqual(unbounded_pcoll.is_bounded, False)
+      self.assertEqual(bounded_pcoll.is_bounded, True)
+
 
 class TestOffsetRestrictionProvider(RestrictionProvider):
   def restriction_size(self, element, restriction):

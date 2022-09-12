@@ -28,12 +28,12 @@ class ToggleThemeIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(builder: (context, theme, child) {
+    return Consumer<ThemeSwitchNotifier>(builder: (context, notifier, child) {
       return IconButton(
         iconSize: kIconSizeLg,
         splashRadius: kIconButtonSplashRadius,
         icon: SvgPicture.asset(kThemeIconAsset),
-        onPressed: theme.toggleTheme,
+        onPressed: notifier.toggleTheme,
       );
     });
   }

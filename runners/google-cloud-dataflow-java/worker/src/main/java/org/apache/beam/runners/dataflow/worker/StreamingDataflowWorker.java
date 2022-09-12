@@ -134,8 +134,8 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
@@ -209,7 +209,8 @@ public class StreamingDataflowWorker {
   /** Maximum number of failure stacktraces to report in each update sent to backend. */
   private static final int MAX_FAILURES_TO_REPORT_IN_UPDATE = 1000;
 
-  // TODO(BEAM-7863): Update throttling counters to use generic throttling-msecs metric.
+  // TODO(https://github.com/apache/beam/issues/19632): Update throttling counters to use generic
+  // throttling-msecs metric.
   public static final MetricName BIGQUERY_STREAMING_INSERT_THROTTLE_TIME =
       MetricName.named(
           "org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl$DatasetServiceImpl",
@@ -2302,7 +2303,7 @@ public class StreamingDataflowWorker {
     }
 
     /**
-     * Marks the work for a the given shardedKey as complete. Schedules queued work for the key if
+     * Marks the work for the given shardedKey as complete. Schedules queued work for the key if
      * any.
      */
     public void completeWork(ShardedKey shardedKey, long workToken) {

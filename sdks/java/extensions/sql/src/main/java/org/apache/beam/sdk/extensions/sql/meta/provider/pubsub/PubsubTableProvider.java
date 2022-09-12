@@ -41,7 +41,8 @@ public class PubsubTableProvider extends SchemaIOTableProviderWrapper {
     return new PubsubSchemaIOProvider();
   }
 
-  // TODO[BEAM-10516]: remove this override after TableProvider problem is fixed
+  // TODO[https://github.com/apache/beam/issues/20430]: remove this override after TableProvider
+  // problem is fixed
   @Override
   public String getTableType() {
     return "pubsub";

@@ -18,15 +18,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:playground/components/loading_indicator/loading_indicator.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
+import 'package:playground/modules/editor/components/share_dropdown/share_button.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
 import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/notifications/components/notification.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:playground/utils/analytics_utils.dart';
 import 'package:provider/provider.dart';
@@ -42,22 +42,24 @@ class CodeTextAreaWrapper extends StatelessWidget {
           _handleError(context, state);
         });
       }
+
+      final controller = state.snippetEditingController;
+
+      if (controller == null) {
+        return const LoadingIndicator(size: kLgLoadingIndicatorSize);
+      }
+
       return Column(
-        key: ValueKey(EditorKeyObject(
-          state.sdk,
-          state.selectedExample,
-          state.resetKey,
-        )),
         children: [
           Expanded(
             child: Stack(
               children: [
                 Positioned.fill(
                   child: EditorTextArea(
+                    codeController: controller.codeController,
                     enabled: !(state.selectedExample?.isMultiFile ?? false),
                     example: state.selectedExample,
-                    sdk: state.sdk,
-                    onSourceChange: state.setSource,
+                    sdk: controller.sdk,
                     isEditable: true,
                   ),
                 ),
@@ -88,15 +90,24 @@ class CodeTextAreaWrapper extends StatelessWidget {
                       ],
                       Semantics(
                         container: true,
+                        child: const ShareButton(),
+                      ),
+                      const SizedBox(width: kLgSpacing),
+                      Semantics(
+                        container: true,
                         child: RunButton(
                           disabled: state.selectedExample?.isMultiFile ?? false,
                           isRunning: state.isCodeRunning,
                           cancelRun: () {
+                            final exampleName = getAnalyticsExampleName(state);
+                            AnalyticsService.get(context)
+                                .trackClickCancelRunEvent(exampleName);
                             state.cancelRun().catchError(
                                   (_) => NotificationManager.showError(
                                     context,
                                     AppLocalizations.of(context)!.runCode,
-                                    AppLocalizations.of(context)!.cancelExecution,
+                                    AppLocalizations.of(context)!
+                                        .cancelExecution,
                                   ),
                                 );
                           },
@@ -104,11 +115,8 @@ class CodeTextAreaWrapper extends StatelessWidget {
                             AnalyticsService analyticsService =
                                 AnalyticsService.get(context);
                             final stopwatch = Stopwatch()..start();
-                            final exampleName = getAnalyticsExampleName(
-                              state.selectedExample,
-                              state.isExampleChanged,
-                              state.sdk,
-                            );
+                            final exampleName = getAnalyticsExampleName(state);
+
                             state.runCode(
                               onFinish: () {
                                 analyticsService.trackRunTimeEvent(
@@ -117,8 +125,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
                                 );
                               },
                             );
-                            AnalyticsService.get(context)
-                                .trackClickRunEvent(exampleName);
+                            analyticsService.trackClickRunEvent(exampleName);
                           },
                         ),
                       ),
@@ -141,24 +148,4 @@ class CodeTextAreaWrapper extends StatelessWidget {
     );
     state.resetError();
   }
-}
-
-class EditorKeyObject {
-  final SDK sdk;
-  final ExampleModel? example;
-  final DateTime? resetKey;
-
-  const EditorKeyObject(this.sdk, this.example, this.resetKey);
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is EditorKeyObject &&
-          runtimeType == other.runtimeType &&
-          sdk == other.sdk &&
-          example == other.example &&
-          resetKey == other.resetKey;
-
-  @override
-  int get hashCode => hashValues(sdk, example, resetKey);
 }

@@ -47,7 +47,7 @@ import org.joda.time.Instant;
  * how data is pushed into the stream compared to the advancement of Watermarks since Watermarks
  * advance onBatchCompleted hook call so if you'd want to set the watermark advance for a specific
  * batch it should be called before that batch. Also keep in mind that being a queue that is polled
- * per batch interval, if there is a need to "hold" the same Watermark without advancing it it
+ * per batch interval, if there is a need to "hold" the same Watermark without advancing it, it
  * should be stated explicitly or the Watermark will advance as soon as it can (in the next batch
  * completed hook).
  *

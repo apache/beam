@@ -74,7 +74,8 @@ public final class ZetaSqlBeamTranslationUtils {
       case DECIMAL:
         return TypeFactory.createSimpleType(TypeKind.TYPE_NUMERIC);
       case DATETIME:
-        // TODO[BEAM-10238]: Mapping TIMESTAMP to a Beam LogicalType instead?
+        // TODO[https://github.com/apache/beam/issues/20364]: Mapping TIMESTAMP to a Beam
+        // LogicalType instead?
         return TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP);
       case LOGICAL_TYPE:
         String identifier = fieldType.getLogicalType().getIdentifier();

@@ -25,7 +25,7 @@ export interface PipelineResult {
   waitUntilFinish(duration?: number): Promise<JobState_Enum>;
 }
 
-export function createRunner(options): Runner {
+export function createRunner(options: any = {}): Runner {
   let runnerConstructor: (any) => Runner;
   if (options.runner === undefined || options.runner === "default") {
     runnerConstructor = defaultRunner;
@@ -64,7 +64,11 @@ export abstract class Runner {
     const p = new Pipeline();
     await pipeline(new Root(p));
     const pipelineResult = await this.runPipeline(p, options);
-    await pipelineResult.waitUntilFinish();
+    const finalState = await pipelineResult.waitUntilFinish();
+    if (finalState != JobState_Enum.DONE) {
+      // TODO: Grab the last/most severe error message?
+      throw new Error("Job finished in state " + JobState_Enum[finalState]);
+    }
     return pipelineResult;
   }
 
@@ -74,11 +78,11 @@ export abstract class Runner {
    * status.
    */
   async runAsync(
-    pipeline: (root: Root) => PValue<any>,
+    pipeline: (root: Root) => PValue<any> | Promise<PValue<any>>,
     options?: PipelineOptions
   ): Promise<PipelineResult> {
     const p = new Pipeline();
-    pipeline(new Root(p));
+    await pipeline(new Root(p));
     return this.runPipeline(p);
   }
 
@@ -100,7 +104,7 @@ export function defaultRunner(defaultOptions: Object): Runner {
         return directRunner.runPipeline(pipeline, options);
       } else {
         return require("./universal")
-          .universalRunner(defaultOptions)
+          .universalRunner({ environmentType: "LOOPBACK", ...defaultOptions })
           .runPipeline(pipeline, options);
       }
     }

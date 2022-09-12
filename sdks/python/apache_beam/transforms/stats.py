@@ -919,7 +919,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
       self._offset_jitter = 2 - self._offset_jitter
       return (new_weight + self._offset_jitter) / 2
 
-  # TODO(BEAM-7746): Signature incompatible with supertype
+  # TODO(https://github.com/apache/beam/issues/19737): Signature incompatible
+  # with supertype
   def create_accumulator(self):  # type: ignore[override]
     # type: () -> _QuantileState
     self._qs = _QuantileState(

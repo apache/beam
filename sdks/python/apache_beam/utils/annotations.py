@@ -83,6 +83,7 @@ same function 'multiply'.::
 
 # pytype: skip-file
 
+import inspect
 import warnings
 from functools import partial
 from functools import wraps
@@ -94,6 +95,39 @@ class BeamDeprecationWarning(DeprecationWarning):
 
 # Don't ignore BeamDeprecationWarnings.
 warnings.simplefilter('once', BeamDeprecationWarning)
+
+
+class _WarningMessage:
+  """Utility class for assembling the warning message."""
+  def __init__(self, label, since, current, extra_message, custom_message):
+    """Initialize message, leave only name as placeholder."""
+    if custom_message is None:
+      message = '%name% is ' + label
+      if label == 'deprecated':
+        message += ' since %s' % since
+      message += '. Use %s instead.' % current if current else '.'
+      if extra_message:
+        message += ' ' + extra_message
+    else:
+      if label == 'deprecated' and '%since%' not in custom_message:
+        raise TypeError(
+            "Replacement string %since% not found on \
+        custom message")
+      emptyArg = lambda x: '' if x is None else x
+      message = custom_message\
+      .replace('%since%', emptyArg(since))\
+      .replace('%current%', emptyArg(current))\
+      .replace('%extra%', emptyArg(extra_message))
+    self.label = label
+    self.message = message
+
+  def emit_warning(self, fnc_name):
+    if self.label == 'deprecated':
+      warning_type = BeamDeprecationWarning
+    else:
+      warning_type = FutureWarning
+    warnings.warn(
+        self.message.replace('%name%', fnc_name), warning_type, stacklevel=3)
 
 
 def annotate(label, since, current, extra_message, custom_message=None):
@@ -118,35 +152,38 @@ def annotate(label, since, current, extra_message, custom_message=None):
   Returns:
     The decorator for the API.
   """
-  def _annotate(fnc):
-    @wraps(fnc)
-    def inner(*args, **kwargs):
-      if label == 'deprecated':
-        warning_type = BeamDeprecationWarning
-      else:
-        warning_type = FutureWarning
-      if custom_message is None:
-        message = '%s is %s' % (fnc.__name__, label)
-        if label == 'deprecated':
-          message += ' since %s' % since
-        message += '. Use %s instead.' % current if current else '.'
-        if extra_message:
-          message += ' ' + extra_message
-      else:
-        if label == 'deprecated' and '%since%' not in custom_message:
-          raise TypeError(
-              "Replacement string %since% not found on \
-          custom message")
-        emptyArg = lambda x: '' if x is None else x
-        message = custom_message\
-        .replace('%name%', fnc.__name__)\
-        .replace('%since%', emptyArg(since))\
-        .replace('%current%', emptyArg(current))\
-        .replace('%extra%', emptyArg(extra_message))
-      warnings.warn(message, warning_type, stacklevel=2)
-      return fnc(*args, **kwargs)
+  warning_message = _WarningMessage(
+      label=label,
+      since=since,
+      current=current,
+      extra_message=extra_message,
+      custom_message=custom_message)
 
-    return inner
+  def _annotate(fnc):
+    if inspect.isclass(fnc):
+      # Wrapping class into function causes documentation rendering issue.
+      # Patch class's __new__ method instead.
+      old_new = fnc.__new__
+
+      def wrapped_new(cls, *args, **kwargs):
+        # Emit a warning when class instance is created.
+        warning_message.emit_warning(fnc.__name__)
+        if old_new is object.__new__:
+          # object.__new__ takes no extra argument for python>=3
+          return old_new(cls)
+        return old_new(cls, *args, **kwargs)
+
+      fnc.__new__ = staticmethod(wrapped_new)
+      return fnc
+    else:
+
+      @wraps(fnc)
+      def inner(*args, **kwargs):
+        # Emit a warning when the function is called.
+        warning_message.emit_warning(fnc.__name__)
+        return fnc(*args, **kwargs)
+
+      return inner
 
   return _annotate
 

@@ -102,6 +102,7 @@ __all__ = [
     'ProtoCoder',
     'ProtoPlusCoder',
     'ShardedKeyCoder',
+    'SinglePrecisionFloatCoder',
     'SingletonCoder',
     'StrUtf8Coder',
     'TimestampCoder',
@@ -238,7 +239,9 @@ class Coder(object):
     return self.__dict__
 
   def to_type_hint(self):
-    raise NotImplementedError('BEAM-2717: %s' % self.__class__.__name__)
+    raise NotImplementedError(
+        'https://github.com/apache/beam/issues/18490: %s' %
+        self.__class__.__name__)
 
   @classmethod
   def from_type_hint(cls, unused_typehint, unused_registry):
@@ -676,8 +679,33 @@ class VarIntCoder(FastCoder):
 Coder.register_structured_urn(common_urns.coders.VARINT.urn, VarIntCoder)
 
 
+class SinglePrecisionFloatCoder(FastCoder):
+  """A coder used for single-precision floating-point values."""
+  def _create_impl(self):
+    return coder_impl.SinglePrecisionFloatCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return float
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
 class FloatCoder(FastCoder):
-  """A coder used for floating-point values."""
+  """A coder used for **double-precision** floating-point values.
+
+  Note that the name "FloatCoder" is in reference to Python's ``float`` built-in
+  which is generally implemented using C doubles. See
+  :class:`SinglePrecisionFloatCoder` for a single-precision version of this
+  coder.
+  """
   def _create_impl(self):
     return coder_impl.FloatCoderImpl()
 
@@ -1129,7 +1157,8 @@ class AvroGenericCoder(FastCoder):
     return coder_impl.AvroCoderImpl(self.schema)
 
   def is_deterministic(self):
-    # TODO(BEAM-7903): need to confirm if it's deterministic
+    # TODO(https://github.com/apache/beam/issues/19628): need to confirm if
+    # it's deterministic
     return False
 
   def __eq__(self, other):

@@ -36,6 +36,8 @@ func (s *stateSampler) start(ctx context.Context, t time.Duration) {
 		select {
 		case <-s.done:
 			return
+		case <-ctx.Done():
+			return
 		default:
 			s.sampler.Sample(ctx, t)
 			time.Sleep(t)

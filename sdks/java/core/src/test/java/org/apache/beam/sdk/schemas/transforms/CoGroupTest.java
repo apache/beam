@@ -751,7 +751,7 @@ public class CoGroupTest {
     // middle (pc2) PCollection are filled in with nulls. Missing events from other PCollections
     // are not. Events with key ("user2", "ar) show up in pc1 and pc3 but not in pc2, so we expect
     // the outer join to still produce those rows, with nulls for pc2. Events with key
-    // ("user3", "ar) however show up in in p2 and pc3, but not in pc1; since pc1 is marked for
+    // ("user3", "ar) however show up in p2 and pc3, but not in pc1; since pc1 is marked for
     // full participation (no outer join), these events should not be included in the join.
     expectedJoinedRows.add(
         Row.withSchema(expectedSchema)

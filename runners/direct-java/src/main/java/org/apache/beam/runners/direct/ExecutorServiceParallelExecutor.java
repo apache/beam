@@ -147,7 +147,8 @@ final class ExecutorServiceParallelExecutor
   }
 
   @Override
-  // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+  // TODO: [https://github.com/apache/beam/issues/18968] Pass Future back to consumer to check for
+  // async errors
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start(DirectGraph graph, RootProviderRegistry rootProviderRegistry) {
     int numTargetSplits = Math.max(3, targetParallelism);

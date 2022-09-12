@@ -236,7 +236,7 @@ public class SparkStreamingPortablePipelineTranslator
     Coder windowCoder =
         getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder();
 
-    // TODO (BEAM-10712): handle side inputs.
+    // TODO (https://github.com/apache/beam/issues/20395): handle side inputs.
     if (stagePayload.getSideInputsCount() > 0) {
       throw new UnsupportedOperationException(
           "Side inputs to executable stage are currently unsupported.");
@@ -321,7 +321,8 @@ public class SparkStreamingPortablePipelineTranslator
           // create a single RDD stream.
           Queue<JavaRDD<WindowedValue<T>>> q = new LinkedBlockingQueue<>();
           q.offer(((BoundedDataset) dataset).getRDD());
-          // TODO (BEAM-10789): this is not recoverable from checkpoint!
+          // TODO (https://github.com/apache/beam/issues/20426): this is not recoverable from
+          // checkpoint!
           JavaDStream<WindowedValue<T>> dStream = context.getStreamingContext().queueStream(q);
           dStreams.add(dStream);
         }

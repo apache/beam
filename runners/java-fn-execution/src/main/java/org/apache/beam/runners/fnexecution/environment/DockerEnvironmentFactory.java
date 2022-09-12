@@ -179,7 +179,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         firstNonNull(
             System.getenv("CLOUDSDK_CONFIG"),
             Paths.get(System.getProperty("user.home"), ".config", "gcloud").toString());
-    // TODO(BEAM-4729): Allow this to be disabled manually.
+    // TODO(https://github.com/apache/beam/issues/19061): Allow this to be disabled manually.
     if (Files.exists(Paths.get(localGcloudConfig))) {
       return ImmutableList.of(
           "--mount",

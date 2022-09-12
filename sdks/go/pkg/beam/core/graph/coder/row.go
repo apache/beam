@@ -186,7 +186,7 @@ func ReadRowHeader(r io.Reader) (int, []byte, error) {
 // and can be skipped in decoding.
 func IsFieldNil(nils []byte, f int) bool {
 	i, b := f/8, f%8
-	// BEAM-13081: The row header can elide trailing 0 bytes,
+	// https://github.com/apache/beam/issues/21232: The row header can elide trailing 0 bytes,
 	// and we shouldn't care if there are trailing 0 bytes when doing a lookup.
 	return i < len(nils) && len(nils) != 0 && (nils[i]>>uint8(b))&0x1 == 1
 }

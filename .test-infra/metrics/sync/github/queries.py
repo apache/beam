@@ -123,7 +123,7 @@ Time format "2017-10-26T20:00:00Z
 MAIN_ISSUES_QUERY = '''
 query {
   search(
-    query: "type:issue repo:apache/beam created:><TemstampSubstitueLocation> sort:updated-asc"
+    query: "type:issue repo:apache/beam updated:><TemstampSubstitueLocation> sort:updated-asc"
     type: ISSUE
     first: 100
   ) {

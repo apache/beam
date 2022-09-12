@@ -442,7 +442,8 @@ public class PTransformTranslation {
 
         // Required runner implemented transforms should not have an environment id.
         if (!RUNNER_IMPLEMENTED_TRANSFORMS.contains(spec.getUrn())) {
-          // TODO(BEAM-9309): Remove existing hacks around deprecated READ transform.
+          // TODO(https://github.com/apache/beam/issues/20094): Remove existing hacks around
+          // deprecated READ transform.
           if (spec.getUrn().equals(READ_TRANSFORM_URN)) {
             // Only assigning environment to Bounded reads. Not assigning an environment to
             // Unbounded

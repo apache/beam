@@ -188,6 +188,10 @@
 
       .pillars-item {
         align-items: flex-start;
+        @media (max-width: $mobile) {
+          padding-left: 10px;
+          padding-right: 10px;
+        }
 
         .pillars-item-icon {
           margin-right: 17px;

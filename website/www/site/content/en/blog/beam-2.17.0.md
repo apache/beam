@@ -3,6 +3,7 @@ title:  "Apache Beam 2.17.0"
 date:   2020-01-06 00:00:01 -0800
 categories:
   - blog
+  - release
 aliases:
   - /blog/2020/01/06/beam-2.17.0.html
 authors:

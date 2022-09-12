@@ -173,7 +173,8 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
             metricContainer.updateMetrics(stepName, response.getMonitoringInfosList());
           }
         };
-    // TODO(BEAM-11021): Support bundle finalization in portable batch.
+    // TODO(https://github.com/apache/beam/issues/19526): Support bundle finalization in portable
+    // batch.
     finalizationHandler =
         bundleId -> {
           throw new UnsupportedOperationException(

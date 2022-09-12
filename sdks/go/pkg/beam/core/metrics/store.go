@@ -17,8 +17,11 @@ package metrics
 
 import (
 	"fmt"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 // Implementation note: We avoid depending on the FnAPI protos here
@@ -156,6 +159,22 @@ type ptCounterSet struct {
 
 type bundleProcState int
 
+// String implements the Stringer interface.
+func (b bundleProcState) String() string {
+	switch b {
+	case StartBundle:
+		return "START_BUNDLE"
+	case ProcessBundle:
+		return "PROCESS_BUNDLE"
+	case FinishBundle:
+		return "FINISH_BUNDLE"
+	case TotalBundle:
+		return "TOTAL_BUNDLE"
+	default:
+		return "unknown process bundle state!"
+	}
+}
+
 const (
 	// StartBundle indicates starting state of a bundle
 	StartBundle bundleProcState = 0
@@ -174,10 +193,20 @@ type ExecutionState struct {
 	TotalTime    time.Duration
 }
 
+// String implements the Stringer interface.
+func (e ExecutionState) String() string {
+	return fmt.Sprintf("Execution State:\n\t State: %s\n\t IsProcessing: %v\n\t Total time: %v\n", e.State, e.IsProcessing, e.TotalTime)
+}
+
 // BundleState stores information about a PTransform for execution time metrics.
 type BundleState struct {
 	pid          string
 	currentState bundleProcState
+}
+
+// String implements the Stringer interface.
+func (b BundleState) String() string {
+	return fmt.Sprintf("Bundle State:\n\t PTransform ID: %s\n\t Current state: %s", b.pid, b.currentState)
 }
 
 // currentStateVal exports the current state of a bundle wrt PTransform.
@@ -217,4 +246,25 @@ func (b *Store) storeMetric(pid string, n name, m userMetric) {
 		return
 	}
 	b.store[l] = m
+}
+
+// BundleState returns the bundle state.
+func (b *Store) BundleState() string {
+	bs := *(*BundleState)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&b.bundleState))))
+	return bs.String()
+}
+
+// StateRegistry returns the state registry that stores bundleID to executions states mapping.
+func (b *Store) StateRegistry() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	builder := &strings.Builder{}
+	builder.WriteString("\n | All Bundle Process States | \n")
+	for bundleID, state := range b.stateRegistry {
+		builder.WriteString(fmt.Sprintf("\tBundle ID: %s\n", bundleID))
+		for i := 0; i < 4; i++ {
+			builder.WriteString(fmt.Sprintf("\t%s\n", state[i]))
+		}
+	}
+	return builder.String()
 }

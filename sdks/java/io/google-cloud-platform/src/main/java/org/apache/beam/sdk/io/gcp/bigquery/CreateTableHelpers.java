@@ -112,7 +112,9 @@ public class CreateTableHelpers {
     tableReference.setTableId(BigQueryHelpers.stripPartitionDecorator(tableReference.getTableId()));
     try (DatasetService datasetService =
         bqServices.getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class))) {
-      if (datasetService.getTable(tableReference) == null) {
+      if (datasetService.getTable(
+              tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC)
+          == null) {
         TableSchema tableSchema = schemaSupplier.get();
         Preconditions.checkArgumentNotNull(
             tableSchema,

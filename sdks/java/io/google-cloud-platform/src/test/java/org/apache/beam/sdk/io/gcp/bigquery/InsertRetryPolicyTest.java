@@ -57,6 +57,8 @@ public class InsertRetryPolicyTest {
         policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "invalidQuery"))));
     assertFalse(
         policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "notImplemented"))));
+    assertFalse(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "parseError"))));
   }
 
   static class RetryAllExceptInvalidQuery extends InsertRetryPolicy {
