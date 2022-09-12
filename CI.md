@@ -125,7 +125,7 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
-### PreCommit Workflows
+### PostCommit Workflows
 
 #### Python Examples  Dataflow - [job-postcommit-python-examples-dataflow.yml](.github/workflows/job-postcommit-python-examples-dataflow.yml)
 | Job                             | Description                          | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
