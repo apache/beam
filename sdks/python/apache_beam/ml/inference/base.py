@@ -272,7 +272,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       self,
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock=time,
-      inference_args: Optional[Dict[str, Any]] = None):
+      inference_args: Optional[Dict[str, Any]] = None,
+      namespace: str = None):
     """A transform that takes a PCollection of examples (or features) to be used
     on an ML model. It will then output inferences (or predictions) for those
     examples in a PCollection of PredictionResults, containing the input
@@ -289,10 +290,12 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         clock: A clock implementing time_ns. *Used for unit testing.*
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
+        namespace: Namespace of the transform to collect metrics.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
+    self._namespace = namespace
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -323,7 +326,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         | beam.BatchElements(**self._model_handler.batch_elements_kwargs())
         | (
             beam.ParDo(
-                _RunInferenceDoFn(self._model_handler, self._clock),
+                _RunInferenceDoFn(
+                    self._model_handler, self._clock, self._namespace),
                 self._inference_args).with_resource_hints(**resource_hints)))
 
 
@@ -378,7 +382,10 @@ class _MetricsCollector:
 
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def __init__(
-      self, model_handler: ModelHandler[ExampleT, PredictionT, Any], clock):
+      self,
+      model_handler: ModelHandler[ExampleT, PredictionT, Any],
+      clock,
+      namespace):
     """A DoFn implementation generic to frameworks.
 
       Args:
@@ -389,6 +396,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._shared_model_handle = shared.Shared()
     self._clock = clock
     self._model = None
+    self._namespace = namespace
 
   def _load_model(self):
     def load():
@@ -409,8 +417,11 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     return self._shared_model_handle.acquire(load)
 
   def setup(self):
-    self._metrics_collector = _MetricsCollector(
+    # TODO: Discuss how to pass the namespace.
+    #  Either passing through ModelHandler or RunInference DoFn.
+    metrics_namespace = self._namespace if self._namespace else (
         self._model_handler.get_metrics_namespace())
+    self._metrics_collector = _MetricsCollector(metrics_namespace)
     self._model = self._load_model()
 
   def process(self, batch, inference_args):
