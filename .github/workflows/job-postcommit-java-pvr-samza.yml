@@ -50,6 +50,7 @@ jobs:
       matrix:
         java: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SUPPORTED_VERSIONS}}
         exclude:
+          - java: "11"
           - java: "17"
     steps:
       - name: Checkout code
