@@ -28,17 +28,12 @@ env:
   K8S_NAMESPACE: playground-backend
   HELM_APP_NAME: playground-backend
   GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
+  SUBDIRS: "./learning/katas ./examples ./sdks"
+  ORIGIN: PG_EXAMPLES
 jobs:
   check_examples:
     name: Check examples
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - dirs: "./learning/katas ./examples ./sdks"
-            origin: PG_EXAMPLES
-          - dirs: "./learning/tour-of-beam"
-            origin: TB_EXAMPLES
     outputs:
       example_has_changed: ${{ steps.check_has_example.outputs.example_has_changed }}
     steps:
@@ -56,7 +51,7 @@ jobs:
         name: get Difference
         id: check_file_changed
         run: |
-          $diff = git diff --name-only ${{ github.event.before }} ${{ github.event.after }} -- ${{ matrix.dirs }}
+          $diff = git diff --name-only ${{ github.event.before }} ${{ github.event.after }} -- ${{ env.SUBDIRS }}
           echo "$diff"
           Write-Host "::set-output name=example_diff::$diff"
       - name: has Examples
@@ -71,14 +66,7 @@ jobs:
     name: Deploy examples
     runs-on: ubuntu-latest
     needs: [ check_examples ]
-    strategy:
-      matrix:
-        include:
-          - dirs: "./learning/katas ./examples ./sdks"
-            origin: PG_EXAMPLES
-          - dirs: "./learning/tour-of-beam"
-            origin: TB_EXAMPLES
-    if: needs.check_examples.matrix.origin == matrix.origin && needs.check_examples.outputs.example_has_changed == 'True'
+    if: needs.check_examples.outputs.example_has_changed == 'True'
     env:
        GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
     steps:
@@ -144,41 +132,41 @@ jobs:
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-python" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              echo $K8S_SERVER_ADDRESS
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8081"
-             python3 ci_cd.py --step CI --sdk SDK_PYTHON --origin ${{ matrix.origin }}
+             python3 ci_cd.py --step CI --sdk SDK_PYTHON --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
         working-directory: playground/infrastructure
 
       - name: Run Python Examples CD
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-python" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8081"
-             python3 ci_cd.py --step CD --sdk SDK_PYTHON --origin ${{ matrix.origin }}
+             python3 ci_cd.py --step CD --sdk SDK_PYTHON --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
         working-directory: playground/infrastructure
 
       - name: Run Go Examples CI
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-go" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8082"
-             python3 ci_cd.py --step CI --sdk SDK_GO --origin ${{ matrix.origin }}
+             python3 ci_cd.py --step CI --sdk SDK_GO --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
         working-directory: playground/infrastructure
 
       - name: Run Go Examples CD
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-go" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8082"
-             python3 ci_cd.py --step CD --sdk SDK_GO --origin ${{ matrix.origin }}
+             python3 ci_cd.py --step CD --sdk SDK_GO --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
         working-directory: playground/infrastructure
 
       - name: Run Java Examples CI
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-java" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8080"
-             python3 ci_cd.py --step CI --sdk SDK_JAVA --origin ${{ matrix.origin }}
+             python3 ci_cd.py --step CI --sdk SDK_JAVA --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
         working-directory: playground/infrastructure
       - name: Run Java Examples CD
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-java" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8080"
-             python3 ci_cd.py --step CD --sdk SDK_JAVA --origin ${{ matrix.origin }}
+             python3 ci_cd.py --step CD --sdk SDK_JAVA --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
         working-directory: playground/infrastructure
       - name: Delete Helm Chart
         if: always()
