@@ -30,13 +30,6 @@ jobs:
   check_examples:
     name: Check examples
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - dirs: "./learning/katas ./examples ./sdks"
-            origin: PG_EXAMPLES
-          - dirs: "./learning/tour-of-beam"
-            origin: TB_EXAMPLES
     outputs:
       example_has_changed: ${{ steps.check_has_example.outputs.example_has_changed }}
     steps:
