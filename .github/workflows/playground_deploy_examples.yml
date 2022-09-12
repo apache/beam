@@ -115,7 +115,7 @@ jobs:
         run: echo "DOCKERTAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
         if: startsWith(github.ref, 'refs/tags/')
       - name: Get K8s Config
-        run: gcloud container clusters get-credentials --region us-central1-a playground-examples
+        run: gcloud container clusters get-credentials --region     us-central1-a playground-examples
       - name: Login to Docker Registry
         run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.PLAYGROUND_REGISTRY_NAME }}
       - name: Build And Push Java Backend
