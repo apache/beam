@@ -26,6 +26,7 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.Statement;
@@ -141,6 +142,55 @@ public class SpannerChangeStreamIT {
     assertMetadataTableHasBeenDropped();
   }
 
+  @Test
+  public void testReadSpannerChangeStreamFilteredByTransactionTag() {
+    // Defines how many rows are going to be inserted / updated / deleted in the test
+    final int numRows = 5;
+    // Inserts numRows rows and uses the first commit timestamp as the startAt for reading the
+    // change stream
+    final Pair<Timestamp, Timestamp> insertTimestamps = insertRows(numRows);
+    final Timestamp startAt = insertTimestamps.getLeft();
+    // Updates the created rows
+    updateRows(numRows);
+    // Delete the created rows and uses the last commit timestamp as the endAt for reading the
+    // change stream
+    final Pair<Timestamp, Timestamp> deleteTimestamps = deleteRows(numRows);
+    final Timestamp endAt = deleteTimestamps.getRight();
+
+    final SpannerConfig spannerConfig =
+        SpannerConfig.create()
+            .withProjectId(projectId)
+            .withInstanceId(instanceId)
+            .withDatabaseId(databaseId);
+
+    // Filter records to only those from transactions with tag "app=beam;action=update"
+    final PCollection<String> tokens =
+        pipeline
+            .apply(
+                SpannerIO.readChangeStream()
+                    .withSpannerConfig(spannerConfig)
+                    .withChangeStreamName(changeStreamName)
+                    .withMetadataDatabase(databaseId)
+                    .withMetadataTable(metadataTableName)
+                    .withInclusiveStartAt(startAt)
+                    .withInclusiveEndAt(endAt))
+            .apply(ParDo.of(new FilterByTxTag("app=beam;action=update")))
+            .apply(ParDo.of(new ModsToString()));
+
+    // Each row is composed by the following data
+    // <mod type, singer id, old first name, old last name, new first name, new last name>
+    PAssert.that(tokens)
+        .containsInAnyOrder(
+            "UPDATE,1,First Name 1,Last Name 1,Updated First Name 1,Updated Last Name 1",
+            "UPDATE,2,First Name 2,Last Name 2,Updated First Name 2,Updated Last Name 2",
+            "UPDATE,3,First Name 3,Last Name 3,Updated First Name 3,Updated Last Name 3",
+            "UPDATE,4,First Name 4,Last Name 4,Updated First Name 4,Updated Last Name 4",
+            "UPDATE,5,First Name 5,Last Name 5,Updated First Name 5,Updated Last Name 5");
+    pipeline.run().waitUntilFinish();
+
+    assertMetadataTableHasBeenDropped();
+  }
+
   private static void assertMetadataTableHasBeenDropped() {
     try (ResultSet resultSet =
         databaseClient
@@ -196,7 +246,8 @@ public class SpannerChangeStreamIT {
                 .to("First Name " + singerId)
                 .set("LastName")
                 .to("Last Name " + singerId)
-                .build()));
+                .build()),
+        Options.tag("app=beam;action=insert"));
   }
 
   private static Timestamp updateRow(int singerId) {
@@ -209,12 +260,14 @@ public class SpannerChangeStreamIT {
                 .to("Updated First Name " + singerId)
                 .set("LastName")
                 .to("Updated Last Name " + singerId)
-                .build()));
+                .build()),
+        Options.tag("app=beam;action=update"));
   }
 
   private static Timestamp deleteRow(int singerId) {
     return databaseClient.write(
-        Collections.singletonList(Mutation.delete(changeStreamTableName, Key.of(singerId))));
+        Collections.singletonList(Mutation.delete(changeStreamTableName, Key.of(singerId))),
+        Options.tag("app=beam;action=delete"));
   }
 
   private static class ModsToString extends DoFn<DataChangeRecord, String> {
@@ -252,6 +305,23 @@ public class SpannerChangeStreamIT {
       final Instant timestamp = new Instant(record.getRecordTimestamp().toSqlTimestamp());
 
       outputReceiver.outputWithTimestamp(modsAsString, timestamp);
+    }
+  }
+
+  private static class FilterByTxTag extends DoFn<DataChangeRecord, DataChangeRecord> {
+
+    private final String filterTxTag;
+
+    FilterByTxTag(final String filterTxTag) {
+      this.filterTxTag = filterTxTag;
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element DataChangeRecord record, OutputReceiver<String> outputReceiver) {
+      if (!record.getTransactionTag().equalsIgnoreCase(filterTxTag)) return;
+
+      outputReceiver.output(record);
     }
   }
 }
