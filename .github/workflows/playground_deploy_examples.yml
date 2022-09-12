@@ -18,7 +18,11 @@ name: Collect And Deploy Playground Examples
 on:
   pull_request:
     branches: ['master']
-    paths: ['playground/infrastructure/**']
+    paths:
+     - playground/infrastructure/**
+     - learning/katas/**
+     - examples/**
+     - sdks/**
 env:
   BEAM_ROOT_DIR: "../../"
   BEAM_EXAMPLE_CATEGORIES: "../../categories.yaml"
@@ -36,6 +40,11 @@ jobs:
     outputs:
       example_has_changed: ${{ steps.check_has_example.outputs.example_has_changed }}
     steps:
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          echo "$GITHUB_CONTEXT"
       - name: Check out the repo
         uses: actions/checkout@v3
         with:
