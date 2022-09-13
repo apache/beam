@@ -290,7 +290,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         clock: A clock implementing time_ns. *Used for unit testing.*
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
-        namespace: Namespace of the transform to collect metrics.
+        metrics_namespace: Namespace of the transform to collect metrics.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
@@ -335,6 +335,7 @@ class _MetricsCollector:
   """A metrics collector that tracks ML related performance and memory usage."""
   def __init__(self, namespace: str):
     # Metrics
+    logging.info(namespace)
     self._inference_counter = beam.metrics.Metrics.counter(
         namespace, 'num_inferences')
     self._inference_request_batch_size = beam.metrics.Metrics.distribution(
@@ -391,6 +392,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       Args:
         model_handler: An implementation of ModelHandler.
         clock: A clock implementing time_ns. *Used for unit testing.*
+        metrics_namespace: Namespace of the transform to collect metrics.
     """
     self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
@@ -417,9 +419,9 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     return self._shared_model_handle.acquire(load)
 
   def setup(self):
-    metrics_namespace = (
-        self._metrics_namespace) if self._metrics_namespace else (
-            self._model_handler.get_metrics_namespace())
+    metrics_namespace = self._metrics_namespace
+    if not metrics_namespace:
+      metrics_namespace = self._model_handler.get_metrics_namespace()
     self._metrics_collector = _MetricsCollector(metrics_namespace)
     self._model = self._load_model()
 

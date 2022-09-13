@@ -155,7 +155,8 @@ def run(
           lambda file_name, data: (file_name, preprocess_image(data))))
   predictions = (
       filename_value_pair
-      | 'PyTorchRunInference' >> RunInference(model_handler)
+      | 'PyTorchRunInference' >> RunInference(
+          model_handler, metrics_namespace='custom_namespace')
       | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
   predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
