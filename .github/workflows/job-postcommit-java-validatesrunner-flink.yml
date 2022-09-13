@@ -17,7 +17,7 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: Java VR FLink PostCommit
+name: Java VR Flink PostCommit
 on:
   workflow_dispatch:
   schedule:
@@ -32,13 +32,14 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
   java_vr_flink:
+    needs: set-properties
     name: Run Flink Java ValidatesRunner
     runs-on: self-hosted
     strategy:
@@ -50,7 +51,7 @@ jobs:
           - flink-versions: "1.15"
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
