@@ -46,7 +46,7 @@ These folders contain the required resources to deploy the GitHub Actions self-h
 
 * _**Important: Please add the commit hash as a tag when a new image is uploaded.**_
 
-#### How to run a self-hosted locally?
+#### How to run a self-hosted runner locally?
 
 * Create a `.var.env` file from the `example.var.env` file and replace the corresponding values:
     * GOOGLE_APPLICATION_CREDENTIALS: Path where the json file will be stored (Same path as the one given in the docker-compose.yml file)
