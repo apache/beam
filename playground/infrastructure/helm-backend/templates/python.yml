@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: playground-python
+  labels:
+    app: backend-python
+    type: backend
+spec:
+  template:
+    metadata:
+     name: playground
+     labels:
+       app: backend-python
+       type: backend
+    spec:
+     containers:
+     - name: playground-backend-python
+       image: {{ .Values.registry}}/{{ .Values.image.python_image }}:{{ .Values.image.tag }}
+       imagePullPolicy: {{ .Values.image.pullPolicy }}
+       env:
+        - name: CACHE_TYPE
+          value: "remote"
+        - name: CACHE_ADDRESS
+          value: {{ .Values.redis_ip }}
+  replicas: {{ .Values.replicaCount  }}
+  selector:
+    matchLabels:
+     app: backend-python
