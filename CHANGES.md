@@ -66,7 +66,7 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Python SDK CoGroupByKey now outputs an iterable instead of a list. [#21556](https://github.com/apache/beam/issues/21556)
 
 ## Deprecations
 
