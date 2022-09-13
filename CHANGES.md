@@ -66,7 +66,7 @@
 
 ## Breaking Changes
 
-* Python SDK CoGroupByKey now outputs an iterable instead of a list. [#21556](https://github.com/apache/beam/issues/21556)
+* Python SDK CoGroupByKey now outputs an iterable instead of a list. [#21556](https://github.com/apache/beam/issues/21556) See [document](https://docs.google.com/document/d/1RIzm8-g-0CyVsPb6yasjwokJQFoKHG4NjRUcKHKINu0) for suggested fixes for different error cases.
 
 ## Deprecations
 
