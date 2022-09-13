@@ -24,7 +24,7 @@
 
 set -e
 
-function usage() {
+function usage(){
   echo 'Usage: set_version.sh <version> [--release] [--debug] [--git-add]'
 }
 
