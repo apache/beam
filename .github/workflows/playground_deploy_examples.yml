@@ -16,7 +16,6 @@
 name: Collect And Deploy Playground Examples
 
 on:
-  push:
   pull_request:
     branches: ['master']
     paths:
@@ -60,7 +59,7 @@ jobs:
         name: get Difference
         id: check_file_changed
         run: |
-          $diff = git diff --name-only ${{ github.event.before }} ${{ github.event.after }} -- ${{ env.SUBDIRS }}
+          $diff = git diff --name-only origin/${{ env.GITHUB_BASE_REF }} ${{ github.event.after }} -- ${{ env.SUBDIRS }}
           echo "$diff"
           Write-Host "::set-output name=example_diff::$diff"
       - name: has Examples
