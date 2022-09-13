@@ -44,12 +44,7 @@ async function monitorRunnerStatus() {
 
         //Filtering BEAM runners
         let beamRunners = runners.data.runners.filter(runner => {
-            for (let label of runner.labels) {
-                if (label.name == "beam") {
-                    return true;
-                }
-            }
-            return false;
+            return runner.labels.find(label => label.name == "beam")
         });
 
         //Dividing status for each runner OS
