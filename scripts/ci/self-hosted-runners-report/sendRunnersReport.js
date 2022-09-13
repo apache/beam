@@ -18,6 +18,8 @@
 const nodemailer = require("nodemailer");
 const axios = require('axios');
 
+const LINUX_MIN_RUNNERS=8; //We are going to be monitoring this values
+const WINDOWS_MIN_RUNNERS=8;
 
 async function getRunnersStatus() {
     let status = await axios.post(process.env["ENDPOINT"], {}, {
@@ -52,7 +54,7 @@ async function sendAlertEmail(status) {
     }
 
     const htmlMsg = ` 
-        <p>Here is the runners status per Operative System, please inspect GCP console for further details: </p> <br>
+        <p>Here is the runners status per Operating System, please inspect GCP console for further details: </p> <br>
         ` + statusTables["Linux"] + "<br>" + statusTables["Windows"];
 
     nodemailer.createTransport({
@@ -77,8 +79,7 @@ async function sendAlertEmail(status) {
 
 async function monitorRunnersStatus() {
     const status = await getRunnersStatus().catch(console.error);
-    console.log(status);
-    if (status.Linux.onlineRunners == 0 || status.Windows.onlineRunners == 0) {
+    if (status.Linux.onlineRunners <= LINUX_MIN_RUNNERS || status.Windows.onlineRunners <= WINDOWS_MIN_RUNNERS) {
         sendAlertEmail(status);
     } else {
         return 0;
