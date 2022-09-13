@@ -125,6 +125,26 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PreCommit Workflows
+
+#### Python Cron IO Filesystem - [job-precommit-python-cron-io-filesystem.yml](.github/workflows/job-precommit-python-io-filesystem.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Python Cron  IO Filesystem| Runs Python Cron  IO Filesystem | No              | Yes                   | Yes           | No                       |
+
+#### Python Cron IO GCP - [job-precommit-python-cron-io-gcp.yml](.github/workflows/job-precommit-python-io-gcp.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Python Cron  IO gcp| Runs Python Cron  IO gcp | No              | Yes                   | Yes           | No                       |
+
+#### Python Cron IO Parquet - [job-precommit-python-cron-io-parquet.yml](.github/workflows/job-precommit-python-io-parquet.yml)
+
+| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Python Cron  IO Parquet| Runs Python Cron  IO Parquet | No              | Yes                   | Yes           | No                       |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.

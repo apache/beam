@@ -233,6 +233,7 @@ if __name__ == '__main__':
         'regex>=2020.6.8',
         'requests>=2.24.0,<3.0.0',
         'typing-extensions>=3.7.0',
+        'regex>=2022.3.2',
         'zstandard>=0.18.0,<1',
       # Dynamic dependencies must be specified in a separate list, otherwise
       # Dependabot won't be able to parse the main list. Any dynamic
@@ -264,6 +265,7 @@ if __name__ == '__main__':
             'sqlalchemy>=1.3,<2.0',
             'psycopg2-binary>=2.8.5,<3.0.0',
             'testcontainers[mysql]>=3.0.3,<4.0.0',
+            'regex>=2022.3.2',
             'cryptography>=36.0.0',
           ],
           'gcp': [
