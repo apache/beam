@@ -36,6 +36,7 @@ var (
 
 	EventTimeType = reflect.TypeOf((*EventTime)(nil)).Elem()
 	WindowType    = reflect.TypeOf((*Window)(nil)).Elem()
+	TimersType    = reflect.TypeOf((*Timers)(nil)).Elem()
 	PaneInfoType  = reflect.TypeOf((*PaneInfo)(nil)).Elem()
 
 	KVType                 = reflect.TypeOf((*KV)(nil)).Elem()
@@ -86,6 +87,23 @@ type PaneInfo struct {
 	Timing                     PaneTiming
 	IsFirst, IsLast            bool
 	Index, NonSpeculativeIndex int64
+}
+
+type Timers struct {
+	Key                          []byte // elm type.
+	Tag                          string
+	Windows                      []byte // []typex.Window
+	Clear                        bool
+	FireTimestamp, HoldTimestamp int64
+	PaneInfo                     PaneInfo
+}
+
+type TimerMap struct {
+	Key, Tag                     string
+	Windows                      []byte // []typex.Window
+	Clear                        bool
+	FireTimestamp, HoldTimestamp int64
+	PaneInfo                     PaneInfo
 }
 
 // KV, Nullable, CoGBK, WindowedValue represent composite generic types. They are not used
