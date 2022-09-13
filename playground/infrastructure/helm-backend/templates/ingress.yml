@@ -1,0 +1,63 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-playground
+  annotations: 
+     kubernetes.io/ingress.global-static-ip-name: {{ .Values.static_ip_name }}
+     networking.gke.io/managed-certificates: {{ .Values.project_id }}
+     networking.gke.io/v1beta1.FrontendConfig: pg-frontend
+     ingress.kubernetes.io/enable-cors: "true"
+  labels:
+     app: playground-go
+spec:
+  rules:
+  - host: "go.{{ .Values.static_ip }}.nip.io"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-go
+            port:
+              number: {{ .Values.service.port }}
+  - host: "java.{{ .Values.static_ip }}.nip.io"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-java
+            port:
+              number: {{ .Values.service.port }}
+  - host: "python.{{ .Values.static_ip }}.nip.io"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-python
+            port:
+              number: {{ .Values.service.port }}
+  - host: "router.{{ .Values.static_ip }}.nip.io"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-router
+            port:
+              number: {{ .Values.service.port }}
+  - host: "scio.{{ .Values.static_ip }}.nip.io"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-scio
+            port:
+              number: {{ .Values.service.port }}
