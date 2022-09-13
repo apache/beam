@@ -41,7 +41,7 @@ runs:
     - name: Set Go Version
       uses: actions/setup-go@v3
       with:
-        go-version: '>=1.16.0'
+        go-version: '1.18'
     - name: Remove default github maven configuration
       # This step is a workaround to avoid a decryption issue of Beam's
       # gradle-command-action plugin and github's provided maven
