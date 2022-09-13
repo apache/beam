@@ -3749,6 +3749,12 @@ the user ids from a `PCollection` of purchases one would write (using the `Selec
 purchases.apply(Select.fieldNames("userId"));
 {{< /highlight >}}
 
+{{< highlight py >}}
+input_pc = ... # {"userId":...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Map(lambda item: beam.Row(ids=str(item["userId"])))                                            
+{{< /highlight >}}
+
+
 ##### **Nested fields**
 
 Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
@@ -3757,6 +3763,12 @@ Individual nested fields can be specified using the dot operator. For example, t
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
+	
+{{< highlight py >}} 
+input_pc = ... # {"userId":...,"shippingAddress":"postCode": ..., ...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Map(lambda item: beam.Row(pcode=str(item["shippingAddress.postCode"])))                                               
+{{< /highlight >}}
+
 
 ##### **Wildcards**
 
@@ -3765,6 +3777,11 @@ shipping-address fields one would write
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("shippingAddress.*"));
+{{< /highlight >}}
+
+{{< highlight py >}} 
+input_pc = ... # {"userId":...,"shippingAddress":"postCode": ..., ...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Map(lambda item: beam.Row(address=str(item["shippingAddress.*"])))
 {{< /highlight >}}
 
 ##### **Arrays**
