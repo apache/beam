@@ -26,13 +26,28 @@ on:
     branches: ['master', 'release-*']
 
 jobs:
+  set-properties:
+    runs-on: self-hosted
+    outputs:
+      properties: ${{ steps.test-properties.outputs.properties }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - id: test-properties
+        uses: ./.github/actions/setup-default-test-properties
   java_vr_flink:
     name: Run Flink Java ValidatesRunner
     runs-on: self-hosted
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
-        flink-versions: ['1.13']
+        flink-versions: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.FLINK_VERSIONS}}
+        exclude: # exclude other versions, we only need 1.13 for this test
+          - flink-versions: "1.14"
+          - flink-versions: "1.15"
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
