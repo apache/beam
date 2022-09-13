@@ -49,13 +49,13 @@ public class TestDStream<T> extends InputDStream<WindowedValue<T>> {
   private final Coder<WindowedValue<T>> coder;
 
   @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED") // not intended for use after serialization
-  private final transient List<TestStream.Event<T>> events;
+  private final transient @Nullable List<TestStream.Event<T>> events;
 
-  private int event = 0;
+  private int currentEventIndex = 0;
 
   private boolean insertEmptyBatch = false;
 
-  private long lastMillis = 0;
+  private long lastValidTimeMs = 0;
 
   private Instant lastWatermark = Instant.EPOCH;
 
@@ -67,8 +67,6 @@ public class TestDStream<T> extends InputDStream<WindowedValue<T>> {
 
   @Override
   public Option<RDD<WindowedValue<T>>> compute(Time validTime) {
-    Preconditions.checkStateNotNull(events);
-
     TestStream.Event<T> event = insertEmptyBatch ? null : nextEvent();
 
     if (event == null) {
@@ -96,14 +94,15 @@ public class TestDStream<T> extends InputDStream<WindowedValue<T>> {
   }
 
   private void waitForLastBatch(Time validTime) {
-    while (GlobalWatermarkHolder.getLastWatermarkedBatchTime() < lastMillis) {
+    while (GlobalWatermarkHolder.getLastWatermarkedBatchTime() < lastValidTimeMs) {
       Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
     }
-    lastMillis = validTime.milliseconds();
+    lastValidTimeMs = validTime.milliseconds();
   }
 
   private @Nullable TestStream.Event<T> nextEvent() {
-    return events.size() > event ? events.get(event++) : null;
+    List<TestStream.Event<T>> events = Preconditions.checkStateNotNull(this.events);
+    return events.size() > currentEventIndex ? events.get(currentEventIndex++) : null;
   }
 
   private void addWatermark(Time time, WatermarkEvent<T> event) {
