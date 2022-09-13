@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.jmh.io;
 
+import java.io.BufferedWriter;
 import java.io.FileInputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -53,16 +54,16 @@ public class TextSourceBenchmark {
     @Setup
     public void createFile() throws Exception {
       path = Files.createTempFile("benchmark", null).toAbsolutePath();
-      StringBuilder value = new StringBuilder(120 * NUM_LINES);
+      pathString = path.toString();
+      BufferedWriter writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8);
       for (int i = 0; i < NUM_LINES; ++i) {
         String valueToAppend =
             String.valueOf(data, 0, ThreadLocalRandom.current().nextInt(60, 120));
         length += valueToAppend.length();
-        value.append(valueToAppend);
-        value.append('\n');
+        writer.write(valueToAppend);
+        writer.write('\n');
       }
-      Files.write(path, value.toString().getBytes(StandardCharsets.UTF_8));
-      pathString = path.toString();
+      writer.close();
     }
 
     @TearDown
