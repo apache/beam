@@ -1,0 +1,8 @@
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: bkend-health
+spec:
+  healthCheck:
+    type: HTTP
+    requestPath: /liveness
