@@ -24,7 +24,7 @@ on:
       runDataflow:
         description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
         default: 'false'
-        required: true
+        required: false
   schedule:
     - cron: '10 2 * * *'
   push:
