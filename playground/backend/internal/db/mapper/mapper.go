@@ -16,6 +16,8 @@
 package mapper
 
 import (
+	"beam.apache.org/playground/backend/internal/db/dto"
+
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/db/entity"
 )
@@ -23,4 +25,9 @@ import (
 type EntityMapper interface {
 	ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet
 	ToFileEntity(info *pb.SaveSnippetRequest, file *pb.SnippetFile) (*entity.FileEntity, error)
+}
+
+type ResponseMapper interface {
+	ToArrayCategories(catalogDTO *dto.CatalogDTO) []*pb.Categories
+	ToObjectInfo(exampleDTO *dto.ExampleDTO) *dto.ObjectInfo
 }

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.mongodb;
 
 import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
+import static org.junit.Assert.assertNotEquals;
 
 import com.google.cloud.Timestamp;
 import com.mongodb.client.MongoClient;
@@ -167,7 +168,7 @@ public class MongoDBIOIT {
                 .withDatabase(options.getMongoDBDatabaseName())
                 .withCollection(collection));
     PipelineResult writeResult = writePipeline.run();
-    writeResult.waitUntilFinish();
+    PipelineResult.State writeState = writeResult.waitUntilFinish();
 
     finalCollectionSize = getCollectionSizeInBytes(collection);
 
@@ -187,8 +188,12 @@ public class MongoDBIOIT {
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     PipelineResult readResult = readPipeline.run();
-    readResult.waitUntilFinish();
+    PipelineResult.State readState = readResult.waitUntilFinish();
     collectAndPublishMetrics(writeResult, readResult);
+
+    // Fail the test if pipeline failed.
+    assertNotEquals(writeState, PipelineResult.State.FAILED);
+    assertNotEquals(readState, PipelineResult.State.FAILED);
   }
 
   private double getCollectionSizeInBytes(final String collectionName) {

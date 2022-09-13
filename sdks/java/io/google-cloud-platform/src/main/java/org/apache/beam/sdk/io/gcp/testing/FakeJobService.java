@@ -320,7 +320,9 @@ public class FakeJobService implements JobService, Serializable {
                               "Job %s failed: %s", job.job.getConfiguration(), e.toString())));
           List<ResourceId> sourceFiles =
               filesForLoadJobs.get(jobRef.getProjectId(), jobRef.getJobId());
-          FileSystems.delete(sourceFiles);
+          if (sourceFiles != null) {
+            FileSystems.delete(sourceFiles);
+          }
         }
         return JSON_FACTORY.fromString(JSON_FACTORY.toString(job.job), Job.class);
       }

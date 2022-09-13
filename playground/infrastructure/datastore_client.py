@@ -19,8 +19,10 @@ Module contains the client to communicate with Google Cloud Datastore
 import logging
 import os.path
 from datetime import datetime
+from pathlib import Path
 from typing import List
 
+import yaml
 from google.cloud import datastore
 from tqdm import tqdm
 
@@ -51,6 +53,8 @@ class DatastoreClient:
     def _check_envs(self):
         if Config.GOOGLE_CLOUD_PROJECT is None:
             raise KeyError("GOOGLE_CLOUD_PROJECT environment variable should be specified in os")
+        if Config.SDK_CONFIG is None:
+            raise KeyError("SDK_CONFIG environment variable should be specified in os")
 
     def save_to_cloud_datastore(self, examples_from_rep: List[Example], sdk: Sdk):
         """
@@ -105,6 +109,35 @@ class DatastoreClient:
                 self._datastore_client.delete_multi(file_keys_for_removing)
                 self._datastore_client.delete_multi(pc_objs_keys_for_removing)
                 logging.info("Finish of deleting extra playground examples ...")
+
+    def save_catalogs(self):
+        """
+        Save catalogs to the Cloud Datastore
+        """
+        # save a schema version entity
+        schema_entity = datastore.Entity(self._get_key(DatastoreProps.SCHEMA_KIND, "0.0.1"), exclude_from_indexes=('descr',))
+        schema_entity.update(
+            {
+                "descr": "Data initialization: a schema version, SDKs"
+            }
+        )
+        self._datastore_client.put(schema_entity)
+
+        # save a sdk catalog
+        with open(Config.SDK_CONFIG, encoding="utf-8") as sdks:
+            sdk_objs = yaml.load(sdks.read(), Loader=yaml.SafeLoader)
+            sdk_entities = []
+            file_name = Path(Config.SDK_CONFIG).stem
+            for key in sdk_objs[file_name]:
+                default_example = sdk_objs[file_name][key]["default-example"]
+                sdk_entity = datastore.Entity(self._get_key(DatastoreProps.SDK_KIND, key))
+                sdk_entity.update(
+                    {
+                        "defaultExample": default_example
+                    }
+                )
+                sdk_entities.append(sdk_entity)
+            self._datastore_client.put_multi(sdk_entities)
 
     def _get_actual_schema_version_key(self) -> datastore.Key:
         schema_names = []

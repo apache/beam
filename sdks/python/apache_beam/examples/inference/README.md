@@ -24,7 +24,7 @@ API. <!---TODO: Add link to full documentation on Beam website when it's publish
 
 ## Prerequisites
 
-You must have `apache-beam>=2.40.0` installed in order to run these pipelines,
+You must have `apache-beam>=2.40.0` or greater installed in order to run these pipelines,
 because the `apache_beam.examples.inference` module was added in that release.
 ```
 pip install apache-beam==2.40.0
@@ -67,22 +67,20 @@ The pipeline reads the images, performs basic preprocessing, passes the images t
 
 To use this transform, you need a dataset and model for image classification.
 
-1. Create a directory named `IMAGES_DIR`. Create or download images and put them in this directory. The directory is not required if image names in the input file `IMAGE_FILE_NAMES` have absolute paths.
+1. Create a directory named `IMAGES_DIR`. Create or download images and put them in this directory. The directory is not required if image names in the input file `IMAGE_FILE_NAMES.txt` you create in step 2 have absolute paths.
 One popular dataset is from [ImageNet](https://www.image-net.org/). Follow their instructions to download the images.
-2. Create a file named `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` that you want to use to run image classification. The path to the file can be different types of URIs such as your local file system, an AWS S3 bucket, or a GCP Cloud Storage bucket. For example:
+2. Create a file named `IMAGE_FILE_NAMES.txt` that contains the absolute paths of each of the images in `IMAGES_DIR` that you want to use to run image classification. The path to the file can be different types of URIs such as your local file system, an AWS S3 bucket, or a GCP Cloud Storage bucket. For example:
 ```
 /absolute/path/to/image1.jpg
 /absolute/path/to/image2.jpg
 ```
-3. Download the [mobilenet_v2](https://pytorch.org/vision/stable/_modules/torchvision/models/mobilenetv2.html) model from Pytorch's repository of pretrained models. This model requires the torchvision library. To download this model, run the following commands:
+3. Download the [mobilenet_v2](https://pytorch.org/vision/stable/_modules/torchvision/models/mobilenetv2.html) model from Pytorch's repository of pretrained models. This model requires the torchvision library. To download this model, run the following commands from a Python shell:
 ```
 import torch
 from torchvision.models import mobilenet_v2
 model = mobilenet_v2(pretrained=True)
-torch.save(model.state_dict(), 'mobilenet_v2.pth')
+torch.save(model.state_dict(), 'mobilenet_v2.pth') # You can replace mobilenet_v2.pth with your preferred file name for your model state dictionary.
 ```
-4. Create a file named `MODEL_STATE_DICT` that contains the saved parameters of the `mobilenet_v2` model.
-5. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
 
 ### Running `pytorch_image_classification.py`
 
@@ -94,10 +92,12 @@ python -m apache_beam.examples.inference.pytorch_image_classification \
   --output OUTPUT \
   --model_state_dict_path MODEL_STATE_DICT
 ```
-For example:
+`images_dir` is only needed if your `IMAGE_FILE_NAMES.txt` file contains relative paths (they will be relative from `IMAGES_DIR`).
+
+For example, if you've followed the naming conventions recommended above:
 ```sh
 python -m apache_beam.examples.inference.pytorch_image_classification \
-  --input image_file_names.txt \
+  --input IMAGE_FILE_NAMES.txt \
   --output predictions.csv \
   --model_state_dict_path mobilenet_v2.pth
 ```
@@ -107,6 +107,9 @@ This writes the output to the `predictions.csv` with contents like:
 /absolute/path/to/image2.jpg;333
 ...
 ```
+
+Each image path is paired with a value representing the Imagenet class that returned the highest confidence score out of Imagenet's 1000 classes.
+
 ---
 ## Image segmentation
 
@@ -118,22 +121,21 @@ The pipeline reads images, performs basic preprocessing, passes the images to th
 
 To use this transform, you need a dataset and model for image segmentation.
 
-1. Create a directory named `IMAGES_DIR`. Create or download images and put them in this directory. The directory is not required if image names in the input file `IMAGE_FILE_NAMES` have absolute paths.
+1. Create a directory named `IMAGES_DIR`. Create or download images and put them in this directory. The directory is not required if image names in the input file `IMAGE_FILE_NAMES.txt` you create in step 2 have absolute paths.
 A popular dataset is from [Coco](https://cocodataset.org/#home). Follow their instructions to download the images.
-2. Create a file named `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` that you want to use to run image segmentation. The path to the file can be different types of URIs such as your local file system, an AWS S3 bucket, or a GCP Cloud Storage bucket. For example:
+2. Create a file named `IMAGE_FILE_NAMES.txt` that contains the absolute paths of each of the images in `IMAGES_DIR` that you want to use to run image segmentation. The path to the file can be different types of URIs such as your local file system, an AWS S3 bucket, or a GCP Cloud Storage bucket. For example:
 ```
 /absolute/path/to/image1.jpg
 /absolute/path/to/image2.jpg
 ```
-3. Download the [maskrcnn_resnet50_fpn](https://pytorch.org/vision/0.12/models.html#id70) model from Pytorch's repository of pretrained models. This model requires the torchvision library. To download this model, run the following commands:
+3. Download the [maskrcnn_resnet50_fpn](https://pytorch.org/vision/0.12/models.html#id70) model from Pytorch's repository of pretrained models. This model requires the torchvision library. To download this model, run the following commands from a Python shell:
 ```
 import torch
 from torchvision.models.detection import maskrcnn_resnet50_fpn
 model = maskrcnn_resnet50_fpn(pretrained=True)
-torch.save(model.state_dict(), 'maskrcnn_resnet50_fpn.pth')
+torch.save(model.state_dict(), 'maskrcnn_resnet50_fpn.pth') # You can replace maskrcnn_resnet50_fpn.pth with your preferred file name for your model state dictionary.
 ```
-4. Create a path to a file named `MODEL_STATE_DICT` that contains the saved parameters of the `maskrcnn_resnet50_fpn` model.
-5. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
+4. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
 
 ### Running `pytorch_image_segmentation.py`
 
@@ -145,10 +147,12 @@ python -m apache_beam.examples.inference.pytorch_image_segmentation \
   --output OUTPUT \
   --model_state_dict_path MODEL_STATE_DICT
 ```
-For example:
+`images_dir` is only needed if your `IMAGE_FILE_NAMES.txt` file contains relative paths (they will be relative from `IMAGES_DIR`).
+
+For example, if you've followed the naming conventions recommended above:
 ```sh
 python -m apache_beam.examples.inference.pytorch_image_segmentation \
-  --input image_file_names.txt \
+  --input IMAGE_FILE_NAMES.txt \
   --output predictions.csv \
   --model_state_dict_path maskrcnn_resnet50_fpn.pth
 ```
@@ -171,16 +175,14 @@ The pipeline reads sentences, performs basic preprocessing to convert the last w
 
 To use this transform, you need a dataset and model for language modeling.
 
-1. Download the [BertForMaskedLM](https://huggingface.co/docs/transformers/model_doc/bert#transformers.BertForMaskedLM) model from Hugging Face's repository of pretrained models. You must already have `transformers` installed.
+1. Download the [BertForMaskedLM](https://huggingface.co/docs/transformers/model_doc/bert#transformers.BertForMaskedLM) model from Hugging Face's repository of pretrained models. You must already have `transformers` installed, then from a Python shell run:
 ```
 import torch
 from transformers import BertForMaskedLM
 model = BertForMaskedLM.from_pretrained('bert-base-uncased', return_dict=True)
-torch.save(model.state_dict(), 'BertForMaskedLM.pth')
+torch.save(model.state_dict(), 'BertForMaskedLM.pth') # You can replace BertForMaskedLM.pth with your preferred file name for your model state dictionary.
 ```
-2. Create a file named `MODEL_STATE_DICT` that contains the saved parameters of the `BertForMaskedLM` model.
-3. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
-4. (Optional) Create a file named `SENTENCES` that contains sentences to feed into the model. The content of the file should be similar to the following example:
+2. (Optional) Create a file named `SENTENCES.txt` that contains sentences to feed into the model. The content of the file should be similar to the following example:
 ```
 The capital of France is Paris .
 He looked up and saw the sun and stars .
@@ -196,15 +198,17 @@ python -m apache_beam.examples.inference.pytorch_language_modeling \
   --output OUTPUT \
   --model_state_dict_path MODEL_STATE_DICT
 ```
-For example:
+The `input` argument is optional. If none is provided, it will run the pipeline with some
+example sentences.
+
+For example, if you've followed the naming conventions recommended above:
 ```sh
 python -m apache_beam.examples.inference.pytorch_language_modeling \
-  --input sentences.txt \
+  --input SENTENCES.txt \
   --output predictions.csv \
   --model_state_dict_path BertForMaskedLM.pth
 ```
-If you don't provide a sentences file, it will run the pipeline with some
-example sentences.
+Or, using the default example sentences:
 ```sh
 python -m apache_beam.examples.inference.pytorch_language_modeling \
   --output predictions.csv \
@@ -218,11 +222,11 @@ He looked up and saw the sun and stars .;moon
 ...
 ```
 Each line has data separated by a semicolon ";".
-The first item is the sentence with the last word masked. The second item
-is the word that the model predicts for the mask.
+The first item is the input sentence. The model masks the last word and tries to predict it;
+the second item is the word that the model predicts for the mask.
 
 ---
-## MNITST digit classification
+## MNIST digit classification
 [`sklearn_mnist_classification.py`](./sklearn_mnist_classification.py) contains an implementation for a RunInference pipeline that performs image classification on handwritten digits from the [MNIST](https://en.wikipedia.org/wiki/MNIST_database) database.
 
 The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing, passes the pixels to the Scikit-learn implementation of RunInference, and then writes the predictions to a text file.
@@ -231,7 +235,7 @@ The pipeline reads rows of pixels corresponding to a digit, performs basic prepr
 
 To use this transform, you need a dataset and model for language modeling.
 
-1. Create a file named `INPUT` that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The content of the file should be similar to the following example:
+1. Create a file named `INPUT.csv` that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
 ```
 1,0,0,0...
 0,0,0,0...
@@ -239,8 +243,7 @@ To use this transform, you need a dataset and model for language modeling.
 4,0,0,0...
 ...
 ```
-2. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
-3. Create a file named `MODEL_PATH` that contains the pickled file of a scikit-learn model trained on MNIST data. Please refer to this scikit-learn [model persistence documentation](https://scikit-learn.org/stable/model_persistence.html) on how to serialize models.
+2. Create a file named `MODEL_PATH` that contains the pickled file of a scikit-learn model trained on MNIST data. Please refer to this scikit-learn [model persistence documentation](https://scikit-learn.org/stable/model_persistence.html) on how to serialize models.
 
 
 ### Running `sklearn_mnist_classification.py`
@@ -255,7 +258,7 @@ python -m apache_beam.examples.inference.sklearn_mnist_classification.py \
 For example:
 ```sh
 python -m apache_beam.examples.inference.sklearn_mnist_classification.py \
-  --input mnist_data.csv \
+  --input INPUT.csv \
   --output predictions.txt \
   --model_path mnist_model_svm.pickle
 ```

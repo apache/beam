@@ -104,8 +104,7 @@ def run(
 
   label_pixel_tuple = (
       pipeline
-      | "ReadFromInput" >> beam.io.ReadFromText(
-          known_args.input, skip_header_lines=1)
+      | "ReadFromInput" >> beam.io.ReadFromText(known_args.input)
       | "PreProcessInputs" >> beam.Map(process_input))
 
   predictions = (
