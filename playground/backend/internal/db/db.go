@@ -18,12 +18,14 @@ package db
 import (
 	"context"
 
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/db/entity"
 )
 
 type Database interface {
 	SnippetDatabase
 	CatalogDatabase
+	ExampleDatabase
 }
 
 type SnippetDatabase interface {
@@ -41,5 +43,21 @@ type CatalogDatabase interface {
 
 	PutSDKs(ctx context.Context, sdks []*entity.SDKEntity) error
 
-	GetSDK(ctx context.Context, id string) (*entity.SDKEntity, error)
+	GetSDKs(ctx context.Context) ([]*entity.SDKEntity, error)
+}
+
+type ExampleDatabase interface {
+	GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEntity) ([]*pb.Categories, error)
+
+	GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEntity) (map[pb.Sdk]*pb.PrecompiledObject, error)
+
+	GetExample(ctx context.Context, id string, sdks []*entity.SDKEntity) (*pb.PrecompiledObject, error)
+
+	GetExampleCode(ctx context.Context, id string) (string, error)
+
+	GetExampleOutput(ctx context.Context, id string) (string, error)
+
+	GetExampleLogs(ctx context.Context, id string) (string, error)
+
+	GetExampleGraph(ctx context.Context, id string) (string, error)
 }

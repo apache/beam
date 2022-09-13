@@ -22,9 +22,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
+	"os"
 	"reflect"
 	"runtime/debug"
 	"strconv"
@@ -429,7 +429,7 @@ func (*logLogger) Logf(format string, v ...interface{}) {
 const yamlPath = "../../../../../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml"
 
 func main() {
-	data, err := ioutil.ReadFile(yamlPath)
+	data, err := os.ReadFile(yamlPath)
 	if err != nil {
 		log.Fatalf("Couldn't read %v: %v", yamlPath, err)
 	}

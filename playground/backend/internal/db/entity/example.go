@@ -13,42 +13,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package entity
 
-import "testing"
+import "cloud.google.com/go/datastore"
 
-func TestID(t *testing.T) {
-	type args struct {
-		salt    string
-		content string
-		length  int8
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr bool
-	}{
-		{
-			name: "ID generation in the usual case",
-			args: args{
-				salt:    "MOCK_SALT",
-				content: "MOCK_CONTENT",
-				length:  11,
-			},
-			want:    "Zl_s-8seE6k",
-			wantErr: false,
-		},
-	}
+type ExampleEntity struct {
+	Name       string         `datastore:"name"`
+	Sdk        *datastore.Key `datastore:"sdk"`
+	Descr      string         `datastore:"descr"`
+	Tags       []string       `datastore:"tags"`
+	Cats       []string       `datastore:"cats"`
+	Complexity string         `datastore:"complexity"`
+	Path       string         `datastore:"path"`
+	Type       string         `datastore:"type"`
+	Origin     string         `datastore:"origin"`
+	SchVer     *datastore.Key `datastore:"schVer"`
+}
 
-	for _, tt := range tests {
-		result, err := ID(tt.args.salt, tt.args.content, tt.args.length)
-		if (err != nil) != tt.wantErr {
-			t.Errorf("ID() error = %v, wantErr %v", err, tt.wantErr)
-			return
-		}
-		if result != tt.want {
-			t.Errorf("ID() result = %v, want %v", result, tt.want)
-		}
-	}
+type PrecompiledObjectEntity struct {
+	Content string `datastore:"content,noindex"`
 }

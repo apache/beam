@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
@@ -80,7 +82,9 @@ public class PythonService {
     List<String> bootstrapCommand = new ArrayList<>();
     bootstrapCommand.add(whichPython());
     bootstrapCommand.add(bootstrapScript.getAbsolutePath());
-    // TODO(BEAM-22856): If the version is a non .dev version, pass it here as --beam_version.
+    bootstrapCommand.add(
+        "--beam_version="
+            + getMatchingStablePythonSDKVersion(ReleaseInfo.getReleaseInfo().getSdkVersion()));
     if (!extraPackages.isEmpty()) {
       bootstrapCommand.add("--extra_packages=" + String.join(";", extraPackages));
     }
@@ -130,6 +134,17 @@ public class PythonService {
       }
     }
     throw new RuntimeException("Unable to find a suitable Python executable.");
+  }
+
+  @VisibleForTesting
+  static String getMatchingStablePythonSDKVersion(String javaSDKVersion) {
+    if (javaSDKVersion == null) {
+      return "latest";
+    } else if (javaSDKVersion.endsWith(".dev")) {
+      return "latest";
+    } else {
+      return javaSDKVersion;
+    }
   }
 
   public static int findAvailablePort() throws IOException {

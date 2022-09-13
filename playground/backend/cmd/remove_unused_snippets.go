@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"beam.apache.org/playground/backend/internal/db/datastore"
+	"beam.apache.org/playground/backend/internal/db/mapper"
 )
 
 func main() {
@@ -42,7 +43,8 @@ func main() {
 	}
 
 	ctx := context.Background()
-	db, err := datastore.New(ctx, projectId)
+	pcMapper := mapper.NewPrecompiledObjectMapper()
+	db, err := datastore.New(ctx, pcMapper, projectId)
 	if err != nil {
 		fmt.Printf("Couldn't create the database client, err: %s \n", err.Error())
 		return

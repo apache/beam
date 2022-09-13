@@ -345,11 +345,13 @@ class UpdateDestinationSchema(beam.DoFn):
   """
   def __init__(
       self,
+      project=None,
       write_disposition=None,
       test_client=None,
       additional_bq_parameters=None,
       step_name=None,
       load_job_project_id=None):
+    self.project = project
     self._test_client = test_client
     self._write_disposition = write_disposition
     self._additional_bq_parameters = additional_bq_parameters or {}
@@ -390,7 +392,7 @@ class UpdateDestinationSchema(beam.DoFn):
     table_reference = bigquery_tools.parse_table_reference(destination)
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
-          'project', str, '')
+          'project', str, '') or self.project
 
     try:
       # Check if destination table exists
@@ -485,11 +487,13 @@ class TriggerCopyJobs(beam.DoFn):
 
   def __init__(
       self,
+      project=None,
       create_disposition=None,
       write_disposition=None,
       test_client=None,
       step_name=None,
       load_job_project_id=None):
+    self.project = project
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.test_client = test_client
@@ -518,13 +522,13 @@ class TriggerCopyJobs(beam.DoFn):
     copy_to_reference = bigquery_tools.parse_table_reference(destination)
     if copy_to_reference.projectId is None:
       copy_to_reference.projectId = vp.RuntimeValueProvider.get_value(
-          'project', str, '')
+          'project', str, '') or self.project
 
     copy_from_reference = bigquery_tools.parse_table_reference(destination)
     copy_from_reference.tableId = job_reference.jobId
     if copy_from_reference.projectId is None:
       copy_from_reference.projectId = vp.RuntimeValueProvider.get_value(
-          'project', str, '')
+          'project', str, '') or self.project
 
     copy_job_name = '%s_%s' % (
         job_name_prefix,
@@ -597,6 +601,7 @@ class TriggerLoadJobs(beam.DoFn):
   def __init__(
       self,
       schema=None,
+      project=None,
       create_disposition=None,
       write_disposition=None,
       test_client=None,
@@ -606,6 +611,7 @@ class TriggerLoadJobs(beam.DoFn):
       step_name=None,
       load_job_project_id=None):
     self.schema = schema
+    self.project = project
     self.test_client = test_client
     self.temporary_tables = temporary_tables
     self.additional_bq_parameters = additional_bq_parameters or {}
@@ -666,7 +672,7 @@ class TriggerLoadJobs(beam.DoFn):
     table_reference = bigquery_tools.parse_table_reference(destination)
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
-          'project', str, '')
+          'project', str, '') or self.project
     # Load jobs for a single destination are always triggered from the same
     # worker. This means that we can generate a deterministic numbered job id,
     # and not need to worry.
@@ -806,6 +812,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
   def __init__(
       self,
       destination,
+      project=None,
       schema=None,
       custom_gcs_temp_location=None,
       create_disposition=None,
@@ -825,6 +832,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       is_streaming_pipeline=False,
       load_job_project_id=None):
     self.destination = destination
+    self.project = project
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.triggering_frequency = triggering_frequency
@@ -1035,6 +1043,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         | "TriggerLoadJobsWithTempTables" >> beam.ParDo(
             TriggerLoadJobs(
                 schema=self.schema,
+                project=self.project,
                 write_disposition=self.write_disposition,
                 create_disposition=self.create_disposition,
                 test_client=self.test_client,
@@ -1054,6 +1063,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         temp_tables_load_job_ids_pc
         | beam.ParDo(
             UpdateDestinationSchema(
+                project=self.project,
                 write_disposition=self.write_disposition,
                 test_client=self.test_client,
                 additional_bq_parameters=self.additional_bq_parameters,
@@ -1065,6 +1075,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         temp_tables_load_job_ids_pc
         | beam.ParDo(
             TriggerCopyJobs(
+                project=self.project,
                 create_disposition=self.create_disposition,
                 write_disposition=self.write_disposition,
                 test_client=self.test_client,
@@ -1112,6 +1123,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
   def expand(self, pcoll):
     p = pcoll.pipeline
+    self.project = self.project or p.options.view_as(GoogleCloudOptions).project
     try:
       step_name = self.label
     except AttributeError:

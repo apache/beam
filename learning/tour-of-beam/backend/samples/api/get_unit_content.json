@@ -1,15 +1,9 @@
 {
-    "unitId": "1.1",
-    "name": "Basic concepts",
-    "description": "Lorem ipsum...",
+    "unitId": "challenge1",
+    "name": "Challenge Name",
+    "description": "## Challenge description\n\nawesome description\n",
     "hints" : [
-        "## Hint 1\n\napply yourself :)",
-        "## Hint 2\n\napply more"
-     ],
-
-    "taskSnippetId": "taskSnippetId",
-    "solutionSnippetId": "solutionSnippetId",
-
-    "userSnippetId": "userSnippetId",
-    "isCompleted": true
+        "## Hint 1\n\nhint 1",
+        "## Hint 2\n\nhint 2"
+     ]
 }
