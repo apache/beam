@@ -53,6 +53,7 @@ jobs:
         exclude:
           - java: "11"
           - java: "17"
+    timeout-minutes: 1200
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
