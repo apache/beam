@@ -47,7 +47,7 @@ with pipeline as p:
       ('img2', torch.tensor([[1,2,3],[4,5,6],...])),
       ('img3', torch.tensor([[1,2,3],[4,5,6],...])),
    ])
-   predictions = data | RunInference(KeyedModelHandler)
+   predictions = data | RunInference(keyed_model_handler)
 </code></pre><h3 id=use-the-predictionresults-object>Use the PredictionResults object</h3><p>When doing a prediction in Apache Beam, the output <code>PCollection</code> includes both the keys of the input examples and the inferences. Including both these items in the output allows you to find the input that determined the predictions.</p><p>The <code>PredictionResult</code> is a <code>NamedTuple</code> object that contains both the input and the inferences, named <code>example</code> and <code>inference</code>, respectively. When keys are passed with the input data to the RunInference transform, the output <code>PCollection</code> returns a <code>Tuple[str, PredictionResult]</code>, which is the key and the <code>PredictionResult</code> object. Your pipeline interacts with a <code>PredictionResult</code> object in steps after the RunInference transform.</p><pre><code>class PostProcessor(beam.DoFn):
     def process(self, element: Tuple[str, PredictionResult]):
        key, prediction_result = element
