@@ -221,7 +221,7 @@ if __name__ == '__main__':
         # and at runtime, therefore bounds need to be tight.
         # To avoid depending on an old dependency, update the minor version on
         # every Beam release, see: https://github.com/apache/beam/issues/23119
-        'cloudpickle~=2.1.0',
+        'cloudpickle~=2.2.0',
         'fastavro>=0.23.6,<2',
         'grpcio>=1.33.1,!=1.48.0,<2',
         'hdfs>=2.1.0,<3.0.0',
