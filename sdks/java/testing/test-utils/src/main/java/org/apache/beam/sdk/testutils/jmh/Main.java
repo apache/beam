@@ -78,16 +78,19 @@ import org.openjdk.jmh.runner.options.CommandLineOptions;
  *
  * <h3>Configuration</h3>
  *
- * <p>If {@link InfluxDBSettings} can be inferred from the environment, benchmark results will be
- * published to InfluxDB. Otherwise this will just delegate to the default {@link
- * org.openjdk.jmh.Main JMH Main} class.
+ * <p>If settings can be inferred from the environment, benchmark results will be published to
+ * InfluxDB. Otherwise this will just delegate to the default {@link org.openjdk.jmh.Main JMH Main}
+ * class.
  *
- * <p>Use the following environment variables to configure {@link InfluxDBSettings}:
+ * <p>Use the following environment variables to configure the publisher:
  *
  * <ul>
- *   <li>{@link #INFLUXDB_HOST}
- *   <li>{@link #INFLUXDB_DATABASE}
- *   <li>{@link #INFLUXDB_BASE_MEASUREMENT}
+ *   <li>{@code INFLUXDB_HOST}: InfluxDB host
+ *   <li>{@code INFLUXDB_DATABASE}: InfluxDB database
+ *   <li>{@code INFLUXDB_USER}: InfluxDB user
+ *   <li>{@code INFLUXDB_USER_PASSWORD}: InfluxDB user password
+ *   <li>{@code INFLUXDB_BASE_MEASUREMENT}: Prefix for measurement name, the benchmark mode will be
+ *       appended to this
  * </ul>
  */
 public class Main {
@@ -98,9 +101,12 @@ public class Main {
   public static void main(String[] args)
       throws CommandLineOptionException, IOException, RunnerException {
     final CommandLineOptions opts = new CommandLineOptions(args);
+
     final InfluxDBSettings influxDB = influxDBSettings();
+    final String baseMeasurement = System.getenv(INFLUXDB_BASE_MEASUREMENT);
 
     if (influxDB == null
+        || baseMeasurement == null
         || isSingleShotTimeOnly(opts.getBenchModes())
         || opts.shouldHelp()
         || opts.shouldList()
@@ -118,7 +124,7 @@ public class Main {
     final Collection<DataPoint> dataPoints =
         results.stream()
             .filter(r -> r.getParams().getMode() != SingleShotTime)
-            .map(r -> dataPoint(influxDB.measurement, r))
+            .map(r -> dataPoint(baseMeasurement, r))
             .collect(toList());
 
     InfluxDBPublisher.publish(influxDB, dataPoints);
@@ -170,8 +176,8 @@ public class Main {
   private static @Nullable InfluxDBSettings influxDBSettings() {
     String host = System.getenv(INFLUXDB_HOST);
     String database = System.getenv(INFLUXDB_DATABASE);
-    String measurement = System.getenv(INFLUXDB_BASE_MEASUREMENT);
-    if (measurement == null || database == null) {
+
+    if (database == null) {
       return null;
     }
 
@@ -179,6 +185,6 @@ public class Main {
     if (host != null) {
       builder.withHost(host); // default to localhost otherwise
     }
-    return builder.withDatabase(database).withMeasurement(measurement).get();
+    return builder.withDatabase(database).get();
   }
 }

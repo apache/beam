@@ -1413,6 +1413,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         project.tasks.register("jmh", JavaExec)  {
           dependsOn project.classes
+          // Note: this will wrap the default JMH runner publishing results to InfluxDB
           mainClass = "org.apache.beam.sdk.testutils.jmh.Main"
           classpath = project.sourceSets.main.runtimeClasspath
 
@@ -1454,7 +1455,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Note that these tests will fail on JVMs that JMH doesn't support.
         def jmhTest = project.tasks.register("jmhTest", JavaExec) {
           dependsOn project.classes
-          // Note: this will delegate to the default JMH runner
+          // Note: this will just delegate to the default JMH runner, single shot times are not published to InfluxDB
           mainClass = "org.apache.beam.sdk.testutils.jmh.Main"
           classpath = project.sourceSets.main.runtimeClasspath
 
