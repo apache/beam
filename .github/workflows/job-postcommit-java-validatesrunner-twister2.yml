@@ -29,8 +29,6 @@ jobs:
   java_vr_twister:
     name: Run Twister2 Java ValidatesRunner
     runs-on: self-hosted
-    strategy:
-      fail-fast: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
