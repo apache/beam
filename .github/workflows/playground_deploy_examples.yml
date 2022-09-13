@@ -26,7 +26,6 @@ on:
      - sdks/**
 env:
   BEAM_ROOT_DIR: "../../"
-  BEAM_EXAMPLE_CATEGORIES: "../../categories.yaml"
   SDK_CONFIG: "../../playground/sdks.yaml"
   BEAM_VERSION: 2.40.0
   K8S_NAMESPACE: playground-backend
@@ -140,6 +139,7 @@ jobs:
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-python" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              echo $K8S_SERVER_ADDRESS
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8081"
+             export BEAM_EXAMPLE_CATEGORIES="../categories.yaml"
              python3 ci_cd.py --step CI --sdk SDK_PYTHON --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
         working-directory: playground/infrastructure
 
@@ -147,6 +147,7 @@ jobs:
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-python" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8081"
+             export BEAM_EXAMPLE_CATEGORIES="../categories.yaml"
              python3 ci_cd.py --step CD --sdk SDK_PYTHON --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
         working-directory: playground/infrastructure
 
@@ -154,6 +155,7 @@ jobs:
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-go" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8082"
+             export BEAM_EXAMPLE_CATEGORIES="../categories.yaml"
              python3 ci_cd.py --step CI --sdk SDK_GO --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
         working-directory: playground/infrastructure
 
@@ -161,6 +163,7 @@ jobs:
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-go" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8082"
+             export BEAM_EXAMPLE_CATEGORIES="../categories.yaml"
              python3 ci_cd.py --step CD --sdk SDK_GO --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
         working-directory: playground/infrastructure
 
@@ -168,12 +171,14 @@ jobs:
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-java" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8080"
+             export BEAM_EXAMPLE_CATEGORIES="../categories.yaml"
              python3 ci_cd.py --step CI --sdk SDK_JAVA --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
         working-directory: playground/infrastructure
       - name: Run Java Examples CD
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-java" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8080"
+             export BEAM_EXAMPLE_CATEGORIES="../categories.yaml"
              python3 ci_cd.py --step CD --sdk SDK_JAVA --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
         working-directory: playground/infrastructure
       - name: Delete Helm Chart
