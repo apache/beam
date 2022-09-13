@@ -83,6 +83,14 @@ You need to provide a path to a file that contains the pickled Scikit-learn mode
    `model_uri=<path_to_pickled_file>` and `model_file_type: <ModelFileType>`, where you can specify
    `ModelFileType.PICKLE` or `ModelFileType.JOBLIB`, depending on how the model was serialized.
 
+### Use custom models
+
+In fact, the RunInference API is designed flexibly to allow you to use any custom machine learning models. You only need to create your own `ModelHandler` or `KeyedModelHandler` to handle how the ML models are loaded from a location that the pipeline can access and how to use these models to run the inference. 
+
+A simple example can be found in [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb).
+The `load_model` method is created to load the models using a popular `spaCy` package while `run_inference` shows how to run the inference on a batch of examples.
+
+
 ### Use multiple models
 
 You can also use the RunInference transform to add multiple inference models to your pipeline.
