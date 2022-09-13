@@ -90,7 +90,8 @@ public class SamzaDoFnRunners {
       List<TupleTag<?>> sideOutputTags,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, PCollectionView<?>> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping,
+      OpEmitter emitter) {
     final KeyedInternals keyedInternals;
     final TimerInternals timerInternals;
     final StateInternals stateInternals;
@@ -133,6 +134,7 @@ public class SamzaDoFnRunners {
                 underlyingRunner, executionContext.getMetricsContainer(), transformFullName)
             : underlyingRunner;
 
+    final DoFnRunner<InT, FnOutT> doFnRunnerWithStates;
     if (keyedInternals != null) {
       final DoFnRunner<InT, FnOutT> statefulDoFnRunner =
           DoFnRunners.defaultStatefulDoFnRunner(
@@ -144,10 +146,12 @@ public class SamzaDoFnRunners {
               new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, windowingStrategy),
               createStateCleaner(doFn, windowingStrategy, keyedInternals.stateInternals()));
 
-      return new DoFnRunnerWithKeyedInternals<>(statefulDoFnRunner, keyedInternals);
+      doFnRunnerWithStates = new DoFnRunnerWithKeyedInternals<>(statefulDoFnRunner, keyedInternals);
     } else {
-      return doFnRunnerWithMetrics;
+      doFnRunnerWithStates = doFnRunnerWithMetrics;
     }
+
+    return new AsyncDoFnRunner<>(doFnRunnerWithStates, emitter);
   }
 
   /** Creates a {@link StepContext} that allows accessing state and timer internals. */

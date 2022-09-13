@@ -279,6 +279,7 @@ public class BoundedSourceSystem {
               if (hasData) {
                 enqueueMessage(reader);
               } else {
+                Thread.sleep(1000000);
                 enqueueMaxWatermarkAndEndOfStream(reader);
                 reader.close();
                 iter.remove();

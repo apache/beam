@@ -259,7 +259,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               sideOutputTags,
               outputCoders,
               doFnSchemaInformation,
-              (Map<String, PCollectionView<?>>) sideInputMapping);
+              (Map<String, PCollectionView<?>>) sideInputMapping,
+              emitter);
     }
 
     this.pushbackFnRunner =
