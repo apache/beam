@@ -893,7 +893,7 @@ type timerEncoder struct {
 }
 
 func (e *timerEncoder) Encode(val *FullValue, w io.Writer) error {
-	return e.elm.Encode(val, w)
+	return EncodeTimer(e.elm, val.Elm.(typex.TimerMap), w)
 }
 
 type timerDecoder struct {
@@ -901,7 +901,12 @@ type timerDecoder struct {
 }
 
 func (d *timerDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
-	return d.elm.DecodeTo(r, fv)
+	data, err := DecodeTimer(d.elm, r)
+	if err != nil {
+		return err
+	}
+	fv.Elm = data
+	return nil
 }
 
 func (d *timerDecoder) Decode(r io.Reader) (*FullValue, error) {
@@ -1207,4 +1212,92 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 	}
 
 	return ws, t, pn, nil
+}
+
+// EncodeTimer encodes a typex.TimerMap into a byte stream.
+func EncodeTimer(elm ElementEncoder, tm typex.TimerMap, w io.Writer) error {
+	var b bytes.Buffer
+
+	elm.Encode(&FullValue{Elm: tm.Key}, &b)
+
+	if err := coder.EncodeStringUTF8(tm.Tag, &b); err != nil {
+		return errors.WithContext(err, "error encoding tag")
+	}
+
+	if _, err := ioutilx.WriteUnsafe(&b, tm.Windows); err != nil {
+		return err
+	}
+
+	if err := coder.EncodeBool(tm.Clear, &b); err != nil {
+		return errors.WithContext(err, "error encoding key")
+	}
+
+	if !tm.Clear {
+		if err := coder.EncodeVarInt(tm.FireTimestamp, &b); err != nil {
+			return errors.WithContext(err, "error encoding key")
+		}
+		if err := coder.EncodeVarInt(tm.HoldTimestamp, &b); err != nil {
+			return errors.WithContext(err, "error encoding key")
+		}
+		if err := coder.EncodePane(tm.PaneInfo, &b); err != nil {
+			return errors.WithContext(err, "error encoding key")
+		}
+	}
+
+	w.Write(b.Bytes())
+	return nil
+}
+
+// DecodeTimer decodes timer byte encoded with standard timer coder spec.
+func DecodeTimer(dec ElementDecoder, r io.Reader) (typex.TimerMap, error) {
+	tm := typex.TimerMap{}
+
+	if fv, err := dec.Decode(r); err != nil {
+		return tm, errors.WithContext(err, "error decoding timer key")
+	} else {
+		tm.Key = fv.Elm.(string)
+	}
+
+	if s, err := coder.DecodeStringUTF8(r); err != nil && err != io.EOF {
+		return tm, errors.WithContext(err, "error decoding tag")
+	} else if err == io.EOF {
+		tm.Tag = ""
+	} else {
+		// when tag is empty
+		tm.Tag = s
+	}
+
+	if _, err := ioutilx.ReadUnsafe(r, tm.Windows); err != nil {
+		return tm, err
+	}
+
+	if c, err := coder.DecodeBool(r); err != nil {
+		return tm, errors.WithContext(err, "error decoding clear")
+	} else {
+		tm.Clear = c
+	}
+
+	if tm.Clear {
+		return tm, nil
+	}
+
+	if ft, err := coder.DecodeVarInt(r); err != nil {
+		return tm, errors.WithContext(err, "error decoding ft")
+	} else {
+		tm.FireTimestamp = ft
+	}
+
+	if ht, err := coder.DecodeVarInt(r); err != nil {
+		return tm, errors.WithContext(err, "error decoding ht")
+	} else {
+		tm.HoldTimestamp = ht
+	}
+
+	if pn, err := coder.DecodePane(r); err != nil {
+		return tm, errors.WithContext(err, "error decoding pn")
+	} else {
+		tm.PaneInfo = pn
+	}
+
+	return tm, nil
 }
