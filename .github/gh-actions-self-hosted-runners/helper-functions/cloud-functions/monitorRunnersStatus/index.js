@@ -57,12 +57,7 @@ async function monitorRunnerStatus() {
         let status = {}
         for (let os of osList) {
             let osRunners = beamRunners.filter(runner => {
-                for (let label of runner.labels) {
-                    if (label.name == os) {
-                        return true;
-                    }
-                }
-                return false;
+                return runner.labels.find(label => label.name == os)
             });
             let onlineRunners = osRunners.filter(runner => {
                 return runner.status == "online";
