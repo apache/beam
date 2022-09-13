@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: backend-java
+    type: backend
+  name: playground-java
+  annotations:
+    cloud.google.com/backend-config: '{"default": "bkend-health"}'
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  ports:
+  - port: {{ .Values.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.service.targetPort }}
+  selector:
+    app: backend-java
+  type: {{ .Values.service.type }}
