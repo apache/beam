@@ -114,25 +114,17 @@ class SubprocessServer(object):
         cmd = [arg.replace('{{PORT}}', str(port)) for arg in self._cmd]
       endpoint = 'localhost:%s' % port
       _LOGGER.info("Starting service with %s", str(cmd).replace("',", "'"))
-
-      stdout_file = tempfile.NamedTemporaryFile(delete=False)
-      self._stdout_file_name = stdout_file.name
       self._process = subprocess.Popen(
-          cmd, stdout=stdout_file, stderr=subprocess.STDOUT)
+          cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
       # Emit the output of this command as info level logging.
       def log_stdout():
-        stdout_file = open(self._stdout_file_name, 'rb')
-        # Tailing the file forever.
-        while True:
-          line = stdout_file.readline()
-          if line:
-            # The log obtained from stdout is bytes, decode it into string.
-            # Remove newline via rstrip() to not print an empty line.
-            _LOGGER.info(line.decode(errors='backslashreplace').rstrip())
-          else:
-            # Will try again to read after a small sleep.
-            time.sleep(0.1)
+        line = self._process.stdout.readline()
+        while line:
+          # The log obtained from stdout is bytes, decode it into string.
+          # Remove newline via rstrip() to not print an empty line.
+          _LOGGER.info(line.decode(errors='backslashreplace').rstrip())
+          line = self._process.stdout.readline()
 
       t = threading.Thread(target=log_stdout)
       t.daemon = True
@@ -155,13 +147,6 @@ class SubprocessServer(object):
       if self._process.poll() is None:
         self._process.kill()
       self._process = None
-      if self._stdout_file_name and os.path.exists(self._stdout_file_name):
-        try:
-          os.unlink(self._stdout_file_name)
-        except Exception as e:
-          logging.error((
-              'Could not remove temporary file %s due to %r' %
-              (self._stdout_file_name, e)))
 
   def local_temp_dir(self, **kwargs):
     return tempfile.mkdtemp(dir=self._local_temp_root, **kwargs)

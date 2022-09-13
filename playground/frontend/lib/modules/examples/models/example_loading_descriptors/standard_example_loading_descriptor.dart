@@ -39,4 +39,8 @@ class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   bool operator ==(Object other) {
     return other is StandardExampleLoadingDescriptor && path == other.path;
   }
+
+  // Only ContentExampleLoadingDescriptor is serialized now.
+  @override
+  Map<String, dynamic> toJson() => throw UnimplementedError();
 }

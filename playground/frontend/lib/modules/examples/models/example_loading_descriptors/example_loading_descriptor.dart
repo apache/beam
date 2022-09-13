@@ -25,4 +25,6 @@ abstract class ExampleLoadingDescriptor {
 
   @override
   String toString() => '$origin';
+
+  Map<String, dynamic> toJson();
 }

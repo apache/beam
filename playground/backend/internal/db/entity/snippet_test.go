@@ -24,6 +24,8 @@ import (
 	"beam.apache.org/playground/backend/internal/constants"
 )
 
+var ctx = context.Background()
+
 func TestSnippet_ID(t *testing.T) {
 	sdkKey := datastore.NameKey(constants.SdkKind, pb.Sdk_SDK_GO.String(), nil)
 	sdkKey.Namespace = constants.Namespace

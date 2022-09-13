@@ -23,6 +23,9 @@ import 'package:playground/modules/editor/repository/code_repository/code_client
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
 import 'package:playground/modules/examples/repositories/example_client/grpc_example_client.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
+import 'package:playground/modules/messages/handlers/messages_debouncer.dart';
+import 'package:playground/modules/messages/handlers/messages_handler.dart';
+import 'package:playground/modules/messages/listeners/messages_listener.dart';
 import 'package:playground/modules/output/models/output_placement_state.dart';
 import 'package:playground/pages/playground/states/example_loaders/examples_loader.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
@@ -46,13 +49,24 @@ class PlaygroundPageProviders extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<AnalyticsService>(create: (context) => GoogleAnalyticsService()),
+        Provider<AnalyticsService>(
+          create: (context) => GoogleAnalyticsService(),
+        ),
         ChangeNotifierProvider<PlaygroundState>(
-          create: (context) => PlaygroundState(
-            examplesLoader: ExamplesLoader(),
-            exampleState: ExampleState(kExampleRepository)..init(),
-            codeRepository: kCodeRepository,
-          ),
+          create: (context) {
+            final state = PlaygroundState(
+              examplesLoader: ExamplesLoader(),
+              exampleState: ExampleState(kExampleRepository)..init(),
+              codeRepository: kCodeRepository,
+            );
+
+            final handler = MessagesDebouncer(
+              handler: MessagesHandler(playgroundState: state),
+            );
+            MessagesListener(handler: handler);
+
+            return state;
+          },
         ),
         ChangeNotifierProvider<OutputPlacementState>(
           create: (context) => OutputPlacementState(),
