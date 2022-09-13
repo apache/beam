@@ -122,7 +122,7 @@ with pipeline as p:
       ('img2', torch.tensor([[1,2,3],[4,5,6],...])),
       ('img3', torch.tensor([[1,2,3],[4,5,6],...])),
    ])
-   predictions = data | RunInference(KeyedModelHandler)
+   predictions = data | RunInference(keyed_model_handler)
 ```
 
 ### Use the PredictionResults object
