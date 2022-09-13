@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -36,6 +37,7 @@ import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassInjector;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.FixedValue;
@@ -172,7 +174,7 @@ public abstract class RowCoderGenerator {
         rowCoder =
             builder
                 .make()
-                .load(Coder.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+                .load(Coder.class.getClassLoader(), getClassLoadingStrategy(Coder.class))
                 .getLoaded()
                 .getDeclaredConstructor(Coder[].class, int[].class)
                 .newInstance((Object) componentCoders, (Object) encodingPosToRowIndex);
@@ -185,6 +187,30 @@ public abstract class RowCoderGenerator {
       GENERATED_CODERS.put(schema.getUUID(), rowCoder);
     }
     return rowCoder;
+  }
+
+  private static ClassLoadingStrategy<ClassLoader> getClassLoadingStrategy(Class<?> targetClass) {
+    try {
+      ClassLoadingStrategy<ClassLoader> strategy;
+      if (ClassInjector.UsingLookup.isAvailable()) {
+        Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles");
+        Object lookup = methodHandles.getMethod("lookup").invoke(null);
+        Method privateLookupIn =
+            methodHandles.getMethod(
+                "privateLookupIn",
+                Class.class,
+                Class.forName("java.lang.invoke.MethodHandles$Lookup"));
+        Object privateLookup = privateLookupIn.invoke(null, targetClass, lookup);
+        strategy = ClassLoadingStrategy.UsingLookup.of(privateLookup);
+      } else if (ClassInjector.UsingReflection.isAvailable()) {
+        strategy = ClassLoadingStrategy.Default.INJECTION;
+      } else {
+        throw new IllegalStateException("No code generation strategy available");
+      }
+      return strategy;
+    } catch (ReflectiveOperationException e) {
+      throw new LinkageError(e.getMessage(), e);
+    }
   }
 
   private static class GeneratedCoderConstructor implements Implementation {

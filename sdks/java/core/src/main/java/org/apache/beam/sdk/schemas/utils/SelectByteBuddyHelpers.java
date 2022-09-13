@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -36,7 +37,6 @@ import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.description.type.TypeDescription.Generic;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.Implementation.Context;
@@ -177,7 +177,7 @@ class SelectByteBuddyHelpers {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(Row.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(Row.class.getClassLoader(), getClassLoadingStrategy(Row.class))
           .getLoaded()
           .getDeclaredConstructor(Schema.class)
           .newInstance(outputSchema);

@@ -43,6 +43,7 @@ import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassInjector;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.Implementation;
@@ -459,7 +460,7 @@ public class ByteBuddyUtils {
         .make()
         .load(
             ReflectHelpers.findClassLoader(((Class) fromType).getClassLoader()),
-            ClassLoadingStrategy.Default.INJECTION)
+            getClassLoadingStrategy((Class) fromType))
         .getLoaded();
   }
 
@@ -1501,6 +1502,30 @@ public class ByteBuddyUtils {
 
     protected StackManipulation afterPushingParameters() {
       return new StackManipulation.Compound();
+    }
+  }
+
+  static ClassLoadingStrategy<ClassLoader> getClassLoadingStrategy(Class<?> targetClass) {
+    try {
+      ClassLoadingStrategy<ClassLoader> strategy;
+      if (ClassInjector.UsingLookup.isAvailable()) {
+        Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles");
+        Object lookup = methodHandles.getMethod("lookup").invoke(null);
+        Method privateLookupIn =
+            methodHandles.getMethod(
+                "privateLookupIn",
+                Class.class,
+                Class.forName("java.lang.invoke.MethodHandles$Lookup"));
+        Object privateLookup = privateLookupIn.invoke(null, targetClass, lookup);
+        strategy = ClassLoadingStrategy.UsingLookup.of(privateLookup);
+      } else if (ClassInjector.UsingReflection.isAvailable()) {
+        strategy = ClassLoadingStrategy.Default.INJECTION;
+      } else {
+        throw new IllegalStateException("No code generation strategy available");
+      }
+      return strategy;
+    } catch (ReflectiveOperationException e) {
+      throw new LinkageError(e.getMessage(), e);
     }
   }
 }
