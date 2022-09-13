@@ -50,7 +50,7 @@ import org.openjdk.jmh.runner.options.CommandLineOptions;
  *
  * <h3>Schema</h3>
  *
- * <p>The wrapper writes an aggregated InfluxDB datapoint for each benchmark to <b> measurement</b>
+ * <p>The wrapper writes an aggregated InfluxDB datapoint for each benchmark to <b>measurement</b>
  * {@code {INFLUXDB_BASE_MEASUREMENT}_{mode}}. Typically this is {@code java_jmh_thrpt}.
  *
  * <p>The <b>timestamp</b> of the datapoint corresponds to the start time of the respective
@@ -60,7 +60,7 @@ import org.openjdk.jmh.runner.options.CommandLineOptions;
  * corresponding to additional benchmark parameters in case of parameterized benchmarks:
  *
  * <ul>
- *   <li>{@code benchmark} (string) : Fully qualified name of the benchmark
+ *   <li>{@code benchmark} (string): Fully qualified name of the benchmark
  *   <li>{@code scoreUnit} (string): JMH score unit
  *   <li>optionally, additional parameters in case of a parameterized benchmark (string)
  * </ul>
