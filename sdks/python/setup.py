@@ -129,7 +129,7 @@ except ImportError:
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ''
 else:
-  pyarrow_dependency = 'pyarrow>=0.15.1,<8.0.0'
+  pyarrow_dependency = 'pyarrow>=0.15.1,<10.0.0'
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
