@@ -74,6 +74,8 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<RpcPriority> getRpcPriority();
 
+  public abstract @Nullable ValueProvider<String> getDatabaseRole();
+
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
@@ -145,6 +147,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
 
     abstract Builder setRpcPriority(ValueProvider<RpcPriority> rpcPriority);
+
+    abstract Builder setDatabaseRole(ValueProvider<String> databaseRole);
 
     public abstract SpannerConfig build();
   }
@@ -260,5 +264,17 @@ public abstract class SpannerConfig implements Serializable {
     Preconditions.checkNotNull(rpcPriority);
     Preconditions.checkNotNull(rpcPriority.get());
     return toBuilder().setRpcPriority(rpcPriority).build();
+  }
+
+  /** Specifies the Cloud Spanner database role. */
+  public SpannerConfig withDatabaseRole(ValueProvider<String> databaseRole) {
+    Preconditions.checkNotNull(databaseRole);
+    Preconditions.checkNotNull(databaseRole.get());
+    return toBuilder().setDatabaseRole(databaseRole).build();
+  }
+
+  /** Specifies the Cloud Spanner database role. */
+  public SpannerConfig withDatabaseRole(String databaseRole) {
+    return withDatabaseRole(ValueProvider.StaticValueProvider.of(databaseRole));
   }
 }
