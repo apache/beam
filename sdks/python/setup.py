@@ -217,7 +217,11 @@ if __name__ == '__main__':
         # dill on client and server, therefore list of allowed versions is very
         # narrow. See: https://github.com/uqfoundation/dill/issues/341.
         'dill>=0.3.1.1,<0.3.2',
-        'cloudpickle>=2.1.0,<3',
+        # It is prudent to use the same version of pickler at job submission
+        # and at runtime, therefore bounds need to be tight.
+        # To avoid depending on an old dependency, update the minor version on
+        # every Beam release, see: https://github.com/apache/beam/issues/23119
+        'cloudpickle~=2.1.0',
         'fastavro>=0.23.6,<2',
         'grpcio>=1.33.1,!=1.48.0,<2',
         'hdfs>=2.1.0,<3.0.0',
