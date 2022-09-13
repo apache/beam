@@ -48,7 +48,7 @@ async function getRunnerToken() {
         });
         //In order to access the registration token endpoint, an additional Auth token must be used
         let authToken = access.data.token;
-        let auth = " token " + authToken;
+        let auth = ` token ${authToken}`;
         let registrationToken = await octokit.request(`POST https://api.github.com/orgs/${process.env.ORG}/actions/runners/registration-token`, {
             headers: {
                 authorization: auth,
