@@ -18,26 +18,26 @@ package exec
 import (
 	"bytes"
 	"testing"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 func equalTimers(a, b typex.TimerMap) bool {
-	return a.Key == b.Key && a.Tag == b.Tag && a.FireTimestamp == b.FireTimestamp && a.Clear == b.Clear
+	return a.Key == b.Key && a.Tag == b.Tag && (a.FireTimestamp) == b.FireTimestamp && a.Clear == b.Clear
 }
 
 func TestTimerEncodingDecoding(t *testing.T) {
-	wec := MakeWindowEncoder(window.NewGlobalWindows().Coder())
-	win, err := EncodeWindow(wec, window.SingleGlobalWindow[0])
+	// wec := MakeWindowEncoder(window.NewGlobalWindows().Coder())
+	// win, err := EncodeWindow(wec, window.SingleGlobalWindow[0])
 	tc := coder.NewT(coder.NewString(), window.NewGlobalWindows().Coder())
 	ec := MakeElementEncoder(coder.SkipW(tc))
 	dec := MakeElementDecoder(coder.SkipW(tc))
-	if err != nil {
-		t.Fatal(err)
-	}
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 	tests := []struct {
 		name   string
 		tm     typex.TimerMap
@@ -48,9 +48,9 @@ func TestTimerEncodingDecoding(t *testing.T) {
 			tm: typex.TimerMap{
 				Key:           "Basic",
 				Tag:           "first",
-				Windows:       win,
+				Windows:       window.SingleGlobalWindow,
 				Clear:         false,
-				FireTimestamp: time.Now().UnixMilli(),
+				FireTimestamp: mtime.Now(),
 			},
 			result: true,
 		},
@@ -59,9 +59,9 @@ func TestTimerEncodingDecoding(t *testing.T) {
 			tm: typex.TimerMap{
 				Key:           "Basic",
 				Tag:           "",
-				Windows:       win,
+				Windows:       window.SingleGlobalWindow,
 				Clear:         false,
-				FireTimestamp: time.Now().UnixMilli(),
+				FireTimestamp: mtime.Now(),
 			},
 			result: true,
 		},
@@ -70,9 +70,9 @@ func TestTimerEncodingDecoding(t *testing.T) {
 			tm: typex.TimerMap{
 				Key:           "Basic",
 				Tag:           "first",
-				Windows:       win,
+				Windows:       window.SingleGlobalWindow,
 				Clear:         true,
-				FireTimestamp: time.Now().UnixMilli(),
+				FireTimestamp: mtime.Now(),
 			},
 			result: false,
 		},
@@ -81,7 +81,7 @@ func TestTimerEncodingDecoding(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			fv := FullValue{Elm: test.tm}
 			var buf bytes.Buffer
-			err = ec.Encode(&fv, &buf)
+			err := ec.Encode(&fv, &buf)
 			if err != nil {
 				t.Fatalf("error encoding timer: %#v, got: %v", test.tm, err)
 			}

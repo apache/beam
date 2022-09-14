@@ -34,6 +34,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/google/go-cmp/cmp"
@@ -43,9 +44,9 @@ import (
 
 var unimplementedCoders = map[string]bool{
 	"beam:coder:param_windowed_value:v1": true,
-	"beam:coder:timer:v1":                true,
-	"beam:coder:sharded_key:v1":          true,
-	"beam:coder:custom_window:v1":        true,
+	// "beam:coder:timer:v1":                true,
+	"beam:coder:sharded_key:v1":   true,
+	"beam:coder:custom_window:v1": true,
 }
 
 var filteredCases = []struct{ filter, reason string }{
@@ -320,6 +321,47 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 		}
 
 		got, want = elem.Elm, rv.Interface()
+	case "beam:coder:timer:v1":
+		pass := true
+		tm := elem.Elm.(typex.TimerMap)
+		fs := eg.Value.(yaml.MapSlice)
+		// want := typex.TimerMap{}
+		for _, item := range fs {
+
+			switch item.Key.(string) {
+			case "userKey":
+				if want := item.Value.(string); want != tm.Key {
+					pass = false
+				}
+			case "dynamicTimerTag":
+				if want := item.Value.(string); want != tm.Tag {
+					pass = false
+				}
+			case "windows":
+				if v, ok := item.Value.([]interface{}); ok {
+					for i, val := range v {
+						if val.(string) == "global" && fmt.Sprintf("%s", tm.Windows[i]) == "[*]" {
+							continue
+						} else if val.(string) == fmt.Sprintf("%s", tm.Windows[i]) {
+							pass = false
+						}
+					}
+				}
+			case "clearBit":
+				if want := item.Value.(bool); want != tm.Clear {
+					pass = false
+				}
+			case "fireTimestamp":
+				if want := item.Value.(int); want != int(tm.FireTimestamp) {
+					pass = false
+				}
+			case "holdTimestamp":
+				if want := item.Value.(int); want != int(tm.HoldTimestamp) {
+					pass = false
+				}
+			}
+		}
+		return pass
 	default:
 		got, want = elem.Elm, eg.Value
 	}

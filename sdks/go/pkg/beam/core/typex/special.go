@@ -94,15 +94,15 @@ type Timers struct {
 	Tag                          string
 	Windows                      []byte // []typex.Window
 	Clear                        bool
-	FireTimestamp, HoldTimestamp int64
+	FireTimestamp, HoldTimestamp mtime.Time
 	PaneInfo                     PaneInfo
 }
 
 type TimerMap struct {
 	Key, Tag                     string
-	Windows                      []byte // []typex.Window
+	Windows                      []Window // []typex.Window
 	Clear                        bool
-	FireTimestamp, HoldTimestamp int64
+	FireTimestamp, HoldTimestamp mtime.Time
 	PaneInfo                     PaneInfo
 }
 
