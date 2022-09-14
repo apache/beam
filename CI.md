@@ -125,6 +125,20 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PostCommit Workflows
+
+#### Java PostCommit DataFlow v1- [job-postcommit-java-dataflow-v1.yml](.github/workflows/job-postcommit-java-dataflow-v1.yml)
+
+| Job                             | Description                      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|---------------------------------|----------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java PostCommit DataFlow v1 | Runs Java PostCommit DataFlow v1 | No               | Yes                   | Yes           | Yes                      |
+
+#### Java PostCommit DataFlow v2- [job-postcommit-java-dataflow-v2.yml](.github/workflows/job-postcommit-java-dataflow-v2.yml)
+
+| Job                               | Description                        | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------------------------|------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Java PostCommit DataFlow v2   | Runs Java PostCommit DataFlow v2   | No               | Yes                   | Yes           | Yes                      |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
