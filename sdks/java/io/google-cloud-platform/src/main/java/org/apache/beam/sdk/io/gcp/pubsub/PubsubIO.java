@@ -784,6 +784,7 @@ public class PubsubIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
+
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topic);
 
       abstract Builder<T> setDeadLetterTopicProvider(ValueProvider<PubsubTopic> deadLetterTopic);
@@ -1097,6 +1098,7 @@ public class PubsubIO {
   /** Implementation of write methods. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+
     /**
      * Max batch byte size. Messages are base64 encoded which encodes each set of three bytes into
      * four bytes.
@@ -1330,9 +1332,10 @@ public class PubsubIO {
           throw new SizeLimitExceededException(msg);
         }
 
-        // Checking before adding the message stops us from violating the max bytes
-        if (((currentOutputBytes + messageSize) >= maxPublishBatchByteSize)
-            || output.size() >= maxPublishBatchSize) {
+        // Checking before adding the message stops us from violating max batch size or bytes
+        if (output.size() >= maxPublishBatchSize
+            || (!output.isEmpty()
+                && (currentOutputBytes + messageSize) >= maxPublishBatchByteSize)) {
           publish();
         }
 
