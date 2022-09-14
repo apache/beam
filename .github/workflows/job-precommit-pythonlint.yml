@@ -24,11 +24,12 @@ on:
     - cron: '0 */6 * * *'
   push:
     branches: ['master', 'release-*']
-    tags: 'v*'
-  pull_request:
+    tags: ['v*']
+  pull_request_target:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
     paths: ['sdks/python/**', 'release/**']
+permissions: read-all
 
 jobs:
   python-lint:
@@ -38,10 +39,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
+        with:
+          requires-go-18: false
       - name: Run :pythonLintPreCommit
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
