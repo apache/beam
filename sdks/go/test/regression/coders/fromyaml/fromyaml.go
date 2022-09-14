@@ -295,7 +295,7 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 		if !diff(c.Components[1], elem, vs[3]) {
 			pass = false
 		}
-		// TODO compare pane information.
+		pass = diffPane(vs[2].Value, elem.Pane)
 		return pass
 	case "beam:coder:row:v1":
 		fs := eg.Value.(yaml.MapSlice)
@@ -359,6 +359,8 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 				if want := item.Value.(int); want != int(tm.HoldTimestamp) {
 					pass = false
 				}
+			case "pane":
+				pass = diffPane(item.Value, tm.PaneInfo)
 			}
 		}
 		return pass
@@ -370,6 +372,41 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 		return false
 	}
 	return true
+}
+
+func diffPane(eg interface{}, got typex.PaneInfo) bool {
+	pass := true
+	paneTiming := map[typex.PaneTiming]string{
+		typex.PaneUnknown: "UNKNOWN",
+		typex.PaneEarly:   "EARLY",
+		typex.PaneLate:    "LATE",
+		typex.PaneOnTime:  "ONTIME",
+	}
+	for _, item := range eg.(yaml.MapSlice) {
+		switch item.Key.(string) {
+		case "is_first":
+			if want := item.Value.(bool); want != got.IsFirst {
+				pass = false
+			}
+		case "is_last":
+			if want := item.Value.(bool); want != got.IsLast {
+				pass = false
+			}
+		case "timing":
+			if want := item.Value.(string); want != paneTiming[got.Timing] {
+				pass = false
+			}
+		case "index":
+			if want := item.Value.(int); want != int(got.Index) {
+				pass = false
+			}
+		case "on_time_index":
+			if want := item.Value.(int); want != int(got.NonSpeculativeIndex) {
+				pass = false
+			}
+		}
+	}
+	return pass
 }
 
 // standard_coders.yaml uses the name for type indication, except for nullability.
