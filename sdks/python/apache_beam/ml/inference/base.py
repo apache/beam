@@ -324,7 +324,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         # TODO(https://github.com/apache/beam/issues/21440): Hook into the
         # batching DoFn APIs.
         | beam.BatchElements(**self._model_handler.batch_elements_kwargs())
-        | (
+        | 'RunInference_DoFn' >> (
             beam.ParDo(
                 _RunInferenceDoFn(
                     self._model_handler, self._clock, self._metrics_namespace),
