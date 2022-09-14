@@ -693,12 +693,11 @@ class WriteToMongoDB(PTransform):
       extra_client_params(dict): Optional `MongoClient
        <https://api.mongodb.com/python/current/api/pymongo/mongo_client.html>`_
        parameters as keyword arguments
-      writeFn (Callable):
-       writeFn(client:MongoClient obj,
-               db:str,
-               coll:str,
-               documents:[dict],
-               logger:logging.Logger obj)
+      writeFn(client:MongoClient obj,
+              db:str,
+              coll:str,
+              documents:[dict],
+              logger:logging.Logger obj):
        A custom function that user could implement to gain more control
        over the write process. For example,
        using UpdateOne or InsertOne instead of ReplaceOne for bulk_write
