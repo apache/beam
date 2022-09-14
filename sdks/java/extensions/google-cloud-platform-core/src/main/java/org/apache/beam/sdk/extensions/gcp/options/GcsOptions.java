@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.gcp.options;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -147,13 +149,15 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
        * them in forward order thus requiring enough threads so that each step's writers
        * can be active.
        */
-      return new ThreadPoolExecutor(
-          0,
-          Integer.MAX_VALUE, // Allow an unlimited number of re-usable threads.
-          Long.MAX_VALUE,
-          TimeUnit.NANOSECONDS, // Keep non-core threads alive forever.
-          new SynchronousQueue<>(),
-          threadFactoryBuilder.build());
+
+      return Executors.newScheduledThreadPool(0, threadFactoryBuilder.build());
+      // return new ThreadPoolExecutor(
+      //     0,
+      //     Integer.MAX_VALUE, // Allow an unlimited number of re-usable threads.
+      //     Long.MAX_VALUE,
+      //     TimeUnit.NANOSECONDS, // Keep non-core threads alive forever.
+      //     new SynchronousQueue<>(),
+      //     threadFactoryBuilder.build());
     }
   }
 

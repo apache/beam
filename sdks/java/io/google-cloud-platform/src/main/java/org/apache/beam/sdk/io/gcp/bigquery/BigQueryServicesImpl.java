@@ -29,6 +29,7 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.core.ApiFuture;
+import com.google.api.gax.core.ExecutorProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.FixedHeaderProvider;
@@ -105,6 +106,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -1482,9 +1484,29 @@ class BigQueryServicesImpl implements BigQueryServices {
       return BigQueryWriteClient.create(
           BigQueryWriteSettings.newBuilder()
               .setCredentialsProvider(() -> options.as(GcpOptions.class).getGcpCredential())
+              .setBackgroundExecutorProvider(new OptionsExecutionProvider(options))
               .build());
     } catch (Exception e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  private static class OptionsExecutionProvider implements ExecutorProvider {
+
+    private final BigQueryOptions options;
+
+    public OptionsExecutionProvider(BigQueryOptions options){
+      this.options = options;
+    }
+
+    @Override
+    public boolean shouldAutoClose() {
+      return false;
+    }
+
+    @Override
+    public ScheduledExecutorService getExecutor() {
+      return (ScheduledExecutorService) options.as(GcsOptions.class).getExecutorService();
     }
   }
 
