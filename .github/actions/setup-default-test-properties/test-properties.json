@@ -9,7 +9,8 @@
     "VALIDATES_CONTAINER_DATAFLOW_PYTHON_VERSIONS": ["3.7", "3.8", "3.9"],
     "LOAD_TEST_PYTHON_VERSION": "3.7",
     "CHICAGO_TAXI_EXAMPLE_FLINK_PYTHON_VERSION": "3.7",
-    "DEFAULT_INTERPRETER": "python3.8"
+    "DEFAULT_INTERPRETER": "python3.8",
+    "TOX_ENV": ["Cloud", "Cython"]
   },
   "JavaTestProperties": {
     "SUPPORTED_VERSIONS": ["8", "11", "17"],
