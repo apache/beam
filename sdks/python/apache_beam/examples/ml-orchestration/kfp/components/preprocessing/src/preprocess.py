@@ -26,15 +26,18 @@ def parse_args():
   """Parse preprocessing arguments."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      "--ingested-dataset-path", type=str, help="Path to the ingested dataset")
+      "--ingested-dataset-path", type=str, help="Path to the ingested dataset",
+      required=True)
   parser.add_argument(
       "--preprocessed-dataset-path",
       type=str,
-      help="The target directory for the ingested dataset.")
+      help="The target directory for the ingested dataset.",
+      required=True)
   parser.add_argument(
       "--base-artifact-path",
       type=str,
-      help="Base path to store pipeline artifacts.")
+      help="Base path to store pipeline artifacts.",
+      required=True)
   return parser.parse_args()
 
 

@@ -13,15 +13,18 @@ def parse_args():
   parser.add_argument(
       "--preprocessed-dataset-path",
       type=str,
-      help="Path to the preprocessed dataset.")
+      help="Path to the preprocessed dataset.",
+      required=True)
   parser.add_argument(
       "--trained-model-path",
       type=str,
-      help="Output path to the trained model.")
+      help="Output path to the trained model.",
+      required=True)
   parser.add_argument(
       "--base-artifact-path",
       type=str,
-      help="Base path to store pipeline artifacts.")
+      help="Base path to store pipeline artifacts.",
+      required=True)
   return parser.parse_args()
 
 

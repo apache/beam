@@ -11,11 +11,13 @@ def parse_args():
   parser.add_argument(
       "--ingested-dataset-path",
       type=str,
-      help="Path to save the ingested dataset to.")
+      help="Path to save the ingested dataset to.",
+      required=True)
   parser.add_argument(
       "--base-artifact-path",
       type=str,
-      help="Base path to store pipeline artifacts.")
+      help="Base path to store pipeline artifacts.",
+      required=True)
   return parser.parse_args()
 
 
