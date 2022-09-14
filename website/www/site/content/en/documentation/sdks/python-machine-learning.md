@@ -129,7 +129,7 @@ with pipeline as p:
          accelerator="type:nvidia-tesla-k80;count:1;install-nvidia-driver")
 ```
 
-For more information on resource hints, see [Resource hints](../runtime/resource-hints.md).
+For more information on resource hints, see [Resource hints](https://beam.apache.org/documentation/runtime/resource-hints/).
 
 ### Use a keyed ModelHandler
 
