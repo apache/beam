@@ -335,7 +335,6 @@ class _MetricsCollector:
   """A metrics collector that tracks ML related performance and memory usage."""
   def __init__(self, namespace: str):
     # Metrics
-    logging.info(namespace)
     self._inference_counter = beam.metrics.Metrics.counter(
         namespace, 'num_inferences')
     self._inference_request_batch_size = beam.metrics.Metrics.distribution(
@@ -419,9 +418,9 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     return self._shared_model_handle.acquire(load)
 
   def setup(self):
-    metrics_namespace = self._metrics_namespace
-    if not metrics_namespace:
-      metrics_namespace = self._model_handler.get_metrics_namespace()
+    metrics_namespace = (
+        self._metrics_namespace) if self._metrics_namespace else (
+            self._model_handler.get_metrics_namespace())
     self._metrics_collector = _MetricsCollector(metrics_namespace)
     self._model = self._load_model()
 
