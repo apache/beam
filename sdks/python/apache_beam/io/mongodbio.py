@@ -699,7 +699,8 @@ class WriteToMongoDB(PTransform):
                coll:str,
                documents:[dict],
                logger:logging.Logger obj)
-       A custom function that user could implement to gain more control over the write process. For example,
+       A custom function that user could implement to gain more control
+       over the write process. For example,
        using UpdateOne or InsertOne instead of ReplaceOne for bulk_write
 
     Returns:
@@ -806,14 +807,13 @@ class _MongoSink:
     if writeFn is None:
       self.writeFn = self._defaultWriteFn
 
-  """to gain control over the write process,
-  a user could for example, change ReplaceOne into UpdateOne
-  a user could implement their own WriteFn, using this as a template,
-  notice that the 'self' argument should be ommited
-  """
-
   @staticmethod
   def _defaultWriteFn(client, db, coll, documents, logger):
+    """to gain control over the write process,
+    a user could for example, change ReplaceOne into UpdateOne
+    a user could implement their own WriteFn, using this as a template,
+    notice that the 'self' argument should be ommited
+    """
     requests = []
     for doc in documents:
       request = ReplaceOne(
