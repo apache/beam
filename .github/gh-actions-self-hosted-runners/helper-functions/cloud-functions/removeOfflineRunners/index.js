@@ -1,28 +1,29 @@
-//  Licensed to the Apache Software Foundation (ASF) under one
-//  or more contributor license agreements.  See the NOTICE file
-//  distributed with this work for additional information
-//  regarding copyright ownership.  The ASF licenses this file
-//  to you under the Apache License, Version 2.0 (the
-//  "License"); you may not use this file except in compliance
-//  with the License.  You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-//  Unless required by applicable law or agreed to in writing,
-//  software distributed under the License is distributed on an
-//  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-//  KIND, either express or implied.  See the License for the
-//  specific language governing permissions and limitations
-//  under the License.
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-// Unused offline self-hosted runners remains in the runners
-// list unless it is explicitly removed, this function will periodically
+// Unused offline self-hosted runners remains in the runners list
+// unless it is explicitly removed, this function will periodically
 // clean the list to only have active runners in the repo.
+
 import functions from '@google-cloud/functions-framework';
 import { Octokit } from "octokit";
 import { createAppAuth } from "@octokit/auth-app";
-
-const REQUIRED_ENV_VARS=["APP_ID","PEM_KEY","CLIENT_ID","CLIENT_SECRET","APP_INSTALLATION_ID","ORG"]
+import { REQUIRED_ENV_VARS } from "../shared/constants" ;
 
 function validateEnvSet(envVars) {
     envVars.forEach(envVar => {
@@ -49,7 +50,7 @@ async function removeOfflineRunners() {
         let pageCounter=1
         let runners=[]
         let pageRunners=[]
-        do{
+        do {
             pageRunners= await octokit.request(`GET /orgs/${process.env.ORG}/actions/runners`, {
                 org: process.env.ORG,
                 per_page: 50,
@@ -58,7 +59,6 @@ async function removeOfflineRunners() {
             runners=runners.concat(pageRunners.data.runners)
             pageCounter++
         } while(pageRunners.data.runners.length!=0)
-        
 
         //Filtering BEAM runners
         let beamRunners = runners.filter(runner => {
@@ -79,8 +79,6 @@ async function removeOfflineRunners() {
         console.error(error);
     }
 }
-
-
 
 functions.http('removeOfflineRunners', (req, res) => {
     validateEnvSet(REQUIRED_ENV_VARS)
