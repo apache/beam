@@ -1495,7 +1495,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     private final BigQueryOptions options;
 
-    public OptionsExecutionProvider(BigQueryOptions options){
+    public OptionsExecutionProvider(BigQueryOptions options) {
       this.options = options;
     }
 
