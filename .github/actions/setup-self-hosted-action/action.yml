@@ -17,32 +17,59 @@
 
 name: 'Setup environment for self-hosted runners'
 description: 'Setup action to run jobs in a self-hosted runner'
+inputs:
+  requires-py-37:
+    required: false
+    description: 'Set as false if does not require py37 setup'
+    default: 'true'
+  requires-py-38:
+    required: false
+    description: 'Set as false if does not require py38 setup'
+    default: 'true'
+  requires-py-39:
+    required: false
+    description: 'Set as false if does not require py39 setup'
+    default: 'true'
+  requires-java-8:
+    required: false
+    description: 'Set as false if does not require java-8 setup'
+    default: 'true'
+  requires-go-18:
+    required: false
+    description: 'Set as false if does not require go-18 setup'
+    default: 'true'
 
 runs:
   using: "composite"
   steps:
     - name: Install python 3.7
+      if: ${{ inputs.requires-py-37 == 'true'  }}
       uses: actions/setup-python@v4
       with:
         python-version: "3.7"
     - name: Install python 3.8
+      if: ${{ inputs.requires-py-38 == 'true'  }}
       uses: actions/setup-python@v4
       with:
         python-version: "3.8"
     - name: Install python 3.9
+      if: ${{ inputs.requires-py-39 == 'true'  }}
       uses: actions/setup-python@v4
       with:
         python-version: "3.9"
     - name: Set Java Version
+      if: ${{ inputs.requires-java-8 == 'true'  }}
       uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
         java-version: 8
     - name: Set Go Version
+      if: ${{ inputs.requires-go-18 == 'true'  }}
       uses: actions/setup-go@v3
       with:
-        go-version: '1.18'
+        go-version: '1.18.0'
     - name: Remove default github maven configuration
+      if: ${{ inputs.requires-java-8 == 'true'  }}
       # This step is a workaround to avoid a decryption issue of Beam's
       # gradle-command-action plugin and github's provided maven
       # settings.xml file
