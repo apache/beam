@@ -3778,7 +3778,7 @@ purchases.apply(Select.fieldNames("shippingAddress.*"));
 {{< /highlight >}}
 
 {{< highlight py >}} 
-input_pc = ... # {"user_id":...,"shipping_address":"post_code": ..., ...,"bank": ..., "purchase_amount": ...}
+input_pc = ... # {"user_id": ..., "shipping_address":"post_code": ..., "bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Select(shipping_address=lambda item: str(item["shipping_address.*"]))                                               
 {{< /highlight >}}
 
