@@ -47,19 +47,12 @@ async function monitorRunnerStatus() {
             authStrategy: createAppAuth,
             auth: authOptions
         });
-        let pageCounter=1
-        let runners=[]
-        let pageRunners=[]
-        do {
-            pageRunners= await octokit.request(`GET /orgs/${process.env.ORG}/actions/runners`, {
-                org: process.env.ORG,
-                per_page: 50,
-                page:pageCounter
-            });
-            runners=runners.concat(pageRunners.data.runners)
-            pageCounter++
-        } while(pageRunners.data.runners.length!=0)
 
+        const runners = await octokit.paginate("GET /orgs/${process.env.ORG}/actions/runners", {
+            org: process.env.ORG
+            },
+        )
+        
         //Filtering BEAM runners
         let beamRunners = runners.filter(runner => {
             return runner.labels.find(label => label.name == "beam")
