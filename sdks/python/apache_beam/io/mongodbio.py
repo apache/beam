@@ -693,10 +693,14 @@ class WriteToMongoDB(PTransform):
       extra_client_params(dict): Optional `MongoClient
        <https://api.mongodb.com/python/current/api/pymongo/mongo_client.html>`_
        parameters as keyword arguments
-      writeFn (Callable): writeFn(client:MongoClient obj, db:str, coll:str, documents:[dict], logger:logging.Logger obj)
-        A custom function that user could implement to 
-        gain more control over the write process. For example, 
-        using UpdateOne or InsertOne instead of ReplaceOne bulk_write 
+      writeFn (Callable):
+       writeFn(client:MongoClient obj,
+               db:str,
+               coll:str,
+               documents:[dict],
+               logger:logging.Logger obj)
+       A custom function that user could implement to gain more control over the write process. For example,
+       using UpdateOne or InsertOne instead of ReplaceOne for bulk_write
 
     Returns:
       :class:`~apache_beam.transforms.ptransform.PTransform`
@@ -802,10 +806,10 @@ class _MongoSink:
     if writeFn is None:
       self.writeFn = self._defaultWriteFn
 
-  """to gain control over the write process, 
+  """to gain control over the write process,
   a user could for example, change ReplaceOne into UpdateOne
   a user could implement their own WriteFn, using this as a template,
-  notice that the 'self' argument should be ommited 
+  notice that the 'self' argument should be ommited
   """
 
   @staticmethod
