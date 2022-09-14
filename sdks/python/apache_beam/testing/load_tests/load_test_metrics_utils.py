@@ -52,9 +52,9 @@ try:
   from google.cloud.bigquery.schema import SchemaField
   from google.cloud.exceptions import NotFound
 except ImportError:
-  bigquery = None
-  SchemaField = None
-  NotFound = None
+  bigquery = None  # type: ignore
+  SchemaField = None  # type: ignore
+  NotFound = None  # type: ignore
 
 RUNTIME_METRIC = 'runtime'
 COUNTER_LABEL = 'total_bytes_count'
