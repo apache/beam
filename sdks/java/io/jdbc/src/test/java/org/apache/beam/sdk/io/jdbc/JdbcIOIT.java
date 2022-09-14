@@ -98,8 +98,6 @@ import org.postgresql.ds.PGSimpleDataSource;
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
 
-  // the number of rows written to table in normal integration tests (not the performance test).
-  private static final int EXPECTED_ROW_COUNT = 1000;
   private static final String NAMESPACE = JdbcIOIT.class.getName();
   // the number of rows written to table in the performance test.
   private static int numberOfRows;
