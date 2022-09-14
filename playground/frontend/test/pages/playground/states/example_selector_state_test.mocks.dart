@@ -19,23 +19,15 @@
 // in playground/test/pages/playground/states/example_selector_state_test.dart.
 // Do not manually edit this file.
 
-import 'dart:async' as _i7;
+import 'dart:async' as _i4;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart'
+import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor.dart'
     as _i5;
-import 'package:playground/modules/examples/repositories/example_client/example_client.dart'
-    as _i6;
-import 'package:playground/modules/examples/repositories/models/get_example_code_response.dart'
-    as _i3;
-import 'package:playground/modules/examples/repositories/models/get_example_request.dart'
-    as _i9;
-import 'package:playground/modules/examples/repositories/models/get_example_response.dart'
-    as _i4;
-import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart'
-    as _i8;
-import 'package:playground/modules/examples/repositories/models/get_list_of_examples_response.dart'
+import 'package:playground/pages/playground/states/example_loaders/examples_loader.dart'
     as _i2;
+import 'package:playground/pages/playground/states/playground_state.dart'
+    as _i3;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -47,72 +39,21 @@ import 'package:playground/modules/examples/repositories/models/get_list_of_exam
 // ignore_for_file: unnecessary_parenthesis
 // ignore_for_file: camel_case_types
 
-class _FakeGetListOfExampleResponse_0 extends _i1.Fake
-    implements _i2.GetListOfExampleResponse {}
-
-class _FakeGetExampleCodeResponse_1 extends _i1.Fake
-    implements _i3.GetExampleCodeResponse {}
-
-class _FakeGetExampleResponse_2 extends _i1.Fake
-    implements _i4.GetExampleResponse {}
-
-class _FakeOutputResponse_3 extends _i1.Fake implements _i5.OutputResponse {}
-
-/// A class which mocks [ExampleClient].
+/// A class which mocks [ExamplesLoader].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockExampleClient extends _i1.Mock implements _i6.ExampleClient {
-  MockExampleClient() {
+class MockExamplesLoader extends _i1.Mock implements _i2.ExamplesLoader {
+  MockExamplesLoader() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i7.Future<_i2.GetListOfExampleResponse> getListOfExamples(
-          _i8.GetListOfExamplesRequestWrapper? request) =>
-      (super.noSuchMethod(Invocation.method(#getListOfExamples, [request]),
-              returnValue: Future<_i2.GetListOfExampleResponse>.value(
-                  _FakeGetListOfExampleResponse_0()))
-          as _i7.Future<_i2.GetListOfExampleResponse>);
+  void setPlaygroundState(_i3.PlaygroundState? value) =>
+      super.noSuchMethod(Invocation.method(#setPlaygroundState, [value]),
+          returnValueForMissingStub: null);
   @override
-  _i7.Future<_i3.GetExampleCodeResponse> getExampleSource(
-          _i9.GetExampleRequestWrapper? request) =>
-      (super.noSuchMethod(Invocation.method(#getExampleSource, [request]),
-              returnValue: Future<_i3.GetExampleCodeResponse>.value(
-                  _FakeGetExampleCodeResponse_1()))
-          as _i7.Future<_i3.GetExampleCodeResponse>);
-  @override
-  _i7.Future<_i4.GetExampleResponse> getDefaultExample(
-          _i9.GetExampleRequestWrapper? request) =>
-      (super.noSuchMethod(Invocation.method(#getDefaultExample, [request]),
-              returnValue: Future<_i4.GetExampleResponse>.value(
-                  _FakeGetExampleResponse_2()))
-          as _i7.Future<_i4.GetExampleResponse>);
-  @override
-  _i7.Future<_i4.GetExampleResponse> getExample(
-          _i9.GetExampleRequestWrapper? request) =>
-      (super.noSuchMethod(Invocation.method(#getExample, [request]),
-              returnValue: Future<_i4.GetExampleResponse>.value(
-                  _FakeGetExampleResponse_2()))
-          as _i7.Future<_i4.GetExampleResponse>);
-  @override
-  _i7.Future<_i5.OutputResponse> getExampleOutput(
-          _i9.GetExampleRequestWrapper? request) =>
-      (super.noSuchMethod(Invocation.method(#getExampleOutput, [request]),
-              returnValue:
-                  Future<_i5.OutputResponse>.value(_FakeOutputResponse_3()))
-          as _i7.Future<_i5.OutputResponse>);
-  @override
-  _i7.Future<_i5.OutputResponse> getExampleLogs(
-          _i9.GetExampleRequestWrapper? request) =>
-      (super.noSuchMethod(Invocation.method(#getExampleLogs, [request]),
-              returnValue:
-                  Future<_i5.OutputResponse>.value(_FakeOutputResponse_3()))
-          as _i7.Future<_i5.OutputResponse>);
-  @override
-  _i7.Future<_i5.OutputResponse> getExampleGraph(
-          _i9.GetExampleRequestWrapper? request) =>
-      (super.noSuchMethod(Invocation.method(#getExampleGraph, [request]),
-              returnValue:
-                  Future<_i5.OutputResponse>.value(_FakeOutputResponse_3()))
-          as _i7.Future<_i5.OutputResponse>);
+  _i4.Future<void> load(_i5.ExamplesLoadingDescriptor? descriptor) =>
+      (super.noSuchMethod(Invocation.method(#load, [descriptor]),
+          returnValue: Future<void>.value(),
+          returnValueForMissingStub: Future<void>.value()) as _i4.Future<void>);
 }

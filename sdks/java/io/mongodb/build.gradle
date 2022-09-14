@@ -33,8 +33,8 @@ dependencies {
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
-  testImplementation "de.flapdoodle.embed:de.flapdoodle.embed.mongo:2.2.0"
-  testImplementation "de.flapdoodle.embed:de.flapdoodle.embed.process:2.1.2"
+  testImplementation "de.flapdoodle.embed:de.flapdoodle.embed.mongo:3.0.0"
+  testImplementation "de.flapdoodle.embed:de.flapdoodle.embed.process:3.0.0"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

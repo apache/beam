@@ -20,6 +20,8 @@ package org.apache.beam.sdk.testutils;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents a schema and corresponding test result. Each test may have multiple named results
@@ -43,6 +45,8 @@ public class NamedTestResult implements TestResult {
           .put("value", LegacySQLTypeName.FLOAT.name())
           .build();
 
+  private static final Logger LOG = LoggerFactory.getLogger(NamedTestResult.class);
+
   private NamedTestResult(String testId, String timestamp, String metric, double value) {
     this.testId = testId;
     this.timestamp = timestamp;
@@ -57,10 +61,15 @@ public class NamedTestResult implements TestResult {
    * @param timestamp Time at which this result was sampled. Should be in a BigQuery supported
    *     timestamp format.
    * @param metric Name of this result's value.
-   * @param value The actual sampled value.
+   * @param value The actual sampled value. Values should be non-negative or -1.0 (imply the value
+   *     is not applicable). Other negative values will be reset to -1.0.
    */
   public static NamedTestResult create(
       String testId, String timestamp, String metric, double value) {
+    if (value < 0.0 && value != -1.0) {
+      LOG.warn("Reset invalid NamedTestResult value {} to -1.0.", value);
+      value = -1.0;
+    }
     return new NamedTestResult(testId, timestamp, metric, value);
   }
 

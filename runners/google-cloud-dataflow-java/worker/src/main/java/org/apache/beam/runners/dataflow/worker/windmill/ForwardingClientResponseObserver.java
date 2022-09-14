@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.ClientCallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.ClientResponseObserver;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.ClientResponseObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
 
 /**
  * A {@link ClientResponseObserver} which delegates all {@link StreamObserver} calls.

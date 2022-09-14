@@ -118,11 +118,11 @@ with beam.Pipeline() as pipeline:
 Here's a comparison on how to get started both in PySpark and Beam.
 
 {{< table >}}
-<table>
+<table style="width:100%">
 <tr>
-    <th></th>
-    <th>PySpark</th>
-    <th>Beam</th>
+    <th style="width:20%"></th>
+    <th style="width:40%">PySpark</th>
+    <th style="width:40%">Beam</th>
 </tr>
 <tr>
     <td><b>Install</b></td>
@@ -180,22 +180,83 @@ Here's a comparison on how to get started both in PySpark and Beam.
 Here are the equivalents of some common transforms in both PySpark and Beam.
 
 {{< table >}}
-|                                                                                  | PySpark                               | Beam                                                    |
-|----------------------------------------------------------------------------------|---------------------------------------|---------------------------------------------------------|
-| [**Map**](/documentation/transforms/python/elementwise/map/)                     | `values.map(lambda x: x * 2)`         | `values | beam.Map(lambda x: x * 2)`                    |
-| [**Filter**](/documentation/transforms/python/elementwise/filter/)               | `values.filter(lambda x: x % 2 == 0)` | `values | beam.Filter(lambda x: x % 2 == 0)`            |
-| [**FlatMap**](/documentation/transforms/python/elementwise/flatmap/)             | `values.flatMap(lambda x: range(x))`  | `values | beam.FlatMap(lambda x: range(x))`             |
-| [**Group by key**](/documentation/transforms/python/aggregation/groupbykey/)     | `pairs.groupByKey()`                  | `pairs | beam.GroupByKey()`                             |
-| [**Reduce**](/documentation/transforms/python/aggregation/combineglobally/)      | `values.reduce(lambda x, y: x+y)`     | `values | beam.CombineGlobally(sum)`                    |
-| [**Reduce by key**](/documentation/transforms/python/aggregation/combineperkey/) | `pairs.reduceByKey(lambda x, y: x+y)` | `pairs | beam.CombinePerKey(sum)`                       |
-| [**Distinct**](/documentation/transforms/python/aggregation/distinct/)           | `values.distinct()`                   | `values | beam.Distinct()`                              |
-| [**Count**](/documentation/transforms/python/aggregation/count/)                 | `values.count()`                      | `values | beam.combiners.Count.Globally()`              |
-| [**Count by key**](/documentation/transforms/python/aggregation/count/)          | `pairs.countByKey()`                  | `pairs | beam.combiners.Count.PerKey()`                 |
-| [**Take smallest**](/documentation/transforms/python/aggregation/top/)           | `values.takeOrdered(3)`               | `values | beam.combiners.Top.Smallest(3)`               |
-| [**Take largest**](/documentation/transforms/python/aggregation/top/)            | `values.takeOrdered(3, lambda x: -x)` | `values | beam.combiners.Top.Largest(3)`                |
-| [**Random sample**](/documentation/transforms/python/aggregation/sample/)        | `values.takeSample(False, 3)`         | `values | beam.combiners.Sample.FixedSizeGlobally(3)`   |
-| [**Union**](/documentation/transforms/python/other/flatten/)                     | `values.union(otherValues)`           | `(values, otherValues) | beam.Flatten()`                |
-| [**Co-group**](/documentation/transforms/python/aggregation/cogroupbykey/)       | `pairs.cogroup(otherPairs)`           | `{'Xs': pairs, 'Ys': otherPairs} | beam.CoGroupByKey()` |
+<table style="width:100%">
+<tr>
+    <th style="width:20%"></th>
+    <th style="width:40%">PySpark</th>
+    <th style="width:40%">Beam</th>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/elementwise/map/">Map</a></b></td>
+    <td><code>values.map(lambda x: x * 2)</code></td>
+    <td><code>values | beam.Map(lambda x: x * 2)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/elementwise/filter/">Filter</a></b></td>
+    <td><code>values.filter(lambda x: x % 2 == 0)</code></td>
+    <td><code>values | beam.Filter(lambda x: x % 2 == 0)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/elementwise/flatmap/">FlatMap</a></b></td>
+    <td><code>values.flatMap(lambda x: range(x))</code></td>
+    <td><code>values | beam.FlatMap(lambda x: range(x))</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/groupbykey/">Group by key</a></b></td>
+    <td><code>pairs.groupByKey()</code></td>
+    <td><code>pairs | beam.GroupByKey()</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/combineglobally/">Reduce</a></b></td>
+    <td><code>values.reduce(lambda x, y: x+y)</code></td>
+    <td><code>values | beam.CombineGlobally(sum)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/combineperkey/">Reduce by key</a></b></td>
+    <td><code>pairs.reduceByKey(lambda x, y: x+y)</code></td>
+    <td><code>pairs | beam.CombinePerKey(sum)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/distinct/">Distinct</a></b></td>
+    <td><code>values.distinct()</code></td>
+    <td><code>values | beam.Distinct()</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/count/">Count</a></b></td>
+    <td><code>values.count()</code></td>
+    <td><code>values | beam.combiners.Count.Globally()</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/count/">Count by key</a></b></td>
+    <td><code>pairs.countByKey()</code></td>
+    <td><code>pairs | beam.combiners.Count.PerKey()</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/top/">Take smallest</a></b></td>
+    <td><code>values.takeOrdered(3)</code></td>
+    <td><code>values | beam.combiners.Top.Smallest(3)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/top/">Take largest</a></b></td>
+    <td><code>values.takeOrdered(3, lambda x: -x)</code></td>
+    <td><code>values | beam.combiners.Top.Largest(3)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/sample/">Random sample</a></b></td>
+    <td><code>values.takeSample(False, 3)</code></td>
+    <td><code>values | beam.combiners.Sample.FixedSizeGlobally(3)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/other/flatten/">Union</a></b></td>
+    <td><code>values.union(otherValues)</code></td>
+    <td><code>(values, otherValues) | beam.Flatten()</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/cogroupbykey/">Co-group</a></b></td>
+    <td><code>pairs.cogroup(otherPairs)</code></td>
+    <td><code>{'Xs': pairs, 'Ys': otherPairs} | beam.CoGroupByKey()</code></td>
+</tr>
+</table>
 {{< /table >}}
 
 > ℹ️ To learn more about the transforms available in Beam, check the

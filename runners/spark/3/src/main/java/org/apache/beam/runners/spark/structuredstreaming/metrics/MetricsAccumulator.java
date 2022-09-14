@@ -53,7 +53,7 @@ public class MetricsAccumulator {
           instance = accumulator;
         }
       }
-      LOG.info("Instantiated metrics accumulator: " + instance.value());
+      LOG.info("Instantiated metrics accumulator: {}", instance.value());
     } else {
       instance.reset();
     }

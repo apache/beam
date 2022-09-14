@@ -456,6 +456,17 @@ examples:
 ---
 
 coder:
+  urn: "beam:coder:row:v1"
+  # f_float: float32
+  payload: "\n\r\n\x07f_float\x1a\x02\x10\x05\x12$8c97b6c5-69e5-4733-907b-26cd8edae612"
+examples:
+  "\x01\x00\x00\x00\x00\x00": {f_float: "0.0"}
+  "\x01\x00?\x80\x00\x00": {f_float: "1.0"}
+  "\x01\x00@I\x0eV": {f_float: "3.1415"}
+
+---
+
+coder:
   urn: "beam:coder:sharded_key:v1"
   components: [{urn: "beam:coder:string_utf8:v1"}]
 

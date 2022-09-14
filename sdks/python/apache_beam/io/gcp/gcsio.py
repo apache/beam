@@ -580,9 +580,9 @@ class GcsIO(object):
     counter = 0
     start_time = time.time()
     if with_metadata:
-      _LOGGER.info("Starting the file information of the input")
+      _LOGGER.debug("Starting the file information of the input")
     else:
-      _LOGGER.info("Starting the size estimation of the input")
+      _LOGGER.debug("Starting the size estimation of the input")
     while True:
       response = self.client.objects.List(request)
       for item in response.items:
@@ -604,7 +604,9 @@ class GcsIO(object):
         request.pageToken = response.nextPageToken
       else:
         break
-    _LOGGER.info(
+    _LOGGER.log(
+        # do not spam logs when list_prefix is likely used to check empty folder
+        logging.INFO if counter > 0 else logging.DEBUG,
         "Finished listing %s files in %s seconds.",
         counter,
         time.time() - start_time)

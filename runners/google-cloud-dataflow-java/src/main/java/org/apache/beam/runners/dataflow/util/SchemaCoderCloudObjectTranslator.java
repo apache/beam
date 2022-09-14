@@ -31,7 +31,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.util.JsonFormat;
 
 /** Translator for Schema coders. */
 @Experimental(Kind.SCHEMAS)

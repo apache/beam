@@ -51,6 +51,7 @@ import com.google.spanner.v1.StructType.Field;
 import com.google.spanner.v1.Type;
 import com.google.spanner.v1.TypeCode;
 import io.grpc.Status;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.runners.direct.DirectOptions;
@@ -193,6 +194,53 @@ public class SpannerChangeStreamErrorTest implements Serializable {
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.greaterThan(1));
       thrown.expect(PipelineExecutionException.class);
       thrown.expectMessage(ErrorCode.ABORTED.name());
+    }
+  }
+
+  @Test
+  public void testAbortedExceptionRetriesWithDefaultsForStreamSqlRetrySettings()
+      throws IOException, InterruptedException {
+    DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
+    options.setBlockOnRun(false);
+    options.setRunner(DirectRunner.class);
+    Pipeline nonBlockingPipeline = TestPipeline.create(options);
+
+    mockSpannerService.setExecuteStreamingSqlExecutionTime(
+        SimulatedExecutionTime.ofStickyException(Status.ABORTED.asRuntimeException()));
+    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
+    final Timestamp endTimestamp =
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
+    final SpannerConfig changeStreamConfig =
+        SpannerConfig.create()
+            .withEmulatorHost(StaticValueProvider.of(SPANNER_HOST))
+            .withIsLocalChannelProvider(StaticValueProvider.of(true))
+            .withCommitRetrySettings(null)
+            .withExecuteStreamingSqlRetrySettings(null)
+            .withProjectId(TEST_PROJECT)
+            .withInstanceId(TEST_INSTANCE)
+            .withDatabaseId(TEST_DATABASE);
+    nonBlockingPipeline.apply(
+        SpannerIO.readChangeStream()
+            .withSpannerConfig(changeStreamConfig)
+            .withChangeStreamName(TEST_CHANGE_STREAM)
+            .withMetadataDatabase(TEST_DATABASE)
+            .withMetadataTable(TEST_TABLE)
+            .withInclusiveStartAt(startTimestamp)
+            .withInclusiveEndAt(endTimestamp));
+    PipelineResult result = nonBlockingPipeline.run();
+    // The pipeline is configured with default retry settings instead of the quick retry settings,
+    // and will run a long time when this unit test is run if it is not cancelled.
+    int totalExecutionTime = 0;
+    // check if the pipeline is in a non-terminal state
+    while (!result.getState().isTerminal()) {
+      Thread.sleep(50);
+      totalExecutionTime += 50;
+      if (totalExecutionTime > 2000) {
+        // quickRetrySettings specify the total timeout as 1 second. So if the total execution
+        // time of the pipeline is > 2 secs, it means that the default retry settings were used,
+        // verifying the test case. We then cancel the pipeline.
+        result.cancel();
+      }
     }
   }
 

@@ -420,6 +420,86 @@ func TestStateKeyReader(t *testing.T) {
 	}
 }
 
+func TestStateKeyWriter(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      []byte
+		writeType writeTypeEnum
+	}{
+		{
+			name:      "appendEmptyData",
+			data:      []byte{},
+			writeType: writeTypeAppend,
+		},
+		{
+			name:      "appendSomeData",
+			data:      []byte{65, 12},
+			writeType: writeTypeAppend,
+		},
+		{
+			name:      "clear",
+			data:      []byte{65, 12},
+			writeType: writeTypeClear,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, cancelFn := context.WithCancel(context.Background())
+			ch := &StateChannel{
+				id:        "test",
+				requests:  make(chan *fnpb.StateRequest),
+				responses: make(map[string]chan<- *fnpb.StateResponse),
+				cancelFn:  cancelFn,
+				DoneCh:    ctx.Done(),
+			}
+
+			// Handle the channel behavior asynchronously.
+			go func() {
+				req := <-ch.requests
+
+				switch test.writeType {
+				case writeTypeAppend:
+					sra, ok := req.Request.(*fnpb.StateRequest_Append)
+					if !ok {
+						t.Errorf("Append write: got %v, want data of type StateRequest_Append", req.Request)
+					} else {
+						data := sra.Append.Data
+						if !bytes.Equal(data, test.data) {
+							t.Errorf("Expected request data: got %v, want %v", data, test.data)
+						}
+					}
+					ch.responses[req.Id] <- &fnpb.StateResponse{
+						Id:       req.Id,
+						Response: &fnpb.StateResponse_Append{},
+					}
+				case writeTypeClear:
+					_, ok := req.Request.(*fnpb.StateRequest_Clear)
+					if !ok {
+						t.Errorf("Append write: got %v, want data of type StateRequest_Append", req.Request)
+					}
+					ch.responses[req.Id] <- &fnpb.StateResponse{
+						Id:       req.Id,
+						Response: &fnpb.StateResponse_Clear{},
+					}
+				default:
+					// Still return response so that write doesn't hang.
+					ch.responses[req.Id] <- &fnpb.StateResponse{
+						Id:       req.Id,
+						Response: &fnpb.StateResponse_Append{},
+					}
+				}
+			}()
+
+			r := stateKeyWriter{
+				ch:        ch,
+				writeType: test.writeType,
+			}
+
+			r.Write(test.data)
+		})
+	}
+}
+
 // This likely can't be replaced by the "errors" package helpers,
 // since we serialize errors in some cases.
 func contains(got, want error) bool {

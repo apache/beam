@@ -63,6 +63,9 @@
 {{ $fixPlaygroundNestedScroll := resources.Get "js/fix-playground-nested-scroll.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $fixPlaygroundNestedScroll.RelPermalink }}" defer></script>
 
+{{ $anchorContentJumpFix := resources.Get "js/anchor-content-jump-fix.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $anchorContentJumpFix.RelPermalink }}" defer></script>
+
 <link rel="alternate" type="application/rss+xml" title="{{ .Site.Title }}" href="/feed.xml">
 <link rel="canonical" href="{{ .Site.Params.hostName }}{{ .Permalink | absURL }}" data-proofer-ignore>
 <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">

@@ -248,14 +248,14 @@ To use this transform, you need a dataset and model for language modeling.
 To run the MNIST classification pipeline locally, use the following command:
 ```sh
 python -m apache_beam.examples.inference.sklearn_mnist_classification.py \
-  --input_file INPUT \
+  --input INPUT \
   --output OUTPUT \
   --model_path MODEL_PATH
 ```
 For example:
 ```sh
 python -m apache_beam.examples.inference.sklearn_mnist_classification.py \
-  --input_file mnist_data.csv \
+  --input mnist_data.csv \
   --output predictions.txt \
   --model_path mnist_model_svm.pickle
 ```
@@ -269,3 +269,42 @@ This writes the output to the `predictions.txt` with contents like:
 ...
 ```
 Each line has data separated by a comma ",". The first item is the actual label of the digit. The second item is the predicted label of the digit.
+
+### Running `sklearn_japanese_housing_regression.py`
+
+#### Getting the data:
+Data for this example can be found at:
+https://www.kaggle.com/datasets/nishiodens/japan-real-estate-transaction-prices
+
+#### Models:
+Prebuilt sklearn pipelines are hosted at:
+https://storage.cloud.google.com/apache-beam-ml/models/japanese_housing/
+
+Note: This example uses more than one model. Since not all features in an example are populated, a different model will be chosen based on available data.
+
+For example, an example without distance to the nearest station will use a model that doesn't rely on that data.
+
+#### Running the Pipeline
+To run locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.sklearn_japanese_housing_regression.py \
+  --input_file INPUT \
+  --output OUTPUT \
+  --model_path MODEL_PATH
+```
+For example:
+```sh
+python -m apache_beam.examples.inference.sklearn_japanese_housing_regression.py \
+  --input_file housing_examples.csv \
+  --output predictions.txt \
+  --model_path https://storage.cloud.google.com/apache-beam-ml/models/japanese_housing/
+```
+
+This writes the output to the `predictions.txt` with contents like:
+```
+True Price 40000000.0, Predicted Price 34645912.039208
+True Price 34000000.0, Predicted Price 28648634.135857
+True Price 31000000.0, Predicted Price 25654277.256461
+...
+```
+

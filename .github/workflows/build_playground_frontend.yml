@@ -37,8 +37,8 @@ jobs:
       GOOGLE_DOMAIN: '-dot-apache-beam-testing.appspot.com'
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
-      - uses: actions/setup-java@v2
+        uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
         with:
             distribution: 'zulu'
             java-version: '8'
@@ -55,7 +55,7 @@ jobs:
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
       - name: install npm
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
             node-version: '14'
       - name: install docker linter

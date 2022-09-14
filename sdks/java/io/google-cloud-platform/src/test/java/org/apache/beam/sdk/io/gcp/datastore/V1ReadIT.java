@@ -172,7 +172,7 @@ public class V1ReadIT {
             .withReadTime(readTime);
 
     Pipeline p2 = Pipeline.create(options);
-    PCollection<Long> count2 = p.apply(snapshotRead).apply(Count.globally());
+    PCollection<Long> count2 = p2.apply(snapshotRead).apply(Count.globally());
 
     long expectedNumEntities2 = limit > 0 ? limit : numEntitiesBeforeReadTime;
     PAssert.thatSingleton(count2).isEqualTo(expectedNumEntities2);

@@ -3,6 +3,7 @@ title:  "Apache Beam 2.22.0"
 date:   2020-06-08 00:00:01 -0800
 categories:
   - blog
+  - release
 authors:
   - bhulette
 ---

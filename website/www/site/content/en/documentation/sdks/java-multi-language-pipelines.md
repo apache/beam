@@ -149,8 +149,7 @@ export PYTHON_VERSION=<version>
 ./gradlew :examples:multi-language:pythonDataframeWordCount --args=" \
 --runner=DataflowRunner \
 --output=gs://${OUTPUT_BUCKET}/count \
---region=${GCP_REGION} \
---experiments=use_runner_v2"
+--region=${GCP_REGION}"
 ```
 
 The pipeline outputs a file with the results to
