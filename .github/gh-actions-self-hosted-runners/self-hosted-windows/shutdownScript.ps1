@@ -20,5 +20,4 @@ Write-Output "removingRunner"
 Set-Location C:/actionsDir
 
 $token=[System.Environment]::GetEnvironmentVariable('GITHUB_TOKEN','machine')
-Write-Output $token
 ./config.cmd remove --token $token

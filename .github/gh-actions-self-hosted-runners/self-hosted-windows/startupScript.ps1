@@ -16,7 +16,7 @@
 #     limitations under the License.
 # -->
 
-Start-Sleep -Seconds 60
+Start-Sleep -Seconds 30
 $env:Path += ';C:\Program Files\git\bin'
 $response= Invoke-RestMethod https://api.github.com/repos/actions/runner/tags
 $version= $response[0].name.substring(1,$response[0].name.Length-1)
@@ -41,7 +41,6 @@ Expand-Archive -LiteralPath $PWD\actions-runner-win-x64-$version.zip -Destinatio
 $RUNNER_TOKEN=(Invoke-WebRequest -Uri $TOKEN_PROVIDER -Method POST -Headers @{'Accept' = 'application/json'; 'Authorization' = "bearer $GCP_TOKEN"} -UseBasicParsing | ConvertFrom-Json).token
 
 [System.Environment]::SetEnvironmentVariable('GITHUB_TOKEN', $RUNNER_TOKEN,[System.EnvironmentVariableTarget]::Machine)
-Write-Output $RUNNER_TOKEN | Out-File "token.txt"
 
 $hostname= "windows-runner-"+[guid]::NewGuid()
 

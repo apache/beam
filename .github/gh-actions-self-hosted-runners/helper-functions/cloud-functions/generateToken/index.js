@@ -23,7 +23,16 @@ import functions from '@google-cloud/functions-framework';
 import { Octokit } from "octokit";
 import { createAppAuth } from "@octokit/auth-app";
 
+const REQUIRED_ENV_VARS=["APP_ID","PEM_KEY","CLIENT_ID","CLIENT_SECRET","APP_INSTALLATION_ID","ORG"]
 
+
+function validateEnvSet(envVars) {
+    envVars.forEach(envVar => {
+        if (!process.env[envVar]) {
+            throw new Error(`${envVar} environment variable not set.`)
+        }
+    });
+}
 async function getRunnerToken() {
     try {
         //Set your GH App values as environment variables
@@ -31,7 +40,7 @@ async function getRunnerToken() {
             appId: process.env.APP_ID,
             privateKey: process.env.PEM_KEY,
             clientId: process.env.CLIENT_ID,
-            clientSecret: process.env.CLIENT_NAME,
+            clientSecret: process.env.CLIENT_SECRET,
             installationId: process.env.APP_INSTALLATION_ID
         }
         const octokit = new Octokit({
@@ -61,6 +70,7 @@ async function getRunnerToken() {
 }
 
 functions.http('generateToken', (req, res) => {
+    validateEnvSet(REQUIRED_ENV_VARS)
     getRunnerToken().then((registrationToken) => {
         res.status(200).send(registrationToken);
     });

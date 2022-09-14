@@ -81,7 +81,7 @@ Ubuntu Self-hosted runners are stored in Artifact Registry and implemented using
 Windows Virtual machines have the following specifications
 
 #### VM specifications
-* Instance Template: _TODO: Add GCP link when final resources are in place._
+* Instance Template: windows_github_actions_runner
 * Machine Type: n2-standard-2
 * Disk Size: 70 GB
 * Disk Image: [disk-image-windows-runner](https://console.cloud.google.com/compute/imagesDetail/projects/apache-beam-testing/global/images/disk-image-windows-runner?project=apache-beam-testing)

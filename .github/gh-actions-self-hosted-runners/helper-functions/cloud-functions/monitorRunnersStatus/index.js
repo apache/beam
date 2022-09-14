@@ -23,6 +23,18 @@ import functions from '@google-cloud/functions-framework';
 import { Octokit } from "octokit";
 import { createAppAuth } from "@octokit/auth-app";
 
+
+const REQUIRED_ENV_VARS=["APP_ID","PEM_KEY","CLIENT_ID","CLIENT_SECRET","APP_INSTALLATION_ID","ORG"]
+
+
+function validateEnvSet(envVars) {
+    envVars.forEach(envVar => {
+        if (!process.env[envVar]) {
+            throw new Error(`${envVar} environment variable not set.`)
+        }
+    });
+}
+
 async function monitorRunnerStatus() {
     try {
         //Set your GH App values as environment variables
@@ -30,20 +42,29 @@ async function monitorRunnerStatus() {
             appId: process.env.APP_ID,
             privateKey: process.env.PEM_KEY,
             clientId: process.env.CLIENT_ID,
-            clientSecret: process.env.CLIENT_NAME,
+            clientSecret: process.env.CLIENT_SECRET,
             installationId: process.env.APP_INSTALLATION_ID
         }
         const octokit = new Octokit({
             authStrategy: createAppAuth,
             auth: authOptions
         });
-        let runners = await octokit.request(`GET /orgs/${process.env.ORG}/actions/runners`, {
-            org: process.env.ORG,
-            per_page: 100, // In order to avoid cropped results we are explicitly setting this option in combination with a daily cleanup
-        });
+        let pageCounter=1
+        let runners=[]
+        let pageRunners=[]
+        do{
+            pageRunners= await octokit.request(`GET /orgs/${process.env.ORG}/actions/runners`, {
+                org: process.env.ORG,
+                per_page: 50,
+                page:pageCounter
+            });
+            runners=runners.concat(pageRunners.data.runners)
+            pageCounter++
+        } while(pageRunners.data.runners.length!=0)
+        
 
         //Filtering BEAM runners
-        let beamRunners = runners.data.runners.filter(runner => {
+        let beamRunners = runners.filter(runner => {
             return runner.labels.find(label => label.name == "beam")
         });
 
@@ -70,6 +91,7 @@ async function monitorRunnerStatus() {
 }
 
 functions.http('monitorRunnerStatus', (req, res) => {
+    validateEnvSet(REQUIRED_ENV_VARS)
     monitorRunnerStatus().then((status) => {
         res.status(200).send(status);
     });
