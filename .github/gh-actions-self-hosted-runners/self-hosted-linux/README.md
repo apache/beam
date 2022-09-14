@@ -93,7 +93,7 @@ For the current implementation we are using Google Kubernetes Engine (GKE) as a 
 
 * Otherwise, apply only the changes. **Important: Make sure you have the GKE context selected in your local machine:** `kubectl config current-context`
 
-`kubectl apply -f github-actions-$FILE_NAME.yml`
+`kubectl apply -f github-actions-$FILE_NAME.yml --namespace $NAMESPACE`
 
 * In case you would like to delete all the Kubernetes resources, run the `delete-k8s-deployment.sh` script with its corresponding namespace value.
 

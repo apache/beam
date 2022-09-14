@@ -18,5 +18,5 @@ kubectl create namespace "$1"
 kubectl apply -f github-actions-secrets.yml --namespace "$1"
 kubectl apply -f github-actions-deployment.yml --namespace "$1"
 kubectl apply -f github-actions-hpa.yml --namespace "$1"
-gcloud container clusters update  github-actions-linux-runners --enable-vertical-pod-autoscaling --zone us-central1-a
+gcloud container clusters update  gh-actions-linux-runners --enable-vertical-pod-autoscaling --zone us-central1-a
 kubectl apply -f github-actions-vpa.yml --namespace "$1"
