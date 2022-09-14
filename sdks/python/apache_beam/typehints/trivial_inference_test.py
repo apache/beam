@@ -258,6 +258,26 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.Tuple[str, typehints.Any],
         lambda: (typehints.__doc__, typehints.fake))
 
+  def testSetAttr(self):
+    def fn(obj, flag):
+      global glob
+      if flag == 1:
+        obj.attr = 1
+        res = 1
+      elif flag == 2:
+        obj.attr = 2
+        res = 1.5
+      elif flag == 3:
+        glob = 3
+        res = "str"
+      elif flag == 4:
+        del glob
+        res = "another str"
+      return res
+    self.assertReturnType(
+        typehints.Union[int, float, str],
+        fn, [int])
+
   def testMethod(self):
     class A(object):
       def m(self, x):
