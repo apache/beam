@@ -46,7 +46,7 @@ def dummy_ingest_data(ingested_dataset_path: str, base_artifact_path: str):
 
   # the directory where the output file is created may or may not exists
   # so we have to create it.
-  # KFP v1 components can only write output to files. The outpout of this
+  # KFP v1 components can only write output to files. The output of this
   # component is written to ingested_dataset_path and contains the path
   # of the actual ingested data
   Path(ingested_dataset_path).parent.mkdir(parents=True, exist_ok=True)

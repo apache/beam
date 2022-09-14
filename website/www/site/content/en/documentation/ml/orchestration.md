@@ -45,7 +45,7 @@ Note: TFX creates a workflow DAG, which needs an orchestrator of its own to be e
 
 > "Several TFX components rely on Beam for distributed data processing. In addition, TFX can use Apache Beam to orchestrate and execute the pipeline DAG. Beam orchestrator uses a different BeamRunner than the one which is used for component data processing."
 
-Caveat: The Beam orchestrator is not meant to be a TFX orchestrator to be used in production environments. It simply enables to debug the TFX pipeline locally on Beam’s DirectRunner without the need for the extra setup that is needed for Airflow or Kubeflow.
+Caveat: The Beam orchestrator is not meant to be a TFX orchestrator to be used in production environments. It simply enables debugging TFX pipelines locally on Beam’s DirectRunner without the need for the extra setup that is needed for Airflow or Kubeflow.
 
 ## Preprocessing example
 
@@ -53,7 +53,7 @@ Let’s get practical and take a look at two such orchestrated ML workflows, one
 
 For simplicity, we will showcase workflows with only three components: data ingestion, data preprocessing and model training. Depending on the scenario, a range of extra components could be added such as model evaluation, model deployment, etc. We will focus our attention on the preprocessing component, since it showcases how to use Apache beam in an ML workflow for efficient and parallel processing of your ML data.
 
-The dataset we will use consists image-caption pairs, i.e. images paired with a textual caption describing the content of the image. These pairs are taken from captions subset of the [MSCOCO 2014 dataset](https://cocodataset.org/#home). This multi-modal data (image + text) gives us the opportunity to experiment with preprocessing operations for both modalities.
+The dataset we will use consists of image-caption pairs, i.e. images paired with a textual caption describing the content of the image. These pairs are taken from captions subset of the [MSCOCO 2014 dataset](https://cocodataset.org/#home). This multi-modal data (image + text) gives us the opportunity to experiment with preprocessing operations for both modalities.
 
 ### Kubeflow pipelines (KFP)
 
@@ -108,7 +108,7 @@ In this case, each component shares an identical Dockerfile but extra component-
 
 With the component specification and containerization out of the way we can look at the actual implementation of the preprocessing component.
 
-Since KFP provides the input and output arguments as command-line arguments, an argumentparser is needed.
+Since KFP provides the input and output arguments as command-line arguments, an `argumentparser` is needed.
 
 {{< highlight file="sdks/python/apache_beam/examples/ml-orchestration/kf/components/preprocessing/src/preprocess.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/kfp/components/preprocessing/src/preprocess.py" preprocess_component_argparse >}}
