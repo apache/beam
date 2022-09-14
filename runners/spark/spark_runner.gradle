@@ -265,7 +265,7 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
-  systemProperties sparkTestProperties(["--enableSparkMetricSinks": "true", "--forceStreaming": "true"])
+  systemProperties sparkTestProperties(["--enableSparkMetricSinks": "true"])
 
   classpath = configurations.validatesRunner
   testClassesDirs += files(
@@ -278,25 +278,19 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
 
     filter {
-      // translation to UNBOUNDED read doesn't work for empty input
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo'
+      // UNBOUNDED View.CreatePCollectionView not supported
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$BundleInvariantsTests.testWatermarkUpdateMidBundle'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputNotPresent'
     }
 
     // TestStream using processing time is not supported in Spark
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
-    // CreatePCollectionView not supported in streaming mode
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
-    // BOUNDED, not applicable in streaming mode
-    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
 
     // Exceeds Java heap space
     excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
 
     // Should be run only in a properly configured SDK harness environment
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
 
     // State and Timers
     excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
