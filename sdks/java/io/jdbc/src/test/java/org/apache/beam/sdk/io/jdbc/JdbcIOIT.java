@@ -140,7 +140,7 @@ public class JdbcIOIT {
     try {
       PipelineResult writeResult = runWrite();
       PipelineResult.State writeState = writeResult.waitUntilFinish();
-      PipelineResult readResult = runRead();
+      PipelineResult readResult = runRead(tableName);
       PipelineResult.State readState = readResult.waitUntilFinish();
       gatherAndPublishMetrics(writeResult, readResult);
       // Fail the test if pipeline failed.
