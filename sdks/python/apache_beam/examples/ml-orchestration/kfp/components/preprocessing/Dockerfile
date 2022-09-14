@@ -2,7 +2,6 @@
 FROM python:3.8-slim
 
 # (Optional) install extra dependencies
-# TODO
 
 # install pypi dependencies
 COPY requirements.txt /

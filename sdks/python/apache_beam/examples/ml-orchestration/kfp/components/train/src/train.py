@@ -43,7 +43,7 @@ def train_model(
   # create model or load a pretrained one
   model = torch.hub.load('pytorch/vision:v0.10.0', 'vgg16', pretrained=True)
 
-  # TODO: train on preprocessed dataset
+  # to implement: train on preprocessed dataset
   # <insert training loop>
 
   # create directory to export the model to

@@ -1,9 +1,10 @@
 FROM python:3.8-slim
 
-# optional install extra dependencies
-# TODO
+# optional: install extra dependencies
 
-# install pypi dependencies
+# install python packages
+# (the requirements file is currently empty
+# because this is a stub ingestion example)
 COPY requirements.txt /
 RUN python3 -m pip install --no-cache-dir -r requirements.txt
 
