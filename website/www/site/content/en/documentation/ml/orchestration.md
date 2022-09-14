@@ -20,34 +20,35 @@ limitations under the License.
 ## Understanding the Beam DAG
 
 
-Apache Beam is an open source, unified model for defining both batch and streaming data-parallel processing pipelines. One of the central concepts to the Beam programming model is the DAG (= Directed Acyclic Graph). Each Beam pipeline is a DAG that can be constructed through the Beam SDK in your programming language of choice (from the set of supported beam SDKs). Each node of this DAG represents a processing step (PTransform) that accepts a collection of data as input (PCollection) and outputs a transformed collection of data (PCollection). The edges define how data flows through the pipeline from one processing step to another. The image below shows an example of such a pipeline.  
+Apache Beam is an open source, unified model for defining both batch and streaming data-parallel processing pipelines. One of the central concepts to the Beam programming model is the DAG (= Directed Acyclic Graph). Each Beam pipeline is a DAG that can be constructed through the Beam SDK in your programming language of choice (from the set of supported beam SDKs). Each node of this DAG represents a processing step (PTransform) that accepts a collection of data as input (PCollection) and outputs a transformed collection of data (PCollection). The edges define how data flows through the pipeline from one processing step to another. The image below shows an example of such a pipeline.
 
 ![A standalone beam pipeline](/images/standalone-beam-pipeline.svg)
 
-Note that simply defining a pipeline and the corresponding DAG does not mean that data will start flowing through the pipeline. To actually execute the pipeline, it has to be deployed to one of the [supported Beam runners](https://beam.apache.org/documentation/runners/capability-matrix/). These distributed processing back-ends include Apache Flink, Apache Spark and Google Cloud Dataflow. A [Direct Runner](https://beam.apache.org/documentation/runners/direct/) is also provided to execute the pipeline locally on your machine for development and debugging purposes. Make sure to check out the [runner capability matrix](https://beam.apache.org/documentation/runners/capability-matrix/) to guarantee that the chosen runner supports the data processing steps defined in your pipeline, especially when using the Direct Runner.  
+Note that simply defining a pipeline and the corresponding DAG does not mean that data will start flowing through the pipeline. To actually execute the pipeline, it has to be deployed to one of the [supported Beam runners](https://beam.apache.org/documentation/runners/capability-matrix/). These distributed processing back-ends include Apache Flink, Apache Spark and Google Cloud Dataflow. A [Direct Runner](https://beam.apache.org/documentation/runners/direct/) is also provided to execute the pipeline locally on your machine for development and debugging purposes. Make sure to check out the [runner capability matrix](https://beam.apache.org/documentation/runners/capability-matrix/) to guarantee that the chosen runner supports the data processing steps defined in your pipeline, especially when using the Direct Runner.
 
 ## Orchestrating frameworks
 
-Successfully delivering machine learning projects is about a lot more than training a model and calling it a day. In addition, a full ML workflow will often contain a range of other steps including data ingestion, data validation, data preprocessing, model evaluation, model deployment, data drift detection… On top of that, it’s essential to keep track of metadata and artifacts from your experiments to answer important questions like: What data was this model trained on and with which training parameters? When was this model deployed and which accuracy did it get on a test dataset? Without this knowledge at your disposal, it will become increasingly difficult to troubleshoot, monitor and improve your ML solutions as they grow in size.  
+Successfully delivering machine learning projects is about a lot more than training a model and calling it a day. In addition, a full ML workflow will often contain a range of other steps including data ingestion, data validation, data preprocessing, model evaluation, model deployment, data drift detection… On top of that, it’s essential to keep track of metadata and artifacts from your experiments to answer important questions like: What data was this model trained on and with which training parameters? When was this model deployed and which accuracy did it get on a test dataset? Without this knowledge at your disposal, it will become increasingly difficult to troubleshoot, monitor and improve your ML solutions as they grow in size.
 
-The solution: MLOps. MLOps is an umbrella term used to describe best practices and guiding principles that aim to make the development and maintenance of machine learning systems seamless and efficient. Simply put, MLOps is most often about automating machine learning workflows throughout the model and data lifecycle. Popular frameworks to create these workflow DAGs are [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/introduction/), [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/index.html) and [TFX](https://www.tensorflow.org/tfx/guide).  
+The solution: MLOps. MLOps is an umbrella term used to describe best practices and guiding principles that aim to make the development and maintenance of machine learning systems seamless and efficient. Simply put, MLOps is most often about automating machine learning workflows throughout the model and data lifecycle. Popular frameworks to create these workflow DAGs are [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/introduction/), [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/index.html) and [TFX](https://www.tensorflow.org/tfx/guide).
 
-So what does all of this have to do with Beam? Well, since we established that Beam is a great tool for a range of ML tasks, a beam pipeline can either be used as a standalone data processing job or can be part of a larger sequence of steps in such a workflow. In the latter case, the beam DAG is just one node in the overarching DAG composed by the workflow orchestrator. This results in a DAG in a DAG, as illustrated by the example below.  
+So what does all of this have to do with Beam? Well, since we established that Beam is a great tool for a range of ML tasks, a beam pipeline can either be used as a standalone data processing job or can be part of a larger sequence of steps in such a workflow. In the latter case, the beam DAG is just one node in the overarching DAG composed by the workflow orchestrator. This results in a DAG in a DAG, as illustrated by the example below.
 
 ![An beam pipeline as part of a larger orchestrated workflow](/images/orchestrated-beam-pipeline.svg)
 
-It is important to understand the key difference between the Beam DAG and the orchestrating DAG. The Beam DAG processes data and passes that data between the nodes of its DAG. The focus of Beam is on parallelization and enabling both batch and streaming jobs. In contrast, the orchestration DAG schedules and monitors steps in the workflow and passed between the nodes of the DAG are execution parameters, metadata and artifacts. An example of such an artifact could be a trained model or a dataset. Such artifacts are often passed by a reference URI and not by value.  
+It is important to understand the key difference between the Beam DAG and the orchestrating DAG. The Beam DAG processes data and passes that data between the nodes of its DAG. The focus of Beam is on parallelization and enabling both batch and streaming jobs. In contrast, the orchestration DAG schedules and monitors steps in the workflow and passed between the nodes of the DAG are execution parameters, metadata and artifacts. An example of such an artifact could be a trained model or a dataset. Such artifacts are often passed by a reference URI and not by value.
 
-Note: TFX creates a workflow DAG, which needs an orchestrator of its own to be executed. [Natively supported orchestrators for TFX](https://www.tensorflow.org/tfx/guide/custom_orchestrator) are Airflow, Kubeflow Pipelines and, here’s the kicker, Beam itself! As mentioned by the [TFX docs](https://www.tensorflow.org/tfx/guide/beam_orchestrator):  
-> "Several TFX components rely on Beam for distributed data processing. In addition, TFX can use Apache Beam to orchestrate and execute the pipeline DAG. Beam orchestrator uses a different BeamRunner than the one which is used for component data processing."  
+Note: TFX creates a workflow DAG, which needs an orchestrator of its own to be executed. [Natively supported orchestrators for TFX](https://www.tensorflow.org/tfx/guide/custom_orchestrator) are Airflow, Kubeflow Pipelines and, here’s the kicker, Beam itself! As mentioned by the [TFX docs](https://www.tensorflow.org/tfx/guide/beam_orchestrator):
+
+> "Several TFX components rely on Beam for distributed data processing. In addition, TFX can use Apache Beam to orchestrate and execute the pipeline DAG. Beam orchestrator uses a different BeamRunner than the one which is used for component data processing."
 
 Caveat: The Beam orchestrator is not meant to be a TFX orchestrator to be used in production environments. It simply enables to debug the TFX pipeline locally on Beam’s DirectRunner without the need for the extra setup that is needed for Airflow or Kubeflow.
 
 ## Preprocessing example
 
-Let’s get practical and take a look at two such orchestrated ML workflows, one with Kubeflow Pipelines (KFP) and one with Tensorflow Extended (TFX). These two frameworks achieve the same goal of creating workflows, but have their own distinct advantages and disadvantages: KFP requires you to create your workflow components from scratch and requires a user to explicitly indicate which artifacts should be passed between components and in what way. In contrast, TFX offers a number of prebuilt components and takes care of the artifact passing more implicitly. Clearly, there is a trade-off to be considered between flexibility and programming overhead when choosing between the two frameworks. We will start by looking at an example with KFP and then transition to TFX to show TFX takes care of a lot of functionality that we had to define by hand in the KFP example.  
+Let’s get practical and take a look at two such orchestrated ML workflows, one with Kubeflow Pipelines (KFP) and one with Tensorflow Extended (TFX). These two frameworks achieve the same goal of creating workflows, but have their own distinct advantages and disadvantages: KFP requires you to create your workflow components from scratch and requires a user to explicitly indicate which artifacts should be passed between components and in what way. In contrast, TFX offers a number of prebuilt components and takes care of the artifact passing more implicitly. Clearly, there is a trade-off to be considered between flexibility and programming overhead when choosing between the two frameworks. We will start by looking at an example with KFP and then transition to TFX to show TFX takes care of a lot of functionality that we had to define by hand in the KFP example.
 
-To not overcomplicate things, the workflows are limited to three components: data ingestion, data preprocessing and model training. Depending on the scenario, a range of extra components could be added such as model evaluation, model deployment… We will focus our attention on the preprocessing component, since it showcases how to use  Apache beam in an ML workflow for efficient and parallel processing of your ML data.  
+To not overcomplicate things, the workflows are limited to three components: data ingestion, data preprocessing and model training. Depending on the scenario, a range of extra components could be added such as model evaluation, model deployment… We will focus our attention on the preprocessing component, since it showcases how to use  Apache beam in an ML workflow for efficient and parallel processing of your ML data.
 
 The dataset we will use consists image-caption pairs, i.e. images paired with a textual caption describing the content of the image. These pairs are taken from captions subset of the [MSCOCO 2014 dataset](https://cocodataset.org/#home). This multi-modal data (image + text) gives us the opportunity to experiment with preprocessing operations for both modalities.
 
@@ -102,7 +103,7 @@ In this case, each component shares an identical Dockerfile but extra component-
 {{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/kfp/components/preprocessing/Dockerfile" component_dockerfile >}}
 {{< /highlight >}}
 
-With the component specification and containerization out of the way we can look at the actual implementation of the preprocessing component.  
+With the component specification and containerization out of the way we can look at the actual implementation of the preprocessing component.
 
 Since KFP provides the input and output arguments as command-line arguments, an argumentparser is needed.
 
@@ -117,7 +118,7 @@ The implementation of the `preprocess_dataset` function contains the Beam pipeli
 {{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/kfp/components/preprocessing/src/preprocess.py" deploy_preprocessing_beam_pipeline >}}
 {{< /highlight >}}
 
-It also contains the necessary code to perform the component IO. First, a target path is constructed to store the preprocessed dataset based on the component input parameter `base_artifact_path` and a timestamp. Output values from components can only be returned as files so we write the value of the constructed target path to an output file that was provided by KFP to our component.  
+It also contains the necessary code to perform the component IO. First, a target path is constructed to store the preprocessed dataset based on the component input parameter `base_artifact_path` and a timestamp. Output values from components can only be returned as files so we write the value of the constructed target path to an output file that was provided by KFP to our component.
 
 {{< highlight file="sdks/python/apache_beam/examples/ml-orchestration/kfp/components/preprocessing/src/preprocess.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/kfp/components/preprocessing/src/preprocess.py" kfp_component_input_output >}}
@@ -139,7 +140,7 @@ After that, the pipeline is created and the required components inputs and outpu
 {{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/kfp/pipeline.py" define_kfp_pipeline >}}
 {{< /highlight >}}
 
-Finally, the defined pipeline is compiled and a `pipeline.json` specification file is generated. 
+Finally, the defined pipeline is compiled and a `pipeline.json` specification file is generated.
 
 {{< highlight file="sdks/python/apache_beam/examples/ml-orchestration/kfp/pipeline.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/kfp/pipeline.py" compile_kfp_pipeline >}}
@@ -156,9 +157,9 @@ except:
     experiment = client.create_experiment(EXPERIMENT_NAME)
 arguments = {}
 
-run_result = client.run_pipeline(experiment.id, 
-                                 RUN_NAME, 
-                                 PIPELINE_FILENAME, 
+run_result = client.run_pipeline(experiment.id,
+                                 RUN_NAME,
+                                 PIPELINE_FILENAME,
                                  arguments)
 {{< /highlight >}}
 
@@ -170,7 +171,7 @@ The way of working for TFX is similar to the approach for KFP as illustrated abo
 
 ![TFX libraries and components](https://www.tensorflow.org/static/tfx/guide/images/libraries_components.png)
 
-We will work out a small example in a similar fashion as for KFP. There we used ingestion, preprocessing and trainer components. Translating this to TFX, we will need the ExampleGen, Transform and Trainer libraries.  
+We will work out a small example in a similar fashion as for KFP. There we used ingestion, preprocessing and trainer components. Translating this to TFX, we will need the ExampleGen, Transform and Trainer libraries.
 
 This time we will start by looking at the pipeline definition. Note that this looks very similar to our previous example.
 
@@ -178,9 +179,9 @@ This time we will start by looking at the pipeline definition. Note that this lo
 {{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/tfx/coco_captions_local.py" tfx_pipeline >}}
 {{< /highlight >}}
 
-We will use the same data input as last time, i.e. a couple of image-captions pairs extracted from the [MSCOCO 2014 dataset](https://cocodataset.org/#home). This time, however, in CSV format because the ExampleGen component does not by default have support for jsonlines. (The formats that are supported out of the box are listed [here](https://www.tensorflow.org/tfx/guide/examplegen#data_sources_and_formats). Alternatively, it’s possible to write a [custom ExampleGen](https://www.tensorflow.org/tfx/guide/examplegen#custom_examplegen) as well.)  
+We will use the same data input as last time, i.e. a couple of image-captions pairs extracted from the [MSCOCO 2014 dataset](https://cocodataset.org/#home). This time, however, in CSV format because the ExampleGen component does not by default have support for jsonlines. (The formats that are supported out of the box are listed [here](https://www.tensorflow.org/tfx/guide/examplegen#data_sources_and_formats). Alternatively, it’s possible to write a [custom ExampleGen](https://www.tensorflow.org/tfx/guide/examplegen#custom_examplegen) as well.)
 
-Copy the snippet below to an input data csv file:  
+Copy the snippet below to an input data csv file:
 
 {{< highlight >}}
 image_id,id,caption,image_url,image_name,image_license
@@ -188,17 +189,17 @@ image_id,id,caption,image_url,image_name,image_license
 476220,14,"An empty kitchen with white and black appliances.","http://farm7.staticflickr.com/6173/6207941582_b69380c020_z.jpg","COCO_train2014_000000476220.jpg","Attribution-NonCommercial License"
 {{< /highlight >}}
 
-So far, we have only imported standard TFX components and chained them together into a pipeline. Both the Transform and Trainer components have a `module_file` argument defined. That’s where we define the behavior we want from these standard components.  
+So far, we have only imported standard TFX components and chained them together into a pipeline. Both the Transform and Trainer components have a `module_file` argument defined. That’s where we define the behavior we want from these standard components.
 
 #### Preprocess
 
-The Transform component searches the `module_file` for a definition of the function `preprocessing_fn`. This function is the central concept of the `tf.transform` library. As per the [TFX docs](https://www.tensorflow.org/tfx/transform/get_started#define_a_preprocessing_function):  
+The Transform component searches the `module_file` for a definition of the function `preprocessing_fn`. This function is the central concept of the `tf.transform` library. As per the [TFX docs](https://www.tensorflow.org/tfx/transform/get_started#define_a_preprocessing_function):
 
 > The preprocessing function is the most important concept of tf.Transform. The preprocessing function is a logical description of a transformation of the dataset. The preprocessing function accepts and returns a dictionary of tensors, where a tensor means Tensor or SparseTensor. There are two kinds of functions used to define the preprocessing function:
 >1. Any function that accepts and returns tensors. These add TensorFlow operations to the graph that transform raw data into transformed data.
->2. Any of the analyzers provided by tf.Transform. Analyzers also accept and return tensors, but unlike TensorFlow functions, they do not add operations to the graph. Instead, analyzers cause tf.Transform to compute a full-pass operation outside of TensorFlow. They use the input tensor values over the entire dataset to generate a constant tensor that is returned as the output. For example, tft.min computes the minimum of a tensor over the dataset. tf.Transform provides a fixed set of analyzers, but this will be extended in future versions.  
+>2. Any of the analyzers provided by tf.Transform. Analyzers also accept and return tensors, but unlike TensorFlow functions, they do not add operations to the graph. Instead, analyzers cause tf.Transform to compute a full-pass operation outside of TensorFlow. They use the input tensor values over the entire dataset to generate a constant tensor that is returned as the output. For example, tft.min computes the minimum of a tensor over the dataset. tf.Transform provides a fixed set of analyzers, but this will be extended in future versions.
 
-So our `preprocesing_fn` can contain all tf operations that accept and return tensors and also specific `tf.transform` operations. In our simple example below we use the former to convert all incoming captions to lowercase letters only, while the latter does a full pass on all the data in our dataset to compute the average length of the captions to be used for a follow-up preprocessing step.  
+So our `preprocesing_fn` can contain all tf operations that accept and return tensors and also specific `tf.transform` operations. In our simple example below we use the former to convert all incoming captions to lowercase letters only, while the latter does a full pass on all the data in our dataset to compute the average length of the captions to be used for a follow-up preprocessing step.
 
 {{< highlight file="sdks/python/apache_beam/examples/ml-orchestration/tfx/coco_captions_utils.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/tfx/coco_captions_utils.py" tfx_preprocessing_fn >}}
@@ -212,13 +213,13 @@ However this function only defines the logical steps that have to be performed d
 
 #### Train
 
-Finally the Trainer component behaves in a similar way as the Transform component, but instead of looking for a `preprocessing_fn` it requires a `run_fn` function to be present in the specified `module_file`. Our simple implementation, creates a stub model using `tf.Keras` and saves the resulting model to a directory. 
+Finally the Trainer component behaves in a similar way as the Transform component, but instead of looking for a `preprocessing_fn` it requires a `run_fn` function to be present in the specified `module_file`. Our simple implementation, creates a stub model using `tf.Keras` and saves the resulting model to a directory.
 
 {{< highlight file="sdks/python/apache_beam/examples/ml-orchestration/tfx/coco_captions_utils.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/tfx/coco_captions_utils.py" tfx_run_fn >}}
 {{< /highlight >}}
 
-#### Executing the pipeline 
+#### Executing the pipeline
 
 To launch the pipeline two configurations must be provided: The orchestrator for the TFX pipeline and the pipeline options to run Beam pipelines. In this case we use the `LocalDagRunner` for orchestration to run the pipeline locally without extra setup dependencies. Where the created pipeline can specify Beam’s pipeline options as usual through the `beam_pipeline_args` argument.
 
