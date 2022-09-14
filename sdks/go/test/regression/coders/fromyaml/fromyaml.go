@@ -44,9 +44,8 @@ import (
 
 var unimplementedCoders = map[string]bool{
 	"beam:coder:param_windowed_value:v1": true,
-	// "beam:coder:timer:v1":                true,
-	"beam:coder:sharded_key:v1":   true,
-	"beam:coder:custom_window:v1": true,
+	"beam:coder:sharded_key:v1":          true,
+	"beam:coder:custom_window:v1":        true,
 }
 
 var filteredCases = []struct{ filter, reason string }{
@@ -325,7 +324,6 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 		pass := true
 		tm := elem.Elm.(typex.TimerMap)
 		fs := eg.Value.(yaml.MapSlice)
-		// want := typex.TimerMap{}
 		for _, item := range fs {
 
 			switch item.Key.(string) {

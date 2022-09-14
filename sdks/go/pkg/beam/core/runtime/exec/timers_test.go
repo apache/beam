@@ -30,14 +30,10 @@ func equalTimers(a, b typex.TimerMap) bool {
 }
 
 func TestTimerEncodingDecoding(t *testing.T) {
-	// wec := MakeWindowEncoder(window.NewGlobalWindows().Coder())
-	// win, err := EncodeWindow(wec, window.SingleGlobalWindow[0])
 	tc := coder.NewT(coder.NewString(), window.NewGlobalWindows().Coder())
 	ec := MakeElementEncoder(coder.SkipW(tc))
 	dec := MakeElementDecoder(coder.SkipW(tc))
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+
 	tests := []struct {
 		name   string
 		tm     typex.TimerMap

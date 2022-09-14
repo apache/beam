@@ -1228,26 +1228,22 @@ func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.
 		return errors.WithContext(err, "error encoding tag")
 	}
 
-	// if _, err := ioutilx.WriteUnsafe(&b, tm.Windows); err != nil {
-	// 	return err
-	// }
-
 	if err := win.Encode(tm.Windows, &b); err != nil {
 		return errors.WithContext(err, "error encoding window")
 	}
 	if err := coder.EncodeBool(tm.Clear, &b); err != nil {
-		return errors.WithContext(err, "error encoding key")
+		return errors.WithContext(err, "error encoding clear bit")
 	}
 
 	if !tm.Clear {
 		if err := coder.EncodeEventTime(tm.FireTimestamp, &b); err != nil {
-			return errors.WithContext(err, "error encoding key")
+			return errors.WithContext(err, "error encoding fire timestamp")
 		}
 		if err := coder.EncodeEventTime(tm.HoldTimestamp, &b); err != nil {
-			return errors.WithContext(err, "error encoding key")
+			return errors.WithContext(err, "error encoding hold timestamp")
 		}
 		if err := coder.EncodePane(tm.PaneInfo, &b); err != nil {
-			return errors.WithContext(err, "error encoding key")
+			return errors.WithContext(err, "error encoding paneinfo")
 		}
 	}
 
