@@ -541,7 +541,7 @@ class _GlobalWindowsBatchingDoFn(DoFn):
     self._running_batch_size += self._element_size_fn(element)
     if self._running_batch_size >= self._target_batch_size:
       with self._batch_size_estimator.record_time(self._running_batch_size):
-        yield self._batch
+        yield window.GlobalWindows.windowed_value_at_end_of_window(self._batch)
       self._batch = []
       self._running_batch_size = 0
       self._target_batch_size = self._batch_size_estimator.next_batch_size()
@@ -549,7 +549,7 @@ class _GlobalWindowsBatchingDoFn(DoFn):
   def finish_bundle(self):
     if self._batch:
       with self._batch_size_estimator.record_time(self._running_batch_size):
-        yield window.GlobalWindows.windowed_value(self._batch)
+        yield window.GlobalWindows.windowed_value_at_end_of_window(self._batch)
       self._batch = None
       self._running_batch_size = 0
     self._target_batch_size = self._batch_size_estimator.next_batch_size()

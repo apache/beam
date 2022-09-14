@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -84,6 +85,10 @@ const (
 	URNEnvProcess  = "beam:env:process:v1"
 	URNEnvExternal = "beam:env:external:v1"
 	URNEnvDocker   = "beam:env:docker:v1"
+
+	// Userstate Urns.
+	URNBagUserState      = "beam:user_state:bag:v1"
+	URNMultiMapUserState = "beam:user_state:multimap:v1"
 )
 
 func goCapabilities() []string {
@@ -462,21 +467,103 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			m.requirements[URNRequiresStatefulProcessing] = true
 			stateSpecs := make(map[string]*pipepb.StateSpec)
 			for _, ps := range edge.Edge.DoFn.PipelineState() {
-				coderID, err := m.coders.Add(edge.Edge.StateCoders[ps.StateKey()])
-				if err != nil {
-					return handleErr(err)
+				coderID := ""
+				c, ok := edge.Edge.StateCoders[UserStateCoderID(ps)]
+				if ok {
+					coderID, err = m.coders.Add(c)
+					if err != nil {
+						return handleErr(err)
+					}
 				}
-				stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
-					// TODO (#22736) - make spec type and protocol conditional on type of State. Right now, assumes ValueState.
-					// See https://github.com/apache/beam/blob/54b0784da7ccba738deff22bd83fbc374ad21d2e/sdks/go/pkg/beam/model/pipeline_v1/beam_runner_api.pb.go#L2635
-					Spec: &pipepb.StateSpec_ReadModifyWriteSpec{
-						ReadModifyWriteSpec: &pipepb.ReadModifyWriteStateSpec{
-							CoderId: coderID,
+				keyCoderID := ""
+				if c, ok := edge.Edge.StateCoders[UserStateKeyCoderID(ps)]; ok {
+					keyCoderID, err = m.coders.Add(c)
+					if err != nil {
+						return handleErr(err)
+					}
+				} else if ps.StateType() == state.TypeMap || ps.StateType() == state.TypeSet {
+					return nil, errors.Errorf("set or map state type %v must have a key coder type, none detected", ps)
+				}
+				switch ps.StateType() {
+				case state.TypeValue:
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_ReadModifyWriteSpec{
+							ReadModifyWriteSpec: &pipepb.ReadModifyWriteStateSpec{
+								CoderId: coderID,
+							},
 						},
-					},
-					Protocol: &pipepb.FunctionSpec{
-						Urn: "beam:user_state:bag:v1",
-					},
+						Protocol: &pipepb.FunctionSpec{
+							Urn: URNBagUserState,
+						},
+					}
+				case state.TypeBag:
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_BagSpec{
+							BagSpec: &pipepb.BagStateSpec{
+								ElementCoderId: coderID,
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
+							Urn: URNBagUserState,
+						},
+					}
+				case state.TypeCombining:
+					cps := ps.(state.CombiningPipelineState).GetCombineFn()
+					f, err := graph.NewFn(cps)
+					if err != nil {
+						return handleErr(err)
+					}
+					cf, err := graph.AsCombineFn(f)
+					if err != nil {
+						return handleErr(err)
+					}
+					me := graph.MultiEdge{
+						Op:        graph.Combine,
+						CombineFn: cf,
+					}
+					mustEncodeMultiEdge, err := mustEncodeMultiEdgeBase64(&me)
+					if err != nil {
+						return handleErr(err)
+					}
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_CombiningSpec{
+							CombiningSpec: &pipepb.CombiningStateSpec{
+								AccumulatorCoderId: coderID,
+								CombineFn: &pipepb.FunctionSpec{
+									Urn:     "beam:combinefn:gosdk:v1",
+									Payload: []byte(mustEncodeMultiEdge),
+								},
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
+							Urn: URNBagUserState,
+						},
+					}
+				case state.TypeMap:
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_MapSpec{
+							MapSpec: &pipepb.MapStateSpec{
+								KeyCoderId:   keyCoderID,
+								ValueCoderId: coderID,
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
+							Urn: URNMultiMapUserState,
+						},
+					}
+				case state.TypeSet:
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_SetSpec{
+							SetSpec: &pipepb.SetStateSpec{
+								ElementCoderId: keyCoderID,
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
+							Urn: URNMultiMapUserState,
+						},
+					}
+				default:
+					return nil, errors.Errorf("State type %v not recognized for state %v", ps.StateKey(), ps)
 				}
 			}
 			payload.StateSpecs = stateSpecs
@@ -1325,4 +1412,14 @@ func UpdateDefaultEnvWorkerType(typeUrn string, pyld []byte, p *pipepb.Pipeline)
 		return nil
 	}
 	return errors.Errorf("unable to find dependency with %q role in environment with ID %q,", URNArtifactGoWorkerRole, defaultEnvId)
+}
+
+// UserStateCoderID returns the coder id of a user state
+func UserStateCoderID(ps state.PipelineState) string {
+	return fmt.Sprintf("val_%v", ps.StateKey())
+}
+
+// UserStateKeyCoderID returns the key coder id of a user state
+func UserStateKeyCoderID(ps state.PipelineState) string {
+	return fmt.Sprintf("key_%v", ps.StateKey())
 }

@@ -20,7 +20,7 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 
 String getAnalyticsExampleName(PlaygroundState state) {
-  final customCodeName = 'Custom code, sdk ${state.sdk.displayName}';
+  final customCodeName = 'Custom code, sdk ${state.sdk?.displayName}';
   if (state.isExampleChanged) {
     return customCodeName;
   }

@@ -41,8 +41,10 @@ void main() {
     );
   });
 
-  test('Initial value of SDK field should be java', () {
-    expect(state.sdk, equals(SDK.java));
+  test('Initial value of SDK field should be null', () {
+    expect(state.sdk, null);
+    state.setSdk(SDK.go);
+    expect(state.sdk, SDK.go);
   });
 
   test('Initial value of examplesTitle should be equal to kTitle', () {
@@ -54,10 +56,14 @@ void main() {
   });
 
   test('Initial value of pipelineOptions should be empty string', () {
+    expect(state.pipelineOptions, null);
+    state.setSdk(SDK.go);
     expect(state.pipelineOptions, '');
   });
 
   test('Initial value of source should be empty string', () {
+    expect(state.source, null);
+    state.setSdk(SDK.go);
     expect(state.source, '');
   });
 
@@ -65,7 +71,8 @@ void main() {
     test(
       'If example source is changed, value of isExampleChanged should be true',
       () {
-        state.setExample(exampleMock1);
+        state.setExample(exampleMock1, setCurrentSdk: true);
+        expect(state.isExampleChanged, false);
         state.selectedExample!.setSource('test');
         expect(state.isExampleChanged, true);
       },
@@ -74,7 +81,8 @@ void main() {
     test(
       'If pipelineOptions is changed, value of isExampleChanged should be true',
       () {
-        state.setExample(exampleMock1);
+        state.setExample(exampleMock1, setCurrentSdk: true);
+        expect(state.isExampleChanged, false);
         state.setPipelineOptions('test options');
         expect(state.isExampleChanged, true);
       },
@@ -84,7 +92,7 @@ void main() {
   test(
     'If selected example type is not test and SDK is java or python, graph should be available',
     () {
-      state.setExample(exampleMock1);
+      state.setExample(exampleMock1, setCurrentSdk: true);
       expect(state.graphAvailable, true);
     },
   );
@@ -97,7 +105,7 @@ void main() {
         expect(state.source, exampleMockGo.source);
         expect(state.selectedExample, exampleMockGo);
       });
-      state.setExample(exampleMockGo);
+      state.setExample(exampleMockGo, setCurrentSdk: true);
     },
   );
 
@@ -111,8 +119,8 @@ void main() {
   test(
       'Playground state reset should reset source to example notify all listeners',
       () {
-    state.setExample(exampleMock1);
-    state.source = 'source';
+    state.setExample(exampleMock1, setCurrentSdk: true);
+    state.setSource('source');
     state.addListener(() {
       expect(state.source, exampleMock1.source);
     });
@@ -130,10 +138,28 @@ void main() {
   test(
     'Playground state should notify all listeners about pipeline options change',
     () {
+      state.setSdk(SDK.go);
       state.addListener(() {
         expect(state.pipelineOptions, 'test options');
       });
       state.setPipelineOptions('test options');
     },
   );
+
+  test('getLoadingDescriptor()', () {
+    state.setExample(exampleMock2, setCurrentSdk: true);
+    state.setExample(exampleMockGo, setCurrentSdk: false);
+
+    final descriptor = state.getLoadingDescriptor();
+
+    expect(
+      descriptor.toJson(),
+      {
+        'descriptors': [
+          {'sdk': 'python', 'content': 'ex2', 'name': 'Kata'},
+          {'sdk': 'go', 'content': 'ex1', 'name': 'Example'},
+        ],
+      },
+    );
+  });
 }
