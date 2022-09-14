@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -114,6 +115,7 @@ class TensorRTEngine:
     import tensorrt as trt
     self.engine = engine
     self.context = engine.create_execution_context()
+    self.context_lock = threading.RLock()
     self.inputs = []
     self.outputs = []
     self.gpu_allocations = []
@@ -154,6 +156,7 @@ class TensorRTEngine:
     return (
         self.engine,
         self.context,
+        self.context_lock,
         self.inputs,
         self.outputs,
         self.gpu_allocations,
@@ -242,33 +245,36 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     (
         engine,
         context,
+        context_lock,
         inputs,
         outputs,
         gpu_allocations,
         cpu_allocations,
         stream) = engine.get_engine_attrs()
-    # Process I/O and execute the network
-    _assign_or_fail(
-        cuda.cuMemcpyHtoDAsync(
-            inputs[0]['allocation'],
-            np.ascontiguousarray(batch),
-            inputs[0]['size'],
-            stream))
-    context.execute_async_v2(gpu_allocations, stream)
-    for output in range(len(cpu_allocations)):
-      _assign_or_fail(
-          cuda.cuMemcpyDtoHAsync(
-              cpu_allocations[output],
-              outputs[output]['allocation'],
-              outputs[output]['size'],
-              stream))
-    _assign_or_fail(cuda.cuStreamSynchronize(stream))
 
-    return [
-        PredictionResult(
-            x, [prediction[idx] for prediction in cpu_allocations]) for idx,
-        x in enumerate(batch)
-    ]
+    # Process I/O and execute the network
+    with context_lock:
+      _assign_or_fail(
+          cuda.cuMemcpyHtoDAsync(
+              inputs[0]['allocation'],
+              np.ascontiguousarray(batch),
+              inputs[0]['size'],
+              stream))
+      context.execute_async_v2(gpu_allocations, stream)
+      for output in range(len(cpu_allocations)):
+        _assign_or_fail(
+            cuda.cuMemcpyDtoHAsync(
+                cpu_allocations[output],
+                outputs[output]['allocation'],
+                outputs[output]['size'],
+                stream))
+      _assign_or_fail(cuda.cuStreamSynchronize(stream))
+
+      return [
+          PredictionResult(
+              x, [prediction[idx] for prediction in cpu_allocations]) for idx,
+          x in enumerate(batch)
+      ]
 
   def get_num_bytes(self, batch: Sequence[np.ndarray]) -> int:
     """
