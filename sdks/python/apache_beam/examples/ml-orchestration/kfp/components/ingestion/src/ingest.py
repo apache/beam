@@ -1,8 +1,8 @@
 """Dummy ingestion function that fetches data from one file and simply copies it to another."""
 
 import argparse
-from pathlib import Path
 import time
+from pathlib import Path
 
 
 def parse_args():
