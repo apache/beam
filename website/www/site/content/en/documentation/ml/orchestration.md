@@ -28,7 +28,10 @@ Note that simply defining a pipeline and the corresponding DAG does not mean tha
 
 ## Orchestrating frameworks
 
-Successfully delivering machine learning projects is about a lot more than training a model and calling it a day. In addition, a full ML workflow will often contain a range of other steps including data ingestion, data validation, data preprocessing, model evaluation, model deployment, data drift detection… On top of that, it’s essential to keep track of metadata and artifacts from your experiments to answer important questions like: What data was this model trained on and with which training parameters? When was this model deployed and which accuracy did it get on a test dataset? Without this knowledge at your disposal, it will become increasingly difficult to troubleshoot, monitor and improve your ML solutions as they grow in size.
+Successfully delivering machine learning projects is about a lot more than training a model and calling it a day. A full ML workflow will often contain a range of other steps including data ingestion, data validation, data preprocessing, model evaluation, model deployment, data drift detection, etc. Furthermore, it’s essential to keep track of metadata and artifacts from your experiments to answer important questions like:
+- What data was this model trained on and with which training parameters?
+- When was this model deployed and what accuracy did it get on a test dataset? 
+Without this knowledge at your disposal, it will become increasingly difficult to troubleshoot, monitor and improve your ML solutions as they grow in size.  
 
 The solution: MLOps. MLOps is an umbrella term used to describe best practices and guiding principles that aim to make the development and maintenance of machine learning systems seamless and efficient. Simply put, MLOps is most often about automating machine learning workflows throughout the model and data lifecycle. Popular frameworks to create these workflow DAGs are [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/introduction/), [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/index.html) and [TFX](https://www.tensorflow.org/tfx/guide).
 
@@ -48,7 +51,7 @@ Caveat: The Beam orchestrator is not meant to be a TFX orchestrator to be used i
 
 Let’s get practical and take a look at two such orchestrated ML workflows, one with Kubeflow Pipelines (KFP) and one with Tensorflow Extended (TFX). These two frameworks achieve the same goal of creating workflows, but have their own distinct advantages and disadvantages: KFP requires you to create your workflow components from scratch and requires a user to explicitly indicate which artifacts should be passed between components and in what way. In contrast, TFX offers a number of prebuilt components and takes care of the artifact passing more implicitly. Clearly, there is a trade-off to be considered between flexibility and programming overhead when choosing between the two frameworks. We will start by looking at an example with KFP and then transition to TFX to show TFX takes care of a lot of functionality that we had to define by hand in the KFP example.
 
-To not overcomplicate things, the workflows are limited to three components: data ingestion, data preprocessing and model training. Depending on the scenario, a range of extra components could be added such as model evaluation, model deployment… We will focus our attention on the preprocessing component, since it showcases how to use  Apache beam in an ML workflow for efficient and parallel processing of your ML data.
+For simplicity, we will showcase workflows with only three components: data ingestion, data preprocessing and model training. Depending on the scenario, a range of extra components could be added such as model evaluation, model deployment, etc. We will focus our attention on the preprocessing component, since it showcases how to use Apache beam in an ML workflow for efficient and parallel processing of your ML data.
 
 The dataset we will use consists image-caption pairs, i.e. images paired with a textual caption describing the content of the image. These pairs are taken from captions subset of the [MSCOCO 2014 dataset](https://cocodataset.org/#home). This multi-modal data (image + text) gives us the opportunity to experiment with preprocessing operations for both modalities.
 
@@ -149,12 +152,16 @@ Finally, the defined pipeline is compiled and a `pipeline.json` specification fi
 
 #### Execute the KFP pipeline
 
-{{< highlight file="sdks/python/apache_beam/examples/ml-orchestration/kfp/pipeline.py" >}}
+Using the specification file and the snippet below, the pipeline can now be executed. Consult the [docs](https://kubeflow-pipelines.readthedocs.io/en/latest/source/kfp.client.html#kfp.Client.run_pipeline) for more information.
+{{< highlight >}}
+# create the kfp client
 client = kfp.Client()
 try:
     experiment = client.get_experiment(experiment_name=EXPERIMENT_NAME)
 except:
     experiment = client.create_experiment(EXPERIMENT_NAME)
+
+# add optional keyword arguments
 arguments = {}
 
 run_result = client.run_pipeline(experiment.id,
