@@ -36,7 +36,7 @@ type KeyMutationPair struct {
 }
 
 // Write writes the elements of the given PCollection<bigtableio.KeyMutationPair> to bigtable.
-func Write(s beam.Scope, project, table string, col beam.PCollection) {
+func Write(s beam.Scope, project, instanceID, table string, col beam.PCollection) {
 	t := col.Type().Type()
 	mustBeKeyMutationPair(t)
 
@@ -44,7 +44,7 @@ func Write(s beam.Scope, project, table string, col beam.PCollection) {
 
 	pre := beam.AddFixedKey(s, col)
 	post := beam.GroupByKey(s, pre)
-	beam.ParDo0(s, &writeFn{Project: project, TableName: table, Type: beam.EncodedType{T: t}}, post)
+	beam.ParDo0(s, &writeFn{Project: project, InstanceID: instanceID, TableName: table, Type: beam.EncodedType{T: t}}, post)
 }
 
 func mustBeKeyMutationPair(t reflect.Type) {
