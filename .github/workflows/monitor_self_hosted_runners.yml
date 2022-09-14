@@ -51,4 +51,4 @@ jobs:
         ISSUE_REPORT_SENDER_EMAIL_PASSWORD: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
         ISSUE_REPORT_RECIPIENT_EMAIL_ADDRESS: "dev@beam.apache.org"
         ISSUE_REPORT_SENDER_EMAIL_SERVICE: "gmail"
-        ENDPOINT: "https://us-central1-apache-beam-testing.cloudfunctions.net/monitorRunnersStatus" #we suggest adding this ENDPOINT as a repo secret too
+        ENDPOINT: "https://us-central1-apache-beam-testing.cloudfunctions.net/monitorRunnersStatus"
