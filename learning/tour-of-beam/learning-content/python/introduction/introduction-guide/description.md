@@ -13,7 +13,7 @@ limitations under the License.
 -->
 # Tour of Beam Programming Guide
 
-Welcome to a Tour Of Beam, a learning guide you can use to get familiar with the Apache Beam.
+Welcome to a Tour Of Beam, a learning guide you can use to familiarize yourself with the Apache Beam.
 The tour is divided into a list of modules that contain learning units covering various Apache Beam features and principles.
 You can access list of modules by clicking ‘<<’ button on the left . For each module, learning progress is displayed next to it.
 Throughout the tour, you will find list of learning materials, examples, exercises and challenges for you to complete.
