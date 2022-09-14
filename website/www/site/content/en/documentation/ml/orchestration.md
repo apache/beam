@@ -105,7 +105,7 @@ In this case, each component shares an identical Dockerfile but extra component-
 
 With the component specification and containerization out of the way we can look at the actual implementation of the preprocessing component.
 
-Since KFP provides the input and output arguments as command-line arguments, an argumentparser is needed.
+Since KFP provides the input and output arguments as command-line arguments, an `argumentparser` is needed.
 
 {{< highlight file="sdks/python/apache_beam/examples/ml-orchestration/kf/components/preprocessing/src/preprocess.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/kfp/components/preprocessing/src/preprocess.py" preprocess_component_argparse >}}
