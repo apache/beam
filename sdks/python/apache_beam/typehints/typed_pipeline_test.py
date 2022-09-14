@@ -126,14 +126,12 @@ class MainInputTest(unittest.TestCase):
     result = [(1, 2)] | beam.ParDo(MyDoFn())
     self.assertEqual([1], sorted(result))
 
-    with self.assertRaisesRegex(
-        typehints.TypeCheckError,
-        r'requires.*Tuple\[<class \'int\'>, <class \'int\'>\].*got.*str'):
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'requires.*Tuple\[int, int\].*got.*str'):
       _ = ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
-    with self.assertRaisesRegex(
-        typehints.TypeCheckError,
-        r'requires.*Tuple\[<class \'int\'>, <class \'int\'>\].*got.*int'):
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'requires.*Tuple\[int, int\].*got.*int'):
       _ = [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_callable_iterable_output(self):
@@ -747,8 +745,7 @@ class SideInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         typehints.TypeCheckError,
-        (r'requires Tuple\[<class \'int\'>, ...\] but got '
-         r'Tuple\[<class \'str\'>, ...\]')):
+        r'requires Tuple\[int, ...\] but got Tuple\[str, ...\]'):
       ['a', 'bb', 'c'] | beam.Map(repeat, 'z')
 
   def test_var_positional_only_side_input_hint(self):
@@ -765,8 +762,8 @@ class SideInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         typehints.TypeCheckError,
-        r'requires Tuple\[Union\[<class \'int\'>, <class \'str\'>\], ...\] but '
-        r'got Tuple\[Union\[<class \'float\'>, <class \'int\'>\], ...\]'):
+        r'requires Tuple\[Union\[int, str\], ...\] but got '
+        r'Tuple\[Union\[float, int\], ...\]'):
       _ = [1.2] | beam.Map(lambda *_: 'a', 5).with_input_types(int, str)
 
   def test_var_keyword_side_input_hint(self):
@@ -786,8 +783,7 @@ class SideInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         typehints.TypeCheckError,
-        r'requires Dict\[<class \'str\'>, <class \'str\'>\] but got '
-        r'Dict\[<class \'str\'>, <class \'int\'>\]'):
+        r'requires Dict\[str, str\] but got Dict\[str, int\]'):
       _ = (['a', 'b', 'c']
            | beam.Map(lambda e, **_: 'a', kw=5).with_input_types(
                str, ignored=str))

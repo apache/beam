@@ -240,8 +240,7 @@ class BatchDoFnTest(unittest.TestCase):
     with self.assertRaisesRegex(
         TypeError,
         (r'(?ms)MismatchedBatchProducingDoFn.*'
-         r'process: List\[<class \'int\'>\].*process_batch: '
-         r'List\[<class \'float\'>\]')):
+         r'process: List\[int\].*process_batch: List\[float\]')):
       _ = pc | beam.ParDo(MismatchedBatchProducingDoFn())
 
   def test_mismatched_element_producer_raises(self):
