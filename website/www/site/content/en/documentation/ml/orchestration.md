@@ -42,7 +42,7 @@ Note: TFX creates a workflow DAG, which needs an orchestrator of its own to be e
 
 > "Several TFX components rely on Beam for distributed data processing. In addition, TFX can use Apache Beam to orchestrate and execute the pipeline DAG. Beam orchestrator uses a different BeamRunner than the one which is used for component data processing."
 
-Caveat: The Beam orchestrator is not meant to be a TFX orchestrator to be used in production environments. It simply enables to debug the TFX pipeline locally on Beam’s DirectRunner without the need for the extra setup that is needed for Airflow or Kubeflow.
+Caveat: The Beam orchestrator is not meant to be a TFX orchestrator to be used in production environments. It simply enables debugging TFX pipelines locally on Beam’s DirectRunner without the need for the extra setup that is needed for Airflow or Kubeflow.
 
 ## Preprocessing example
 
