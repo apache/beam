@@ -3765,7 +3765,7 @@ purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
 	
 {{< highlight py >}} 
-input_pc = ... # {"userId":...,"shippingAddress":"postCode": ..., ...,"bank": ..., "purchase_amount": ...}
+input_pc = ... # {"user_id":...,"shipping_address":"postCode": ..., ...,"bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Map(lambda item: beam.Row(pcode=str(item["shippingAddress.postCode"])))                                               
 {{< /highlight >}}
 
