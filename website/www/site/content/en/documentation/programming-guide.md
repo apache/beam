@@ -3754,7 +3754,6 @@ input_pc = ... # {"user_id":...,"bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Select(user_id=lambda item: str(item["user_id"]))                                            
 {{< /highlight >}}
 
-
 ##### **Nested fields**
 
 Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
@@ -3765,10 +3764,9 @@ purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
 	
 {{< highlight py >}} 
-input_pc = ... # {"user_id":...,"shipping_address":"postCode": ..., ...,"bank": ..., "purchase_amount": ...}
-output_pc = input_pc | beam.Map(lambda item: beam.Row(pcode=str(item["shippingAddress.postCode"])))                                               
+input_pc = ... # {"user_id":...,"shipping_address":"post_code": ..., ...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_address.post_code"]))                                               
 {{< /highlight >}}
-
 
 ##### **Wildcards**
 
@@ -3780,8 +3778,8 @@ purchases.apply(Select.fieldNames("shippingAddress.*"));
 {{< /highlight >}}
 
 {{< highlight py >}} 
-input_pc = ... # {"userId":...,"shippingAddress":"postCode": ..., ...,"bank": ..., "purchase_amount": ...}
-output_pc = input_pc | beam.Map(lambda item: beam.Row(address=str(item["shippingAddress.*"])))
+input_pc = ... # {"user_id":...,"shipping_address":"post_code": ..., ...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select(shipping_address=lambda item: str(item["shipping_address.*"]))                                               
 {{< /highlight >}}
 
 ##### **Arrays**
