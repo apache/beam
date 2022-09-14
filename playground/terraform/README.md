@@ -28,7 +28,27 @@ The following items need to be setup for the Playground cluster deployment on GC
 
 # Deployment steps
 
+## GCP setup
+1. Create a Service Account and download JSON key
+2. Enable
+   - Identity and Access Management (IAM) API
+   - Cloud Storage API
+   - Cloud Billing API
+   - App Engine Admin API
+3. Add a global `Owner` role to the Service Account in IAM console
+4. Set environment vaiables for below steps:
+```
+export GOOGLE_APPLICATION_CREDENTIALS=<sa_credentials_file>
+export PROJECT_ID=<project_id>
+```
+4. Login under SA account in gcloud
+```
+gcloud auth login --cred-file <sa_credentials_file>
+gcloud auth activate-service-account --key-file <sa_credentials_file>
+```
+
 ## 0. Create GCS bucket for state
+**note** Bucket name is unique across all your projects, including those you've shut down
 
 ```bash
 $ gsutil mb -p ${PROJECT_ID} gs://state-bucket-name
@@ -42,48 +62,61 @@ To provide information about the terraform backend, run the following commands
 * New environment folder
 
 ```bash
-mkdir /path/to/beam/playground/terraform/environment/{env-name}
+mkdir /path/to/beam/playground/terraform/environment/<env-name>
 ```
 
 * Backend config
+Set storage bucket to keep remote state (created at step 0)
 
 ```bash
-echo 'bucket = "put your state bucket name here"' > /path/to/beam/playground/terraform/environment/{env-name}/state.tfbackend
+echo 'bucket = "state-bucket-name"' > /path/to/beam/playground/terraform/environment/{env-name}/state.tfbackend
 ```
 
 * Terraform variables config and provide necessary variables
 
 ```bash
-touch /path/to/beam/playground/terraform/environment/{env-name}/terraform.tfvars
+# copy default variables
+cp playground/terraform/environment/beta/terraform.tfvars \
+   playground/terraform/environment/{env-name}/terraform.tfvars
+# set project-specific variables
+echo -n '
+project_id = "tour-of-beam"
+state_bucket = "state-bucket-name"
+bucket_examples_name = "state-bucket-name-examples"
+' >> playground/terraform/environment/{env-name}/terraform.tfvars
 ```
-
-Then provide necessary variables.
 
 ## 2. Provision infrastructure
 
 To deploy Playground infrastructure run gradle task:
 
 ```bash
-./gradlew playground:terraform:InitInfrastructure -Pproject_environment="env-name"
+./gradlew playground:terraform:InitInfrastructure -Pproject_environment="{env-name}"
 ```
 
 ## 3. Deploy application
 
 To deploy application run following steps:
 
-* Authinticate in Artifact registry
+* Authenticate to Artifact registry
+We choose `us-central1` as a region here
 
 ```bash
-gcloud auth configure-docker us-central1-docker.pkg.dev
+$ gcloud auth configure-docker us-central1-docker.pkg.dev
+
+$ base64 <sa_credentials_file> | docker login -u _json_key_base64 --password-stdin https://us-central1-docker.pkg.dev
+
 ```
 
-* Вeploy backend services
+* Deploy backend services
+safe setting for `<tag>` is the same as `<env-name>`
 
 ```bash
-./gradlew playground:terraform:deployBackend -Pproject_environment="env-name" -Pdocker-tag="tag"
+./gradlew playground:terraform:deployBackend -Pproject_environment="<env-name>" -Pdocker-tag="<tag>"
 ```
 
 * Deploy frontend service
 
 ```bash
-./gradlew playground:terraform:deployFrontend -Pproject_environment="env-name" -Pdocker-tag="tag" ```
+./gradlew playground:terraform:deployFrontend -Pproject_environment="<env-name>" -Pdocker-tag="<tag>" ```
+
