@@ -38,18 +38,21 @@ public class OpenModuleAgent {
                 modulesToOpen.add(module);
               }
             });
-    for (Module module : modulesToOpen) {
-      Map<String, Set<Module>> addOpens = new HashMap<>();
-      for (String pkg : module.getPackages()) {
-        addOpens.put(pkg, automaticModules);
+
+    if (!automaticModules.isEmpty()) {
+      for (Module module : modulesToOpen) {
+        Map<String, Set<Module>> addOpens = new HashMap<>();
+        for (String pkg : module.getPackages()) {
+          addOpens.put(pkg, automaticModules);
+        }
+        instrumentation.redefineModule(
+            module,
+            Collections.emptySet(),
+            Collections.emptyMap(),
+            addOpens,
+            Collections.emptySet(),
+            Collections.emptyMap());
       }
-      instrumentation.redefineModule(
-          module,
-          Collections.emptySet(),
-          Collections.emptyMap(),
-          addOpens,
-          Collections.emptySet(),
-          Collections.emptyMap());
     }
   }
 }
