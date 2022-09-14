@@ -467,9 +467,11 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 					if len(userState) > 0 {
 						stateIDToCoder := make(map[string]*coder.Coder)
+						stateIDToKeyCoder := make(map[string]*coder.Coder)
 						stateIDToCombineFn := make(map[string]*graph.CombineFn)
 						for key, spec := range userState {
 							var cID string
+							var kcID string
 							if rmw := spec.GetReadModifyWriteSpec(); rmw != nil {
 								cID = rmw.CoderId
 							} else if bs := spec.GetBagSpec(); bs != nil {
@@ -490,12 +492,32 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 									return nil, err
 								}
 								stateIDToCombineFn[key] = cfn
+							} else if ms := spec.GetMapSpec(); ms != nil {
+								cID = ms.ValueCoderId
+								kcID = ms.KeyCoderId
+							} else if ss := spec.GetSetSpec(); ss != nil {
+								kcID = ss.ElementCoderId
+							} else {
+								return nil, errors.Errorf("Unrecognized state type %v", spec)
 							}
-							c, err := b.coders.Coder(cID)
-							if err != nil {
-								return nil, err
+							if cID != "" {
+								c, err := b.coders.Coder(cID)
+								if err != nil {
+									return nil, err
+								}
+								stateIDToCoder[key] = c
+							} else {
+								// If no value coder is provided, we are in a keyed state with no values (aka a set).
+								// We represent a set as an element mapping to a bool representing if it is present or not.
+								stateIDToCoder[key] = &coder.Coder{Kind: coder.Bool}
 							}
-							stateIDToCoder[key] = c
+							if kcID != "" {
+								kc, err := b.coders.Coder(kcID)
+								if err != nil {
+									return nil, err
+								}
+								stateIDToKeyCoder[key] = kc
+							}
 							sid := StreamID{
 								Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
 								PtransformID: id.to,
@@ -505,7 +527,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							if err != nil {
 								return nil, err
 							}
-							n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIDToCoder, stateIDToCombineFn)
+							n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIDToCoder, stateIDToKeyCoder, stateIDToCombineFn)
 						}
 					}
 

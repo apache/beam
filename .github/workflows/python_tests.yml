@@ -35,6 +35,10 @@ on:
         description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
         default: false
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
 
 jobs:
 

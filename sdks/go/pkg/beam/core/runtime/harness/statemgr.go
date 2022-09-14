@@ -105,6 +105,46 @@ func (s *ScopedStateReader) OpenBagUserStateClearer(ctx context.Context, id exec
 	return wr, err
 }
 
+// OpenMultimapUserStateReader opens a byte stream for reading user multimap state.
+func (s *ScopedStateReader) OpenMultimapUserStateReader(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.ReadCloser, error) {
+	rw, err := s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newMultimapUserStateReader(ch, id, s.instID, userStateID, key, w, mk)
+	})
+	return rw, err
+}
+
+// OpenMultimapUserStateAppender opens a byte stream for appending user multimap state.
+func (s *ScopedStateReader) OpenMultimapUserStateAppender(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error) {
+	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
+		return newMultimapUserStateWriter(ch, id, s.instID, userStateID, key, w, mk, writeTypeAppend)
+	})
+	return wr, err
+}
+
+// OpenMultimapUserStateClearer opens a byte stream for clearing user multimap state by key.
+func (s *ScopedStateReader) OpenMultimapUserStateClearer(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error) {
+	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
+		return newMultimapUserStateWriter(ch, id, s.instID, userStateID, key, w, mk, writeTypeClear)
+	})
+	return wr, err
+}
+
+// OpenMultimapKeysUserStateReader opens a byte stream for reading the keys of user multimap state.
+func (s *ScopedStateReader) OpenMultimapKeysUserStateReader(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error) {
+	rw, err := s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newMultimapKeysUserStateReader(ch, id, s.instID, userStateID, key, w)
+	})
+	return rw, err
+}
+
+// OpenMultimapKeysUserStateClearer opens a byte stream for clearing all keys of user multimap state.
+func (s *ScopedStateReader) OpenMultimapKeysUserStateClearer(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
+		return newMultimapKeysUserStateWriter(ch, id, s.instID, userStateID, key, w, writeTypeClear)
+	})
+	return wr, err
+}
+
 // GetSideInputCache returns a pointer to the SideInputCache being used by the SDK harness.
 func (s *ScopedStateReader) GetSideInputCache() exec.SideCache {
 	return s.cache
@@ -258,6 +298,82 @@ func newBagUserStateWriter(ch *StateChannel, id exec.StreamID, instID instructio
 	key := &fnpb.StateKey{
 		Type: &fnpb.StateKey_BagUserState_{
 			BagUserState: &fnpb.StateKey_BagUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+			},
+		},
+	}
+	return &stateKeyWriter{
+		instID:    instID,
+		key:       key,
+		ch:        ch,
+		writeType: wt,
+	}
+}
+
+func newMultimapUserStateReader(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, mk []byte) *stateKeyReader {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_MultimapUserState_{
+			MultimapUserState: &fnpb.StateKey_MultimapUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+				MapKey:      mk,
+			},
+		},
+	}
+	return &stateKeyReader{
+		instID: instID,
+		key:    key,
+		ch:     ch,
+	}
+}
+
+func newMultimapUserStateWriter(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, mk []byte, wt writeTypeEnum) *stateKeyWriter {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_MultimapUserState_{
+			MultimapUserState: &fnpb.StateKey_MultimapUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+				MapKey:      mk,
+			},
+		},
+	}
+	return &stateKeyWriter{
+		instID:    instID,
+		key:       key,
+		ch:        ch,
+		writeType: wt,
+	}
+}
+
+func newMultimapKeysUserStateReader(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte) *stateKeyReader {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_MultimapKeysUserState_{
+			MultimapKeysUserState: &fnpb.StateKey_MultimapKeysUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+			},
+		},
+	}
+	return &stateKeyReader{
+		instID: instID,
+		key:    key,
+		ch:     ch,
+	}
+}
+
+func newMultimapKeysUserStateWriter(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, wt writeTypeEnum) *stateKeyWriter {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_MultimapKeysUserState_{
+			MultimapKeysUserState: &fnpb.StateKey_MultimapKeysUserState{
 				TransformId: id.PtransformID,
 				UserStateId: userStateID,
 				Window:      w,

@@ -24,13 +24,18 @@ on:
     branches: ['playground-staging']
   workflow_dispatch:
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
 jobs:
   build_playground_frontend_docker_image:
     name: Build Playground Frontend App
     runs-on: ubuntu-latest
     env:
-      GO_VERSION: 1.17.0
-      BEAM_VERSION: 2.33.0
+      GO_VERSION: 1.18.0
+      BEAM_VERSION: 2.40.0
       TERRAFORM_VERSION: 1.0.9
       FLUTTER_VERSION: 3.0.1-stable
       STAND_SUFFIX: ''

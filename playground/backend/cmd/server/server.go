@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 
-	"beam.apache.org/playground/backend/internal/tasks"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
 
@@ -35,6 +34,7 @@ import (
 	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/tasks"
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
@@ -74,7 +74,7 @@ func runServer() error {
 			return err
 		}
 
-		dbClient, err = datastore.New(ctx, envService.ApplicationEnvs.GoogleProjectId())
+		dbClient, err = datastore.New(ctx, mapper.NewPrecompiledObjectMapper(), envService.ApplicationEnvs.GoogleProjectId())
 		if err != nil {
 			return err
 		}
@@ -83,7 +83,7 @@ func runServer() error {
 			return err
 		}
 
-		entityMapper = mapper.New(&envService.ApplicationEnvs, props)
+		entityMapper = mapper.NewDatastoreMapper(ctx, &envService.ApplicationEnvs, props)
 
 		// Since only router server has the scheduled task, the task creation is here
 		scheduledTasks := tasks.New(ctx)
@@ -121,6 +121,7 @@ func runServer() error {
 	}
 }
 
+// setupEnvironment constructs the environment required by the app
 func setupEnvironment() (*environment.Environment, error) {
 	networkEnvs, err := environment.GetNetworkEnvsFromOsEnvs()
 	if err != nil {

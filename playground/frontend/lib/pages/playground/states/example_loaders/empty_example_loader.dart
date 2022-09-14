@@ -19,15 +19,12 @@
 import 'package:playground/modules/examples/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/pages/playground/states/example_loaders/example_loader.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
 
 class EmptyExampleLoader extends ExampleLoader {
   final EmptyExampleLoadingDescriptor descriptor;
-  final ExampleState exampleState;
 
   const EmptyExampleLoader({
     required this.descriptor,
-    required this.exampleState,
   });
 
   @override
