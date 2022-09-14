@@ -50,7 +50,7 @@ Let’s get practical and take a look at two such orchestrated ML workflows, one
 
 To not overcomplicate things, the workflows are limited to three components: data ingestion, data preprocessing and model training. Depending on the scenario, a range of extra components could be added such as model evaluation, model deployment… We will focus our attention on the preprocessing component, since it showcases how to use  Apache beam in an ML workflow for efficient and parallel processing of your ML data.
 
-The dataset we will use consists image-caption pairs, i.e. images paired with a textual caption describing the content of the image. These pairs are taken from captions subset of the [MSCOCO 2014 dataset](https://cocodataset.org/#home). This multi-modal data (image + text) gives us the opportunity to experiment with preprocessing operations for both modalities.
+The dataset we will use consists of image-caption pairs, i.e. images paired with a textual caption describing the content of the image. These pairs are taken from captions subset of the [MSCOCO 2014 dataset](https://cocodataset.org/#home). This multi-modal data (image + text) gives us the opportunity to experiment with preprocessing operations for both modalities.
 
 ### Kubeflow pipelines (KFP)
 
