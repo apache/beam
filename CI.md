@@ -125,6 +125,38 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PreCommit Workflows
+
+#### Python Avro IO - [job-precommit-python-avro-io.yml](.github/workflows/job-precommit-python-avro-io.yml)
+| Job            | Description                    | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|----------------|--------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Python Avro IO | Runs Python Avro IO Unit Tests | Yes              | Yes                   | Yes           | -                        |
+
+#### Python Azure IO - [job-precommit-python-azure-io.yml](.github/workflows/job-precommit-python-azure-io.yml)
+| Job             | Description                     | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|---------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Python Azure IO | Runs Python Azure IO Unit Tests | Yes              | Yes                   | Yes           | -                        |
+
+#### Python Flink IO - [job-precommit-python-flink-io.yml](.github/workflows/job-precommit-python-flink-io.yml)
+| Job             | Description                     | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------|---------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Python Flink IO | Runs Python Flink IO Unit Tests | Yes              | Yes                   | Yes           | -                        |
+
+#### Python GCP IO - [job-precommit-python-gcp-io.yml](.github/workflows/job-precommit-python-gcp-io.yml)
+| Job           | Description                   | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|---------------|-------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Python GCP IO | Runs Python GCP IO Unit Tests | Yes              | Yes                   | Yes           | -                        |
+
+#### Python Hadoop IO - [job-precommit-python-hadoop-io.yml](.github/workflows/job-precommit-python-hadoop-io.yml)
+| Job              | Description                      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|------------------|----------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Python Hadoop IO | Runs Python Hadoop IO Unit Tests | Yes              | Yes                   | Yes           | -                        |
+
+#### Python ML - [job-precommit-python-ml.yml](.github/workflows/job-precommit-python-ml.yml)
+| Job       | Description               | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------|---------------------------|------------------|-----------------------|---------------|--------------------------|
+| Python ML | Runs Python ML Unit Tests | Yes              | Yes                   | Yes           | -                        |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
