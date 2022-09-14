@@ -15,33 +15,36 @@ import torchvision.transforms.functional as TF
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
-
 PROJECT_ID = "<project-id>"
 LOCATION = "<project-location>"
 STAGING_DIR = "<uri-to-data-flow-staging-dir>"
 BEAM_RUNNER = "<beam-runner>"
+
 
 # [START preprocess_component_argparse]
 def parse_args():
   """Parse preprocessing arguments."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
-    "--ingested-dataset-path", type=str,
-    help="Path to the ingested dataset")
+      "--ingested-dataset-path", type=str, help="Path to the ingested dataset")
   parser.add_argument(
-    "--preprocessed-dataset-path", type=str,
-    help="The target directory for the ingested dataset.")
+      "--preprocessed-dataset-path",
+      type=str,
+      help="The target directory for the ingested dataset.")
   parser.add_argument(
-    "--base-artifact-path", type=str,
-    help="Base path to store pipeline artifacts.")
+      "--base-artifact-path",
+      type=str,
+      help="Base path to store pipeline artifacts.")
   return parser.parse_args()
+
+
 # [END preprocess_component_argparse]
 
 
 def preprocess_dataset(
-  ingested_dataset_path: str,
-  preprocessed_dataset_path: str,
-  base_artifact_path: str):
+    ingested_dataset_path: str,
+    preprocessed_dataset_path: str,
+    base_artifact_path: str):
   """Preprocess the ingested raw dataset and write the result to avro format.
 
   Args:
@@ -61,42 +64,47 @@ def preprocess_dataset(
     f.write(target_path)
   # [END kfp_component_input_output]
 
-
   # [START deploy_preprocessing_beam_pipeline]
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(
-    runner=BEAM_RUNNER,
-    project=PROJECT_ID,
-    job_name=f'preprocessing-{int(time.time())}',
-    temp_location=STAGING_DIR,
-    region=LOCATION,
-    requirements_file="/requirements.txt",
-    save_main_session = True,
+      runner=BEAM_RUNNER,
+      project=PROJECT_ID,
+      job_name=f'preprocessing-{int(time.time())}',
+      temp_location=STAGING_DIR,
+      region=LOCATION,
+      requirements_file="/requirements.txt",
+      save_main_session=True,
   )
 
   with beam.Pipeline(options=pipeline_options) as pipeline:
     (
-      pipeline
-      | "Read input jsonl file" >> beam.io.ReadFromText(ingested_dataset_path)
-      | "Load json" >> beam.Map(json.loads)
-      | "Filter licenses" >> beam.Filter(valid_license)
-      | "Download image from URL" >> beam.ParDo(DownloadImageFromURL())
-      | "Filter on valid images" >> beam.Filter(lambda el: el['image'] is not None)
-      | "Resize image" >> beam.ParDo(ResizeImage(size=(224,224)))
-      | "Clean Text" >> beam.ParDo(CleanText())
-      | "Serialize Example" >> beam.ParDo(SerializeExample())
-      | "Write to Avro files" >> beam.io.WriteToAvro(file_path_prefix=target_path,
-                                  schema={"namespace": "preprocessing.example",
-                                          "type": "record",
-                                          "name": "Sample",
-                                          "fields": [
-                                            {"name": "id", "type": "int"},
-                                            {"name": "caption", "type": "string"},
-                                            {"name": "image", "type": "bytes"}
-                                          ]},
-                                  file_name_suffix=".avro")
-    )
+        pipeline
+        |
+        "Read input jsonl file" >> beam.io.ReadFromText(ingested_dataset_path)
+        | "Load json" >> beam.Map(json.loads)
+        | "Filter licenses" >> beam.Filter(valid_license)
+        | "Download image from URL" >> beam.ParDo(DownloadImageFromURL())
+        | "Filter on valid images" >>
+        beam.Filter(lambda el: el['image'] is not None)
+        | "Resize image" >> beam.ParDo(ResizeImage(size=(224, 224)))
+        | "Clean Text" >> beam.ParDo(CleanText())
+        | "Serialize Example" >> beam.ParDo(SerializeExample())
+        | "Write to Avro files" >> beam.io.WriteToAvro(
+            file_path_prefix=target_path,
+            schema={
+                "namespace": "preprocessing.example",
+                "type": "record",
+                "name": "Sample",
+                "fields": [{
+                    "name": "id", "type": "int"
+                }, {
+                    "name": "caption", "type": "string"
+                }, {
+                    "name": "image", "type": "bytes"
+                }]
+            },
+            file_name_suffix=".avro"))
   # [END deploy_preprocessing_beam_pipeline]
 
 
@@ -115,7 +123,8 @@ class DownloadImageFromURL(beam.DoFn):
 
 class ResizeImage(beam.DoFn):
   "DoFn to resize the elememt's PIL image to the target resolution."
-  def process(self, element, size=(256,256)):
+
+  def process(self, element, size=(256, 256)):
     element['image'] = TF.resize(element['image'], size)
     return [element]
 
@@ -128,7 +137,9 @@ class CleanText(beam.DoFn):
     text = text.lower()  # lower case
     text = re.sub(r"http\S+", "", text)  # remove urls
     text = re.sub("\s+", " ", text)  # remove extra spaces (including \n and \t)
-    text = re.sub("[()[\].,|:;?!=+~\-\/{}]", ",", text)  # all puncutation are replace w commas
+    text = re.sub(
+        "[()[\].,|:;?!=+~\-\/{}]", ",",
+        text)  # all puncutation are replace w commas
     text = f" {text}"  # always start with a space
     text = text.strip(',')  #  remove commas at the start or end of the caption
     text = text[:-1] if text and text[-1] == "," else text
@@ -157,4 +168,3 @@ class SerializeExample(beam.DoFn):
 if __name__ == "__main__":
   args = parse_args()
   preprocess_dataset(**vars(args))
-

@@ -11,21 +11,24 @@ def parse_args():
   """Parse ingestion arguments."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
-    "--preprocessed-dataset-path", type=str,
-    help="Path to the preprocessed dataset.")
+      "--preprocessed-dataset-path",
+      type=str,
+      help="Path to the preprocessed dataset.")
   parser.add_argument(
-    "--trained-model-path", type=str,
-    help="Output path to the trained model.")
+      "--trained-model-path",
+      type=str,
+      help="Output path to the trained model.")
   parser.add_argument(
-    "--base-artifact-path", type=str,
-    help="Base path to store pipeline artifacts.")
+      "--base-artifact-path",
+      type=str,
+      help="Base path to store pipeline artifacts.")
   return parser.parse_args()
 
 
 def train_model(
-  preprocessed_dataset_path: str,
-  trained_model_path: str,
-  base_artifact_path: str):
+    preprocessed_dataset_path: str,
+    trained_model_path: str,
+    base_artifact_path: str):
   """Dummy to load a model from the torch hub and save it.
 
   Args:
