@@ -44,10 +44,10 @@ except ImportError:
 
 def check_torch_keyed_model_handler():
   expected = '''[START torch_keyed_model_handler]
-('first_question', PredictionResult(example=tensor([105.]), inference=tensor([523.6982], grad_fn=<UnbindBackward>)))
-('second_question', PredictionResult(example=tensor([108.]), inference=tensor([538.5867], grad_fn=<UnbindBackward>)))
-('third_question', PredictionResult(example=tensor([1000.]), inference=tensor([4965.4019], grad_fn=<UnbindBackward>)))
-('fourth_question', PredictionResult(example=tensor([1013.]), inference=tensor([5029.9180], grad_fn=<UnbindBackward>)))
+('first_question', PredictionResult(example=tensor([105.]), inference=tensor([523.6982])))
+('second_question', PredictionResult(example=tensor([108.]), inference=tensor([538.5867])))
+('third_question', PredictionResult(example=tensor([1000.]), inference=tensor([4965.4019])))
+('fourth_question', PredictionResult(example=tensor([1013.]), inference=tensor([5029.9180])))
 [END torch_keyed_model_handler] '''.splitlines()[1:-1]
   return expected
 
@@ -64,10 +64,10 @@ def check_sklearn_keyed_model_handler(actual):
 
 def check_torch_unkeyed_model_handler():
   expected = '''[START torch_unkeyed_model_handler]
-PredictionResult(example=tensor([10.]), inference=tensor([52.2325], grad_fn=<UnbindBackward>))
-PredictionResult(example=tensor([40.]), inference=tensor([201.1165], grad_fn=<UnbindBackward>))
-PredictionResult(example=tensor([60.]), inference=tensor([300.3724], grad_fn=<UnbindBackward>))
-PredictionResult(example=tensor([90.]), inference=tensor([449.2563], grad_fn=<UnbindBackward>))
+PredictionResult(example=tensor([10.]), inference=tensor([52.2325]))
+PredictionResult(example=tensor([40.]), inference=tensor([201.1165]))
+PredictionResult(example=tensor([60.]), inference=tensor([300.3724]))
+PredictionResult(example=tensor([90.]), inference=tensor([449.2563]))
 [END torch_unkeyed_model_handler] '''.splitlines()[1:-1]
   return expected
 

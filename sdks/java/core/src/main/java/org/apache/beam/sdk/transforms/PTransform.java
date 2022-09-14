@@ -162,6 +162,19 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   public void validate(@Nullable PipelineOptions options) {}
 
   /**
+   * Called before running the Pipeline to verify this transform, its inputs, and outputs are fully
+   * and correctly specified.
+   *
+   * <p>By default, delegates to {@link #validate(PipelineOptions)}.
+   */
+  public void validate(
+      @Nullable PipelineOptions options,
+      Map<TupleTag<?>, PCollection<?>> inputs,
+      Map<TupleTag<?>, PCollection<?>> outputs) {
+    validate(options);
+  }
+
+  /**
    * Returns all {@link PValue PValues} that are consumed as inputs to this {@link PTransform} that
    * are independent of the expansion of the {@link InputT} within {@link #expand(PInput)}.
    *

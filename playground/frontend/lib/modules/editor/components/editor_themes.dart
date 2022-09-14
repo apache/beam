@@ -29,7 +29,7 @@ CodeThemeData createTheme(ThemeColors colors) {
 Map<String, TextStyle> _createThemeStyles(ThemeColors colors) {
   return {
     'root': TextStyle(
-      backgroundColor: colors.primaryBackground,
+      backgroundColor: colors.background,
       color: colors.textColor,
     ),
     'comment': TextStyle(color: colors.codeComment),
@@ -62,6 +62,3 @@ Map<String, TextStyle> _createThemeStyles(ThemeColors colors) {
     'strong': const TextStyle(fontWeight: FontWeight.bold),
   };
 }
-
-final kDarkCodeTheme = createTheme(ThemeColors(true));
-final kLightCodeTheme = createTheme(ThemeColors(false));

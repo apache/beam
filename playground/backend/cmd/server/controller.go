@@ -15,6 +15,10 @@
 package main
 
 import (
+	"context"
+
+	"github.com/google/uuid"
+
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
@@ -26,8 +30,6 @@ import (
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/setup_tools/life_cycle"
 	"beam.apache.org/playground/backend/internal/utils"
-	"context"
-	"github.com/google/uuid"
 )
 
 const (
@@ -363,6 +365,10 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, info *p
 		logger.Errorf("SaveSnippet(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
+	if controller.db == nil {
+		logger.Error("SaveSnippet(): the runner is trying to save the snippet")
+		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "The runner doesn't support snippets")
+	}
 	if info.Files == nil || len(info.Files) == 0 {
 		logger.Error("SaveSnippet(): files are empty")
 		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet must have files")
@@ -380,7 +386,12 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, info *p
 			logger.Errorf("SaveSnippet(): entity is too large. Max entity size: %d symbols", maxSnippetSize)
 			return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet size is more than %d symbols", maxSnippetSize)
 		}
-		snippet.Files = append(snippet.Files, controller.entityMapper.ToFileEntity(info, file))
+		fileEntity, err := controller.entityMapper.ToFileEntity(info, file)
+		if err != nil {
+			logger.Errorf("SaveSnippet(): file has wrong properties, err: %s", err.Error())
+			return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "File content is invalid")
+		}
+		snippet.Files = append(snippet.Files, fileEntity)
 	}
 
 	id, err := snippet.ID()
@@ -399,6 +410,10 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, info *p
 
 // GetSnippet returns the snippet entity
 func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb.GetSnippetRequest) (*pb.GetSnippetResponse, error) {
+	if controller.db == nil {
+		logger.Error("GetSnippet(): the runner is trying to read the snippet")
+		return nil, errors.InvalidArgumentError(errorTitleGetSnippet, "The runner doesn't support snippets")
+	}
 	snippet, err := controller.db.GetSnippet(ctx, info.GetId())
 	if err != nil {
 		logger.Errorf("GetSnippet(): error during getting the snippet: %s", err.Error())

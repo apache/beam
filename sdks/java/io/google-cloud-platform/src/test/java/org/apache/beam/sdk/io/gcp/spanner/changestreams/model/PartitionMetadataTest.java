@@ -70,6 +70,9 @@ public class PartitionMetadataTest {
             .setRunningAt(RUNNING_AT)
             .setFinishedAt(FINISHED_AT)
             .build();
+
+    assertEquals(expectedPartitionMetadata.hashCode(), actualPartitionMetadata.hashCode());
+    assertEquals(expectedPartitionMetadata.toString(), actualPartitionMetadata.toString());
     assertEquals(expectedPartitionMetadata, actualPartitionMetadata);
   }
 
@@ -204,5 +207,35 @@ public class PartitionMetadataTest {
                 .setState(State.CREATED)
                 .setCreatedAt(CREATED_AT)
                 .build());
+  }
+
+  @Test
+  public void testGetters() {
+    PartitionMetadata partitionMetadata =
+        new PartitionMetadata(
+            PARTITION_TOKEN,
+            Sets.newHashSet(PARENT_TOKEN),
+            START_TIMESTAMP,
+            END_TIMESTAMP,
+            10,
+            State.RUNNING,
+            WATERMARK,
+            CREATED_AT,
+            SCHEDULED_AT,
+            RUNNING_AT,
+            FINISHED_AT);
+
+    assertEquals(PARTITION_TOKEN, partitionMetadata.getPartitionToken());
+    assertEquals(1, partitionMetadata.getParentTokens().size());
+    assertEquals(PARENT_TOKEN, partitionMetadata.getParentTokens().iterator().next());
+    assertEquals(START_TIMESTAMP, partitionMetadata.getStartTimestamp());
+    assertEquals(END_TIMESTAMP, partitionMetadata.getEndTimestamp());
+    assertEquals(10, partitionMetadata.getHeartbeatMillis());
+    assertEquals(State.RUNNING, partitionMetadata.getState());
+    assertEquals(WATERMARK, partitionMetadata.getWatermark());
+    assertEquals(CREATED_AT, partitionMetadata.getCreatedAt());
+    assertEquals(SCHEDULED_AT, partitionMetadata.getScheduledAt());
+    assertEquals(RUNNING_AT, partitionMetadata.getRunningAt());
+    assertEquals(FINISHED_AT, partitionMetadata.getFinishedAt());
   }
 }

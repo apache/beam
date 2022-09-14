@@ -3,6 +3,7 @@ title:  "Apache Beam 2.38.0"
 date:   2022-04-20 9:00:00 -0700
 categories:
   - blog
+  - release
 authors:
   - danoliveira
 ---

@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -90,6 +91,29 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	edge, err := graph.NewParDo(s.real, s.scope, fn, in, rc, typedefs)
 	if err != nil {
 		return nil, addParDoCtx(err, s)
+	}
+
+	pipelineState := fn.PipelineState()
+	if len(pipelineState) > 0 {
+		edge.StateCoders = make(map[string]*coder.Coder)
+		for _, ps := range pipelineState {
+			if ct := ps.CoderType(); ct != nil {
+				sT := typex.New(ps.CoderType())
+				c, err := inferCoder(sT)
+				if err != nil {
+					return nil, addParDoCtx(err, s)
+				}
+				edge.StateCoders[graphx.UserStateCoderID(ps)] = c
+			}
+			if kct := ps.KeyCoderType(); kct != nil {
+				kT := typex.New(kct)
+				kc, err := inferCoder(kT)
+				if err != nil {
+					return nil, addParDoCtx(err, s)
+				}
+				edge.StateCoders[graphx.UserStateKeyCoderID(ps)] = kc
+			}
+		}
 	}
 
 	var ret []PCollection

@@ -48,7 +48,7 @@ func TestRead(t *testing.T) {
 		},
 	}
 
-	testResourcePaths := []string{"foo", "bar"}
+	testResourcePaths := [][]byte{[]byte("foo"), []byte("bar")}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			p, s, resourcePaths := ptest.CreateList(testResourcePaths)

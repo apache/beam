@@ -20,8 +20,6 @@
 import os
 import sys
 import warnings
-from distutils.errors import DistutilsError
-from distutils.version import StrictVersion
 from pathlib import Path
 
 # Pylint and isort disagree here.
@@ -30,8 +28,15 @@ import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
 from pkg_resources import normalize_path
+from pkg_resources import parse_version
 from pkg_resources import to_filename
 from setuptools import Command
+
+# pylint: disable=wrong-import-order
+# It is recommended to import setuptools prior to importing distutils to avoid
+# using legacy behavior from distutils.
+# https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
+from distutils.errors import DistutilsError # isort:skip
 
 
 class mypy(Command):
@@ -92,7 +97,7 @@ different technologies and user communities.
 
 REQUIRED_PIP_VERSION = '7.0.0'
 _PIP_VERSION = get_distribution('pip').version
-if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
+if parse_version(_PIP_VERSION) < parse_version(REQUIRED_PIP_VERSION):
   warnings.warn(
       "You are using version {0} of pip. " \
       "However, version {1} is recommended.".format(
@@ -103,7 +108,7 @@ if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
   _CYTHON_VERSION = get_distribution('cython').version
-  if StrictVersion(_CYTHON_VERSION) < StrictVersion(REQUIRED_CYTHON_VERSION):
+  if parse_version(_CYTHON_VERSION) < parse_version(REQUIRED_CYTHON_VERSION):
     warnings.warn(
         "You are using version {0} of cython. " \
         "However, version {1} is recommended.".format(
@@ -124,7 +129,7 @@ except ImportError:
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ''
 else:
-  pyarrow_dependency = 'pyarrow>=0.15.1,<8.0.0'
+  pyarrow_dependency = 'pyarrow>=0.15.1,<10.0.0'
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -212,20 +217,27 @@ if __name__ == '__main__':
         # dill on client and server, therefore list of allowed versions is very
         # narrow. See: https://github.com/uqfoundation/dill/issues/341.
         'dill>=0.3.1.1,<0.3.2',
-        'cloudpickle>=2.1.0,<3',
+        # It is prudent to use the same version of pickler at job submission
+        # and at runtime, therefore bounds need to be tight.
+        # To avoid depending on an old dependency, update the minor version on
+        # every Beam release, see: https://github.com/apache/beam/issues/23119
+        'cloudpickle~=2.2.0',
         'fastavro>=0.23.6,<2',
-        'grpcio>=1.33.1,<2',
+        'grpcio>=1.33.1,!=1.48.0,<2',
         'hdfs>=2.1.0,<3.0.0',
         'httplib2>=0.8,<0.21.0',
         'numpy>=1.14.3,<1.23.0',
+        'objsize>=0.5.2,<1',
         'pymongo>=3.8.0,<4.0.0',
-        'protobuf>=3.12.2,<4',
+        'protobuf>=3.12.2,!=3.20.2,<4',
         'proto-plus>=1.7.1,<2',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
+        'regex>=2020.6.8',
         'requests>=2.24.0,<3.0.0',
         'typing-extensions>=3.7.0',
+        'zstandard>=0.18.0,<1',
       # Dynamic dependencies must be specified in a separate list, otherwise
       # Dependabot won't be able to parse the main list. Any dynamic
       # dependencies will not receive updates from Dependabot.
@@ -241,6 +253,7 @@ if __name__ == '__main__':
           ],
           'test': [
             'freezegun>=0.3.12',
+            'hypothesis<7',
             'joblib>=1.0.1',
             'mock>=1.0.1,<3.0.0',
             'pandas<2.0.0',
@@ -249,9 +262,9 @@ if __name__ == '__main__':
             'pyyaml>=3.12,<7.0.0',
             'requests_mock>=1.7,<2.0',
             'tenacity>=5.0.2,<6.0',
-            'pytest>=4.4.0,<5.0',
-            'pytest-xdist>=1.29.0,<2',
-            'pytest-timeout>=1.3.3,<2',
+            'pytest>=7.1.2,<8.0',
+            'pytest-xdist>=2.5.0,<3',
+            'pytest-timeout>=2.1.0,<3',
             'scikit-learn>=0.20.0',
             'sqlalchemy>=1.3,<2.0',
             'psycopg2-binary>=2.8.5,<3.0.0',
@@ -261,6 +274,9 @@ if __name__ == '__main__':
           'gcp': [
             'cachetools>=3.1.0,<5',
             'google-apitools>=0.5.31,<0.5.32',
+            # Transitive dep. Required for google-cloud-spanner v1.
+            # See: https://github.com/apache/beam/issues/22454
+            'google-api-core!=2.8.2,<3',
             # NOTE: Maintainers, please do not require google-auth>=2.x.x
             # Until this issue is closed
             # https://github.com/googleapis/google-cloud-python/issues/10566
@@ -281,7 +297,7 @@ if __name__ == '__main__':
             'google-cloud-language>=1.3.0,<2',
             'google-cloud-videointelligence>=1.8.0,<2',
             'google-cloud-vision>=0.38.0,<2',
-            'google-cloud-recommendations-ai>=0.1.0,<=0.2.0'
+            'google-cloud-recommendations-ai>=0.1.0,<0.8.0'
           ],
           'interactive': [
             'facets-overview>=1.0.0,<2',

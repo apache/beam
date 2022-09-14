@@ -27,7 +27,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,12 +52,14 @@ import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MetricsEnvironment.MetricsEnvironmentState;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.After;
 import org.junit.Before;
@@ -65,14 +67,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.mockito.InOrder;
+import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 /** Tests for {@link PCollectionConsumerRegistryTest}. */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(MetricsEnvironment.class)
+@RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
@@ -126,6 +127,7 @@ public class PCollectionConsumerRegistryTest {
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry,
+            MetricsEnvironment::setCurrentContainer,
             sampler.create(),
             shortIds,
             reporterAndRegistrar,
@@ -187,6 +189,7 @@ public class PCollectionConsumerRegistryTest {
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry,
+            MetricsEnvironment::setCurrentContainer,
             sampler.create(),
             shortIds,
             reporterAndRegistrar,
@@ -214,6 +217,7 @@ public class PCollectionConsumerRegistryTest {
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry,
+            MetricsEnvironment::setCurrentContainer,
             sampler.create(),
             shortIds,
             reporterAndRegistrar,
@@ -273,6 +277,7 @@ public class PCollectionConsumerRegistryTest {
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry,
+            MetricsEnvironment::setCurrentContainer,
             sampler.create(),
             shortIds,
             reporterAndRegistrar,
@@ -337,6 +342,7 @@ public class PCollectionConsumerRegistryTest {
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry,
+            MetricsEnvironment::setCurrentContainer,
             sampler.create(),
             shortIds,
             reporterAndRegistrar,
@@ -367,6 +373,7 @@ public class PCollectionConsumerRegistryTest {
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry,
+            MetricsEnvironment::setCurrentContainer,
             sampler.create(),
             shortIds,
             reporterAndRegistrar,
@@ -383,8 +390,8 @@ public class PCollectionConsumerRegistryTest {
   }
 
   @Test
-  public void testScopedMetricContainerInvokedUponAcceptingElement() throws Exception {
-    mockStatic(MetricsEnvironment.class);
+  public void testMetricContainerUpdatedUponAcceptingElement() throws Exception {
+    MetricsEnvironmentState metricsEnvironmentState = mock(MetricsEnvironmentState.class);
 
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ShortIdMap shortIds = new ShortIdMap();
@@ -392,6 +399,7 @@ public class PCollectionConsumerRegistryTest {
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry,
+            metricsEnvironmentState,
             sampler.create(),
             shortIds,
             reporterAndRegistrar,
@@ -402,6 +410,13 @@ public class PCollectionConsumerRegistryTest {
     consumers.register(P_COLLECTION_A, "pTransformA", "pTransformAName", consumerA1);
     consumers.register(P_COLLECTION_A, "pTransformB", "pTransformBName", consumerA2);
 
+    // Test both cases; when there is an existing container and where there is no container
+    MetricsContainer oldContainer = mock(MetricsContainer.class);
+    when(metricsEnvironmentState.activate(metricsContainerRegistry.getContainer("pTransformA")))
+        .thenReturn(oldContainer);
+    when(metricsEnvironmentState.activate(metricsContainerRegistry.getContainer("pTransformB")))
+        .thenReturn(null);
+
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
             (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
@@ -409,13 +424,18 @@ public class PCollectionConsumerRegistryTest {
     WindowedValue<String> element = valueInGlobalWindow("elem");
     wrapperConsumer.accept(element);
 
-    // Verify that static scopedMetricsContainer is called with pTransformA's container.
-    PowerMockito.verifyStatic(MetricsEnvironment.class, times(1));
-    MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getContainer("pTransformA"));
-
-    // Verify that static scopedMetricsContainer is called with pTransformB's container.
-    PowerMockito.verifyStatic(MetricsEnvironment.class, times(1));
-    MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getContainer("pTransformB"));
+    // Verify that metrics environment state is updated with pTransformA's container, then reset to
+    // the oldContainer, then pTransformB's container and then reset to null.
+    InOrder inOrder = Mockito.inOrder(metricsEnvironmentState);
+    inOrder
+        .verify(metricsEnvironmentState)
+        .activate(metricsContainerRegistry.getContainer("pTransformA"));
+    inOrder.verify(metricsEnvironmentState).activate(oldContainer);
+    inOrder
+        .verify(metricsEnvironmentState)
+        .activate(metricsContainerRegistry.getContainer("pTransformB"));
+    inOrder.verify(metricsEnvironmentState).activate(null);
+    inOrder.verifyNoMoreInteractions();
   }
 
   @Test
@@ -428,6 +448,7 @@ public class PCollectionConsumerRegistryTest {
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry,
+            MetricsEnvironment::setCurrentContainer,
             sampler.create(),
             shortIds,
             reporterAndRegistrar,
@@ -459,6 +480,7 @@ public class PCollectionConsumerRegistryTest {
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry,
+            MetricsEnvironment::setCurrentContainer,
             sampler.create(),
             shortIds,
             reporterAndRegistrar,

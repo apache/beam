@@ -16,6 +16,12 @@
 package main
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"google.golang.org/grpc"
+
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
@@ -28,11 +34,8 @@ import (
 	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/tasks"
 	"beam.apache.org/playground/backend/internal/utils"
-	"context"
-	"fmt"
-	"github.com/improbable-eng/grpc-web/go/grpcweb"
-	"google.golang.org/grpc"
 )
 
 // runServer is starting http server wrapped on grpc
@@ -41,11 +44,6 @@ func runServer() error {
 	defer cancel()
 
 	envService, err := setupEnvironment()
-	if err != nil {
-		return err
-	}
-
-	props, err := environment.NewProperties(envService.ApplicationEnvs.PropertyPath())
 	if err != nil {
 		return err
 	}
@@ -61,6 +59,7 @@ func runServer() error {
 
 	var dbClient db.Database
 	var entityMapper mapper.EntityMapper
+	var props *environment.Properties
 
 	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	// Database setup only if the server doesn't suppose to run code, i.e. SDK is unspecified
@@ -70,7 +69,12 @@ func runServer() error {
 			return err
 		}
 
-		dbClient, err = datastore.New(ctx, envService.ApplicationEnvs.GoogleProjectId())
+		props, err = environment.NewProperties(envService.ApplicationEnvs.PropertyPath())
+		if err != nil {
+			return err
+		}
+
+		dbClient, err = datastore.New(ctx, mapper.NewPrecompiledObjectMapper(), envService.ApplicationEnvs.GoogleProjectId())
 		if err != nil {
 			return err
 		}
@@ -79,7 +83,13 @@ func runServer() error {
 			return err
 		}
 
-		entityMapper = mapper.New(&envService.ApplicationEnvs, props)
+		entityMapper = mapper.NewDatastoreMapper(ctx, &envService.ApplicationEnvs, props)
+
+		// Since only router server has the scheduled task, the task creation is here
+		scheduledTasks := tasks.New(ctx)
+		if err = scheduledTasks.StartRemovingExtraSnippets(props.RemovingUnusedSnptsCron, props.RemovingUnusedSnptsDays, dbClient); err != nil {
+			return err
+		}
 	}
 
 	pb.RegisterPlaygroundServiceServer(grpcServer, &playgroundController{
@@ -111,6 +121,7 @@ func runServer() error {
 	}
 }
 
+// setupEnvironment constructs the environment required by the app
 func setupEnvironment() (*environment.Environment, error) {
 	networkEnvs, err := environment.GetNetworkEnvsFromOsEnvs()
 	if err != nil {

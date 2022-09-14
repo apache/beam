@@ -30,6 +30,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+
 	// Import gcs filesystem so that it can be used to upload heap dumps
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -50,6 +51,30 @@ var (
 	controlEndpoint   = flag.String("control_endpoint", "", "Local control endpoint for FnHarness (required).")
 	semiPersistDir    = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional).")
 )
+
+const (
+	cloudProfilingJobName           = "CLOUD_PROF_JOB_NAME"
+	cloudProfilingJobID             = "CLOUD_PROF_JOB_ID"
+	enableGoogleCloudProfilerOption = "enable_google_cloud_profiler"
+)
+
+func configureGoogleCloudProfilerEnvVars(metadata map[string]string) error {
+	if metadata == nil {
+		return errors.New("enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled")
+	}
+	jobName, nameExists := metadata["job_name"]
+	if !nameExists {
+		return errors.New("required job_name missing from metadata, profiling will not be enabled without it")
+	}
+	jobID, idExists := metadata["job_id"]
+	if !idExists {
+		return errors.New("required job_id missing from metadata, profiling will not be enabled without it")
+	}
+	os.Setenv(cloudProfilingJobName, jobName)
+	os.Setenv(cloudProfilingJobID, jobID)
+	log.Printf("Cloud Profiling Job Name: %v, Job IDL %v", jobName, jobID)
+	return nil
+}
 
 func main() {
 	flag.Parse()
@@ -119,6 +144,14 @@ func main() {
 
 	if len(info.GetRunnerCapabilities()) > 0 {
 		os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
+	}
+
+	enableGoogleCloudProfiler := strings.Contains(options, enableGoogleCloudProfilerOption)
+	if enableGoogleCloudProfiler {
+		err := configureGoogleCloudProfilerEnvVars(info.Metadata)
+		if err != nil {
+			log.Printf("could not configure Google Cloud Profiler variables, got %v", err)
+		}
 	}
 
 	err = execx.Execute(prog, args...)

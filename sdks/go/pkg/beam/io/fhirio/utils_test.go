@@ -27,18 +27,23 @@ import (
 )
 
 var (
+	testOperationResult = operationResults{Successes: 5, Failures: 2}
+
 	fakeRequestReturnErrorMessage = "internal error"
 	requestReturnErrorFakeClient  = &fakeFhirStoreClient{
-		fakeReadResources: func(string) (*http.Response, error) {
+		fakeReadResources: func([]byte) (*http.Response, error) {
 			return nil, errors.New(fakeRequestReturnErrorMessage)
 		},
-		fakeExecuteBundles: func(string, []byte) (*http.Response, error) {
+		fakeExecuteBundles: func(string, string) (*http.Response, error) {
 			return nil, errors.New(fakeRequestReturnErrorMessage)
 		},
 		fakeSearch: func(string, string, map[string]string, string) (*http.Response, error) {
 			return nil, errors.New(fakeRequestReturnErrorMessage)
 		},
 		fakeDeidentify: func(string, string, *healthcare.DeidentifyConfig) (operationResults, error) {
+			return operationResults{}, errors.New(fakeRequestReturnErrorMessage)
+		},
+		fakeImportResources: func(string, string, ContentStructure) (operationResults, error) {
 			return operationResults{}, errors.New(fakeRequestReturnErrorMessage)
 		},
 	}
@@ -48,10 +53,10 @@ var (
 		StatusCode: http.StatusForbidden,
 	}
 	badStatusFakeClient = &fakeFhirStoreClient{
-		fakeReadResources: func(string) (*http.Response, error) {
+		fakeReadResources: func([]byte) (*http.Response, error) {
 			return badStatusFakeResponse, nil
 		},
-		fakeExecuteBundles: func(string, []byte) (*http.Response, error) {
+		fakeExecuteBundles: func(string, string) (*http.Response, error) {
 			return badStatusFakeResponse, nil
 		},
 		fakeSearch: func(string, string, map[string]string, string) (*http.Response, error) {
@@ -69,10 +74,10 @@ var (
 		StatusCode: http.StatusOK,
 	}
 	bodyReaderErrorFakeClient = &fakeFhirStoreClient{
-		fakeReadResources: func(string) (*http.Response, error) {
+		fakeReadResources: func([]byte) (*http.Response, error) {
 			return bodyReaderErrorFakeResponse, nil
 		},
-		fakeExecuteBundles: func(string, []byte) (*http.Response, error) {
+		fakeExecuteBundles: func(string, string) (*http.Response, error) {
 			return bodyReaderErrorFakeResponse, nil
 		},
 		fakeSearch: func(string, string, map[string]string, string) (*http.Response, error) {
@@ -85,7 +90,7 @@ var (
 		StatusCode: http.StatusOK,
 	}
 	emptyResponseBodyFakeClient = &fakeFhirStoreClient{
-		fakeExecuteBundles: func(string, []byte) (*http.Response, error) {
+		fakeExecuteBundles: func(string, string) (*http.Response, error) {
 			return emptyBodyReaderFakeResponse, nil
 		},
 		fakeSearch: func(string, string, map[string]string, string) (*http.Response, error) {
@@ -95,17 +100,18 @@ var (
 )
 
 type fakeFhirStoreClient struct {
-	fakeReadResources  func(string) (*http.Response, error)
-	fakeExecuteBundles func(string, []byte) (*http.Response, error)
-	fakeSearch         func(string, string, map[string]string, string) (*http.Response, error)
-	fakeDeidentify     func(string, string, *healthcare.DeidentifyConfig) (operationResults, error)
+	fakeReadResources   func([]byte) (*http.Response, error)
+	fakeExecuteBundles  func(string, string) (*http.Response, error)
+	fakeSearch          func(string, string, map[string]string, string) (*http.Response, error)
+	fakeDeidentify      func(string, string, *healthcare.DeidentifyConfig) (operationResults, error)
+	fakeImportResources func(string, string, ContentStructure) (operationResults, error)
 }
 
-func (c *fakeFhirStoreClient) executeBundle(storePath string, bundle []byte) (*http.Response, error) {
+func (c *fakeFhirStoreClient) executeBundle(storePath, bundle string) (*http.Response, error) {
 	return c.fakeExecuteBundles(storePath, bundle)
 }
 
-func (c *fakeFhirStoreClient) readResource(resourcePath string) (*http.Response, error) {
+func (c *fakeFhirStoreClient) readResource(resourcePath []byte) (*http.Response, error) {
 	return c.fakeReadResources(resourcePath)
 }
 
@@ -115,6 +121,10 @@ func (c *fakeFhirStoreClient) search(storePath, resourceType string, queries map
 
 func (c *fakeFhirStoreClient) deidentify(srcStorePath, dstStorePath string, deidConfig *healthcare.DeidentifyConfig) (operationResults, error) {
 	return c.fakeDeidentify(srcStorePath, dstStorePath, deidConfig)
+}
+
+func (c *fakeFhirStoreClient) importResources(storePath, gcsURI string, contentStructure ContentStructure) (operationResults, error) {
+	return c.fakeImportResources(storePath, gcsURI, contentStructure)
 }
 
 // Useful to fake the Body of a http.Response.

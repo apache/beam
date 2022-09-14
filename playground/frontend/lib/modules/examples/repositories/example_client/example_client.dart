@@ -17,18 +17,24 @@
  */
 
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
+import 'package:playground/modules/examples/repositories/models/get_snippet_request.dart';
+import 'package:playground/modules/examples/repositories/models/get_snippet_response.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_code_response.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_response.dart';
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_response.dart';
+import 'package:playground/modules/examples/repositories/models/save_snippet_request.dart';
+import 'package:playground/modules/examples/repositories/models/save_snippet_response.dart';
 
 abstract class ExampleClient {
   Future<GetListOfExampleResponse> getListOfExamples(
     GetListOfExamplesRequestWrapper request,
   );
 
-  Future<GetExampleCodeResponse> getExampleSource(GetExampleRequestWrapper request);
+  Future<GetExampleCodeResponse> getExampleSource(
+    GetExampleRequestWrapper request,
+  );
 
   Future<GetExampleResponse> getDefaultExample(
     GetExampleRequestWrapper request,
@@ -38,9 +44,23 @@ abstract class ExampleClient {
     GetExampleRequestWrapper request,
   );
 
-  Future<OutputResponse> getExampleOutput(GetExampleRequestWrapper request);
+  Future<OutputResponse> getExampleOutput(
+    GetExampleRequestWrapper request,
+  );
 
-  Future<OutputResponse> getExampleLogs(GetExampleRequestWrapper request);
+  Future<OutputResponse> getExampleLogs(
+    GetExampleRequestWrapper request,
+  );
 
-  Future<OutputResponse> getExampleGraph(GetExampleRequestWrapper request);
+  Future<OutputResponse> getExampleGraph(
+    GetExampleRequestWrapper request,
+  );
+
+  Future<GetSnippetResponse> getSnippet(
+    GetSnippetRequestWrapper request,
+  );
+
+  Future<SaveSnippetResponse> saveSnippet(
+    SaveSnippetRequestWrapper request,
+  );
 }

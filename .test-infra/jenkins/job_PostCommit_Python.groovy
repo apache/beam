@@ -30,7 +30,7 @@ ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
         description('Runs Python postcommit tests using Python ${pythonVersion}.')
 
         // Set common parameters.
-        commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
+        commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
         publishers {
           archiveJunit('**/pytest*.xml')

@@ -188,7 +188,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // register user-defined listeners.
       for (JavaStreamingListener listener :
           pipelineOptions.as(SparkContextOptions.class).getListeners()) {
-        LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
+        LOG.info("Registered listener {}.", listener.getClass().getSimpleName());
         jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
       }
 
