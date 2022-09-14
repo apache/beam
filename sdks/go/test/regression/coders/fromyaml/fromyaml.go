@@ -342,7 +342,7 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 					for i, val := range v {
 						if val.(string) == "global" && fmt.Sprintf("%s", tm.Windows[i]) == "[*]" {
 							continue
-						} else if val.(string) == fmt.Sprintf("%s", tm.Windows[i]) {
+						} else if val.(string) != fmt.Sprintf("%s", tm.Windows[i]) {
 							pass = false
 						}
 					}
