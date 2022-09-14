@@ -294,7 +294,9 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 		if !diff(c.Components[1], elem, vs[3]) {
 			pass = false
 		}
-		pass = diffPane(vs[2].Value, elem.Pane)
+		if !diffPane(vs[2].Value, elem.Pane) {
+			pass = false
+		}
 		return pass
 	case "beam:coder:row:v1":
 		fs := eg.Value.(yaml.MapSlice)
