@@ -195,7 +195,7 @@ cdef class InputStream(object):
     # Inline common case.
     cdef long byte = <unsigned char> self.allc[self.pos]
     self.pos += 1
-    if byte < 0x7F:
+    if byte <= 0x7F:
       return byte
 
     cdef libc.stdint.int64_t bits
