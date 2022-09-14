@@ -3750,8 +3750,8 @@ purchases.apply(Select.fieldNames("userId"));
 {{< /highlight >}}
 
 {{< highlight py >}}
-input_pc = ... # {"userId":...,"bank": ..., "purchase_amount": ...}
-output_pc = input_pc | beam.Map(lambda item: beam.Row(ids=str(item["userId"])))                                            
+input_pc = ... # {"user_id":...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select(user_id=lambda item: str(item["user_id"]))                                            
 {{< /highlight >}}
 
 
