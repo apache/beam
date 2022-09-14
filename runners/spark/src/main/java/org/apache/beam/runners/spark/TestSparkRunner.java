@@ -101,6 +101,8 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     TestSparkPipelineOptions testSparkOptions =
         PipelineOptionsValidator.validate(TestSparkPipelineOptions.class, options);
 
+    SparkRunner.detectTranslationMode(pipeline, testSparkOptions);
+
     boolean isForceStreaming = testSparkOptions.isForceStreaming();
     boolean isStreaming = testSparkOptions.isStreaming();
 
