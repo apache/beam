@@ -146,7 +146,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'BeamML_SklearnNumpy'
+    return 'BeamML_Sklearn'
 
 
 @experimental(extra_message="No backwards-compatibility guarantees.")
@@ -224,4 +224,4 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'BeamML_SklearnPandas'
+    return 'BeamML_Sklearn'
