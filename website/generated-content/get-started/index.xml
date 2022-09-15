@@ -4633,7 +4633,193 @@ rather than for each distinct reduction (or requiring explicit caching of the RD
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;li>If you&amp;rsquo;re interested in contributing to the Apache Beam codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/li>
 &lt;/ul>
-&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Tour of Beam</title><link>/get-started/tour-of-beam/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/tour-of-beam/</guid><description>
+&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Learning Resources</title><link>/get-started/resources/learning-resources/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/resources/learning-resources/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="learning-resources">Learning Resources&lt;/h1>
+&lt;p>Welcome to our learning resources. This page contains a collection of resources that will help you to get started and use Apache Beam. If you’re just starting, you can view this as a guided tour, otherwise you can jump straight to any section of your interest.&lt;/p>
+&lt;p>If you have additional material that you would like to see here, please let us know at &lt;a href="mailto:user@beam.apache.org">user@beam.apache.org&lt;/a>!&lt;/p>
+&lt;nav id="TableOfContents">
+&lt;ul>
+&lt;li>&lt;a href="#getting-started">Getting Started&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#quickstart">Quickstart&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#learning-the-basics">Learning the Basics&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#fundamentals">Fundamentals&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#common-patterns">Common Patterns&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#articles">Articles&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#data-analysis">Data Analysis&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#data-migration">Data Migration&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#machine-learning">Machine Learning&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#advanced-concepts">Advanced Concepts&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#books">Books&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#building-big-data-pipelines-with-apache-beam">Building Big Data Pipelines with Apache Beam&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#streaming-systems-the-what-where-when-and-how-of-large-scale-data-processing">Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#interactive-labs">Interactive Labs&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#java">Java&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#python">Python&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#beam-katas">Beam Katas&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#java-1">Java&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#python-1">Python&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#code-examples">Code Examples&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#java-2">Java&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#python-2">Python&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#beam-playground">Beam Playground&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#api-reference">API Reference&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#feedback-and-suggestions">Feedback and Suggestions&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#how-to-contribute">How to Contribute&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/nav>
+&lt;h2 id="getting-started">Getting Started&lt;/h2>
+&lt;h3 id="quickstart">Quickstart&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/get-started/quickstart-java/">Java Quickstart&lt;/a>&lt;/strong> - How to set up and run a WordCount pipeline on the Java SDK.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/get-started/quickstart-py/">Python Quickstart&lt;/a>&lt;/strong> - How to set up and run a WordCount pipeline on the Python SDK.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/get-started/quickstart-go/">Go Quickstart&lt;/a>&lt;/strong> - How to set up and run a WordCount pipeline on the Go SDK.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://medium.com/google-cloud/setting-up-a-java-development-environment-for-apache-beam-on-google-cloud-platform-ec0c6c9fbb39">Java Development Environment&lt;/a>&lt;/strong> - Setting up a Java development environment for Apache Beam using IntelliJ and Maven.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://medium.com/google-cloud/python-development-environments-for-apache-beam-on-google-cloud-platform-b6f276b344df">Python Development Environment&lt;/a>&lt;/strong> - Setting up a Python development environment for Apache Beam using PyCharm.&lt;/li>
+&lt;/ul>
+&lt;h3 id="learning-the-basics">Learning the Basics&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/get-started/wordcount-example/">WordCount&lt;/a>&lt;/strong> - Walks you through the code of a simple WordCount pipeline. This is a very basic pipeline intended to show the most basic concepts of data processing. WordCount is the &amp;ldquo;Hello World&amp;rdquo; for data processing.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/get-started/mobile-gaming-example/">Mobile Gaming&lt;/a>&lt;/strong> - Introduces how to consider time while processing data, user defined transforms, windowing, filtering data, streaming pipelines, triggers, and session analysis. This is a great place to start once you get the hang of WordCount.&lt;/li>
+&lt;/ul>
+&lt;h3 id="fundamentals">Fundamentals&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/documentation/programming-guide/">Programming Guide&lt;/a>&lt;/strong> - The Programming Guide contains more in-depth information on most topics in the Apache Beam SDK. These include descriptions on how everything works as well as code snippets to see how to use every part. This can be used as a reference guidebook.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">The world beyond batch: Streaming 101&lt;/a>&lt;/strong> - Covers some basic background information, terminology, time domains, batch processing, and streaming.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">The world beyond batch: Streaming 102&lt;/a>&lt;/strong> - Tour of the unified batch and streaming programming model in Beam, alongside with an example to explain many of the concepts.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/documentation/runtime/model">Apache Beam Execution Model&lt;/a>&lt;/strong> - Explanation on how runners execute an Apache Beam pipeline. This includes why serialization is important, and how a runner might distribute the work in parallel to multiple machines.&lt;/li>
+&lt;/ul>
+&lt;h3 id="common-patterns">Common Patterns&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://cloud.google.com/blog/products/gcp/guide-to-common-cloud-dataflow-use-case-patterns-part-1">Common Use Case Patterns Part 1&lt;/a>&lt;/strong> - Common patterns such as writing data to multiple storage locations, slowly-changing lookup cache, calling external services, dealing with bad data, and starting jobs through a REST endpoint.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://cloud.google.com/blog/products/gcp/guide-to-common-cloud-dataflow-use-case-patterns-part-2">Common Use Case Patterns Part 2&lt;/a>&lt;/strong> - Common patterns such as GroupBy using multiple data properties, joining two PCollections on a common key, streaming large lookup tables, merging two streams with different window lengths, and threshold detection with time-series data.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="http://nanthrax.blogspot.com/2018/02/apache-beam-easily-implement-backoff_18.html">Retry Policy&lt;/a>&lt;/strong> - Adding a retry policy to a &lt;code>DoFn&lt;/code>.&lt;/li>
+&lt;/ul>
+&lt;h2 id="articles">Articles&lt;/h2>
+&lt;h3 id="data-analysis">Data Analysis&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://medium.com/google-cloud/predicting-social-engagement-for-the-worlds-news-with-tensorflow-and-cloud-dataflow-part-1-b92ba8f14a7">Predicting news social engagement&lt;/a>&lt;/strong> - Using multiple data sources, many common design patterns, and sentiment analysis to get insights into different news articles for TensorFlow and Dataflow.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://cloud.google.com/community/tutorials/cloud-iot-rtdp">Processing IoT Data&lt;/a>&lt;/strong> - IoT sensors are continuously streaming data to the cloud. Learn how to handle the sensor data which can be useful for real-time monitoring, alerts, long-term data storage for analysis, performance improvement, and model training.&lt;/li>
+&lt;/ul>
+&lt;h3 id="data-migration">Data Migration&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://medium.com/google-cloud/oracle-data-to-google-bigquery-using-google-cloud-dataflow-and-dataprep-20884571a9e5">Oracle Database to Google BigQuery&lt;/a>&lt;/strong> - Migrate data from an &lt;a href="https://www.oracle.com/database/index.html">Oracle Database&lt;/a> into &lt;a href="https://cloud.google.com/bigquery">BigQuery&lt;/a> using &lt;a href="https://cloud.google.com/dataprep/">Dataprep&lt;/a>.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://medium.com/google-cloud/export-bigquery-to-google-datastore-with-apache-beam-google-dataflow-7fff1566f345">Google BigQuery to Google Datastore&lt;/a>&lt;/strong> - Migrate data from a &lt;a href="https://cloud.google.com/bigquery/">BigQuery&lt;/a> table into &lt;a href="https://cloud.google.com/datastore/">Datastore&lt;/a> without thinking of its schema.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://cloud.google.com/blog/products/gcp/using-apache-beam-and-cloud-dataflow-to-integrate-sap-hana-and-bigquery">SAP HANA to Google BigQuery&lt;/a>&lt;/strong> - Migrate data from a &lt;a href="https://www.sapphiresystems.com/en-us/products/sap-hana">SAP HANA&lt;/a> in-memory database into &lt;a href="https://cloud.google.com/bigquery">BigQuery&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;h3 id="machine-learning">Machine Learning&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="/documentation/sdks/python-machine-learning/">Machine Learning with Python using the RunInference API&lt;/a>&lt;/strong> - Use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Follow the &lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference">RunInference API pipeline examples&lt;/a> to do image classification, image segmentation, language modeling, and MNIST digit classification. See examples of &lt;a href="/documentation/transforms/python/elementwise/runinference/">RunInference transforms&lt;/a>.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://cloud.google.com/dataflow/examples/molecules-walkthrough">Machine Learning Preprocessing and Prediction&lt;/a>&lt;/strong> - Predict the molecular energy from data stored in the &lt;a href="https://en.wikipedia.org/wiki/Spatial_Data_File">Spatial Data File&lt;/a> (SDF) format. Train a &lt;a href="https://www.tensorflow.org/">TensorFlow&lt;/a> model with &lt;a href="https://github.com/tensorflow/transform">tf.Transform&lt;/a> for preprocessing in Python. This also shows how to create batch and streaming prediction pipelines in Apache Beam.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://cloud.google.com/blog/products/ai-machine-learning/pre-processing-tensorflow-pipelines-tftransform-google-cloud">Machine Learning Preprocessing&lt;/a>&lt;/strong> - Find the optimal parameter settings for simulated physical machines like a bottle filler or cookie machine. The goal of each simulated machine is to have the same input/output of the actual machine, making it a &amp;ldquo;digital twin&amp;rdquo;. This uses &lt;a href="https://github.com/tensorflow/transform">tf.Transform&lt;/a> for preprocessing.&lt;/li>
+&lt;/ul>
+&lt;h3 id="advanced-concepts">Advanced Concepts&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://amygdala.github.io/dataflow/app_engine/2017/10/24/gae_dataflow.html">Running on AppEngine&lt;/a>&lt;/strong> - Use a Dataflow template to launch a pipeline from Google AppEngine, and how to run the pipeline periodically via a cron job.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/blog/2017/02/13/stateful-processing.html">Stateful Processing&lt;/a>&lt;/strong> - Learn how to access a persistent mutable state while processing input elements, this allows for &lt;em>side effects&lt;/em> in a &lt;code>DoFn&lt;/code>. This can be used for arbitrary-but-consistent index assignment, if you want to assign a unique incrementing index to each incoming element where order doesn&amp;rsquo;t matter.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/blog/2017/08/28/timely-processing.html">Timely and Stateful Processing&lt;/a>&lt;/strong> - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://cloud.google.com/blog/products/gcp/running-external-libraries-with-cloud-dataflow-for-grid-computing-workloads">Running External Libraries&lt;/a>&lt;/strong> - Call an external library written in a language that does not have a native SDK in Apache Beam such as C++.&lt;/li>
+&lt;/ul>
+&lt;h2 id="books">Books&lt;/h2>
+&lt;h3 id="building-big-data-pipelines-with-apache-beam">Building Big Data Pipelines with Apache Beam&lt;/h3>
+&lt;p>&lt;strong>&lt;a href="https://www.packtpub.com/product/building-big-data-pipelines-with-apache-beam/9781800564930">Building Big Data Pipelines with Apache Beam&lt;/a>&lt;/strong> by Jan Lukavský, Packt. (January 2022). A general description of the Apache Beam model including gradually built examples that help create solid understanding of the subject. In the first part the book explains concepts using Java SDK, then SQL DSL and Portability layer with focus on Python SDK. The last part of the book is dedicated to more advanced topics like IO connectors using Splittable DoFn and description of how a typical runner executes Pipeline.&lt;/p>
+&lt;h3 id="streaming-systems-the-what-where-when-and-how-of-large-scale-data-processing">Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing&lt;/h3>
+&lt;p>&lt;strong>&lt;a href="https://learning.oreilly.com/library/view/streaming-systems/9781491983867/">Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing&lt;/a>&lt;/strong> by Tyler Akidau, Slava Chernyak, Reuven Lax. (August 2018). Expanded from Tyler Akidau’s popular blog posts &amp;ldquo;Streaming 101&amp;rdquo; and &amp;ldquo;Streaming 102&amp;rdquo;, this book takes you from an introductory level to a nuanced understanding of the what, where, when, and how of processing real-time data streams.&lt;/p>
+&lt;h2 id="interactive-labs">Interactive Labs&lt;/h2>
+&lt;h3 id="java">Java&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://qwiklabs.com/focuses/608?locale=en&amp;amp;parent=catalog">Big Data Text Processing Pipeline&lt;/a>&lt;/strong> (40m) - Run a word count pipeline on the Dataflow runner.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://qwiklabs.com/focuses/3393?locale=en&amp;amp;parent=catalog">Real Time Machine Learning&lt;/a>&lt;/strong> (45m) - Create a real-time flight delay prediction service using historical data on internal flights in the United States.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://qwiklabs.com/focuses/1160?locale=en&amp;amp;parent=catalog">Visualize Real-Time Geospatial Data&lt;/a>&lt;/strong> (60m) - Process real-time streaming data from a real-time real world historical data set, store the results in BigQuery, and visualize the geospatial data on Data Studio.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://qwiklabs.com/focuses/3392?locale=en&amp;amp;parent=catalog">Processing Time Windowed Data&lt;/a>&lt;/strong> (90m) - Implement time-windowed aggregation to augment the raw data in order to produce a consistent training and test datasets for a machine learning model.&lt;/li>
+&lt;/ul>
+&lt;h3 id="python">Python&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://www.qwiklabs.com/focuses/1098?parent=catalog">Python Qwik Start&lt;/a>&lt;/strong> (30m) - Run a word count pipeline on the Dataflow runner.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://qwiklabs.com/focuses/1159?locale=en&amp;amp;parent=catalog">Simulate historic flights&lt;/a>&lt;/strong> (60m) - Simulate real-time historic internal flights in the United States and store the resulting simulated data in BigQuery.&lt;/li>
+&lt;/ul>
+&lt;h2 id="beam-katas">Beam Katas&lt;/h2>
+&lt;p>Beam Katas are interactive Beam coding exercises (i.e. &lt;a href="http://codekata.com/">code katas&lt;/a>)
+that can help you to learn Apache Beam concepts and programming model hands-on.
+Built based on &lt;a href="https://www.jetbrains.com/education/">JetBrains Educational Products&lt;/a>, Beam Katas
+objective is to provide a series of structured hands-on learning experiences for learners
+to understand about Apache Beam and its SDKs by solving exercises with gradually increasing
+complexity. Beam Katas are available for both Java and Python SDKs.&lt;/p>
+&lt;h3 id="java-1">Java&lt;/h3>
+&lt;ul>
+&lt;li>Download &lt;a href="https://www.jetbrains.com/education/download/#section=idea">IntelliJ Edu&lt;/a>&lt;/li>
+&lt;li>Upon opening the IDE, expand the &amp;ldquo;Learn and Teach&amp;rdquo; menu, then select &amp;ldquo;Browse Courses&amp;rdquo;&lt;/li>
+&lt;li>Search for &amp;ldquo;Beam Katas - Java&amp;rdquo;&lt;/li>
+&lt;li>Expand the &amp;ldquo;Advanced Settings&amp;rdquo; and modify the &amp;ldquo;Location&amp;rdquo; and &amp;ldquo;Jdk&amp;rdquo; appropriately&lt;/li>
+&lt;li>Click &amp;ldquo;Join&amp;rdquo;&lt;/li>
+&lt;li>&lt;a href="https://www.jetbrains.com/help/education/learner-start-guide.html?section=Introduction%20to%20Java#explore_course">Learn more&lt;/a> about how to use the Education product&lt;/li>
+&lt;/ul>
+&lt;h3 id="python-1">Python&lt;/h3>
+&lt;ul>
+&lt;li>Download &lt;a href="https://www.jetbrains.com/education/download/#section=pycharm-edu">PyCharm Edu&lt;/a>&lt;/li>
+&lt;li>Upon opening the IDE, expand the &amp;ldquo;Learn and Teach&amp;rdquo; menu, then select &amp;ldquo;Browse Courses&amp;rdquo;&lt;/li>
+&lt;li>Search for &amp;ldquo;Beam Katas - Python&amp;rdquo;&lt;/li>
+&lt;li>Expand the &amp;ldquo;Advanced Settings&amp;rdquo; and modify the &amp;ldquo;Location&amp;rdquo; and &amp;ldquo;Interpreter&amp;rdquo; appropriately&lt;/li>
+&lt;li>Click &amp;ldquo;Join&amp;rdquo;&lt;/li>
+&lt;li>&lt;a href="https://www.jetbrains.com/help/education/learner-start-guide.html?section=Introduction%20to%20Python#explore_course">Learn more&lt;/a> about how to use the Education product&lt;/li>
+&lt;/ul>
+&lt;h2 id="code-examples">Code Examples&lt;/h2>
+&lt;h3 id="java-2">Java&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/cookbook">Snippets 1&lt;/a>&lt;/strong> - Commonly-used data analysis patterns such as how to use &lt;a href="https://cloud.google.com/bigquery">BigQuery&lt;/a>, a CombinePerKey transform, remove duplicate lines in files, filtering, joining PCollections, getting the maximum value of a PCollection, etc.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/common">Snippets 2&lt;/a>&lt;/strong> - Additional examples on common tasks such as configuring &lt;a href="https://cloud.google.com/bigquery">BigQuery&lt;/a>, &lt;a href="https://cloud.google.com/pubsub/">PubSub&lt;/a>, writing one file per window, etc.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete">Complete Examples&lt;/a>&lt;/strong> - End-to-end example pipelines such as an auto complete, a streaming word extract, calculating the Term Frequency-Inverse Document Frequency (&lt;a href="https://en.wikipedia.org/wiki/Tf%E2%80%93idf">TF-IDF&lt;/a>), getting the top Wikipedia sessions, traffic max lane flow, traffic routes, etc.&lt;/li>
+&lt;/ul>
+&lt;h3 id="python-2">Python&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/cookbook">Snippets&lt;/a>&lt;/strong> - Commonly-used data analysis patterns such as how to use &lt;a href="https://cloud.google.com/bigquery">BigQuery&lt;/a>, &lt;a href="https://cloud.google.com/datastore/">Datastore&lt;/a>, coders, combiners, filters, custom PTransforms, etc.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete">Complete Examples&lt;/a>&lt;/strong> - End-to-end example pipelines such as an auto complete, getting mobile gaming statistics, calculating the &lt;a href="https://en.wikipedia.org/wiki/Julia_set">Julia set&lt;/a>, solving distributing optimization tasks, estimating PI, calculating the Term Frequency-Inverse Document Frequency (&lt;a href="https://en.wikipedia.org/wiki/Tf%E2%80%93idf">TF-IDF&lt;/a>), getting the top Wikipedia sessions, etc.&lt;/li>
+&lt;/ul>
+&lt;h3 id="beam-playground">Beam Playground&lt;/h3>
+&lt;ul>
+&lt;li>&lt;a href="https://play.beam.apache.org">Beam Playground&lt;/a> is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
+You can try the available Apache Beam examples at &lt;a href="https://play.beam.apache.org">Beam Playground&lt;/a>.&lt;/li>
+&lt;li>Learn more about how to add an Apache Beam example/test/kata into Beam Playground catalog &lt;a href="https://beam.apache.org/get-started/try-beam-playground/#how-to-add-new-examples">here&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;h2 id="api-reference">API Reference&lt;/h2>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/documentation/sdks/javadoc/">Java API Reference&lt;/a>&lt;/strong> - Official API Reference for the Java SDK.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/documentation/sdks/pydoc/">Python API Reference&lt;/a>&lt;/strong> - Official API Reference for the Python SDK.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam">Go API Reference&lt;/a>&lt;/strong> - Official API Reference for the Go SDK.&lt;/li>
+&lt;/ul>
+&lt;h2 id="feedback-and-suggestions">Feedback and Suggestions&lt;/h2>
+&lt;p>We are open for feedback and suggestions, you can find different ways to reach out to the community in the &lt;a href="https://beam.apache.org/community/contact-us/">Contact Us&lt;/a> page.&lt;/p>
+&lt;p>If you have a bug report or want to suggest a new feature, you can let us know by &lt;a href="https://github.com/apache/beam/issues/new/choose">submitting a new issue&lt;/a>.&lt;/p>
+&lt;h2 id="how-to-contribute">How to Contribute&lt;/h2>
+&lt;p>We welcome contributions from everyone! To learn more on how to contribute, check our &lt;a href="https://beam.apache.org/contribute/">Contribution Guide&lt;/a>.&lt;/p></description></item><item><title>Get-Started: Tour of Beam</title><link>/get-started/tour-of-beam/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/tour-of-beam/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5053,4 +5239,122 @@ After the category has been added, it can be used in the examples.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;li>If you&amp;rsquo;re interested in contributing to the Apache Beam Playground codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/li>
 &lt;/ul>
-&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item></channel></rss>
+&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Videos and Podcasts</title><link>/get-started/resources/videos-and-podcasts/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/resources/videos-and-podcasts/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="videos-and-podcasts">Videos and Podcasts&lt;/h1>
+&lt;p>This page provides links to some of our favorite videos and podcasts that will help you get started and learn more about Apache Beam.&lt;/p>
+&lt;ul>&lt;li>&lt;a href="">Introduction&lt;/a>&lt;/li>&lt;/ul>
+&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;br>
+&lt;nav id="TableOfContents">
+&lt;ul>
+&lt;li>&lt;a href="#general">General&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#fundamentals-of-stream-processing-with-apache-beam">Fundamentals of Stream Processing with Apache Beam&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#apache-beam-a-unified-model-for-batch-and-streaming-data-processing">Apache Beam: A Unified Model for Batch and Streaming Data Processing&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#fundamentals-of-stream-processing-with-apache-beam-1">Fundamentals of Stream Processing with Apache Beam&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#software-engineering-radio-podcast-episode-272-apache-beam">Software Engineering Radio Podcast Episode 272: Apache Beam&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#beam--friends">Beam &amp;amp; Friends&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#distributed-processing-for-machine-learning-production-pipelines">Distributed Processing for Machine Learning Production Pipelines&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#tensorflow-extended-an-end-to-end-machine-learning-platform-for-tensorflow">TensorFlow Extended: An End-to-End Machine Learning Platform for TensorFlow&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#flink-and-beam-current-state--roadmap">Flink and Beam: Current State &amp;amp; Roadmap&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#lessons-learned-from-developing-a-stream-processing-platform-at-scale">Lessons learned from developing a stream processing platform at scale&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#technical-details">Technical Details&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#watermarks-time-and-progress-in-apache-beam-and-beyond">Watermarks: Time and Progress in Apache Beam and Beyond&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#triggers-in-apache-beam">Triggers in Apache Beam&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#nexmark-evaluating-big-data-systems-with-apache-beam">Nexmark Evaluating Big Data systems with Apache Beam&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#next-steps">Next Steps&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/nav>
+&lt;h2 id="general">General&lt;/h2>
+&lt;p>The following resources provide general overviews and fundamentals of Apache Beam.&lt;/p>
+&lt;h3 id="fundamentals-of-stream-processing-with-apache-beam">Fundamentals of Stream Processing with Apache Beam&lt;/h3>
+&lt;p>Data Science Summit, Jerusalem, 2016&lt;/p>
+&lt;p>Presented by Tyler Akidau, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
+&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/V35MwYcXEX0" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;br>
+&lt;h3 id="apache-beam-a-unified-model-for-batch-and-streaming-data-processing">Apache Beam: A Unified Model for Batch and Streaming Data Processing&lt;/h3>
+&lt;p>Hadoop Summit, San Jose, CA, 2016&lt;/p>
+&lt;p>Presented by Davor Bonaci, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
+&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/7DZ8ONmeP5A" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;br>
+&lt;h3 id="fundamentals-of-stream-processing-with-apache-beam-1">Fundamentals of Stream Processing with Apache Beam&lt;/h3>
+&lt;p>@Scale Conference, San Jose, CA, 2016&lt;/p>
+&lt;p>Presented by Dan Halperin, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
+&lt;iframe src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fatscaleevents%2Fvideos%2F1775945569345206%2F&amp;show_text=0&amp;width=560" width="560" height="315" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowTransparency="true" allowFullScreen="true">&lt;/iframe>
+&lt;br>
+&lt;h3 id="software-engineering-radio-podcast-episode-272-apache-beam">Software Engineering Radio Podcast Episode 272: Apache Beam&lt;/h3>
+&lt;p>Presented by Frances Perry, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
+&lt;p>&lt;a href="http://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">&lt;img src="/images/resources/se-radio-podcast.png" alt="alt text">&lt;/a>
+&lt;br>&lt;/p>
+&lt;h2 id="beam--friends">Beam &amp;amp; Friends&lt;/h2>
+&lt;p>The following resources present Apache Beam partnerships.&lt;/p>
+&lt;h3 id="distributed-processing-for-machine-learning-production-pipelines">Distributed Processing for Machine Learning Production Pipelines&lt;/h3>
+&lt;p>Flink Forward, 2020&lt;/p>
+&lt;p>Presented by Ahmet Altay, Robert Crowe, Reza Rokni&lt;/p>
+&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/jV1WFTmm4qg" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;br>
+&lt;h3 id="tensorflow-extended-an-end-to-end-machine-learning-platform-for-tensorflow">TensorFlow Extended: An End-to-End Machine Learning Platform for TensorFlow&lt;/h3>
+&lt;p>Spark+AI, San Francisco, 2019&lt;/p>
+&lt;p>Presented by Konstantinos Katsiapis, Ahmet Altay&lt;/p>
+&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/GTibgKo7WaI" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;br>
+&lt;h3 id="flink-and-beam-current-state--roadmap">Flink and Beam: Current State &amp;amp; Roadmap&lt;/h3>
+&lt;p>Flink Forward, Berlin, 2016&lt;/p>
+&lt;p>Presented by Maximilian Michels, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
+&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/msdjh6KRXC8" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;br>
+&lt;h3 id="lessons-learned-from-developing-a-stream-processing-platform-at-scale">Lessons learned from developing a stream processing platform at scale&lt;/h3>
+&lt;p>Big Things Meetup, Tel Aviv, 2016&lt;/p>
+&lt;p>By Amit Sela, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
+&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/fc-YigLn_gs" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;br>
+&lt;h2 id="technical-details">Technical Details&lt;/h2>
+&lt;p>The following resources provide detailed explanations about technical concepts in Apache Beam.&lt;/p>
+&lt;h3 id="watermarks-time-and-progress-in-apache-beam-and-beyond">Watermarks: Time and Progress in Apache Beam and Beyond&lt;/h3>
+&lt;p>Strata+Hadoop World, New York, 2016&lt;/p>
+&lt;p>Presented by Slava Chernyak, &lt;em>Software Engineer at Google&lt;/em>&lt;/p>
+&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/TWxSLmkWPm4" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;br>
+&lt;h3 id="triggers-in-apache-beam">Triggers in Apache Beam&lt;/h3>
+&lt;p>Strata+Hadoop World, New York, 2016&lt;/p>
+&lt;p>Presented by Kenneth Knowles, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
+&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/E1k0B9LN46M" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;h3 id="nexmark-evaluating-big-data-systems-with-apache-beam">Nexmark Evaluating Big Data systems with Apache Beam&lt;/h3>
+&lt;p>ApacheCon, Miami, 2017&lt;/p>
+&lt;p>Presented by Etienne Chauchot and Ismaël Mejia, &lt;em>Apache Beam PMC members&lt;/em>&lt;/p>
+&lt;iframe src="//www.slideshare.net/slideshow/embed_code/key/auWXjEK7GTkiUK" width="595" height="485" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" style="border:1px solid #CCC; border-width:1px; margin-bottom:5px; max-width: 100%;" allowfullscreen> &lt;/iframe> &lt;div style="margin-bottom:5px"> &lt;strong> &lt;a href="//www.slideshare.net/EtienneChauchot/nexmark-with-beam" title="Nexmark with Beam" target="_blank">Nexmark with Beam&lt;/a> &lt;/strong> by &lt;strong>&lt;a href="https://www.slideshare.net/EtienneChauchot" target="_blank">Etienne Chauchot&lt;/a>&lt;/strong> &lt;/div>
+&lt;audio controls>
+&lt;source src="https://feathercastapache.files.wordpress.com/2017/05/0517-04-mejia.mp3" type="audio/mpeg">
+Your browser does not support the audio element.
+&lt;/audio>
+### Universal metrics with Apache Beam
+&lt;p>ApacheCon, Montreal, 2018&lt;/p>
+&lt;p>Presented by Etienne Chauchot, &lt;em>Apache Beam PMC member&lt;/em>&lt;/p>
+&lt;iframe src="//www.slideshare.net/slideshow/embed_code/key/kKJRzR8HxkxLsR" width="595" height="485" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" style="border:1px solid #CCC; border-width:1px; margin-bottom:5px; max-width: 100%;" allowfullscreen> &lt;/iframe> &lt;div style="margin-bottom:5px"> &lt;strong> &lt;a href="//www.slideshare.net/EtienneChauchot/universal-metrics-with-apache-beam" title="Universal metrics with Apache Beam" target="_blank">Universal metrics with Apache Beam&lt;/a> &lt;/strong> by &lt;strong>&lt;a href="https://www.slideshare.net/EtienneChauchot" target="_blank">Etienne Chauchot&lt;/a>&lt;/strong> &lt;/div>
+&lt;audio controls>
+&lt;source src="//feathercastapache.files.wordpress.com/2018/09/03-universal-metrics-with-beam-etienne-chauchot.mp3" type="audio/mpeg">
+Your browser does not support the audio element.
+&lt;/audio>
+&lt;h2 id="next-steps">Next Steps&lt;/h2>
+&lt;ul>
+&lt;li>Take a self-paced tour through our &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
+&lt;/ul></description></item></channel></rss>
