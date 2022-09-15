@@ -23,9 +23,7 @@ on:
     - cron: '0 */6 * * *'
   push:
     branches: ['master', 'release-*']
-    tags: ['v*']
-
-permissions: read-all
+    tags: 'v*'
 
 jobs:
   java-postcommit-jpbs-java11-dataflow:
