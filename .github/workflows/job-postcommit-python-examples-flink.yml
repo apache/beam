@@ -20,11 +20,13 @@
 name: Python Examples Flink
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
+permissions: read-all
 
 jobs:
   python-examples-flink:
@@ -33,12 +35,14 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
+        with:
+          requires-go-18: false
       - name: Run :sdks:python:test-suites:portable:flinkExamplesPostCommit
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
