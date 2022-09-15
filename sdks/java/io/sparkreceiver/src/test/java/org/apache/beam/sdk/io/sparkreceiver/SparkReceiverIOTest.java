@@ -101,6 +101,26 @@ public class SparkReceiverIOTest {
 
   @Test
   public void testReadFromCustomReceiverWithOffset() {
+    CustomReceiverWithOffset.SHOULD_FAIL_IN_THE_MIDDLE = false;
+    ReceiverBuilder<String, CustomReceiverWithOffset> receiverBuilder =
+        new ReceiverBuilder<>(CustomReceiverWithOffset.class).withConstructorArgs();
+    SparkReceiverIO.Read<String> reader =
+        SparkReceiverIO.<String>read()
+            .withGetOffsetFn(Long::valueOf)
+            .withTimestampFn(Instant::parse)
+            .withSparkReceiverBuilder(receiverBuilder);
+
+    for (int i = 0; i < CustomReceiverWithOffset.RECORDS_COUNT; i++) {
+      TestOutputDoFn.EXPECTED_RECORDS.add(String.valueOf(i));
+    }
+    pipeline.apply(reader).setCoder(StringUtf8Coder.of()).apply(ParDo.of(new TestOutputDoFn()));
+
+    pipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+  }
+
+  @Test
+  public void testReadFromCustomReceiverWithOffsetFailsAndReread() {
+    CustomReceiverWithOffset.SHOULD_FAIL_IN_THE_MIDDLE = true;
     ReceiverBuilder<String, CustomReceiverWithOffset> receiverBuilder =
         new ReceiverBuilder<>(CustomReceiverWithOffset.class).withConstructorArgs();
     SparkReceiverIO.Read<String> reader =
