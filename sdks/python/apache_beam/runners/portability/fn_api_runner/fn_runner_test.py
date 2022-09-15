@@ -101,6 +101,8 @@ def has_urn_and_labels(mi, urn, labels):
   return contains_labels(mi, labels) and mi.urn == urn
 
 
+# In unit tests we skip 5 second timeout on grpc channel shutdown.
+@unittest.mock.patch('apache_beam.runners.portability.fn_api_runner.worker_handlers.GrpcServer._DEFAULT_SHUTDOWN_TIMEOUT_SECS', 0)  # pylint: disable=line-too-long
 class FnApiRunnerTest(unittest.TestCase):
   def create_pipeline(self, is_drain=False):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner(is_drain=is_drain))
