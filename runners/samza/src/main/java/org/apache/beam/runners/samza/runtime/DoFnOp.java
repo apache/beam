@@ -45,6 +45,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.util.DoFnUtils;
 import org.apache.beam.runners.samza.util.FutureUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -224,6 +225,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       this.fnRunner =
           SamzaDoFnRunners.createPortable(
               transformId,
+              DoFnUtils.toStepName(executableStage),
               bundleStateId,
               windowedValueCoder,
               executableStage,
@@ -234,6 +236,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               samzaPipelineOptions,
               outputManagerFactory.create(emitter, outputFutureCollector),
               stageBundleFactory,
+              samzaExecutionContext,
               mainOutputTag,
               idToTupleTagMap,
               context,

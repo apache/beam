@@ -23,6 +23,7 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
+from typing import Union
 
 import numpy
 import pandas
@@ -31,12 +32,18 @@ from sklearn.base import BaseEstimator
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.utils.annotations import experimental
 
 try:
   import joblib
 except ImportError:
   # joblib is an optional dependency.
   pass
+
+__all__ = [
+    'SklearnModelHandlerNumpy',
+    'SklearnModelHandlerPandas',
+]
 
 
 class ModelFileType(enum.Enum):
@@ -60,18 +67,21 @@ def _load_model(model_uri, file_type):
   raise AssertionError('Unsupported serialization type.')
 
 
-def _validate_inference_args(inference_args):
-  """Confirms that inference_args is None.
-
-  scikit-learn models do not need extra arguments in their predict() call.
-  However, since inference_args is an argument in the RunInference interface,
-  we want to make sure it is not passed here in Sklearn's implementation of
-  RunInference.
-  """
-  if inference_args:
-    raise ValueError(
-        'inference_args were provided, but should be None because scikit-learn '
-        'models do not need extra arguments in their predict() call.')
+def _convert_to_result(
+    batch: Iterable, predictions: Union[Iterable, Dict[Any, Iterable]]
+) -> Iterable[PredictionResult]:
+  if isinstance(predictions, dict):
+    # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
+    # key_type2: Iterable<val_type2>, ...} where each Iterable is of
+    # length batch_size, to a list of dictionaries:
+    # [{key_type1: value_type1, key_type2: value_type2}]
+    predictions_per_tensor = [
+        dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
+    ]
+    return [
+        PredictionResult(x, y) for x, y in zip(batch, predictions_per_tensor)
+    ]
+  return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
 
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
@@ -118,11 +128,11 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Returns:
       An Iterable of type PredictionResult.
     """
-    _validate_inference_args(inference_args)
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+
+    return _convert_to_result(batch, predictions)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """
@@ -131,7 +141,15 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """
     return sum(sys.getsizeof(element) for element in batch)
 
+  def get_metrics_namespace(self) -> str:
+    """
+    Returns:
+       A namespace for metrics collected by the RunInference transform.
+    """
+    return 'BeamML_Sklearn'
 
+
+@experimental(extra_message="No backwards-compatibility guarantees.")
 class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
                                              PredictionResult,
                                              BaseEstimator]):
@@ -180,7 +198,6 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     Returns:
       An Iterable of type PredictionResult.
     """
-    _validate_inference_args(inference_args)
     # sklearn_inference currently only supports single rowed dataframes.
     for dataframe in iter(batch):
       if dataframe.shape[0] != 1:
@@ -192,10 +209,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     splits = [
         vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
     ]
-    return [
-        PredictionResult(example, inference) for example,
-        inference in zip(splits, predictions)
-    ]
+
+    return _convert_to_result(splits, predictions)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """
@@ -203,3 +218,10 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       The number of bytes of data for a batch.
     """
     return sum(df.memory_usage(deep=True).sum() for df in batch)
+
+  def get_metrics_namespace(self) -> str:
+    """
+    Returns:
+       A namespace for metrics collected by the RunInference transform.
+    """
+    return 'BeamML_Sklearn'

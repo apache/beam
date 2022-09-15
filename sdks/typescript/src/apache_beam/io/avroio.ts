@@ -44,7 +44,7 @@ export function writeToAvro<T>(filePath: string, options: { schema: Schema }) {
         withCoderInternal(RowCoder.fromSchema(options.schema))
       );
     }
-    return pcoll.asyncApply(
+    return pcoll.applyAsync(
       schemaio<beam.PCollection<T>, {}>(
         "writeToAvro",
         "beam:transform:org.apache.beam:schemaio_avro_write:v1",

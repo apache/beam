@@ -58,7 +58,14 @@ NullablePerson = typing.NamedTuple(
      ("favorite_time", typing.Optional[Timestamp]),
      ("one_more_field", typing.Optional[str])])
 
+
+class People(typing.NamedTuple):
+  primary: Person
+  partner: typing.Optional[Person]
+
+
 coders_registry.register_coder(Person, RowCoder)
+coders_registry.register_coder(People, RowCoder)
 
 
 class RowCoderTest(unittest.TestCase):
@@ -120,6 +127,19 @@ class RowCoderTest(unittest.TestCase):
 
       self.assertEqual(
           test_case, real_coder.decode(real_coder.encode(test_case)))
+
+  def test_create_row_coder_from_nested_named_tuple(self):
+    expected_coder = RowCoder(typing_to_runner_api(People).row_type.schema)
+    real_coder = coders_registry.get_coder(People)
+
+    for primary in self.PEOPLE:
+      for other in self.PEOPLE + [None]:
+        test_case = People(primary=primary, partner=other)
+        self.assertEqual(
+            expected_coder.encode(test_case), real_coder.encode(test_case))
+
+        self.assertEqual(
+            test_case, real_coder.decode(real_coder.encode(test_case)))
 
   def test_create_row_coder_from_schema(self):
     schema = schema_pb2.Schema(
@@ -369,14 +389,15 @@ class RowCoderTest(unittest.TestCase):
         fields=[
             schema_pb2.Field(
                 name="type_with_no_typeinfo", type=schema_pb2.FieldType())
-        ])
+        ],
+        id='bad-schema')
 
     # Should raise an exception referencing the problem field
     self.assertRaisesRegex(
         ValueError, "type_with_no_typeinfo", lambda: RowCoder(schema_proto))
 
   def test_row_coder_cloud_object_schema(self):
-    schema_proto = schema_pb2.Schema()
+    schema_proto = schema_pb2.Schema(id='some-cloud-object-schema')
     schema_proto_json = json_format.MessageToJson(schema_proto).encode('utf-8')
 
     coder = RowCoder(schema_proto)

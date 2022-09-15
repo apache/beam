@@ -40,7 +40,7 @@ import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -145,7 +145,7 @@ public class BeamFnDataOutboundAggregatorTest {
     } else {
       receiver = Iterables.getOnlyElement(aggregator.outputDataReceivers.values());
     }
-    assertEquals(0L, receiver.getOutput().size());
+    assertEquals(0L, receiver.bufferedSize());
     assertEquals(102L, receiver.getByteCount());
     assertEquals(2L, receiver.getElementCount());
 
@@ -155,7 +155,7 @@ public class BeamFnDataOutboundAggregatorTest {
     aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
     // Test that receiver stats have been reset after
     // sendOrCollectBufferedDataAndFinishOutboundStreams.
-    assertEquals(0L, receiver.getOutput().size());
+    assertEquals(0L, receiver.bufferedSize());
     assertEquals(0L, receiver.getByteCount());
     assertEquals(0L, receiver.getElementCount());
 
@@ -344,7 +344,7 @@ public class BeamFnDataOutboundAggregatorTest {
 
   BeamFnApi.Elements.Builder messageWithDataBuilder(LogicalEndpoint endpoint, byte[]... datum)
       throws IOException {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     for (byte[] data : datum) {
       CODER.encode(data, output);
     }

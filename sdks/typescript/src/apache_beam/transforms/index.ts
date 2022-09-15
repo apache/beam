@@ -26,4 +26,4 @@ export * from "./window";
 export { impulse, withRowCoder } from "./internal";
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.transforms", exports);
+requireForSerialization("apache-beam/transforms", exports);

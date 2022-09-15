@@ -28,7 +28,6 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.sql.Array;
-import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -36,6 +35,7 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.ZoneId;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
@@ -313,7 +313,11 @@ public class SchemaUtilTest {
     long epochMilli = 1558719710000L;
 
     ResultSet mockResultSet = mock(ResultSet.class);
-    when(mockResultSet.getDate(eq(1), any())).thenReturn(new Date(epochMilli));
+    when(mockResultSet.getObject(eq(1), eq(java.time.LocalDate.class)))
+        .thenReturn(
+            java.time.Instant.ofEpochMilli(epochMilli)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate());
     when(mockResultSet.getTime(eq(2), any())).thenReturn(new Time(epochMilli));
     when(mockResultSet.getTimestamp(eq(3), any())).thenReturn(new Timestamp(epochMilli));
     when(mockResultSet.getTimestamp(eq(4), any())).thenReturn(new Timestamp(epochMilli));

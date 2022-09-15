@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"strings"
 	"sync"
@@ -104,7 +103,7 @@ func (f *fakeDataClient) Send(*fnpb.Elements) error {
 
 func TestDataChannelTerminate_dataReader(t *testing.T) {
 	// The logging of channels closed is quite noisy for this test
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	expectedError := fmt.Errorf("EXPECTED ERROR")
 
@@ -245,7 +244,7 @@ func TestDataChannelRemoveInstruction_limitInstructionCap(t *testing.T) {
 
 func TestDataChannelTerminate_Writes(t *testing.T) {
 	// The logging of channels closed is quite noisy for this test
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	expectedError := fmt.Errorf("EXPECTED ERROR")
 

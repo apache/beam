@@ -10,22 +10,22 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-function getElementData(element) {
-    const clickedLangSwitchEl = element.target;
-    const elPreviousOffsetFromViewPort = clickedLangSwitchEl.getBoundingClientRect().top;
-    return {
-        elPreviousOffsetFromViewPort,
-        clickedLangSwitchEl,
-    }
-}
-
-function setScrollToNewPosition(clickedElementData) {
-    const { elPreviousOffsetFromViewPort, clickedLangSwitchEl } = clickedElementData;
-    const elCurrentHeight = window.pageYOffset + clickedLangSwitchEl.getBoundingClientRect().top;
-    $('html, body').scrollTop(elCurrentHeight - elPreviousOffsetFromViewPort);
-}
-
 $(document).ready(function() {
+    function getElementData(element) {
+        const clickedLangSwitchEl = element.target;
+        const elPreviousOffsetFromViewPort = clickedLangSwitchEl.getBoundingClientRect().top;
+        return {
+            elPreviousOffsetFromViewPort,
+            clickedLangSwitchEl,
+        }
+    }
+
+    function setScrollToNewPosition(clickedElementData) {
+        const { elPreviousOffsetFromViewPort, clickedLangSwitchEl } = clickedElementData;
+        const elCurrentHeight = window.pageYOffset + clickedLangSwitchEl.getBoundingClientRect().top;
+        $('html, body').scrollTop(elCurrentHeight - elPreviousOffsetFromViewPort);
+    }
+
     function Switcher(conf) {
         var id = conf["class-prefix"],
             def = conf["default"],

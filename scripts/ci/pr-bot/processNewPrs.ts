@@ -39,34 +39,27 @@ import { CheckStatus } from "./shared/checks";
  * 4) Are closed
  * 5) Have already been processed
  * 6) Have notifications stopped
- * 7) The pr doesn't contain the go or python labels (temporary). TODO(damccorm) - remove this when we're ready to roll this out to everyone.
  * 8) The pr happens after the date we turn on the automation. TODO(damccorm) - remove this once this has been rolled out for a while.
  * unless we're supposed to remind the user after tests pass
  * (in which case that's all we need to do).
  */
 function needsProcessed(pull: any, prState: typeof Pr): boolean {
-  if (
-    !pull.labels.find(
-      (label) =>
-        label.name.toLowerCase() === "go" ||
-        label.name.toLowerCase() === "python"
-    )
-  ) {
-    console.log(
-      `Skipping PR ${pull.number} because it doesn't contain the go or python labels`
-    );
-    return false;
-  }
-  const firstPrToProcess = new Date(2022, 5, 16, 14); // June 16 2022, 14:00 UTC (note that Java months are 0 indexed)
+  const firstPythonPrToProcess = new Date(2022, 5, 16, 14); // June 16 2022, 14:00 UTC (note that JavaScript months are 0 indexed)
+  const firstPrToProcess = new Date(2022, 6, 15, 23); // July 15 2022, 23:00 UTC (note that JavaScript months are 0 indexed)
   const createdAt = new Date(pull.created_at);
   if (
     createdAt < firstPrToProcess &&
     !pull.labels.find((label) => label.name.toLowerCase() === "go")
   ) {
-    console.log(
-      `Skipping PR ${pull.number} because it was created at ${createdAt}, before the first pr to process date of ${firstPrToProcess}`
-    );
-    return false;
+    if (
+      createdAt < firstPythonPrToProcess ||
+      !pull.labels.find((label) => label.name.toLowerCase() === "python")
+    ) {
+      console.log(
+        `Skipping PR ${pull.number} because it was created at ${createdAt}, before the first pr to process date of ${firstPrToProcess}`
+      );
+      return false;
+    }
   }
   if (prState.remindAfterTestsPass && prState.remindAfterTestsPass.length > 0) {
     return true;

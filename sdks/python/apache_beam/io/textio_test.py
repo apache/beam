@@ -1668,6 +1668,48 @@ class TextSinkTest(unittest.TestCase):
     outputs = list(glob.glob(self.path + '*'))
     self.assertEqual(outputs, [])
 
+  def test_write_max_records_per_shard(self):
+    records_per_shard = 13
+    lines = [str(i).encode('utf-8') for i in range(100)]
+    with TestPipeline() as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.core.Create(lines) | WriteToText(
+          self.path, max_records_per_shard=records_per_shard)
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with open(file_name, 'rb') as f:
+        shard_lines = list(f.read().splitlines())
+        self.assertLessEqual(len(shard_lines), records_per_shard)
+        read_result.extend(shard_lines)
+    self.assertEqual(sorted(read_result), sorted(lines))
+
+  def test_write_max_bytes_per_shard(self):
+    bytes_per_shard = 300
+    max_len = 100
+    lines = [b'x' * i for i in range(max_len)]
+    header = b'a' * 20
+    footer = b'b' * 30
+    with TestPipeline() as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.core.Create(lines) | WriteToText(
+          self.path,
+          header=header,
+          footer=footer,
+          max_bytes_per_shard=bytes_per_shard)
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with open(file_name, 'rb') as f:
+        contents = f.read()
+        self.assertLessEqual(
+            len(contents), bytes_per_shard + max_len + len(footer) + 2)
+        shard_lines = list(contents.splitlines())
+        self.assertEqual(shard_lines[0], header)
+        self.assertEqual(shard_lines[-1], footer)
+        read_result.extend(shard_lines[1:-1])
+    self.assertEqual(sorted(read_result), sorted(lines))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

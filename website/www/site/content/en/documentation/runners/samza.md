@@ -115,6 +115,7 @@ Check out our [Samza Beam example from Github](https://github.com/apache/samza-b
 
 When executing your pipeline with the Samza Runner, you can use the following pipeline options.
 
+<div class="table-container-wrapper">
 <table class="table table-bordered">
 <tr>
   <th>Field</th>
@@ -197,6 +198,7 @@ When executing your pipeline with the Samza Runner, you can use the following pi
   <td><code>1000</code></td>
 </tr>
 </table>
+</div>
 
 ## Monitoring your job
 

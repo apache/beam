@@ -45,7 +45,7 @@ data:
         [ -z "$OUTSIDE_HOST" ] && sleep 10
       done
       # OUTSIDE_HOST=$(kubectl get node "$NODE_NAME" -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
-      OUTSIDE_PORT=3240${KAFKA_BROKER_ID}
+      OUTSIDE_PORT=$(kubectl get svc outside-${KAFKA_BROKER_ID} --template="{{range .spec.ports}}{{.port}}{{end}}")
       SEDS+=("s|#init#advertised.listeners=OUTSIDE://#init#|advertised.listeners=OUTSIDE://${OUTSIDE_HOST}:${OUTSIDE_PORT}|")
       ANNOTATIONS="$ANNOTATIONS kafka-listener-outside-host=$OUTSIDE_HOST kafka-listener-outside-port=$OUTSIDE_PORT"
 

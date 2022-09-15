@@ -32,7 +32,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
@@ -128,7 +128,7 @@ public class BagUserState<T> {
           request.toBuilder().setClear(StateClearRequest.getDefaultInstance()));
     }
     if (!newValues.isEmpty()) {
-      ByteString.Output out = ByteString.newOutput();
+      ByteStringOutputStream out = new ByteStringOutputStream();
       for (T newValue : newValues) {
         // TODO: Replace with chunking output stream
         valueCoder.encode(newValue, out);

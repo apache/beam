@@ -80,11 +80,9 @@ public class GcsPathValidator implements PathValidator {
   private void verifyPathIsAccessible(String path, String errorMessage) {
     GcsPath gcsPath = getGcsPath(path);
     try {
-      checkArgument(gcpOptions.getGcsUtil().bucketAccessible(gcsPath), errorMessage, path);
+      gcpOptions.getGcsUtil().verifyBucketAccessible(gcsPath);
     } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Unable to verify that GCS bucket gs://%s exists.", gcsPath.getBucket()),
-          e);
+      throw new RuntimeException(String.format(errorMessage, path), e);
     }
   }
 

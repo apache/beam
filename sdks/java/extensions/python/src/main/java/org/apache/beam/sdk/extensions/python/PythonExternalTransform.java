@@ -17,8 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.python;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -49,10 +55,13 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -65,6 +74,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   private String fullyQualifiedName;
 
   private String expansionService;
+  private List<String> extraPackages;
 
   // We preseve the order here since Schema's care about order of fields but the order will not
   // matter when applying kwargs at the Python side.
@@ -79,6 +89,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   private PythonExternalTransform(String fullyQualifiedName, String expansionService) {
     this.fullyQualifiedName = fullyQualifiedName;
     this.expansionService = expansionService;
+    this.extraPackages = new ArrayList<>();
     this.kwargsMap = new TreeMap<>();
     this.typeHints = new HashMap<>();
     // TODO(https://github.com/apache/beam/issues/21567): remove a default type hint for
@@ -266,6 +277,25 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     return this;
   }
 
+  /**
+   * Specifies that the given Python packages are required for this transform, which will cause them
+   * to be installed in both the construction-time and execution time environment.
+   *
+   * @param extraPackages a list of pip-installable package specifications, such as would be found
+   *     in a requirements file.
+   * @return updated wrapper for the cross-language transform.
+   */
+  public PythonExternalTransform<InputT, OutputT> withExtraPackages(List<String> extraPackages) {
+    if (extraPackages.isEmpty()) {
+      return this;
+    }
+    Preconditions.checkState(
+        Strings.isNullOrEmpty(expansionService),
+        "Extra packages only apply to auto-started expansion service.");
+    this.extraPackages = extraPackages;
+    return this;
+  }
+
   @VisibleForTesting
   Row buildOrGetKwargsRow() {
     if (providedKwargsRow != null) {
@@ -418,13 +448,25 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
         return apply(input, expansionService, payload);
       } else {
         int port = PythonService.findAvailablePort();
+        ImmutableList.Builder<String> args = ImmutableList.builder();
+        args.add("--port=" + port, "--fully_qualified_name_glob=*", "--pickle_library=cloudpickle");
+        if (!extraPackages.isEmpty()) {
+          File requirementsFile = File.createTempFile("requirements", ".txt");
+          requirementsFile.deleteOnExit();
+          try (Writer fout =
+              new OutputStreamWriter(
+                  new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
+            for (String pkg : extraPackages) {
+              fout.write(pkg);
+              fout.write('\n');
+            }
+          }
+          args.add("--requirements_file=" + requirementsFile.getAbsolutePath());
+        }
         PythonService service =
             new PythonService(
-                "apache_beam.runners.portability.expansion_service_main",
-                "--port",
-                "" + port,
-                "--fully_qualified_name_glob",
-                "*");
+                    "apache_beam.runners.portability.expansion_service_main", args.build())
+                .withExtraPackages(extraPackages);
         try (AutoCloseable p = service.start()) {
           PythonService.waitForPort("localhost", port, 15000);
           return apply(input, String.format("localhost:%s", port), payload);

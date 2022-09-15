@@ -19,7 +19,7 @@ package org.apache.beam.sdk.fn.data;
 
 import java.io.InputStream;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 
 /** A receiver of encoded data, decoding it and passing it onto a downstream consumer. */
 public class DecodingFnDataReceiver<T> implements FnDataReceiver<ByteString> {

@@ -19,8 +19,11 @@
 import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/repositories/example_client/example_client.dart';
+import 'package:playground/modules/examples/repositories/models/get_snippet_request.dart';
+import 'package:playground/modules/examples/repositories/models/get_snippet_response.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
+import 'package:playground/modules/examples/repositories/models/save_snippet_request.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 class ExampleRepository {
@@ -44,7 +47,9 @@ class ExampleRepository {
     return result.example;
   }
 
-  Future<String> getExampleSource(GetExampleRequestWrapper request) async {
+  Future<String> getExampleSource(
+    GetExampleRequestWrapper request,
+  ) async {
     final result = await _client.getExampleSource(request);
     return result.code;
   }
@@ -75,5 +80,19 @@ class ExampleRepository {
   ) async {
     final result = await _client.getExample(request);
     return result.example;
+  }
+
+  Future<GetSnippetResponse> getSnippet(
+    GetSnippetRequestWrapper request,
+  ) async {
+    final result = await _client.getSnippet(request);
+    return result;
+  }
+
+  Future<String> saveSnippet(
+    SaveSnippetRequestWrapper request,
+  ) async {
+    final result = await _client.saveSnippet(request);
+    return result.id;
   }
 }

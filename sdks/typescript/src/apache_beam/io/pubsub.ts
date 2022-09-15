@@ -96,7 +96,7 @@ export function readFromPubSubWithAttributes(
 > {
   return async function readFromPubSubWithAttributes(root: beam.Root) {
     return (
-      await root.asyncApply(readFromPubSubWithAttributesRaw(options))
+      await root.applyAsync(readFromPubSubWithAttributesRaw(options))
     ).map((encoded) =>
       PubSub.protos.google.pubsub.v1.PubsubMessage.decode(encoded)
     );
@@ -126,9 +126,9 @@ export function writeToPubSub(topic: string, options: WriteOptions = {}) {
         PubSub.protos.google.pubsub.v1.PubsubMessage.encode({ data }).finish()
       )
       .apply(internal.withCoderInternal(new BytesCoder()))
-      .asyncApply(writeToPubSubRaw(topic, options));
+      .applyAsync(writeToPubSubRaw(topic, options));
   };
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.io.pubsub.PubSub", PubSub);
+requireForSerialization("apache-beam/io/pubsub", PubSub);

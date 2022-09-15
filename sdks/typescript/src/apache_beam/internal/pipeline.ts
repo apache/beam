@@ -114,6 +114,7 @@ export class Pipeline {
   context: PipelineContext;
   transformStack: string[] = [];
   defaultEnvironment: string;
+  usedStageNames: Set<string> = new Set();
 
   private proto: runnerApi.Pipeline;
   private globalWindowing: string;
@@ -147,9 +148,17 @@ export class Pipeline {
     } else {
       this.proto.rootTransformIds.push(transformId);
     }
+    const uniqueName =
+      (parent ? parent.uniqueName + "/" : "") + extractName(transform);
+    if (this.usedStageNames.has(uniqueName)) {
+      throw new Error(
+        `Duplicate stage name: "${uniqueName}". ` +
+          "Use beam.withName(...) to give your transform a unique name."
+      );
+    }
+    this.usedStageNames.add(uniqueName);
     const transformProto: runnerApi.PTransform = {
-      uniqueName:
-        (parent ? parent.uniqueName + "/" : "") + extractName(transform),
+      uniqueName,
       subtransforms: [],
       inputs: objectMap(pvalue.flattenPValue(input), (pc) => pc.getId()),
       outputs: {},
@@ -179,7 +188,7 @@ export class Pipeline {
     return this.postApplyTransform(transform, transformProto, result);
   }
 
-  async asyncApplyTransform<
+  async applyAsyncTransform<
     InputT extends pvalue.PValue<any>,
     OutputT extends pvalue.PValue<any>
   >(transform: AsyncPTransformClass<InputT, OutputT>, input: InputT) {
@@ -190,7 +199,7 @@ export class Pipeline {
     let result: OutputT;
     try {
       this.transformStack.push(transformId);
-      result = await transform.asyncExpandInternal(input, this, transformProto);
+      result = await transform.expandInternalAsync(input, this, transformProto);
     } finally {
       this.transformStack.pop();
     }
@@ -334,4 +343,4 @@ function onlyValueOr<T>(
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.pipeline", exports);
+requireForSerialization("apache-beam/internal/pipeline", exports);

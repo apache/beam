@@ -25,11 +25,10 @@ String jobName = "beam_PerformanceTests_HadoopFormat"
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
   common.setAutoJob(delegate, 'H H/6 * * *')
-  // [Issue#21824] Disable trigger
-  //  common.enablePhraseTriggeringFromPullRequest(
-  //      delegate,
-  //      'Java HadoopFormatIO Performance Test',
-  //      'Run Java HadoopFormatIO Performance Test')
+  common.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Java HadoopFormatIO Performance Test',
+      'Run Java HadoopFormatIO Performance Test')
   InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)

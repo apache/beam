@@ -332,24 +332,35 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         self.gcs_location,
         temp_location,
         '%s%s' % (self._source_uuid, element.obj_id))
-    if self.use_json_exports:
-      job_ref = bq.perform_extract_job([gcs_location],
-                                       export_job_name,
-                                       table_reference,
-                                       bigquery_tools.FileFormat.JSON,
-                                       project=self._get_project(),
-                                       job_labels=job_labels,
-                                       include_header=False)
-    else:
-      job_ref = bq.perform_extract_job([gcs_location],
-                                       export_job_name,
-                                       table_reference,
-                                       bigquery_tools.FileFormat.AVRO,
-                                       project=self._get_project(),
-                                       include_header=False,
-                                       job_labels=job_labels,
-                                       use_avro_logical_types=True)
-    bq.wait_for_bq_job(job_ref)
+    try:
+      if self.use_json_exports:
+        job_ref = bq.perform_extract_job([gcs_location],
+                                         export_job_name,
+                                         table_reference,
+                                         bigquery_tools.FileFormat.JSON,
+                                         project=self._get_project(),
+                                         job_labels=job_labels,
+                                         include_header=False)
+      else:
+        job_ref = bq.perform_extract_job([gcs_location],
+                                         export_job_name,
+                                         table_reference,
+                                         bigquery_tools.FileFormat.AVRO,
+                                         project=self._get_project(),
+                                         include_header=False,
+                                         job_labels=job_labels,
+                                         use_avro_logical_types=True)
+      bq.wait_for_bq_job(job_ref)
+    except Exception as exn:  # pylint: disable=broad-except
+      # The error messages thrown in this case are generic and misleading,
+      # so leave this breadcrumb in case it's the root cause.
+      logging.warning(
+          "Error exporting table: %s. "
+          "Note that external tables cannot be exported: "
+          "https://cloud.google.com/bigquery/docs/external-tables"
+          "#external_table_limitations",
+          exn)
+      raise
     metadata_list = FileSystems.match([gcs_location])[0].metadata_list
 
     if isinstance(table_reference, ValueProvider):
