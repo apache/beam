@@ -21,6 +21,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
@@ -65,6 +69,25 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   ExecutorService getExecutorService();
 
   void setExecutorService(ExecutorService value);
+
+  //TODO update docs
+  /**
+   * The ExecutorService instance to use to create threads, can be overridden to specify an
+   * ExecutorService that is compatible with the user's environment. If unset, the default is to
+   * create an ExecutorService with an unbounded number of threads; this is compatible with Google
+   * AppEngine.
+   */
+  @JsonIgnore
+  @Description(
+      "The ExecutorService instance to use to create multiple threads. Can be overridden "
+          + "to specify an ExecutorService that is compatible with the user's environment. If unset, "
+          + "the default is to create an ExecutorService with an unbounded number of threads; this "
+          + "is compatible with Google AppEngine.")
+  @Default.InstanceFactory(ScheduledExecutorServiceFactory.class)
+  @Hidden
+  ScheduledExecutorService getScheduledExecutorService();
+
+  void setScheduledExecutorService(ScheduledExecutorService value);
 
   /** GCS endpoint to use. If unspecified, uses the default endpoint. */
   @JsonIgnore
@@ -146,14 +169,36 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
        * can be active.
        */
 
+      return new ThreadPoolExecutor(
+          0,
+          Integer.MAX_VALUE, // Allow an unlimited number of re-usable threads.
+          Long.MAX_VALUE,
+          TimeUnit.NANOSECONDS, // Keep non-core threads alive forever.
+          new SynchronousQueue<>(),
+          threadFactoryBuilder.build());
+    }
+  }
+
+  /**
+   * Returns the default {@link ExecutorService} to use within the Apache Beam SDK. The {@link
+   * ExecutorService} is compatible with AppEngine.
+   */
+  class ScheduledExecutorServiceFactory implements DefaultValueFactory<ScheduledExecutorService> {
+    @SuppressWarnings("deprecation") // IS_APP_ENGINE is deprecated for internal use only.
+    @Override
+    public ScheduledExecutorService create(PipelineOptions options) {
+      ThreadFactoryBuilder threadFactoryBuilder = new ThreadFactoryBuilder();
+      threadFactoryBuilder.setThreadFactory(MoreExecutors.platformThreadFactory());
+      threadFactoryBuilder.setDaemon(true);
+      /* The SDK requires an unbounded thread pool because a step may create X writers
+       * each requiring their own thread to perform the writes otherwise a writer may
+       * block causing deadlock for the step because the writers buffer is full.
+       * Also, the MapTaskExecutor launches the steps in reverse order and completes
+       * them in forward order thus requiring enough threads so that each step's writers
+       * can be active.
+       */
+
       return Executors.newScheduledThreadPool(0, threadFactoryBuilder.build());
-      // return new ThreadPoolExecutor(
-      //     0,
-      //     Integer.MAX_VALUE, // Allow an unlimited number of re-usable threads.
-      //     Long.MAX_VALUE,
-      //     TimeUnit.NANOSECONDS, // Keep non-core threads alive forever.
-      //     new SynchronousQueue<>(),
-      //     threadFactoryBuilder.build());
     }
   }
 

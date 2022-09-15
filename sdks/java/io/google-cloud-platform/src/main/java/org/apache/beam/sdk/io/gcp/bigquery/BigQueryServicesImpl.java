@@ -1506,7 +1506,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public ScheduledExecutorService getExecutor() {
-      return (ScheduledExecutorService) options.as(GcsOptions.class).getExecutorService();
+      return options.as(GcsOptions.class).getScheduledExecutorService();
     }
   }
 
