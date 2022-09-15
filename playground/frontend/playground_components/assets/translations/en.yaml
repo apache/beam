@@ -18,3 +18,35 @@
 ui:
   darkMode: 'Dark Mode'
   lightMode: 'Light Mode'
+
+intents:
+  playground:
+    run: 'Run Code'
+    reset: 'Reset Code'
+
+widgets:
+
+  codeEditor:
+    label: 'Code Text Area'
+
+  output:
+    filter:
+      all: 'All'
+      log: 'Log'
+      output: 'Output'
+    filterTitle: 'Display at this tab'
+    graph: 'Graph'
+    result: 'Result'
+
+
+  resetButton:
+    label: 'Reset'
+
+  runOrCancelButton:
+    titles:
+      run: 'Run'
+      cancel: 'Cancel'
+    notificationTitles:
+      run: 'Run Code'
+      cancelExecution: 'Cancel Execution'
+

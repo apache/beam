@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 
+import '../constants/playground_components.dart';
 import '../generated/assets.gen.dart';
 import '../theme/switch_notifier.dart';
 
@@ -35,7 +36,10 @@ class ToggleThemeButton extends StatelessWidget {
             notifier.isDarkMode ? 'ui.lightMode'.tr() : 'ui.darkMode'.tr();
 
         return TextButton.icon(
-          icon: SvgPicture.asset(Assets.svg.themeMode),
+          icon: SvgPicture.asset(
+            Assets.buttons.themeMode,
+            package: PlaygroundComponents.packageName,
+          ),
           label: Text(text),
           onPressed: () {
             notifier.toggleTheme();

@@ -90,7 +90,7 @@ class _SdkSelection extends StatelessWidget {
             BeamSizes.appBarHeight -
             TobSizes.footerHeight,
       ),
-      color: ThemeColors.of(context).background,
+      color: Theme.of(context).backgroundColor,
       child: Stack(
         children: [
           Positioned(
@@ -183,7 +183,7 @@ class _IntroText extends StatelessWidget {
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge!
-                    .copyWith(color: ThemeColors.of(context).primary),
+                    .copyWith(color: Theme.of(context).primaryColor),
                 recognizer: TapGestureRecognizer()
                   ..onTap = () {
                     // TODO(nausharipov): sign in
@@ -250,7 +250,7 @@ class _SdkButton extends StatelessWidget {
       padding: const EdgeInsets.only(right: 15, bottom: 10),
       child: OutlinedButton(
         style: OutlinedButton.styleFrom(
-          backgroundColor: ThemeColors.of(context).background,
+          backgroundColor: Theme.of(context).backgroundColor,
           side: groupValue == value
               ? null
               : const BorderSide(color: BeamColors.grey1),
@@ -336,12 +336,14 @@ class _ModuleBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+
     return Container(
       margin: _moduleLeftMargin,
       decoration: BoxDecoration(
         border: Border(
           left: BorderSide(
-            color: ThemeColors.of(context).divider,
+            color: themeData.dividerColor,
           ),
         ),
       ),
@@ -351,7 +353,7 @@ class _ModuleBody extends StatelessWidget {
           const FillerText(width: 20),
           const SizedBox(height: BeamSizes.size16),
           Divider(
-            color: ThemeColors.of(context).divider,
+            color: themeData.dividerColor,
           ),
         ],
       ),

@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/examples_components.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground_components/playground_components.dart';
 
 class TypeFilter extends StatelessWidget {
   const TypeFilter({Key? key}) : super(key: key);

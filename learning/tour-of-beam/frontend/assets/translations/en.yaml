@@ -21,14 +21,13 @@ ui:
   continueGitHub: Continue with GitHub
   continueGoogle: Continue with Google
   copyright: © The Apache Software Foundation
-  darkMode: Dark Mode
-  lightMode: Light Mode
   privacyPolicy: Privacy Policy
   reportIssue: Report Issue in GitHub
   signIn: Sign in
   signOut: Sign out
   toWebsite: To Apache Beam website
   deleteAccount: Delete my account
+
 pages:
   welcome:
     title: Welcome to the Tour of Beam!
@@ -39,8 +38,10 @@ pages:
   tour:
     summaryTitle: Table of Contents
     completeUnit: Complete Unit
+
 dialogs:
   signInIf: If you would like to save your progress and track completed modules
+
 complexity:
   basic: Basic level
   medium: Medium level

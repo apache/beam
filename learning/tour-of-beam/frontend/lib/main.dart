@@ -17,6 +17,7 @@
  */
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:easy_localization_ext/easy_localization_ext.dart';
 import 'package:easy_localization_loader/easy_localization_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
@@ -38,7 +39,10 @@ void main() async {
       startLocale: englishLocale,
       fallbackLocale: englishLocale,
       path: 'assets/translations',
-      assetLoader: YamlAssetLoader(),
+      assetLoader: MultiAssetLoader([
+        PlaygroundComponents.translationLoader,
+        YamlAssetLoader(),
+      ]),
       child: const TourOfBeamApp(),
     ),
   );

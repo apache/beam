@@ -24,10 +24,9 @@ import 'package:playground_components/playground_components.dart';
 import '../../components/expansion_tile_wrapper.dart';
 import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
-import '../../components/split_view/pan.dart';
-import '../../components/split_view/widget.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
+import 'playground_demo.dart';
 
 class TourScreen extends StatelessWidget {
   const TourScreen();
@@ -52,18 +51,10 @@ class _WideTour extends StatelessWidget {
       children: const [
         _ContentTree(),
         Expanded(
-          child: TobSplitView(
+          child: SplitView(
             direction: Axis.horizontal,
-            pans: [
-              Pan(
-                child: _Content(),
-                minWeight: 0.3,
-              ),
-              Pan(
-                child: _Playground(),
-                minWeight: 0.3,
-              ),
-            ],
+            first: _Content(),
+            second: PlaygroundDemoWidget(),
           ),
         ),
       ],
@@ -89,7 +80,7 @@ class _NarrowTour extends StatelessWidget {
           DecoratedBox(
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: ThemeColors.of(context).divider),
+                top: BorderSide(color: Theme.of(context).dividerColor),
               ),
             ),
             child: const _Playground(),
@@ -283,14 +274,16 @@ class _Content extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+
     return Container(
       height: MediaQuery.of(context).size.height -
           BeamSizes.appBarHeight -
           TobSizes.footerHeight,
       decoration: BoxDecoration(
-        color: ThemeColors.of(context).background,
+        color: themeData.backgroundColor,
         border: Border(
-          left: BorderSide(color: ThemeColors.of(context).divider),
+          left: BorderSide(color: themeData.dividerColor),
         ),
       ),
       child: Column(
@@ -314,12 +307,14 @@ class _ContentFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: ThemeColors.of(context).divider),
+          top: BorderSide(color: themeData.dividerColor),
         ),
-        color: ThemeColors.of(context).secondaryBackground,
+        color: themeData.extension<BeamThemeExtension>()?.secondaryBackgroundColor,
       ),
       width: double.infinity,
       padding: const EdgeInsets.all(BeamSizes.size20),
@@ -329,8 +324,8 @@ class _ContentFooter extends StatelessWidget {
           Flexible(
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
-                foregroundColor: ThemeColors.of(context).primary,
-                side: BorderSide(color: ThemeColors.of(context).primary),
+                foregroundColor: themeData.primaryColor,
+                side: BorderSide(color: themeData.primaryColor),
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.all(
                     Radius.circular(BeamSizes.size4),
@@ -357,6 +352,7 @@ class _Playground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('Playground'));
+    // TODO(alexeyinkin): Even this way the narrow layout breaks, https://github.com/apache/beam/issues/23244
+    return const Center(child: Text('TODO: Playground for narrow screen'));
   }
 }

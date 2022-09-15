@@ -20,22 +20,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'color_provider.dart';
-
 const kThemeMode = 'theme_mode';
 
 class ThemeSwitchNotifier extends ChangeNotifier {
   ThemeMode themeMode = ThemeMode.light;
-
-  static const _darkThemeColors = ThemeColors.fromBrightness(isDark: true);
-  static const _lightThemeColors = ThemeColors.fromBrightness(isDark: false);
-
-  ThemeColors get themeColors {
-    if (themeMode == ThemeMode.dark) {
-      return _darkThemeColors;
-    }
-    return _lightThemeColors;
-  }
 
   void init() {
     _setPreferences();
@@ -73,12 +61,7 @@ class ThemeSwitchNotifierProvider extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<ThemeSwitchNotifier>(
       create: (context) => ThemeSwitchNotifier()..init(),
-      child: Consumer<ThemeSwitchNotifier>(
-        builder: (context, themeSwitchNotifier, _) => ThemeColorsProvider(
-          data: themeSwitchNotifier.themeColors,
-          child: child,
-        ),
-      ),
+      child: child,
     );
   }
 }

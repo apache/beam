@@ -16,43 +16,226 @@
  * limitations under the License.
  */
 
+import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../playground_components.dart';
 
+const codeFontSize = 14.0;
+
+class BeamThemeExtension extends ThemeExtension<BeamThemeExtension> {
+  final Color borderColor;
+  final Color fieldBackgroundColor;
+  final Color iconColor;
+  final Color primaryBackgroundTextColor;
+  final Color lightGreyBackgroundTextColor;
+  final Color secondaryBackgroundColor;
+
+  final TextStyle codeRootStyle;
+  final CodeThemeData codeTheme;
+
+  const BeamThemeExtension({
+    required this.borderColor,
+    required this.fieldBackgroundColor,
+    required this.iconColor,
+    required this.primaryBackgroundTextColor,
+    required this.lightGreyBackgroundTextColor,
+    required this.secondaryBackgroundColor,
+    required this.codeRootStyle,
+    required this.codeTheme,
+  });
+
+  @override
+  ThemeExtension<BeamThemeExtension> copyWith({
+    Color? borderColor,
+    Color? fieldBackgroundColor,
+    Color? iconColor,
+    Color? primaryBackgroundTextColor,
+    Color? lightGreyBackgroundTextColor,
+    Color? secondaryBackgroundColor,
+    TextStyle? codeRootStyle,
+    CodeThemeData? codeTheme,
+  }) {
+    return BeamThemeExtension(
+      borderColor: borderColor ?? this.borderColor,
+      fieldBackgroundColor: fieldBackgroundColor ?? this.fieldBackgroundColor,
+      iconColor: iconColor ?? this.iconColor,
+      primaryBackgroundTextColor:
+          primaryBackgroundTextColor ?? this.primaryBackgroundTextColor,
+      lightGreyBackgroundTextColor:
+          lightGreyBackgroundTextColor ?? this.lightGreyBackgroundTextColor,
+      secondaryBackgroundColor:
+          secondaryBackgroundColor ?? this.secondaryBackgroundColor,
+      codeRootStyle: codeRootStyle ?? this.codeRootStyle,
+      codeTheme: codeTheme ?? this.codeTheme,
+    );
+  }
+
+  @override
+  ThemeExtension<BeamThemeExtension> lerp(
+    covariant BeamThemeExtension? other,
+    double t,
+  ) {
+    return BeamThemeExtension(
+      borderColor: Color.lerp(borderColor, other?.borderColor, t)!,
+      fieldBackgroundColor:
+          Color.lerp(fieldBackgroundColor, other?.fieldBackgroundColor, t)!,
+      iconColor: Color.lerp(iconColor, other?.iconColor, t)!,
+      primaryBackgroundTextColor: Color.lerp(
+          primaryBackgroundTextColor, other?.primaryBackgroundTextColor, t)!,
+      lightGreyBackgroundTextColor: Color.lerp(lightGreyBackgroundTextColor,
+          other?.lightGreyBackgroundTextColor, t)!,
+      secondaryBackgroundColor: Color.lerp(
+          secondaryBackgroundColor, other?.secondaryBackgroundColor, t)!,
+      codeRootStyle: TextStyle.lerp(codeRootStyle, other?.codeRootStyle, t)!,
+      codeTheme: t == 0.0 ? codeTheme : other?.codeTheme ?? codeTheme,
+    );
+  }
+}
+
 final kLightTheme = ThemeData(
   brightness: Brightness.light,
-  primaryColor: BeamLightThemeColors.primary,
+  appBarTheme: _getAppBarTheme(BeamLightThemeColors.secondaryBackground),
+  backgroundColor: BeamLightThemeColors.primaryBackground,
   canvasColor: BeamLightThemeColors.primaryBackground,
   dividerColor: BeamLightThemeColors.grey,
-  scaffoldBackgroundColor: BeamLightThemeColors.secondaryBackground,
-  backgroundColor: BeamLightThemeColors.primaryBackground,
-  textTheme: _getTextTheme(BeamLightThemeColors.text),
-  textButtonTheme: _getTextButtonTheme(BeamLightThemeColors.text),
+  elevatedButtonTheme: _getElevatedButtonTheme(BeamLightThemeColors.primary),
   outlinedButtonTheme: _getOutlineButtonTheme(
     BeamLightThemeColors.text,
     BeamLightThemeColors.primary,
   ),
-  elevatedButtonTheme: _getElevatedButtonTheme(BeamLightThemeColors.primary),
-  appBarTheme: _getAppBarTheme(BeamLightThemeColors.secondaryBackground),
+  primaryColor: BeamLightThemeColors.primary,
+  scaffoldBackgroundColor: BeamLightThemeColors.secondaryBackground,
+  tabBarTheme: _getTabBarTheme(
+    textColor: BeamLightThemeColors.text,
+    indicatorColor: BeamLightThemeColors.primary,
+  ),
+  textButtonTheme: _getTextButtonTheme(BeamLightThemeColors.text),
+  textTheme: _getTextTheme(BeamLightThemeColors.text),
+  extensions: {
+    BeamThemeExtension(
+      borderColor: BeamLightThemeColors.border,
+      fieldBackgroundColor: BeamLightThemeColors.grey,
+      iconColor: BeamLightThemeColors.icon,
+      primaryBackgroundTextColor: BeamColors.white,
+      lightGreyBackgroundTextColor: BeamColors.black,
+      secondaryBackgroundColor: BeamLightThemeColors.secondaryBackground,
+      codeRootStyle: GoogleFonts.sourceCodePro(
+        backgroundColor: BeamLightThemeColors.primaryBackground,
+        color: BeamLightThemeColors.text,
+        fontSize: codeFontSize,
+      ),
+      codeTheme: CodeThemeData(
+        styles: {
+          'root': TextStyle(
+            backgroundColor: BeamLightThemeColors.primaryBackground,
+            color: BeamLightThemeColors.text,
+          ),
+          'comment': TextStyle(color: BeamLightThemeColors.codeComment),
+          'quote': TextStyle(color: BeamLightThemeColors.code2),
+          'variable': TextStyle(color: BeamLightThemeColors.code2),
+          'keyword': TextStyle(color: BeamLightThemeColors.code2),
+          'selector-tag': TextStyle(color: BeamLightThemeColors.code2),
+          'built_in': TextStyle(color: BeamLightThemeColors.code2),
+          'name': TextStyle(color: BeamLightThemeColors.code2),
+          'tag': TextStyle(color: BeamLightThemeColors.code2),
+          'string': TextStyle(color: BeamLightThemeColors.code1),
+          'title': TextStyle(color: BeamLightThemeColors.code1),
+          'section': TextStyle(color: BeamLightThemeColors.code1),
+          'attribute': TextStyle(color: BeamLightThemeColors.code1),
+          'literal': TextStyle(color: BeamLightThemeColors.code1),
+          'template-tag': TextStyle(color: BeamLightThemeColors.code1),
+          'template-variable': TextStyle(color: BeamLightThemeColors.code1),
+          'type': TextStyle(color: BeamLightThemeColors.code1),
+          'addition': TextStyle(color: BeamLightThemeColors.code1),
+          'deletion': TextStyle(color: BeamLightThemeColors.code2),
+          'selector-attr': TextStyle(color: BeamLightThemeColors.code2),
+          'selector-pseudo': TextStyle(color: BeamLightThemeColors.code2),
+          'meta': TextStyle(color: BeamLightThemeColors.code2),
+          'doctag': TextStyle(color: BeamLightThemeColors.codeComment),
+          'attr': TextStyle(color: BeamLightThemeColors.primary),
+          'symbol': TextStyle(color: BeamLightThemeColors.code2),
+          'bullet': TextStyle(color: BeamLightThemeColors.code2),
+          'link': TextStyle(color: BeamLightThemeColors.code2),
+          'emphasis': const TextStyle(fontStyle: FontStyle.italic),
+          'strong': const TextStyle(fontWeight: FontWeight.bold),
+        },
+      ),
+    ),
+  },
 );
 
 final kDarkTheme = ThemeData(
   brightness: Brightness.dark,
-  primaryColor: BeamDarkThemeColors.primary,
+  appBarTheme: _getAppBarTheme(BeamDarkThemeColors.secondaryBackground),
+  backgroundColor: BeamDarkThemeColors.primaryBackground,
   canvasColor: BeamDarkThemeColors.primaryBackground,
   dividerColor: BeamDarkThemeColors.grey,
-  scaffoldBackgroundColor: BeamDarkThemeColors.secondaryBackground,
-  backgroundColor: BeamDarkThemeColors.primaryBackground,
-  textTheme: _getTextTheme(BeamDarkThemeColors.text),
-  textButtonTheme: _getTextButtonTheme(BeamDarkThemeColors.text),
+  elevatedButtonTheme: _getElevatedButtonTheme(BeamDarkThemeColors.primary),
   outlinedButtonTheme: _getOutlineButtonTheme(
     BeamDarkThemeColors.text,
     BeamDarkThemeColors.primary,
   ),
-  elevatedButtonTheme: _getElevatedButtonTheme(BeamDarkThemeColors.primary),
-  appBarTheme: _getAppBarTheme(BeamDarkThemeColors.secondaryBackground),
+  primaryColor: BeamDarkThemeColors.primary,
+  scaffoldBackgroundColor: BeamDarkThemeColors.secondaryBackground,
+  tabBarTheme: _getTabBarTheme(
+    textColor: BeamDarkThemeColors.text,
+    indicatorColor: BeamDarkThemeColors.primary,
+  ),
+  textButtonTheme: _getTextButtonTheme(BeamDarkThemeColors.text),
+  textTheme: _getTextTheme(BeamDarkThemeColors.text),
+  extensions: {
+    BeamThemeExtension(
+      borderColor: BeamDarkThemeColors.border,
+      fieldBackgroundColor: BeamDarkThemeColors.grey,
+      iconColor: BeamDarkThemeColors.icon,
+      primaryBackgroundTextColor: BeamColors.white,
+      lightGreyBackgroundTextColor: BeamColors.black,
+      secondaryBackgroundColor: BeamDarkThemeColors.secondaryBackground,
+      codeRootStyle: GoogleFonts.sourceCodePro(
+        backgroundColor: BeamDarkThemeColors.primaryBackground,
+        color: BeamDarkThemeColors.text,
+        fontSize: codeFontSize,
+      ),
+      codeTheme: CodeThemeData(
+        styles: {
+          'root': TextStyle(
+            backgroundColor: BeamDarkThemeColors.primaryBackground,
+            color: BeamDarkThemeColors.text,
+          ),
+          'comment': TextStyle(color: BeamDarkThemeColors.codeComment),
+          'quote': TextStyle(color: BeamDarkThemeColors.code2),
+          'variable': TextStyle(color: BeamDarkThemeColors.code2),
+          'keyword': TextStyle(color: BeamDarkThemeColors.code2),
+          'selector-tag': TextStyle(color: BeamDarkThemeColors.code2),
+          'built_in': TextStyle(color: BeamDarkThemeColors.code2),
+          'name': TextStyle(color: BeamDarkThemeColors.code2),
+          'tag': TextStyle(color: BeamDarkThemeColors.code2),
+          'string': TextStyle(color: BeamDarkThemeColors.code1),
+          'title': TextStyle(color: BeamDarkThemeColors.code1),
+          'section': TextStyle(color: BeamDarkThemeColors.code1),
+          'attribute': TextStyle(color: BeamDarkThemeColors.code1),
+          'literal': TextStyle(color: BeamDarkThemeColors.code1),
+          'template-tag': TextStyle(color: BeamDarkThemeColors.code1),
+          'template-variable': TextStyle(color: BeamDarkThemeColors.code1),
+          'type': TextStyle(color: BeamDarkThemeColors.code1),
+          'addition': TextStyle(color: BeamDarkThemeColors.code1),
+          'deletion': TextStyle(color: BeamDarkThemeColors.code2),
+          'selector-attr': TextStyle(color: BeamDarkThemeColors.code2),
+          'selector-pseudo': TextStyle(color: BeamDarkThemeColors.code2),
+          'meta': TextStyle(color: BeamDarkThemeColors.code2),
+          'doctag': TextStyle(color: BeamDarkThemeColors.codeComment),
+          'attr': TextStyle(color: BeamDarkThemeColors.primary),
+          'symbol': TextStyle(color: BeamDarkThemeColors.code2),
+          'bullet': TextStyle(color: BeamDarkThemeColors.code2),
+          'link': TextStyle(color: BeamDarkThemeColors.code2),
+          'emphasis': const TextStyle(fontStyle: FontStyle.italic),
+          'strong': const TextStyle(fontWeight: FontWeight.bold),
+        },
+      ),
+    ),
+  },
 );
 
 TextTheme _getTextTheme(Color textColor) {
@@ -87,7 +270,7 @@ TextTheme _getTextTheme(Color textColor) {
       titleMedium: _emptyTextStyle,
       titleSmall: _emptyTextStyle,
       labelLarge: TextStyle(
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: FontWeight.w600,
       ),
       labelMedium: _emptyTextStyle,
@@ -139,8 +322,22 @@ ElevatedButtonThemeData _getElevatedButtonTheme(Color color) {
     style: ElevatedButton.styleFrom(
       foregroundColor: BeamColors.white,
       backgroundColor: color,
-      padding: _buttonPadding,
-      elevation: BeamSizes.size0,
+    ),
+  );
+}
+
+TabBarTheme _getTabBarTheme({
+  required Color textColor,
+  required Color indicatorColor,
+}) {
+  const labelStyle = TextStyle(fontWeight: FontWeight.w600);
+  return TabBarTheme(
+    unselectedLabelColor: textColor,
+    labelColor: textColor,
+    labelStyle: labelStyle,
+    unselectedLabelStyle: labelStyle,
+    indicator: UnderlineTabIndicator(
+      borderSide: BorderSide(width: 2.0, color: indicatorColor),
     ),
   );
 }

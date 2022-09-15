@@ -34,18 +34,45 @@ class BeamColors {
   static const red = Color(0xffE54545);
 }
 
+class BeamGraphColors {
+  static const node = BeamColors.grey3;
+  static const border = Color(0xFF45454E);
+  static const edge = BeamLightThemeColors.primary;
+}
+
+class BeamNotificationColors {
+  static const error = Color(0xFFE54545);
+  static const info = Color(0xFF3E67F6);
+  static const success = Color(0xFF37AC66);
+  static const warning = Color(0xFFEEAB00);
+}
+
 class BeamLightThemeColors {
+  static const border = Color(0xFFE5E5E5);
   static const primaryBackground = BeamColors.white;
   static const secondaryBackground = Color(0xffFCFCFC);
   static const grey = Color(0xffE5E5E5);
+  static const listBackground = Color(0xFFA0A4AB);
   static const text = BeamColors.darkBlue;
   static const primary = Color(0xffE74D1A);
+  static const icon = Color(0xFFA0A4AB);
+
+  static const code1 = Color(0xFFDA2833);
+  static const code2 = Color(0xFF5929B4);
+  static const codeComment = Color(0xFF4C6B60);
 }
 
 class BeamDarkThemeColors {
+  static const border = Color(0xFFA0A4AB);
   static const primaryBackground = Color(0xff18181B);
   static const secondaryBackground = BeamColors.darkGrey;
   static const grey = Color(0xff3F3F46);
+  static const listBackground = Color(0xFF606772);
   static const text = Color(0xffFFFFFF);
   static const primary = Color(0xffF26628);
+  static const icon = Color(0xFF606772);
+
+  static const code1 = Color(0xFFDA2833);
+  static const code2 = Color(0xFF5929B4);
+  static const codeComment = Color(0xFF4C6B60);
 }

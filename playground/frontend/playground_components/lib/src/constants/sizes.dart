@@ -29,19 +29,29 @@ class BeamSizes {
   static const double size18 = 18;
   static const double size20 = 20;
   static const double size24 = 24;
+  static const double size30 = 30;
   static const double size32 = 32;
   static const double size36 = 36;
   static const double size40 = 40;
+  static const double size64 = 64;
 
   static const double appBarHeight = 55;
+  static const double buttonHeight = 40;
+  static const double headerButtonHeight = 46;
+  static const double loadingIndicator = 40;
   static const double splitViewSeparator = BeamSizes.size8;
 }
 
 class BeamBorderRadius {
   static const double small = BeamSizes.size4;
   static const double large = BeamSizes.size8;
+  static const double infinite = 1000; // TODO: Use StadiumBorder
 }
 
 class BeamIconSizes {
+  static const double xs = BeamSizes.size8;
+  static const double small = BeamSizes.size16;
   static const double large = BeamSizes.size32;
+
+  static const double largeSplashRadius = 24;
 }

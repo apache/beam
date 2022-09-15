@@ -42,7 +42,7 @@ class Footer extends StatelessWidget {
               const Text('ui.copyright').tr(),
             ],
           ),
-          // TODO(nausharipov): get version
+          // TODO(nausharipov): get version, https://github.com/apache/beam/issues/23038
           Text(
             '${'ui.builtWith'.tr()} (TODO: Version)',
             style: const TextStyle(
@@ -61,6 +61,9 @@ class _Body extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+    final ext = themeData.extension<BeamThemeExtension>()!;
+
     return Container(
       width: double.infinity,
       height: TobSizes.footerHeight,
@@ -69,9 +72,9 @@ class _Body extends StatelessWidget {
         horizontal: BeamSizes.size16,
       ),
       decoration: BoxDecoration(
-        color: ThemeColors.of(context).secondaryBackground,
+        color: ext.secondaryBackgroundColor,
         border: Border(
-          top: BorderSide(color: ThemeColors.of(context).divider),
+          top: BorderSide(color: themeData.dividerColor),
         ),
       ),
       child: child,
