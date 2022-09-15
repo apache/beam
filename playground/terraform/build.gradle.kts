@@ -364,15 +364,21 @@ task("deployFrontend") {
     description = "deploy Frontend app"
     val read = tasks.getByName("readState")
     val prepare = tasks.getByName("prepareConfig")
-    val push = tasks.getByName("pushFront")
     val deploy = tasks.getByName("terraformApplyAppFront")
     dependsOn(read)
     Thread.sleep(10)
     prepare.mustRunAfter(read)
     dependsOn(prepare)
-    push.mustRunAfter(prepare)
-    deploy.mustRunAfter(push)
-    dependsOn(push)
+
+    if (!project.hasProperty("skip-push")) {
+        var push = tasks.getByName("pushFront")
+        push.mustRunAfter(prepare)
+        deploy.mustRunAfter(push)
+        dependsOn(push)
+    } else {
+        deploy.mustRunAfter(prepare)
+    }
+
     dependsOn(deploy)
 }
 
@@ -385,13 +391,19 @@ task("deployBackend") {
     //    project.extra.set("docker-tag", project.property("project_environment") as String)
     //}
     val config = tasks.getByName("setDockerRegistry")
-    val push = tasks.getByName("pushBack")
     val deploy = tasks.getByName("terraformApplyAppBack")
     dependsOn(config)
     Thread.sleep(10)
-    push.mustRunAfter(config)
-    deploy.mustRunAfter(push)
-    dependsOn(push)
+
+    if (!project.hasProperty("skip-push")) {
+        val push = tasks.getByName("pushBack")
+        push.mustRunAfter(config)
+        deploy.mustRunAfter(push)
+        dependsOn(push)
+    } else {
+        deploy.mustRunAfter(config)
+    }
+
     dependsOn(deploy)
 }
 
