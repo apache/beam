@@ -209,12 +209,13 @@ class _LoadingValue(WeightedValue):
 
 
 class StateCache(object):
-  """Cache for Beam state access, scoped by state key and cache_token.
+  """LRU cache for Beam state access, scoped by state key and cache_token.
      Assumes a bag state implementation.
 
   For a given key, caches a value and allows to
     a) peek at the cache (peek),
-           returns the value for the provided key or None if it doesn't exist
+           returns the value for the provided key or None if it doesn't exist.
+           Will never block.
     b) read from the cache (get),
            returns the value for the provided key or loads it using the
            supplied function. Multiple calls for the same key will block
@@ -274,9 +275,27 @@ class StateCache(object):
       loading_value.load(key, loading_fn)
       elapsed_time_ns = time.time_ns() - start_time_ns
 
+      try:
+        value = loading_value.value()
+      except Exception as err:
+        # If loading failed then delete the value from the cache allowing for
+        # the next lookup to possibly succeed.
+        with self._lock:
+          self._load_count += 1
+          self._load_time_ns += elapsed_time_ns
+          # Don't remove values that have already been replaced with a different
+          # value by a put/invalidate that occurred concurrently with the load.
+          # The put/invalidate will have been responsible for updating the
+          # cache weight appropriately already.
+          old_value = self._cache.get(key, None)
+          if old_value is not loading_value:
+            raise err
+          self._current_weight -= loading_value.weight()
+          del self._cache[key]
+        raise err
+
       # Replace the value in the cache with a weighted value now that the
       # loading has completed successfully.
-      value = loading_value.value()
       weight = objsize.get_deep_size(
           value, get_referents_func=get_referents_for_cache)
       if weight <= 0:

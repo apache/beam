@@ -31,6 +31,7 @@ from hamcrest import contains_string
 from apache_beam.runners.worker.statecache import CacheAware
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.statecache import WeightedValue
+from apache_beam.runners.worker.statecache import _LoadingValue
 
 
 class StateCacheTest(unittest.TestCase):
@@ -218,14 +219,27 @@ class StateCacheTest(unittest.TestCase):
       time.sleep(0.5)
       return "value"
 
+    def raise_exception(key):
+      time.sleep(0.5)
+      raise Exception("TestException")
+
     cache = StateCache(5 << 20)
     self.assertEqual("value", cache.get("key", check_key))
+    with cache._lock:
+      self.assertFalse(isinstance(cache._cache["key"], _LoadingValue))
     self.assertEqual("value", cache.peek("key"))
     cache.invalidate_all()
+
+    with self.assertRaisesRegex(Exception, "TestException"):
+      cache.get("key", raise_exception)
+    # The cache should not have the value after the failing load causing
+    # check_key to load the value.
     self.assertEqual("value", cache.get("key", check_key))
+    with cache._lock:
+      self.assertFalse(isinstance(cache._cache["key"], _LoadingValue))
     self.assertEqual("value", cache.peek("key"))
 
-    assert_that(cache.describe_stats(), contains_string(", loads 2,"))
+    assert_that(cache.describe_stats(), contains_string(", loads 3,"))
     load_time_ns = re.search(
         ", avg load time (.+) ns,", cache.describe_stats()).group(1)
     # Load time should be larger then the sleep time and less than 2x sleep time
@@ -237,6 +251,8 @@ class StateCacheTest(unittest.TestCase):
     threads_running = threading.Barrier(3)
 
     def wait_for_event(key):
+      with cache._lock:
+        self.assertTrue(isinstance(cache._cache["key"], _LoadingValue))
       event.release()
       return "value"
 
