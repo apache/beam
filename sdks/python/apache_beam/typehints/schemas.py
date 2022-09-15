@@ -730,14 +730,12 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
 
 
 # Make sure MicrosInstant is registered after MillisInstant so that it
-# overwrites the mapping of datetime.datetime
-# language type representation choice and
+# overwrites the mapping of Timestamp language type representation choice and
 # thus does not lose microsecond precision inside python sdk.
 @LogicalType.register_logical_type
 class MicrosInstantDatetime(NoArgumentLogicalType[datetime,
                                                   MicrosInstantRepresentation]):
-  """Microsecond-precision instant logical type
-  that handles ``datetime.datetime``."""
+  """Microsecond-precision instant logical type that handles ``Timestamp``."""
   @classmethod
   def urn(cls):
     return common_urns.micros_instant.urn
@@ -757,8 +755,8 @@ class MicrosInstantDatetime(NoArgumentLogicalType[datetime,
         value.microsecond // 1000000, value.microsecond % 1000000)
 
   def to_language_type(self, value):
-    # type: (MicrosInstantRepresentation) -> datetime
-    return datetime(second=int(value.seconds), microsecond=int(value.micros))
+    # type: (MicrosInstantRepresentation) -> Timestamp
+    return Timestamp(seconds=int(value.seconds), micros=int(value.micros))
 
 
 @LogicalType.register_logical_type
