@@ -28,10 +28,11 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['sdks/go**', 'model/**', 'release/**']
+permissions: read-all
 
 jobs:
   set-properties:
@@ -40,7 +41,7 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
@@ -57,7 +58,7 @@ jobs:
         golang: ${{fromJson(needs.set-properties.outputs.properties).GoTestProperties.SUPPORTED_VERSIONS}}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
