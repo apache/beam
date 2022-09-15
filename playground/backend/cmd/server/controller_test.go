@@ -36,6 +36,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
+	"beam.apache.org/playground/backend/internal/components"
 	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/db"
 	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
@@ -45,6 +46,8 @@ import (
 	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/tests/test_cleaner"
+	"beam.apache.org/playground/backend/internal/tests/test_data"
+	"beam.apache.org/playground/backend/internal/tests/test_utils"
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
@@ -158,14 +161,19 @@ func setup() *grpc.Server {
 	}
 	appEnv.SetSchemaVersion(actualSchemaVersion)
 
+	// download test data to the Datastore Emulator
+	test_data.DownloadCatalogsWithMockData(ctx)
+
+	cacheComponent := components.NewService(cacheService, dbClient)
 	entityMapper := mapper.NewDatastoreMapper(ctx, appEnv, props)
 
 	pb.RegisterPlaygroundServiceServer(s, &playgroundController{
-		env:          environment.NewEnvironment(*networkEnv, *sdkEnv, *appEnv),
-		cacheService: cacheService,
-		db:           dbClient,
-		props:        props,
-		entityMapper: entityMapper,
+		env:            environment.NewEnvironment(*networkEnv, *sdkEnv, *appEnv),
+		cacheService:   cacheService,
+		db:             dbClient,
+		props:          props,
+		entityMapper:   entityMapper,
+		cacheComponent: cacheComponent,
 	})
 	go func() {
 		if err := s.Serve(lis); err != nil {
@@ -181,6 +189,8 @@ func teardown(server *grpc.Server) {
 	removeDir(configFolder)
 	removeDir(javaLogConfigFilename)
 	removeDir(baseFileFolder)
+
+	test_data.RemoveCatalogsWithMockData(ctx)
 }
 
 func removeDir(dir string) {
@@ -824,7 +834,7 @@ func TestPlaygroundController_SaveSnippet(t *testing.T) {
 			args: args{
 				ctx: ctx,
 				info: &pb.SaveSnippetRequest{
-					Files: []*pb.SnippetFile{{Name: "MOCK_NAME", Content: utils.RandomString(1000001)}},
+					Files: []*pb.SnippetFile{{Name: "MOCK_NAME", Content: test_utils.RandomString(1000001)}},
 					Sdk:   pb.Sdk_SDK_JAVA,
 				},
 			},
@@ -916,7 +926,6 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 				_ = dbClient.PutSnippet(ctx, "MOCK_ID",
 					&entity.Snippet{
 						Snippet: &entity.SnippetEntity{
-							OwnerId:       "",
 							Sdk:           utils.GetSdkKey(ctx, pb.Sdk_SDK_JAVA.String()),
 							PipeOpts:      "MOCK_OPTIONS",
 							Created:       nowDate,
@@ -941,7 +950,7 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			got, err := client.GetSnippet(ctx, tt.args.info)
+			got, err := client.GetSnippet(tt.args.ctx, tt.args.info)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PlaygroundController_GetSnippet() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -951,6 +960,299 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 				}
 			}
 			tt.cleanData()
+		})
+	}
+}
+
+func TestPlaygroundController_GetPrecompiledObjects(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetPrecompiledObjectsRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+		wantSdk pb.Sdk
+	}{
+		{
+			name: "Getting the example catalog when the category is empty and SDK is Java",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetPrecompiledObjectsRequest{Sdk: pb.Sdk_SDK_JAVA, Category: ""},
+			},
+			wantSdk: pb.Sdk_SDK_JAVA,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := client.GetPrecompiledObjects(ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_GetPrecompiledObjects() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if len(got.SdkCategories) == 0 ||
+				got.SdkCategories[0].Sdk != tt.wantSdk ||
+				len(got.SdkCategories[0].Categories) == 0 {
+				t.Error("PlaygroundController_GetPrecompiledObjects() unexpected result")
+			}
+		})
+	}
+}
+
+func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetPrecompiledObjectRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Getting an example in the usual case",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetPrecompiledObjectRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := client.GetPrecompiledObject(ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_GetPrecompiledObject() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got.PrecompiledObject.Multifile != false ||
+				got.PrecompiledObject.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE" ||
+				got.PrecompiledObject.Name != "MOCK_DEFAULT_EXAMPLE" ||
+				got.PrecompiledObject.Type != pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE ||
+				got.PrecompiledObject.ContextLine != 10 ||
+				got.PrecompiledObject.PipelineOptions != "MOCK_P_OPTS" ||
+				got.PrecompiledObject.Link != "MOCK_PATH" ||
+				got.PrecompiledObject.Description != "MOCK_DESCR" ||
+				!got.PrecompiledObject.DefaultExample {
+				t.Error("PlaygroundController_GetPrecompiledObject() unexpected result")
+			}
+		})
+	}
+}
+
+func TestPlaygroundController_GetPrecompiledObjectCode(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetPrecompiledObjectCodeRequest
+	}
+	tests := []struct {
+		name         string
+		args         args
+		wantErr      bool
+		wantResponse string
+	}{
+		{
+			name: "Getting the code of the specific example in the usual case",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetPrecompiledObjectCodeRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
+			},
+			wantErr:      false,
+			wantResponse: "MOCK_CONTENT",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := client.GetPrecompiledObjectCode(ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_GetPrecompiledObjectCode() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got.Code != tt.wantResponse {
+				t.Errorf("PlaygroundController_GetPrecompiledObjectCode() unexpected result")
+			}
+		})
+	}
+}
+
+func TestPlaygroundController_GetPrecompiledObjectOutput(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetPrecompiledObjectOutputRequest
+	}
+	tests := []struct {
+		name         string
+		args         args
+		wantErr      bool
+		wantResponse string
+	}{
+		{
+			name: "Getting the output of the compiled and run example in the usual case",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetPrecompiledObjectOutputRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
+			},
+			wantErr:      false,
+			wantResponse: "MOCK_CONTENT_" + constants.PCOutputType,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := client.GetPrecompiledObjectOutput(ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_GetPrecompiledObjectOutput() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got.Output != tt.wantResponse {
+				t.Errorf("PlaygroundController_GetPrecompiledObjectOutput() unexpected result")
+			}
+		})
+	}
+}
+
+func TestPlaygroundController_GetPrecompiledObjectLogs(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetPrecompiledObjectLogsRequest
+	}
+	tests := []struct {
+		name         string
+		args         args
+		wantErr      bool
+		wantResponse string
+	}{
+		{
+			name: "Getting the logs of the compiled and run example in the usual case",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetPrecompiledObjectLogsRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
+			},
+			wantErr:      false,
+			wantResponse: "MOCK_CONTENT_" + constants.PCLogType,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := client.GetPrecompiledObjectLogs(ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_GetPrecompiledObjectLogs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got.Output != tt.wantResponse {
+				t.Errorf("PlaygroundController_GetPrecompiledObjectLogs() unexpected result")
+			}
+		})
+	}
+}
+
+func TestPlaygroundController_GetPrecompiledObjectGraph(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetPrecompiledObjectGraphRequest
+	}
+	tests := []struct {
+		name         string
+		args         args
+		wantErr      bool
+		wantResponse string
+	}{
+		{
+			name: "Getting the logs of the compiled and run example in the usual case",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetPrecompiledObjectGraphRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
+			},
+			wantErr:      false,
+			wantResponse: "MOCK_CONTENT_" + constants.PCGraphType,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := client.GetPrecompiledObjectGraph(ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_GetPrecompiledObjectGraph() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got.Graph != tt.wantResponse {
+				t.Errorf("PlaygroundController_GetPrecompiledObjectGraph() unexpected result")
+			}
+		})
+	}
+}
+
+func TestPlaygroundController_GetDefaultPrecompiledObject(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetDefaultPrecompiledObjectRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Getting a default example in the usual case",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetDefaultPrecompiledObjectRequest{Sdk: pb.Sdk_SDK_JAVA},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := client.GetDefaultPrecompiledObject(ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_GetDefaultPrecompiledObject() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got.PrecompiledObject.Multifile != false ||
+				got.PrecompiledObject.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE" ||
+				got.PrecompiledObject.Name != "MOCK_DEFAULT_EXAMPLE" ||
+				got.PrecompiledObject.Type != pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE ||
+				got.PrecompiledObject.ContextLine != 10 ||
+				got.PrecompiledObject.PipelineOptions != "MOCK_P_OPTS" ||
+				got.PrecompiledObject.Link != "MOCK_PATH" ||
+				got.PrecompiledObject.Description != "MOCK_DESCR" ||
+				!got.PrecompiledObject.DefaultExample {
+				t.Error("PlaygroundController_GetDefaultPrecompiledObject() unexpected result")
+			}
 		})
 	}
 }

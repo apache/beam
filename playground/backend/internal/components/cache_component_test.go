@@ -52,7 +52,7 @@ func setup() {
 		}
 	}
 	ctx = context.Background()
-	context.WithValue(ctx, constants.DatastoreNamespaceKey, "components")
+	ctx = context.WithValue(ctx, constants.DatastoreNamespaceKey, "components")
 	cacheService = local.New(ctx)
 	datastoreDb, _ = db.New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	cacheComponent = NewService(cacheService, datastoreDb)
@@ -294,7 +294,7 @@ func saveExample(name, sdk string) {
 		Cats:       []string{"MOCK_CATEGORY"},
 		Complexity: "MEDIUM",
 		Path:       "MOCK_PATH",
-		Type:       "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
+		Type:       pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
 		Origin:     constants.ExampleOrigin,
 		SchVer:     utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 	})
