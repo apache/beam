@@ -38,7 +38,7 @@ public class CustomReceiverWithOffset extends Receiver<String> implements HasOff
   /*
    Used in test for imitation of reading with exception
   */
-  public static boolean SHOULD_FAIL_IN_THE_MIDDLE = false;
+  public static boolean shouldFailInTheMiddle = false;
 
   private Long startOffset;
 
@@ -71,8 +71,8 @@ public class CustomReceiverWithOffset extends Receiver<String> implements HasOff
     Long currentOffset = startOffset;
     while (!isStopped()) {
       if (currentOffset < RECORDS_COUNT) {
-        if (SHOULD_FAIL_IN_THE_MIDDLE && currentOffset == RECORDS_COUNT / 2) {
-          SHOULD_FAIL_IN_THE_MIDDLE = false;
+        if (shouldFailInTheMiddle && currentOffset == RECORDS_COUNT / 2) {
+          shouldFailInTheMiddle = false;
           LOG.debug("Expected fail in the middle of reading");
           throw new IllegalStateException("Expected exception");
         }

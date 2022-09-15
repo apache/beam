@@ -101,7 +101,7 @@ public class SparkReceiverIOTest {
 
   @Test
   public void testReadFromCustomReceiverWithOffset() {
-    CustomReceiverWithOffset.SHOULD_FAIL_IN_THE_MIDDLE = false;
+    CustomReceiverWithOffset.shouldFailInTheMiddle = false;
     ReceiverBuilder<String, CustomReceiverWithOffset> receiverBuilder =
         new ReceiverBuilder<>(CustomReceiverWithOffset.class).withConstructorArgs();
     SparkReceiverIO.Read<String> reader =
@@ -120,7 +120,7 @@ public class SparkReceiverIOTest {
 
   @Test
   public void testReadFromCustomReceiverWithOffsetFailsAndReread() {
-    CustomReceiverWithOffset.SHOULD_FAIL_IN_THE_MIDDLE = true;
+    CustomReceiverWithOffset.shouldFailInTheMiddle = true;
     ReceiverBuilder<String, CustomReceiverWithOffset> receiverBuilder =
         new ReceiverBuilder<>(CustomReceiverWithOffset.class).withConstructorArgs();
     SparkReceiverIO.Read<String> reader =
