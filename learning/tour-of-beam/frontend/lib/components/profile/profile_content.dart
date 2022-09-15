@@ -97,6 +97,7 @@ class _Buttons extends StatelessWidget {
           iconPath: Assets.png.profileWebsite.path,
           label: 'ui.toWebsite'.tr(),
         ),
+        const BeamDivider(),
         _IconLabel(
           onTap: () {},
           iconPath: Assets.svg.profileAbout,
@@ -123,6 +124,8 @@ class _IconLabel extends StatelessWidget {
   final String iconPath;
   final String label;
   final void Function()? onTap;
+
+  // TODO: Auto-determine.
   final bool isSvg;
 
   const _IconLabel({

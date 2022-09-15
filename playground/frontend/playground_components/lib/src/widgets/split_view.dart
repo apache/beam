@@ -29,14 +29,14 @@ class SplitView extends StatefulWidget {
   final Widget first;
   final Widget second;
   final Axis direction;
-  final double ratio;
+  final double initialRatio;
 
   const SplitView({
     super.key,
     required this.first,
     required this.second,
     required this.direction,
-    this.ratio = defaultRatio,
+    this.initialRatio = defaultRatio,
   });
 
   @override
@@ -59,7 +59,7 @@ class _SplitViewState extends State<SplitView> {
   @override
   void initState() {
     super.initState();
-    _ratio = widget.ratio;
+    _ratio = widget.initialRatio;
   }
 
   @override

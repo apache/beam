@@ -18,6 +18,7 @@
 
 import 'example_base.dart';
 
+/// A [ExampleBase] that also has all large fields fetched.
 class Example extends ExampleBase {
   final String source;
   final String? outputs;

@@ -32,7 +32,7 @@ class DragHandle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // TODO: Use a single file and just rotate it if needed.
-    //  Currently it gets blurred in HTML renderer. Find a fix.
+    //  Currently a rotated widget gets blurred in HTML renderer. Find a fix.
     return SvgPicture.asset(
       direction == Axis.horizontal
           ? Assets.svg.dragHorizontal

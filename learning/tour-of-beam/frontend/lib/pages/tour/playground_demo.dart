@@ -20,6 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
 
+// This is for demo only. Need a thought-though import in production.
+
 const String kApiClientURL =
     'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
 const String kApiJavaClientURL =
@@ -77,7 +79,6 @@ class _PlaygroundDemoWidgetState extends State<PlaygroundDemoWidget> {
         descriptors: [
           CatalogDefaultExampleLoadingDescriptor(sdk: Sdk.java),
         ],
-        //initialSdk: Sdk.java,
       ),
     );
   }

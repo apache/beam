@@ -68,7 +68,6 @@ class ShortcutsModal extends StatelessWidget {
                   flex: 3,
                   child: Text(
                     shortcut.actionIntent.slug.tr(),
-                    //localize(context, shortcut.name),
                     style: const TextStyle(fontWeight: kBoldWeight),
                   ),
                 ),

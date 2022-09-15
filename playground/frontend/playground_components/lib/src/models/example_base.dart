@@ -18,6 +18,7 @@
 
 import 'package:equatable/equatable.dart';
 
+import '../repositories/example_repository.dart';
 import 'sdk.dart';
 
 enum ExampleType {
@@ -42,6 +43,9 @@ extension ExampleTypeToString on ExampleType {
   }
 }
 
+/// An example's basic info that does not contain source code
+/// and other large fields.
+/// These objects are fetched as lists from [ExampleRepository].
 class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final Sdk sdk;
   final ExampleType type;

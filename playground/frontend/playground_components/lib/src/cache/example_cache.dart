@@ -33,6 +33,7 @@ import '../repositories/models/shared_file.dart';
 import '../repositories/models/get_snippet_request.dart';
 import '../repositories/models/save_snippet_request.dart';
 
+/// A runtime cache for examples fetched from a repository.
 class ExampleCache extends ChangeNotifier {
   /// If set, then categories and default examples are enabled.
   /// Otherwise examples can only be queried by paths.

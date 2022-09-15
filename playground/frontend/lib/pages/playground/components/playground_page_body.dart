@@ -33,7 +33,6 @@ class PlaygroundPageBody extends StatelessWidget {
     return Consumer2<OutputPlacementState, PlaygroundController>(
         builder: (context, outputState, playgroundState, child) {
       final output = OutputWidget(
-        // isEmbedded: false,
         graphDirection: outputState.placement.graphDirection,
         playgroundController: playgroundState,
         trailing: const OutputPlacements(),

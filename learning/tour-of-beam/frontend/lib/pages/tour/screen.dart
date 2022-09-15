@@ -83,7 +83,7 @@ class _NarrowTour extends StatelessWidget {
                 top: BorderSide(color: Theme.of(context).dividerColor),
               ),
             ),
-            child: const _Playground(),
+            child: const _NarrowScreenPlayground(),
           ),
         ],
       ),
@@ -347,8 +347,8 @@ class _ContentFooter extends StatelessWidget {
   }
 }
 
-class _Playground extends StatelessWidget {
-  const _Playground();
+class _NarrowScreenPlayground extends StatelessWidget {
+  const _NarrowScreenPlayground();
 
   @override
   Widget build(BuildContext context) {
