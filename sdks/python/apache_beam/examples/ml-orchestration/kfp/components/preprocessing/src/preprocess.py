@@ -26,7 +26,9 @@ def parse_args():
   """Parse preprocessing arguments."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      "--ingested-dataset-path", type=str, help="Path to the ingested dataset",
+      "--ingested-dataset-path",
+      type=str,
+      help="Path to the ingested dataset",
       required=True)
   parser.add_argument(
       "--preprocessed-dataset-path",

@@ -30,8 +30,8 @@ Note that simply defining a pipeline and the corresponding DAG does not mean tha
 
 Successfully delivering machine learning projects is about a lot more than training a model and calling it a day. A full ML workflow will often contain a range of other steps including data ingestion, data validation, data preprocessing, model evaluation, model deployment, data drift detection, etc. Furthermore, it’s essential to keep track of metadata and artifacts from your experiments to answer important questions like:
 - What data was this model trained on and with which training parameters?
-- When was this model deployed and what accuracy did it get on a test dataset? 
-Without this knowledge at your disposal, it will become increasingly difficult to troubleshoot, monitor and improve your ML solutions as they grow in size.  
+- When was this model deployed and what accuracy did it get on a test dataset?
+Without this knowledge at your disposal, it will become increasingly difficult to troubleshoot, monitor and improve your ML solutions as they grow in size.
 
 The solution: MLOps. MLOps is an umbrella term used to describe best practices and guiding principles that aim to make the development and maintenance of machine learning systems seamless and efficient. Simply put, MLOps is most often about automating machine learning workflows throughout the model and data lifecycle. Popular frameworks to create these workflow DAGs are [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/introduction/), [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/index.html) and [TFX](https://www.tensorflow.org/tfx/guide).
 
