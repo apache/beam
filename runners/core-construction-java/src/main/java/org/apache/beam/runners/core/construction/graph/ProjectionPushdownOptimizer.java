@@ -95,7 +95,7 @@ public class ProjectionPushdownOptimizer {
     }
   }
 
-  // TODO(BEAM-13658) Support inputs other than PBegin.
+  // TODO(https://github.com/apache/beam/issues/21359) Support inputs other than PBegin.
   private static class PushdownOverrideFactory<
           OutputT extends POutput, TransformT extends PTransform<PBegin, OutputT>>
       implements PTransformOverrideFactory<PBegin, OutputT, TransformT> {

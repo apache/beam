@@ -767,8 +767,8 @@ public class JoinTest extends AbstractOperatorTest {
   }
 
   /**
-   * Elements with even numeric values are are assigned to one 'even' window. All others are
-   * assigned to window named 'win: #', where '#' is value of assigned element.
+   * Elements with even numeric values are assigned to one 'even' window. All others are assigned to
+   * window named 'win: #', where '#' is value of assigned element.
    */
   private static class EvenOddWindowFn extends WindowFn<KV<Integer, Number>, BoundedWindow> {
 

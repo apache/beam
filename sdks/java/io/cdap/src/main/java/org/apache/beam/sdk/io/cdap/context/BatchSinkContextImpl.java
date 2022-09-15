@@ -23,8 +23,12 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 /** Class for creating context object of different CDAP classes with batch sink type. */
 public class BatchSinkContextImpl extends BatchContextImpl implements BatchSinkContext {
 
+  /** Overrides the output configuration of this Batch job to the specified {@link Output}. */
   @Override
-  public void addOutput(Output output) {}
+  public void addOutput(Output output) {
+    this.outputFormatProvider =
+        ((Output.OutputFormatProviderOutput) output).getOutputFormatProvider();
+  }
 
   @Override
   public boolean isPreviewEnabled() {

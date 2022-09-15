@@ -28,6 +28,7 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Common utility functions and default configurations for {@link KafkaIO.Read} and {@link
@@ -94,7 +95,7 @@ final class KafkaIOUtils {
   }
 
   static Map<String, Object> getOffsetConsumerConfig(
-      String name, Map<String, Object> offsetConfig, Map<String, Object> consumerConfig) {
+      String name, @Nullable Map<String, Object> offsetConfig, Map<String, Object> consumerConfig) {
     Map<String, Object> offsetConsumerConfig = new HashMap<>(consumerConfig);
     offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 

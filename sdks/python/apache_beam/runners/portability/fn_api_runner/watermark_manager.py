@@ -190,11 +190,11 @@ class WatermarkManager(object):
             'At least one main input is necessary.' % s.name)
 
   def get_stage_node(self, name):
-    # type: (str) -> StageNode
+    # type: (str) -> StageNode # noqa: F821
     return self._stages_by_name[name]
 
   def get_pcoll_node(self, name):
-    # type: (str) -> PCollectionNode
+    # type: (str) -> PCollectionNode # noqa: F821
     return self._pcollections_by_name[name]
 
   def set_pcoll_watermark(self, name, watermark):

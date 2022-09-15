@@ -19,7 +19,6 @@
 set -ex
 rm -rf /output/*
 
-export GO111MODULE=off
 go get $sdk_location
 
 go-licenses save $sdk_location --save_path=/output/licenses

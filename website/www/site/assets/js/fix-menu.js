@@ -64,9 +64,14 @@ $(document).ready(function() {
           }
         });
       },
+      "isMenuPresent": function () {
+        return $("." + idMenu).length > 0
+      },
       "init": function() {
-        this.menuConfig = $("." + this.idMenu).data();
-        this.bindEvents();
+        if (this.isMenuPresent()) {
+          this.menuConfig = $("." + this.idMenu).data();
+          this.bindEvents();
+        }
       }
     }
   }

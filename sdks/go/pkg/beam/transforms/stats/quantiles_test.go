@@ -30,7 +30,7 @@ func init() {
 	beam.RegisterFunction(weightedElementToKv)
 
 	// In practice, this runs faster than plain reflection.
-	// TODO(BEAM-9616): Remove once collisions don't occur for starcgen over test code and an equivalent is generated for us.
+	// TODO(https://github.com/apache/beam/issues/20271): Remove once collisions don't occur for starcgen over test code and an equivalent is generated for us.
 	reflectx.RegisterFunc(reflect.ValueOf(less).Type(), func(_ interface{}) reflectx.Func {
 		return newIntLess()
 	})

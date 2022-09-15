@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * {@link NativeReader}s for sources lazily, i.e. only when elements from the particular {@code
  * NativeReader} are about to be read.
  *
- * <p>This class does does not cache {@link NativeReader}s and instead creates new set of {@link
+ * <p>This class does not cache {@link NativeReader}s and instead creates new set of {@link
  * NativeReader}s for every new {@link ConcatIterator}. Because of this, multiple {@link
  * ConcatIterator}s created using the same {@link ConcatReader} will not be able to share any state
  * between each other. This design was chosen since keeping a large number of {@link NativeReader}

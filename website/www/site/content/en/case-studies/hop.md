@@ -8,6 +8,7 @@ cardDescription: "Apache Hop is an open source data orchestration and engineerin
 authorName: "Matt Casters"
 authorPosition: "Chief Solutions Architect, Neo4j, Apache Hop co-founder"
 authorImg: /images/matt_casters_photo.png
+publishDate: 2022-02-15T12:21:00+00:00
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +26,7 @@ limitations under the License.
 
 <div class="case-study-opinion">
     <div class="case-study-opinion-img">
-        <img src="/images/logos/powered-by/hop.svg"/>
+        <img class="case-study-opinion-img-center" src="/images/logos/powered-by/hop.svg"/>
     </div>
     <blockquote class="case-study-quote-block">
       <p class="case-study-quote-text">

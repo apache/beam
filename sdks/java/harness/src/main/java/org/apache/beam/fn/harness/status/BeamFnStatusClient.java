@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTrackerStatus;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -36,12 +37,12 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnWorkerStatusGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTimeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -203,20 +204,19 @@ public class BeamFnStatusClient implements AutoCloseable {
       activeBundlesState.add("No active processing bundles.");
     } else {
       List<BundleState> bundleStates = new ArrayList<>();
-      processBundleCache.getActiveBundleProcessors().keySet().stream()
+      processBundleCache.getActiveBundleProcessors().entrySet().stream()
           .forEach(
-              instruction -> {
-                BundleProcessor bundleProcessor = processBundleCache.find(instruction);
-                if (bundleProcessor != null) {
-                  ExecutionStateTracker executionStateTracker = bundleProcessor.getStateTracker();
-                  Thread trackedTread = executionStateTracker.getTrackedThread();
-                  if (trackedTread != null) {
-                    bundleStates.add(
-                        new BundleState(
-                            instruction,
-                            trackedTread.getName(),
-                            executionStateTracker.getMillisSinceLastTransition()));
-                  }
+              instructionAndBundleProcessor -> {
+                BundleProcessor bundleProcessor = instructionAndBundleProcessor.getValue();
+                ExecutionStateTrackerStatus executionStateTrackerStatus =
+                    bundleProcessor.getStateTracker().getStatus();
+                if (executionStateTrackerStatus != null) {
+                  bundleStates.add(
+                      new BundleState(
+                          instructionAndBundleProcessor.getKey(),
+                          executionStateTrackerStatus.getTrackedThread().getName(),
+                          DateTimeUtils.currentTimeMillis()
+                              - executionStateTrackerStatus.getLastTransitionTimeMillis()));
                 }
               });
       bundleStates.stream()

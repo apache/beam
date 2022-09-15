@@ -357,7 +357,7 @@ final class StructUtils {
       case STRING:
         return struct.getStringList(column);
       case NUMERIC:
-        return struct.getBigDecimal(column);
+        return struct.getBigDecimalList(column);
       case ARRAY:
         throw new IllegalStateException(
             String.format("Column %s has array of arrays which is prohibited in Spanner.", column));

@@ -100,7 +100,7 @@ import org.joda.time.Instant;
  * <enter_table_name> WHERE trigger_type = "withAllowedLateness" and (timing = "LATE" or timing =
  * "ON_TIME") and freeway = "5" ORDER BY window DESC, processing_time}
  *
- * <p>To see the the difference between accumulation mode and discarding mode, {@code SELECT * FROM
+ * <p>To see the difference between accumulation mode and discarding mode, {@code SELECT * FROM
  * <enter_table_name> WHERE (timing = "LATE" or timing = "ON_TIME") AND (trigger_type =
  * "withAllowedLateness" or trigger_type = "sequential") and freeway = "5" ORDER BY window DESC,
  * processing_time}

@@ -79,7 +79,7 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
               })
           // \b, \n, \t, \f, \r
           .with(new LookupTranslator(EntityArrays.JAVA_CTRL_CHARS_ESCAPE()))
-          // TODO(BEAM-9180): Add support for \Uhhhhhhhh
+          // TODO(https://github.com/apache/beam/issues/19981): Add support for \Uhhhhhhhh
           // Unicode (only 4 hex digits)
           .with(JavaUnicodeEscaper.outsideOf(32, 0x7f));
 

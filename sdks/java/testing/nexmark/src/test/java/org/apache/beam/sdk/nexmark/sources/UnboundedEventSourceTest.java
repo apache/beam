@@ -79,7 +79,7 @@ public class UnboundedEventSourceTest {
    * Check aggressively checkpointing and resuming a reader gives us exactly the same event stream
    * as reading directly.
    */
-  @Ignore("TODO(BEAM-5070) Test is flaky. Fix before reenabling.")
+  @Ignore("TODO(https://github.com/apache/beam/issues/19077) Test is flaky. Fix before reenabling.")
   @Test
   public void resumeFromCheckpoint() throws IOException {
     Random random = new Random(297);

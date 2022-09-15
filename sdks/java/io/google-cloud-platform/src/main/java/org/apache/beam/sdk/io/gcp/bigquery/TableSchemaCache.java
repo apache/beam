@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -166,7 +167,12 @@ public class TableSchemaCache {
     if (!schemaHolder.isPresent()) {
       // Not initialized. Query the new schema with the monitor released and then update the cache.
       try {
-        @Nullable Table table = datasetService.getTable(tableReference);
+        // requesting the BASIC view will prevent BQ backend to run calculations
+        // related with storage stats that are not needed here
+        @Nullable
+        Table table =
+            datasetService.getTable(
+                tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC);
         schemaHolder =
             Optional.ofNullable((table == null) ? null : SchemaHolder.of(table.getSchema(), 0));
       } catch (Exception e) {
@@ -298,7 +304,12 @@ public class TableSchemaCache {
     Map<String, TableSchema> schemas = Maps.newHashMapWithExpectedSize(tables.size());
     for (Map.Entry<String, Refresh> entry : tables.entrySet()) {
       TableReference tableReference = BigQueryHelpers.parseTableSpec(entry.getKey());
-      Table table = entry.getValue().getDatasetService().getTable(tableReference);
+      Table table =
+          entry
+              .getValue()
+              .getDatasetService()
+              .getTable(
+                  tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC);
       if (table == null) {
         throw new RuntimeException("Did not get value for table " + tableReference);
       }

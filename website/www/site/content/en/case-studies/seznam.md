@@ -8,6 +8,7 @@ cardDescription: "Dive into the Czech search engine’s experience of scaling th
 authorName: "Marek Simunek"
 authorPosition: "Senior Software Engineer @ seznam.cz"
 authorImg: /images/marek_simunek_photo.png
+publishDate: 2022-02-15T01:56:00+00:00
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

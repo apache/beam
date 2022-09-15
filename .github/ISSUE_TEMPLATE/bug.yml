@@ -25,7 +25,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to fill out this bug report!
+        Thanks for taking the time to fill out this bug report! Once you've created an issue, you can self-assign by commenting `.take-issue` and you can close by commenting `.close-issue`.
+        You can also add/remove labels by commenting `.add-labels label1,label2,'label 3 with spaces'` or `.remove-labels label1,label2,'label 3 with spaces'`,
+        or with `.set-labels label1,label2,'label 3 with spaces'` (which removes any labels not in that set).
   - type: textarea
     id: what-happened
     attributes:
@@ -41,12 +43,12 @@ body:
     id: priority
     attributes:
       label: Issue Priority
-      description: What priority is this bug?
+      description: What priority is this bug? See https://beam.apache.org/contribute/issue-priorities for the meaning and expectations around issue priorities.
       options:
-        - "Priority: 0"
-        - "Priority: 1"
-        - "Priority: 2"
         - "Priority: 3"
+        - "Priority: 2"
+        - "Priority: 1"
+        - "Priority: 0"
     validations:
       required: true
   - type: dropdown
@@ -57,7 +59,6 @@ body:
       - "Component: beam-community"
       - "Component: beam-model"
       - "Component: beam-playground"
-      - "Component: benchmarking-py"
       - "Component: build-system"
       - "Component: community-metrics"
       - "Component: cross-language"
@@ -76,7 +77,6 @@ body:
       - "Component: extensions-java-protobuf"
       - "Component: extensions-java-sketching"
       - "Component: extensions-java-sorter"
-      - "Component: gcp-quota"
       - "Component: infrastructure"
       - "Component: io-common"
       - "Component: io-go-gcp"
@@ -130,15 +130,14 @@ body:
       - "Component: io-py-tfrecord"
       - "Component: io-py-vcf"
       - "Component: java-fn-execution"
-      - "Component: jobserver"
       - "Component: katas"
       - "Component: project-management"
       - "Component: release"
+      - "Component: run-inference"
       - "Component: runner-apex"
       - "Component: runner-core"
       - "Component: runner-dataflow"
       - "Component: runner-direct"
-      - "Component: runner-extensions-metrics"
       - "Component: runner-flink"
       - "Component: runner-gearpump"
       - "Component: runner-ideas"
@@ -163,7 +162,6 @@ body:
       - "Component: test-failures"
       - "Component: testing"
       - "Component: testing-nexmark"
-      - "Component: testing-tpcds"
       - "Component: website"
     validations:
       required: true

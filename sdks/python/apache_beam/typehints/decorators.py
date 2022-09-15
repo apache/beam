@@ -302,6 +302,16 @@ class IOTypeHints(NamedTuple):
     return self._replace(
         output_types=(args, kwargs), origin=self._make_origin([self]))
 
+  def with_input_types_from(self, other):
+    # type: (IOTypeHints) -> IOTypeHints
+    return self._replace(
+        input_types=other.input_types, origin=self._make_origin([self]))
+
+  def with_output_types_from(self, other):
+    # type: (IOTypeHints) -> IOTypeHints
+    return self._replace(
+        output_types=other.output_types, origin=self._make_origin([self]))
+
   def simple_output_type(self, context):
     if self._has_output_types():
       args, kwargs = self.output_types
@@ -348,7 +358,7 @@ class IOTypeHints(NamedTuple):
       my_type,            # type: any
       has_my_type,        # type: Callable[[], bool]
       my_key,             # type: str
-      special_containers,   # type: List[Union[PBegin, PDone, PCollection]]
+      special_containers,   # type: List[Union[PBegin, PDone, PCollection]] # noqa: F821
       error_str,          # type: str
       source_str          # type: str
       ):

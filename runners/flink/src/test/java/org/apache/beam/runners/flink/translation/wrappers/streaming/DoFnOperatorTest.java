@@ -27,7 +27,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -95,7 +94,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -119,7 +117,9 @@ import org.powermock.reflect.Whitebox;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "keyfor",
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class DoFnOperatorTest {
 
@@ -308,7 +308,10 @@ public class DoFnOperatorTest {
             eventTimerWithOutputTimestamp
                 .withOutputTimestamp(timerOutputTimestamp)
                 .set(timerTimestamp);
-            processingTimer.offset(Duration.millis(timerTimestamp.getMillis())).setRelative();
+            processingTimer
+                .withOutputTimestamp(new Instant(10))
+                .offset(Duration.millis(timerTimestamp.getMillis()))
+                .setRelative();
           }
 
           @OnTimer(eventTimerId)
@@ -384,7 +387,7 @@ public class DoFnOperatorTest {
 
     testHarness.open();
 
-    testHarness.processWatermark(0);
+    testHarness.processWatermark(499);
     testHarness.setProcessingTime(0);
 
     IntervalWindow window1 = new IntervalWindow(new Instant(0), Duration.millis(10_000));
@@ -400,6 +403,11 @@ public class DoFnOperatorTest {
     testHarness.setProcessingTime(timerTimestamp.getMillis());
 
     assertThat(stripStreamRecordFromWindowedValue(testHarness.getOutput()), emptyIterable());
+    assertThat(doFnOperator.keyedStateInternals.minWatermarkHoldMs(), is(10L));
+
+    // this must fire the processing timer
+    testHarness.setProcessingTime(timerTimestamp.getMillis() + 1);
+
     assertThat(
         doFnOperator.keyedStateInternals.minWatermarkHoldMs(),
         is(timerOutputTimestamp.getMillis()));
@@ -416,19 +424,9 @@ public class DoFnOperatorTest {
                 eventTimeMessage + eventTimerId2,
                 timerTimestamp.minus(Duration.millis(1)),
                 window1,
-                PaneInfo.NO_FIRING)));
+                PaneInfo.NO_FIRING),
+            WindowedValue.of(processingTimeMessage, new Instant(10), window1, PaneInfo.NO_FIRING)));
 
-    testHarness.getOutput().clear();
-
-    // this must fire the processing timer
-    testHarness.setProcessingTime(timerTimestamp.getMillis() + 1);
-
-    ArrayList<WindowedValue<?>> outputs =
-        Lists.newArrayList(stripStreamRecordFromWindowedValue(testHarness.getOutput()));
-    assertEquals(1, outputs.size());
-    assertEquals(processingTimeMessage, outputs.get(0).getValue());
-    assertFalse(timerTimestamp.plus(Duration.millis(1)).isBefore(outputs.get(0).getTimestamp()));
-    assertEquals(Collections.singletonList(window1), outputs.get(0).getWindows());
     testHarness.close();
   }
 

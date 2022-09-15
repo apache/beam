@@ -44,6 +44,8 @@ E = TypeVar('E')
 
 BATCH_CONVERTER_REGISTRY: List[Callable[[type, type], 'BatchConverter']] = []
 
+__all__ = ['BatchConverter']
+
 
 class BatchConverter(Generic[B, E]):
   def __init__(self, batch_type, element_type):
@@ -82,8 +84,9 @@ class BatchConverter(Generic[B, E]):
       if result is not None:
         return result
 
-    # TODO(BEAM-14339): Aggregate error information from the failed
-    # BatchConverter matches instead of this generic error.
+    # TODO(https://github.com/apache/beam/issues/21654): Aggregate error
+    # information from the failed BatchConverter matches instead of this
+    # generic error.
     raise TypeError(
         f"Unable to find BatchConverter for element_type {element_type!r} and "
         f"batch_type {batch_type!r}")

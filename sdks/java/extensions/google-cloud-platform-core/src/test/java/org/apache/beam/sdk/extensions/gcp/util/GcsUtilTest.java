@@ -485,6 +485,16 @@ public class GcsUtilTest {
             + error.toString()
             + "\n"
             + "\n"
+            + contentBoundaryLine
+            + "\n"
+            + "Content-Type: application/http\n"
+            + "\n"
+            + "HTTP/1.1 404 Not Found\n"
+            + "Content-Length: -1\n"
+            + "\n"
+            + error.toString()
+            + "\n"
+            + "\n"
             + endOfContentBoundaryLine
             + "\n";
     thrown.expect(FileNotFoundException.class);
@@ -493,6 +503,27 @@ public class GcsUtilTest {
             .setContentType("multipart/mixed; boundary=" + contentBoundary)
             .setContent(content)
             .setStatusCode(HttpStatusCodes.STATUS_CODE_OK);
+
+    MockHttpTransport mockTransport =
+        new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
+
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    gcsUtil.setStorageClient(new Storage(mockTransport, Transport.getJsonFactory(), null));
+    gcsUtil.fileSizes(
+        ImmutableList.of(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            GcsPath.fromComponents("testbucket", "testobject2")));
+  }
+
+  @Test
+  public void testGetSizeBytesWhenFileNotFoundNoBatch() throws Exception {
+    thrown.expect(FileNotFoundException.class);
+    MockLowLevelHttpResponse notFoundResponse =
+        new MockLowLevelHttpResponse()
+            .setContentType("text/plain")
+            .setContent("error")
+            .setStatusCode(HttpStatusCodes.STATUS_CODE_NOT_FOUND);
 
     MockHttpTransport mockTransport =
         new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
@@ -525,8 +556,18 @@ public class GcsUtilTest {
             + error.toString()
             + "\n"
             + "\n"
-            + endOfContentBoundaryLine
-            + "\n";
+            + contentBoundaryLine
+            + "\n"
+            + "Content-Type: application/http\n"
+            + "\n"
+            + "HTTP/1.1 404 Not Found\n"
+            + "Content-Length: -1\n"
+            + "\n"
+            + error.toString()
+            + "\n"
+            + "\n"
+            + endOfContentBoundaryLine;
+
     thrown.expect(FileNotFoundException.class);
 
     final LowLevelHttpResponse[] mockResponses =
@@ -542,6 +583,47 @@ public class GcsUtilTest {
     when(mockResponses[1].getStatusCode()).thenReturn(200);
     when(mockResponses[0].getContent()).thenReturn(toStream("error"));
     when(mockResponses[1].getContent()).thenReturn(toStream(content));
+
+    // A mock transport that lets us mock the API responses.
+    MockHttpTransport mockTransport =
+        new MockHttpTransport.Builder()
+            .setLowLevelHttpRequest(
+                new MockLowLevelHttpRequest() {
+                  int index = 0;
+
+                  @Override
+                  public LowLevelHttpResponse execute() throws IOException {
+                    return mockResponses[index++];
+                  }
+                })
+            .build();
+
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    gcsUtil.setStorageClient(
+        new Storage(mockTransport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()));
+    gcsUtil.fileSizes(
+        ImmutableList.of(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            GcsPath.fromComponents("testbucket", "testobject2")));
+  }
+
+  @Test
+  public void testGetSizeBytesWhenFileNotFoundNoBatchRetry() throws Exception {
+    thrown.expect(FileNotFoundException.class);
+
+    final LowLevelHttpResponse[] mockResponses =
+        new LowLevelHttpResponse[] {
+          Mockito.mock(LowLevelHttpResponse.class), Mockito.mock(LowLevelHttpResponse.class),
+        };
+    when(mockResponses[0].getContentType()).thenReturn("text/plain");
+    when(mockResponses[1].getContentType()).thenReturn("text/plain");
+
+    // 429: Too many requests, then 200: OK.
+    when(mockResponses[0].getStatusCode()).thenReturn(429);
+    when(mockResponses[1].getStatusCode()).thenReturn(404);
+    when(mockResponses[0].getContent()).thenReturn(toStream("error"));
+    when(mockResponses[1].getContent()).thenReturn(toStream("error"));
 
     // A mock transport that lets us mock the API responses.
     MockHttpTransport mockTransport =
@@ -742,6 +824,85 @@ public class GcsUtilTest {
             GcsPath.fromComponents("testbucket", "testobject"),
             mockBackOff,
             new FastNanoClockAndSleeper()));
+  }
+
+  @Test
+  public void testVerifyBucketAccessible() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
+    Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
+
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
+
+    when(mockStorage.buckets()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
+    when(mockStorageGet.execute())
+        .thenThrow(new SocketTimeoutException("SocketException"))
+        .thenReturn(new Bucket());
+
+    gcsUtil.verifyBucketAccessible(
+        GcsPath.fromComponents("testbucket", "testobject"),
+        mockBackOff,
+        new FastNanoClockAndSleeper());
+  }
+
+  @Test(expected = AccessDeniedException.class)
+  public void testVerifyBucketAccessibleAccessError() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
+    Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
+
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
+    GoogleJsonResponseException expectedException =
+        googleJsonResponseException(
+            HttpStatusCodes.STATUS_CODE_FORBIDDEN,
+            "Waves hand mysteriously",
+            "These aren't the buckets you're looking for");
+
+    when(mockStorage.buckets()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
+    when(mockStorageGet.execute()).thenThrow(expectedException);
+
+    gcsUtil.verifyBucketAccessible(
+        GcsPath.fromComponents("testbucket", "testobject"),
+        mockBackOff,
+        new FastNanoClockAndSleeper());
+  }
+
+  @Test(expected = FileNotFoundException.class)
+  public void testVerifyBucketAccessibleDoesNotExist() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
+    Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
+
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
+
+    when(mockStorage.buckets()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
+    when(mockStorageGet.execute())
+        .thenThrow(
+            googleJsonResponseException(
+                HttpStatusCodes.STATUS_CODE_NOT_FOUND, "It don't exist", "Nothing here to see"));
+
+    gcsUtil.verifyBucketAccessible(
+        GcsPath.fromComponents("testbucket", "testobject"),
+        mockBackOff,
+        new FastNanoClockAndSleeper());
   }
 
   @Test
@@ -1020,6 +1181,8 @@ public class GcsUtilTest {
                 GoogleJsonError error = new GoogleJsonError();
                 error.setCode(HttpStatusCodes.STATUS_CODE_NOT_FOUND);
                 cb.onFailure(error, null);
+              } catch (GoogleJsonResponseException e) {
+                cb.onFailure(e.getDetails(), null);
               } catch (Exception e) {
                 System.out.println("Propagating exception as server error " + e);
                 e.printStackTrace();
@@ -1178,6 +1341,82 @@ public class GcsUtilTest {
                 Collections.singletonList("gs://bucket/source"),
                 Collections.singletonList("gs://different_bucket/dest"),
                 StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS));
+  }
+
+  @Test
+  public void testThrowRetentionPolicyNotMetErrorWhenUnequalChecksum() throws IOException {
+    // ./gradlew sdks:java:extensions:google-cloud-platform-core:test --tests
+    // org.apache.beam.sdk.extensions.gcp.util.GcsUtilTest.testHanRetentionPolicyNotMetError
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Get mockGetRequest1 = Mockito.mock(Storage.Objects.Get.class);
+    Storage.Objects.Get mockGetRequest2 = Mockito.mock(Storage.Objects.Get.class);
+    Storage.Objects.Rewrite mockStorageRewrite = Mockito.mock(Storage.Objects.Rewrite.class);
+
+    // Gcs object to be used when checking the hash of the files during rewrite fail.
+    StorageObject srcObject = new StorageObject().setMd5Hash("a");
+    StorageObject destObject = new StorageObject().setMd5Hash("b");
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.rewrite("bucket", "s0", "bucket", "d0", null))
+        .thenReturn(mockStorageRewrite);
+    when(mockStorageRewrite.execute())
+        .thenThrow(googleJsonResponseException(403, "retentionPolicyNotMet", "Too soon"));
+    when(mockStorageObjects.get("bucket", "s0")).thenReturn(mockGetRequest1);
+    when(mockGetRequest1.execute()).thenReturn(srcObject);
+    when(mockStorageObjects.get("bucket", "d0")).thenReturn(mockGetRequest2);
+    when(mockGetRequest2.execute()).thenReturn(destObject);
+
+    assertThrows(IOException.class, () -> gcsUtil.rename(makeStrings("s", 1), makeStrings("d", 1)));
+
+    verify(mockStorageRewrite, times(1)).execute();
+  }
+
+  @Test
+  public void testIgnoreRetentionPolicyNotMetErrorWhenEqualChecksum() throws IOException {
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Get mockGetRequest = Mockito.mock(Storage.Objects.Get.class);
+    Storage.Objects.Rewrite mockStorageRewrite1 = Mockito.mock(Storage.Objects.Rewrite.class);
+    Storage.Objects.Rewrite mockStorageRewrite2 = Mockito.mock(Storage.Objects.Rewrite.class);
+    Storage.Objects.Delete mockStorageDelete = Mockito.mock(Storage.Objects.Delete.class);
+
+    // Gcs object to be used when checking the hash of the files during rewrite fail.
+    StorageObject gcsObject = new StorageObject().setMd5Hash("a");
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    // First rewrite with retentionPolicyNotMet error.
+    when(mockStorageObjects.rewrite("bucket", "s0", "bucket", "d0", null))
+        .thenReturn(mockStorageRewrite1);
+    when(mockStorageRewrite1.execute())
+        .thenThrow(googleJsonResponseException(403, "retentionPolicyNotMet", "Too soon"));
+    when(mockStorageObjects.get(any(), any())) // to access object hash during error handling
+        .thenReturn(mockGetRequest);
+    when(mockGetRequest.execute())
+        .thenReturn(gcsObject); // both source and destination will get the same hash
+    when(mockStorageObjects.delete("bucket", "s0")).thenReturn(mockStorageDelete);
+
+    // Second rewrite should not be affected.
+    when(mockStorageObjects.rewrite("bucket", "s1", "bucket", "d1", null))
+        .thenReturn(mockStorageRewrite2);
+    when(mockStorageRewrite2.execute()).thenReturn(new RewriteResponse().setDone(true));
+    when(mockStorageObjects.delete("bucket", "s1")).thenReturn(mockStorageDelete);
+
+    gcsUtil.rename(makeStrings("s", 2), makeStrings("d", 2));
+
+    verify(mockStorageRewrite1, times(1)).execute();
+    verify(mockStorageRewrite2, times(1)).execute();
+    verify(mockStorageDelete, times(2)).execute();
   }
 
   @Test

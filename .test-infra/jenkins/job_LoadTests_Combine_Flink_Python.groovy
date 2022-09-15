@@ -28,7 +28,7 @@ import static LoadTestsBuilder.DOCKER_BEAM_SDK_IMAGE
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-// TODO(BEAM-10852): Skipping some cases because they are too slow.
+// TODO(https://github.com/apache/beam/issues/20402): Skipping some cases because they are too slow.
 def TESTS_TO_SKIP = [
   'load-tests-python-flink-streaming-combine-1',
 ]

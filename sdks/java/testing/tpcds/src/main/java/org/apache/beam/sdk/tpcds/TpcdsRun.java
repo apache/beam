@@ -21,10 +21,14 @@ import java.util.concurrent.Callable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** To fulfill multi-threaded execution. */
 public class TpcdsRun implements Callable<TpcdsRunResult> {
   private final Pipeline pipeline;
+
+  private static final Logger LOG = LoggerFactory.getLogger(TpcdsRun.class);
 
   public TpcdsRun(Pipeline pipeline) {
     this.pipeline = pipeline;
@@ -32,11 +36,12 @@ public class TpcdsRun implements Callable<TpcdsRunResult> {
 
   @Override
   public TpcdsRunResult call() {
+    LOG.info("Run TPC-DS job: {}", pipeline.getOptions().getJobName());
     TpcdsRunResult tpcdsRunResult;
 
     try {
-      PipelineResult pipelineResult = pipeline.run();
       long startTimeStamp = System.currentTimeMillis();
+      PipelineResult pipelineResult = pipeline.run();
       State state = pipelineResult.waitUntilFinish();
       long endTimeStamp = System.currentTimeMillis();
 

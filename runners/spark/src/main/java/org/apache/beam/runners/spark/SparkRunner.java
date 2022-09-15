@@ -156,13 +156,13 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     detectTranslationMode(pipeline);
 
     // Default to using the primitive versions of Read.Bounded and Read.Unbounded.
-    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default when we address
+    // performance issue.
     if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }
 
-    if (!pipelineOptions.isStreaming()
-        && !ExperimentalOptions.hasExperiment(pipelineOptions, "disable_projection_pushdown")) {
+    if (!ExperimentalOptions.hasExperiment(pipelineOptions, "disable_projection_pushdown")) {
       ProjectionPushdownOptimizer.optimize(pipeline);
     }
 
@@ -188,7 +188,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // register user-defined listeners.
       for (JavaStreamingListener listener :
           pipelineOptions.as(SparkContextOptions.class).getListeners()) {
-        LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
+        LOG.info("Registered listener {}.", listener.getClass().getSimpleName());
         jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
       }
 

@@ -61,3 +61,7 @@ const double kTitleFontSize = 18.0;
 //divider size
 const double kDividerHeight = 1.0;
 const double kLgDividerHeight = 2.0;
+
+//loading indicator size
+const double kMdLoadingIndicatorSize = 40.0;
+const double kLgLoadingIndicatorSize = 50.0;

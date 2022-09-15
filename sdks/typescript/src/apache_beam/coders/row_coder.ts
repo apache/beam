@@ -28,6 +28,7 @@ import {
   BoolCoder,
   BytesCoder,
   IterableCoder,
+  NullableCoder,
   StrUtf8Coder,
   VarIntCoder,
 } from "./standard_coders";
@@ -74,16 +75,18 @@ export class RowCoder implements Coder<any> {
         // case "logicalType":
         default:
           throw new Error(
-            `Encountered a type that is not currently supported by RowCoder: ${f.type}`
+            `Encountered a type that is not currently supported by RowCoder: ${JSON.stringify(
+              f.type
+            )}`
           );
       }
       return obj;
     }
   }
 
-  private static inferTypeFromJSON(obj: any): FieldType {
+  static inferTypeFromJSON(obj: any, nullable: boolean = true): FieldType {
     let fieldType: FieldType = {
-      nullable: true,
+      nullable: nullable,
       typeInfo: {
         oneofKind: undefined,
       },
@@ -164,6 +167,15 @@ export class RowCoder implements Coder<any> {
     };
   }
 
+  getCoderFromType(t: FieldType): any {
+    const nonNullCoder = this.getNonNullCoderFromType(t);
+    if (t.nullable) {
+      return new NullableCoder(nonNullCoder);
+    } else {
+      return nonNullCoder;
+    }
+  }
+
   getNonNullCoderFromType(t: FieldType): any {
     let typeInfo = t.typeInfo;
 
@@ -193,7 +205,7 @@ export class RowCoder implements Coder<any> {
       case "arrayType":
         if (typeInfo.arrayType.elementType !== undefined) {
           return new IterableCoder(
-            this.getNonNullCoderFromType(typeInfo.arrayType.elementType)
+            this.getCoderFromType(typeInfo.arrayType.elementType)
           );
         } else {
           throw new Error("ElementType missing on ArrayType");
@@ -210,7 +222,9 @@ export class RowCoder implements Coder<any> {
       // case "logicalType":
       default:
         throw new Error(
-          `Encountered a type that is not currently supported by RowCoder: ${t}`
+          `Encountered a type that is not currently supported by RowCoder: ${JSON.stringify(
+            t
+          )}`
         );
     }
   }

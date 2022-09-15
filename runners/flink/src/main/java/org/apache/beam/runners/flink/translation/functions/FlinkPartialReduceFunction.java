@@ -33,8 +33,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 /**
- * This is is the first step for executing a {@link org.apache.beam.sdk.transforms.Combine.PerKey}
- * on Flink. The second part is {@link FlinkReduceFunction}. This function performs a local combine
+ * This is the first step for executing a {@link org.apache.beam.sdk.transforms.Combine.PerKey} on
+ * Flink. The second part is {@link FlinkReduceFunction}. This function performs a local combine
  * step before shuffling while the latter does the final combination after a shuffle.
  *
  * <p>The input to {@link #combine(Iterable, Collector)} are elements of the same key but for

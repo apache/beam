@@ -52,7 +52,8 @@ class StagerTest(unittest.TestCase):
     if self._temp_dir:
       shutil.rmtree(self._temp_dir)
     self.stager = None
-    # [BEAM-13769] set pickler to dill by default.
+    # [https://github.com/apache/beam/issues/21457] set pickler to dill by
+    # default.
     pickler.set_library(pickler.DEFAULT_PICKLE_LIB)
 
   def make_temp_dir(self):
@@ -225,8 +226,8 @@ class StagerTest(unittest.TestCase):
   @pytest.mark.no_xdist
   @unittest.skipIf(
       sys.platform == "win32" and sys.version_info < (3, 8),
-      'BEAM-10987: pytest on Windows pulls in a zipimporter, unpicklable '
-      'before py3.8')
+      'https://github.com/apache/beam/issues/20659: pytest on Windows pulls '
+      'in a zipimporter, unpicklable before py3.8')
   def test_with_main_session(self):
     staging_dir = self.make_temp_dir()
     options = PipelineOptions()
@@ -242,8 +243,8 @@ class StagerTest(unittest.TestCase):
         os.path.isfile(
             os.path.join(staging_dir, names.PICKLED_MAIN_SESSION_FILE)))
 
-  # (BEAM-13769): Remove the decorator once cloudpickle is default pickle
-  # library
+  # (https://github.com/apache/beam/issues/21457): Remove the decorator once
+  # cloudpickle is default pickle library
   @pytest.mark.no_xdist
   def test_main_session_not_staged_when_using_cloudpickle(self):
     staging_dir = self.make_temp_dir()

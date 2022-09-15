@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -65,8 +66,8 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 			return nil, fmt.Errorf("main input is global windowed in DoFn %v but side input %v is not, cannot map windows correctly. Consider re-windowing the side input PCollection before use", fn, i)
 		}
 		if (sideWfn.Kind == window.GlobalWindows) && !sideNode.Bounded() {
-			// TODO(BEAM-14501): Replace this warning with an error return when proper streaming test functions have been added.
-			log.Warnf(context.Background(), "side input %v is global windowed in DoFn %v but is unbounded, DoFn will block until end of Global Window. Consider windowing your unbounded side input PCollection before use. This will cause your pipeline to fail in a future release, see BEAM-14501 for details", i, fn)
+			// TODO(https://github.com/apache/beam/issues/21596): Replace this warning with an error return when proper streaming test functions have been added.
+			log.Warnf(context.Background(), "side input %v is global windowed in DoFn %v but is unbounded, DoFn will block until end of Global Window. Consider windowing your unbounded side input PCollection before use. This will cause your pipeline to fail in a future release, see https://github.com/apache/beam/issues/21596 for details", i, fn)
 		}
 		in = append(in, s.Input.n)
 	}
@@ -90,6 +91,29 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	edge, err := graph.NewParDo(s.real, s.scope, fn, in, rc, typedefs)
 	if err != nil {
 		return nil, addParDoCtx(err, s)
+	}
+
+	pipelineState := fn.PipelineState()
+	if len(pipelineState) > 0 {
+		edge.StateCoders = make(map[string]*coder.Coder)
+		for _, ps := range pipelineState {
+			if ct := ps.CoderType(); ct != nil {
+				sT := typex.New(ps.CoderType())
+				c, err := inferCoder(sT)
+				if err != nil {
+					return nil, addParDoCtx(err, s)
+				}
+				edge.StateCoders[graphx.UserStateCoderID(ps)] = c
+			}
+			if kct := ps.KeyCoderType(); kct != nil {
+				kT := typex.New(kct)
+				kc, err := inferCoder(kT)
+				if err != nil {
+					return nil, addParDoCtx(err, s)
+				}
+				edge.StateCoders[graphx.UserStateKeyCoderID(ps)] = kc
+			}
+		}
 	}
 
 	var ret []PCollection

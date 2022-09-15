@@ -116,7 +116,7 @@ class DataframeTransform(transforms.PTransform):
     input_frames = {
         k: convert.to_dataframe(pc, proxies[k])
         for k, pc in input_dict.items()
-    }  # type: Dict[Any, DeferredFrame]
+    }  # type: Dict[Any, DeferredFrame] # noqa: F821
 
     # Apply the function.
     frames_input = _substitute(input_pcolls, input_frames)

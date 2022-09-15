@@ -43,7 +43,7 @@ public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
           .getValueDescriptor()
           .getOptions()
           .getExtension(RunnerApi.beamUrn);
-  // TODO(BEAM-10878): This should be a constant
+  // TODO(https://github.com/apache/beam/issues/20540): This should be a constant
   private final Schema schema;
 
   public MicrosInstant() {

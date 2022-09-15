@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
@@ -54,6 +55,7 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -129,7 +131,7 @@ public class SpannerIOReadTest implements Serializable {
   }
 
   @Test
-  public void runBatchQueryTestWithProjectId() {
+  public void runBatchQueryTestWithSpannerConfig() {
     runBatchQueryTest(
         SpannerIO.read()
             .withSpannerConfig(spannerConfig)
@@ -202,15 +204,13 @@ public class SpannerIOReadTest implements Serializable {
 
   @Test
   public void runBatchQueryTestWithFailures() {
-
-    PCollection<Struct> results =
-        pipeline.apply(
-            "read q",
-            SpannerIO.read()
-                .withSpannerConfig(spannerConfig)
-                .withQuery(QUERY_STATEMENT)
-                .withQueryName(QUERY_NAME)
-                .withTimestampBound(TIMESTAMP_BOUND));
+    pipeline.apply(
+        "read q",
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withQuery(QUERY_STATEMENT)
+            .withQueryName(QUERY_NAME)
+            .withTimestampBound(TIMESTAMP_BOUND));
 
     when(mockBatchTx.partitionQuery(
             any(PartitionOptions.class),
@@ -223,11 +223,10 @@ public class SpannerIOReadTest implements Serializable {
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.PERMISSION_DENIED, "Simulated Failure"));
 
-    PAssert.that(results).containsInAnyOrder(FAKE_ROWS);
-
     assertThrows(
         "PERMISSION_DENIED: Simulated Failure", PipelineExecutionException.class, pipeline::run);
-    verifyQueryRequestMetricWasSet(spannerConfig, QUERY_NAME, "ok", 2);
+    // Query request should succeed at lease once (for partition query) and one execute may succeed.
+    assertTrue(getQueryRequestMetric(spannerConfig, QUERY_NAME, "ok") >= 1);
     verifyQueryRequestMetricWasSet(spannerConfig, QUERY_NAME, "permission_denied", 1);
   }
 
@@ -597,6 +596,70 @@ public class SpannerIOReadTest implements Serializable {
   }
 
   @Test
+  public void readAllPipelineWithSpannerReadAllConfiguration() {
+    PCollectionView<Transaction> tx =
+        pipeline.apply(
+            "tx",
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    runReadAllPipeline(
+        SpannerIO.readAll()
+            .withProjectId(PROJECT_ID)
+            .withInstanceId(INSTANCE_ID)
+            .withDatabaseId(DATABASE_ID)
+            .withServiceFactory(serviceFactory)
+            .withLowPriority()
+            .withTransaction(tx));
+  }
+
+  @Test
+  public void readAllPipelineWithSpannerReadAllConfigurationAsValueProviders() {
+    PCollectionView<Transaction> tx =
+        pipeline.apply(
+            "tx",
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    runReadAllPipeline(
+        SpannerIO.readAll()
+            .withProjectId(StaticValueProvider.of(PROJECT_ID))
+            .withInstanceId(StaticValueProvider.of(INSTANCE_ID))
+            .withDatabaseId(StaticValueProvider.of(DATABASE_ID))
+            .withServiceFactory(serviceFactory)
+            .withHighPriority()
+            .withTransaction(tx));
+  }
+
+  @Test
+  public void readAllPipelineWithSpannerCreationTransactionConfiguration() {
+    PCollectionView<Transaction> tx =
+        pipeline.apply(
+            "tx",
+            SpannerIO.createTransaction()
+                .withProjectId(PROJECT_ID)
+                .withInstanceId(INSTANCE_ID)
+                .withDatabaseId(DATABASE_ID)
+                .withServiceFactory(serviceFactory)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    runReadAllPipeline(SpannerIO.readAll().withSpannerConfig(spannerConfig).withTransaction(tx));
+  }
+
+  @Test
+  public void readAllPipelineWithSpannerCreationTransactionConfigurationAsValueProviders() {
+    PCollectionView<Transaction> tx =
+        pipeline.apply(
+            "tx",
+            SpannerIO.createTransaction()
+                .withProjectId(StaticValueProvider.of(PROJECT_ID))
+                .withInstanceId(StaticValueProvider.of(INSTANCE_ID))
+                .withDatabaseId(StaticValueProvider.of(DATABASE_ID))
+                .withServiceFactory(serviceFactory)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    runReadAllPipeline(SpannerIO.readAll().withSpannerConfig(spannerConfig).withTransaction(tx));
+  }
+
+  @Test
   public void readAllPipeline() {
     PCollectionView<Transaction> tx =
         pipeline.apply(
@@ -604,16 +667,17 @@ public class SpannerIOReadTest implements Serializable {
             SpannerIO.createTransaction()
                 .withSpannerConfig(spannerConfig)
                 .withTimestampBound(TIMESTAMP_BOUND));
+    runReadAllPipeline(SpannerIO.readAll().withSpannerConfig(spannerConfig).withTransaction(tx));
+  }
 
+  private void runReadAllPipeline(SpannerIO.ReadAll readAllTransform) {
     PCollection<ReadOperation> reads =
         pipeline.apply(
             Create.of(
                 ReadOperation.create().withQuery(QUERY_STATEMENT).withQueryName(QUERY_NAME),
                 ReadOperation.create().withTable(TABLE_ID).withColumns("id", "name")));
 
-    PCollection<Struct> results =
-        reads.apply(
-            "read all", SpannerIO.readAll().withSpannerConfig(spannerConfig).withTransaction(tx));
+    PCollection<Struct> results = reads.apply("read all", readAllTransform);
 
     when(mockBatchTx.partitionQuery(
             any(PartitionOptions.class),
@@ -640,9 +704,15 @@ public class SpannerIOReadTest implements Serializable {
     verifyQueryRequestMetricWasSet(spannerConfig, QUERY_NAME, "ok", 3);
   }
 
-  private void verifyTableRequestMetricWasSet(
-      SpannerConfig config, String table, String status, long count) {
+  private long getRequestMetricCount(HashMap<String, String> baseLabels) {
+    MonitoringInfoMetricName name =
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+    MetricsContainerImpl container =
+        (MetricsContainerImpl) MetricsEnvironment.getCurrentContainer();
+    return container.getCounter(name).getCumulative();
+  }
 
+  private long getTableRequestMetric(SpannerConfig config, String table, String status) {
     HashMap<String, String> baseLabels = getBaseMetricsLabels(config);
     baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "Read");
     baseLabels.put(MonitoringInfoConstants.Labels.TABLE_ID, table);
@@ -654,17 +724,10 @@ public class SpannerIOReadTest implements Serializable {
             config.getDatabaseId().get(),
             table));
     baseLabels.put(MonitoringInfoConstants.Labels.STATUS, status);
-
-    MonitoringInfoMetricName name =
-        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
-    MetricsContainerImpl container =
-        (MetricsContainerImpl) MetricsEnvironment.getCurrentContainer();
-    assertEquals(count, (long) container.getCounter(name).getCumulative());
+    return getRequestMetricCount(baseLabels);
   }
 
-  private void verifyQueryRequestMetricWasSet(
-      SpannerConfig config, String queryName, String status, long count) {
-
+  private long getQueryRequestMetric(SpannerConfig config, String queryName, String status) {
     HashMap<String, String> baseLabels = getBaseMetricsLabels(config);
     baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "Read");
     baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_QUERY_NAME, queryName);
@@ -676,12 +739,17 @@ public class SpannerIOReadTest implements Serializable {
             config.getDatabaseId().get(),
             queryName));
     baseLabels.put(MonitoringInfoConstants.Labels.STATUS, status);
+    return getRequestMetricCount(baseLabels);
+  }
 
-    MonitoringInfoMetricName name =
-        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
-    MetricsContainerImpl container =
-        (MetricsContainerImpl) MetricsEnvironment.getCurrentContainer();
-    assertEquals(count, (long) container.getCounter(name).getCumulative());
+  private void verifyTableRequestMetricWasSet(
+      SpannerConfig config, String table, String status, long count) {
+    assertEquals(count, getTableRequestMetric(config, table, status));
+  }
+
+  private void verifyQueryRequestMetricWasSet(
+      SpannerConfig config, String queryName, String status, long count) {
+    assertEquals(count, getQueryRequestMetric(config, queryName, status));
   }
 
   @NotNull

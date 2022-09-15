@@ -90,7 +90,8 @@ import org.testcontainers.utility.DockerImageName;
 
 /** Integration Test utility for KafkaTableProvider implementations. */
 @RunWith(Parameterized.class)
-// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
 @SuppressWarnings("unused")
 public class KafkaTableProviderIT {
   private static final String KAFKA_CONTAINER_VERSION = "5.5.2";

@@ -30,7 +30,6 @@ export function flatten<T>(): PTransform<PCollection<T>[], PCollection<T>> {
   ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: flatten.urn,
-      payload: null!,
     });
 
     // TODO: UnionCoder if they're not the same?

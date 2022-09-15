@@ -529,7 +529,8 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[BEAM-9191] CAST operator does not work fully due to bugs in unparsing")
+  @Ignore(
+      "[https://github.com/apache/beam/issues/20101] CAST operator does not work fully due to bugs in unparsing")
   public void testZetaSQLStructFieldAccessInTumble() {
     String sql =
         "SELECT TUMBLE_START('INTERVAL 1 MINUTE') FROM table_with_struct_ts_string AS A GROUP BY "

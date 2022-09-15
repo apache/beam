@@ -63,7 +63,9 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
 

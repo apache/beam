@@ -3,6 +3,7 @@ title:  "Apache Beam 2.16.0"
 date:   2019-10-07 00:00:01 -0800
 categories:
   - blog
+  - release
 aliases:
   - /blog/2019/10/07/beam-2.16.0.html
 authors:

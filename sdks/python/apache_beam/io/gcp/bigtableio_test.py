@@ -78,7 +78,8 @@ class TestWriteBigTable(unittest.TestCase):
         write_fn.finish_bundle()
       except:  # pylint: disable=bare-except
         # Currently we fail the bundle when there are any failures.
-        # TODO(BEAM-13849): remove after bigtableio can selectively retry.
+        # TODO(https://github.com/apache/beam/issues/21396): remove after
+        # bigtableio can selectively retry.
         pass
       self.verify_write_call_metric(
           self._PROJECT_ID,

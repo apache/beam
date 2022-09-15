@@ -28,7 +28,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
+import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -39,9 +39,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Timer;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
@@ -68,6 +68,7 @@ public abstract class PTransformRunnerFactoryTestContext
   public static Builder builder(String pTransformId, RunnerApi.PTransform pTransform) {
     return new AutoValue_PTransformRunnerFactoryTestContext.Builder()
         .pipelineOptions(PipelineOptionsFactory.create())
+        .shortIdMap(new ShortIdMap())
         .beamFnDataClient(
             new BeamFnDataClient() {
               @Override
@@ -116,7 +117,7 @@ public abstract class PTransformRunnerFactoryTestContext
         .finishBundleFunctions(new ArrayList<>())
         .resetFunctions(new ArrayList<>())
         .tearDownFunctions(new ArrayList<>())
-        .progressRequestCallbacks(new ArrayList<>())
+        .bundleProgressReporters(new ArrayList<>())
         .incomingDataEndpoints(new HashMap<>())
         .incomingTimerEndpoints(new ArrayList<>())
         .outgoingDataEndpoints(new HashMap<>())
@@ -146,6 +147,8 @@ public abstract class PTransformRunnerFactoryTestContext
   @AutoValue.Builder
   public interface Builder {
     Builder pipelineOptions(PipelineOptions value);
+
+    Builder shortIdMap(ShortIdMap shortIdMap);
 
     Builder beamFnDataClient(BeamFnDataClient value);
 
@@ -189,7 +192,7 @@ public abstract class PTransformRunnerFactoryTestContext
 
     Builder tearDownFunctions(List<ThrowingRunnable> value);
 
-    Builder progressRequestCallbacks(List<ProgressRequestCallback> value);
+    Builder bundleProgressReporters(List<BundleProgressReporter> value);
 
     Builder splitListener(BundleSplitListener value);
 
@@ -211,9 +214,7 @@ public abstract class PTransformRunnerFactoryTestContext
 
   @Override
   public <T> void addPCollectionConsumer(
-      String pCollectionId,
-      FnDataReceiver<WindowedValue<T>> consumer,
-      org.apache.beam.sdk.coders.Coder<T> valueCoder) {
+      String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer) {
     getPCollectionConsumers()
         .computeIfAbsent(pCollectionId, (unused) -> new ArrayList<>())
         .add(consumer);
@@ -346,13 +347,13 @@ public abstract class PTransformRunnerFactoryTestContext
   }
 
   /**
-   * Returns a list of methods registered to return additional {@link MetricsApi.MonitoringInfo}
-   * during bundle processing.
+   * Returns a list of methods registered to return additional monitoring data during bundle
+   * processing.
    */
-  public abstract List<ProgressRequestCallback> getProgressRequestCallbacks();
+  public abstract List<BundleProgressReporter> getBundleProgressReporters();
 
   @Override
-  public void addProgressRequestCallback(ProgressRequestCallback progressRequestCallback) {
-    getProgressRequestCallbacks().add(progressRequestCallback);
+  public void addBundleProgressReporter(BundleProgressReporter bundleProgressReporter) {
+    getBundleProgressReporters().add(bundleProgressReporter);
   }
 }

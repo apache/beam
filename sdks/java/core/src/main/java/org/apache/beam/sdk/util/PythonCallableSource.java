@@ -50,7 +50,8 @@ public class PythonCallableSource implements Serializable {
   }
 
   public static PythonCallableSource of(String pythonCallableCode) {
-    // TODO(BEAM-14457): check syntactic correctness of Python code if possible
+    // TODO(https://github.com/apache/beam/issues/21568): check syntactic correctness of Python code
+    // if possible
     return new PythonCallableSource(pythonCallableCode);
   }
 

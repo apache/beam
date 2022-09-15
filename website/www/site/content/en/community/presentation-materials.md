@@ -31,7 +31,7 @@ Are you interested in learning more about Apache Beam or giving a talk about Apa
 ## Using these materials
 These materials can be used by anyone. If you do use these materials, please remember to give credit to the authors cited in each presentation. These materials include speaker notes and you can view them by clicking **`View`** and selecting **`Show speaker notes`**. Some presentations have `[Long]` or `[Short]` in their name, such as the *Apache Beam Model*, which means there are two different presentations (a long and short version) depending on your needs and time constraints.
 
-If you have any questions about the these materials, please ask on the [`user@beam.apache.org`](mailto:user@beam.apache.org) mailing list.
+If you have any questions about these materials, please ask on the [`user@beam.apache.org`](mailto:user@beam.apache.org) mailing list.
 
 The Apache Beam community is looking for feedback on these materials to improve them over time. If you deliver a presentation based on these materials, we'd love to hear from you on the [`user@beam.apache.org`](mailto:user@beam.apache.org) mailing list. Please share your thoughts, questions you were asked, and (if available and appropriate) a link to the recording of your talk so the rest of the Apache Beam community can benefit from it.
 

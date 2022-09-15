@@ -474,7 +474,7 @@ public class BigQueryServicesImplTest {
 
     Table table =
         datasetService.getTable(
-            tableRef, Collections.emptyList(), BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
+            tableRef, Collections.emptyList(), null, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
 
     assertEquals(testTable, table);
     verifyAllResponsesAreRead();
@@ -499,7 +499,7 @@ public class BigQueryServicesImplTest {
             .setTableId("tableId");
     Table table =
         datasetService.getTable(
-            tableRef, Collections.emptyList(), BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
+            tableRef, Collections.emptyList(), null, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
 
     assertNull(table);
     verifyAllResponsesAreRead();
@@ -526,7 +526,7 @@ public class BigQueryServicesImplTest {
         new BigQueryServicesImpl.DatasetServiceImpl(
             bigquery, null, PipelineOptionsFactory.create());
     datasetService.getTable(
-        tableRef, Collections.emptyList(), BackOff.STOP_BACKOFF, Sleeper.DEFAULT);
+        tableRef, Collections.emptyList(), null, BackOff.STOP_BACKOFF, Sleeper.DEFAULT);
   }
 
   @Test

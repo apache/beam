@@ -102,13 +102,13 @@ function millisToProto(t: Long) {
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.transforms.windowings", exports);
-requireForSerialization("apache_beam.transforms.windowings", millisToProto);
+requireForSerialization("apache-beam/transforms/windowings", exports);
+requireForSerialization("apache-beam/transforms/windowings", { millisToProto });
 requireForSerialization(
-  "apache_beam.transforms.windowings",
+  "apache-beam/transforms/windowings",
   FixedWindowsPayload
 );
 requireForSerialization(
-  "apache_beam.transforms.windowings",
+  "apache-beam/transforms/windowings",
   SessionWindowsPayload
 );

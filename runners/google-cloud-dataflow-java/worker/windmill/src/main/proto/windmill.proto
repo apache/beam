@@ -42,6 +42,8 @@ message Timer {
   }
   optional Type type = 3 [default = WATERMARK];
   optional string state_family = 4;
+  optional int64 metadata_timestamp = 5 [default = 0x7fffffffffffffff];
+  optional bytes metadata_payload = 6;
 }
 
 message InputMessageBundle {

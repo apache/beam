@@ -40,3 +40,12 @@ nav.runner-switcher {
 nav.version-switcher {
     @extend .language-switcher;
 }
+
+ul.nav>li.langSwitch-content {
+    padding: 10px 15px;
+    padding-left: 10px !important;
+    &.active {
+        background-color: #ff6d05;
+        color: #fff;
+    }
+}

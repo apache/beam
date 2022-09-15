@@ -165,7 +165,8 @@ class TimestampTest(unittest.TestCase):
     self.assertEqual(actual_ts, expected_ts)
 
   def test_from_proto_fails_with_truncation(self):
-    # TODO(BEAM-8738): Better define timestamps.
+    # TODO(https://github.com/apache/beam/issues/19922): Better define
+    # timestamps.
     with self.assertRaises(ValueError):
       Timestamp.from_proto(timestamp_pb2.Timestamp(seconds=1234, nanos=56789))
 
@@ -226,7 +227,8 @@ class DurationTest(unittest.TestCase):
     self.assertEqual(actual_dur, expected_dur)
 
   def test_from_proto_fails_with_truncation(self):
-    # TODO(BEAM-8738): Better define durations.
+    # TODO(https://github.com/apache/beam/issues/19922): Better define
+    # durations.
     with self.assertRaises(ValueError):
       Duration.from_proto(duration_pb2.Duration(seconds=1234, nanos=56789))
 

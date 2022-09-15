@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -30,13 +29,13 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntryReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
 import org.apache.beam.sdk.util.common.Reiterator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A fake implementation of a ShuffleEntryReader, for testing. */
 public class TestShuffleReader implements ShuffleEntryReader {
   // Sorts by secondary key where an empty secondary key sorts before all other secondary keys.
-  static final Comparator<byte[]> SHUFFLE_KEY_COMPARATOR =
+  static final Comparator<ByteString> SHUFFLE_KEY_COMPARATOR =
       (o1, o2) -> {
         if (o1 == o2) {
           return 0;
@@ -47,10 +46,10 @@ public class TestShuffleReader implements ShuffleEntryReader {
         if (o2 == null) {
           return 1;
         }
-        return UnsignedBytes.lexicographicalComparator().compare(o1, o2);
+        return ByteString.unsignedLexicographicalComparator().compare(o1, o2);
       };
 
-  final TreeMap<byte[], TreeMap<byte[], List<ShuffleEntry>>> records =
+  final TreeMap<ByteString, TreeMap<ByteString, List<ShuffleEntry>>> records =
       new TreeMap<>(SHUFFLE_KEY_COMPARATOR);
   boolean closed = false;
 
@@ -59,13 +58,13 @@ public class TestShuffleReader implements ShuffleEntryReader {
   public void addEntry(String key, String secondaryKey, String value) {
     addEntry(
         new ShuffleEntry(
-            key.getBytes(StandardCharsets.UTF_8),
-            secondaryKey.getBytes(StandardCharsets.UTF_8),
-            value.getBytes(StandardCharsets.UTF_8)));
+            ByteString.copyFromUtf8(key),
+            ByteString.copyFromUtf8(secondaryKey),
+            ByteString.copyFromUtf8(value)));
   }
 
   public void addEntry(ShuffleEntry entry) {
-    TreeMap<byte[], List<ShuffleEntry>> valuesBySecondaryKey = records.get(entry.getKey());
+    TreeMap<ByteString, List<ShuffleEntry>> valuesBySecondaryKey = records.get(entry.getKey());
     if (valuesBySecondaryKey == null) {
       valuesBySecondaryKey = new TreeMap<>(SHUFFLE_KEY_COMPARATOR);
       records.put(entry.getKey(), valuesBySecondaryKey);
@@ -79,7 +78,15 @@ public class TestShuffleReader implements ShuffleEntryReader {
   }
 
   public Iterator<ShuffleEntry> read() {
-    return read((byte[]) null, (byte[]) null);
+    return read((ByteString) null, null);
+  }
+
+  private ByteString toByteString(ShufflePosition pos) {
+    byte[] posBytes = ByteArrayShufflePosition.getPosition(pos);
+    if (posBytes == null) {
+      return null;
+    }
+    return ByteString.copyFrom(posBytes);
   }
 
   @Override
@@ -88,24 +95,22 @@ public class TestShuffleReader implements ShuffleEntryReader {
     if (closed) {
       throw new RuntimeException("Cannot read from a closed reader.");
     }
-    return read(
-        ByteArrayShufflePosition.getPosition(startPosition),
-        ByteArrayShufflePosition.getPosition(endPosition));
+    return read(toByteString(startPosition), toByteString(endPosition));
   }
 
   public Reiterator<ShuffleEntry> read(@Nullable String startKey, @Nullable String endKey) {
     return read(
-        startKey == null ? null : startKey.getBytes(StandardCharsets.UTF_8),
-        endKey == null ? null : endKey.getBytes(StandardCharsets.UTF_8));
+        startKey == null ? null : ByteString.copyFromUtf8(startKey),
+        endKey == null ? null : ByteString.copyFromUtf8(endKey));
   }
 
-  public Reiterator<ShuffleEntry> read(byte @Nullable [] startKey, byte @Nullable [] endKey) {
+  public Reiterator<ShuffleEntry> read(@Nullable ByteString startKey, @Nullable ByteString endKey) {
     List<ShuffleEntry> res = new ArrayList<>();
-    for (byte[] key : records.keySet()) {
+    for (ByteString key : records.keySet()) {
       if ((startKey == null || SHUFFLE_KEY_COMPARATOR.compare(startKey, key) <= 0)
           && (endKey == null || SHUFFLE_KEY_COMPARATOR.compare(key, endKey) < 0)) {
-        TreeMap<byte[], List<ShuffleEntry>> entriesBySecondaryKey = records.get(key);
-        for (Map.Entry<byte[], List<ShuffleEntry>> entries : entriesBySecondaryKey.entrySet()) {
+        TreeMap<ByteString, List<ShuffleEntry>> entriesBySecondaryKey = records.get(key);
+        for (Map.Entry<ByteString, List<ShuffleEntry>> entries : entriesBySecondaryKey.entrySet()) {
           res.addAll(entries.getValue());
         }
       }

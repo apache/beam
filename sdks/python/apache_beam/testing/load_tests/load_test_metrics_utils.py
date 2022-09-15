@@ -54,7 +54,7 @@ try:
 except ImportError:
   bigquery = None
   SchemaField = None
-  NotFound = None
+  NotFound = None  # type: ignore
 
 RUNTIME_METRIC = 'runtime'
 COUNTER_LABEL = 'total_bytes_count'
@@ -92,7 +92,12 @@ def parse_step(step_name):
   Returns:
     lower case step name without namespace and step label
   """
-  return step_name.lower().replace(' ', '_').strip('step:_')
+  prefix = 'step'
+  step_name = step_name.lower().replace(' ', '_')
+  step_name = (
+      step_name[len(prefix):]
+      if prefix and step_name.startswith(prefix) else step_name)
+  return step_name.strip(':_')
 
 
 def split_metrics_by_namespace_and_name(metrics, namespace, name):

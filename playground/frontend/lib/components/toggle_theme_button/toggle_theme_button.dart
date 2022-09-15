@@ -30,10 +30,10 @@ class ToggleThemeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
+    final appLocale = AppLocalizations.of(context)!;
 
-    return Consumer<ThemeProvider>(builder: (context, theme, child) {
-      final text = theme.isDarkMode ? appLocale.lightMode : appLocale.darkMode;
+    return Consumer<ThemeSwitchNotifier>(builder: (context, notifier, child) {
+      final text = notifier.isDarkMode ? appLocale.lightMode : appLocale.darkMode;
 
       return Padding(
         padding: const EdgeInsets.symmetric(
@@ -44,9 +44,9 @@ class ToggleThemeButton extends StatelessWidget {
           icon: SvgPicture.asset(kThemeIconAsset),
           label: Text(text),
           onPressed: () {
-            theme.toggleTheme();
+            notifier.toggleTheme();
             AnalyticsService.get(context)
-                .trackClickToggleTheme(!theme.isDarkMode);
+                .trackClickToggleTheme(!notifier.isDarkMode);
           },
         ),
       );

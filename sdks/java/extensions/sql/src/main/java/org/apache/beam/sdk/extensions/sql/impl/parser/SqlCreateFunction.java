@@ -100,7 +100,7 @@ public class SqlCreateFunction extends SqlCreate implements BeamSqlParser.Execut
           RESOURCE.internal(String.format("Function %s is already defined.", lastName)));
     }
     JavaUdfLoader udfLoader = new JavaUdfLoader();
-    // TODO(BEAM-12355) Support qualified function names.
+    // TODO(https://github.com/apache/beam/issues/20834) Support qualified function names.
     List<String> functionPath = ImmutableList.of(lastName);
     if (!(jarPath instanceof SqlCharStringLiteral)) {
       throw SqlUtil.newContextException(

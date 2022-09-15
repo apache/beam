@@ -32,6 +32,7 @@ import com.google.api.gax.rpc.ServerStreamingCallable;
 import com.google.cloud.firestore.v1.stub.FirestoreStub;
 import com.google.firestore.v1.Cursor;
 import com.google.firestore.v1.Document;
+import com.google.firestore.v1.MapValue;
 import com.google.firestore.v1.RunQueryRequest;
 import com.google.firestore.v1.RunQueryResponse;
 import com.google.firestore.v1.StructuredQuery;
@@ -60,18 +61,19 @@ public final class FirestoreV1FnRunQueryTest
     extends BaseFirestoreV1ReadFnTest<RunQueryRequest, RunQueryResponse> {
 
   @Mock private ServerStreamingCallable<RunQueryRequest, RunQueryResponse> callable;
-  @Mock private ServerStream<RunQueryResponse> responseStream1;
-  @Mock private ServerStream<RunQueryResponse> responseStream2;
+  @Mock private ServerStream<RunQueryResponse> responseStream;
+  @Mock private ServerStream<RunQueryResponse> retryResponseStream;
 
   @Test
   public void endToEnd() throws Exception {
-    TestData testData = TestData.fieldEqualsBar().setProjectId(projectId).build();
+    TestData testData =
+        new TestData.Builder().setFilter(TestData.FIELD_EQUALS_BAR).setProjectId(projectId).build();
 
     List<RunQueryResponse> responses =
         ImmutableList.of(testData.response1, testData.response2, testData.response3);
-    when(responseStream1.iterator()).thenReturn(responses.iterator());
+    when(responseStream.iterator()).thenReturn(responses.iterator());
 
-    when(callable.call(testData.request)).thenReturn(responseStream1);
+    when(callable.call(testData.request)).thenReturn(responseStream);
 
     when(stub.runQueryCallable()).thenReturn(callable);
 
@@ -97,85 +99,32 @@ public final class FirestoreV1FnRunQueryTest
 
   @Override
   public void resumeFromLastReadValue() throws Exception {
-    TestData testData =
-        TestData.fieldEqualsBar()
-            .setProjectId(projectId)
-            .setOrderFunction(
-                f ->
-                    Collections.singletonList(
-                        Order.newBuilder().setDirection(Direction.ASCENDING).setField(f).build()))
-            .build();
+    buildAndRunQueryRetryTest("foo", "bar");
+  }
 
-    RunQueryRequest request2 =
-        RunQueryRequest.newBuilder()
-            .setParent(String.format("projects/%s/databases/(default)/document", projectId))
-            .setStructuredQuery(
-                testData
-                    .request
-                    .getStructuredQuery()
-                    .toBuilder()
-                    .setStartAt(
-                        Cursor.newBuilder()
-                            .setBefore(false)
-                            .addValues(Value.newBuilder().setStringValue("bar"))))
-            .build();
+  @Test
+  public void resumeFromLastReadValue_nestedOrderBy() throws Exception {
+    buildAndRunQueryRetryTest("baz.qux", "val");
+  }
 
-    List<RunQueryResponse> responses =
-        ImmutableList.of(testData.response1, testData.response2, testData.response3);
-    when(responseStream1.iterator())
-        .thenReturn(
-            new AbstractIterator<RunQueryResponse>() {
-              private int invocationCount = 1;
+  @Test
+  public void resumeFromLastReadValue_nestedOrderBySimpleEscaping() throws Exception {
+    buildAndRunQueryRetryTest("`quux.quuz`", "123");
+  }
 
-              @Override
-              protected RunQueryResponse computeNext() {
-                int count = invocationCount++;
-                if (count == 1) {
-                  return responses.get(0);
-                } else if (count == 2) {
-                  return responses.get(1);
-                } else {
-                  throw RETRYABLE_ERROR;
-                }
-              }
-            });
-
-    when(callable.call(testData.request)).thenReturn(responseStream1);
-    doNothing().when(attempt).checkCanRetry(any(), eq(RETRYABLE_ERROR));
-    when(responseStream2.iterator()).thenReturn(ImmutableList.of(responses.get(2)).iterator());
-    when(callable.call(request2)).thenReturn(responseStream2);
-
-    when(stub.runQueryCallable()).thenReturn(callable);
-
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
-    when(ff.getRpcQos(any())).thenReturn(rpcQos);
-    when(rpcQos.newReadAttempt(any())).thenReturn(attempt);
-    when(attempt.awaitSafeToProceed(any())).thenReturn(true);
-
-    ArgumentCaptor<RunQueryResponse> responsesCaptor =
-        ArgumentCaptor.forClass(RunQueryResponse.class);
-
-    doNothing().when(processContext).output(responsesCaptor.capture());
-
-    when(processContext.element()).thenReturn(testData.request);
-
-    RunQueryFn fn = new RunQueryFn(clock, ff, rpcQosOptions);
-
-    runFunction(fn);
-
-    List<RunQueryResponse> allValues = responsesCaptor.getAllValues();
-    assertEquals(responses, allValues);
-
-    verify(callable, times(1)).call(testData.request);
-    verify(callable, times(1)).call(request2);
-    verify(attempt, times(3)).recordStreamValue(any());
+  @Test
+  public void resumeFromLastReadValue_nestedOrderByComplexEscaping() throws Exception {
+    buildAndRunQueryRetryTest("`fo\\`o.m\\`ap`.`bar.key`", "bar.val");
   }
 
   @Test
   public void resumeFromLastReadValue_withNoOrderBy() throws Exception {
-    TestData testData = TestData.fieldEqualsBar().setProjectId(projectId).build();
-
-    RunQueryRequest request2 =
+    TestData testData =
+        new TestData.Builder()
+            .setFilter(TestData.FIELD_NOT_EQUALS_FOO)
+            .setProjectId(projectId)
+            .build();
+    RunQueryRequest expectedRetryRequest =
         RunQueryRequest.newBuilder()
             .setParent(String.format("projects/%s/databases/(default)/document", projectId))
             .setStructuredQuery(
@@ -186,6 +135,49 @@ public final class FirestoreV1FnRunQueryTest
                     .setStartAt(
                         Cursor.newBuilder()
                             .setBefore(false)
+                            .addValues(Value.newBuilder().setStringValue("bar"))
+                            .addValues(
+                                Value.newBuilder()
+                                    .setReferenceValue(testData.response2.getDocument().getName())))
+                    .addOrderBy(
+                        // Implicit orderBy adds order for inequality filters
+                        Order.newBuilder()
+                            .setField(FieldReference.newBuilder().setFieldPath("foo"))
+                            .setDirection(Direction.ASCENDING)
+                            .build())
+                    .addOrderBy(
+                        Order.newBuilder()
+                            .setField(FieldReference.newBuilder().setFieldPath("__name__"))
+                            .setDirection(Direction.ASCENDING)))
+            .build();
+
+    runQueryRetryTest(testData, expectedRetryRequest);
+  }
+
+  private void buildAndRunQueryRetryTest(String fieldName, String fieldValue) throws Exception {
+    TestData testData =
+        new TestData.Builder()
+            .setFilter(TestData.FIELD_EQUALS_BAR)
+            .setProjectId(projectId)
+            .setOrderFunction(
+                f -> {
+                  FieldReference f2 = FieldReference.newBuilder().setFieldPath(fieldName).build();
+                  return Collections.singletonList(
+                      Order.newBuilder().setDirection(Direction.ASCENDING).setField(f2).build());
+                })
+            .build();
+    RunQueryRequest expectedRetryRequest =
+        RunQueryRequest.newBuilder()
+            .setParent(String.format("projects/%s/databases/(default)/document", projectId))
+            .setStructuredQuery(
+                testData
+                    .request
+                    .getStructuredQuery()
+                    .toBuilder()
+                    .setStartAt(
+                        Cursor.newBuilder()
+                            .setBefore(false)
+                            .addValues(Value.newBuilder().setStringValue(fieldValue))
                             .addValues(
                                 Value.newBuilder()
                                     .setReferenceValue(testData.response2.getDocument().getName())))
@@ -195,9 +187,12 @@ public final class FirestoreV1FnRunQueryTest
                             .setDirection(Direction.ASCENDING)))
             .build();
 
-    List<RunQueryResponse> responses =
-        ImmutableList.of(testData.response1, testData.response2, testData.response3);
-    when(responseStream1.iterator())
+    runQueryRetryTest(testData, expectedRetryRequest);
+  }
+
+  private void runQueryRetryTest(TestData testData, RunQueryRequest expectedRetryRequest)
+      throws Exception {
+    when(responseStream.iterator())
         .thenReturn(
             new AbstractIterator<RunQueryResponse>() {
               private int invocationCount = 1;
@@ -206,19 +201,20 @@ public final class FirestoreV1FnRunQueryTest
               protected RunQueryResponse computeNext() {
                 int count = invocationCount++;
                 if (count == 1) {
-                  return responses.get(0);
+                  return testData.response1;
                 } else if (count == 2) {
-                  return responses.get(1);
+                  return testData.response2;
                 } else {
                   throw RETRYABLE_ERROR;
                 }
               }
             });
 
-    when(callable.call(testData.request)).thenReturn(responseStream1);
+    when(callable.call(testData.request)).thenReturn(responseStream);
     doNothing().when(attempt).checkCanRetry(any(), eq(RETRYABLE_ERROR));
-    when(responseStream2.iterator()).thenReturn(ImmutableList.of(testData.response3).iterator());
-    when(callable.call(request2)).thenReturn(responseStream2);
+    when(retryResponseStream.iterator())
+        .thenReturn(ImmutableList.of(testData.response3).iterator());
+    when(callable.call(expectedRetryRequest)).thenReturn(retryResponseStream);
 
     when(stub.runQueryCallable()).thenReturn(callable);
 
@@ -238,12 +234,13 @@ public final class FirestoreV1FnRunQueryTest
 
     runFunction(fn);
 
-    List<RunQueryResponse> allValues = responsesCaptor.getAllValues();
-    assertEquals(responses, allValues);
-
     verify(callable, times(1)).call(testData.request);
-    verify(callable, times(1)).call(request2);
+    verify(callable, times(1)).call(expectedRetryRequest);
     verify(attempt, times(3)).recordStreamValue(any());
+
+    List<RunQueryResponse> allValues = responsesCaptor.getAllValues();
+    assertEquals(
+        ImmutableList.of(testData.response1, testData.response2, testData.response3), allValues);
   }
 
   @Override
@@ -283,55 +280,88 @@ public final class FirestoreV1FnRunQueryTest
 
   private static final class TestData {
 
+    static final FieldReference FILTER_FIELD_PATH =
+        FieldReference.newBuilder().setFieldPath("foo").build();
+    static final Filter FIELD_EQUALS_BAR =
+        Filter.newBuilder()
+            .setFieldFilter(
+                FieldFilter.newBuilder()
+                    .setField(FILTER_FIELD_PATH)
+                    .setOp(Operator.EQUAL)
+                    .setValue(Value.newBuilder().setStringValue("bar"))
+                    .build())
+            .build();
+    static final Filter FIELD_NOT_EQUALS_FOO =
+        Filter.newBuilder()
+            .setFieldFilter(
+                FieldFilter.newBuilder()
+                    .setField(FILTER_FIELD_PATH)
+                    .setOp(Operator.NOT_EQUAL)
+                    .setValue(Value.newBuilder().setStringValue("foo"))
+                    .build())
+            .build();
+
     private final RunQueryRequest request;
     private final RunQueryResponse response1;
     private final RunQueryResponse response2;
     private final RunQueryResponse response3;
 
-    public TestData(String projectId, Function<FieldReference, List<Order>> orderFunction) {
-      String fieldPath = "foo";
-      FieldReference foo = FieldReference.newBuilder().setFieldPath(fieldPath).build();
+    public TestData(
+        String projectId, Function<FieldReference, List<Order>> orderFunction, Filter filter) {
       StructuredQuery.Builder builder =
           StructuredQuery.newBuilder()
               .addFrom(
                   CollectionSelector.newBuilder()
                       .setAllDescendants(false)
                       .setCollectionId("collection"))
-              .setWhere(
-                  Filter.newBuilder()
-                      .setFieldFilter(
-                          FieldFilter.newBuilder()
-                              .setField(foo)
-                              .setOp(Operator.EQUAL)
-                              .setValue(Value.newBuilder().setStringValue("bar"))
-                              .build()));
+              .setWhere(filter);
 
-      orderFunction.apply(foo).forEach(builder::addOrderBy);
+      orderFunction.apply(FILTER_FIELD_PATH).forEach(builder::addOrderBy);
       request =
           RunQueryRequest.newBuilder()
               .setParent(String.format("projects/%s/databases/(default)/document", projectId))
               .setStructuredQuery(builder)
               .build();
 
-      response1 = newResponse(fieldPath, 1);
-      response2 = newResponse(fieldPath, 2);
-      response3 = newResponse(fieldPath, 3);
+      response1 = newResponse(1);
+      response2 = newResponse(2);
+      response3 = newResponse(3);
     }
 
-    private static RunQueryResponse newResponse(String field, int docNumber) {
+    /**
+     * Returns single-document response like this: { "__name__": "doc-{docNumber}", "foo": "bar",
+     * "fo`o.m`ap": { "bar.key": "bar.val" }, "baz" : { "qux" : "val" }, "quux.quuz" : "123" }.
+     */
+    private static RunQueryResponse newResponse(int docNumber) {
       String docId = String.format("doc-%d", docNumber);
       return RunQueryResponse.newBuilder()
           .setDocument(
               Document.newBuilder()
                   .setName(docId)
                   .putAllFields(
-                      ImmutableMap.of(field, Value.newBuilder().setStringValue("bar").build()))
-                  .build())
+                      ImmutableMap.of(
+                          "foo",
+                          Value.newBuilder().setStringValue("bar").build(),
+                          "fo`o.m`ap",
+                          Value.newBuilder()
+                              .setMapValue(
+                                  MapValue.newBuilder()
+                                      .putFields(
+                                          "bar.key",
+                                          Value.newBuilder().setStringValue("bar.val").build())
+                                      .build())
+                              .build(),
+                          "baz",
+                          Value.newBuilder()
+                              .setMapValue(
+                                  MapValue.newBuilder()
+                                      .putFields(
+                                          "qux", Value.newBuilder().setStringValue("val").build())
+                                      .build())
+                              .build(),
+                          "quux.quuz",
+                          Value.newBuilder().setStringValue("123").build())))
           .build();
-    }
-
-    private static Builder fieldEqualsBar() {
-      return new Builder();
     }
 
     @SuppressWarnings("initialization.fields.uninitialized") // fields set via builder methods
@@ -339,6 +369,7 @@ public final class FirestoreV1FnRunQueryTest
 
       private String projectId;
       private Function<FieldReference, List<Order>> orderFunction;
+      private Filter filter;
 
       public Builder() {
         orderFunction = f -> Collections.emptyList();
@@ -354,10 +385,16 @@ public final class FirestoreV1FnRunQueryTest
         return this;
       }
 
+      public Builder setFilter(Filter filter) {
+        this.filter = filter;
+        return this;
+      }
+
       private TestData build() {
         return new TestData(
             requireNonNull(projectId, "projectId must be non null"),
-            requireNonNull(orderFunction, "orderFunction must be non null"));
+            requireNonNull(orderFunction, "orderFunction must be non null"),
+            requireNonNull(filter, "filter must be non-null"));
       }
     }
   }

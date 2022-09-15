@@ -69,7 +69,6 @@ class ShortcutsModal extends StatelessWidget {
       ),
       actions: [
         ElevatedButton(
-          child: Text(appLocale.close),
           style: ButtonStyle(
             elevation: MaterialStateProperty.all<double>(0.0),
             fixedSize: MaterialStateProperty.all<Size>(
@@ -80,6 +79,7 @@ class ShortcutsModal extends StatelessWidget {
             ),
           ),
           onPressed: () => Navigator.of(context).pop(),
+          child: Text(appLocale.close),
         ),
       ],
     );

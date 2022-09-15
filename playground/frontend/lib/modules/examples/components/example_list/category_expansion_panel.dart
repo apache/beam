@@ -54,8 +54,8 @@ class CategoryExpansionPanel extends StatelessWidget {
             children: [
               Transform.rotate(
                 angle: -math.pi * animationValue,
-                child: const Icon(Icons.keyboard_arrow_down),
                 alignment: Alignment.center,
+                child: const Icon(Icons.keyboard_arrow_down),
               ),
               SizedBox(
                 height: kContainerHeight,

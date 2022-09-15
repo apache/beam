@@ -12,13 +12,13 @@
 
 - title: Python
   image_url: /images/logos/sdks/python_pipelines.png
-  url: http://apache-beam-website-pull-requests.storage.googleapis.com/17388/documentation/sdks/python/index.html
+  url: /documentation/sdks/python/
 - title: Java
   image_url: /images/logos/sdks/java_pipelines.png
-  url: http://apache-beam-website-pull-requests.storage.googleapis.com/17388/documentation/sdks/java/index.html
+  url: /documentation/sdks/java/
 - title: Go
   image_url: /images/logos/sdks/go_pipelines.png
-  url: http://apache-beam-website-pull-requests.storage.googleapis.com/17388/documentation/sdks/go/index.html
+  url: /documentation/sdks/go/
 - title: SQL
   image_url: /images/logos/sdks/sql_pipelines.png
-  url: http://apache-beam-website-pull-requests.storage.googleapis.com/17388/documentation/dsls/sql/overview/index.html
+  url: /documentation/dsls/sql/overview/

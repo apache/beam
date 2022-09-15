@@ -30,6 +30,11 @@ type Trigger interface {
 // DefaultTrigger fires once after the end of window. Late Data is discarded.
 type DefaultTrigger struct{}
 
+// String implements the Stringer interface and returns trigger details as a string.
+func (t DefaultTrigger) String() string {
+	return fmt.Sprintf("%#v", t)
+}
+
 func (t DefaultTrigger) trigger() {}
 
 // Default constructs a default trigger that fires once after the end of window.
@@ -43,6 +48,11 @@ type AlwaysTrigger struct{}
 
 func (t AlwaysTrigger) trigger() {}
 
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *AlwaysTrigger) String() string {
+	return fmt.Sprintf("%#v", t)
+}
+
 // Always constructs a trigger that fires immediately
 // whenever an element is received.
 //
@@ -54,6 +64,11 @@ func Always() *AlwaysTrigger {
 // AfterCountTrigger fires after receiving elementCount elements.
 type AfterCountTrigger struct {
 	elementCount int32
+}
+
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *AfterCountTrigger) String() string {
+	return fmt.Sprintf("%#v", t)
 }
 
 func (t AfterCountTrigger) trigger() {}
@@ -75,6 +90,11 @@ func AfterCount(count int32) *AfterCountTrigger {
 // AfterProcessingTimeTrigger fires after passage of times defined in timestampTransforms.
 type AfterProcessingTimeTrigger struct {
 	timestampTransforms []TimestampTransform
+}
+
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *AfterProcessingTimeTrigger) String() string {
+	return fmt.Sprintf("%#v", t)
 }
 
 func (t AfterProcessingTimeTrigger) trigger() {}
@@ -108,6 +128,11 @@ type DelayTransform struct {
 	Delay int64 // in milliseconds
 }
 
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *DelayTransform) String() string {
+	return fmt.Sprintf("%#v", t)
+}
+
 func (DelayTransform) timestampTransform() {}
 
 // AlignToTransform takes the timestamp and transforms it to the lowest
@@ -118,6 +143,11 @@ func (DelayTransform) timestampTransform() {}
 // 6 to 25 would be transformed to 25, 26 to 45 would be transformed to 45, and so on.
 type AlignToTransform struct {
 	Period, Offset int64 // in milliseconds
+}
+
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *AlignToTransform) String() string {
+	return fmt.Sprintf("%#v", t)
 }
 
 func (AlignToTransform) timestampTransform() {}
@@ -158,6 +188,11 @@ type RepeatTrigger struct {
 	subtrigger Trigger
 }
 
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *RepeatTrigger) String() string {
+	return fmt.Sprintf("%#v", t)
+}
+
 func (t RepeatTrigger) trigger() {}
 
 // SubTrigger returns the trigger to be repeated.
@@ -170,6 +205,9 @@ func (t *RepeatTrigger) SubTrigger() Trigger {
 //
 // Ex: trigger.Repeat(trigger.AfterCount(1)) is same as trigger.Always().
 func Repeat(t Trigger) *RepeatTrigger {
+	if t == nil {
+		panic("trigger argument to trigger.Repeat() cannot be nil")
+	}
 	return &RepeatTrigger{subtrigger: t}
 }
 
@@ -177,6 +215,11 @@ func Repeat(t Trigger) *RepeatTrigger {
 type AfterEndOfWindowTrigger struct {
 	earlyFiring Trigger
 	lateFiring  Trigger
+}
+
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *AfterEndOfWindowTrigger) String() string {
+	return fmt.Sprintf("%#v", t)
 }
 
 func (t AfterEndOfWindowTrigger) trigger() {}
@@ -217,9 +260,13 @@ func (t *AfterEndOfWindowTrigger) LateFiring(late Trigger) *AfterEndOfWindowTrig
 }
 
 // AfterAnyTrigger fires after any of sub-trigger fires.
-// NYI(BEAM-3304). Intended for framework use only.
 type AfterAnyTrigger struct {
 	subtriggers []Trigger
+}
+
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *AfterAnyTrigger) String() string {
+	return fmt.Sprintf("%#v", t)
 }
 
 func (t AfterAnyTrigger) trigger() {}
@@ -229,10 +276,22 @@ func (t *AfterAnyTrigger) SubTriggers() []Trigger {
 	return t.subtriggers
 }
 
+// AfterAny returns a new AfterAny trigger with subtriggers set to passed argument.
+func AfterAny(triggers []Trigger) *AfterAnyTrigger {
+	if len(triggers) <= 1 {
+		panic("empty slice passed as an argument to trigger.AfterAny()")
+	}
+	return &AfterAnyTrigger{subtriggers: triggers}
+}
+
 // AfterAllTrigger fires after all subtriggers are fired.
-// NYI(BEAM-3304). Intended for framework use only.
 type AfterAllTrigger struct {
 	subtriggers []Trigger
+}
+
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *AfterAllTrigger) String() string {
+	return fmt.Sprintf("%#v", t)
 }
 
 func (t AfterAllTrigger) trigger() {}
@@ -242,20 +301,99 @@ func (t *AfterAllTrigger) SubTriggers() []Trigger {
 	return t.subtriggers
 }
 
-// OrFinallyTrigger serves as final condition to cause any trigger to fire.
-// NYI(BEAM-3304). Intended for framework use only.
-type OrFinallyTrigger struct{}
+// AfterAll returns a new AfterAll trigger with subtriggers set to the passed argument.
+func AfterAll(triggers []Trigger) *AfterAllTrigger {
+	if len(triggers) <= 1 {
+		panic(fmt.Sprintf("number of subtriggers to trigger.AfterAll() should be greater than 1, got: %v", len(triggers)))
+	}
+	return &AfterAllTrigger{subtriggers: triggers}
+}
+
+// OrFinallyTrigger is ready whenever either of its subtriggers are ready, but finishes output
+// when the finally subtrigger fires.
+type OrFinallyTrigger struct {
+	main    Trigger // Trigger governing main output; may fire repeatedly.
+	finally Trigger // Trigger governing termination of output.
+}
+
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *OrFinallyTrigger) String() string {
+	return fmt.Sprintf("%#v", t)
+}
 
 func (t OrFinallyTrigger) trigger() {}
 
+// OrFinally trigger has main trigger which may fire repeatedly and the finally trigger.
+// Output is produced when the finally trigger fires.
+func OrFinally(main, finally Trigger) *OrFinallyTrigger {
+	if main == nil || finally == nil {
+		panic("main and finally trigger arguments to trigger.OrFinally() cannot be nil")
+	}
+	return &OrFinallyTrigger{main: main, finally: finally}
+}
+
+// Main returns the main trigger of OrFinallyTrigger.
+func (t *OrFinallyTrigger) Main() Trigger {
+	return t.main
+}
+
+// Finally returns the finally trigger of OrFinallyTrigger.
+func (t *OrFinallyTrigger) Finally() Trigger {
+	return t.finally
+}
+
 // NeverTrigger is never ready to fire.
-// NYI(BEAM-3304). Intended for framework use only.
 type NeverTrigger struct{}
+
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *NeverTrigger) String() string {
+	return fmt.Sprintf("%#v", t)
+}
 
 func (t NeverTrigger) trigger() {}
 
-// AfterSynchronizedProcessingTimeTrigger fires when processing time synchronises with arrival time.
-// NYI(BEAM-3304). Intended for framework use only.
+// Never creates a Never Trigger that is never ready to fire.
+// There will only be an ON_TIME output and a final output at window expiration.
+func Never() *NeverTrigger {
+	return &NeverTrigger{}
+}
+
+// AfterSynchronizedProcessingTimeTrigger fires when processing time synchronizes with arrival time.
 type AfterSynchronizedProcessingTimeTrigger struct{}
 
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *AfterSynchronizedProcessingTimeTrigger) String() string {
+	return fmt.Sprintf("%#v", t)
+}
+
 func (t AfterSynchronizedProcessingTimeTrigger) trigger() {}
+
+// AfterSynchronizedProcessingTime creates a new AfterSynchronizedProcessingTime trigger that fires when
+// processing time synchronizes with arrival time.
+func AfterSynchronizedProcessingTime() *AfterSynchronizedProcessingTimeTrigger {
+	return &AfterSynchronizedProcessingTimeTrigger{}
+}
+
+// AfterEachTrigger fires when each trigger is ready. Order of triggers matters.
+type AfterEachTrigger struct {
+	subtriggers []Trigger
+}
+
+func (t AfterEachTrigger) trigger() {}
+
+// AfterEach creates a new AfterEach trigger that fires after each trigger is ready. It follows the order
+// of triggers passed in as arguments. Let's say if the second trigger gets ready but the first one is not ready
+// then it won't be fired until first triggered is ready and fired.
+func AfterEach(subtriggers []Trigger) *AfterEachTrigger {
+	return &AfterEachTrigger{subtriggers: subtriggers}
+}
+
+// Subtriggers returns the list of subtriggers for the current AfterEach trigger.
+func (t *AfterEachTrigger) Subtriggers() []Trigger {
+	return t.subtriggers
+}
+
+// String implements the Stringer interface and returns trigger details as a string.
+func (t *AfterEachTrigger) String() string {
+	return fmt.Sprintf("%#v", t)
+}
