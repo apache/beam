@@ -22,8 +22,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
-  pull_request:
+  push:
     branches: ['master', 'release-*']
+    tags: ['v*']
 
 jobs:
   set-properties:
@@ -32,7 +33,7 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
@@ -60,12 +61,13 @@ jobs:
           echo $BALANCE_CORES
           echo "::set-output name=BALANCE_CORES::$BALANCE_CORES"
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
       - name: Setup Environment
         uses: ./.github/actions/setup-self-hosted-action
+        # This step is run with Java 8 HOME version (default in setup self-hosted actions)
       - name: Run Flink Test Jar
         shell: bash
         run: |

@@ -22,8 +22,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
-  pull_request:
+  push:
     branches: ['master', 'release-*']
+    tags: ['v*']
 
 jobs:
   java_vr_twister:
@@ -31,7 +32,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
