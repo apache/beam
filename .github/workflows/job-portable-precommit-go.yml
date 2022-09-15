@@ -43,6 +43,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }} 
           persist-credentials: false
           submodules: recursive
       - id: test-properties
@@ -60,6 +61,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - name: Setup environment
