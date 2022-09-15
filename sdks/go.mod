@@ -23,7 +23,7 @@ module github.com/apache/beam/sdks/v2
 go 1.18
 
 require (
-	cloud.google.com/go/bigquery v1.39.0
+	cloud.google.com/go/bigquery v1.40.0
 	cloud.google.com/go/datastore v1.8.0
 	cloud.google.com/go/profiler v0.3.0
 	cloud.google.com/go/pubsub v1.25.1
@@ -31,7 +31,7 @@ require (
 	github.com/docker/go-connections v0.4.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang/protobuf v1.5.2 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
-	github.com/google/go-cmp v0.5.8
+	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
 	github.com/lib/pq v1.10.7
 	github.com/linkedin/goavro v2.1.0+incompatible
@@ -46,7 +46,7 @@ require (
 	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
 	golang.org/x/text v0.3.7
 	google.golang.org/api v0.95.0
-	google.golang.org/genproto v0.0.0-20220822174746-9e6da59bd2fc
+	google.golang.org/genproto v0.0.0-20220902135211-223410557253
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/retry.v1 v1.0.3
