@@ -25,7 +25,9 @@ on:
   schedule:
     - cron: '0 */6 * * *'
   push:
-    branches: [ 'master' ]
+    branches: ['master', 'release-*']
+    tags: ['v*']
+permissions: read-all
 
 jobs:
   set-properties:
@@ -34,7 +36,7 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
@@ -53,7 +55,7 @@ jobs:
           - java: "8" #Execution with JDK8 is performed in another workflow.
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive

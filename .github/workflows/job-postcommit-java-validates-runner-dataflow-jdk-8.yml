@@ -25,7 +25,9 @@ on:
   schedule:
     - cron: '0 */6 * * *'
   push:
-    branches: [ 'master' ]
+    branches: ['master', 'release-*']
+    tags: ['v*']
+permissions: read-all
 
 jobs:
   postcommit-java-validates-runner-dataflow-jdk8:
@@ -33,7 +35,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
