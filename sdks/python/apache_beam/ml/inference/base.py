@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# TODO: https://github.com/apache/beam/issues/21822
-# mypy: ignore-errors
 
 """An extensible run inference transform.
 
