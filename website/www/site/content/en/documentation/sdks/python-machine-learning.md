@@ -109,6 +109,28 @@ with pipeline as p:
 
 Where `model_handler_A` and `model_handler_B` are the model handler setup code.
 
+#### Use Resource Hints for Different Model Requirements
+
+When using multiple models in a single pipeline, different models may have different memory or worker SKU requirements.
+Resource hints allow you to provide information to a runner about the compute resource requirements for each step in your
+pipeline.
+
+For example, the following snippet extends the previous ensemble pattern with hints for each RunInference call
+to specify RAM and hardware accelerator requirements:
+
+```
+with pipeline as p:
+   data = p | 'Read' >> beam.ReadFromSource('a_source')
+   model_a_predictions = data | RunInference(<model_handler_A>).with_resource_hints(min_ram="20GB")
+   model_b_predictions = model_a_predictions
+      | beam.Map(some_post_processing)
+      | RunInference(<model_handler_B>).with_resource_hints(
+         min_ram="4GB",
+         accelerator="type:nvidia-tesla-k80;count:1;install-nvidia-driver")
+```
+
+For more information on resource hints, see [Resource hints](https://beam.apache.org/documentation/runtime/resource-hints/).
+
 ### Use a keyed ModelHandler
 
 If a key is attached to the examples, wrap the `KeyedModelHandler` around the `ModelHandler` object:
@@ -122,7 +144,7 @@ with pipeline as p:
       ('img2', torch.tensor([[1,2,3],[4,5,6],...])),
       ('img3', torch.tensor([[1,2,3],[4,5,6],...])),
    ])
-   predictions = data | RunInference(KeyedModelHandler)
+   predictions = data | RunInference(keyed_model_handler)
 ```
 
 ### Use the PredictionResults object

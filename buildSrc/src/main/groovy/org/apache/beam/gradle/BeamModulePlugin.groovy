@@ -665,6 +665,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jamm                                        : 'io.github.stephankoelle:jamm:0.4.1',
         jaxb_api                                    : "jakarta.xml.bind:jakarta.xml.bind-api:$jaxb_api_version",
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
+        jmh_core                                    : "org.openjdk.jmh:jmh-core:$jmh_version",
         joda_time                                   : "joda-time:joda-time:2.10.10",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
@@ -1393,8 +1394,9 @@ class BeamModulePlugin implements Plugin<Project> {
 
       if (configuration.enableJmh) {
         project.dependencies {
+          runtimeOnly it.project(path: ":sdks:java:testing:test-utils")
           annotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:$jmh_version"
-          implementation "org.openjdk.jmh:jmh-core:$jmh_version"
+          implementation project.library.java.jmh_core
         }
 
         project.compileJava {
@@ -1411,8 +1413,12 @@ class BeamModulePlugin implements Plugin<Project> {
 
         project.tasks.register("jmh", JavaExec)  {
           dependsOn project.classes
-          mainClass = "org.openjdk.jmh.Main"
+          // Note: this will wrap the default JMH runner publishing results to InfluxDB
+          mainClass = "org.apache.beam.sdk.testutils.jmh.Main"
           classpath = project.sourceSets.main.runtimeClasspath
+
+          environment 'INFLUXDB_BASE_MEASUREMENT', 'java_jmh'
+
           // For a list of arguments, see
           // https://github.com/guozheng/jmh-tutorial/blob/master/README.md
           //
@@ -1449,7 +1455,8 @@ class BeamModulePlugin implements Plugin<Project> {
         // Note that these tests will fail on JVMs that JMH doesn't support.
         def jmhTest = project.tasks.register("jmhTest", JavaExec) {
           dependsOn project.classes
-          mainClass = "org.openjdk.jmh.Main"
+          // Note: this will just delegate to the default JMH runner, single shot times are not published to InfluxDB
+          mainClass = "org.apache.beam.sdk.testutils.jmh.Main"
           classpath = project.sourceSets.main.runtimeClasspath
 
           // We filter for only Apache Beam benchmarks to ensure that we aren't
