@@ -28,11 +28,11 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['runners/flink/**']
-
+permissions: read-all
 
 jobs:
   set-properties:
@@ -41,8 +41,9 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - id: test-properties
@@ -63,8 +64,9 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - name: Setup environment
