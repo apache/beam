@@ -27,6 +27,7 @@
 #   categories:
 #     - IO
 #     - Combiners
+#   complexity: MEDIUM
 
 import collections
 import logging

@@ -29,6 +29,7 @@ package org.apache.beam.examples.cookbook;
 //     - Filtering
 //     - Options
 //     - Core Transforms
+//   complexity: BASIC
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;

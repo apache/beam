@@ -27,6 +27,7 @@
 #   categories:
 #     - Streaming
 #     - IO
+#   complexity: ADVANCED
 
 import logging
 import unittest

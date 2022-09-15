@@ -44,6 +44,7 @@ package main
 //   categories:
 //     - Debugging
 //     - Flatten
+//   complexity: MEDIUM
 
 import (
 	"context"

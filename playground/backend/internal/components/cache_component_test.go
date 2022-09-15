@@ -173,7 +173,8 @@ func TestCacheComponent_GetCatalogFromCacheOrDatastore(t *testing.T) {
 					actualPCObj.PipelineOptions != "MOCK_OPTIONS" ||
 					actualPCObj.Description != "MOCK_DESCR" ||
 					actualPCObj.Link != "MOCK_PATH" ||
-					actualPCObj.ContextLine != 32 {
+					actualPCObj.ContextLine != 32 ||
+					actualPCObj.Complexity != pb.Complexity_MEDIUM {
 					t.Error("GetCatalogFromCacheOrDatastore() unexpected result: wrong precompiled obj")
 				}
 				tt.clean()
@@ -292,7 +293,7 @@ func saveExample(name, sdk string) {
 		Sdk:        utils.GetSdkKey(ctx, sdk),
 		Descr:      "MOCK_DESCR",
 		Cats:       []string{"MOCK_CATEGORY"},
-		Complexity: "MEDIUM",
+		Complexity: pb.Complexity_MEDIUM.String(),
 		Path:       "MOCK_PATH",
 		Type:       pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
 		Origin:     constants.ExampleOrigin,

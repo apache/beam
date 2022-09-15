@@ -21,6 +21,7 @@
 #   context_line: 38
 #   categories:
 #     - Side Input
+#   complexity: MEDIUM
 
 import apache_beam as beam
 

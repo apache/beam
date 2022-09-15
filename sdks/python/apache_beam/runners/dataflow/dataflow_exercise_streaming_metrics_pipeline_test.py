@@ -27,6 +27,7 @@
 #   categories:
 #     - Streaming
 #     - Metrics
+#   complexity: ADVANCED
 
 import logging
 import unittest

@@ -22,6 +22,7 @@ package beam_test
 //   context_line: 34
 //   categories:
 //     - Combiners
+//   complexity: BASIC
 
 import (
 	"reflect"

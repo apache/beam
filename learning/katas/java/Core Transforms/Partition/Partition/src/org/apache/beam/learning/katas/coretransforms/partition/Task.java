@@ -27,6 +27,7 @@ package org.apache.beam.learning.katas.coretransforms.partition;
 //   categories:
 //     - Core Transforms
 //     - Multiple Outputs
+//   complexity: BASIC
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

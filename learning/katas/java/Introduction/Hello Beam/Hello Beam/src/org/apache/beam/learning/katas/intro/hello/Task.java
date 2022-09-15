@@ -26,6 +26,7 @@ package org.apache.beam.learning.katas.intro.hello;
 //   categories:
 //     - Testing
 //     - Quickstart
+//   complexity: BASIC
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

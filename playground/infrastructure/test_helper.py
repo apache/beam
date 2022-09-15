@@ -27,7 +27,7 @@ from grpc_client import GRPCClient
 from helper import find_examples, Example, _get_example, _get_name, get_tag, \
     _validate, Tag, get_statuses, \
     _update_example_status, get_supported_categories, _check_file, \
-    _get_object_type, ExampleTag, validate_examples_for_duplicates_by_name, ValidationException
+    _get_object_type, ExampleTag, validate_examples_for_duplicates_by_name, ValidationException, validate_example_fields
 
 
 @mock.patch("helper._check_file")
@@ -75,6 +75,7 @@ def test_find_examples_with_invalid_tag(mock_os_walk, mock_check_file):
 async def test_get_statuses(mock_update_example_status, mock_grpc_client):
     example = Example(
         name="file",
+        complexity="MEDIUM",
         pipeline_id="pipeline_id",
         sdk=SDK_UNSPECIFIED,
         filepath="root/file.extension",
@@ -118,6 +119,7 @@ def test__check_file_with_correct_tag(
     tag = ExampleTag({"name": "Name"}, "")
     example = Example(
         name="filename",
+        complexity="MEDIUM",
         sdk=SDK_JAVA,
         filepath="/root/filename.java",
         code="data",
@@ -176,7 +178,8 @@ def test__get_example():
         "multifile": "False",
         "categories": [""],
         "pipeline_options": "--option option",
-        "context_line": 1
+        "context_line": 1,
+        "complexity": "MEDIUM"
     },
         "")
 
@@ -189,8 +192,9 @@ def test__get_example():
         code="data",
         status=STATUS_UNSPECIFIED,
         tag=Tag(
-            "Name", "Description", "False", [""], "--option option", False, 1),
-        link="https://github.com/apache/beam/blob/master/root/filepath.java")
+            "Name", "MEDIUM", "Description", "False", [""], "--option option", False, 1),
+        link="https://github.com/apache/beam/blob/master/root/filepath.java",
+        complexity="MEDIUM")
 
 
 def test__validate_without_name_field():
@@ -245,7 +249,8 @@ def test__validate_with_all_fields():
         "multifile": "true",
         "categories": ["category"],
         "pipeline_options": "--option option",
-        "context_line": 1
+        "context_line": 1,
+        "complexity": "MEDIUM"
     }
     assert _validate(tag, ["category"]) is True
 
@@ -263,6 +268,7 @@ async def test__update_example_status(
       mock_grpc_client_run_code, mock_grpc_client_check_status):
     example = Example(
         name="file",
+        complexity="MEDIUM",
         pipeline_id="pipeline_id",
         sdk=SDK_UNSPECIFIED,
         filepath="root/file.extension",
@@ -315,6 +321,47 @@ def test_validate_examples_for_duplicates_by_name_when_examples_have_duplicates(
         validate_examples_for_duplicates_by_name(examples)
 
 
+def test_validate_example_fields_when_filepath_is_invalid():
+    example = _create_example("MOCK_NAME")
+    example.filepath = ""
+    with pytest.raises(ValidationException, match="Example doesn't have a file path field. Example: "):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_name_is_invalid():
+    example = _create_example("")
+    with pytest.raises(ValidationException, match="Example doesn't have a name field. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_sdk_is_invalid():
+    example = _create_example("MOCK_NAME")
+    example.sdk = SDK_UNSPECIFIED
+    with pytest.raises(ValidationException, match="Example doesn't have a sdk field. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_code_is_invalid():
+    example = _create_example("MOCK_NAME")
+    example.code = ""
+    with pytest.raises(ValidationException, match="Example doesn't have a code field. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_link_is_invalid():
+    example = _create_example("MOCK_NAME")
+    example.link = ""
+    with pytest.raises(ValidationException, match="Example doesn't have a link field. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_complexity_is_invalid():
+    example = _create_example("MOCK_NAME")
+    example.complexity = ""
+    with pytest.raises(ValidationException, match="Example doesn't have a complexity field. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
 def _create_example(name: str) -> Example:
     object_meta = {
         "name": "MOCK_NAME",
@@ -332,5 +379,6 @@ def _create_example(name: str) -> Example:
         output="MOCK_OUTPUT",
         status=STATUS_UNSPECIFIED,
         tag=Tag(**object_meta),
-        link="MOCK_LINK")
+        link="MOCK_LINK",
+        complexity="MOCK_COMPLEXITY")
     return example

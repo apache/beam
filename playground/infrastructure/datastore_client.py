@@ -194,6 +194,7 @@ class DatastoreClient:
                 "sdk": sdk_key,
                 "descr": example.tag.description,
                 "cats": example.tag.categories,
+                "complexity": example.complexity,
                 "path": example.link,
                 "type": PrecompiledObjectType.Name(example.type),
                 "origin": DatastoreProps.ORIGIN_PROPERTY_VALUE,

@@ -45,6 +45,7 @@ package main
 //     - Options
 //     - Combiners
 //     - Quickstart
+//   complexity: ADVANCED
 
 import (
 	"context"

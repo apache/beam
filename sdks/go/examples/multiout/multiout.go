@@ -30,6 +30,7 @@ package main
 //     - Options
 //     - Branching
 //     - Multiple Outputs
+//   complexity: MEDIUM
 
 import (
 	"context"

@@ -22,6 +22,7 @@
 #   categories:
 #     - Filtering
 #     - Multiple Outputs
+#   complexity: BASIC
 
 import apache_beam as beam
 from apache_beam import pvalue

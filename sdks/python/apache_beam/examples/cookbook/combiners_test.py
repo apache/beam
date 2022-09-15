@@ -32,6 +32,7 @@ checked directly on the last PCollection produced.
 #   context_line: 47
 #   categories:
 #     - Combiners
+#   complexity: MEDIUM
 
 import logging
 import unittest

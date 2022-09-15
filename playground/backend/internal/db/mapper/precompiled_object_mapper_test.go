@@ -206,7 +206,7 @@ func getExampleDTO(name, defaultName, sdk string) *dto.ExampleDTO {
 			Sdk:        utils.GetSdkKey(pcObjMapperCtx, sdk),
 			Descr:      "MOCK_DESCR",
 			Cats:       []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
-			Complexity: "MEDIUM",
+			Complexity: pb.Complexity_MEDIUM.String(),
 			Path:       "MOCK_PATH",
 			Type:       pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
 			Origin:     constants.ExampleOrigin,

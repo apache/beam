@@ -26,6 +26,7 @@ package org.apache.beam.learning.katas.coretransforms.map.pardoonetomany;
 //   categories:
 //     - Flatten
 //     - Core Transforms
+//   complexity: BASIC
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

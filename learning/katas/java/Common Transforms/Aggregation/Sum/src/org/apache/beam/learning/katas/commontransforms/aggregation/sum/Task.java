@@ -25,6 +25,7 @@ package org.apache.beam.learning.katas.commontransforms.aggregation.sum;
 //   context_line: 37
 //   categories:
 //     - Combiners
+//   complexity: BASIC
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

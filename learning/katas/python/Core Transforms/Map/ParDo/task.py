@@ -21,6 +21,7 @@
 #   context_line: 30
 #   categories:
 #     - Core Transforms
+#   complexity: BASIC
 
 import apache_beam as beam
 

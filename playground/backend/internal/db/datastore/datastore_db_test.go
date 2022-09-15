@@ -422,7 +422,8 @@ func TestDatastore_GetCatalog(t *testing.T) {
 					actualPCObj.PipelineOptions != "MOCK_OPTIONS" ||
 					actualPCObj.Description != "MOCK_DESCR" ||
 					actualPCObj.Link != "MOCK_PATH" ||
-					actualPCObj.ContextLine != 32 {
+					actualPCObj.ContextLine != 32 ||
+					actualPCObj.Complexity != pb.Complexity_MEDIUM {
 					t.Error("GetCatalog() unexpected result: wrong precompiled obj")
 				}
 				tt.cleanData()
@@ -489,7 +490,8 @@ func TestDatastore_GetDefaultExamples(t *testing.T) {
 						example.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
 						example.PipelineOptions != "MOCK_OPTIONS" ||
 						example.Description != "MOCK_DESCR" ||
-						example.Link != "MOCK_PATH" {
+						example.Link != "MOCK_PATH" ||
+						example.Complexity != pb.Complexity_MEDIUM {
 						t.Errorf("GetDefaultExamples() unexpected result: wrong precompiled obj")
 					}
 				}
@@ -552,7 +554,8 @@ func TestDatastore_GetExample(t *testing.T) {
 					example.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
 					example.Link != "MOCK_PATH" ||
 					example.PipelineOptions != "MOCK_OPTIONS" ||
-					example.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE" {
+					example.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE" ||
+					example.Complexity != pb.Complexity_MEDIUM {
 					t.Errorf("GetExample() unexpected result: wrong precompiled obj")
 				}
 				tt.clean()
@@ -908,7 +911,7 @@ func saveExample(name, sdk string) {
 		Sdk:        utils.GetSdkKey(ctx, sdk),
 		Descr:      "MOCK_DESCR",
 		Cats:       []string{"MOCK_CATEGORY"},
-		Complexity: "MEDIUM",
+		Complexity: pb.Complexity_MEDIUM.String(),
 		Path:       "MOCK_PATH",
 		Type:       pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
 		Origin:     constants.ExampleOrigin,

@@ -112,7 +112,7 @@ func createExampleEntity(ctx context.Context, name, sdk string) *entity.ExampleE
 		Descr:      "MOCK_DESCR",
 		Tags:       []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
 		Cats:       []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
-		Complexity: "MEDIUM",
+		Complexity: pb.Complexity_MEDIUM.String(),
 		Path:       "MOCK_PATH",
 		Type:       pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
 		Origin:     constants.ExampleOrigin,

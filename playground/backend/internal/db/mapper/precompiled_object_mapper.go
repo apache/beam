@@ -44,6 +44,7 @@ func (pom *PrecompiledObjectMapper) ToObjectInfo(exampleDTO *dto.ExampleDTO) *dt
 		ContextLine:     exampleDTO.GetContextLine(),
 		DefaultExample:  exampleDTO.IsDefault(),
 		Sdk:             exampleDTO.GetSDK(),
+		Complexity:      exampleDTO.GetComplexity(),
 	}
 }
 
@@ -91,6 +92,7 @@ func (pom *PrecompiledObjectMapper) ToDefaultPrecompiledObjects(defaultExamplesD
 			ContextLine:     defaultExamplesDTO.Files[exampleIndx].CntxLine,
 			DefaultExample:  true,
 			Sdk:             pb.Sdk(pb.Sdk_value[example.Sdk.Name]),
+			Complexity:      pb.Complexity(pb.Complexity_value[example.Complexity]),
 		}
 	}
 	return result
@@ -108,6 +110,7 @@ func (pom *PrecompiledObjectMapper) ToPrecompiledObj(exampleDTO *dto.ExampleDTO)
 		ContextLine:     exampleDTO.GetContextLine(),
 		DefaultExample:  exampleDTO.IsDefault(),
 		Sdk:             exampleDTO.GetSDK(),
+		Complexity:      exampleDTO.GetComplexity(),
 	}
 }
 
@@ -144,6 +147,7 @@ func putPrecompiledObjectsToCategory(categoryName string, precompiledObjects *dt
 			ContextLine:     object.ContextLine,
 			DefaultExample:  object.DefaultExample,
 			Sdk:             object.Sdk,
+			Complexity:      object.Complexity,
 		})
 	}
 	sdkCategory.Categories = append(sdkCategory.Categories, &category)

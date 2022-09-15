@@ -75,6 +75,18 @@ const PrecompiledObjectType$json = const {
 
 /// Descriptor for `PrecompiledObjectType`. Decode as a `google.protobuf.EnumDescriptorProto`.
 final $typed_data.Uint8List precompiledObjectTypeDescriptor = $convert.base64Decode('ChVQcmVjb21waWxlZE9iamVjdFR5cGUSJwojUFJFQ09NUElMRURfT0JKRUNUX1RZUEVfVU5TUEVDSUZJRUQQABIjCh9QUkVDT01QSUxFRF9PQkpFQ1RfVFlQRV9FWEFNUExFEAESIAocUFJFQ09NUElMRURfT0JKRUNUX1RZUEVfS0FUQRACEiUKIVBSRUNPTVBJTEVEX09CSkVDVF9UWVBFX1VOSVRfVEVTVBAD');
+@$core.Deprecated('Use complexityDescriptor instead')
+const Complexity$json = const {
+  '1': 'Complexity',
+  '2': const [
+    const {'1': 'BASIC', '2': 0},
+    const {'1': 'MEDIUM', '2': 1},
+    const {'1': 'ADVANCED', '2': 2},
+  ],
+};
+
+/// Descriptor for `Complexity`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List complexityDescriptor = $convert.base64Decode('CgpDb21wbGV4aXR5EgkKBUJBU0lDEAASCgoGTUVESVVNEAESDAoIQURWQU5DRUQQAg==');
 @$core.Deprecated('Use runCodeRequestDescriptor instead')
 const RunCodeRequest$json = const {
   '1': 'RunCodeRequest',
@@ -288,11 +300,12 @@ const PrecompiledObject$json = const {
     const {'1': 'context_line', '3': 8, '4': 1, '5': 5, '10': 'contextLine'},
     const {'1': 'default_example', '3': 9, '4': 1, '5': 8, '10': 'defaultExample'},
     const {'1': 'sdk', '3': 10, '4': 1, '5': 14, '6': '.api.v1.Sdk', '10': 'sdk'},
+    const {'1': 'complexity', '3': 11, '4': 1, '5': 14, '6': '.api.v1.Complexity', '10': 'complexity'},
   ],
 };
 
 /// Descriptor for `PrecompiledObject`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSHAoJbXVsdGlmaWxlGAcgASgIUgltdWx0aWZpbGUSIQoMY29udGV4dF9saW5lGAggASgFUgtjb250ZXh0TGluZRInCg9kZWZhdWx0X2V4YW1wbGUYCSABKAhSDmRlZmF1bHRFeGFtcGxlEh0KA3NkaxgKIAEoDjILLmFwaS52MS5TZGtSA3Nkaw==');
+final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSHAoJbXVsdGlmaWxlGAcgASgIUgltdWx0aWZpbGUSIQoMY29udGV4dF9saW5lGAggASgFUgtjb250ZXh0TGluZRInCg9kZWZhdWx0X2V4YW1wbGUYCSABKAhSDmRlZmF1bHRFeGFtcGxlEh0KA3NkaxgKIAEoDjILLmFwaS52MS5TZGtSA3NkaxIyCgpjb21wbGV4aXR5GAsgASgOMhIuYXBpLnYxLkNvbXBsZXhpdHlSCmNvbXBsZXhpdHk=');
 @$core.Deprecated('Use categoriesDescriptor instead')
 const Categories$json = const {
   '1': 'Categories',

@@ -22,6 +22,7 @@
 #   context_line: 31
 #   categories:
 #     - Flatten
+#   complexity: BASIC
 
 import apache_beam as beam
 

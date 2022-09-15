@@ -29,6 +29,7 @@
 #     - Combiners
 #     - Options
 #     - Quickstart
+#   complexity: MEDIUM
 
 import argparse
 import logging

@@ -25,6 +25,7 @@ package org.apache.beam.learning.katas.commontransforms.filter.pardo;
 //   context_line: 38
 //   categories:
 //     - Filtering
+//   complexity: BASIC
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

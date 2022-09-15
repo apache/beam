@@ -68,6 +68,7 @@ python user_score.py \
 #     - Batch
 #     - Combiners
 #     - Options
+#   complexity: ADVANCED
 
 import argparse
 import csv

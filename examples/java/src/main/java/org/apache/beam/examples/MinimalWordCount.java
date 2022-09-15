@@ -29,6 +29,7 @@ package org.apache.beam.examples;
 //     - IO
 //     - Core Transforms
 //     - Quickstart
+//   complexity: BASIC
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;

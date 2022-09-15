@@ -28,6 +28,7 @@ package org.apache.beam.examples.complete;
 //     - Combiners
 //     - Options
 //     - Joins
+//   complexity: ADVANCED
 
 import java.io.File;
 import java.io.IOException;

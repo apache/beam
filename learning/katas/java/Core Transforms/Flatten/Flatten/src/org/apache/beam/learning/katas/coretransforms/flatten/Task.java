@@ -27,6 +27,7 @@ package org.apache.beam.learning.katas.coretransforms.flatten;
 //     - Combiners
 //     - Flatten
 //     - Core Transforms
+//   complexity: BASIC
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

@@ -22,6 +22,7 @@
 #   categories:
 #     - Windowing
 #     - Combiners
+#   complexity: MEDIUM
 
 from datetime import datetime
 import pytz
