@@ -81,8 +81,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-# (TODO): Add python 3.10.
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8', '3.9']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8', '3.9', '3.10']
 
 
 class Step(object):
