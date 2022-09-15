@@ -28,12 +28,13 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/**',
             'runners/flink/**',
             'runners/java-fn-execution/**']
+permissions: read-all
 
 
 jobs:
@@ -43,8 +44,9 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - id: test-properties
@@ -65,8 +67,9 @@ jobs:
     timeout-minutes: 480
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - name: Setup environment
