@@ -196,7 +196,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferencePytorch'
+    return 'BeamML_PyTorch'
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
@@ -316,7 +316,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferencePytorch'
+    return 'BeamML_PyTorch'
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass

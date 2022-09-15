@@ -141,6 +141,13 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """
     return sum(sys.getsizeof(element) for element in batch)
 
+  def get_metrics_namespace(self) -> str:
+    """
+    Returns:
+       A namespace for metrics collected by the RunInference transform.
+    """
+    return 'BeamML_Sklearn'
+
 
 @experimental(extra_message="No backwards-compatibility guarantees.")
 class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
@@ -211,3 +218,10 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       The number of bytes of data for a batch.
     """
     return sum(df.memory_usage(deep=True).sum() for df in batch)
+
+  def get_metrics_namespace(self) -> str:
+    """
+    Returns:
+       A namespace for metrics collected by the RunInference transform.
+    """
+    return 'BeamML_Sklearn'
