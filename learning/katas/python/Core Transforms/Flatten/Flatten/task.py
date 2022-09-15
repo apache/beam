@@ -22,6 +22,9 @@
 #   categories:
 #     - Flatten
 #   complexity: BASIC
+#   tags:
+#     - merge
+#     - strings
 
 import apache_beam as beam
 

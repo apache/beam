@@ -29,6 +29,11 @@ package org.apache.beam.learning.katas.coretransforms.composite;
 //     - Flatten
 //     - Core Transforms
 //   complexity: BASIC
+//   tags:
+//     - count
+//     - map
+//     - transforms
+//     - numbers
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 

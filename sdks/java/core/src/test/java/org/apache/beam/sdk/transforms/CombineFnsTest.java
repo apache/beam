@@ -26,6 +26,9 @@ package org.apache.beam.sdk.transforms;
 //     - Combiners
 //     - Core Transforms
 //   complexity: ADVANCED
+//   tags:
+//     - combine
+//     - test
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;

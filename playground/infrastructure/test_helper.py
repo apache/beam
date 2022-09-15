@@ -250,7 +250,8 @@ def test__validate_with_all_fields():
         "categories": ["category"],
         "pipeline_options": "--option option",
         "context_line": 1,
-        "complexity": "MEDIUM"
+        "complexity": "MEDIUM",
+        "tags": ["tag"]
     }
     assert _validate(tag, ["category"]) is True
 

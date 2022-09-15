@@ -22,6 +22,9 @@
 #   categories:
 #     - Filtering
 #   complexity: BASIC
+#   tags:
+#     - filter
+#     - numbers
 
 import apache_beam as beam
 

@@ -26,6 +26,9 @@ package org.apache.beam.learning.katas.commontransforms.filter.filter;
 //   categories:
 //     - Filtering
 //   complexity: BASIC
+//   tags:
+//     - filter
+//     - numbers
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

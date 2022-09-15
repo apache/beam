@@ -25,6 +25,11 @@
 #   categories:
 #     - Streaming
 #   complexity: MEDIUM
+#   tags:
+#     - windowing
+#     - triggers
+#     - count
+#     - event
 
 import apache_beam as beam
 from generate_event import GenerateEvent

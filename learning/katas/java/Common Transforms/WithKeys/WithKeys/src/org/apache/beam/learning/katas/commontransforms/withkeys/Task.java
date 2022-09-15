@@ -26,6 +26,9 @@ package org.apache.beam.learning.katas.commontransforms.withkeys;
 //   categories:
 //     - Combiners
 //   complexity: BASIC
+//   tags:
+//     - transform
+//     - strings
 
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 

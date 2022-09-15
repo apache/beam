@@ -30,6 +30,10 @@ package org.apache.beam.examples;
 //     - Core Transforms
 //     - Quickstart
 //   complexity: BASIC
+//   tags:
+//     - filter
+//     - flatmap
+//     - strings
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;

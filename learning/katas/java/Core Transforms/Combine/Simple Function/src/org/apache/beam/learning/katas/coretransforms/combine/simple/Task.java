@@ -27,6 +27,10 @@ package org.apache.beam.learning.katas.coretransforms.combine.simple;
 //     - Combiners
 //     - Core Transforms
 //   complexity: BASIC
+//   tags:
+//     - count
+//     - transforms
+//     - numbers
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

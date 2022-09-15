@@ -73,6 +73,7 @@ class TagFields:
     default_example: str = "default_example"
     context_line: int = "context_line"
     complexity: str = "complexity"
+    tags: str = "tags"
 
 
 @dataclass(frozen=True)

@@ -28,6 +28,10 @@ package org.apache.beam.learning.katas.coretransforms.flatten;
 //     - Flatten
 //     - Core Transforms
 //   complexity: BASIC
+//   tags:
+//     - transform
+//     - join
+//     - strings
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

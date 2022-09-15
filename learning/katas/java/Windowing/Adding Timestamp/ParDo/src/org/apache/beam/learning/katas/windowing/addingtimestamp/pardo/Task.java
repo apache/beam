@@ -26,6 +26,10 @@ package org.apache.beam.learning.katas.windowing.addingtimestamp.pardo;
 //   categories:
 //     - Streaming
 //   complexity: MEDIUM
+//   tags:
+//     - timestamp
+//     - transform
+//     - event
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

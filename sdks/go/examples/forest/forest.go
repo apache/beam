@@ -41,6 +41,9 @@ package main
 //     - Flatten
 //     - Branching
 //   complexity: MEDIUM
+//   tags:
+//     - pipeline
+//     - branch
 
 import (
 	"context"

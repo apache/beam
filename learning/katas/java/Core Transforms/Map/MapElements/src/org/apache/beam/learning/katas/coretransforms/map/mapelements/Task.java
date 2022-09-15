@@ -26,6 +26,10 @@ package org.apache.beam.learning.katas.coretransforms.map.mapelements;
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
+//   tags:
+//     - transform
+//     - map
+//     - numbers
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

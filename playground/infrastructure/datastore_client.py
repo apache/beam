@@ -193,6 +193,7 @@ class DatastoreClient:
                 "name": example.name,
                 "sdk": sdk_key,
                 "descr": example.tag.description,
+                "tags": example.tag.tags,
                 "cats": example.tag.categories,
                 "complexity": example.complexity,
                 "path": example.link,

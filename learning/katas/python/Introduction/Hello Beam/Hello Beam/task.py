@@ -23,6 +23,8 @@
 #     - Testing
 #     - Quickstart
 #   complexity: BASIC
+#   tags:
+#     - hellobeam
 
 import apache_beam as beam
 

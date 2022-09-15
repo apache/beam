@@ -25,6 +25,11 @@ package main
 //     - Combiners
 //     - Filtering
 //   complexity: MEDIUM
+//   tags:
+//     - combine
+//     - map
+//     - strings
+//     - numbers
 
 import (
 	"context"

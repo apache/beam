@@ -32,6 +32,10 @@
 #     - Metrics
 #     - Quickstart
 #   complexity: MEDIUM
+#   tags:
+#     - count
+#     - metrics
+#     - strings
 
 import argparse
 import logging

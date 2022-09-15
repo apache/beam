@@ -66,6 +66,10 @@ package main
 //     - Options
 //     - Quickstart
 //   complexity: MEDIUM
+//   tags:
+//     - count
+//     - io
+//     - strings
 
 import (
 	"context"

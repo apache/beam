@@ -57,6 +57,10 @@ and an output prefix on GCS::
 #     - Filtering
 #     - Quickstart
 #   complexity: ADVANCED
+#   tags:
+#     - count
+#     - debug
+#     - string
 
 import argparse
 import logging

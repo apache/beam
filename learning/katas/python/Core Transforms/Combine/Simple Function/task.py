@@ -22,6 +22,10 @@
 #   categories:
 #     - Combiners
 #   complexity: BASIC
+#   tags:
+#     - count
+#     - combine
+#     - numbers
 
 import apache_beam as beam
 

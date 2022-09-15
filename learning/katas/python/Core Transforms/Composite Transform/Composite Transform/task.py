@@ -23,6 +23,10 @@
 #   categories:
 #     - Flatten
 #   complexity: BASIC
+#   tags:
+#     - count
+#     - strings
+#     - numbers
 
 import apache_beam as beam
 

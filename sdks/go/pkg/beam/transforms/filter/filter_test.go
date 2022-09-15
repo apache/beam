@@ -23,6 +23,9 @@ package filter_test
 //   categories:
 //     - Filtering
 //   complexity: BASIC
+//   tags:
+//     - filter
+//     - test
 
 import (
 	"testing"

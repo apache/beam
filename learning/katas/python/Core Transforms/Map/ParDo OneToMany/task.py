@@ -23,6 +23,9 @@
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC
+#   tags:
+#     - transform
+#     - strings
 
 import apache_beam as beam
 

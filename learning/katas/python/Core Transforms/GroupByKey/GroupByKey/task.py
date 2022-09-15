@@ -22,6 +22,10 @@
 #   categories:
 #     - Combiners
 #   complexity: BASIC
+#   tags:
+#     - map
+#     - group
+#     - strings
 
 import apache_beam as beam
 

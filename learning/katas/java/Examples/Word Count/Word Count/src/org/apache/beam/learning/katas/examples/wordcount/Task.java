@@ -26,6 +26,10 @@ package org.apache.beam.learning.katas.examples.wordcount;
 //   categories:
 //     - Combiners
 //   complexity: BASIC
+//   tags:
+//     - count
+//     - transform
+//     - numbers
 
 import java.util.Arrays;
 import org.apache.beam.learning.katas.util.Log;

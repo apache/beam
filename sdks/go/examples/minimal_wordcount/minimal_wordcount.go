@@ -50,6 +50,10 @@ package main
 //     - Core Transforms
 //     - Quickstart
 //   complexity: BASIC
+//   tags:
+//     - count
+//     - io
+//     - strings
 
 import (
 	"context"

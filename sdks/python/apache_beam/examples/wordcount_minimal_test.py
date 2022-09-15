@@ -28,6 +28,9 @@
 #     - IO
 #     - Combiners
 #   complexity: MEDIUM
+#   tags:
+#     - count
+#     - test
 
 import collections
 import logging

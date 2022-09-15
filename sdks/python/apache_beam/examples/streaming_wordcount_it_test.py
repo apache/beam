@@ -28,6 +28,10 @@
 #     - Streaming
 #     - IO
 #   complexity: ADVANCED
+#   tags:
+#     - streaming
+#     - count
+#     - test
 
 import logging
 import unittest
