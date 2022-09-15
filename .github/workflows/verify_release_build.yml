@@ -73,8 +73,7 @@ jobs:
         - name: Create PR Comment
           run: |
             GITHUB_PR=${{ needs.update_create_release_pr.outputs.git_pr }}
-            ls -la
+            sh ./comment_pr_trigger_phrases.sh $GITHUB_PR
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          working-directory: scripts/ci/release
-#sh ./comment_pr_trigger_phrases.sh $GITHUB_PR
+          working-directory: 'scripts/ci/release'
