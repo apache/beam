@@ -64,7 +64,7 @@ jobs:
     outputs:
       git_pr: ${{ steps.create_pr.outputs.git_pr }}
   comment_trigger_phrases:
-      if: ${{ github.event.inputs.COMMENT_TRIGGER_PHRASES }}
+      if: ${{ github.event.inputs.COMMENT_TRIGGER_PHRASES == 'true' }}
       needs: update_create_release_pr
       runs-on: ubuntu-latest
       permissions:
@@ -73,7 +73,8 @@ jobs:
         - name: Create PR Comment
           run: |
             GITHUB_PR=${{ needs.update_create_release_pr.outputs.git_pr }}
-            sh ./comment_pr_trigger_phrases.sh $GITHUB_PR
+            ls -la
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           working-directory: scripts/ci/release
+#sh ./comment_pr_trigger_phrases.sh $GITHUB_PR
