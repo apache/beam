@@ -230,12 +230,16 @@ class TextSource extends FileBasedSource<String> {
      * LineReader.java</a>
      *
      * <p>We're reading data from inChannel, but the head of the stream may be already buffered in
-     * buffer, so we have several cases: 1. No newline characters are in the buffer, so we need to
-     * copy everything and read another buffer from the stream. 2. An unambiguously terminated line
-     * is in buffer, so we just create currentValue 3. Ambiguously terminated line is in buffer,
-     * i.e. buffer ends in CR. In this case we copy everything up to CR to str, but we also need to
-     * see what follows CR: if it's LF, then we need consume LF as well, so next call to readLine
-     * will read from after that.
+     * buffer, so we have several cases:
+     *
+     * <ol>
+     *   <li>No newline characters are in the buffer, so we need to copy everything and read another
+     *       buffer from the stream.
+     *   <li>An unambiguously terminated line is in buffer, so we just create currentValue
+     *   <li>Ambiguously terminated line is in buffer, i.e. buffer ends in CR. In this case we copy
+     *       everything up to CR to str, but we also need to see what follows CR: if it's LF, then
+     *       we need consume LF as well, so next call to readLine will read from after that.
+     * </ol>
      *
      * <p>We use a flag prevCharCR to signal if previous character was CR and, if it happens to be
      * at the end of the buffer, delay consuming it until we have a chance to look at the char that
