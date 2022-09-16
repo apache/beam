@@ -136,7 +136,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       batch: Sequence[torch.Tensor],
       model: torch.nn.Module,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: bool = False) -> Iterable[PredictionResult]:
+      drop_example: Optional[bool] = False) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
@@ -244,7 +244,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       batch: Sequence[Dict[str, torch.Tensor]],
       model: torch.nn.Module,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: bool = False,
+      drop_example: Optional[bool] = False,
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Keyed Tensors and returns an Iterable of

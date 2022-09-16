@@ -226,7 +226,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       batch: Sequence[np.ndarray],
       engine: TensorRTEngine,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: bool = False,
+      drop_example: Optional[bool] = False,
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of

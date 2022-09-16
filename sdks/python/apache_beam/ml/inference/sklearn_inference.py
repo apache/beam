@@ -98,7 +98,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       batch: Sequence[numpy.ndarray],
       model: BaseEstimator,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: bool = False) -> Iterable[PredictionResult]:
+      drop_example: Optional[bool] = False) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of numpy arrays.
 
     Args:
@@ -169,7 +169,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       batch: Sequence[pandas.DataFrame],
       model: BaseEstimator,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: bool = False) -> Iterable[PredictionResult]:
+      drop_example: Optional[bool] = False) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of pandas dataframes.
 

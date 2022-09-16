@@ -111,7 +111,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       batch: Sequence[ExampleT],
       model: ModelT,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: bool = False) -> Iterable[PredictionT]:
+      drop_example: Optional[bool] = False) -> Iterable[PredictionT]:
     """Runs inferences on a batch of examples.
 
     Args:
@@ -191,7 +191,8 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       batch: Sequence[Tuple[KeyT, ExampleT]],
       model: ModelT,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: bool = False) -> Iterable[Tuple[KeyT, PredictionT]]:
+      drop_example: Optional[bool] = False
+  ) -> Iterable[Tuple[KeyT, PredictionT]]:
     keys, unkeyed_batch = zip(*batch)
     return zip(
         keys, self._unkeyed.run_inference(unkeyed_batch, model, inference_args))
@@ -246,7 +247,7 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]],
       model: ModelT,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: bool = None
+      drop_example: Optional[bool] = False
   ) -> Union[Iterable[PredictionT], Iterable[Tuple[KeyT, PredictionT]]]:
     # Really the input should be
     #    Union[Sequence[ExampleT], Sequence[Tuple[KeyT, ExampleT]]]
@@ -295,7 +296,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       clock=time,
       inference_args: Optional[Dict[str, Any]] = None,
       metrics_namespace: Optional[str] = None,
-      drop_example: bool = False,
+      drop_example: Optional[bool] = False,
   ):
     """A transform that takes a PCollection of examples (or features) to be used
     on an ML model. It will then output inferences (or predictions) for those
@@ -413,8 +414,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       self,
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock,
-      metrics_namespace,
-      drop_example=False):
+      metrics_namespace: Optional[str],
+      drop_example: Optional[bool] = False):
     """A DoFn implementation generic to frameworks.
 
       Args:
