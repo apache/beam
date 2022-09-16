@@ -458,10 +458,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def process(self, batch, inference_args):
     start_time = _to_microseconds(self._clock.time_ns())
     result_generator = self._model_handler.run_inference(
-        batch=batch,
-        model=self._model,
-        inference_args=inference_args,
-        drop_example=self._drop_example)
+        batch, self._model, inference_args, self._drop_example)
     predictions = list(result_generator)
 
     end_time = _to_microseconds(self._clock.time_ns())

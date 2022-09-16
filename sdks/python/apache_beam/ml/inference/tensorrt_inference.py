@@ -225,7 +225,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       self,
       batch: Sequence[np.ndarray],
       engine: TensorRTEngine,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[Dict[str, Any]] = None,
+      drop_example: bool = False,
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
@@ -272,7 +273,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
 
       return [
           PredictionResult(
-              x, [prediction[idx] for prediction in cpu_allocations]) for idx,
+              x if not drop_example else None,
+              [prediction[idx] for prediction in cpu_allocations]) for idx,
           x in enumerate(batch)
       ]
 
@@ -287,4 +289,4 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     """
     Returns a namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferenceTensorRT'
+    return 'BeamML_TensorRT'
