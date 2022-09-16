@@ -1,0 +1,39 @@
+apiVersion: memsql.com/v1alpha1
+kind: MemsqlCluster
+metadata:
+  name: sdb-cluster
+spec:
+  license: BDMwMzMyOTEyNjMwYzQ1ODE5MDdjNThiYjU1MGM5YTAyAAAAAAAAAAAEAAAAAAAAAAwwNQIZAKqnuBG9UX3K2enIHyshQGHZIjQiCZpqlwIYE8t4J8VewDLm2m4+4i8KorAIZsJd8j6EAA==
+  adminHashedPassword: "*9177CC8207174BDBB5ED66B2140C75171283F15D"
+  nodeImage:
+    repository: singlestore/node
+    tag: alma-7.5.22-8b82f8a84e
+
+  redundancyLevel: 1
+
+  serviceSpec:
+    objectMetaOverrides:
+      labels:
+        custom: label
+      annotations:
+        custom: annotations
+
+  aggregatorSpec:
+    count: 1
+    height: 0.5
+    storageGB: 16
+    storageClass: standard
+
+    objectMetaOverrides:
+      labels:
+        name: node-sdb-cluster-master
+
+  leafSpec:
+    count: 1
+    height: 0.5
+    storageGB: 32
+    storageClass: standard
+
+    objectMetaOverrides:
+      labels:
+        name: node-sdb-cluster-leaf

@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sdb-operator
+  labels:
+    app.kubernetes.io/component: operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: sdb-operator
+  template:
+    metadata:
+      labels:
+        name: sdb-operator
+    spec:
+      serviceAccountName: sdb-operator
+      containers:
+        - name: sdb-operator
+          image: singlestore/operator:3.0.32-db8f5aff
+          imagePullPolicy: Always
+          args: [
+            # Cause the operator to merge rather than replace annotations on services
+            "--merge-service-annotations",
+            # Allow the process inside the container to have read/write access to the `/var/lib/memsql` volume.
+            "--fs-group-id", "5555",
+            "--cluster-id", "sdb-cluster",
+
+            # Args below are for local dev
+            "--dev-endpoint", "172.42.0.2",
+            "--dev-disable-scheduling-details",
+            "--cores-per-unit", "0",
+            "--memory-per-unit", "0"
+          ]
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "sdb-operator"
