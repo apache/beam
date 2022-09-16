@@ -240,7 +240,7 @@ class PlaygroundController with ChangeNotifier {
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
-        filterOutput(selectedOutputFilterType ?? OutputType.all);
+        filterOutput(selectedOutputFilterType);
 
         if (event.isFinished && onFinish != null) {
           onFinish();
