@@ -170,6 +170,7 @@ public class KafkaIOIT {
         ImmutableMap.of(
             1000L, "4507649971ee7c51abbb446e65a5c660",
             100_000_000L, "0f12c27c9a7672e14775594be66cad9a");
+    sourceOptions.numRecords = 1000;
     expectedHashcode = getHashForRecordCount(sourceOptions.numRecords, expectedHashes);
     PCollection<String> hashcode = writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
