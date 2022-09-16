@@ -85,7 +85,7 @@ def _to_microseconds(time_ns: int) -> int:
 def _convert_to_result(
     batch: Iterable,
     predictions: Union[Iterable, Dict[Any, Iterable]],
-    drop_example: bool = False) -> Iterable[PredictionResult]:
+    drop_example: Optional[bool] = False) -> Iterable[PredictionResult]:
   if isinstance(predictions, dict):
     # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
     # key_type2: Iterable<val_type2>, ...} where each Iterable is of
