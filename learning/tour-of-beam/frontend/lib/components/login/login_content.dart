@@ -98,25 +98,25 @@ class _BrandedLoginButtons extends StatelessWidget {
     const minimumSize = MaterialStatePropertyAll(Size(double.infinity, 0));
 
     final darkButtonStyle = ButtonStyle(
+      backgroundColor: const MaterialStatePropertyAll(BeamColors.darkGrey),
       minimumSize: minimumSize,
       padding: padding,
       textStyle: textStyle,
-      backgroundColor: const MaterialStatePropertyAll(BeamColors.darkGrey),
     );
     final githubLightButtonStyle = ButtonStyle(
+      backgroundColor: const MaterialStatePropertyAll(BeamColors.darkBlue),
       minimumSize: minimumSize,
       padding: padding,
       textStyle: textStyle,
-      backgroundColor: const MaterialStatePropertyAll(BeamColors.darkBlue),
     );
     final googleLightButtonStyle = ButtonStyle(
-      minimumSize: minimumSize,
-      padding: padding,
+      backgroundColor: const MaterialStatePropertyAll(BeamColors.white),
       elevation: const MaterialStatePropertyAll(BeamSizes.size4),
       foregroundColor: const MaterialStatePropertyAll(BeamColors.black),
-      textStyle: textStyle,
+      minimumSize: minimumSize,
       overlayColor: MaterialStatePropertyAll(Theme.of(context).hoverColor),
-      backgroundColor: const MaterialStatePropertyAll(BeamColors.white),
+      padding: padding,
+      textStyle: textStyle,
     );
 
     return Column(

@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
 
-// This is for demo only. Need a thought-though import in production.
+// This is for demo only. Need a thought-through import in production.
 
 const String kApiClientURL =
     'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
@@ -34,7 +34,7 @@ const String kApiScioClientURL =
     'https://backend-scio-beta-dot-apache-beam-testing.appspot.com';
 
 class PlaygroundDemoWidget extends StatefulWidget {
-  const PlaygroundDemoWidget({Key? key}) : super(key: key);
+  const PlaygroundDemoWidget({super.key});
 
   @override
   State<PlaygroundDemoWidget> createState() => _PlaygroundDemoWidgetState();
@@ -75,7 +75,7 @@ class _PlaygroundDemoWidgetState extends State<PlaygroundDemoWidget> {
     );
 
     playgroundController.examplesLoader.load(
-      ExamplesLoadingDescriptor(
+      const ExamplesLoadingDescriptor(
         descriptors: [
           CatalogDefaultExampleLoadingDescriptor(sdk: Sdk.java),
         ],
