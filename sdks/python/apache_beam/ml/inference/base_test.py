@@ -72,14 +72,13 @@ class FakeModelHandlerWithPredictionResult(base.ModelHandler[int,
       batch: Sequence[int],
       model: FakeModel,
       inference_args=None,
-      drop_example=False) -> Iterable[int]:
+      drop_example=False) -> Iterable[base.PredictionResult]:
     if self._fake_clock:
       self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
-    for example in batch:
-      if not drop_example:
-        yield base.PredictionResult(example, model.predict(example))
-      else:
-        yield base.PredictionResult(None, model.predict(example))
+
+    predictions = [model.predict(example) for example in batch]
+    return base._convert_to_result(
+        batch=batch, predictions=predictions, drop_example=drop_example)
 
 
 class FakeClock:
