@@ -153,8 +153,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       inference_args: Non-batchable arguments required as inputs to the model's
         forward() function. Unlike Tensors in `batch`, these parameters will
         not be dynamically batched
-        drop_example: Enable this to drop the example from PredictionResult
-
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
     Returns:
       An Iterable of type PredictionResult.
     """
@@ -262,8 +262,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       inference_args: Non-batchable arguments required as inputs to the model's
         forward() function. Unlike Tensors in `batch`, these parameters will
         not be dynamically batched
-        drop_example: Enable this to drop the example from PredictionResult
-
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
 
     Returns:
       An Iterable of type PredictionResult.

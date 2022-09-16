@@ -107,7 +107,8 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model: A numpy model or pipeline. Must implement predict(X).
         Where the parameter X is a numpy array.
       inference_args: Any additional arguments for an inference.
-        drop_example: Enable this to drop the example from PredictionResult
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
 
     Returns:
       An Iterable of type PredictionResult.
@@ -178,8 +179,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       model: A dataframe model or pipeline. Must implement predict(X).
         Where the parameter X is a pandas dataframe.
       inference_args: Any additional arguments for an inference.
-        drop_example: Enable this to drop the example from PredictionResult
-
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
     Returns:
       An Iterable of type PredictionResult.
     """

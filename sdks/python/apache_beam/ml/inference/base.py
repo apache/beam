@@ -119,8 +119,8 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       model: The model used to make inferences.
       inference_args: Extra arguments for models whose inference call requires
         extra parameters.
-        drop_example: Enable this to drop the example from PredictionResult
-
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
     Returns:
       An Iterable of Predictions.
     """
@@ -314,8 +314,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
         metrics_namespace: Namespace of the transform to collect metrics.
-        drop_example: Enable this to drop the example from PredictionResult
-    """
+        drop_example: Boolean flag indicating whether to
+          drop the example from PredictionResult    """
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
@@ -421,8 +421,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         model_handler: An implementation of ModelHandler.
         clock: A clock implementing time_ns. *Used for unit testing.*
         metrics_namespace: Namespace of the transform to collect metrics.
-        drop_example: Enable this to drop the example from PredictionResult
-    """
+        drop_example: Boolean flag indicating whether to
+          drop the example from PredictionResult    """
     self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
     self._clock = clock
