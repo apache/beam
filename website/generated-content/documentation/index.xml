@@ -6814,7 +6814,7 @@ as &lt;code>DoFn&lt;/code>, &lt;code>CombineFn&lt;/code>, and &lt;code>WindowFn&
 however, your subclass must not add any non-serializable members.&lt;/span>
 &lt;span class="language-go">Funcs are serializable as long as
 they are registered with &lt;code>register.FunctionXxY&lt;/code> (for simple functions) or
-&lt;code>register.DoFnXxY&lt;/code> (for sturctural DoFns), and are not closures. Structural
+&lt;code>register.DoFnXxY&lt;/code> (for structural DoFns), and are not closures. Structural
 &lt;code>DoFn&lt;/code>s will have all exported fields serialized. Unexported fields are unable to
 be serialized, and will be silently ignored.&lt;/span>
 &lt;span class="language-typescript">
