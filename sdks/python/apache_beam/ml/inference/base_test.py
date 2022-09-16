@@ -56,9 +56,8 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       yield model.predict(example)
 
 
-class FakeModelHandlerWithPredictionResult(base.ModelHandler[int,
-                                                             int,
-                                                             FakeModel]):
+class FakeModelHandlerReturnsPredictionResult(
+    base.ModelHandler[int, base.PredictionResult, FakeModel]):
   def __init__(self, clock=None):
     self._fake_clock = clock
 
@@ -286,7 +285,7 @@ class RunInferenceBaseTest(unittest.TestCase):
 
     pipeline = TestPipeline()
     examples = [1, 3, 5]
-    model_handler = FakeModelHandlerWithPredictionResult()
+    model_handler = FakeModelHandlerReturnsPredictionResult()
     _ = (
         pipeline | 'keyed' >> beam.Create(examples)
         | 'RunKeyed' >> base.RunInference(model_handler, drop_example=True)
