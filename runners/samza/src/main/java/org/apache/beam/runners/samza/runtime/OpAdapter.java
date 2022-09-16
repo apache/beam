@@ -55,7 +55,6 @@ public class OpAdapter<InT, OutT, K>
 
   private final Op<InT, OutT, K> op;
 
-
   private transient OpEmitter<OutT> emitter;
   private transient Config config;
   private transient Context context;
@@ -164,8 +163,8 @@ public class OpAdapter<InT, OutT, K>
     @Override
     public void emitFuture(CompletionStage<Collection<WindowedValue<OutT>>> resultFuture) {
       final CompletionStage<Collection<OpMessage<OutT>>> resultFutureWrapped =
-          resultFuture.thenApply(res ->
-              res.stream().map(OpMessage::ofElement).collect(Collectors.toList()));
+          resultFuture.thenApply(
+              res -> res.stream().map(OpMessage::ofElement).collect(Collectors.toList()));
 
       outputFuture = FutureUtils.combineFutures(outputFuture, resultFutureWrapped);
     }
@@ -201,7 +200,7 @@ public class OpAdapter<InT, OutT, K>
     public Long collectWatermark() {
       final Instant watermark = outputWatermark;
       outputWatermark = null;
-      return watermark == null? null : watermark.getMillis();
+      return watermark == null ? null : watermark.getMillis();
     }
   }
 }

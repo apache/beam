@@ -151,7 +151,9 @@ public class SamzaDoFnRunners {
       doFnRunnerWithStates = doFnRunnerWithMetrics;
     }
 
-    return new AsyncDoFnRunner<>(doFnRunnerWithStates, emitter);
+    return pipelineOptions.getBundleThreadNum() > 1
+        ? new AsyncDoFnRunner<>(doFnRunnerWithStates, emitter, pipelineOptions)
+        : doFnRunnerWithStates;
   }
 
   /** Creates a {@link StepContext} that allows accessing state and timer internals. */

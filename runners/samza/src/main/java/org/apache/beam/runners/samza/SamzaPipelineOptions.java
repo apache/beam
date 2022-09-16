@@ -129,4 +129,10 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   long getMaxBundleTimeMs();
 
   void setMaxBundleTimeMs(long maxBundleTimeMs);
+
+  @Description("The number of threads to execute elements in a bundle in parallel.")
+  @Default.Integer(0)
+  int getBundleThreadNum();
+
+  void setBundleThreadNum(int bundleThreadNum);
 }

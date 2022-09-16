@@ -18,11 +18,13 @@
 package org.apache.beam.runners.samza.runtime;
 
 import java.util.Collection;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -34,9 +36,11 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
   private final ExecutorService executor;
   private final OpEmitter<OutT> emitter;
 
-  public AsyncDoFnRunner(DoFnRunner<InT, OutT> runner, OpEmitter<OutT> emitter) {
+  public AsyncDoFnRunner(
+      DoFnRunner<InT, OutT> runner, OpEmitter<OutT> emitter, SamzaPipelineOptions options) {
     this.underlying = runner;
-    this.executor = Executors.newFixedThreadPool(10);
+    // TODO: change to key-based thread pool if needed
+    this.executor = Executors.newFixedThreadPool(options.getBundleThreadNum());
     this.emitter = emitter;
   }
 
@@ -50,22 +54,23 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
     final CompletableFuture<Void> future =
         CompletableFuture.runAsync(
             () -> {
-              /**
-               * int r = new Random().nextInt(10); try { Thread.sleep(r); } catch
-               * (InterruptedException e) { throw new RuntimeException(e); }
-               */
+              int r = new Random().nextInt(10);
+              try {
+                Thread.sleep(r);
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+
               underlying.processElement(elem);
             },
             executor);
 
     final CompletableFuture<Collection<WindowedValue<OutT>>> outputFutures =
-        future.thenApply(x -> {
-            Collection<WindowedValue<OutT>> out = emitter.collectOutput()
-                .stream()
-                .map(OpMessage::getElement)
-                .collect(Collectors.toList());
-            return out;
-        });
+        future.thenApply(
+            x ->
+                emitter.collectOutput().stream()
+                    .map(OpMessage::getElement)
+                    .collect(Collectors.toList()));
 
     emitter.emitFuture(outputFutures);
   }

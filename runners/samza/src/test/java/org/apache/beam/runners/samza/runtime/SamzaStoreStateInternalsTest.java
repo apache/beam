@@ -54,12 +54,10 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
@@ -115,19 +113,14 @@ public class SamzaStoreStateInternalsTest implements Serializable {
             SamzaMapState<String, Integer> state = (SamzaMapState<String, Integer>) mapState;
             KV<String, Integer> value = c.element().getValue();
             state.put(value.getKey(), value.getValue());
-            synchronized (this) {
-              count.add(1);
-            }
-            int cc = count.read();
-            System.out.println("cc " + cc);
-            if (cc >= 4) {
+            count.add(1);
+            if (count.read() >= 4) {
               final List<KV<String, Integer>> content = new ArrayList<>();
               final Iterator<Map.Entry<String, Integer>> iterator = state.readIterator().read();
               while (iterator.hasNext()) {
                 Map.Entry<String, Integer> entry = iterator.next();
                 content.add(KV.of(entry.getKey(), entry.getValue()));
                 c.output(KV.of(entry.getKey(), entry.getValue()));
-                System.out.println("output " + entry);
               }
 
               assertEquals(
@@ -144,18 +137,11 @@ public class SamzaStoreStateInternalsTest implements Serializable {
                     KV.of("hello", KV.of("b", 42)),
                     KV.of("hello", KV.of("b", 42)),
                     KV.of("hello", KV.of("c", 12))))
-            .apply(ParDo.of(fn))
-            .apply(MapElements
-                .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
-                .via(x -> {
-                  System.out.println("output " + x);
-                  return x;
-                }));
+            .apply(ParDo.of(fn));
 
-//    PAssert.that(output)
-//        .containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12));
+    PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12));
 
-    pipeline.run().waitUntilFinish();
+    pipeline.run();
   }
 
   @Test
@@ -182,9 +168,7 @@ public class SamzaStoreStateInternalsTest implements Serializable {
             ReadableState<Boolean> isEmpty = state.isEmpty();
             state.add(c.element().getValue());
             assertFalse(isEmpty.read());
-            synchronized (this) {
-              count.add(1);
-            }
+            count.add(1);
             if (count.read() >= 4) {
               final Set<Integer> content = new HashSet<>();
               final Iterator<Integer> iterator = state.readIterator().read();
