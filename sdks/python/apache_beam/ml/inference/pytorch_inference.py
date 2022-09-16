@@ -28,9 +28,9 @@ from typing import Sequence
 
 import torch
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.base import _convert_to_result
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import _convert_to_result
 from apache_beam.utils.annotations import experimental
 
 __all__ = [
