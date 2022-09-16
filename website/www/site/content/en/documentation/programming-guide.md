@@ -3726,77 +3726,99 @@ a SQL expression.
 Beam does not yet support Schema transforms natively in Go. However, it will be implemented with the following behavior.
 {{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 #### 6.6.1. Field selection syntax
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 The advantage of schemas is that they allow referencing of element fields by name. Beam provides a selection syntax for
 referencing fields, including nested and repeated fields. This syntax is used by all of the schema transforms when
 referencing the fields they operate on. The syntax can also be used inside of a DoFn to specify which schema fields to
 process.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 Addressing fields by name still retains type safety as Beam will check that schemas match at the time the pipeline graph
 is constructed. If a field is specified that does not exist in the schema, the pipeline will fail to launch. In addition,
 if a field is specified with a type that does not match the type of that field in the schema, the pipeline will fail to
 launch.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 The following characters are not allowed in field names: . *  [ ] { }
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 ##### **Top-level fields**
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 In order to select a field at the top level of a schema, the name of the field is specified. For example, to select just
 the user ids from a `PCollection` of purchases one would write (using the `Select` transform)
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("userId"));
 {{< /highlight >}}
 
-{{< highlight py >}}
-input_pc = ... # {"user_id": ..., "bank": ..., "purchase_amount": ...}
-output_pc = input_pc | beam.Select(user_id=lambda item: str(item["user_id"]))                                            
-{{< /highlight >}}
-
+{{< paragraph class="language-java" >}}
 ##### **Nested fields**
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
  shipping address one would write
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
 	
-{{< highlight py >}} 
+<!-- {{< highlight py >}} 
 input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_address.post_code"]))                                               
-{{< /highlight >}}
-
+{{< /highlight >}} -->
+{{< paragraph class="language-java" >}}
 ##### **Wildcards**
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 The * operator can be specified at any nesting level to represent all fields at that level. For example, to select all
 shipping-address fields one would write
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("shippingAddress.*"));
 {{< /highlight >}}
 
-{{< highlight py >}} 
+<!-- {{< highlight py >}} 
 input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Select(shipping_address=lambda item: str(item["shipping_address.*"]))                                               
-{{< /highlight >}}
-
+{{< /highlight >}} -->
+{{< paragraph class="language-java" >}}
 ##### **Arrays**
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 An array field, where the array element type is a row, can also have subfields of the element type addressed. When
 selected, the result is an array of the selected subfield type. For example
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("transactions[].bank"));
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 Will result in a row containing an array field with element-type string, containing the list of banks for each
 transaction.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 While the use of  [] brackets in the selector is recommended, to make it clear that array elements are being selected,
 they can be omitted for brevity. In the future, array slicing will be supported, allowing selection of portions of the
 array.
+{{< /paragraph >}}
+
 
 ##### **Maps**
 
