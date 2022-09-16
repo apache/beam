@@ -89,21 +89,23 @@ type PaneInfo struct {
 	Index, NonSpeculativeIndex int64
 }
 
+// Timers is the actual type used for standard timer coder.
 type Timers struct {
 	Key                          []byte // elm type.
 	Tag                          string
 	Windows                      []byte // []typex.Window
 	Clear                        bool
 	FireTimestamp, HoldTimestamp mtime.Time
-	PaneInfo                     PaneInfo
+	Pane                         PaneInfo
 }
 
+// TimerMap is a placeholder for timer details used in encoding/decoding.
 type TimerMap struct {
 	Key, Tag                     string
 	Windows                      []Window // []typex.Window
 	Clear                        bool
 	FireTimestamp, HoldTimestamp mtime.Time
-	PaneInfo                     PaneInfo
+	Pane                         PaneInfo
 }
 
 // KV, Nullable, CoGBK, WindowedValue represent composite generic types. They are not used

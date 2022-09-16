@@ -1242,7 +1242,7 @@ func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.
 		if err := coder.EncodeEventTime(tm.HoldTimestamp, &b); err != nil {
 			return errors.WithContext(err, "error encoding hold timestamp")
 		}
-		if err := coder.EncodePane(tm.PaneInfo, &b); err != nil {
+		if err := coder.EncodePane(tm.Pane, &b); err != nil {
 			return errors.WithContext(err, "error encoding paneinfo")
 		}
 	}
@@ -1255,54 +1255,53 @@ func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.
 func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (typex.TimerMap, error) {
 	tm := typex.TimerMap{}
 
-	if fv, err := dec.Decode(r); err != nil {
+	fv, err := dec.Decode(r)
+	if err != nil {
 		return tm, errors.WithContext(err, "error decoding timer key")
-	} else {
-		tm.Key = fv.Elm.(string)
 	}
+	tm.Key = fv.Elm.(string)
 
-	if s, err := coder.DecodeStringUTF8(r); err != nil && err != io.EOF {
-		return tm, errors.WithContext(err, "error decoding tag")
+	s, err := coder.DecodeStringUTF8(r)
+	if err != nil && err != io.EOF {
+		return tm, errors.WithContext(err, "error decoding timer tag")
 	} else if err == io.EOF {
-		tm.Tag = ""
-	} else {
 		// when tag is empty
-		tm.Tag = s
+		tm.Tag = ""
 	}
+	tm.Tag = s
 
-	if w, err := win.Decode(r); err != nil {
+	w, err := win.Decode(r)
+	if err != nil {
 		return tm, errors.WithContext(err, "error decoding timer window")
-	} else {
-		tm.Windows = w
 	}
+	tm.Windows = w
 
-	if c, err := coder.DecodeBool(r); err != nil {
+	c, err := coder.DecodeBool(r)
+	if err != nil {
 		return tm, errors.WithContext(err, "error decoding clear")
-	} else {
-		tm.Clear = c
 	}
-
+	tm.Clear = c
 	if tm.Clear {
 		return tm, nil
 	}
 
-	if ft, err := coder.DecodeEventTime(r); err != nil && err != io.EOF {
+	ft, err := coder.DecodeEventTime(r)
+	if err != nil && err != io.EOF {
 		return tm, errors.WithContext(err, "error decoding ft")
-	} else {
-		tm.FireTimestamp = ft
 	}
+	tm.FireTimestamp = ft
 
-	if ht, err := coder.DecodeEventTime(r); err != nil && err != io.EOF {
+	ht, err := coder.DecodeEventTime(r)
+	if err != nil && err != io.EOF {
 		return tm, errors.WithContext(err, "error decoding ht")
-	} else {
-		tm.HoldTimestamp = ht
 	}
+	tm.HoldTimestamp = ht
 
-	if pn, err := coder.DecodePane(r); err != nil && err != io.EOF {
+	pn, err := coder.DecodePane(r)
+	if err != nil && err != io.EOF {
 		return tm, errors.WithContext(err, "error decoding pn")
-	} else {
-		tm.PaneInfo = pn
 	}
+	tm.Pane = pn
 
 	return tm, nil
 }
