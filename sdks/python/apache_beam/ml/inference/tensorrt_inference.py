@@ -33,6 +33,7 @@ import numpy as np
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import _convert_to_result
 from apache_beam.utils.annotations import experimental
 
 LOGGER = logging.getLogger("TensorRTEngineHandlerNumPy")
@@ -271,12 +272,11 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
                 stream))
       _assign_or_fail(cuda.cuStreamSynchronize(stream))
 
-      return [
-          PredictionResult(
-              x if not drop_example else None,
-              [prediction[idx] for prediction in cpu_allocations]) for idx,
-          x in enumerate(batch)
-      ]
+      predictions = []
+      for idx in range(len(batch)):
+        predictions.append([prediction[idx] for prediction in cpu_allocations])
+
+      return _convert_to_result(batch, predictions, drop_example=drop_example)
 
   def get_num_bytes(self, batch: Sequence[np.ndarray]) -> int:
     """
