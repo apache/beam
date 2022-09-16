@@ -222,8 +222,8 @@ public class KafkaIOIT {
     // Map of hashes of set size collections with 100b records - 10b key, 90b values.
     Map<Long, String> expectedHashes =
         ImmutableMap.of(
-            1000L, "4507649971ee7c51abbb446e65a5c660",
-            100_000_000L, "0f12c27c9a7672e14775594be66cad9a");
+            1000L, "84a4eebadc22dbc9bd25607f1b64b549",
+            100_000_000L, "966684bbc4d071c54466678005c86eec");
     expectedHashcode = getHashForRecordCount(sourceOptions.numRecords, expectedHashes);
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
