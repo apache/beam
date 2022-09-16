@@ -74,6 +74,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
 
       pcoll | RunInference(PytorchModelHandlerTensor(state_dict_path="my_uri"))
 
+    See https://pytorch.org/tutorials/beginner/saving_loading_models.html
+    for details
+    
     Args:
       state_dict_path: path to the saved dictionary of the model state.
       model_class: class of the Pytorch model that defines the model
@@ -84,11 +87,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
 
-    Supported Versions:
-      PyTorch 1.9 and 1.10 are currently supported for Python 3.7, 3.8, and 3.9
-
-    See https://pytorch.org/tutorials/beginner/saving_loading_models.html
-    for details
+    **Supported Versions:** PyTorch 1.9 and 1.10 are currently supported for 
+      Python 3.7, 3.8, and 3.9
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU' and torch.cuda.is_available():
@@ -190,8 +190,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
 
-    Supported Versions:
-      PyTorch 1.9 and 1.10 are currently supported for Python 3.7, 3.8, and 3.9
+    **Supported Versions:** PyTorch 1.9 and 1.10 are currently supported for 
+      Python 3.7, 3.8, and 3.9
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU' and torch.cuda.is_available():
