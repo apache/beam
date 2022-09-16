@@ -325,7 +325,7 @@ packages:
     source: hosted
     version: "2.0.2"
   google_fonts:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: google_fonts
       url: "https://pub.dartlang.org"
@@ -925,5 +925,5 @@ packages:
     source: hosted
     version: "3.1.1"
 sdks:
-  dart: ">=2.17.6 <3.0.0"
-  flutter: ">=3.3.1"
+  dart: ">=2.18.1 <3.0.0"
+  flutter: ">=3.3.2"

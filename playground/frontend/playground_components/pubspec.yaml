@@ -20,8 +20,8 @@ description: Reusable Playground components
 version: 0.0.1
 
 environment:
-  sdk: '>=2.17.6 <3.0.0'
-  flutter: '>=3.3.1'
+  sdk: '>=2.18.1 <3.0.0'
+  flutter: '>=3.3.2'
 
 dependencies:
   aligned_dialog: ^0.0.6
@@ -40,8 +40,8 @@ dependencies:
   grpc: ^3.0.2
   highlight: ^0.7.0
   meta: ^1.7.0
-  provider: ^6.0.3
   protobuf: ^2.1.0
+  provider: ^6.0.3
   shared_preferences: ^2.0.15
 
 dev_dependencies:
