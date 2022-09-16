@@ -1,0 +1,64 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+name: Java VR Spark PostCommit
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: ['v*']
+
+
+jobs:
+  set-properties:
+    runs-on: self-hosted
+    outputs:
+      properties: ${{ steps.test-properties.outputs.properties }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - id: test-properties
+        uses: ./.github/actions/setup-default-test-properties
+
+  java_vr_spark:
+    needs: set-properties
+    name: Run Spark ValidatesRunner
+    runs-on: self-hosted
+    strategy:
+      fail-fast: true
+      matrix:
+        spark-versions: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SPARK_VERSIONS}}
+    timeout-minutes: 120
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Setup environment
+        uses: ./.github/actions/setup-self-hosted-action
+      - name: Run :runners:spark:${{ matrix.spark-versions }}:validatesRunner
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :runners:spark:${{ matrix.spark-versions }}:validatesRunner

@@ -1,0 +1,73 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+name: Java VR Spark Java11 PostCommit
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: ['v*']
+
+jobs:
+  java_vr_spark_java11:
+    name: Run Spark ValidatesRunner Java 11
+    runs-on: self-hosted
+    timeout-minutes: 270
+    steps:
+      - name: Get number of available processors
+        id: get_available_processors
+        shell: bash
+        run: |
+          CORES=$(grep -c ^processor /proc/cpuinfo)
+          BALANCE_CORES=$((3*CORES))
+          echo $BALANCE_CORES
+          echo "::set-output name=BALANCE_CORES::$BALANCE_CORES"
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Setup environment
+        uses: ./.github/actions/setup-self-hosted-action
+      - name: Spark 3 Test Jobs
+        shell: bash
+        run: |
+          ./gradlew :runners:spark:3:jar
+          sleep 5
+          ./gradlew :runners:spark:3:testJar
+      #Update JAVA_HOME with Java11 version
+      - name: Update and Set Java11 Version
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 11
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # gradle-command-action plugin and github's provided maven
+        # settings.xml file
+        shell: bash
+        run: rm ~/.m2/settings.xml
+      - name: Run :runners:spark:3:validatesRunner
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :runners:spark:3:validatesRunner
+          max-workers: ${{ steps.get_available_processors.outputs.BALANCE_CORES }}
+          arguments: -x shadowJar -x shadowTestJar -x compileJava -x compileTestJava -x jar -x testJar -x classes -x testClasses
