@@ -116,7 +116,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
 
-    return _convert_to_result(batch, predictions)
+    return _convert_to_result(batch, predictions, drop_example=drop_example)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """
@@ -195,7 +195,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
         vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
     ]
 
-    return _convert_to_result(splits, predictions)
+    return _convert_to_result(splits, predictions, drop_example=drop_example)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """

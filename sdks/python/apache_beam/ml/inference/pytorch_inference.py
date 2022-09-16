@@ -166,7 +166,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       batched_tensors = torch.stack(batch)
       batched_tensors = _convert_to_device(batched_tensors, self._device)
       predictions = model(batched_tensors, **inference_args)
-      return _convert_to_result(batch, predictions)
+      return _convert_to_result(batch, predictions, drop_example=drop_example)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -287,7 +287,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         key_to_batched_tensors[key] = batched_tensors
       predictions = model(**key_to_batched_tensors, **inference_args)
 
-      return _convert_to_result(batch, predictions)
+      return _convert_to_result(batch, predictions, drop_example=drop_example)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
