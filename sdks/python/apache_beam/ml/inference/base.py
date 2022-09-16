@@ -91,22 +91,13 @@ def _convert_to_result(
     # key_type2: Iterable<val_type2>, ...} where each Iterable is of
     # length batch_size, to a list of dictionaries:
     # [{key_type1: value_type1, key_type2: value_type2}]
-    predictions_per_tensor = [
+    predictions = [
         dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
     ]
-    if not drop_example:
-      return [
-          PredictionResult(x, y) for x, y in zip(batch, predictions_per_tensor)
-      ]
-    else:
-      return [
-          PredictionResult(None, y) for x,
-          y in zip(batch, predictions_per_tensor)
-      ]
-  if not drop_example:
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
-  else:
+  if drop_example:
     return [PredictionResult(None, y) for x, y in zip(batch, predictions)]
+
+  return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
