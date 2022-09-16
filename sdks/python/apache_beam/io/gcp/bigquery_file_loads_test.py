@@ -825,20 +825,21 @@ class BigQueryFileLoadsIT(unittest.TestCase):
       }]
   })
 
-  def setUp(self):
-    self.test_pipeline = TestPipeline(is_integration_test=True)
-    self.runner_name = type(self.test_pipeline.runner).__name__
-    self.project = self.test_pipeline.get_option('project')
+  @classmethod
+  def setUpClass(cls):
+    cls.test_pipeline = TestPipeline(is_integration_test=True)
+    cls.runner_name = type(cls.test_pipeline.runner).__name__
+    cls.project = cls.test_pipeline.get_option('project')
 
-    self.dataset_id = '%s%s%d' % (
-        self.BIG_QUERY_DATASET_ID,
+    cls.dataset_id = '%s%s%d' % (
+        cls.BIG_QUERY_DATASET_ID,
         str(int(time.time())),
         random.randint(0, 10000))
-    self.bigquery_client = bigquery_tools.BigQueryWrapper()
-    self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
-    self.output_table = "%s.output_table" % (self.dataset_id)
+    cls.bigquery_client = bigquery_tools.BigQueryWrapper()
+    cls.bigquery_client.get_or_create_dataset(cls.project, cls.dataset_id)
+    cls.output_table = "%s.output_table" % (cls.dataset_id)
     _LOGGER.info(
-        "Created dataset %s in project %s", self.dataset_id, self.project)
+        "Created dataset %s in project %s", cls.dataset_id, cls.project)
 
   @pytest.mark.it_postcommit
   def test_multiple_destinations_transform(self):
@@ -1054,8 +1055,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     # If one of the import jobs fails, then other jobs must not be performed.
     # This is to avoid reinsertion of some records when a pipeline fails and
     # is rerun.
-    output_table_1 = '%s%s' % (self.output_table, 1)
-    output_table_2 = '%s%s' % (self.output_table, 2)
+    output_table_1 = '%s%s' % (self.output_table, "fail_1")
+    output_table_2 = '%s%s' % (self.output_table, "fail_2")
 
     self.bigquery_client.get_or_create_table(
         self.project,
@@ -1105,7 +1106,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
 
     hamcrest_assert(p, all_of(*pipeline_verifiers))
 
-  def tearDown(self):
+  @classmethod
+  def tearDownClass(self):
     request = bigquery_api.BigqueryDatasetsDeleteRequest(
         projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
     try:
