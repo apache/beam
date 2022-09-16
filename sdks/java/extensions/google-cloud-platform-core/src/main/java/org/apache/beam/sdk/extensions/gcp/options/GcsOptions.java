@@ -70,7 +70,7 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   void setExecutorService(ExecutorService value);
 
-  //TODO update docs
+  // TODO update docs
   /**
    * The ExecutorService instance to use to create threads, can be overridden to specify an
    * ExecutorService that is compatible with the user's environment. If unset, the default is to
@@ -168,14 +168,14 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
        * them in forward order thus requiring enough threads so that each step's writers
        * can be active.
        */
-
-      return new ThreadPoolExecutor(
-          0,
-          Integer.MAX_VALUE, // Allow an unlimited number of re-usable threads.
-          Long.MAX_VALUE,
-          TimeUnit.NANOSECONDS, // Keep non-core threads alive forever.
-          new SynchronousQueue<>(),
-          threadFactoryBuilder.build());
+      return Executors.newScheduledThreadPool(0, threadFactoryBuilder.build());
+      // return new ThreadPoolExecutor(
+      //     0,
+      //     Integer.MAX_VALUE, // Allow an unlimited number of re-usable threads.
+      //     Long.MAX_VALUE,
+      //     TimeUnit.NANOSECONDS, // Keep non-core threads alive forever.
+      //     new SynchronousQueue<>(),
+      //     threadFactoryBuilder.build());
     }
   }
 
