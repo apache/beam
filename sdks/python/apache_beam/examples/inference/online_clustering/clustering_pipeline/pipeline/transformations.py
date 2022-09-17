@@ -85,7 +85,7 @@ class StatefulOnlineClustering(beam.DoFn):
     DATA_ITEMS_SPEC = ReadModifyWriteStateSpec("data_items", PickleCoder())
     EMBEDDINGS_SPEC = ReadModifyWriteStateSpec("embeddings", PickleCoder())
     UPDATE_COUNTER_SPEC = ReadModifyWriteStateSpec("update_counter", PickleCoder())
-
+    # [START stateful_clustering]
     def process(
         self,
         element,
@@ -141,6 +141,7 @@ class StatefulOnlineClustering(beam.DoFn):
             "id": list(collected_embeddings.keys()),
             "counter": update_counter,
         }
+        # [END stateful_clustering]
 
 
 class GetUpdates(beam.DoFn):
