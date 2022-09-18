@@ -25,12 +25,12 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
-from typing import Union
 
 import torch
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import _convert_to_result
 from apache_beam.utils.annotations import experimental
 
 __all__ = [
@@ -81,23 +81,6 @@ def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
   if examples.device != device:
     examples = examples.to(device)
   return examples
-
-
-def _convert_to_result(
-    batch: Iterable, predictions: Union[Iterable, Dict[Any, Iterable]]
-) -> Iterable[PredictionResult]:
-  if isinstance(predictions, dict):
-    # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
-    # key_type2: Iterable<val_type2>, ...} where each Iterable is of
-    # length batch_size, to a list of dictionaries:
-    # [{key_type1: value_type1, key_type2: value_type2}]
-    predictions_per_tensor = [
-        dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
-    ]
-    return [
-        PredictionResult(x, y) for x, y in zip(batch, predictions_per_tensor)
-    ]
-  return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
 
 class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
@@ -152,8 +135,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       self,
       batch: Sequence[torch.Tensor],
       model: torch.nn.Module,
-      inference_args: Optional[Dict[str, Any]] = None
-  ) -> Iterable[PredictionResult]:
+      inference_args: Optional[Dict[str, Any]] = None,
+      drop_example: Optional[bool] = False) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
@@ -170,7 +153,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       inference_args: Non-batchable arguments required as inputs to the model's
         forward() function. Unlike Tensors in `batch`, these parameters will
         not be dynamically batched
-
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
     Returns:
       An Iterable of type PredictionResult.
     """
@@ -182,7 +166,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       batched_tensors = torch.stack(batch)
       batched_tensors = _convert_to_device(batched_tensors, self._device)
       predictions = model(batched_tensors, **inference_args)
-      return _convert_to_result(batch, predictions)
+      return _convert_to_result(batch, predictions, drop_example=drop_example)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -259,7 +243,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       self,
       batch: Sequence[Dict[str, torch.Tensor]],
       model: torch.nn.Module,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[Dict[str, Any]] = None,
+      drop_example: Optional[bool] = False,
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Keyed Tensors and returns an Iterable of
@@ -277,6 +262,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       inference_args: Non-batchable arguments required as inputs to the model's
         forward() function. Unlike Tensors in `batch`, these parameters will
         not be dynamically batched
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
 
     Returns:
       An Iterable of type PredictionResult.
@@ -300,7 +287,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         key_to_batched_tensors[key] = batched_tensors
       predictions = model(**key_to_batched_tensors, **inference_args)
 
-      return _convert_to_result(batch, predictions)
+      return _convert_to_result(batch, predictions, drop_example=drop_example)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
