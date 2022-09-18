@@ -39,6 +39,7 @@ import org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.ReadWithPartitions;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
@@ -191,6 +192,8 @@ class JdbcUtil {
 
           String logicalTypeName = fieldType.getLogicalType().getIdentifier();
 
+          // Special case of Timestamp and Numeric which are logical types in Portable framework
+          // but has their own fieldType in Java.
           if (logicalTypeName.equals(MicrosInstant.IDENTIFIER)) {
             // Process timestamp of MicrosInstant kind, which should only be passed from other type
             // systems such as SQL and other Beam SDKs.
@@ -199,6 +202,10 @@ class JdbcUtil {
               java.time.Instant value =
                   element.getLogicalTypeValue(fieldWithIndex.getIndex(), java.time.Instant.class);
               ps.setTimestamp(i + 1, value == null ? null : new Timestamp(value.toEpochMilli()));
+            };
+          } else if (logicalTypeName.equals(FixedPrecisionNumeric.IDENTIFIER)) {
+            return (element, ps, i, fieldWithIndex) -> {
+              ps.setBigDecimal(i + 1, element.getDecimal(fieldWithIndex.getIndex()));
             };
           }
 

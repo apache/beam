@@ -142,6 +142,25 @@ class RunInferenceBaseTest(unittest.TestCase):
           inference_args=inference_args)
       assert_that(actual, equal_to(examples), label='assert:inferences')
 
+  def test_run_inference_metrics_with_custom_namespace(self):
+    metrics_namespace = 'my_custom_namespace'
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10]
+    pcoll = pipeline | 'start' >> beam.Create(examples)
+    _ = pcoll | base.RunInference(
+        FakeModelHandler(), metrics_namespace=metrics_namespace)
+    result = pipeline.run()
+    result.wait_until_finish()
+
+    metrics_filter = MetricsFilter().with_namespace(namespace=metrics_namespace)
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) != 0
+    assert len(metrics['distributions']) != 0
+
+    metrics_filter = MetricsFilter().with_namespace(namespace='fake_namespace')
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) == len(metrics['distributions']) == 0
+
   def test_unexpected_inference_args_passed(self):
     with self.assertRaisesRegex(ValueError, r'inference_args were provided'):
       with TestPipeline() as pipeline:

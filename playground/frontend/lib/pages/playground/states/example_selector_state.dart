@@ -17,18 +17,16 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/examples/models/category_model.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 
 class ExampleSelectorState with ChangeNotifier {
-  final PlaygroundState _playgroundState;
+  final PlaygroundController _playgroundController;
   ExampleType _selectedFilterType;
   String _filterText;
-  List<CategoryModel> categories;
+  List<CategoryWithExamples> categories;
 
   ExampleSelectorState(
-    this._playgroundState,
+    this._playgroundController,
     this.categories, [
     this._selectedFilterType = ExampleType.all,
     this._filterText = '',
@@ -48,26 +46,26 @@ class ExampleSelectorState with ChangeNotifier {
     notifyListeners();
   }
 
-  void setCategories(List<CategoryModel>? categories) {
-    this.categories = categories ?? [];
+  void setCategories(List<CategoryWithExamples> categories) {
+    this.categories = categories;
     notifyListeners();
   }
 
   void sortCategories() {
-    final categories = _playgroundState.exampleState.getCategories(
-      _playgroundState.sdk,
+    final categories = _playgroundController.exampleCache.getCategories(
+      _playgroundController.sdk,
     );
 
     final sortedCategories = categories
-        .map((category) => CategoryModel(
-            name: category.name,
+        .map((category) => CategoryWithExamples(
+            title: category.title,
             examples: _sortCategoryExamples(category.examples)))
         .where((category) => category.examples.isNotEmpty)
         .toList();
     setCategories(sortedCategories);
   }
 
-  List<ExampleModel> _sortCategoryExamples(List<ExampleModel> examples) {
+  List<ExampleBase> _sortCategoryExamples(List<ExampleBase> examples) {
     final isAllFilterType = selectedFilterType == ExampleType.all;
     final isFilterTextEmpty = filterText.isEmpty;
     if (isAllFilterType && isFilterTextEmpty) {
@@ -89,15 +87,15 @@ class ExampleSelectorState with ChangeNotifier {
     return sortExamplesByName(sorted, filterText);
   }
 
-  List<ExampleModel> sortExamplesByType(
-    List<ExampleModel> examples,
+  List<ExampleBase> sortExamplesByType(
+    List<ExampleBase> examples,
     ExampleType type,
   ) {
     return examples.where((element) => element.type == type).toList();
   }
 
-  List<ExampleModel> sortExamplesByName(
-    List<ExampleModel> examples,
+  List<ExampleBase> sortExamplesByName(
+    List<ExampleBase> examples,
     String name,
   ) {
     return examples

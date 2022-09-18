@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNoneBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import com.google.auto.value.AutoValue;
 import com.google.gson.Gson;
@@ -40,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -102,8 +104,21 @@ public final class InfluxDBPublisher {
       Map<String, String> tags,
       Map<String, Number> fields,
       @Nullable Long timestampSecs) {
+    Preconditions.checkArgument(isNotBlank(measurement), "Measurement cannot be blank");
     return new AutoValue_InfluxDBPublisher_DataPoint(
         measurement, tags, fields, timestampSecs, TimeUnit.SECONDS);
+  }
+
+  /** Creates an InfluxDB data point. */
+  public static DataPoint dataPoint(
+      String measurement,
+      Map<String, String> tags,
+      Map<String, Number> fields,
+      @Nullable Long timestamp,
+      TimeUnit timestampUnit) {
+    Preconditions.checkArgument(isNotBlank(measurement), "Measurement cannot be blank");
+    return new AutoValue_InfluxDBPublisher_DataPoint(
+        measurement, tags, fields, timestamp, timestampUnit);
   }
 
   /** @deprecated Use {@link #publish} instead. */
@@ -117,10 +132,14 @@ public final class InfluxDBPublisher {
 
   public static void publishWithSettings(
       final Collection<NamedTestResult> results, final InfluxDBSettings settings) {
-    @SuppressWarnings("nullness")
-    Collection<DataPoint> dataPoints =
-        Collections2.transform(results, res -> res.toInfluxDBDataPoint(settings.measurement));
-    publish(settings, dataPoints);
+    if (isNotBlank(settings.measurement)) {
+      @SuppressWarnings("nullness")
+      Collection<DataPoint> dataPoints =
+          Collections2.transform(results, res -> res.toInfluxDBDataPoint(settings.measurement));
+      publish(settings, dataPoints);
+    } else {
+      LOG.warn("Missing setting InfluxDB measurement. Metrics won't be published.");
+    }
   }
 
   public static void publish(
@@ -132,7 +151,7 @@ public final class InfluxDBPublisher {
 
   private static void publishWithCheck(final InfluxDBSettings settings, final String data) {
     requireNonNull(settings, "InfluxDB settings must not be null");
-    if (isNoneBlank(settings.measurement, settings.database)) {
+    if (isNotBlank(settings.database)) {
       try {
         final HttpClientBuilder builder = provideHttpBuilder(settings);
         final HttpPost postRequest = providePOSTRequest(settings);
@@ -142,7 +161,7 @@ public final class InfluxDBPublisher {
         LOG.warn("Unable to publish metrics due to error: {}", exception.getMessage());
       }
     } else {
-      LOG.warn("Missing property -- measurement/database. Metrics won't be published.");
+      LOG.warn("Missing setting InfluxDB database. Metrics won't be published.");
     }
   }
 

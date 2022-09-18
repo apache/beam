@@ -21,6 +21,10 @@
 #   context_line: 30
 #   categories:
 #     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transform
+#     - numbers
 
 import apache_beam as beam
 

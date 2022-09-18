@@ -22,6 +22,10 @@
 #   context_line: 31
 #   categories:
 #     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transform
+#     - strings
 
 import apache_beam as beam
 
@@ -31,7 +35,8 @@ from log_elements import LogElements
 class BreakIntoWordsDoFn(beam.DoFn):
 
     def process(self, element):
-        return element.split()
+        for w in element.split():
+            yield w
 
 
 with beam.Pipeline() as p:

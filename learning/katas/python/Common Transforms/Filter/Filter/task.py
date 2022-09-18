@@ -21,6 +21,10 @@
 #   context_line: 29
 #   categories:
 #     - Filtering
+#   complexity: BASIC
+#   tags:
+#     - count
+#     - numbers
 
 import apache_beam as beam
 
@@ -31,4 +35,3 @@ with beam.Pipeline() as p:
   (p | beam.Create(range(1, 11))
      | beam.Filter(lambda num: num % 2 == 0)
      | LogElements())
-

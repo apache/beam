@@ -21,6 +21,11 @@
 #   context_line: 29
 #   categories:
 #     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - map
+#     - group
+#     - strings
 
 import apache_beam as beam
 
@@ -32,4 +37,3 @@ with beam.Pipeline() as p:
      | beam.Map(lambda word: (word[0], word))
      | beam.GroupByKey()
      | LogElements())
-

@@ -21,6 +21,10 @@
 #   context_line: 29
 #   categories:
 #     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - map
+#     - strings
 
 import apache_beam as beam
 
@@ -31,4 +35,3 @@ with beam.Pipeline() as p:
   (p | beam.Create([10, 20, 30, 40, 50])
      | beam.Map(lambda num: num * 5)
      | LogElements())
-

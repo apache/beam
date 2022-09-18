@@ -22,6 +22,10 @@
 #   context_line: 31
 #   categories:
 #     - Multiple Outputs
+#   complexity: BASIC
+#   tags:
+#     - split
+#     - numbers
 
 import apache_beam as beam
 
@@ -43,4 +47,3 @@ with beam.Pipeline() as p:
 
   results[0] | 'Log numbers > 100' >> LogElements(prefix='Number > 100: ')
   results[1] | 'Log numbers <= 100' >> LogElements(prefix='Number <= 100: ')
-

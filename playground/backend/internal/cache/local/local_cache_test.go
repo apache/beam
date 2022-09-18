@@ -16,15 +16,18 @@
 package local
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/cache"
 	"context"
 	"fmt"
-	"github.com/google/uuid"
-	"go.uber.org/goleak"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"go.uber.org/goleak"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/db/entity"
 )
 
 func samePipelineIdSlices(x, y []uuid.UUID) bool {
@@ -450,8 +453,77 @@ func TestCache_GetCatalog(t *testing.T) {
 	}
 }
 
+func TestCache_SetSdkCatalog(t *testing.T) {
+	testable := new(Cache)
+	sdks := getSDKs()
+	type args struct {
+		ctx  context.Context
+		sdks []*entity.SDKEntity
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Setting sdk catalog in the usual case",
+			args: args{
+				ctx:  context.Background(),
+				sdks: sdks,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := testable.SetSdkCatalog(tt.args.ctx, tt.args.sdks)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SetSdkCatalog() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(sdks, testable.sdkCatalog) {
+				t.Error("SetSdkCatalog() unexpected result")
+			}
+		})
+	}
+}
+
+func TestCache_GetSdkCatalog(t *testing.T) {
+	sdks := getSDKs()
+	testable := &Cache{sdkCatalog: sdks}
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name:    "Getting sdk catalog in the usual case",
+			args:    args{ctx: context.Background()},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualResult, err := testable.GetSdkCatalog(tt.args.ctx)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetSdkCatalog() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(sdks, actualResult) {
+				t.Error("GetSdkCatalog() unexpected result")
+			}
+		})
+	}
+}
+
 func TestLocalCache_startGC(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	ignoreOpenCensus := goleak.IgnoreTopFunction("go.opencensus.io/stats/view.(*worker).start")
+	defer goleak.VerifyNone(t, ignoreOpenCensus)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -631,4 +703,18 @@ func TestNew(t *testing.T) {
 			}
 		})
 	}
+}
+
+func getSDKs() []*entity.SDKEntity {
+	var sdkEntities []*entity.SDKEntity
+	for _, sdk := range pb.Sdk_name {
+		if sdk == pb.Sdk_SDK_UNSPECIFIED.String() {
+			continue
+		}
+		sdkEntities = append(sdkEntities, &entity.SDKEntity{
+			Name:           sdk,
+			DefaultExample: "MOCK_DEFAULT_EXAMPLE",
+		})
+	}
+	return sdkEntities
 }
