@@ -63,7 +63,7 @@ In order to execute our ML workflow with KFP we must perform three steps:
 2. Create the KFP pipeline by connecting the created components and specifying how inputs and outputs should be passed from between components and compiling the pipeline definition to a full pipeline definition.
 3. Execute the KFP pipeline by submitting it to a KFP client endpoint.
 
-The full example code can be found [here](sdks/python/apache_beam/examples/ml-orchestration/kfp/)
+The full example code can be found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/ml-orchestration/kfp)
 
 #### Create the KFP components
 
@@ -154,12 +154,9 @@ Finally, the defined pipeline is compiled and a `pipeline.json` specification fi
 
 Using the specification file and the snippet below, the pipeline can now be executed. Consult the [docs](https://kubeflow-pipelines.readthedocs.io/en/latest/source/kfp.client.html#kfp.Client.run_pipeline) for more information.
 {{< highlight >}}
-# create the kfp client
+# create the kfp client and experiment
 client = kfp.Client()
-try:
-    experiment = client.get_experiment(experiment_name=EXPERIMENT_NAME)
-except:
-    experiment = client.create_experiment(EXPERIMENT_NAME)
+experiment = client.create_experiment(EXPERIMENT_NAME)
 
 # add optional keyword arguments
 arguments = {}
@@ -173,7 +170,7 @@ run_result = client.run_pipeline(experiment.id,
 
 ### Tensorflow Extended (TFX)
 
-The way of working for TFX is similar to the approach for KFP as illustrated above: Define the individual workflow components, connect them in a pipeline object and run the pipeline in the target environment. However, what makes TFX different is that it has already built a set of Python packages that are libraries to create workflow components. So unlike the KFP example, we do not need to start from scratch by writing and containerizing our code. What is left for the users to do is pick which of those TFX components are relevant to their specific workflow and adapt their functionality to the specific use case using the library. The image below shows the available components and their corresponding libraries. The link with Apache Beam is that TFX relies heavily on it to implement data-parallel pipelines in these libraries. This means that components created with these libraries will need to be run on one of the support Beam runners. The full example code can again be found [here](sdks/python/apache_beam/examples/ml-orchestration/tfx/)
+The way of working for TFX is similar to the approach for KFP as illustrated above: Define the individual workflow components, connect them in a pipeline object and run the pipeline in the target environment. However, what makes TFX different is that it has already built a set of Python packages that are libraries to create workflow components. So unlike the KFP example, we do not need to start from scratch by writing and containerizing our code. What is left for the users to do is pick which of those TFX components are relevant to their specific workflow and adapt their functionality to the specific use case using the library. The image below shows the available components and their corresponding libraries. The link with Apache Beam is that TFX relies heavily on it to implement data-parallel pipelines in these libraries. This means that components created with these libraries will need to be run on one of the support Beam runners. The full example code can again be found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/ml-orchestration/tfx)
 
 
 ![TFX libraries and components](https://www.tensorflow.org/static/tfx/guide/images/libraries_components.png)
