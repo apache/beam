@@ -177,6 +177,7 @@ tasks.rat {
     exclusions.addAll(gitIgnoreExcludes)
   }
 
+  verbose.set(true)
   failOnError.set(true)
   setExcludes(exclusions)
 }
