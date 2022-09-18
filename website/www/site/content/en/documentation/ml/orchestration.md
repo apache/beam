@@ -152,7 +152,7 @@ Finally, the defined pipeline is compiled and a `pipeline.json` specification fi
 
 #### Execute the KFP pipeline
 
-Using the specification file and the snippet below, the pipeline can now be executed. Consult the [docs](https://kubeflow-pipelines.readthedocs.io/en/latest/source/kfp.client.html#kfp.Client.run_pipeline) for more information.
+Using the specification file and the snippet below with the necessary [requirements](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/ml-orchestration/kfp/requirements.txt) installed, the pipeline can now be executed. Consult the [docs](https://kubeflow-pipelines.readthedocs.io/en/latest/source/kfp.client.html#kfp.Client.run_pipeline) for more information.
 {{< highlight >}}
 # create the kfp client and experiment
 client = kfp.Client()
