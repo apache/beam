@@ -177,6 +177,7 @@ tasks.rat {
     exclusions.addAll(gitIgnoreExcludes)
   }
 
+  verbose.set(true)
   failOnError.set(true)
   setExcludes(exclusions)
 }
@@ -346,6 +347,8 @@ tasks.register("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
+  // TODO: https://github.com/apache/beam/issues/22651
+  dependsOn(":sdks:python:test-suites:dataflow:py38:inferencePostCommitIT")
 }
 
 tasks.register("python39PostCommit") {
