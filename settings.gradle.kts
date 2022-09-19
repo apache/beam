@@ -227,8 +227,7 @@ include(":sdks:python:test-suites:dataflow")
 include(":sdks:python:test-suites:dataflow:py37")
 include(":sdks:python:test-suites:dataflow:py38")
 include(":sdks:python:test-suites:dataflow:py39")
-// Add dataflow suites
-// (TODO): https://github.com/apache/beam/issues/21971
+include(":sdks:python:test-suites:dataflow:py310")
 include(":sdks:python:test-suites:direct")
 include(":sdks:python:test-suites:direct:py37")
 include(":sdks:python:test-suites:direct:py38")

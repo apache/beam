@@ -156,7 +156,7 @@ def get_portability_package_data():
 
 python_requires = '>=3.7'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+if sys.version_info.major == 3 and sys.version_info.minor >= 11:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
@@ -338,6 +338,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
+          'Programming Language :: Python :: 3.10',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

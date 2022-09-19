@@ -358,9 +358,7 @@ tasks.register("python39PostCommit") {
 }
 //
 tasks.register("python310PostCommit") {
-  // (TODO): https://github.com/apache/beam/issues/21971
-  // enable DF suite once the runner supports Python 3.10
-  // dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
+  dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
