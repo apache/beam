@@ -198,7 +198,7 @@ public class Aggregators {
           window = window.span(lower.getKey());
           first = last = lower.getKey();
         }
-        // merge following windows in order while intersecting
+        // merge following windows in order if they intersect, then stop
         for (Entry<IntervalWindow, MutablePair<Instant, AccT>> entry :
             buff.tailMap(window, false).entrySet()) {
           MutablePair<Instant, AccT> entryAcc = entry.getValue();
@@ -208,6 +208,7 @@ public class Aggregators {
             window = window.span(entryWindow);
             acc = acc == null ? entryAcc : mergeAccs(window, acc, entryAcc);
             if (first == null) {
+              // there was no previous (lower) window intersecting the input window
               first = last = entryWindow;
             } else {
               last = entryWindow;
@@ -217,7 +218,7 @@ public class Aggregators {
           }
         }
         if (first != null && last != null) {
-          // remove entire merged subset from first to last
+          // remove entire subset from from first to last after it got merged into acc
           buff.navigableKeySet().subSet(first, true, last, true).clear();
         }
         // add input and get accumulator for new (potentially merged) window
