@@ -17,11 +17,6 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -33,12 +28,22 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.Iterator;
+import scala.collection.mutable.ArrayBuffer;
+
+import java.nio.ByteBuffer;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
+
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 /**
  * A SplittableDoFn which reads from {@link Receiver} that implements {@link HasOffset}. By default,
@@ -141,15 +146,41 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
     @Override
     public void start(Receiver<V> sparkReceiver) {
       this.sparkReceiver = sparkReceiver;
+
+      final SerializableFunction<Object[], Void> storeFn = (input) -> {
+        if (input[0] instanceof ByteBuffer) {
+          final ByteBuffer byteBuffer = ((ByteBuffer) input[0]).asReadOnlyBuffer();
+          final byte[] bytes = new byte[byteBuffer.limit()];
+          byteBuffer.get(bytes);
+          final V record = SerializationUtils.deserialize(bytes);
+          recordsQueue.offer(record);
+        } else if (input[0] instanceof Iterator) {
+          final Iterator<V> iterator = (Iterator<V>) input[0];
+          while (iterator.hasNext()) {
+            V record = (V) iterator.next();
+            recordsQueue.offer(record);
+          }
+        } else if (input[0] instanceof ArrayBuffer) {
+          final ArrayBuffer<V> arrayBuffer = (ArrayBuffer<V>) input[0];
+          final Iterator<V> iterator = arrayBuffer.iterator();
+          while (iterator.hasNext()) {
+            V record = (V) iterator.next();
+            recordsQueue.offer(record);
+          }
+        } else {
+          V record = (V) input[0];
+          recordsQueue.offer(record);
+        }
+
+        return null;
+      };
+
       try {
         new WrappedSupervisor(
             sparkReceiver,
             new SparkConf(),
-            objects -> {
-              V record = (V) objects[0];
-              recordsQueue.offer(record);
-              return null;
-            });
+            storeFn
+        );
       } catch (Exception e) {
         LOG.error("Can not init Spark Receiver!", e);
         throw new IllegalStateException("Spark Receiver was not initialized");
