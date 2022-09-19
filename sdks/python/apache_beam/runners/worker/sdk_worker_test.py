@@ -294,7 +294,7 @@ class CachingStateHandlerTest(unittest.TestCase):
         yield
 
     underlying_state = FakeUnderlyingState()
-    state_cache = statecache.StateCache(100)
+    state_cache = statecache.StateCache(100 << 20)
     caching_state_hander = GlobalCachingStateHandler(
         state_cache, underlying_state)
 
@@ -430,7 +430,7 @@ class CachingStateHandlerTest(unittest.TestCase):
     coder = VarIntCoder()
 
     underlying_state_handler = self.UnderlyingStateHandler()
-    state_cache = statecache.StateCache(100)
+    state_cache = statecache.StateCache(100 << 20)
     handler = GlobalCachingStateHandler(state_cache, underlying_state_handler)
 
     def get():
@@ -460,7 +460,7 @@ class CachingStateHandlerTest(unittest.TestCase):
 
   def test_continuation_token(self):
     underlying_state_handler = self.UnderlyingStateHandler()
-    state_cache = statecache.StateCache(100)
+    state_cache = statecache.StateCache(100 << 20)
     handler = GlobalCachingStateHandler(state_cache, underlying_state_handler)
 
     coder = VarIntCoder()

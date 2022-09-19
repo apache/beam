@@ -16,15 +16,15 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE=apache/beam_python3.7_sdk:latest
-ARG GO_BASE_IMAGE=golang:1.17-bullseye
+ARG GO_BASE_IMAGE=golang:1.18-bullseye
 FROM $GO_BASE_IMAGE AS build
 
 # Setup Go Environment
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:$PATH
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1 &&\
-    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 
 # Prepare Application
 COPY src /go/src/playground/backend

@@ -44,6 +44,8 @@ const (
 	TypeCombining TypeEnum = 2
 	// TypeMap represents a map state
 	TypeMap TypeEnum = 3
+	// TypeSet represents a set state
+	TypeSet TypeEnum = 4
 )
 
 var (
@@ -69,8 +71,10 @@ type Transaction struct {
 type Provider interface {
 	ReadValueState(id string) (interface{}, []Transaction, error)
 	WriteValueState(val Transaction) error
+	ClearValueState(val Transaction) error
 	ReadBagState(id string) ([]interface{}, []Transaction, error)
 	WriteBagState(val Transaction) error
+	ClearBagState(val Transaction) error
 	CreateAccumulatorFn(userStateID string) reflectx.Func
 	AddInputFn(userStateID string) reflectx.Func
 	MergeAccumulatorsFn(userStateID string) reflectx.Func
@@ -78,6 +82,8 @@ type Provider interface {
 	ReadMapStateValue(userStateID string, key interface{}) (interface{}, []Transaction, error)
 	ReadMapStateKeys(userStateID string) ([]interface{}, []Transaction, error)
 	WriteMapState(val Transaction) error
+	ClearMapStateKey(val Transaction) error
+	ClearMapState(val Transaction) error
 }
 
 // PipelineState is an interface representing different kinds of PipelineState (currently just state.Value).
@@ -135,12 +141,16 @@ func (s *Value[T]) Read(p Provider) (T, bool, error) {
 	return cur.(T), true, nil
 }
 
+// Clear is used to clear this instance of global pipeline state representing a single value.
+func (s *Value[T]) Clear(p Provider) error {
+	return p.ClearValueState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeClear,
+	})
+}
+
 // StateKey returns the key for this pipeline state entry.
 func (s Value[T]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 
@@ -210,12 +220,16 @@ func (s *Bag[T]) Read(p Provider) ([]T, bool, error) {
 	return cur, true, nil
 }
 
+// Clear is used to clear this instance of global pipeline state representing a bag.
+func (s *Bag[T]) Clear(p Provider) error {
+	return p.ClearBagState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeClear,
+	})
+}
+
 // StateKey returns the key for this pipeline state entry.
 func (s Bag[T]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 
@@ -320,6 +334,14 @@ func (s *Combining[T1, T2, T3]) Read(p Provider) (T3, bool, error) {
 	return acc.(T3), true, nil
 }
 
+// Clear is used to clear this instance of global pipeline state representing a combiner.
+func (s *Combining[T1, T2, T3]) Clear(p Provider) error {
+	return p.ClearValueState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeClear,
+	})
+}
+
 func (s *Combining[T1, T2, T3]) readAccumulator(p Provider) (interface{}, bool, error) {
 	// This replays any writes that have happened to this value since we last read
 	// For more detail, see "State Transactionality" below for buffered transactions
@@ -353,10 +375,6 @@ func (s *Combining[T1, T2, T3]) readAccumulator(p Provider) (interface{}, bool, 
 
 // StateKey returns the key for this pipeline state entry.
 func (s Combining[T1, T2, T3]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 
@@ -485,12 +503,25 @@ func (s *Map[K, V]) Get(p Provider, key K) (V, bool, error) {
 	return cur.(V), true, nil
 }
 
+// Remove deletes an entry from this instance of map state.
+func (s *Map[K, V]) Remove(p Provider, key K) error {
+	return p.ClearMapStateKey(Transaction{
+		Key:    s.Key,
+		Type:   TransactionTypeClear,
+		MapKey: key,
+	})
+}
+
+// Clear deletes all entries from this instance of map state.
+func (s *Map[K, V]) Clear(p Provider) error {
+	return p.ClearMapState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeClear,
+	})
+}
+
 // StateKey returns the key for this pipeline state entry.
 func (s Map[K, V]) StateKey() string {
-	if s.Key == "" {
-		// TODO(#22736) - infer the state from the member variable name during pipeline construction.
-		panic("Value state exists on struct but has not been initialized with a key.")
-	}
 	return s.Key
 }
 
@@ -511,9 +542,145 @@ func (s Map[K, V]) StateType() TypeEnum {
 	return TypeMap
 }
 
-// MakeValueState is a factory function to create an instance of ValueState with the given key.
+// MakeMapState is a factory function to create an instance of MapState with the given key.
 func MakeMapState[K comparable, V any](k string) Map[K, V] {
 	return Map[K, V]{
+		Key: k,
+	}
+}
+
+// Set is used to read and write global pipeline state representing a Set.
+// Key represents the key used to lookup this state (not the key of Set entries).
+type Set[K comparable] struct {
+	Key string
+}
+
+// Add is used to write a key to this instance of global Set state.
+func (s *Set[K]) Add(p Provider, key K) error {
+	return p.WriteMapState(Transaction{
+		Key:    s.Key,
+		Type:   TransactionTypeSet,
+		MapKey: key,
+		Val:    true,
+	})
+}
+
+// Keys is used to read the keys of this set state.
+// When a value is not found, returns an empty list and false.
+func (s *Set[K]) Keys(p Provider) ([]K, bool, error) {
+	// This replays any writes that have happened to this value since we last read
+	// For more detail, see "State Transactionality" below for buffered transactions
+	initialValue, bufferedTransactions, err := p.ReadMapStateKeys(s.Key)
+	if err != nil {
+		return []K{}, false, err
+	}
+	cur := []K{}
+	for _, v := range initialValue {
+		cur = append(cur, v.(K))
+	}
+	for _, t := range bufferedTransactions {
+		switch t.Type {
+		case TransactionTypeSet:
+			seen := false
+			mk := t.MapKey.(K)
+			for _, k := range cur {
+				if k == mk {
+					seen = true
+				}
+			}
+			if !seen {
+				cur = append(cur, mk)
+			}
+		case TransactionTypeClear:
+			if t.MapKey == nil {
+				cur = []K{}
+			} else {
+				k := t.MapKey.(K)
+				for idx, v := range cur {
+					if v == k {
+						// Remove this key since its been cleared
+						cur[idx] = cur[len(cur)-1]
+						cur = cur[:len(cur)-1]
+						break
+					}
+				}
+			}
+		}
+	}
+	if len(cur) == 0 {
+		return cur, false, nil
+	}
+	return cur, true, nil
+}
+
+// Contains is used to determine if a given a key exists in the set.
+func (s *Set[K]) Contains(p Provider, key K) (bool, error) {
+	// This replays any writes that have happened to this value since we last read
+	// For more detail, see "State Transactionality" below for buffered transactions
+	cur, bufferedTransactions, err := p.ReadMapStateValue(s.Key, key)
+	if err != nil {
+		return false, err
+	}
+	for _, t := range bufferedTransactions {
+		switch t.Type {
+		case TransactionTypeSet:
+			if t.MapKey.(K) == key {
+				cur = t.Val
+			}
+		case TransactionTypeClear:
+			if t.MapKey == nil || t.MapKey.(K) == key {
+				cur = nil
+			}
+		}
+	}
+	if cur == nil {
+		return false, nil
+	}
+	return true, nil
+}
+
+// Remove deletes an entry from this instance of set state.
+func (s Set[K]) Remove(p Provider, key K) error {
+	return p.ClearMapStateKey(Transaction{
+		Key:    s.Key,
+		Type:   TransactionTypeClear,
+		MapKey: key,
+	})
+}
+
+// Clear deletes all entries from this instance of set state.
+func (s Set[K]) Clear(p Provider) error {
+	return p.ClearMapState(Transaction{
+		Key:  s.Key,
+		Type: TransactionTypeClear,
+	})
+}
+
+// StateKey returns the key for this pipeline state entry.
+func (s Set[K]) StateKey() string {
+	return s.Key
+}
+
+// KeyCoderType returns the type of the value state which should be used for a coder for set keys.
+func (s Set[K]) KeyCoderType() reflect.Type {
+	var k K
+	return reflect.TypeOf(k)
+}
+
+// CoderType returns the type of the coder used for values, in this case nil since there are no values associated with a set.
+func (s Set[K]) CoderType() reflect.Type {
+	// A bool coder is used later, but it does not need to be passed around or visible to users.
+	return nil
+}
+
+// StateType returns the type of the state (in this case always Set).
+func (s Set[K]) StateType() TypeEnum {
+	return TypeSet
+}
+
+// MakeSetState is a factory function to create an instance of SetState with the given key.
+func MakeSetState[K comparable](k string) Set[K] {
+	return Set[K]{
 		Key: k,
 	}
 }

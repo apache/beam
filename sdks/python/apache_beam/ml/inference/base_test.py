@@ -48,11 +48,36 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       self,
       batch: Sequence[int],
       model: FakeModel,
-      inference_args=None) -> Iterable[int]:
+      inference_args=None,
+      drop_example=False) -> Iterable[int]:
     if self._fake_clock:
       self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
     for example in batch:
       yield model.predict(example)
+
+
+class FakeModelHandlerReturnsPredictionResult(
+    base.ModelHandler[int, base.PredictionResult, FakeModel]):
+  def __init__(self, clock=None):
+    self._fake_clock = clock
+
+  def load_model(self):
+    if self._fake_clock:
+      self._fake_clock.current_time_ns += 500_000_000  # 500ms
+    return FakeModel()
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModel,
+      inference_args=None,
+      drop_example=False) -> Iterable[base.PredictionResult]:
+    if self._fake_clock:
+      self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
+
+    predictions = [model.predict(example) for example in batch]
+    return base._convert_to_result(
+        batch=batch, predictions=predictions, drop_example=drop_example)
 
 
 class FakeClock:
@@ -70,7 +95,8 @@ class ExtractInferences(beam.DoFn):
 
 
 class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
-  def run_inference(self, batch, unused_model, inference_args=None):
+  def run_inference(
+      self, batch, model, inference_args=None, drop_example=False):
     if len(batch) < 100:
       raise ValueError('Unexpectedly small batch')
     return batch
@@ -80,14 +106,16 @@ class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
 
 
 class FakeModelHandlerFailsOnInferenceArgs(FakeModelHandler):
-  def run_inference(self, batch, unused_model, inference_args=None):
+  def run_inference(
+      self, batch, model, inference_args=None, drop_example=False):
     raise ValueError(
         'run_inference should not be called because error should already be '
         'thrown from the validate_inference_args check.')
 
 
 class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
-  def run_inference(self, batch, unused_model, inference_args=None):
+  def run_inference(
+      self, batch, model, inference_args=None, drop_example=False):
     if not inference_args:
       raise ValueError('inference_args should exist')
     return batch
@@ -141,6 +169,25 @@ class RunInferenceBaseTest(unittest.TestCase):
           FakeModelHandlerExpectedInferenceArgs(),
           inference_args=inference_args)
       assert_that(actual, equal_to(examples), label='assert:inferences')
+
+  def test_run_inference_metrics_with_custom_namespace(self):
+    metrics_namespace = 'my_custom_namespace'
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10]
+    pcoll = pipeline | 'start' >> beam.Create(examples)
+    _ = pcoll | base.RunInference(
+        FakeModelHandler(), metrics_namespace=metrics_namespace)
+    result = pipeline.run()
+    result.wait_until_finish()
+
+    metrics_filter = MetricsFilter().with_namespace(namespace=metrics_namespace)
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) != 0
+    assert len(metrics['distributions']) != 0
+
+    metrics_filter = MetricsFilter().with_namespace(namespace='fake_namespace')
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) == len(metrics['distributions']) == 0
 
   def test_unexpected_inference_args_passed(self):
     with self.assertRaisesRegex(ValueError, r'inference_args were provided'):
@@ -231,6 +278,19 @@ class RunInferenceBaseTest(unittest.TestCase):
           pipeline | 'keyed' >> beam.Create(keyed_examples)
           | 'RunKeyed' >> base.RunInference(model_handler))
       pipeline.run()
+
+  def test_drop_example_prediction_result(self):
+    def assert_drop_example(prediction_result):
+      assert prediction_result.example is None
+
+    pipeline = TestPipeline()
+    examples = [1, 3, 5]
+    model_handler = FakeModelHandlerReturnsPredictionResult()
+    _ = (
+        pipeline | 'keyed' >> beam.Create(examples)
+        | 'RunKeyed' >> base.RunInference(model_handler, drop_example=True)
+        | beam.Map(assert_drop_example))
+    pipeline.run()
 
 
 if __name__ == '__main__':

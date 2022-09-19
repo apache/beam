@@ -17,7 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/components/horizonta_divider/horizontal_divider.dart';
+import 'package:playground/components/horizontal_divider/horizontal_divider.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/fonts.dart';
