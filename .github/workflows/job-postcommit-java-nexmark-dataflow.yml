@@ -1,4 +1,4 @@
- Licensed to the Apache Software Foundation (ASF) under one or more
+#Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
 # The ASF licenses this file to You under the Apache License, Version 2.0
@@ -22,7 +22,9 @@ on:
     - cron: '0 */6 * * *'
   push:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
+permissions: read-all
+
 env:
   BIGQUERYTABLE: nexmark
   BIGQUERYDATASET: nexmark
@@ -37,7 +39,7 @@ env:
   INFLUXRETENTIONPOLICY: forever
 
 jobs:
-  java-postcommit-nexmark-direct:
+  java-postcommit-nexmark-dataflow:
     name: Run PostCommit Java Nexmark - Dataflow 
     runs-on: self-hosted
     strategy:
@@ -45,11 +47,12 @@ jobs:
     timeout-minutes: 240
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
-
+      - name: Setup environment
+        uses: ./.github/actions/setup-self-hosted-action
       - name: Run *** RUN NEXMARK IN BATCH MODE USING DATAFLOW RUNNER ***
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
