@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import static org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets.getRuleSets;
+import static org.junit.Assert.assertNotEquals;
 
 import com.google.cloud.Timestamp;
 import java.util.ArrayList;
@@ -123,8 +124,10 @@ public class BigQueryIOPushDownIT {
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    PipelineResult.State pipelineState = result.waitUntilFinish();
     collectAndPublishMetrics(result, "_directread_pushdown");
+    // Fail the test if pipeline failed.
+    assertNotEquals(pipelineState, PipelineResult.State.FAILED);
   }
 
   @Test
@@ -151,8 +154,10 @@ public class BigQueryIOPushDownIT {
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    PipelineResult.State pipelineState = result.waitUntilFinish();
     collectAndPublishMetrics(result, "_directread");
+    // Fail the test if pipeline failed.
+    assertNotEquals(pipelineState, PipelineResult.State.FAILED);
   }
 
   @Test
@@ -164,8 +169,10 @@ public class BigQueryIOPushDownIT {
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    PipelineResult.State pipelineState = result.waitUntilFinish();
     collectAndPublishMetrics(result, "_default");
+    // Fail the test if pipeline failed.
+    assertNotEquals(pipelineState, PipelineResult.State.FAILED);
   }
 
   private void collectAndPublishMetrics(PipelineResult readResult, String postfix) {
