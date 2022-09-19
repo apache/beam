@@ -112,8 +112,6 @@ task archiveFilesToLint(type: Zip) {
     include "**/*.md"
     include "**/build.gradle"
     exclude "**/node_modules/*"
-    exclude ".github/*"
-    exclude "website/*"
   }
 }
 
