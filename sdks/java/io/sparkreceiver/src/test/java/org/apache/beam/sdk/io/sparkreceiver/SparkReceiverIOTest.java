@@ -135,6 +135,8 @@ public class SparkReceiverIOTest {
     pipeline.apply(reader).setCoder(StringUtf8Coder.of()).apply(ParDo.of(new TestOutputDoFn()));
 
     pipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+
+    assertEquals(0, TestOutputDoFn.EXPECTED_RECORDS.size());
   }
 
   /** {@link DoFn} that throws {@code RuntimeException} if receives unexpected element. */
