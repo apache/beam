@@ -26,6 +26,11 @@ import apache_beam as beam
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import frames
+from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.runners.interactive import interactive_beam as ib
+from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
+from apache_beam.runners.interactive.testing.mock_env import isolated_env
 
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
@@ -3033,6 +3038,37 @@ class ReprTest(unittest.TestCase):
     self.assertEqual(
         repr(df),
         "DeferredSeries(name='baz', dtype=float64, indexes=['str', 'group'])")
+
+
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+@isolated_env
+class InteractiveDataFrameTest(unittest.TestCase):
+  def test_collect_merged_dataframes(self):
+    p = beam.Pipeline(InteractiveRunner())
+    pcoll_1 = (
+        p
+        | 'Create data 1' >> beam.Create([(1, 'a'), (2, 'b'), (3, 'c'),
+                                          (4, 'd')])
+        |
+        'To rows 1' >> beam.Select(col_1=lambda x: x[0], col_2=lambda x: x[1]))
+    df_1 = to_dataframe(pcoll_1)
+    pcoll_2 = (
+        p
+        | 'Create data 2' >> beam.Create([(5, 'e'), (6, 'f'), (7, 'g'),
+                                          (8, 'h')])
+        |
+        'To rows 2' >> beam.Select(col_3=lambda x: x[0], col_4=lambda x: x[1]))
+    df_2 = to_dataframe(pcoll_2)
+
+    df_merged = df_1.merge(df_2, left_index=True, right_index=True)
+    pd_df = ib.collect(df_merged).sort_values(by='col_1')
+    self.assertEqual(pd_df.shape, (4, 4))
+    self.assertEqual(list(pd_df['col_1']), [1, 2, 3, 4])
+    self.assertEqual(list(pd_df['col_2']), ['a', 'b', 'c', 'd'])
+    self.assertEqual(list(pd_df['col_3']), [5, 6, 7, 8])
+    self.assertEqual(list(pd_df['col_4']), ['e', 'f', 'g', 'h'])
 
 
 if __name__ == '__main__':
