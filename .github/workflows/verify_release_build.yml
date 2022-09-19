@@ -72,7 +72,9 @@ jobs:
       steps:
         - name: Check out code
           uses: actions/checkout@v3
-        - name: Create PR Comment
+          with:
+            ref: ${{ env.RELEASE_BRANCH }}
+        - name: Comment Trigger Phrases in PR
           run: |
             GITHUB_PR=${{ needs.update_create_release_pr.outputs.git_pr }}
             sh ./comment_pr_trigger_phrases.sh $GITHUB_PR
