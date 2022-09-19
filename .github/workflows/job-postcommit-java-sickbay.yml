@@ -24,6 +24,7 @@ name: PostCommit Java Sickbay
 #  push:
 #    branches: ['master', 'release-*']
 #    tags: 'v*'
+permissions: read-all
 
 jobs:
   java-postcommit-sickbay:

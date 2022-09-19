@@ -23,6 +23,7 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
+permissions: read-all
 
 jobs:
   java-postcommit-tpcds-flink:
