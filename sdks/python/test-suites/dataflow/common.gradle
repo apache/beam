@@ -101,6 +101,31 @@ task preCommitIT_V2{
   dependsOn preCommitIT_streaming_V2
 }
 
+task postCommitITByTestDirectory {
+  def testDir =  project.hasProperty('testDir') ? project.testDir : ''
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  doLast {
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def argMap = [
+            "test_opts": testOpts + [testDir],
+            "sdk_location": files(configurations.distTarBall.files).singleFile,
+            "worker_jar": dataflowWorkerJar,
+            "suite": "postCommitIT-df${pythonVersionSuffix}",
+            "collect": "it_postcommit"
+    ]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
 task postCommitIT {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
