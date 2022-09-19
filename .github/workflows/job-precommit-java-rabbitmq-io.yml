@@ -25,7 +25,7 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: ['v*']
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: ['v*']
     paths: ['sdks/java/io/rabbitmq/**']
@@ -40,6 +40,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - name: Setup environment
