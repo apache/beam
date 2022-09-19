@@ -253,7 +253,6 @@ if __name__ == '__main__':
           ],
           'test': [
             'freezegun>=0.3.12',
-            'hypothesis<7',
             'joblib>=1.0.1',
             'mock>=1.0.1,<3.0.0',
             'pandas<2.0.0',
