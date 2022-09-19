@@ -58,8 +58,6 @@ jobs:
           submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
-        with:
-          requires-go-18: false
       - name: Run :runners:samza:job-server:validatesCrossLanguageRunner
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
