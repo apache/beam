@@ -3726,31 +3726,21 @@ a SQL expression.
 Beam does not yet support Schema transforms natively in Go. However, it will be implemented with the following behavior.
 {{< /paragraph >}}
 
-{{< paragraph class="language-java" >}}
 #### 6.6.1. Field selection syntax
-{{< /paragraph >}}
 
-{{< paragraph class="language-java" >}}
 The advantage of schemas is that they allow referencing of element fields by name. Beam provides a selection syntax for
 referencing fields, including nested and repeated fields. This syntax is used by all of the schema transforms when
 referencing the fields they operate on. The syntax can also be used inside of a DoFn to specify which schema fields to
 process.
-{{< /paragraph >}}
 
-{{< paragraph class="language-java" >}}
 Addressing fields by name still retains type safety as Beam will check that schemas match at the time the pipeline graph
 is constructed. If a field is specified that does not exist in the schema, the pipeline will fail to launch. In addition,
 if a field is specified with a type that does not match the type of that field in the schema, the pipeline will fail to
 launch.
-{{< /paragraph >}}
 
-{{< paragraph class="language-java" >}}
 The following characters are not allowed in field names: . *  [ ] { }
-{{< /paragraph >}}
 
-{{< paragraph class="language-java" >}}
 ##### **Top-level fields**
-{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 In order to select a field at the top level of a schema, the name of the field is specified. For example, to select just
@@ -3761,9 +3751,17 @@ the user ids from a `PCollection` of purchases one would write (using the `Selec
 purchases.apply(Select.fieldNames("userId"));
 {{< /highlight >}}
 
-{{< paragraph class="language-java" >}}
+{{< highlight python >}}
+input_pc = ... # {"user_id": ...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select(user_id=lambda item: str(item["user_id"]))
+{{< /highlight >}}
+
 ##### **Nested fields**
+
+{{< paragraph class="language-py" >}}
+Support for Nested fields hasn't been developed for python SDK yet
 {{< /paragraph >}}
+
 
 {{< paragraph class="language-java" >}}
 Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
@@ -3778,8 +3776,10 @@ purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_address.post_code"]))                                               
 {{< /highlight >}} -->
-{{< paragraph class="language-java" >}}
 ##### **Wildcards**
+
+{{< paragraph class="language-py" >}}
+Support for wildcards hasn't been developed for python SDK yet
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
@@ -3795,13 +3795,15 @@ purchases.apply(Select.fieldNames("shippingAddress.*"));
 input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Select(shipping_address=lambda item: str(item["shipping_address.*"]))                                               
 {{< /highlight >}} -->
-{{< paragraph class="language-java" >}}
 ##### **Arrays**
-{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 An array field, where the array element type is a row, can also have subfields of the element type addressed. When
 selected, the result is an array of the selected subfield type. For example
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Support for Nested fields hasn't been developed for python SDK yet
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -3852,6 +3854,10 @@ The following
 purchasesByType.apply(Select.fieldNames("purchases{}.userId"));
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for Nested fields hasn't been developed for python SDK yet
+{{< /paragraph >}}
+
 Will result in a row containing a map field with key-type string and value-type string. The selected map will contain
 all of the keys from the original map, and the values will be the userId contained in the purchase record.
 
@@ -3875,6 +3881,10 @@ could select only the userId and streetAddress fields as follows
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Support for Nested fields hasn't been developed for python SDK yet
+{{< /paragraph >}}
 
 The resulting `PCollection` will have the following schema
 
@@ -3903,6 +3913,10 @@ The same is true for wildcard selections. The following
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("userId", "shippingAddress.*"));
 {{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Support for Wildcards hasn't been developed for python SDK yet
+{{< /paragraph >}}
 
 Will result in the following schema
 
