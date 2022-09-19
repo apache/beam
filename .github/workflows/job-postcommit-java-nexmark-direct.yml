@@ -24,6 +24,7 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
+permissions: read-all
 
 env:
   BIGQUERYTABLE: nexmark
