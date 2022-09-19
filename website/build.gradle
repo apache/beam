@@ -80,10 +80,10 @@ task createDockerContainer(type: Exec) {
     } else {
       // Otherwise: run as current user, so as to not require sudo to clean up
       // build/ directory.
-      extraOptions += " -u \$(id -u):\$(id -g)"
+      extraOptions += " -u 0:0"
     }
     commandLine '/bin/bash', '-c',
-      "docker create -v $project.rootDir:$dockerWorkDir $extraOptions $dockerImageTag sh -c 'trap \"exit 0\" INT; while true; do sleep 30; done;'"
+      "docker create $extraOptions $dockerImageTag sh -c 'trap \"exit 0\" INT; while true; do sleep 30; done;'"
   }
 }
 
@@ -115,9 +115,21 @@ task buildCodeSamples(type: Exec) {
               "${->startDockerContainer.containerId()}", 'yarn', 'build_code_samples'
 }
 
+task cloneRepository(type: Exec) {
+  //TODO: Get repository and branch from GA
+
+  commandLine 'docker', 'exec',
+          "${->startDockerContainer.containerId()}", "git", "clone", "-b", "postcommit-website",
+          "$getBranchRepo", "."
+}
+
+initGitSubmodules.mustRunAfter cloneRepository
+installDependencies.mustRunAfter cloneRepository
+buildCodeSamples.mustRunAfter cloneRepository
+
 task setupDockerContainer(type: Exec) {
   dependsOn startDockerContainer
-  finalizedBy initGitSubmodules, installDependencies, buildCodeSamples
+  finalizedBy cloneRepository, initGitSubmodules, installDependencies, buildCodeSamples
   ext.containerId = {
     return startDockerContainer.containerId()
   }
