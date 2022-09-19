@@ -27,7 +27,7 @@ on:
   push:
     branches: ['main', 'release-*']
     tags: 'v*'
-  pull_request:
+  pull_request_target:
     branches: ['main', 'release-*']
     tags: 'v*'
     paths: ['model/**',
@@ -39,6 +39,7 @@ on:
             'runners/reference/**',
             'sdks/python/**',
             'release/**']
+permissions: read-all
 
 jobs:
   python-portable-commit:

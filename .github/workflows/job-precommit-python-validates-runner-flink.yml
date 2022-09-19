@@ -27,7 +27,7 @@ on:
   push:
     branches: ['main', 'release-*']
     tags: 'v*'
-  pull_request:
+  pull_request_target:
     branches: ['main', 'release-*']
     tags: 'v*'
     paths: ['model/**',
@@ -40,7 +40,7 @@ on:
       'sdks/python/**',
       'release/**',
       'sdks/java/io/kafka/**',]
-
+permissions: read-all
 
 jobs:
   python-pvr-flink:
