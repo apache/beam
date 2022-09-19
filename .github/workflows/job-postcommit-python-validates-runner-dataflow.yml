@@ -25,6 +25,7 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
+permissions: read-all
 
 jobs:
   postCommit-py-vr-dataflow:
