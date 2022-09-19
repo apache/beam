@@ -922,7 +922,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
               max_files_per_bundle=-1))
 
   @pytest.mark.it_postcommit
-  def test_bqfl_streaming(self):
+  def test_bqfl_streaming_single_load_jobs(self):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
       self.skipTest("TestStream is not supported on TestDataflowRunner")
     output_table = '%s_%s' % (self.output_table, 'ints')
