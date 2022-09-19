@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
@@ -84,7 +85,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.lang3.SystemUtils;
@@ -235,13 +235,15 @@ public class TextIOReadTest {
   }
 
   private static TextSource prepareSource(
-      TemporaryFolder temporaryFolder, byte[] data, byte[] delimiter) throws IOException {
+      TemporaryFolder temporaryFolder, byte[] data, @Nullable byte[] delimiter) throws IOException {
     Path path = temporaryFolder.newFile().toPath();
     Files.write(path, data);
+    return getTextSource(path.toString(), delimiter);
+  }
+
+  public static TextSource getTextSource(String path, @Nullable byte[] delimiter) {
     return new TextSource(
-        ValueProvider.StaticValueProvider.of(path.toString()),
-        EmptyMatchTreatment.DISALLOW,
-        delimiter);
+        ValueProvider.StaticValueProvider.of(path), EmptyMatchTreatment.DISALLOW, delimiter);
   }
 
   private static String getFileSuffix(Compression compression) {
@@ -383,6 +385,44 @@ public class TextIOReadTest {
     }
   }
 
+  /** Tests for reading files with various delimiters. */
+  @RunWith(Parameterized.class)
+  public static class ReadWithCustomDelimiterTest {
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+
+    @Parameterized.Parameters(name = "{index}: {0}")
+    public static Iterable<Object[]> data() {
+      return ImmutableList.<Object[]>builder()
+          .add(new Object[] {"first|*second|*|*third"})
+          .add(new Object[] {"first|*second|*|*third|"})
+          .add(new Object[] {"first|*second|*|*third*"})
+          .add(new Object[] {"first|*second|*|*third|*"})
+          .add(new Object[] {"|first|*second|*|*third"})
+          .add(new Object[] {"|first|*second|*|*third|"})
+          .add(new Object[] {"|first|*second|*|*third*"})
+          .add(new Object[] {"|first|*second|*|*third|*"})
+          .add(new Object[] {"*first|*second|*|*third"})
+          .add(new Object[] {"*first|*second|*|*third|"})
+          .add(new Object[] {"*first|*second|*|*third*"})
+          .add(new Object[] {"*first|*second|*|*third|*"})
+          .add(new Object[] {"|*first|*second|*|*third"})
+          .add(new Object[] {"|*first|*second|*|*third|"})
+          .add(new Object[] {"|*first|*second|*|*third*"})
+          .add(new Object[] {"|*first|*second|*|*third|*"})
+          .build();
+    }
+
+    @Parameterized.Parameter(0)
+    public String testCase;
+
+    @Test
+    public void testReadLinesWithCustomDelimiter() throws Exception {
+      SourceTestUtils.assertSplitAtFractionExhaustive(
+          TextIOReadTest.prepareSource(tempFolder, testCase.getBytes(UTF_8), new byte[] {'|', '*'}),
+          PipelineOptionsFactory.create());
+    }
+  }
+
   /** Tests for some basic operations in {@link TextIO.Read}. */
   @RunWith(JUnit4.class)
   public static class BasicIOTest {
@@ -445,24 +485,6 @@ public class TextIOReadTest {
                   + "that *is the question: Whether 'tis nobler in the mind to suffer ",
               "The slings and arrows of outrageous fortune,|");
       p.run();
-    }
-
-    @Test
-    public void testSplittingSourceWithCustomDelimiter() throws Exception {
-      List<String> testCases = Lists.newArrayList();
-      String infix = "first|*second|*|*third";
-      String[] affixes = new String[] {"", "|", "*", "|*"};
-      for (String prefix : affixes) {
-        for (String suffix : affixes) {
-          testCases.add(prefix + infix + suffix);
-        }
-      }
-      for (String testCase : testCases) {
-        SourceTestUtils.assertSplitAtFractionExhaustive(
-            TextIOReadTest.prepareSource(
-                tempFolder, testCase.getBytes(UTF_8), new byte[] {'|', '*'}),
-            PipelineOptionsFactory.create());
-      }
     }
 
     @Test
@@ -693,7 +715,6 @@ public class TextIOReadTest {
 
         // Split. 0.1 is in line1, so should now be able to detect last record.
         remainder = readerOrig.splitAtFraction(0.1);
-        System.err.println(readerOrig.getCurrentSource());
         assertNotNull(remainder);
 
         // First record, after splitting.
