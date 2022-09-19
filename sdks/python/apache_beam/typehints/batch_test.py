@@ -23,6 +23,7 @@ import typing
 import unittest
 
 import numpy as np
+import pytest
 from parameterized import parameterized
 from parameterized import parameterized_class
 
@@ -30,8 +31,17 @@ from apache_beam.typehints import typehints
 from apache_beam.typehints.batch import BatchConverter
 from apache_beam.typehints.batch import N
 from apache_beam.typehints.batch import NumpyArray
+from apache_beam.typehints.batch import PytorchTensor
+
+# Protect against environments where pytorch library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  import torch
+except ImportError:
+  raise unittest.SkipTest('PyTorch dependencies are not installed')
 
 
+@pytest.mark.uses_pytorch
 @parameterized_class([
     {
         'batch_typehint': np.ndarray,
@@ -54,6 +64,17 @@ from apache_beam.typehints.batch import NumpyArray
         'element_typehint': str,
         'batch': ["foo" * (i % 5) + str(i) for i in range(1000)],
     },
+    {
+        'batch_typehint': torch.Tensor,
+        'element_typehint': torch.Tensor,
+        'batch': torch.tensor(range(100), dtype=torch.int32)
+    },
+    {
+        'batch_typehint': PytorchTensor[torch.int64, (N, 10)],
+        'element_typehint': PytorchTensor[torch.int64, (10, )],
+        'batch': torch.tensor([list(range(i, i + 10)) for i in range(100)],
+                              dtype=torch.int64),
+    },
 ])
 class BatchConverterTest(unittest.TestCase):
   def create_batch_converter(self):
@@ -69,6 +90,8 @@ class BatchConverterTest(unittest.TestCase):
   def equality_check(self, left, right):
     if isinstance(left, np.ndarray) and isinstance(right, np.ndarray):
       return np.array_equal(left, right)
+    elif isinstance(left, torch.Tensor) and isinstance(right, torch.Tensor):
+      return torch.equal(left, right)
     else:
       return left == right
 
