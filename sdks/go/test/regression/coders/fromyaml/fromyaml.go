@@ -360,7 +360,7 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 					pass = false
 				}
 			case "pane":
-				pass = diffPane(item.Value, tm.PaneInfo)
+				pass = diffPane(item.Value, tm.Pane)
 			}
 		}
 		return pass
