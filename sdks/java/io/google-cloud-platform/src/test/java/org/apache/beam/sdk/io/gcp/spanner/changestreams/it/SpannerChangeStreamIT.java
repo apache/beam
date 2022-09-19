@@ -180,34 +180,46 @@ public class SpannerChangeStreamIT {
                     .withMetadataTable(metadataTableName)
                     .withInclusiveStartAt(startAt)
                     .withInclusiveEndAt(endAt))
-            .apply(Filter.by(record -> 
-              !record.isSystemTransaction() && 
-              record.getTransactionTag().equalsIgnoreCase("app=beam;action=update")))
+            .apply(
+                Filter.by(
+                    record ->
+                        !record.isSystemTransaction()
+                            && record
+                                .getTransactionTag()
+                                .equalsIgnoreCase("app=beam;action=update")))
             .apply(ParDo.of(new ModsToString()));
 
     // Each row is composed by the following data
     // <mod type, singer id, old first name, old last name, new first name, new last name>
-    PAssert.that(tokens).satisfies(stringTokens -> {
-      Set<String> setTokens = StreamSupport.stream(stringTokens.spliterator(), false).collect(Collectors.toSet());
-      Assert.assertTrue(Stream.of(
-        "UPDATE,1,First Name 1,Last Name 1,Updated First Name 1,Updated Last Name 1",
-        "UPDATE,2,First Name 2,Last Name 2,Updated First Name 2,Updated Last Name 2",
-        "UPDATE,3,First Name 3,Last Name 3,Updated First Name 3,Updated Last Name 3",
-        "UPDATE,4,First Name 4,Last Name 4,Updated First Name 4,Updated Last Name 4",
-        "UPDATE,5,First Name 5,Last Name 5,Updated First Name 5,Updated Last Name 5").allMatch(setTokens::contains));
-      Assert.assertTrue(Stream.of(
-        "INSERT,1,null,null,First Name 1,Last Name 1",
-        "INSERT,2,null,null,First Name 2,Last Name 2",
-        "INSERT,3,null,null,First Name 3,Last Name 3",
-        "INSERT,4,null,null,First Name 4,Last Name 4",
-        "INSERT,5,null,null,First Name 5,Last Name 5",
-        "DELETE,1,Updated First Name 1,Updated Last Name 1,null,null",
-        "DELETE,2,Updated First Name 2,Updated Last Name 2,null,null",
-        "DELETE,3,Updated First Name 3,Updated Last Name 3,null,null",
-        "DELETE,4,Updated First Name 4,Updated Last Name 4,null,null",
-        "DELETE,5,Updated First Name 5,Updated Last Name 5,null,null").noneMatch(setTokens::contains));
-      return null;
-    });
+    PAssert.that(tokens)
+        .satisfies(
+            stringTokens -> {
+              Set<String> setTokens =
+                  StreamSupport.stream(stringTokens.spliterator(), false)
+                      .collect(Collectors.toSet());
+              Assert.assertTrue(
+                  Stream.of(
+                          "UPDATE,1,First Name 1,Last Name 1,Updated First Name 1,Updated Last Name 1",
+                          "UPDATE,2,First Name 2,Last Name 2,Updated First Name 2,Updated Last Name 2",
+                          "UPDATE,3,First Name 3,Last Name 3,Updated First Name 3,Updated Last Name 3",
+                          "UPDATE,4,First Name 4,Last Name 4,Updated First Name 4,Updated Last Name 4",
+                          "UPDATE,5,First Name 5,Last Name 5,Updated First Name 5,Updated Last Name 5")
+                      .allMatch(setTokens::contains));
+              Assert.assertTrue(
+                  Stream.of(
+                          "INSERT,1,null,null,First Name 1,Last Name 1",
+                          "INSERT,2,null,null,First Name 2,Last Name 2",
+                          "INSERT,3,null,null,First Name 3,Last Name 3",
+                          "INSERT,4,null,null,First Name 4,Last Name 4",
+                          "INSERT,5,null,null,First Name 5,Last Name 5",
+                          "DELETE,1,Updated First Name 1,Updated Last Name 1,null,null",
+                          "DELETE,2,Updated First Name 2,Updated Last Name 2,null,null",
+                          "DELETE,3,Updated First Name 3,Updated Last Name 3,null,null",
+                          "DELETE,4,Updated First Name 4,Updated Last Name 4,null,null",
+                          "DELETE,5,Updated First Name 5,Updated Last Name 5,null,null")
+                      .noneMatch(setTokens::contains));
+              return null;
+            });
     pipeline.run().waitUntilFinish();
 
     assertMetadataTableHasBeenDropped();
@@ -259,37 +271,43 @@ public class SpannerChangeStreamIT {
   }
 
   private static Timestamp insertRow(int singerId) {
-    return databaseClient.writeWithOptions(
-        Collections.singletonList(
-            Mutation.newInsertBuilder(changeStreamTableName)
-                .set("SingerId")
-                .to(singerId)
-                .set("FirstName")
-                .to("First Name " + singerId)
-                .set("LastName")
-                .to("Last Name " + singerId)
-                .build()),
-        Options.tag("app=beam;action=insert")).getCommitTimestamp();
+    return databaseClient
+        .writeWithOptions(
+            Collections.singletonList(
+                Mutation.newInsertBuilder(changeStreamTableName)
+                    .set("SingerId")
+                    .to(singerId)
+                    .set("FirstName")
+                    .to("First Name " + singerId)
+                    .set("LastName")
+                    .to("Last Name " + singerId)
+                    .build()),
+            Options.tag("app=beam;action=insert"))
+        .getCommitTimestamp();
   }
 
   private static Timestamp updateRow(int singerId) {
-    return databaseClient.writeWithOptions(
-        Collections.singletonList(
-            Mutation.newUpdateBuilder(changeStreamTableName)
-                .set("SingerId")
-                .to(singerId)
-                .set("FirstName")
-                .to("Updated First Name " + singerId)
-                .set("LastName")
-                .to("Updated Last Name " + singerId)
-                .build()),
-        Options.tag("app=beam;action=update")).getCommitTimestamp();
+    return databaseClient
+        .writeWithOptions(
+            Collections.singletonList(
+                Mutation.newUpdateBuilder(changeStreamTableName)
+                    .set("SingerId")
+                    .to(singerId)
+                    .set("FirstName")
+                    .to("Updated First Name " + singerId)
+                    .set("LastName")
+                    .to("Updated Last Name " + singerId)
+                    .build()),
+            Options.tag("app=beam;action=update"))
+        .getCommitTimestamp();
   }
 
   private static Timestamp deleteRow(int singerId) {
-    return databaseClient.writeWithOptions(
-        Collections.singletonList(Mutation.delete(changeStreamTableName, Key.of(singerId))),
-        Options.tag("app=beam;action=delete")).getCommitTimestamp();
+    return databaseClient
+        .writeWithOptions(
+            Collections.singletonList(Mutation.delete(changeStreamTableName, Key.of(singerId))),
+            Options.tag("app=beam;action=delete"))
+        .getCommitTimestamp();
   }
 
   private static class ModsToString extends DoFn<DataChangeRecord, String> {
