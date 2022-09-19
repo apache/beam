@@ -37,4 +37,8 @@ class CatalogDefaultExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   bool operator ==(Object other) {
     return other is CatalogDefaultExampleLoadingDescriptor && sdk == other.sdk;
   }
+
+  // Only ContentExampleLoadingDescriptor is serialized now.
+  @override
+  Map<String, dynamic> toJson() => throw UnimplementedError();
 }

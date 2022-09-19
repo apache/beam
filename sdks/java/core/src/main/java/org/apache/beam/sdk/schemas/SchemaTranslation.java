@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi.ArrayTypeValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.AtomicTypeValue;
@@ -64,9 +65,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class SchemaTranslation {
 
-  private static final String URN_BEAM_LOGICAL_DATETIME = "beam:logical_type:datetime:v1";
   private static final String URN_BEAM_LOGICAL_DECIMAL = "beam:logical_type:decimal:v1";
   private static final String URN_BEAM_LOGICAL_JAVASDK = "beam:logical_type:javasdk:v1";
+  private static final String URN_BEAM_LOGICAL_MILLIS_INSTANT =
+      SchemaApi.LogicalTypes.Enum.MILLIS_INSTANT
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(RunnerApi.beamUrn);
 
   // TODO(https://github.com/apache/beam/issues/19715): Populate this with a LogicalTypeRegistrar,
   // which includes a way to construct
@@ -198,7 +203,7 @@ public class SchemaTranslation {
       case DATETIME:
         builder.setLogicalType(
             SchemaApi.LogicalType.newBuilder()
-                .setUrn(URN_BEAM_LOGICAL_DATETIME)
+                .setUrn(URN_BEAM_LOGICAL_MILLIS_INSTANT)
                 .setRepresentation(fieldTypeToProto(FieldType.INT64, serializeLogicalType))
                 .build());
         break;
@@ -358,7 +363,7 @@ public class SchemaTranslation {
         }
         // Special-case for DATETIME and DECIMAL which are logical types in portable representation,
         // but not yet in Java. (https://github.com/apache/beam/issues/19817)
-        if (urn.equals(URN_BEAM_LOGICAL_DATETIME)) {
+        if (urn.equals(URN_BEAM_LOGICAL_MILLIS_INSTANT)) {
           return FieldType.DATETIME;
         } else if (urn.equals(URN_BEAM_LOGICAL_DECIMAL)) {
           return FieldType.DECIMAL;

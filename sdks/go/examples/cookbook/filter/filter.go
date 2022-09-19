@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
@@ -37,10 +38,10 @@ var (
 )
 
 func init() {
-	beam.RegisterFunction(extractMeanTempFn)
-	beam.RegisterFunction(filterBelowMeanFn)
-	beam.RegisterType(reflect.TypeOf((*filterMonthFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*WeatherDataRow)(nil)).Elem())
+	register.Function1x1(extractMeanTempFn)
+	register.Function3x0(filterBelowMeanFn)
+	register.DoFn2x0[WeatherDataRow, func(WeatherDataRow)](&filterMonthFn{})
+	register.Emitter1[WeatherDataRow]()
 }
 
 type WeatherDataRow struct {

@@ -422,6 +422,9 @@ public class CommonCoderTest {
         return (String) value;
       case BOOLEAN:
         return (Boolean) value;
+      case DATETIME:
+        // convert shifted millis to epoch millis as in InstantCoder
+        return new Instant((Long) value + -9223372036854775808L);
       case BYTES:
         // extract String as byte[]
         return ((String) value).getBytes(StandardCharsets.ISO_8859_1);
@@ -465,7 +468,7 @@ public class CommonCoderTest {
         return fieldType
             .getLogicalType()
             .toInputType(parseField(value, fieldType.getLogicalType().getBaseType()));
-      default: // DECIMAL, DATETIME
+      default: // DECIMAL
         throw new IllegalArgumentException("Unsupported type name: " + fieldType.getTypeName());
     }
   }

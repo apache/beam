@@ -117,6 +117,7 @@ with beam.Pipeline() as pipeline:
 
 Here's a comparison on how to get started both in PySpark and Beam.
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table style="width:100%">
 <tr>
@@ -174,11 +175,13 @@ Here's a comparison on how to get started both in PySpark and Beam.
 </tr>
 </table>
 {{< /table >}}
+</div>
 
 ## Transforms
 
 Here are the equivalents of some common transforms in both PySpark and Beam.
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table style="width:100%">
 <tr>
@@ -258,6 +261,7 @@ Here are the equivalents of some common transforms in both PySpark and Beam.
 </tr>
 </table>
 {{< /table >}}
+</div>
 
 > ℹ️ To learn more about the transforms available in Beam, check the
 > [Python transform gallery](/documentation/transforms/python/overview).

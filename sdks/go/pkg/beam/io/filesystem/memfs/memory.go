@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -77,7 +76,7 @@ func (f *fs) OpenRead(_ context.Context, filename string) (io.ReadCloser, error)
 	defer f.mu.Unlock()
 
 	if v, ok := f.m[normalize(filename)]; ok {
-		return ioutil.NopCloser(bytes.NewReader(v)), nil
+		return io.NopCloser(bytes.NewReader(v)), nil
 	}
 	return nil, os.ErrNotExist
 }

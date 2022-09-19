@@ -148,9 +148,9 @@ func (n *ParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReSt
 func (n *ParDo) processMainInput(mainIn *MainInput) error {
 	elm := &mainIn.Key
 
-	// If the function observes windows, we must invoke it for each window. The expected fast path
-	// is that either there is a single window or the function doesn't observe windows, so we can
-	// optimize it by treating all windows as a single one.
+	// If the function observes windows or uses per window state, we must invoke it for each window.
+	// The expected fast path is that either there is a single window or the function doesn't observe
+	// windows, so we can optimize it by treating all windows as a single one.
 	if !mustExplodeWindows(n.inv.fn, elm, len(n.Side) > 0) {
 		// The ProcessContinuation return value is ignored because only SDFs can return ProcessContinuations.
 		_, processResult := n.processSingleWindow(mainIn)
@@ -209,13 +209,14 @@ func rtErrHelper(err error) error {
 
 // mustExplodeWindows returns true iif we need to call the function
 // for each window. It is needed if the function either observes the
-// window, either directly or indirectly via (windowed) side inputs.
+// window, either directly or indirectly via (windowed) side inputs or state.
 func mustExplodeWindows(fn *funcx.Fn, elm *FullValue, usesSideInput bool) bool {
 	if len(elm.Windows) < 2 {
 		return false
 	}
 	_, explode := fn.Window()
-	return explode || usesSideInput
+	_, observesState := fn.StateProvider()
+	return explode || usesSideInput || observesState
 }
 
 // FinishBundle does post-bundle processing operations for the DoFn.
