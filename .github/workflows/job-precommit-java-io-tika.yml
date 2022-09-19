@@ -24,7 +24,7 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['model/**',
@@ -32,7 +32,8 @@ on:
       'runners/**',
       'examples/java/**',
       'examples/kotlin/**',
-      'release/**'] 
+      'release/**']
+permissions: read-all 
 
 jobs:
   run-precommit-java-io-tika:
