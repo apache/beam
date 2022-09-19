@@ -24,7 +24,7 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['model/**',
@@ -33,6 +33,7 @@ on:
       'examples/java/**',
       'examples/kotlin/**',
       'release/**'] 
+permissions: read-all
 
 jobs:
   run-precommit-java-io-splunk:
