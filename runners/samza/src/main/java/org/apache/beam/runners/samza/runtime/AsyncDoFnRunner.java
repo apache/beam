@@ -28,6 +28,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This {@link DoFnRunner} adds the capability of executing the {@link
@@ -35,12 +37,24 @@ import org.joda.time.Instant;
  * the collector for the underlying async execution.
  */
 public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
+  private static final Logger LOG = LoggerFactory.getLogger(AsyncDoFnRunner.class);
+
   private final DoFnRunner<InT, OutT> underlying;
   private final ExecutorService executor;
   private final OpEmitter<OutT> emitter;
   private final FutureCollector<OutT> futureCollector;
 
-  public AsyncDoFnRunner(
+  public static <InT, OutT> AsyncDoFnRunner<InT, OutT> create(
+      DoFnRunner<InT, OutT> runner,
+      OpEmitter<OutT> emitter,
+      FutureCollector<OutT> futureCollector,
+      SamzaPipelineOptions options) {
+
+    LOG.info("Run DoFn with " + AsyncDoFnRunner.class.getName());
+    return new AsyncDoFnRunner<>(runner, emitter, futureCollector, options);
+  }
+
+  private AsyncDoFnRunner(
       DoFnRunner<InT, OutT> runner,
       OpEmitter<OutT> emitter,
       FutureCollector<OutT> futureCollector,

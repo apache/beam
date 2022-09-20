@@ -135,13 +135,16 @@ public interface SamzaPipelineOptions extends PipelineOptions {
 
   void setMaxBundleTimeMs(long maxBundleTimeMs);
 
-  @Description("The number of threads to execute DoFn.processElements in parallel.")
+  @Description(
+      "The number of threads to run DoFn.processElements in parallel. Used only in non-portable mode.")
   @Default.Integer(0)
   int getNumThreadsForProcessElement();
 
   void setNumThreadsForProcessElement(int numThreads);
 
   @JsonIgnore
+  @Description(
+      "The ExecutorService instance to run DoFN.processElements in parallel. Used only in non-portable mode.")
   @Default.InstanceFactory(ProcessElementExecutorServiceFactory.class)
   @Hidden
   ExecutorService getExecutorServiceForProcessElement();
