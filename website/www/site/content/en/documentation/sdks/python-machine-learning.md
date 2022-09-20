@@ -83,6 +83,15 @@ You need to provide a path to a file that contains the pickled Scikit-learn mode
    `model_uri=<path_to_pickled_file>` and `model_file_type: <ModelFileType>`, where you can specify
    `ModelFileType.PICKLE` or `ModelFileType.JOBLIB`, depending on how the model was serialized.
 
+### Use custom models
+
+If you would like to use a model that isn't specified by one of the supported frameworks, the RunInference API is designed flexibly to allow you to use any custom machine learning models.
+You only need to create your own `ModelHandler` or `KeyedModelHandler` with logic to load your model and use it to run the inference.
+
+A simple example can be found in [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb).
+The `load_model` method shows how to load the model using a popular `spaCy` package while `run_inference` shows how to run the inference on a batch of examples.
+
+
 ### Use multiple models
 
 You can also use the RunInference transform to add multiple inference models to your pipeline.
@@ -108,6 +117,28 @@ with pipeline as p:
 ```
 
 Where `model_handler_A` and `model_handler_B` are the model handler setup code.
+
+#### Use Resource Hints for Different Model Requirements
+
+When using multiple models in a single pipeline, different models may have different memory or worker SKU requirements.
+Resource hints allow you to provide information to a runner about the compute resource requirements for each step in your
+pipeline.
+
+For example, the following snippet extends the previous ensemble pattern with hints for each RunInference call
+to specify RAM and hardware accelerator requirements:
+
+```
+with pipeline as p:
+   data = p | 'Read' >> beam.ReadFromSource('a_source')
+   model_a_predictions = data | RunInference(<model_handler_A>).with_resource_hints(min_ram="20GB")
+   model_b_predictions = model_a_predictions
+      | beam.Map(some_post_processing)
+      | RunInference(<model_handler_B>).with_resource_hints(
+         min_ram="4GB",
+         accelerator="type:nvidia-tesla-k80;count:1;install-nvidia-driver")
+```
+
+For more information on resource hints, see [Resource hints](https://beam.apache.org/documentation/runtime/resource-hints/).
 
 ### Use a keyed ModelHandler
 
