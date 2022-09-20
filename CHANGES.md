@@ -76,7 +76,7 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Fixed `AfterProcessingTime` behavior in `DirectRunner` for Python to match Java
+* Fixed `AfterProcessingTime` behavior in Python's `DirectRunner` to match Java
   ([#23071](https://github.com/apache/beam/issues/23071))
 
 ## Known Issues
