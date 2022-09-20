@@ -91,7 +91,8 @@ public class SamzaDoFnRunners {
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping,
-      OpEmitter emitter) {
+      OpEmitter emitter,
+      FutureCollector futureCollector) {
     final KeyedInternals keyedInternals;
     final TimerInternals timerInternals;
     final StateInternals stateInternals;
@@ -152,7 +153,7 @@ public class SamzaDoFnRunners {
     }
 
     return pipelineOptions.getBundleThreadNum() > 1
-        ? new AsyncDoFnRunner<>(doFnRunnerWithStates, emitter, pipelineOptions)
+        ? new AsyncDoFnRunner<>(doFnRunnerWithStates, emitter, futureCollector, pipelineOptions)
         : doFnRunnerWithStates;
   }
 

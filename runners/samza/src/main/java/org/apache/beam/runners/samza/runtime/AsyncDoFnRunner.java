@@ -18,7 +18,6 @@
 package org.apache.beam.runners.samza.runtime;
 
 import java.util.Collection;
-import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,13 +34,18 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
   private final DoFnRunner<InT, OutT> underlying;
   private final ExecutorService executor;
   private final OpEmitter<OutT> emitter;
+  private final FutureCollector<OutT> futureCollector;
 
   public AsyncDoFnRunner(
-      DoFnRunner<InT, OutT> runner, OpEmitter<OutT> emitter, SamzaPipelineOptions options) {
+      DoFnRunner<InT, OutT> runner,
+      OpEmitter<OutT> emitter,
+      FutureCollector<OutT> futureCollector,
+      SamzaPipelineOptions options) {
     this.underlying = runner;
     // TODO: change to key-based thread pool if needed
     this.executor = Executors.newFixedThreadPool(options.getBundleThreadNum());
     this.emitter = emitter;
+    this.futureCollector = futureCollector;
   }
 
   @Override
@@ -54,13 +58,6 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
     final CompletableFuture<Void> future =
         CompletableFuture.runAsync(
             () -> {
-              int r = new Random().nextInt(10);
-              try {
-                Thread.sleep(r);
-              } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-              }
-
               underlying.processElement(elem);
             },
             executor);
@@ -72,7 +69,7 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
                     .map(OpMessage::getElement)
                     .collect(Collectors.toList()));
 
-    emitter.emitFuture(outputFutures);
+    futureCollector.addAll(outputFutures);
   }
 
   @Override

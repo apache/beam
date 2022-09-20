@@ -17,33 +17,113 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
-import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.TestSamzaRunner;
-import org.apache.beam.sdk.Pipeline;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.junit.Rule;
 import org.junit.Test;
 
-public class AsyncDoFnRunnerTest {
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
+})
+public class AsyncDoFnRunnerTest implements Serializable {
+
+  @Rule
+  public final transient TestPipeline pipeline =
+      TestPipeline.fromOptions(
+          PipelineOptionsFactory.fromArgs(
+                  "--runner=TestSamzaRunner", "--maxBundleSize=5", "--bundleThreadNum=5")
+              .create());
 
   @Test
-  public void test() {
-    SamzaPipelineOptions options = PipelineOptionsFactory.as(SamzaPipelineOptions.class);
-    options.setRunner(TestSamzaRunner.class);
-    options.setMaxBundleSize(10);
-    Pipeline p = Pipeline.create(options);
+  public void testSimplePipeline() {
+    PCollection<Integer> square =
+        pipeline
+            .apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))
+            .apply(Filter.by(x -> x <= 5))
+            .apply(MapElements.into(TypeDescriptors.integers()).via(x -> x * x));
 
-    p.apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(
-            MapElements.into(TypeDescriptors.voids())
-                .via(
-                    x -> {
-                      System.out.println(x);
-                      return null;
-                    }));
+    PAssert.that(square).containsInAnyOrder(Arrays.asList(1, 4, 9, 16, 25));
 
-    p.run().waitUntilFinish();
+    pipeline.run();
+  }
+
+  @Test
+  public void testPipelineWithState() {
+    final List<KV<String, String>> input =
+        new ArrayList<>(
+            Arrays.asList(
+                KV.of("apple", "red"),
+                KV.of("banana", "yellow"),
+                KV.of("apple", "yellow"),
+                KV.of("grape", "purple"),
+                KV.of("banana", "yellow")));
+    final Map<String, Integer> expectedCount = ImmutableMap.of("apple", 2, "banana", 2, "grape", 1);
+
+    // TODO: rmove after the fix of SAMZA-2761: end-of-stream shut down when no messages in flight
+    for (int i = 0; i < 10; i++) {
+      input.add(KV.of("*", "*"));
+    }
+
+    final DoFn<KV<String, String>, KV<String, Integer>> fn =
+        new DoFn<KV<String, String>, KV<String, Integer>>() {
+
+          @StateId("cc")
+          private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+              StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId("cc") CombiningState<Integer, int[], Integer> countState) {
+
+            if (c.element().getKey().equals("*")) {
+              return;
+            }
+
+            // Need explicit synchronization here
+            synchronized (this) {
+              countState.add(1);
+            }
+
+            String key = c.element().getKey();
+            int n = countState.read();
+            if (n >= expectedCount.get(key)) {
+              c.output(KV.of(key, n));
+            }
+          }
+        };
+
+    PCollection<KV<String, Integer>> counts = pipeline.apply(Create.of(input)).apply(ParDo.of(fn));
+
+    PAssert.that(counts)
+        .containsInAnyOrder(
+            expectedCount.entrySet().stream()
+                .map(entry -> KV.of(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList()));
+
+    pipeline.run();
   }
 }
