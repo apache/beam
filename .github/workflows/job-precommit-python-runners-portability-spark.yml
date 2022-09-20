@@ -1,0 +1,84 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Test for Python Precommit Runners Portability Spark
+
+
+name: Python Precommit Runners Portability Spark
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+  push:
+    branches: ['master', 'release-*']
+    tags: ['v*']
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: ['v*']
+    #paths: ['sdks/python/apache_beam/examples/**',
+    #        'sdks/python/apache_beam/examples/**']
+permissions: read-all
+
+env:
+  tests: "'apache_beam/runners/portability/spark_runner.py \
+  apache_beam/runners/portability/spark_runner_test.py \
+  apache_beam/runners/portability/spark_uber_jar_job_server.py \
+  apache_beam/runners/portability/spark_uber_jar_job_server_test.py'"
+
+jobs:
+  set-properties:
+    runs-on: self-hosted
+    outputs:
+      properties: ${{ steps.test-properties.outputs.properties }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - id: test-properties
+        uses: ./.github/actions/setup-default-test-properties
+
+  runners_portability_spark:
+    needs: set-properties
+    name: Python Runners Portability Spark
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{fromJson(needs.set-properties.outputs.properties).PythonTestProperties.ALL_SUPPORTED_VERSIONS}}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Set python version and tox env
+        run: |
+          echo "PYTHON_VERSION=$(echo ${{ matrix.version }} | sed -e 's/\.//g')" >> $GITHUB_ENV
+      - name: Setup environment
+        uses: ./.github/actions/setup-self-hosted-action
+      - name: Run :sdks:python:test-suites:tox:${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cloud
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:test-suites:tox:py${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cloud
+          arguments: "-Pposargs=${{env.tests}}"
+      - name: Run :sdks:python:test-suites:tox:y${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cython
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:test-suites:tox:py${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cython
+          arguments: "-Pposargs=${{env.tests}}"
