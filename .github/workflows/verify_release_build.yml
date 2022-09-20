@@ -17,10 +17,9 @@ jobs:
   check_environment:
     runs-on: ubuntu-latest
     steps:
-      - name: Check environment
+      - name: Install hub cli tool
         run: |
-          echo "Verify hub installation."
-          git version
+          sudo apt-get update && sudo apt-get install -y hub
           hub version
   # Run Gradle release build and all PostCommit Tests against Release Branch on Jenkins.
   # This create_release_pr task will create a PR against apache/beam.
