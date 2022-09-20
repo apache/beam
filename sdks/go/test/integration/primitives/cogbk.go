@@ -44,6 +44,25 @@ func genC(_ []byte, emit func(string, string)) {
 	emit("d", "delta")
 }
 
+func genD(_ []byte, emit func(string, int)) {
+	emit("a", 1)
+	emit("a", 1)
+	emit("a", 1)
+	emit("b", 4)
+	emit("b", 4)
+	emit("c", 6)
+	emit("c", 6)
+	emit("c", 6)
+	emit("c", 6)
+	emit("c", 6)
+}
+
+func shortFn(_ string, ds func(*int) bool, emit func(int)) {
+	var v int
+	ds(&v)
+	emit(v)
+}
+
 func sum(nums func(*int) bool) int {
 	var ret, i int
 	for nums(&i) {
@@ -97,6 +116,19 @@ func CoGBK() *beam.Pipeline {
 	passert.Sum(s, b, "b", 1, 17)
 	passert.Sum(s, c, "c", 1, 13)
 	passert.Sum(s, d, "d", 1, 14)
+
+	return p
+}
+
+// GBKShortRead tests GBK with a short read on the iterator.
+func GBKShortRead() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	ds := beam.ParDo(s, genD, beam.Impulse(s))
+	grouped := beam.GroupByKey(s, ds)
+	short := beam.ParDo(s, shortFn, grouped)
+
+	passert.Sum(s, short, "shorted", 3, 11)
 
 	return p
 }

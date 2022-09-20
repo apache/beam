@@ -16,8 +16,11 @@
  * limitations under the License.
  */
 
+import 'dart:convert';
+
 import 'package:playground/constants/params.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/catalog_default_example_loading_descriptor.dart';
+import 'package:playground/modules/examples/models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor.dart';
@@ -27,35 +30,115 @@ import 'package:playground/modules/examples/models/example_token_type.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 class ExamplesLoadingDescriptorFactory {
+  static const _defaultSdk = SDK.java;
+
   static ExamplesLoadingDescriptor fromUriParts({
     required String path,
     required Map<String, dynamic> params,
   }) {
-    return _tryParseSingleExample(params) ??
-        _tryParseCatalogDefaultExample() ??
-        _oneEmptyWithDefaultSdk;
+    return _tryParseOfMultipleExamples(params) ??
+        _tryParseOfSingleExample(params) ??
+        _tryParseOfCatalogDefaultExamples(params) ??
+        _getEmpty(params);
   }
 
-  static ExamplesLoadingDescriptor? _tryParseSingleExample(
+  static ExamplesLoadingDescriptor fromMap(dynamic map) {
+    final descriptors = map is Map<String, dynamic> ? map['descriptors'] : [];
+
+    return ExamplesLoadingDescriptor(
+      descriptors: _parseMultipleInstantExamples(descriptors, null),
+    );
+  }
+
+  /// ?examples=[{"sdk":"go","example":"..."},...]
+  /// &sdk=go
+  static ExamplesLoadingDescriptor? _tryParseOfMultipleExamples(
     Map<String, dynamic> params,
   ) {
+    try {
+      final list = jsonDecode(params[kExamplesParam] ?? '');
+      if (list is! List) {
+        return null;
+      }
+
+      final sdk = SDK.tryParse(params[kSdkParam]);
+
+      return ExamplesLoadingDescriptor(
+        descriptors: _parseMultipleInstantExamples(list, sdk),
+        lazyLoadDescriptors: _getLazyLoadDescriptors(),
+        initialSdk: sdk,
+      );
+    } catch (ex) {
+      return null;
+    }
+  }
+
+  static List<ExampleLoadingDescriptor> _parseMultipleInstantExamples(
+    List<dynamic> list,
+    SDK? sdk,
+  ) {
+    final result = <ExampleLoadingDescriptor>[];
+
+    for (final map in list) {
+      final parsed = _tryParseSingleMap(map);
+      if (parsed != null) {
+        result.add(parsed);
+      }
+    }
+
+    return result.isEmpty
+        ? [EmptyExampleLoadingDescriptor(sdk: sdk ?? _defaultSdk)]
+        : result;
+  }
+
+  static ExampleLoadingDescriptor? _tryParseSingleMap(Object? map) {
+    if (map is! Map<String, dynamic>) {
+      return null;
+    }
+
+    return _tryParseSingleExample(map) ??
+        ContentExampleLoadingDescriptor.tryParse(map);
+  }
+
+  /// ?example=...
+  static ExamplesLoadingDescriptor? _tryParseOfSingleExample(
+    Map<String, dynamic> params,
+  ) {
+    final single = _tryParseSingleExample(params);
+    if (single == null) {
+      return null;
+    }
+
+    return ExamplesLoadingDescriptor(
+      descriptors: [single],
+      lazyLoadDescriptors: _getLazyLoadDescriptors(),
+    );
+  }
+
+  static ExampleLoadingDescriptor? _tryParseSingleExample(
+      Map<String, dynamic> params) {
     final token = params[kExampleParam];
     if (token is! String) {
       return null;
     }
 
-    return ExamplesLoadingDescriptor(
-      descriptors: [_parseSingleExample(token)],
-    );
+    return _parseSingleExample(token);
   }
 
-  static ExamplesLoadingDescriptor? _tryParseCatalogDefaultExample() {
+  static ExamplesLoadingDescriptor? _tryParseOfCatalogDefaultExamples(
+    Map<String, dynamic> params,
+  ) {
     if (isEmbedded()) {
       return null;
     }
 
-    return const ExamplesLoadingDescriptor(
-      descriptors: [CatalogDefaultExampleLoadingDescriptor(sdk: SDK.java)],
+    final sdk = SDK.tryParse(params[kSdkParam]) ?? _defaultSdk;
+
+    return ExamplesLoadingDescriptor(
+      descriptors: [
+        CatalogDefaultExampleLoadingDescriptor(sdk: sdk),
+      ],
+      lazyLoadDescriptors: _getLazyLoadDescriptors(),
     );
   }
 
@@ -71,9 +154,41 @@ class ExamplesLoadingDescriptorFactory {
     }
   }
 
-  static ExamplesLoadingDescriptor get _oneEmptyWithDefaultSdk {
-    return const ExamplesLoadingDescriptor(
-      descriptors: [EmptyExampleLoadingDescriptor(sdk: SDK.java)],
+  /// Optional ?sdk=...
+  static ExamplesLoadingDescriptor _getEmpty(
+    Map<String, dynamic> params,
+  ) {
+    return ExamplesLoadingDescriptor(
+      descriptors: [
+        EmptyExampleLoadingDescriptor(
+          sdk: SDK.tryParse(params[kSdkParam]) ?? _defaultSdk,
+        ),
+      ],
+      lazyLoadDescriptors: _emptyLazyLoadDescriptors,
     );
+  }
+
+  static Map<SDK, List<ExampleLoadingDescriptor>> _getLazyLoadDescriptors() {
+    if (isEmbedded()) {
+      return _emptyLazyLoadDescriptors;
+    }
+
+    return _defaultLazyLoadDescriptors;
+  }
+
+  static Map<SDK, List<ExampleLoadingDescriptor>>
+      get _emptyLazyLoadDescriptors {
+    return {
+      for (final sdk in SDK.values)
+        sdk: [EmptyExampleLoadingDescriptor(sdk: sdk)]
+    };
+  }
+
+  static Map<SDK, List<ExampleLoadingDescriptor>>
+      get _defaultLazyLoadDescriptors {
+    return {
+      for (final sdk in SDK.values)
+        sdk: [CatalogDefaultExampleLoadingDescriptor(sdk: sdk)]
+    };
   }
 }

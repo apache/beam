@@ -19,15 +19,18 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:code_text_field/code_text_field.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:playground/modules/editor/controllers/snippet_editing_controller.dart';
 import 'package:playground/modules/editor/parsers/run_options_parser.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
+import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/models/outputs_model.dart';
+import 'package:playground/modules/examples/repositories/models/shared_file_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/example_loaders/examples_loader.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
@@ -45,95 +48,148 @@ const kCachedResultsLog =
 class PlaygroundState with ChangeNotifier {
   final ExampleState exampleState;
   final ExamplesLoader examplesLoader;
+  final ExamplesLoadingDescriptor examplesLoadingDescriptor;
 
-  final CodeController codeController;
-  SDK _sdk;
+  final _snippetEditingControllers = <SDK, SnippetEditingController>{};
+
+  SDK? _sdk;
   CodeRepository? _codeRepository;
-  ExampleModel? _selectedExample;
   RunCodeResult? _result;
   StreamSubscription<RunCodeResult>? _runSubscription;
-  String _pipelineOptions = '';
   StreamController<int>? _executionTime;
   OutputType? selectedOutputFilterType;
-  String? outputResult;
+  String outputResult = '';
 
   PlaygroundState({
     required this.exampleState,
     required this.examplesLoader,
-    SDK sdk = SDK.java,
     CodeRepository? codeRepository,
-  })  : _sdk = sdk,
-        codeController = CodeController(
-          language: sdk.highlightMode,
-          webSpaceFix: false,
+  }) : examplesLoadingDescriptor =
+            ExamplesLoadingDescriptorFactory.fromUriParts(
+          path: Uri.base.path,
+          params: Uri.base.queryParameters,
         ) {
-    final uri = Uri.base;
-    final descriptor = ExamplesLoadingDescriptorFactory.fromUriParts(
-      path: uri.path,
-      params: uri.queryParameters,
-    );
-
     examplesLoader.setPlaygroundState(this);
-    examplesLoader.load(descriptor);
+    examplesLoader.load(examplesLoadingDescriptor);
 
     _codeRepository = codeRepository;
     selectedOutputFilterType = OutputType.all;
     outputResult = '';
   }
 
+  SnippetEditingController _getOrCreateSnippetEditingController(
+    SDK sdk, {
+    required bool loadDefaultIfNot,
+  }) {
+    final existing = _snippetEditingControllers[sdk];
+    if (existing != null) {
+      return existing;
+    }
+
+    final result = SnippetEditingController(sdk: sdk);
+    _snippetEditingControllers[sdk] = result;
+
+    if (loadDefaultIfNot) {
+      final descriptor =
+          examplesLoadingDescriptor.lazyLoadDescriptors[sdk]?.firstOrNull;
+
+      if (descriptor != null) {
+        examplesLoader.loadOne(
+          group: examplesLoadingDescriptor,
+          one: descriptor,
+        );
+      }
+    }
+
+    return result;
+  }
+
+  // TODO: Return full, then shorten.
   String get examplesTitle {
-    final name = _selectedExample?.name ?? kTitle;
+    final name = snippetEditingController?.selectedExample?.name ?? kTitle;
     return name.substring(0, min(kTitleLength, name.length));
   }
 
-  ExampleModel? get selectedExample => _selectedExample;
+  ExampleModel? get selectedExample =>
+      snippetEditingController?.selectedExample;
 
-  SDK get sdk => _sdk;
+  SDK? get sdk => _sdk;
 
-  String get source => codeController.rawText;
+  SnippetEditingController? get snippetEditingController =>
+      _snippetEditingControllers[_sdk];
+
+  SnippetEditingController requireSnippetEditingController() {
+    final controller = snippetEditingController;
+
+    if (controller == null) {
+      throw Exception('SDK is not set.');
+    }
+
+    return controller;
+  }
+
+  String? get source => snippetEditingController?.codeController.text;
 
   bool get isCodeRunning => !(result?.isFinished ?? true);
 
   RunCodeResult? get result => _result;
 
-  String get pipelineOptions => _pipelineOptions;
+  String? get pipelineOptions => snippetEditingController?.pipelineOptions;
 
   Stream<int>? get executionTime => _executionTime?.stream;
 
   bool get isExampleChanged {
-    return selectedExample?.source != source || _arePipelineOptionsChanges;
-  }
-
-  bool get _arePipelineOptionsChanges {
-    return pipelineOptions != (_selectedExample?.pipelineOptions ?? '');
+    return snippetEditingController?.isChanged ?? false;
   }
 
   bool get graphAvailable =>
       selectedExample?.type != ExampleType.test &&
       [SDK.java, SDK.python].contains(sdk);
 
-  void setExample(ExampleModel example) {
-    _selectedExample = example;
-    setSdk(example.sdk, notify: false);
-    _pipelineOptions = example.pipelineOptions ?? '';
-    codeController.text = example.source ?? '';
+  void setExample(
+    ExampleModel example, {
+    required bool setCurrentSdk,
+  }) {
+    if (setCurrentSdk) {
+      _sdk = example.sdk;
+      final controller = _getOrCreateSnippetEditingController(
+        example.sdk,
+        loadDefaultIfNot: false,
+      );
+
+      controller.selectedExample = example;
+    } else {
+      final controller = _getOrCreateSnippetEditingController(
+        example.sdk,
+        loadDefaultIfNot: false,
+      );
+      controller.selectedExample = example;
+    }
+
     _result = null;
     _executionTime = null;
     setOutputResult('');
     notifyListeners();
   }
 
-  void setSdk(SDK sdk, {bool notify = true}) {
+  void setSdk(
+    SDK sdk, {
+    bool notify = true,
+  }) {
     _sdk = sdk;
-    codeController.language = sdk.highlightMode;
+    _getOrCreateSnippetEditingController(
+      sdk,
+      loadDefaultIfNot: true,
+    );
 
     if (notify) {
       notifyListeners();
     }
   }
 
-  set source(String source) {
-    codeController.text = source;
+  void setSource(String source) {
+    final controller = requireSnippetEditingController();
+    controller.codeController.text = source;
   }
 
   void setSelectedOutputFilterType(OutputType type) {
@@ -152,8 +208,7 @@ class PlaygroundState with ChangeNotifier {
   }
 
   void reset() {
-    codeController.text = _selectedExample?.source ?? '';
-    _pipelineOptions = selectedExample?.pipelineOptions ?? '';
+    snippetEditingController?.reset();
     _executionTime = null;
     outputResult = '';
     notifyListeners();
@@ -168,12 +223,15 @@ class PlaygroundState with ChangeNotifier {
   }
 
   void setPipelineOptions(String options) {
-    _pipelineOptions = options;
+    final controller = requireSnippetEditingController();
+    controller.pipelineOptions = options;
     notifyListeners();
   }
 
   void runCode({void Function()? onFinish}) {
-    final parsedPipelineOptions = parsePipelineOptions(pipelineOptions);
+    final controller = requireSnippetEditingController();
+    final parsedPipelineOptions =
+        parsePipelineOptions(controller.pipelineOptions);
     if (parsedPipelineOptions == null) {
       _result = RunCodeResult(
         status: RunCodeStatus.compileError,
@@ -184,12 +242,12 @@ class PlaygroundState with ChangeNotifier {
     }
     _executionTime?.close();
     _executionTime = _createExecutionTimeStream();
-    if (!isExampleChanged && _selectedExample?.outputs != null) {
-      _showPrecompiledResult();
+    if (!isExampleChanged && controller.selectedExample?.outputs != null) {
+      _showPrecompiledResult(controller);
     } else {
       final request = RunCodeRequestWrapper(
-        code: source,
-        sdk: sdk,
+        code: controller.codeController.text,
+        sdk: controller.sdk,
         pipelineOptions: parsedPipelineOptions,
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
@@ -225,20 +283,26 @@ class PlaygroundState with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _showPrecompiledResult() async {
+  Future<void> _showPrecompiledResult(
+    SnippetEditingController snippetEditingController,
+  ) async {
     _result = RunCodeResult(
       status: RunCodeStatus.preparation,
     );
+    final selectedExample = snippetEditingController.selectedExample!;
+
     notifyListeners();
     // add a little delay to improve user experience
     await Future.delayed(kPrecompiledDelay);
-    String logs = _selectedExample!.logs ?? '';
+
+    String logs = selectedExample.logs ?? '';
     _result = RunCodeResult(
       status: RunCodeStatus.finished,
-      output: _selectedExample!.outputs,
+      output: selectedExample.outputs,
       log: kCachedResultsLog + logs,
-      graph: _selectedExample!.graph,
+      graph: selectedExample.graph,
     );
+
     filterOutput(selectedOutputFilterType ?? OutputType.all);
     _executionTime?.close();
     notifyListeners();
@@ -290,5 +354,27 @@ class PlaygroundState with ChangeNotifier {
         setOutputResult(log + output);
         break;
     }
+  }
+
+  Future<String> getSnippetId() {
+    final controller = requireSnippetEditingController();
+
+    return exampleState.getSnippetId(
+      files: [SharedFile(code: controller.codeController.text, isMain: true)],
+      sdk: controller.sdk,
+      pipelineOptions: controller.pipelineOptions,
+    );
+  }
+
+  /// Creates an [ExamplesLoadingDescriptor] that can recover
+  /// the current content.
+  ExamplesLoadingDescriptor getLoadingDescriptor() {
+    return ExamplesLoadingDescriptor(
+      descriptors: _snippetEditingControllers.values
+          .map(
+            (controller) => controller.getLoadingDescriptor(),
+          )
+          .toList(growable: false),
+    );
   }
 }

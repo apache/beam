@@ -235,6 +235,9 @@ func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Wind
 			it := makeIter(param.T, iter)
 			it.Init()
 			args[in[i]] = it.Value()
+			// Ensure main value iterators are reset & closed after the invoke to avoid
+			// short read problems.
+			defer it.Reset()
 			i++
 		}
 	}

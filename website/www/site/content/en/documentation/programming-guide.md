@@ -400,7 +400,7 @@ public static void main(String[] args) {
 {{< code_sample "sdks/go/examples/snippets/01_03intro.go" pipelines_constructing_reading >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight typescript >}}
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" pipelines_constructing_reading >}}
 {{< /highlight >}}
 
@@ -1644,7 +1644,7 @@ pc = ...
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_custom_average >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight typescript >}}
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_custom_average >}}
 {{< /highlight >}}
 
@@ -1683,7 +1683,7 @@ pc = ...
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_global_average >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight typescript >}}
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_global_average >}}
 {{< /highlight >}}
 
@@ -1971,7 +1971,7 @@ as `DoFn`, `CombineFn`, and `WindowFn`, already implement `Serializable`;
 however, your subclass must not add any non-serializable members.</span>
 <span class="language-go">Funcs are serializable as long as
 they are registered with `register.FunctionXxY` (for simple functions) or
-`register.DoFnXxY` (for sturctural DoFns), and are not closures. Structural
+`register.DoFnXxY` (for structural DoFns), and are not closures. Structural
 `DoFn`s will have all exported fields serialized. Unexported fields are unable to
 be serialized, and will be silently ignored.</span>
 <span class="language-typescript">

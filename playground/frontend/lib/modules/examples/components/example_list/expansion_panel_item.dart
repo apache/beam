@@ -51,7 +51,10 @@ class ExpansionPanelItem extends StatelessWidget {
               AnalyticsService.get(context).trackSelectExample(example);
               final exampleWithInfo =
                   await playgroundState.exampleState.loadExampleInfo(example);
-              playgroundState.setExample(exampleWithInfo);
+              // TODO: setCurrentSdk = false when we do
+              //  per-SDK output and run status.
+              //  Now using true to reset the output and run status.
+              playgroundState.setExample(exampleWithInfo, setCurrentSdk: true);
             }
           },
           child: Container(

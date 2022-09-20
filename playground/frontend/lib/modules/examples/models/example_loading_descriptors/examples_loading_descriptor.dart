@@ -17,25 +17,61 @@
  */
 
 import 'package:collection/collection.dart';
-
 import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
 class ExamplesLoadingDescriptor {
+  /// The descriptors to be loaded right away.
   final List<ExampleLoadingDescriptor> descriptors;
+
+  /// The descriptors to be loaded when an SDK is selected
+  /// that has nothing loaded yet.
+  final Map<SDK, List<ExampleLoadingDescriptor>> lazyLoadDescriptors;
+
+  /// If set, sets the SDK to this and does not change it when loading
+  /// new examples. Otherwise sets the SDK to that of each loaded example
+  /// of [descriptors].
+  final SDK? initialSdk;
 
   const ExamplesLoadingDescriptor({
     required this.descriptors,
+    this.lazyLoadDescriptors = const {},
+    this.initialSdk,
   });
 
   @override
-  String toString() => descriptors.map((e) => e.toString()).join('_');
+  String toString() {
+    final buffer = StringBuffer();
+    buffer.write('Descriptors: ');
+    buffer.write(descriptors.map((e) => e.toString()).join('_'));
+
+    for (final descriptor in lazyLoadDescriptors.entries) {
+      buffer.write(', Lazy Load ${descriptor.key.name}: ');
+      buffer.write(descriptor.value.map((e) => e.toString()).join('_'));
+    }
+
+    return buffer.toString();
+  }
 
   @override
-  int get hashCode => Object.hashAll(descriptors);
+  int get hashCode => Object.hash(
+        const ListEquality().hash(descriptors),
+        const DeepCollectionEquality().hash(lazyLoadDescriptors),
+      );
 
   @override
   bool operator ==(Object other) {
     return other is ExamplesLoadingDescriptor &&
-        const ListEquality().equals(descriptors, other.descriptors);
+        const ListEquality().equals(descriptors, other.descriptors) &&
+        const DeepCollectionEquality().equals(
+          lazyLoadDescriptors,
+          other.lazyLoadDescriptors,
+        );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'descriptors': descriptors.map((d) => d.toJson()).toList(growable: false),
+    };
   }
 }
