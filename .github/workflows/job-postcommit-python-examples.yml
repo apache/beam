@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        version: ${{fromJson(needs.set-properties.outputs.properties).PythonTestProperties.ALL_SUPPORTED_VERSIONS}}
+        version: ["3.7"] #${{fromJson(needs.set-properties.outputs.properties).PythonTestProperties.ALL_SUPPORTED_VERSIONS}}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
