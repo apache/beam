@@ -51,27 +51,27 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          GITHUB_PR_URL=$(hub pull-request -b $GITHUB_ACTOR:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
+          GITHUB_PR_URL=$(hub pull-request -b apache:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
 
           You can run many tests automatically using release/src/main/scripts/mass_comment.py.")
           echo "::set-output name=git_pr::${GITHUB_PR_URL}"
     outputs:
       git_pr: ${{ steps.create_pr.outputs.git_pr }}
-  comment_trigger_phrases:
-    if: ${{ github.event.inputs.COMMENT_TRIGGER_PHRASES == 'true' }}
-    needs: update_create_release_pr
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ env.RELEASE_BRANCH }}
-      - name: Comment Trigger Phrases in PR
-        run: |
-          GITHUB_PR=${{ needs.update_create_release_pr.outputs.git_pr }}
-          sh ./comment_pr_trigger_phrases.sh $GITHUB_PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: 'scripts/ci/release'
+#  comment_trigger_phrases:
+#    if: ${{ github.event.inputs.COMMENT_TRIGGER_PHRASES == 'true' }}
+#    needs: update_create_release_pr
+#    runs-on: ubuntu-latest
+#    permissions:
+#      pull-requests: write
+#    steps:
+#      - name: Check out code
+#        uses: actions/checkout@v3
+#        with:
+#          ref: ${{ env.RELEASE_BRANCH }}
+#      - name: Comment Trigger Phrases in PR
+#        run: |
+#          GITHUB_PR=${{ needs.update_create_release_pr.outputs.git_pr }}
+#          sh ./comment_pr_trigger_phrases.sh $GITHUB_PR
+#        env:
+#          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        working-directory: 'scripts/ci/release'
