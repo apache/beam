@@ -13,17 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package migration
 
-import "math/rand"
+import (
+	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/db/schema"
+)
 
-// RandomString returns a random string with fixed length
-func RandomString(n int) string {
-	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+type AddingComplexityProperty struct {
+}
 
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+func (is *AddingComplexityProperty) InitiateData(args *schema.DBArgs) error {
+	schemaEntity := &entity.SchemaEntity{Descr: is.GetDescription()}
+	if err := args.Db.PutSchemaVersion(args.Ctx, is.GetVersion(), schemaEntity); err != nil {
+		return err
 	}
-	return string(b)
+	return nil
+}
+
+func (is *AddingComplexityProperty) GetVersion() string {
+	return "0.0.2"
+}
+
+func (is AddingComplexityProperty) GetDescription() string {
+	return "Adding a complexity property to the example entity"
 }

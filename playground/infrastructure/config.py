@@ -73,6 +73,8 @@ class TagFields:
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
     context_line: int = "context_line"
+    complexity: str = "complexity"
+    tags: str = "tags"
 
 
 @dataclass(frozen=True)

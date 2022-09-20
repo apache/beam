@@ -21,6 +21,11 @@
 #   context_line: 38
 #   categories:
 #     - Side Input
+#   complexity: MEDIUM
+#   tags:
+#     - transform
+#     - map
+#     - strings
 
 import apache_beam as beam
 

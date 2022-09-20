@@ -22,6 +22,11 @@
 #   context_line: 31
 #   categories:
 #     - Flatten
+#   complexity: BASIC
+#   tags:
+#     - count
+#     - strings
+#     - numbers
 
 import apache_beam as beam
 

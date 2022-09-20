@@ -21,6 +21,10 @@
 #   context_line: 29
 #   categories:
 #     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - map
+#     - strings
 
 import apache_beam as beam
 

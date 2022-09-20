@@ -16,12 +16,18 @@
 package entity
 
 import (
-	"beam.apache.org/playground/backend/internal/utils"
-	"cloud.google.com/go/datastore"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"time"
+
+	"cloud.google.com/go/datastore"
+
+	"beam.apache.org/playground/backend/internal/errors"
+	"beam.apache.org/playground/backend/internal/logger"
 )
 
 type FileEntity struct {
@@ -51,21 +57,43 @@ type Snippet struct {
 
 // ID generates id according to content of the entity
 func (s *Snippet) ID() (string, error) {
+	id, err := generateIDBasedOnContent(s.Salt, combineUniqueSnippetContent(s), s.IdLength)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func combineUniqueSnippetContent(snippet *Snippet) string {
 	var files []string
-	for _, v := range s.Files {
-		files = append(files, strings.TrimSpace(v.Content)+strings.TrimSpace(v.Name))
+	for _, file := range snippet.Files {
+		files = append(files, strings.TrimSpace(file.Content)+strings.TrimSpace(file.Name))
 	}
 	sort.Strings(files)
 	var contentBuilder strings.Builder
 	for i, file := range files {
 		contentBuilder.WriteString(file)
 		if i == len(files)-1 {
-			contentBuilder.WriteString(fmt.Sprintf("%v%s", s.Snippet.Sdk, strings.TrimSpace(s.Snippet.PipeOpts)))
+			contentBuilder.WriteString(fmt.Sprintf("%v%s", snippet.Snippet.Sdk, strings.TrimSpace(snippet.Snippet.PipeOpts)))
 		}
 	}
-	id, err := utils.ID(s.Salt, contentBuilder.String(), s.IdLength)
-	if err != nil {
-		return "", err
+
+	return contentBuilder.String()
+}
+
+func generateIDBasedOnContent(salt, content string, length int8) (string, error) {
+	hash := sha256.New()
+	if _, err := io.WriteString(hash, salt); err != nil {
+		logger.Errorf("ID(): error during hash generation: %s", err.Error())
+		return "", errors.InternalError("Error during hash generation", "Error writing hash and salt")
 	}
-	return id, nil
+	hash.Write([]byte(content))
+	sum := hash.Sum(nil)
+	b := make([]byte, base64.URLEncoding.EncodedLen(len(sum)))
+	base64.URLEncoding.Encode(b, sum)
+	hashLen := int(length)
+	for hashLen <= len(b) && b[hashLen-1] == '_' {
+		hashLen++
+	}
+	return string(b)[:hashLen], nil
 }

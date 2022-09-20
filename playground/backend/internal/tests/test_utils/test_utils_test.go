@@ -13,9 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package test_utils
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestRandomString(t *testing.T) {
 	tests := []struct {

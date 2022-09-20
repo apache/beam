@@ -21,6 +21,10 @@
 #   context_line: 30
 #   categories:
 #     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - count
+#     - nunbers
 
 import apache_beam as beam
 

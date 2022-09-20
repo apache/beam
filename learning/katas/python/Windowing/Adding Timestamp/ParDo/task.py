@@ -21,6 +21,10 @@
 #   context_line: 34
 #   categories:
 #     - Streaming
+#   complexity: MEDIUM
+#   tags:
+#     - timestamp
+#     - event
 
 import datetime
 import pytz

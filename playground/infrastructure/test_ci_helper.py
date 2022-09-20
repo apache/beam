@@ -56,6 +56,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
     pipeline_id = str(uuid.uuid4())
     default_example = Example(
         name="name",
+        complexity="MEDIUM",
         pipeline_id=pipeline_id,
         sdk=SDK_JAVA,
         filepath="filepath",
@@ -66,6 +67,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
         link="link")
     finished_example = Example(
         name="name",
+        complexity="MEDIUM",
         pipeline_id=pipeline_id,
         sdk=SDK_JAVA,
         filepath="filepath",
@@ -89,6 +91,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
     examples_with_errors = [
         Example(
             name="name",
+            complexity="MEDIUM",
             pipeline_id=pipeline_id,
             sdk=SDK_JAVA,
             filepath="filepath",
@@ -99,6 +102,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             link="link"),
         Example(
             name="name",
+            complexity="MEDIUM",
             pipeline_id=pipeline_id,
             sdk=SDK_JAVA,
             filepath="filepath",
@@ -109,6 +113,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             link="link"),
         Example(
             name="name",
+            complexity="MEDIUM",
             pipeline_id=pipeline_id,
             sdk=SDK_JAVA,
             filepath="filepath",
@@ -119,6 +124,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             link="link"),
         Example(
             name="name",
+            complexity="MEDIUM",
             pipeline_id=pipeline_id,
             sdk=SDK_JAVA,
             filepath="filepath",
@@ -129,6 +135,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             link="link"),
         Example(
             name="name",
+            complexity="MEDIUM",
             pipeline_id=pipeline_id,
             sdk=SDK_JAVA,
             filepath="filepath",
@@ -139,6 +146,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             link="link"),
         Example(
             name="name",
+            complexity="MEDIUM",
             pipeline_id=pipeline_id,
             sdk=SDK_JAVA,
             filepath="filepath",
@@ -149,6 +157,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             link="link"),
         Example(
             name="name",
+            complexity="MEDIUM",
             pipeline_id=pipeline_id,
             sdk=SDK_JAVA,
             filepath="filepath",

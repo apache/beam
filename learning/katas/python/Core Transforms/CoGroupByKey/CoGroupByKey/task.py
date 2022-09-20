@@ -22,6 +22,12 @@
 #   context_line: 31
 #   categories:
 #     - Combiners
+#   complexity: MEDIUM
+#   tags:
+#     - join
+#     - map
+#     - group
+#     - strings
 
 import apache_beam as beam
 

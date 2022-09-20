@@ -22,6 +22,12 @@
 #   categories:
 #     - Filtering
 #     - Multiple Outputs
+#   complexity: BASIC
+#   tags:
+#     - transform
+#     - map
+#     - output
+#     - strings
 
 import apache_beam as beam
 from apache_beam import pvalue
