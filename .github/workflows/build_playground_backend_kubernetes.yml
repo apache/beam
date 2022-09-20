@@ -19,7 +19,7 @@
 
 name: build_playground_backend_kubernetes
 on:
-  push:
+  workflow_dispatch:
 env:
   BEAM_ROOT_DIR: ../../
   BEAM_EXAMPLE_CATEGORIES: ../categories.yaml
