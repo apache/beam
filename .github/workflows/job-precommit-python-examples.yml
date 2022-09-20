@@ -32,6 +32,25 @@ on:
     tags: 'v*'
     paths: ['sdks/python/apache_beam/examples/**',
             'sdks/python/apache_beam/examples/**']
+permissions: read-all
+
+env:
+  tests: "'apache_beam/examples/complete/game/ \
+  apache_beam/examples/complete/autocomplete_test.py \
+  apache_beam/examples/complete/distribopt_test.py \
+  apache_beam/examples/complete/estimate_pi_test.py \
+  apache_beam/examples/complete/tfidf_test.py \
+  apache_beam/examples/complete/top_wikipedia_sessions_test.py \
+  apache_beam/examples/complete/juliaset/ \
+  apache_beam/examples/cookbook/ \
+  apache_beam/examples/dataframe/ \
+  apache_beam/examples/snippets/transforms/aggregation/ \
+  apache_beam/examples/snippets/transforms/elementwise/ \
+  apache_beam/examples/matrix_power_test.py \
+  apache_beam/examples/streaming_wordcount_debugging_test.py \
+  apache_beam/examples/wordcount_debugging_test.py \
+  apache_beam/examples/wordcount_minimal_test.py \
+  apache_beam/examples/wordcount_test.py'"
 
 jobs:
   set-properties:
@@ -40,8 +59,9 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - id: test-properties
@@ -50,32 +70,16 @@ jobs:
   python_examples:
     needs: set-properties
     name: Python Examples Test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
         version: ${{fromJson(needs.set-properties.outputs.properties).PythonTestProperties.ALL_SUPPORTED_VERSIONS}}
-        tests: ["apache_beam/examples/complete/game/",
-                "apache_beam/examples/complete/autocomplete_test.py",
-                "apache_beam/examples/complete/distribopt_test.py",
-                "apache_beam/examples/complete/estimate_pi_test.py",
-                "apache_beam/examples/complete/tfidf_test.py",
-                "apache_beam/examples/complete/top_wikipedia_sessions_test.py",
-                "apache_beam/examples/complete/juliaset/",
-                "apache_beam/examples/cookbook/",  
-                "apache_beam/examples/dataframe/",
-                "apache_beam/examples/snippets/transforms/aggregation/",
-                "apache_beam/examples/snippets/transforms/elementwise/",
-                "apache_beam/examples/matrix_power_test.py",
-                "apache_beam/examples/streaming_wordcount_debugging_test.py",
-                "apache_beam/examples/wordcount_debugging_test.py",
-                "apache_beam/examples/wordcount_minimal_test.py",
-                "apache_beam/examples/wordcount_test.py"]
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - name: Set python version and tox env
@@ -87,9 +91,9 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cloud
-          arguments: "-Pposargs=${{matrix.tests}}"
+          arguments: "-Pposargs=${{env.tests}}"
       - name: Run :sdks:python:test-suites:tox:y${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cython
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cython
-          arguments: "-Pposargs=${{matrix.tests}}"
+          arguments: "-Pposargs=${{env.tests}}"
