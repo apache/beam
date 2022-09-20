@@ -16,13 +16,15 @@
 name: Collect And Deploy Playground Examples
 
 on:
-  pull_request:
-    branches: ['master']
-    paths:
-     - playground/infrastructure/**
-     - learning/katas/**
-     - examples/**
-     - sdks/**
+  workflow_dispatch:
+
+#  pull_request:
+#    branches: ['master']
+#    paths:
+#     - playground/infrastructure/**
+#     - learning/katas/**
+#     - examples/**
+#     - sdks/**
 env:
   BEAM_ROOT_DIR: "../../"
   SDK_CONFIG: "../../playground/sdks.yaml"
@@ -33,6 +35,7 @@ env:
   SUBDIRS: "./learning/katas ./examples ./sdks"
   ORIGIN: PG_EXAMPLES
   PLAYGROUND_REGISTRY_NAME: us-central1-docker.pkg.dev
+  DOCKERTAG: testing
 jobs:
   check_examples:
     name: Check examples
@@ -110,24 +113,24 @@ jobs:
              echo "${{ secrets.EA_GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
              which gcloud
              gcloud auth activate-service-account --project=${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }} --key-file=/tmp/gcp_access.json
-      - name: Set Docker Tag
-        run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
-      - name: Set Docker Tag If Github Tag was trigger
-        run: echo "DOCKERTAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-        if: startsWith(github.ref, 'refs/tags/')
+#      - name: Set Docker Tag
+#        run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
+#      - name: Set Docker Tag If Github Tag was trigger
+#        run: echo "DOCKERTAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+#        if: startsWith(github.ref, 'refs/tags/')
       - name: Get K8s Config
         run: gcloud container clusters get-credentials --region     us-central1-a playground-examples
-      - name: Login to Docker Registry
-        run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ env.PLAYGROUND_REGISTRY_NAME }}
-      - name: Build And Push Java Backend
-        run: |
-             ./gradlew playground:backend:containers:java:dockerTagPush -Pdocker-repository-root='${{ env.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}' -Pdocker-tag=${{ env.DOCKERTAG }}
-      - name: Build And Push Go Backend
-        run: ./gradlew playground:backend:containers:go:dockerTagPush -Pdocker-repository-root='${{ env.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
-      - name: Build And Push Python Backend
-        run: ./gradlew playground:backend:containers:python:dockerTagPush -Pdocker-repository-root='${{ env.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
-      - name: Clean All Build directories
-        run: ./gradlew clean
+#      - name: Login to Docker Registry
+#        run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ env.PLAYGROUND_REGISTRY_NAME }}
+#      - name: Build And Push Java Backend
+#        run: |
+#             ./gradlew playground:backend:containers:java:dockerTagPush -Pdocker-repository-root='${{ env.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}' -Pdocker-tag=${{ env.DOCKERTAG }}
+#      - name: Build And Push Go Backend
+#        run: ./gradlew playground:backend:containers:go:dockerTagPush -Pdocker-repository-root='${{ env.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
+#      - name: Build And Push Python Backend
+#        run: ./gradlew playground:backend:containers:python:dockerTagPush -Pdocker-repository-root='${{ env.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
+#      - name: Clean All Build directories
+#        run: ./gradlew clean
       - name: Install helm chart
         run: |
              kubectl create namespace $K8S_NAMESPACE --dry-run=client -o yaml | kubectl apply -f - &&\
