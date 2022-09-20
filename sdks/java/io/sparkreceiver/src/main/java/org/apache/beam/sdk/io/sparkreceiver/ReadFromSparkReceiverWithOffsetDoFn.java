@@ -148,6 +148,10 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
       this.sparkReceiver = sparkReceiver;
 
       final SerializableFunction<Object[], Void> storeFn = (input) -> {
+        if (input == null) {
+          return null;
+        }
+
         if (input[0] instanceof ByteBuffer) {
           final ByteBuffer byteBuffer = ((ByteBuffer) input[0]).asReadOnlyBuffer();
           final byte[] bytes = new byte[byteBuffer.limit()];
