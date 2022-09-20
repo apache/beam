@@ -18,12 +18,13 @@ name: Collect And Deploy Playground Examples
 on:
   workflow_dispatch:
   pull_request:
-    branches: ['master']
-    paths:
-     - playground/infrastructure/**
-     - learning/katas/**
-     - examples/**
-     - sdks/**
+#  pull_request:
+#    branches: ['master']
+#    paths:
+#     - playground/infrastructure/**
+#     - learning/katas/**
+#     - examples/**
+#     - sdks/**
 env:
   BEAM_ROOT_DIR: "../../"
   SDK_CONFIG: "../../playground/sdks.yaml"
