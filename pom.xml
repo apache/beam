@@ -189,6 +189,11 @@
             </format>
           </formats>
           <java>
+            <!-- Exclude Beam code from formatting/license headers -->
+            <excludes>
+              <exclude>src/main/java/org/apache/beam/**</exclude>
+              <exclude>src/test/java/org/apache/beam/**</exclude>
+            </excludes>
             <toggleOffOn />
             <googleJavaFormat>
               <version>1.8</version>
