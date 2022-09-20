@@ -2,7 +2,7 @@
 title: "Videos and Podcasts"
 aliases:
   - /learn/resources/
-  - /documentation/resources/
+  - /get-started/resources/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

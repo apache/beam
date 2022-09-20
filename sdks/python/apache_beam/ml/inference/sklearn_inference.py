@@ -23,7 +23,6 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
-from typing import Union
 
 import numpy
 import pandas
@@ -32,6 +31,7 @@ from sklearn.base import BaseEstimator
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import _convert_to_result
 from apache_beam.utils.annotations import experimental
 
 try:
@@ -67,23 +67,6 @@ def _load_model(model_uri, file_type):
   raise AssertionError('Unsupported serialization type.')
 
 
-def _convert_to_result(
-    batch: Iterable, predictions: Union[Iterable, Dict[Any, Iterable]]
-) -> Iterable[PredictionResult]:
-  if isinstance(predictions, dict):
-    # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
-    # key_type2: Iterable<val_type2>, ...} where each Iterable is of
-    # length batch_size, to a list of dictionaries:
-    # [{key_type1: value_type1, key_type2: value_type2}]
-    predictions_per_tensor = [
-        dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
-    ]
-    return [
-        PredictionResult(x, y) for x, y in zip(batch, predictions_per_tensor)
-    ]
-  return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
-
-
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                             PredictionResult,
                                             BaseEstimator]):
@@ -114,8 +97,8 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self,
       batch: Sequence[numpy.ndarray],
       model: BaseEstimator,
-      inference_args: Optional[Dict[str, Any]] = None
-  ) -> Iterable[PredictionResult]:
+      inference_args: Optional[Dict[str, Any]] = None,
+      drop_example: Optional[bool] = False) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of numpy arrays.
 
     Args:
@@ -124,6 +107,8 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model: A numpy model or pipeline. Must implement predict(X).
         Where the parameter X is a numpy array.
       inference_args: Any additional arguments for an inference.
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
 
     Returns:
       An Iterable of type PredictionResult.
@@ -132,7 +117,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
 
-    return _convert_to_result(batch, predictions)
+    return _convert_to_result(batch, predictions, drop_example=drop_example)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """
@@ -140,6 +125,13 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       The number of bytes of data for a batch.
     """
     return sum(sys.getsizeof(element) for element in batch)
+
+  def get_metrics_namespace(self) -> str:
+    """
+    Returns:
+       A namespace for metrics collected by the RunInference transform.
+    """
+    return 'BeamML_Sklearn'
 
 
 @experimental(extra_message="No backwards-compatibility guarantees.")
@@ -176,8 +168,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       self,
       batch: Sequence[pandas.DataFrame],
       model: BaseEstimator,
-      inference_args: Optional[Dict[str, Any]] = None
-  ) -> Iterable[PredictionResult]:
+      inference_args: Optional[Dict[str, Any]] = None,
+      drop_example: Optional[bool] = False) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of pandas dataframes.
 
@@ -187,7 +179,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       model: A dataframe model or pipeline. Must implement predict(X).
         Where the parameter X is a pandas dataframe.
       inference_args: Any additional arguments for an inference.
-
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
     Returns:
       An Iterable of type PredictionResult.
     """
@@ -203,7 +196,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
         vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
     ]
 
-    return _convert_to_result(splits, predictions)
+    return _convert_to_result(splits, predictions, drop_example=drop_example)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """
@@ -211,3 +204,10 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       The number of bytes of data for a batch.
     """
     return sum(df.memory_usage(deep=True).sum() for df in batch)
+
+  def get_metrics_namespace(self) -> str:
+    """
+    Returns:
+       A namespace for metrics collected by the RunInference transform.
+    """
+    return 'BeamML_Sklearn'
