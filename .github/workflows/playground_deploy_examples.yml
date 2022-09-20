@@ -17,7 +17,7 @@ name: Collect And Deploy Playground Examples
 
 on:
   workflow_dispatch:
-  pull_request:
+  push:
 #  pull_request:
 #    branches: ['master']
 #    paths:
@@ -62,7 +62,8 @@ jobs:
         name: get Difference
         id: check_file_changed
         run: |
-          $diff = git diff --name-only origin/${{ github.base_ref }} ${{ github.sha }} -- ${{ env.SUBDIRS }}
+          # TODO: find a variable 'origin/master' below
+          $diff = git diff --name-only origin/master ${{ github.sha }} -- ${{ env.SUBDIRS }}
           echo "$diff"
           Write-Host "::set-output name=example_diff::$diff"
       - name: has Examples
