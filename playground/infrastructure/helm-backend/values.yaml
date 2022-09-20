@@ -34,9 +34,3 @@ autoscaling:
    minReplicas: 1
    maxReplicas: 4
    targetCPUUtilizationPercentage: 80
-Footer
-© 2022 GitHub, Inc.
-Footer navigation
-Terms
-Privacy
-Security
