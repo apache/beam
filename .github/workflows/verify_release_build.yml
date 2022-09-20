@@ -45,7 +45,8 @@ jobs:
           echo $GITHUB_ACTOR
           echo $RUNNER_NAME
           echo $RUNNER_OS
-
+          git config user.name
+          git config user.email
 #git config user.name $GITHUB_ACTOR
 #      - name: Set Dataflow Python Batch Tests Release Version
 #        run: |
