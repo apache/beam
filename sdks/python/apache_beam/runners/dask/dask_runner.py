@@ -50,7 +50,7 @@ class DaskOptions(PipelineOptions):
 
   @classmethod
   def _add_argparse_args(cls, parser: argparse.ArgumentParser) -> None:
-    parser.add_argument('--dask_client_address', type=str, default=None,
+    parser.add_argument('--dask_client_address', dest='address', type=str, default=None,
                         help='Address of a dask Scheduler server. Will '
                              'default to a `dask.LocalCluster()`.')
     parser.add_argument('--dask_connection_timeout', dest='timeout',
