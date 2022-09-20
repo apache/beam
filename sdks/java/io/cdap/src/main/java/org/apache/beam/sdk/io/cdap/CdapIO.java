@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
-import static org.apache.beam.sdk.io.cdap.MappingUtils.*;
+import static org.apache.beam.sdk.io.cdap.MappingUtils.getOffsetFnForPluginClass;
+import static org.apache.beam.sdk.io.cdap.MappingUtils.getPluginByClass;
+import static org.apache.beam.sdk.io.cdap.MappingUtils.getReceiverBuilderByPluginClass;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
@@ -33,7 +35,11 @@ import org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.*;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
