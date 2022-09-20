@@ -20,7 +20,7 @@ limitations under the License.
 The OnlineClustering example demonstrates how to setup a realtime clustering pipeline that can read text from PubSub, convert the text into an embedding using a language model, and cluster them using BIRCH.
 
 ### Dataset for Clustering
-For the example, we use a dataset called [emotion](https://huggingface.co/datasets/emotion). It comprises of 20000 English Twitter messages with 6 basic emotions: anger, fear, joy, love, sadness, and surprise. The dataset has three splits: train (for training), validation and test (for performance evaluation). It is a supervised dataset as it contains the text and the category(class) of the dataset. This dataset can easily be accessed using [HuggingFace Datasets](https://huggingface.co/docs/datasets/index).
+For the example, we use a dataset called [emotion](https://huggingface.co/datasets/emotion). It comprises of 20,000 English Twitter messages with 6 basic emotions: anger, fear, joy, love, sadness, and surprise. The dataset has three splits: train, validation and test. It is a supervised dataset as it contains the text and the category(class) of the dataset. This dataset can easily be accessed using [HuggingFace Datasets](https://huggingface.co/docs/datasets/index).
 
 To have a better understanding of the dataset, here are some examples from the train split of the dataset:
 
@@ -56,9 +56,13 @@ The file structure for ingestion pipeline is:
     └── setup.py
 
 `pipeline/utils.py` contains the code for loading the emotion dataset and two `beam.DoFn` that are used for data transformation
+
 `pipeline/options.py` contains the pipeline options to configure the Dataflow pipeline
+
 `config.py` defines some variables like GCP PROJECT_ID, NUM_WORKERS that are used multiple times
+
 `setup.py` defines the packages/requirements for the pipeline to run
+
 `main.py` contains the pipeline code and some additional function used for running the pipeline
 
 ### How to Run the Pipeline ?
@@ -94,10 +98,14 @@ The file structure for clustering_pipeline is:
     ├── main.py
     └── setup.py
 
-`pipeline/utils.py` contains the code for loading the emotion dataset and two `beam.DoFn` that are used for data transformation
+`pipeline/transformations.py` contains the code for different `beam.DoFn` that are used in the pipeline
+
 `pipeline/options.py` contains the pipeline options to configure the Dataflow pipeline
+
 `config.py` defines some variables like GCP PROJECT_ID, NUM_WORKERS that are used multiple times
+
 `setup.py` defines the packages/requirements for the pipeline to run
+
 `main.py` contains the pipeline code and some additional function used for running the pipeline
 
 ### How to Run the Pipeline ?
@@ -162,7 +170,7 @@ After getting the embedding for each twitter text, the embeddings are normalized
 
 
 ### StatefulOnlineClustering
-As the data is coming in a streaming fashion, so to cluster them we need an iterative clustering algorithm like BIRCH. As, the algorithm is iterative, we need a mechanism to store the previous state so that when a twitter text arrives, it can be updated accordingly.  ** Stateful Processing ** enables a `DoFn` with the ability to have a persistent state which can be read and written during the processing of each element. One can read about Stateful Processing in the official documentation from Beam: [Link](https://beam.apache.org/blog/stateful-processing/).
+As the data is coming in a streaming fashion, so to cluster them we need an iterative clustering algorithm like BIRCH. As, the algorithm is iterative, we need a mechanism to store the previous state so that when a twitter text arrives, it can be updated accordingly.  * Stateful Processing * enables a `DoFn` to have persistent state which can be read and written during the processing of each element. One can read about Stateful Processing in the official documentation from Beam: [Link](https://beam.apache.org/blog/stateful-processing/).
 
 In this example, every time a new message is Read from PubSub, we retrieve the existing state of the clustering model, update it and write it back to the state.
 
@@ -197,14 +205,14 @@ We declare four different `ReadModifyWriteStateSpec objects`:
 * `UPDATE_COUNTER_SPEC`: holds the number of texts processed
 
 
-These `ReadModifyWriteStateSpec objects` are passed as an additional argument to the process fun, where whenever a news item comes in, we retrieve the existing state of the different objects, update it and then write it back.
+These `ReadModifyWriteStateSpec objects` are passed as an additional argument to the `process` function. When a news item comes in, we retrieve the existing state of the different objects, update them and then write them back as persistent shared state.
 
 {{< highlight file="sdks/python/apache_beam/examples/inference/online_clustering/clustering_pipeline/pipeline/transformations.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/inference/online_clustering/clustering_pipeline/pipeline/transformations.py" stateful_clustering >}}
 {{< /highlight >}}
 
 
-`GetUpdates` is a `DoFn` that prints the cluster assigned to each twitter message, every time a new message comes.
+`GetUpdates` is a `DoFn` that prints the cluster assigned to each twitter message, every time a new message arrives.
 
 {{< highlight >}}
 updated_clusters = clustering | "Format Update" >> beam.ParDo(GetUpdates())
