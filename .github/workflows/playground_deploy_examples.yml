@@ -79,6 +79,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ check_examples ]
     if: needs.check_examples.outputs.example_has_changed == 'True'
+    env:
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
