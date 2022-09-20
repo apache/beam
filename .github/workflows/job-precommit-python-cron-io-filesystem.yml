@@ -49,7 +49,7 @@ jobs:
         version: ${{fromJson(needs.set-properties.outputs.properties).PythonTestProperties.ALL_SUPPORTED_VERSIONS}}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
@@ -58,13 +58,8 @@ jobs:
           echo "PYTHON_VERSION=$(echo ${{ matrix.version }} | sed -e 's/\.//g')" >> $GITHUB_ENV
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
-      - name: Run :sdks:python:test-suites:tox:${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cloud
+      - name: Run Precommit Python Cron IO Filesystem Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:tox:py${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cloud
-          arguments: "-Pposargs=apache_beam/io/fileio_test.py"
-      - name: Run :sdks:python:test-suites:tox:y${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cython
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :sdks:python:test-suites:tox:py${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cython
+          gradle-command: :sdks:python:test-suites:dataflow:py${{env.PYTHON_VERSION}}:postCommitITByTestDirectory
           arguments: "-Pposargs=apache_beam/io/fileio_test.py"
