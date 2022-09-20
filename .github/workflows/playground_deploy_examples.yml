@@ -63,7 +63,7 @@ jobs:
         name: get Difference
         id: check_file_changed
         run: |
-          $diff = git diff --name-only origin/${{ github.base_ref }} ${{ github.sha }} -- ${{ env.SUBDIRS }}
+          $diff = git diff --name-only ${{ github.event.before }} ${{ github.event.after }} -- ${{ env.SUBDIRS }}
           echo "$diff"
           Write-Host "::set-output name=example_diff::$diff"
       - name: has Examples
