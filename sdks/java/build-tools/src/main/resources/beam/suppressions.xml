@@ -96,4 +96,7 @@
   <suppress files="org.apache.beam.sdk.io.thrift.TestThriftUnion.java" checks="[a-zA-Z0-9]*"/>
   <suppress files="org.apache.beam.sdk.io.thrift.payloads.*" checks="[a-zA-Z0-9]*"/>
 
+  <!-- Test deliberately uses the default package. -->
+  <suppress checks="PackageDeclaration" files="org.apache.beam.sdk.transforms.reflect.DefaultPackageTest.java"/>
+
 </suppressions>

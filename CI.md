@@ -133,6 +133,26 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 |--------------------------------------|---------------------------------------|------------------|-----------------------|---------------|--------------------------|
 | Run Java PreCommit Examples DataFlow | Runs Java PreCommit Examples DataFlow | Yes              | Yes                   | Yes           | No                       |
 
+#### Go PreCommit - [job-precommit-go.yml](.github/workflows/job-precommit-go.yml)
+
+| Job                   | Description        | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------------|--------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Go PreCommit      | Runs Go PreCommit  | Yes              | Yes                   | Yes           | No                       |
+
+#### Go Portable PreCommit - [job-portable-precommit-go.yml](.github/workflows/job-portable-precommit-go.yml)
+
+| Job                       | Description                | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|---------------------------|----------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Go Portable PreCommit | Runs Go Portable PreCommit | Yes              | Yes                   | Yes           | No                       |
+
+### PostCommit Workflows
+
+#### Python PostCommit Examples DataFlow - [job-postcommit-python-examples.yml](.github/workflows/job-postcommit-python-examples.yml)
+
+| Job                                        | Description                                | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|--------------------------------------------|--------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Run Python PostCommit Examples on DataFlow | Run Python PostCommit Examples on DataFlow | No               | Yes                   | Yes           | No                       |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.

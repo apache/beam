@@ -49,6 +49,8 @@ class PlaygroundPage extends StatelessWidget {
             automaticallyImplyLeading: false,
             title: Consumer<PlaygroundState>(
               builder: (context, state, child) {
+                final controller = state.snippetEditingController;
+
                 return Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: kXlSpacing,
@@ -60,18 +62,18 @@ class PlaygroundPage extends StatelessWidget {
                       isSelectorOpened: state.exampleState.isSelectorOpened,
                     ),
                     SDKSelector(
-                      sdk: state.sdk,
-                      setSdk: (newSdk) {
+                      value: state.sdk,
+                      onChanged: (newSdk) {
                         AnalyticsService.get(context)
                             .trackSelectSdk(state.sdk, newSdk);
                         state.setSdk(newSdk);
                       },
-                      setExample: state.setExample,
                     ),
-                    PipelineOptionsDropdown(
-                      pipelineOptions: state.pipelineOptions,
-                      setPipelineOptions: state.setPipelineOptions,
-                    ),
+                    if (controller != null)
+                      PipelineOptionsDropdown(
+                        pipelineOptions: controller.pipelineOptions,
+                        setPipelineOptions: state.setPipelineOptions,
+                      ),
                     const NewExampleAction(),
                     ResetAction(reset: state.reset),
                   ],

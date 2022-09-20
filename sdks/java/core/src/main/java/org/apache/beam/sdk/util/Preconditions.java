@@ -439,19 +439,19 @@ public class Preconditions {
   }
 
   /**
-   * Ensures that a piece of state passed as a parameter to the calling method is not null.
+   * Ensures that a piece of state is not null.
    *
-   * @param reference an object reference
+   * @param obj an object reference
    * @return the non-null reference that was validated
-   * @throws IllegalStateException if {@code reference} is null
+   * @throws IllegalStateException if {@code obj} is null
    */
   @CanIgnoreReturnValue
   @EnsuresNonNull("#1")
-  public static <T extends @NonNull Object> T checkStateNotNull(@Nullable T reference) {
-    if (reference == null) {
+  public static <T extends @NonNull Object> T checkStateNotNull(@Nullable T obj) {
+    if (obj == null) {
       throw new IllegalStateException();
     }
-    return reference;
+    return obj;
   }
 
   /**
@@ -471,5 +471,64 @@ public class Preconditions {
       throw new IllegalStateException(String.valueOf(errorMessage));
     }
     return reference;
+  }
+
+  /**
+   * Ensures that a piece of state passed as a parameter to the calling method is not null.
+   *
+   * @param obj an object reference
+   * @param errorMessageTemplate a template for the exception message should the check fail. The
+   *     message is formed by replacing each {@code %s} placeholder in the template with an
+   *     argument. These are matched by position - the first {@code %s} gets {@code
+   *     errorMessageArgs[0]}, etc. Unmatched arguments will be appended to the formatted message in
+   *     square braces. Unmatched placeholders will be left as-is.
+   * @param errorMessageArgs the arguments to be substituted into the message template. Arguments
+   *     are converted to strings using {@link String#valueOf(Object)}.
+   * @return the non-null reference that was validated
+   * @throws IllegalStateException if {@code obj} is null
+   */
+  @CanIgnoreReturnValue
+  @EnsuresNonNull("#1")
+  public static <T extends @NonNull Object> T checkStateNotNull(
+      @Nullable T obj,
+      @Nullable String errorMessageTemplate,
+      @Nullable Object... errorMessageArgs) {
+    if (obj == null) {
+      throw new IllegalArgumentException(lenientFormat(errorMessageTemplate, errorMessageArgs));
+    }
+    return obj;
+  }
+
+  /**
+   * Ensures that a piece of state is not null.
+   *
+   * <p>See {@link #checkStateNotNull(Object, String, Object...)} for details.
+   */
+  @CanIgnoreReturnValue
+  @EnsuresNonNull("#1")
+  public static <T extends @NonNull Object> T checkStateNotNull(
+      @Nullable T obj, @Nullable String errorMessageTemplate, @Nullable Object p1) {
+    if (obj == null) {
+      throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1));
+    }
+    return obj;
+  }
+
+  /**
+   * Ensures that an object reference passed as a parameter to the calling method is not null.
+   *
+   * <p>See {@link #checkArgumentNotNull(Object, String, Object...)} for details.
+   */
+  @CanIgnoreReturnValue
+  @EnsuresNonNull("#1")
+  public static <T extends @NonNull Object> T checkStateNotNull(
+      @Nullable T obj,
+      @Nullable String errorMessageTemplate,
+      @Nullable Object p1,
+      @Nullable Object p2) {
+    if (obj == null) {
+      throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+    }
+    return obj;
   }
 }

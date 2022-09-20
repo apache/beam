@@ -53,7 +53,6 @@ def file_lines_sorted(filepath):
 @pytest.mark.uses_sklearn
 @pytest.mark.it_postcommit
 class SklearnInference(unittest.TestCase):
-  @pytest.mark.skip
   def test_sklearn_mnist_classification(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     input_file = 'gs://apache-beam-ml/testing/inputs/it_mnist_data.csv'
