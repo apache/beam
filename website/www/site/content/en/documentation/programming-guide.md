@@ -1971,7 +1971,7 @@ as `DoFn`, `CombineFn`, and `WindowFn`, already implement `Serializable`;
 however, your subclass must not add any non-serializable members.</span>
 <span class="language-go">Funcs are serializable as long as
 they are registered with `register.FunctionXxY` (for simple functions) or
-`register.DoFnXxY` (for sturctural DoFns), and are not closures. Structural
+`register.DoFnXxY` (for structural DoFns), and are not closures. Structural
 `DoFn`s will have all exported fields serialized. Unexported fields are unable to
 be serialized, and will be silently ignored.</span>
 <span class="language-typescript">
