@@ -20,7 +20,6 @@ package org.apache.beam.runners.samza.runtime;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
@@ -30,6 +29,11 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
+/**
+ * This {@link DoFnRunner} adds the capability of executing the {@link
+ * org.apache.beam.sdk.transforms.DoFn.ProcessElement} in the thread pool, and returns the future to
+ * the collector for the underlying async execution.
+ */
 public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
   private final DoFnRunner<InT, OutT> underlying;
   private final ExecutorService executor;
@@ -42,8 +46,7 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
       FutureCollector<OutT> futureCollector,
       SamzaPipelineOptions options) {
     this.underlying = runner;
-    // TODO: change to key-based thread pool if needed
-    this.executor = Executors.newFixedThreadPool(options.getBundleThreadNum());
+    this.executor = options.getExecutorServiceForProcessElement();
     this.emitter = emitter;
     this.futureCollector = futureCollector;
   }

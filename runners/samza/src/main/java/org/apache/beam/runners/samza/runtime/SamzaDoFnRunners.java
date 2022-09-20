@@ -152,7 +152,7 @@ public class SamzaDoFnRunners {
       doFnRunnerWithStates = doFnRunnerWithMetrics;
     }
 
-    return pipelineOptions.getBundleThreadNum() > 1
+    return pipelineOptions.getNumThreadsForProcessElement() > 1
         ? new AsyncDoFnRunner<>(doFnRunnerWithStates, emitter, futureCollector, pipelineOptions)
         : doFnRunnerWithStates;
   }

@@ -49,20 +49,33 @@ import org.junit.Test;
   // errorprone is released (2.11.0)
   "unused"
 })
+/**
+ * Tests for {@link AsyncDoFnRunner}.
+ *
+ * <p>Note due to the bug in SAMZA-2761, end-of-stream can cause shutdown while there are still
+ * messages in process in asynchronous mode. As a temporary solution, we add more bundles to process
+ * in the test inputs.
+ */
 public class AsyncDoFnRunnerTest implements Serializable {
 
   @Rule
   public final transient TestPipeline pipeline =
       TestPipeline.fromOptions(
           PipelineOptionsFactory.fromArgs(
-                  "--runner=TestSamzaRunner", "--maxBundleSize=5", "--bundleThreadNum=5")
+                  "--runner=TestSamzaRunner",
+                  "--maxBundleSize=5",
+                  "--numThreadsForProcessElement=5")
               .create());
 
   @Test
   public void testSimplePipeline() {
+    List<Integer> input = new ArrayList<>();
+    for (int i = 1; i < 20; i++) {
+      input.add(i);
+    }
     PCollection<Integer> square =
         pipeline
-            .apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))
+            .apply(Create.of(input))
             .apply(Filter.by(x -> x <= 5))
             .apply(MapElements.into(TypeDescriptors.integers()).via(x -> x * x));
 
@@ -83,7 +96,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
                 KV.of("banana", "yellow")));
     final Map<String, Integer> expectedCount = ImmutableMap.of("apple", 2, "banana", 2, "grape", 1);
 
-    // TODO: rmove after the fix of SAMZA-2761: end-of-stream shut down when no messages in flight
+    // TODO: remove after SAMZA-2761 fix
     for (int i = 0; i < 10; i++) {
       input.add(KV.of("*", "*"));
     }
@@ -98,11 +111,6 @@ public class AsyncDoFnRunnerTest implements Serializable {
           @ProcessElement
           public void processElement(
               ProcessContext c, @StateId("cc") CombiningState<Integer, int[], Integer> countState) {
-
-            if (c.element().getKey().equals("*")) {
-              return;
-            }
-
             // Need explicit synchronization here
             synchronized (this) {
               countState.add(1);
@@ -116,13 +124,46 @@ public class AsyncDoFnRunnerTest implements Serializable {
           }
         };
 
-    PCollection<KV<String, Integer>> counts = pipeline.apply(Create.of(input)).apply(ParDo.of(fn));
+    PCollection<KV<String, Integer>> counts =
+        pipeline
+            .apply(Create.of(input))
+            .apply(Filter.by(x -> !x.getKey().equals("*")))
+            .apply(ParDo.of(fn));
 
     PAssert.that(counts)
         .containsInAnyOrder(
             expectedCount.entrySet().stream()
                 .map(entry -> KV.of(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList()));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testPipelineWithAggregation() {
+    final List<KV<String, Long>> input =
+        new ArrayList<>(
+            Arrays.asList(
+                KV.of("apple", 2L),
+                KV.of("banana", 5L),
+                KV.of("apple", 8L),
+                KV.of("grape", 10L),
+                KV.of("banana", 5L)));
+
+    // TODO: remove after SAMZA-2761 fix
+    for (int i = 0; i < 10; i++) {
+      input.add(KV.of("*", 0L));
+    }
+
+    PCollection<KV<String, Long>> sums =
+        pipeline
+            .apply(Create.of(input))
+            .apply(Filter.by(x -> !x.getKey().equals("*")))
+            .apply(Sum.longsPerKey());
+
+    PAssert.that(sums)
+        .containsInAnyOrder(
+            Arrays.asList(KV.of("apple", 10L), KV.of("banana", 10L), KV.of("grape", 10L)));
 
     pipeline.run();
   }
