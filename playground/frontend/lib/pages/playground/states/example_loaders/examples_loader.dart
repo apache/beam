@@ -17,12 +17,14 @@
  */
 
 import 'package:playground/modules/examples/models/example_loading_descriptors/catalog_default_example_loading_descriptor.dart';
+import 'package:playground/modules/examples/models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
 import 'package:playground/pages/playground/states/example_loaders/catalog_default_example_loader.dart';
+import 'package:playground/pages/playground/states/example_loaders/content_example_loader.dart';
 import 'package:playground/pages/playground/states/example_loaders/empty_example_loader.dart';
 import 'package:playground/pages/playground/states/example_loaders/example_loader.dart';
 import 'package:playground/pages/playground/states/example_loaders/standard_example_loader.dart';
@@ -48,6 +50,11 @@ class ExamplesLoader {
         (one) => loadOne(group: descriptor, one: one),
       ),
     );
+
+    final sdk = descriptor.initialSdk;
+    if (sdk != null) {
+      _playgroundState!.setSdk(sdk);
+    }
   }
 
   Future<void> loadOne({
@@ -72,10 +79,15 @@ class ExamplesLoader {
       );
     }
 
+    if (descriptor is ContentExampleLoadingDescriptor) {
+      return ContentExampleLoader(
+        descriptor: descriptor,
+      );
+    }
+
     if (descriptor is EmptyExampleLoadingDescriptor) {
       return EmptyExampleLoader(
         descriptor: descriptor,
-        exampleState: exampleState,
       );
     }
 

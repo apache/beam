@@ -23,6 +23,12 @@ on:
     paths: ['playground/backend/**']
     branches: ['playground-staging']
   workflow_dispatch:
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
 jobs:
   build_playground_backend_docker_image:
     name: Build Playground Backend App
@@ -89,5 +95,6 @@ jobs:
         run: |
          gcloud auth activate-service-account --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }} --key-file=/tmp/gcp_access.json
          gcloud app deploy playground/index.yaml --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
