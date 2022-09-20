@@ -10,6 +10,10 @@ on:
         description: Flag to comment the Jenkins Trigger Phrases in the new PR
         required: true
         default: 'true'
+      ORG:
+        description: Org name
+        required: true
+
 env:
   #WORKING_BRANCH: postcommit_validation_pr # Is it always the same branch name? or should we need to add it as input?
   WORKING_BRANCH: 'verify-release-pr-test'
@@ -50,8 +54,9 @@ jobs:
         id: create_pr
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORG: ${{ github.event.inputs.ORG }}
         run: |
-          GITHUB_PR_URL=$(hub pull-request -b apache:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
+          GITHUB_PR_URL=$(hub pull-request -b $ORG:${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
 
           You can run many tests automatically using release/src/main/scripts/mass_comment.py.")
           echo "::set-output name=git_pr::${GITHUB_PR_URL}"
