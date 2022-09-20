@@ -54,6 +54,7 @@ jobs:
       fail-fast: true
       matrix:
         version: ${{fromJson(needs.set-properties.outputs.properties).PythonTestProperties.ALL_SUPPORTED_VERSIONS}}
+        tox-env: ${{fromJson(needs.set-properties.outputs.properties).PythonTestProperties.TOX_ENV}}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
