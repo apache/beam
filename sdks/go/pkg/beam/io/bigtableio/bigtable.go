@@ -32,12 +32,12 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*writeBatchFn)(nil)).Elem())
 }
 
-// RowKeyMutationPair represents a row pair containing its rowKey and the mutation to be applied
+// RowKeyMutationPair represents a planned row-mutation containing a rowKey and the mutation to be applied
 type RowKeyMutationPair struct {
 	rowKey   string
 	mutation *bigtable.Mutation
 
-	// custom beam.GroupByKey key
+	// optional custom beam.GroupByKey key, default is fixed key 1
 	groupKey string
 }
 
@@ -55,7 +55,7 @@ func (rowKeyMutationPair *RowKeyMutationPair) WithGroupKey(key string) *RowKeyMu
 // Write writes the elements of the given PCollection<bigtableio.RowKeyMutationPair> to bigtable.
 func Write(s beam.Scope, project, instanceID, table string, col beam.PCollection) {
 	t := col.Type().Type()
-	mustBeKeyMutationPair(t)
+	mustBeRowKeyMutationPair(t)
 
 	s = s.Scope("bigtable.Write")
 
@@ -65,9 +65,11 @@ func Write(s beam.Scope, project, instanceID, table string, col beam.PCollection
 }
 
 // WriteBatch writes the elements of the given PCollection<bigtableio.RowKeyMutationPair> using ApplyBulk to bigtable.
+// For the underlying bigtable.ApplyBulk function to work properly the maximum number of mutations per RowKeyMutationPair (maxMutationsPerRow) must be given.
+// This is necessary due to the maximum amount of mutations allowed per bulk operation (100,000), see https://cloud.google.com/bigtable/docs/writes#batch for more.
 func WriteBatch(s beam.Scope, project, instanceID, table string, maxMutationsPerRow uint, col beam.PCollection) {
 	t := col.Type().Type()
-	mustBeKeyMutationPair(t)
+	mustBeRowKeyMutationPair(t)
 
 	if maxMutationsPerRow == 0 {
 		panic("maxMutationsPerRow must not be 0")
@@ -97,7 +99,7 @@ func hashStringToInt(s string) int {
 	return int(h.Sum32())
 }
 
-func mustBeKeyMutationPair(t reflect.Type) {
+func mustBeRowKeyMutationPair(t reflect.Type) {
 	if t != reflect.TypeOf(RowKeyMutationPair{}) {
 		panic(fmt.Sprintf("type must be bigtableio.KeyMutationPair, but is: %v", t))
 	}
