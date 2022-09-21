@@ -156,7 +156,7 @@ func mainError() error {
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
-	venvDir, err := setupVenv(filepath.Join(*semiPersistDir, "beam-venv"), *id)
+	venvDir, err := setupVenv("/opt/apache/beam-venv", *id)
 	if err != nil {
 		return fmt.Errorf("Failed to initialize Python venv.")
 	}
