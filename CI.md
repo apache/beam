@@ -131,31 +131,31 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 
 | Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
 |-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO hadoop| Runs Java IO hadoop | No              | Yes                   | Yes           | No                       |
+| Run Java IO hadoop| Runs Java IO hadoop | Yes              | Yes                   | Yes           | No                       |
 
 #### Java IO Hbase - [job-precommit-java-io-hbase.yml](.github/workflows/job-precommit-java-io-hbase.yml)
 
 | Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
 |-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO hbase| Runs Java IO hbase | No              | Yes                   | Yes           | No                       |
+| Run Java IO hbase| Runs Java IO hbase | Yes              | Yes                   | Yes           | No                       |
 
 #### Java IO hcatalog - [job-precommit-java-io-hcatalog.yml](.github/workflows/job-precommit-java-io-hcatalog.yml)
 
 | Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
 |-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO hcatalog| Runs Java IO hcatalog | No              | Yes                   | Yes           | No                       |
+| Run Java IO hcatalog| Runs Java IO hcatalog | Yes              | Yes                   | Yes           | No                       |
 
 #### Java IO HDFS - [job-precommit-java-io-hdfs.yml](.github/workflows/job-precommit-java-io-hdfs.yml)
 
 | Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
 |-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO HDFS | Runs Java IO HDFS | No              | Yes                   | Yes           | No                       |
+| Run Java IO HDFS | Runs Java IO HDFS | Yes              | Yes                   | Yes           | No                       |
 
 #### Java IO Influxdb - [job-precommit-java-io-influxdb.yml](.github/workflows/job-precommit-java-io-influxdb.yml)
 
 | Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
 |-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO Influxdb | Runs Java IO Influxdb | No              | Yes                   | Yes           | No                       |
+| Run Java IO Influxdb | Runs Java IO Influxdb | Yes              | Yes                   | Yes           | No                       |
 
 
 
