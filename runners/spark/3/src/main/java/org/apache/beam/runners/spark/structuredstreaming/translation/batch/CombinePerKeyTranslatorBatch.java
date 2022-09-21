@@ -103,7 +103,8 @@ class CombinePerKeyTranslatorBatch<K, InT, AccT, OutT>
                 .map(windowedKV(), wvOutputEnc);
       }
     } else {
-      // Use an optimized aggregator for session window fns
+      // Optimized aggregator for non-merging and session window functions, all others depend on
+      // windowFn.mergeWindows
       Aggregator<WindowedValue<KV<K, InT>>, ?, Collection<WindowedValue<OutT>>> aggregator =
           Aggregators.windowedValue(
               combineFn,

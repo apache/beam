@@ -75,9 +75,9 @@ import scala.collection.immutable.List;
  * function {@code collect_list} when applicable.
  *
  * <p>Note: Using {@code collect_list} isn't any worse than using {@link ReduceFnRunner}. In the
- * latter case the entire group (iterator) has to be loaded into memory as well, risking OOM errors
- * in both cases. When disabling {@link #useCollectList}, a more memory sensitive iterable is used
- * that can be traversed just once. Attempting to traverse the iterable again will throw.
+ * latter case the entire group (iterator) has to be loaded into memory as well. Either way there's
+ * a risk of OOM errors. When disabling {@link #useCollectList}, a more memory sensitive iterable is
+ * used that can be traversed just once. Attempting to traverse the iterable again will throw.
  *
  * <ul>
  *   <li>When using the default global window, window information is dropped and restored after the
