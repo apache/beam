@@ -60,8 +60,7 @@ jobs:
         name: get Difference
         id: check_file_changed
         run: |
-          # TODO: find a variable 'origin/master' below
-          $diff = git diff --name-only origin/master ${{ github.sha }} -- ${{ env.SUBDIRS }}
+          $diff = git diff --name-only ${GITHUB_BASE_REF#origin/master} $GITHUB_SHA -- $SUBDIRS
           echo "$diff"
           Write-Host "::set-output name=example_diff::$diff"
       - name: has Examples
@@ -82,8 +81,6 @@ jobs:
       GOOGLE_CLOUD_PROJECT: ${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}
       SA_KEY_CONTENT: ${{ secrets.EA_GCP_PLAYGROUND_SA_KEY }}
       REGION: us-central1
-      PLAYGROUND_REGISTRY_HOST: ${{ env.REGION }}-docker.pkg.dev
-      DOCKER_REGISTRY: ${{ env.PLAYGROUND_REGISTRY_HOST}}/${{ env.GOOGLE_CLOUD_PROJECT }}/playground-repository
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
@@ -116,32 +113,39 @@ jobs:
         run: rm ~/.m2/settings.xml
       - name: Setup GCP account
         run: |
-             echo "${{ env.SA_KEY_CONTENT }}" | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
+             echo "$SA_KEY_CONTENT" | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
              which gcloud
-             gcloud auth activate-service-account --project=${{ env.GOOGLE_CLOUD_PROJECT }} \
+             gcloud auth activate-service-account --project=$GOOGLE_CLOUD_PROJECT \
               --key-file=$GOOGLE_APPLICATION_CREDENTIALS
       - name: Set Docker Tag
         run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
       - name: Set Docker Tag If Github Tag was trigger
         run: echo "DOCKERTAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
         if: startsWith(github.ref, 'refs/tags/')
+      - name: Set Docker Registry env
+        run: echo "DOCKER_REGISTRY=$DOCKER_REGISTRY" >> $GITHUB_ENV
+        env:
+          DOCKER_REGISTRY: ${{ env.REGION }}-docker.pkg.dev/${{ env.GOOGLE_CLOUD_PROJECT }}/playground-repository
+  
       - name: Get K8s Config
         run: gcloud container clusters get-credentials --region     us-central1-a playground-examples
       - name: Login to Docker Registry
-        run: cat $GOOGLE_APPLICATION_CREDENTIALS | docker login -u _json_key --password-stdin https://${{ env.PLAYGROUND_REGISTRY_HOST }}
+        run: cat $GOOGLE_APPLICATION_CREDENTIALS | docker login -u _json_key --password-stdin "$PLAYGROUND_REGISTRY_URL"
+        env:
+          PLAYGROUND_REGISTRY_URL: https://${{ env.REGION }}-docker.pkg.dev
       - name: Build And Push Java Backend
         run: |
              ./gradlew playground:backend:containers:java:dockerTagPush \
-             -Pdocker-repository-root='${{ env.DOCKER_REGISTRY }}' \
-             -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}' \
+             -Pdocker-repository-root="$DOCKER_REGISTRY" \
+             -Pbase-image="apache/beam_java8_sdk:$BEAM_VERSION" \
              -Pdocker-tag="$DOCKERTAG"
       - name: Build And Push Go Backend
         run: ./gradlew playground:backend:containers:go:dockerTagPush \
-              -Pdocker-repository-root='${{ env.DOCKER_REGISTRY }}' \
+              -Pdocker-repository-root="$DOCKER_REGISTRY" \
               -Pdocker-tag="$DOCKERTAG"
       - name: Build And Push Python Backend
         run: ./gradlew playground:backend:containers:python:dockerTagPush \
-              -Pdocker-repository-root='${{ env.DOCKER_REGISTRY }}' \
+              -Pdocker-repository-root="$DOCKER_REGISTRY" \
               -Pdocker-tag="$DOCKERTAG"
       - name: Clean All Build directories
         run: ./gradlew clean
@@ -149,7 +153,7 @@ jobs:
         run: |
              kubectl create namespace $K8S_NAMESPACE --dry-run=client -o yaml | kubectl apply -f - &&\
              helm install  --namespace $K8S_NAMESPACE $HELM_APP_NAME . \
-               --set global.registry="${{ env.DOCKER_REGISTRY }}" \
+               --set global.registry="$DOCKER_REGISTRY" \
                --set global.tag="$DOCKERTAG" &&\
              sleep 120
         working-directory: playground/infrastructure/helm
@@ -159,41 +163,41 @@ jobs:
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-python" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              echo $K8S_SERVER_ADDRESS
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8081"
-             python3 ci_cd.py --step CI --sdk SDK_PYTHON --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
+             python3 ci_cd.py --step CI --sdk SDK_PYTHON --origin $ORIGIN --subdirs $SUBDIRS
         working-directory: playground/infrastructure
 
       - name: Run Python Examples CD
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-python" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8081"
-             python3 ci_cd.py --step CD --sdk SDK_PYTHON --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
+             python3 ci_cd.py --step CD --sdk SDK_PYTHON --origin $ORIGIN --subdirs $SUBDIRS
         working-directory: playground/infrastructure
 
       - name: Run Go Examples CI
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-go" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8082"
-             python3 ci_cd.py --step CI --sdk SDK_GO --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
+             python3 ci_cd.py --step CI --sdk SDK_GO --origin $ORIGIN --subdirs $SUBDIRS
         working-directory: playground/infrastructure
 
       - name: Run Go Examples CD
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-go" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8082"
-             python3 ci_cd.py --step CD --sdk SDK_GO --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
+             python3 ci_cd.py --step CD --sdk SDK_GO --origin $ORIGIN --subdirs $SUBDIRS
         working-directory: playground/infrastructure
 
       - name: Run Java Examples CI
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-java" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8080"
-             python3 ci_cd.py --step CI --sdk SDK_JAVA --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
+             python3 ci_cd.py --step CI --sdk SDK_JAVA --origin $ORIGIN --subdirs $SUBDIRS
         working-directory: playground/infrastructure
       - name: Run Java Examples CD
         run: |
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-java" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8080"
-             python3 ci_cd.py --step CD --sdk SDK_JAVA --origin ${{ env.ORIGIN }} --subdirs ${{ env.SUBDIRS }}
+             python3 ci_cd.py --step CD --sdk SDK_JAVA --origin $ORIGIN --subdirs $SUBDIRS
         working-directory: playground/infrastructure
       - name: Delete Helm Chart
         if: always()
