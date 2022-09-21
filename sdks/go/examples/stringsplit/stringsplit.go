@@ -80,7 +80,9 @@ type StringSplitFn struct {
 // with the size of the restriction corresponding to the length of the string.
 func (fn *StringSplitFn) CreateInitialRestriction(s string) offsetrange.Restriction {
 	rest := offsetrange.Restriction{Start: 0, End: int64(len(s))}
+
 	log.Debugf(context.Background(), "StringSplit CreateInitialRestriction: %v", rest)
+
 	return rest
 }
 

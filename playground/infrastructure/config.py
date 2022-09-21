@@ -19,6 +19,7 @@ Configuration for CI/CD steps
 
 import os
 from dataclasses import dataclass
+from enum import Enum
 from typing import Literal
 
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
@@ -102,10 +103,15 @@ class OptionalTagFields:
 class DatastoreProps:
     NAMESPACE = "Playground"
     KEY_NAME_DELIMITER = "_"
-    ORIGIN_PROPERTY_VALUE = "PG_EXAMPLES"
     EXAMPLE_KIND = "pg_examples"
     SNIPPET_KIND = "pg_snippets"
     SCHEMA_KIND = "pg_schema_versions"
     PRECOMPILED_OBJECT_KIND = "pg_pc_objects"
-    FILED_KIND = "pg_files"
+    FILES_KIND = "pg_files"
     SDK_KIND = "pg_sdks"
+
+class Origin(str, Enum):
+    PG_EXAMPLES = 'PG_EXAMPLES'
+    PG_USER = 'PG_USER'
+    TB_EXAMPLES = 'TB_EXAMPLES'
+    TB_USER = 'TB_USER'

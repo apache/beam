@@ -33,7 +33,7 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
     STATUS_COMPILING, STATUS_EXECUTING, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, \
     PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, \
     PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
-from config import Config, TagFields, PrecompiledExampleType, OptionalTagFields
+from config import Config, Origin, TagFields, PrecompiledExampleType, OptionalTagFields
 from grpc_client import GRPCClient
 
 Tag = namedtuple(
@@ -59,7 +59,7 @@ class Example:
     """
     name: str
     complexity: str
-    sdk: SDK_UNSPECIFIED
+    sdk: Sdk
     filepath: str
     code: str
     status: STATUS_UNSPECIFIED
@@ -81,7 +81,7 @@ class ExampleTag:
     tag_as_string: str
 
 
-def find_examples(work_dir: str, supported_categories: List[str],
+def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[str],
                   sdk: Sdk) -> List[Example]:
     """
     Find and return beam examples.
@@ -103,7 +103,8 @@ def find_examples(work_dir: str, supported_categories: List[str],
     If some example contains beam tag with incorrect format raise an error.
 
     Args:
-        work_dir: directory where to search examples.
+        root_dir: project root dir
+        subdirs: sub-directories where to search examples.
         supported_categories: list of supported categories.
         sdk: sdk that using to find examples for the specific sdk.
 
@@ -112,16 +113,19 @@ def find_examples(work_dir: str, supported_categories: List[str],
     """
     has_error = False
     examples = []
-    for root, _, files in os.walk(work_dir):
-        for filename in files:
-            filepath = os.path.join(root, filename)
-            error_during_check_file = _check_file(
-                examples=examples,
-                filename=filename,
-                filepath=filepath,
-                supported_categories=supported_categories,
-                sdk=sdk)
-            has_error = has_error or error_during_check_file
+    for subdir in subdirs:
+        subdir = os.path.join(root_dir, subdir)
+        logging.info("subdir: %s", subdir)
+        for root, _, files in os.walk(subdir):
+            for filename in files:
+                filepath = os.path.join(root, filename)
+                error_during_check_file = _check_file(
+                    examples=examples,
+                    filename=filename,
+                    filepath=filepath,
+                    supported_categories=supported_categories,
+                    sdk=sdk)
+                has_error = has_error or error_during_check_file
     if has_error:
         raise ValueError(
             "Some of the beam examples contain beam playground tag with "
@@ -129,7 +133,7 @@ def find_examples(work_dir: str, supported_categories: List[str],
     return examples
 
 
-async def get_statuses(examples: List[Example]):
+async def get_statuses(examples: List[Example], concurrency: int = 10):
     """
     Receive status and update example.status and example.pipeline_id for
     each example
@@ -140,9 +144,17 @@ async def get_statuses(examples: List[Example]):
     """
     tasks = []
     client = GRPCClient()
-    for example in examples:
-        tasks.append(_update_example_status(example, client))
-    await tqdm.gather(*tasks)
+
+    try:
+        concurrency = int(os.environ["BEAM_CONCURRENCY"])
+        logging.info("override default concurrency: %d", concurrency)
+    except (KeyError, ValueError):
+        pass
+
+    async with asyncio.Semaphore(concurrency):
+        for example in examples:
+            tasks.append(_update_example_status(example, client))
+        await tqdm.gather(*tasks)
 
 
 def get_tag(filepath) -> Optional[ExampleTag]:
