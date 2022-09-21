@@ -16,7 +16,7 @@
 # Tests for PostCommit Java Nexmark Dataflow V2 with Java 8, 11, and 17
 # using dataflow v2 runner
 
-name: PostCommit Java Nexmark Dataflow V2 - JAVA 11
+name: PostCommit Java Nexmark Dataflow V2 - JAVA 8,11 and 17
 
 on:
   workflow_dispatch:

@@ -44,6 +44,9 @@ jobs:
     runs-on: self-hosted
     strategy:
       fail-fast: true
+      matrix:
+        streaming: ["true","false"]
+        querytype: ["sql","zetasql"]
     timeout-minutes: 240
     steps:
       - name: Checkout code
@@ -53,7 +56,7 @@ jobs:
           submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
-      - name: Run *** RUN NEXMARK IN BATCH MODE USING DATAFLOW RUNNER ***
+      - name: Run *** RUN NEXMARK IN BATCH ${{matrix.streaming}} MODE USING DATAFLOW RUNNER ***
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: >
@@ -76,42 +79,13 @@ jobs:
               --maxNumWorkers=4 
               --autoscalingAlgorithm=NONE 
               --nexmarkParallel=16 
-              --streaming=false 
+              --streaming=${{matrix.streaming}} 
               --suite=STRESS 
               --manageResources=false 
               --monitorJobs=true 
               --enforceEncodability=true 
               --enforceImmutability=true "
-      - name: Run *** RUN NEXMARK IN STREAMING MODE USING DATAFLOW RUNNER ***
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: >
-            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:google-cloud-dataflow-java
-            -Pnexmark.args=" 
-              --bigQueryTable=$BIGQUERYTABLE
-              --bigQueryDataset=$BIGQUERYDATASET
-              --project=$PROJECT
-              --resourceNameMode=$RESOURCENAMEMODE
-              --exportSummaryToBigQuery=$EXPORTSUMMARYTOBIGQUERY
-              --tempLocation=$TEMPLOCATION
-              --influxDatabase=$INFLUXDATABASE
-              --influxHost=$INFLUXHOST
-              --baseInfluxMeasurement=$BASEINFLUXMEASUREMENT
-              --exportSummaryToInfluxDB=$EXPORTSUMMARYTOINFLUXDB
-              --influxRetentionPolicy=$INFLUXRETENTIONPOLICY 
-              --runner=DataflowRunner 
-              --region=us-central1 
-              --numWorkers=4 
-              --maxNumWorkers=4 
-              --autoscalingAlgorithm=NONE 
-              --nexmarkParallel=16 
-              --streaming=true 
-              --suite=STRESS 
-              --manageResources=false 
-              --monitorJobs=true 
-              --enforceEncodability=true 
-              --enforceImmutability=true " 
-      - name: Run *** RUN NEXMARK IN SQL BATCH MODE USING DATAFLOW RUNNER ***
+      - name: Run *** RUN NEXMARK IN ${{matrix.querytype}} BATCH ${{matrix.streaming}} MODE USING DATAFLOW RUNNER ***
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: >
@@ -134,100 +108,10 @@ jobs:
               --maxNumWorkers=4 
               --autoscalingAlgorithm=NONE 
               --nexmarkParallel=16 
-              --queryLanguage=sql 
-              --streaming=false 
+              --queryLanguage=${{matrix.querytype}} 
+              --streaming=${{matrix.streaming}} 
               --suite=STRESS 
               --manageResources=false 
               --monitorJobs=true 
               --enforceEncodability=true 
               --enforceImmutability=true " 
-      - name: Run *** RUN NEXMARK IN SQL STREAMING MODE USING DATAFLOW RUNNER ***
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: >
-            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:google-cloud-dataflow-java
-            -Pnexmark.args="  
-              --bigQueryTable=$BIGQUERYTABLE
-              --bigQueryDataset=$BIGQUERYDATASET
-              --project=$PROJECT
-              --resourceNameMode=$RESOURCENAMEMODE
-              --exportSummaryToBigQuery=$EXPORTSUMMARYTOBIGQUERY
-              --tempLocation=$TEMPLOCATION
-              --influxDatabase=$INFLUXDATABASE
-              --influxHost=$INFLUXHOST
-              --baseInfluxMeasurement=$BASEINFLUXMEASUREMENT
-              --exportSummaryToInfluxDB=$EXPORTSUMMARYTOINFLUXDB
-              --influxRetentionPolicy=$INFLUXRETENTIONPOLICY 
-              --runner=DataflowRunner 
-              --region=us-central1 
-              --numWorkers=4 
-              --maxNumWorkers=4 
-              --autoscalingAlgorithm=NONE 
-              --nexmarkParallel=16 
-              --queryLanguage=sql 
-              --streaming=true 
-              --suite=STRESS 
-              --manageResources=false 
-              --monitorJobs=true 
-              --enforceEncodability=true 
-              --enforceImmutability=true " 
-      - name: Run *** RUN NEXMARK IN ZETASQL BATCH MODE USING DATAFLOW RUNNER ***
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: >
-            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:google-cloud-dataflow-java
-            -Pnexmark.args=" 
-              --bigQueryTable=$BIGQUERYTABLE
-              --bigQueryDataset=$BIGQUERYDATASET
-              --project=$PROJECT
-              --resourceNameMode=$RESOURCENAMEMODE
-              --exportSummaryToBigQuery=$EXPORTSUMMARYTOBIGQUERY
-              --tempLocation=$TEMPLOCATION
-              --influxDatabase=$INFLUXDATABASE
-              --influxHost=$INFLUXHOST
-              --baseInfluxMeasurement=$BASEINFLUXMEASUREMENT
-              --exportSummaryToInfluxDB=$EXPORTSUMMARYTOINFLUXDB
-              --influxRetentionPolicy=$INFLUXRETENTIONPOLICY 
-              --runner=DataflowRunner 
-              --region=us-central1 
-              --numWorkers=4 
-              --maxNumWorkers=4 
-              --autoscalingAlgorithm=NONE 
-              --nexmarkParallel=16 
-              --queryLanguage=zetasql 
-              --streaming=false 
-              --suite=STRESS 
-              --manageResources=false 
-              --monitorJobs=true
-              --enforceEncodability=true
-              --enforceImmutability=true "
-      - name: Run *** RUN NEXMARK IN ZETASQL STREAMING MODE USING DATAFLOW RUNNER ***
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: >
-            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:google-cloud-dataflow-java
-            -Pnexmark.args=" 
-              --bigQueryTable=$BIGQUERYTABLE
-              --bigQueryDataset=$BIGQUERYDATASET
-              --project=$PROJECT
-              --resourceNameMode=$RESOURCENAMEMODE
-              --exportSummaryToBigQuery=$EXPORTSUMMARYTOBIGQUERY
-              --tempLocation=$TEMPLOCATION
-              --influxDatabase=$INFLUXDATABASE
-              --influxHost=$INFLUXHOST
-              --baseInfluxMeasurement=$BASEINFLUXMEASUREMENT
-              --exportSummaryToInfluxDB=$EXPORTSUMMARYTOINFLUXDB
-              --influxRetentionPolicy=$INFLUXRETENTIONPOLICY 
-              --runner=DataflowRunner 
-              --region=us-central1 
-              --numWorkers=4 
-              --maxNumWorkers=4 
-              --autoscalingAlgorithm=NONE 
-              --nexmarkParallel=16 
-              --queryLanguage=zetasql 
-              --streaming=true 
-              --suite=STRESS 
-              --manageResources=false 
-              --monitorJobs=true 
-              --enforceEncodability=true 
-              --enforceImmutability=true "
