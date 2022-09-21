@@ -139,11 +139,13 @@ jobs:
              -Pbase-image="apache/beam_java8_sdk:$BEAM_VERSION" \
              -Pdocker-tag="$DOCKERTAG"
       - name: Build And Push Go Backend
-        run: ./gradlew playground:backend:containers:go:dockerTagPush \
+        run: |
+              ./gradlew playground:backend:containers:go:dockerTagPush \
               -Pdocker-repository-root="$DOCKER_REGISTRY" \
               -Pdocker-tag="$DOCKERTAG"
       - name: Build And Push Python Backend
-        run: ./gradlew playground:backend:containers:python:dockerTagPush \
+        run: |
+              ./gradlew playground:backend:containers:python:dockerTagPush \
               -Pdocker-repository-root="$DOCKER_REGISTRY" \
               -Pdocker-tag="$DOCKERTAG"
       - name: Clean All Build directories
