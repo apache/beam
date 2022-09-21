@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Test for Precommit Java IO Hadoop
 
 name: Precommit Java IO Hadoop
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
@@ -26,21 +26,14 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['model/**',
-      'sdks/java/**',
-      'runners/**',
-      'examples/java/**',
-      'examples/kotlin/**',
-      'release/**'] 
+    paths: ['sdks/java/io/hadoop-common/**']
 permissions: read-all
 
 jobs:
   run-precommit-java-io-hadoop:
     name: Run Precommit Java IO Hadoop 
     runs-on: self-hosted
-    strategy:
-      fail-fast: true
-    timeout-minutes: 200
+    timeout-minutes: 60
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -50,11 +43,16 @@ jobs:
           submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action 
-      - name: SDKs Java IO Hadoop
+        with:
+          requires-py-37: false
+          requires-py-38: false
+          requires-py-39: false
+          requires-go-18: false
+      - name: SDKs Java IO Hadoop - :sdks:java:io:hadoop-common:test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:hadoop-common:test
-      - name: SDKs Java IO Hadoop-Format
+      - name: SDKs Java IO Hadoop-Format - :sdks:java:io:hadoop-format:test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:hadoop-format:test
