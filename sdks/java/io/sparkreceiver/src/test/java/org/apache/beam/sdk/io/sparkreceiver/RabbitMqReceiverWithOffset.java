@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  * Imitation of Spark {@link Receiver} for RabbitMQ that implements {@link HasOffset} interface.
  * Used to test {@link SparkReceiverIO#read()}.
  */
-public class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
+class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
 
   private static final Logger LOG = LoggerFactory.getLogger(RabbitMqReceiverWithOffset.class);
 
@@ -149,13 +149,13 @@ public class RabbitMqReceiverWithOffset extends Receiver<String> implements HasO
         String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
       try {
         final String sMessage = new String(body, StandardCharsets.UTF_8);
-        LOG.info("adding message to consumer " + sMessage);
+        LOG.info("Adding message to consumer: {}", sMessage);
         messageConsumer.accept(sMessage);
         received.add(sMessage);
 
         getChannel().basicAck(envelope.getDeliveryTag(), false);
       } catch (Exception e) {
-        LOG.error("Exception during reading from RabbitMQ " + e.getMessage());
+        LOG.debug("Can't read from RabbitMQ: {}", e.getMessage());
       }
     }
 

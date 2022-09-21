@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.sparkreceiver;
 
 import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import com.google.cloud.Timestamp;
 import com.rabbitmq.client.Channel;
@@ -31,7 +32,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -126,8 +126,6 @@ public class SparkReceiverIOIT {
   public static void setup() throws IOException {
     options = IOITHelper.readIOTestPipelineOptions(Options.class);
     sourceOptions = fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
-    options.setRabbitMqBootstrapServerAddress(
-        "amqp://guest:guest@" + options.getRabbitMqBootstrapServerAddress());
     if (options.isWithTestcontainers()) {
       setupRabbitMqContainer();
     } else {
@@ -188,7 +186,7 @@ public class SparkReceiverIOIT {
     void setStreamName(String streamName);
 
     @Description("Whether to use testcontainers")
-    @Default.Boolean(true)
+    @Default.Boolean(false)
     Boolean isWithTestcontainers();
 
     void setWithTestcontainers(Boolean withTestcontainers);
@@ -328,6 +326,7 @@ public class SparkReceiverIOIT {
       writeToRabbitMq(messages);
     } catch (Exception e) {
       LOG.error("Can not write to rabbit {}", e.getMessage());
+      fail();
     }
     LOG.info(sourceOptions.numRecords + " records were successfully written to RabbitMQ");
 
@@ -336,11 +335,8 @@ public class SparkReceiverIOIT {
     readPipeline
         .apply("Read from unbounded RabbitMq", readFromRabbitMqWithOffset())
         .setCoder(StringUtf8Coder.of())
-        .apply(ParDo.of(new TestOutputDoFn()))
         .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
         .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
-
-    TestOutputDoFn.EXPECTED_RECORDS.addAll(messages);
 
     final PipelineResult readResult = readPipeline.run();
     final PipelineResult.State readState =
@@ -353,21 +349,6 @@ public class SparkReceiverIOIT {
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(readResult);
       IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
-    }
-  }
-
-  /** {@link DoFn} that throws {@code RuntimeException} if receives unexpected element. */
-  private static class TestOutputDoFn extends DoFn<String, String> {
-    private static final Set<String> EXPECTED_RECORDS = new HashSet<>();
-
-    @ProcessElement
-    public void processElement(@Element String element, OutputReceiver<String> outputReceiver) {
-      if (!EXPECTED_RECORDS.contains(element)) {
-        throw new RuntimeException("Received unexpected element: " + element);
-      } else {
-        EXPECTED_RECORDS.remove(element);
-        outputReceiver.output(element);
-      }
     }
   }
 }

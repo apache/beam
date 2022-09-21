@@ -32,53 +32,53 @@ String jobName = "beam_PerformanceTests_SparkReceiver_IO"
  When the performance tests finish all resources are cleaned up by a postBuild step in Kubernetes.groovy
  */
 job(jobName) {
-    common.setTopLevelMainJobProperties(delegate, 'master', 120)
-    common.setAutoJob(delegate, 'H H/6 * * *')
-    common.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Java SparkReceiverIO Performance Test',
-            'Run Java SparkReceiverIO Performance Test')
-    InfluxDBCredentialsHelper.useCredentials(delegate)
+  common.setTopLevelMainJobProperties(delegate, 'master', 120)
+  common.setAutoJob(delegate, 'H H/6 * * *')
+  common.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Java SparkReceiverIO Performance Test',
+      'Run Java SparkReceiverIO Performance Test')
+  InfluxDBCredentialsHelper.useCredentials(delegate)
 
-    String namespace = common.getKubernetesNamespace(jobName)
-    String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
-    Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
+  String namespace = common.getKubernetesNamespace(jobName)
+  String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
+  Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
 
-    k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/rabbit/rabbitmq.yaml"))
-    String rabbitMqHostName = "LOAD_BALANCER_IP"
-    k8s.loadBalancerIP("rabbit", rabbitMqHostName)
+  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/rabbit/rabbitmq.yaml"))
+  String rabbitMqHostName = "LOAD_BALANCER_IP"
+  k8s.loadBalancerIP("rabbitmq", rabbitMqHostName)
 
-    Map pipelineOptions = [
-            tempRoot                      : 'gs://temp-storage-for-perf-tests',
-            project                       : 'apache-beam-testing',
-            runner                        : 'DataflowRunner',
-            sourceOptions                 : """
+  Map pipelineOptions = [
+    tempRoot                      : 'gs://temp-storage-for-perf-tests',
+    project                       : 'apache-beam-testing',
+    runner                        : 'DataflowRunner',
+    sourceOptions                 : """
                                      {
                                        "numRecords": "600000",
                                        "keySizeBytes": "1",
                                        "valueSizeBytes": "90"
                                      }
                                    """.trim().replaceAll("\\s", ""),
-            bigQueryDataset               : 'beam_performance',
-            bigQueryTable                 : 'sparkreceiverioit_results',
-            influxMeasurement             : 'sparkreceiverioit_results',
-            influxDatabase                : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-            influxHost                    : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-            rabbitMqBootstrapServerAddress: 'amqp://guest:guest@' + rabbitMqHostName + ':5672',
-            streamName                    : 'rabbitMqTestStream',
-            readTimeout                   : '900',
-            numWorkers                    : '5',
-            autoscalingAlgorithm          : 'NONE'
-    ]
+    bigQueryDataset               : 'beam_performance',
+    bigQueryTable                 : 'sparkreceiverioit_results',
+    influxMeasurement             : 'sparkreceiverioit_results',
+    influxDatabase                : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influxHost                    : InfluxDBCredentialsHelper.InfluxDBHostUrl,
+    rabbitMqBootstrapServerAddress: "amqp://guest:guest@\$${rabbitMqHostName}:5672",
+    streamName                    : 'rabbitMqTestStream',
+    readTimeout                   : '900',
+    numWorkers                    : '5',
+    autoscalingAlgorithm          : 'NONE'
+  ]
 
-    steps {
-        gradle {
-            rootBuildScriptDir(common.checkoutDir)
-            common.setGradleSwitches(delegate)
-            switches("--info")
-            switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
-            switches("-DintegrationTestRunner=dataflow")
-            tasks(":sdks:java:io:jdbc:integrationTest --tests org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIOIT.testSparkReceiverIOReadsInStreamingWithOffset\"")
-        }
+  steps {
+    gradle {
+      rootBuildScriptDir(common.checkoutDir)
+      common.setGradleSwitches(delegate)
+      switches("--info")
+      switches("-DintegrationTestPipelineOptions=\'${common.joinOptionsWithNestedJsonValues(pipelineOptions)}\'")
+      switches("-DintegrationTestRunner=dataflow")
+      tasks(":sdks:java:io:sparkreceiver:integrationTest --tests org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIOIT")
     }
+  }
 }

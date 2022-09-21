@@ -51,7 +51,6 @@ dependencies {
     testImplementation library.java.junit
     testImplementation library.java.testcontainers_rabbitmq
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation project(path: ":examples:java", configuration: "testRuntimeMigration")
     testImplementation project(":sdks:java:io:synthetic")
     testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
     testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
