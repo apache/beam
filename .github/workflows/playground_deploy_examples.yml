@@ -26,8 +26,6 @@ env:
   HELM_APP_NAME: playground-backend
   SUBDIRS: "./learning/katas ./examples ./sdks"
   ORIGIN: PG_EXAMPLES
-  PLAYGROUND_REGISTRY_NAME: us-central1-docker.pkg.dev
-  DOCKERTAG: testing
 jobs:
   check_examples:
     name: Check examples
