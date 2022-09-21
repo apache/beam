@@ -30,8 +30,6 @@ jobs:
   java-postcommit-jpms-spark:
     name: Run PostCommit Java JPMS Spark - Java 11
     runs-on: self-hosted
-    strategy:
-      fail-fast: true
     timeout-minutes: 240
     steps:
       - name: Checkout code

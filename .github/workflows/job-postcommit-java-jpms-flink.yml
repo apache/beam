@@ -29,8 +29,6 @@ jobs:
   java-postcommit-jpms-java11:
     name: Run PostCommit Java JPMS Flink - Java 11
     runs-on: self-hosted
-    strategy:
-      fail-fast: true
     timeout-minutes: 240
     steps:
       - name: Checkout code

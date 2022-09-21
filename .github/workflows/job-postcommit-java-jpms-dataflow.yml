@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Tests for PostCommit JMPS using Dataflow runner with Java 11 and Java 17
+# Tests for PostCommit JMPS using Dataflow runner with Java 11
 
-name: PostCommit Java JMPS Dataflow Java 11,17
+name: PostCommit Java JMPS Dataflow Java 11
 
 on:
   workflow_dispatch:
@@ -29,8 +29,6 @@ jobs:
   java-postcommit-jpbs-java11-dataflow:
     name: Run PostCommit Java JPBS Dataflow - Java 11
     runs-on: self-hosted
-    strategy:
-      fail-fast: true
     timeout-minutes: 240
     steps:
       - name: Checkout code
@@ -38,6 +36,8 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      ## TODO enable Java 17 when error prone is solved  
+      ## https://github.com/apache/beam/issues/23068
       - uses: actions/checkout@v3
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -50,31 +50,3 @@ jobs:
           gradle-command: >-
             :sdks:java:testing:jpms-tests:dataflowRunnerIntegrationTest 
             -Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4 
-  ## TODO enable when Java 17 error prone is solved  
-  ## https://github.com/apache/beam/issues/23068
-  #java-postcommit-jpbs-java17-dataflow: 
-  #  name: Run PostCommit Java JPBS Dataflow - Java 17
-  #  runs-on: self-hosted
-  #  strategy:
-  #    fail-fast: true
-  #  timeout-minutes: 240
-  #  steps:
-  #    - name: Checkout code
-  #      uses: actions/checkout@v2
-  #      with:
-  #        persist-credentials: false
-  #        submodules: recursive
-  #    - uses: actions/checkout@v3
-  #    - name: Set up JDK 17
-  #      uses: actions/setup-java@v3
-  #      with:
-  #        java-version: '17'
-  #        distribution: 'temurin'
-  #    - name: Run :sdks:java:testing:jpms-tests:dataflowRunnerIntegrationTest
-  #      uses: ./.github/actions/gradle-command-self-hosted-action
-  #      with:
-  #        gradle-command: >-
-  #          :sdks:java:testing:jpms-tests:dataflowRunnerIntegrationTest 
-  #          -PskipCheckerFramework
-  #          -PcompileAndRunTestsWithJava17
-  #          -Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4
