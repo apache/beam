@@ -112,7 +112,7 @@ class CIHelper:
             len(examples) - count_of_verified,
             len(examples))
 
-        if origin == Origin.PG_EXAMLPES:
+        if origin == Origin.PG_EXAMPLES:
             if len(default_examples) == 0:
                 logging.error("Default example not found")
                 raise VerifyException(

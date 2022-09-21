@@ -32,7 +32,7 @@ class TestCDHelper(unittest.TestCase):
     @mock.patch("cd_helper.CDHelper._get_outputs")
     def test_save_examples(self, mock_get_outputs, mock_save_to_datastore):
         examples = test_utils._get_examples(1)
-        helper = CDHelper(SDK_JAVA, Origin.PG_EXAMLPES)
+        helper = CDHelper(SDK_JAVA, Origin.PG_EXAMPLES)
         helper.save_examples(examples)
         mock_get_outputs.assert_called_once()
         mock_save_to_datastore.assert_called_once_with(examples)

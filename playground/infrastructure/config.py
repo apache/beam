@@ -111,7 +111,7 @@ class DatastoreProps:
     SDK_KIND = "pg_sdks"
 
 class Origin(str, Enum):
-    PG_EXAMLPES = 'PG_EXAMPLES'
+    PG_EXAMPLES = 'PG_EXAMPLES'
     PG_USER = 'PG_USER'
-    TB_EXAMLPES = 'TB_EXAMPLES'
+    TB_EXAMPLES = 'TB_EXAMPLES'
     TB_USER = 'TB_USER'

@@ -64,8 +64,9 @@ class DatastoreClient:
         """
         Save examples, output and meta to datastore
         Args:
-            :param sdk: sdk from parameters
             :param examples_from_rep: examples from the repository for saving to the Cloud Datastore
+            :param sdk: sdk from parameters
+            :param origin: typed origin const PG_EXAMPLES | TB_EXAMPLES
         """
         # initialise data
         snippets = []
@@ -201,8 +202,15 @@ class DatastoreClient:
         return self._get_key(DatastoreProps.EXAMPLE_KIND, example_id)
     
     def _make_example_id(self, origin: Origin, sdk: Sdk, name: str):
+        # ToB examples (and other related entities: snippets, files, pc_objects)
+        # have origin prefix in a key
+        if origin == Origin.TB_EXAMPLES:
+            return config.DatastoreProps.KEY_NAME_DELIMITER.join([
+                origin,
+                Sdk.Name(sdk),
+                name,
+            ])
         return config.DatastoreProps.KEY_NAME_DELIMITER.join([
-            origin,
             Sdk.Name(sdk),
             name,
         ])

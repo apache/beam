@@ -49,7 +49,7 @@ parser.add_argument(
     type=Origin,
     required=True,
     help="ORIGIN field of pg_examples/pg_snippets",
-    choices=[o.value for o in [Origin.PG_EXAMLPES, Origin.TB_EXAMLPES]])
+    choices=[o.value for o in [Origin.PG_EXAMPLES, Origin.TB_EXAMPLES]])
 parser.add_argument(
     "--subdirs",
     default=[],
