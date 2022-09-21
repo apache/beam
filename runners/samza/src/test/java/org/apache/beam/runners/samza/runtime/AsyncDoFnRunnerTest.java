@@ -97,7 +97,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
     final Map<String, Integer> expectedCount = ImmutableMap.of("apple", 2, "banana", 2, "grape", 1);
 
     // TODO: remove after SAMZA-2761 fix
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 20; i++) {
       input.add(KV.of("*", "*"));
     }
 
@@ -111,6 +111,11 @@ public class AsyncDoFnRunnerTest implements Serializable {
           @ProcessElement
           public void processElement(
               ProcessContext c, @StateId("cc") CombiningState<Integer, int[], Integer> countState) {
+
+            if (c.element().getKey().equals("*")) {
+              return;
+            }
+
             // Need explicit synchronization here
             synchronized (this) {
               countState.add(1);
@@ -124,11 +129,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
           }
         };
 
-    PCollection<KV<String, Integer>> counts =
-        pipeline
-            .apply(Create.of(input))
-            .apply(Filter.by(x -> !x.getKey().equals("*")))
-            .apply(ParDo.of(fn));
+    PCollection<KV<String, Integer>> counts = pipeline.apply(Create.of(input)).apply(ParDo.of(fn));
 
     PAssert.that(counts)
         .containsInAnyOrder(
@@ -151,7 +152,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
                 KV.of("banana", 5L)));
 
     // TODO: remove after SAMZA-2761 fix
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 20; i++) {
       input.add(KV.of("*", 0L));
     }
 
