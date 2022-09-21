@@ -18,6 +18,12 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import static org.apache.beam.repackaged.core.org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.eligibleForGlobalGroupBy;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.eligibleForGroupByWindow;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.explodeWindowedKey;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.valueKey;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.valueValue;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.windowedKV;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers.toByteArray;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.collectionEncoder;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.encoderOf;
@@ -43,6 +49,7 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.GroupAlsoByWindowViaOutputBufferFn;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -52,6 +59,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
@@ -90,7 +98,8 @@ import scala.collection.immutable.List;
  * </ul>
  */
 class GroupByKeyTranslatorBatch<K, V>
-    extends GroupingTranslator<K, V, Iterable<V>, GroupByKey<K, V>> {
+    extends TransformTranslator<
+        PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupByKey<K, V>> {
 
   /** Literal of binary encoded Pane info. */
   private static final Expression PANE_NO_FIRING = lit(toByteArray(NO_FIRING, PaneInfoCoder.of()));
@@ -170,7 +179,8 @@ class GroupByKeyTranslatorBatch<K, V>
       // keys only, this is still valuable.
       // Produces an iterable that can be traversed exactly once. However, on the plus side, data is
       // not collected in memory until serialized or done by the user.
-      Encoder<Tuple2<BoundedWindow, K>> windowedKeyEnc = windowedKeyEnc(keyEnc, cxt);
+      Encoder<Tuple2<BoundedWindow, K>> windowedKeyEnc =
+          cxt.tupleEncoder(cxt.windowEncoder(), keyEnc);
       result =
           cxt.getDataset(cxt.getInput())
               .flatMap(explodeWindowedKey(valueValue()), cxt.tupleEncoder(windowedKeyEnc, valueEnc))

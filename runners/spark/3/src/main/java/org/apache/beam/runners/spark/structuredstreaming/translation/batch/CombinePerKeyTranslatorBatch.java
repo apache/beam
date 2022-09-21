@@ -17,9 +17,17 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.eligibleForGlobalGroupBy;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.eligibleForGroupByWindow;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.explodeWindowedKey;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.value;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.valueKey;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.valueValue;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.windowedKV;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.fun1;
 
 import java.util.Collection;
+import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.Fun1;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -31,6 +39,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
@@ -57,7 +66,8 @@ import scala.collection.TraversableOnce;
  * <li>other there other missing features?
  */
 class CombinePerKeyTranslatorBatch<K, InT, AccT, OutT>
-    extends GroupingTranslator<K, InT, OutT, Combine.PerKey<K, InT, OutT>> {
+    extends TransformTranslator<
+        PCollection<KV<K, InT>>, PCollection<KV<K, OutT>>, Combine.PerKey<K, InT, OutT>> {
 
   @Override
   public void translate(Combine.PerKey<K, InT, OutT> transform, Context cxt) {
@@ -91,7 +101,8 @@ class CombinePerKeyTranslatorBatch<K, InT, AccT, OutT>
                 .agg(valueAgg.toColumn())
                 .map(globalKV(), wvOutputEnc);
       } else {
-        Encoder<Tuple2<BoundedWindow, K>> windowedKeyEnc = windowedKeyEnc(keyEnc, cxt);
+        Encoder<Tuple2<BoundedWindow, K>> windowedKeyEnc =
+            cxt.tupleEncoder(cxt.windowEncoder(), keyEnc);
 
         // Group by window and key to run the aggregation (combineFn)
         result =

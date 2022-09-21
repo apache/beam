@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupingTranslator.value;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.value;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.fun1;
 import static scala.collection.Iterator.single;
 
@@ -67,7 +67,7 @@ class CombineGloballyTranslatorBatch<InT, AccT, OutT>
     Dataset<WindowedValue<InT>> dataset = cxt.getDataset(cxt.getInput());
 
     final Dataset<WindowedValue<OutT>> result;
-    if (GroupingTranslator.eligibleForGlobalGroupBy(windowing, true)) {
+    if (GroupByKeyHelpers.eligibleForGlobalGroupBy(windowing, true)) {
       Aggregator<InT, ?, OutT> agg = Aggregators.value(combineFn, v -> v, accEnc, outEnc);
 
       // Drop window and restore afterwards, produces single global aggregation result
