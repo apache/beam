@@ -3742,10 +3742,8 @@ The following characters are not allowed in field names: . *  [ ] { }
 
 ##### **Top-level fields**
 
-{{< paragraph class="language-java" >}}
 In order to select a field at the top level of a schema, the name of the field is specified. For example, to select just
 the user ids from a `PCollection` of purchases one would write (using the `Select` transform)
-{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("userId"));
@@ -3762,6 +3760,9 @@ output_pc = input_pc | beam.Select(user_id=lambda item: str(item["user_id"]))
 Support for Nested fields hasn't been developed for python SDK yet
 {{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+Support for Nested fields hasn't been developed for GO SDK yet
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
@@ -3780,6 +3781,10 @@ output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_add
 
 {{< paragraph class="language-py" >}}
 Support for wildcards hasn't been developed for python SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for wildcards hasn't been developed for GO SDK yet
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
@@ -3804,6 +3809,10 @@ selected, the result is an array of the selected subfield type. For example
 
 {{< paragraph class="language-py" >}}
 Support for Nested fields hasn't been developed for python SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Nested fields hasn't been developed for GO SDK yet
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -3858,6 +3867,10 @@ purchasesByType.apply(Select.fieldNames("purchases{}.userId"));
 Support for Nested fields hasn't been developed for python SDK yet
 {{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+Support for Nested fields hasn't been developed for python SDK yet
+{{< /paragraph >}}
+
 Will result in a row containing a map field with key-type string and value-type string. The selected map will contain
 all of the keys from the original map, and the values will be the userId contained in the purchase record.
 
@@ -3884,6 +3897,10 @@ purchases.apply(Select.fieldNames("userId", "shippingAddress.streetAddress"));
 
 {{< paragraph class="language-py" >}}
 Support for Nested fields hasn't been developed for python SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Nested fields hasn't been developed for GO SDK yet
 {{< /paragraph >}}
 
 The resulting `PCollection` will have the following schema
@@ -3916,6 +3933,10 @@ purchases.apply(Select.fieldNames("userId", "shippingAddress.*"));
 
 {{< paragraph class="language-py" >}}
 Support for Wildcards hasn't been developed for python SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Wildcards hasn't been developed for GO SDK yet
 {{< /paragraph >}}
 
 Will result in the following schema
@@ -3964,6 +3985,15 @@ selected field will appear as its own array field. For example
 purchases.apply(Select.fieldNames( "transactions.bank", "transactions.purchaseAmount"));
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for nested fields hasn't been developed for python SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for nested hasn't been developed for GO SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 Will result in the following schema
 <table>
   <thead>
@@ -3984,6 +4014,7 @@ Will result in the following schema
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 Wildcard selections are equivalent to separately selecting each field.
 
@@ -4001,6 +4032,15 @@ Another use of the Select transform is to flatten a nested schema into a single 
 purchases.apply(Select.flattenedSchema());
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for nested fields hasn't been developed for python SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for nested fields hasn't been developed for GO SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 Will result in the following schema
 <table>
   <thead>
@@ -4053,6 +4093,7 @@ Will result in the following schema
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 ##### **Grouping aggregations**
 
@@ -4067,8 +4108,19 @@ are grouped together into an `ITERABLE` field. For example
 purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
-The output schema of this is:
+{{< paragraph class="language-py" >}}
+Support for nested fields hasn't been developed for python SDK yet
+{{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+Support for nested hasn't been developed for GO SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="lanuage-java" >}}
+The output schema of this is:
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 <table>
   <thead>
     <tr class="header">
@@ -4088,6 +4140,7 @@ The output schema of this is:
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 The key field contains the grouping key and the values field contains a list of all the values that matched that key.
 
@@ -4112,6 +4165,15 @@ purchases.apply(Group.byFieldNames("userId")
     .aggregateField("costCents", Top.<Long>largestLongsFn(10), "topPurchases"));
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for nested fields hasn't been developed for python SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for nested fields hasn't been developed for GO SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 The result of this aggregation will have the following schema:
 <table>
   <thead>
@@ -4132,6 +4194,7 @@ The result of this aggregation will have the following schema:
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 Often `Selected.flattenedSchema` will be use to flatten the result into a non-nested, flat schema.
 
