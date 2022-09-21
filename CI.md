@@ -131,25 +131,25 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 
 | Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
 |-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO Synthetic| Runs Java IO Synthetic | No              | Yes                   | Yes           | No                       |
+| Run Java IO Synthetic| Runs Java IO Synthetic | Yes              | Yes                   | Yes           | No                       |
 
 #### Java IO Thrift - [job-precommit-java-io-thrift.yml](.github/workflows/job-precommit-java-io-thrift.yml)
 
 | Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
 |-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO Thrift| Runs Java IO Thrift | No              | Yes                   | Yes           | No                       |
+| Run Java IO Thrift| Runs Java IO Thrift | Yes              | Yes                   | Yes           | No                       |
 
 #### Java IO Tika - [job-precommit-java-io-tika.yml](.github/workflows/job-precommit-java-io-tika.yml)
 
 | Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
 |-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO Tika| Runs Java IO Tika | No              | Yes                   | Yes           | No                       |
+| Run Java IO Tika| Runs Java IO Tika | Yes              | Yes                   | Yes           | No                       |
 
 #### Java IO XML - [job-precommit-java-io-xml.yml](.github/workflows/job-precommit-java-io-xml.yml)
 
 | Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
 |-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO XML | Runs Java IO XML | No              | Yes                   | Yes           | No                       |
+| Run Java IO XML | Runs Java IO XML | Yes              | Yes                   | Yes           | No                       |
 
 ### GitHub Action Tips
 
