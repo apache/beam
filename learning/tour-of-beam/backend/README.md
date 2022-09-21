@@ -60,8 +60,14 @@ __Kinds__
 Prerequisites:
  - GCP project with enabled Billing API & Cloud Functions API
  - set environment PROJECT_ID var
+ - existing setup of Playground backend in a project
 
+1. Deploy Datastore indexes
+```
+gcloud datastore indexes create ./internal/storage/index.yaml
+```
 
+2. Deploy cloud functions
 ```
 $ gcloud functions deploy sdkList --entry-point sdkList \
   --region us-central1 --runtime go116 --allow-unauthenticated \
