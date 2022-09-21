@@ -1,5 +1,8 @@
 ---
 title: "Learning Resources"
+aliases:
+- /get-started/resources/learning-resources/
+- /documentation/resources/learning-resources/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
