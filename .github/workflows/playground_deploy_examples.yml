@@ -59,9 +59,9 @@ jobs:
       - name: get Difference
         id: check_file_changed
         run: |
-          diff=$(git diff --name-only ${GITHUB_BASE_REF#origin/master} $GITHUB_SHA -- $SUBDIRS)
-          echo $diff
-          echo "::set-output name=example_diff::$diff"
+          set -xeu
+          DIFF=$(git diff --name-only ${GITHUB_BASE_REF#origin/master} $GITHUB_SHA -- $SUBDIRS)
+          echo "::set-output name=example_diff::$DIFF"
       - name: has Examples
         run: |
           output=$(python3 checker.py ${{ steps.check_file_changed.outputs.example_diff }})
