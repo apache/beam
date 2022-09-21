@@ -207,7 +207,9 @@ final class FirestoreV1WriteFn {
       databaseRootName =
           DatabaseRootName.of(
               requireNonNull(project, "project must be defined on GcpOptions of PipelineOptions"),
-              databaseId);
+              requireNonNull(
+                  databaseId,
+                  "firestoreDb must be defined on FirestoreOptions of PipelineOptions"));
       firestoreStub = firestoreStatefulComponentFactory.getFirestoreStub(c.getPipelineOptions());
     }
 
