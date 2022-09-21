@@ -229,7 +229,7 @@ if __name__ == '__main__':
         'numpy>=1.14.3,<1.23.0',
         'objsize>=0.5.2,<1',
         'pymongo>=3.8.0,<4.0.0',
-        'protobuf>=3.12.2,!=3.20.2,<4',
+        'protobuf>=3.12.2,<4',
         'proto-plus>=1.7.1,<2',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
@@ -253,7 +253,6 @@ if __name__ == '__main__':
           ],
           'test': [
             'freezegun>=0.3.12',
-            'hypothesis<7',
             'joblib>=1.0.1',
             'mock>=1.0.1,<3.0.0',
             'pandas<2.0.0',

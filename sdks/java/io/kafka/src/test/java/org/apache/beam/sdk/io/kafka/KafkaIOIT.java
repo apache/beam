@@ -228,13 +228,13 @@ public class KafkaIOIT {
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
-        .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic() + "-batch"));
+        .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic()));
 
     PCollection<String> hashcode =
         readPipeline
             .apply(
                 "Read from bounded Kafka",
-                readFromBoundedKafka().withTopic(options.getKafkaTopic() + "-batch"))
+                readFromBoundedKafka().withTopic(options.getKafkaTopic()))
             .apply(
                 "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
             .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
@@ -251,7 +251,7 @@ public class KafkaIOIT {
 
     cancelIfTimeouted(readResult, readState);
     // Fail the test if pipeline failed.
-    assertNotEquals(readState, PipelineResult.State.FAILED);
+    assertEquals(readState, PipelineResult.State.DONE);
 
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);

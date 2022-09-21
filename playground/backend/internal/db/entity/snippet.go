@@ -97,3 +97,21 @@ func generateIDBasedOnContent(salt, content string, length int8) (string, error)
 	}
 	return string(b)[:hashLen], nil
 }
+
+//TODO after removing the cloud storage this method should be deleted. It's a duplicate code from utils package
+func generateID(salt, content string, length int8) (string, error) {
+	hash := sha256.New()
+	if _, err := io.WriteString(hash, salt); err != nil {
+		logger.Errorf("ID(): error during hash generation: %s", err.Error())
+		return "", errors.InternalError("Error during hash generation", "Error writing hash and salt")
+	}
+	hash.Write([]byte(content))
+	sum := hash.Sum(nil)
+	b := make([]byte, base64.URLEncoding.EncodedLen(len(sum)))
+	base64.URLEncoding.Encode(b, sum)
+	hashLen := int(length)
+	for hashLen <= len(b) && b[hashLen-1] == '_' {
+		hashLen++
+	}
+	return string(b)[:hashLen], nil
+}
