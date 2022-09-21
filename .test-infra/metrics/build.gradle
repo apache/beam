@@ -123,9 +123,9 @@ task deploy {
       exec {
         executable 'sh'
         args '-c', "kubectl set image deployment/beamgrafana \
-          beamgrafana=gcr.io/apache-beam-testing/beamgrafana:${project.lastCommitId} \
-          beammetricssyncjenkins=gcr.io/apache-beam-testing/beammetricssyncjenkins:${project.lastCommitId} \
-          beammetricssyncgithub=gcr.io/apache-beam-testing/beammetricssyncgithub:${project.lastCommitId}"
+          beamgrafana-test=gcr.io/apache-beam-testing/beamgrafana-test:${project.lastCommitId} \
+          beammetricssyncjenkins-test=gcr.io/apache-beam-testing/beammetricssyncjenkins-test:${project.lastCommitId} \
+          beammetricssyncgithub-test=gcr.io/apache-beam-testing/beammetricssyncgithub-test:${project.lastCommitId}"
       }
     } else {
       println 'Nothing to do, exiting.'

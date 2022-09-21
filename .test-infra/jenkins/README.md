@@ -61,7 +61,6 @@ Beam Jenkins overview page: [link](https://ci-beam.apache.org/)
 
 | Name | Link | PR Trigger Phrase | Cron Status |
 |------|------|-------------------|-------------|
-| beam_PostCommit_BeamMetrics_Publish | [cron](https://ci-beam.apache.org/job/beam_PostCommit_BeamMetrics_Publish/) | N/A | [![Build Status](https://ci-beam.apache.org/job/beam_PostCommit_BeamMetrics_Publish/badge/icon)](https://ci-beam.apache.org/job/beam_PostCommit_BeamMetrics_Publish) |
 | beam_PostCommit_XVR_Flink | [cron](https://ci-beam.apache.org/job/beam_PostCommit_XVR_Flink/), [phrase](https://ci-beam.apache.org/job/beam_PostCommit_XVR_Flink_PR/) | `Run XVR_Flink PostCommit` | [![Build Status](https://ci-beam.apache.org/job/beam_PostCommit_XVR_Flink/badge/icon)](https://ci-beam.apache.org/job/beam_PostCommit_XVR_Flink) |
 | beam_PostCommit_XVR_Samza | [cron](https://ci-beam.apache.org/job/beam_PostCommit_XVR_Samza/), [phrase](https://ci-beam.apache.org/job/beam_PostCommit_XVR_Samza_PR/) | `Run XVR_Samza PostCommit` | [![Build Status](https://ci-beam.apache.org/job/beam_PostCommit_XVR_Samza/badge/icon)](https://ci-beam.apache.org/job/beam_PostCommit_XVR_Samza) |
 | beam_PostCommit_XVR_Spark | [cron](https://ci-beam.apache.org/job/beam_PostCommit_XVR_Spark/), [phrase](https://ci-beam.apache.org/job/beam_PostCommit_XVR_Spark_PR/) | `Run XVR_Spark PostCommit` | [![Build Status](https://ci-beam.apache.org/job/beam_PostCommit_XVR_Spark/badge/icon)](https://ci-beam.apache.org/job/beam_PostCommit_XVR_Spark) |
