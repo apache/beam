@@ -60,7 +60,7 @@ jobs:
         id: check_file_changed
         run: |
           set -xeu
-          DIFF=$(git diff --name-only ${GITHUB_BASE_REF#origin/master} $GITHUB_SHA -- $SUBDIRS)
+          DIFF=$(git diff --name-only ${GITHUB_BASE_REF:-origin/master} $GITHUB_SHA -- $SUBDIRS)
           echo "::set-output name=example_diff::$DIFF"
       - name: has Examples
         run: |
