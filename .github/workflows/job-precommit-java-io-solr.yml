@@ -14,10 +14,10 @@
 # limitations under the License.
 
 # Test for Precommit Java IO Solr Suite
+
 name: Precommit Java IO Solr
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
@@ -26,21 +26,14 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['model/**',
-      'sdks/java/**',
-      'runners/**',
-      'examples/java/**',
-      'examples/kotlin/**',
-      'release/**'] 
+    paths: ['sdks/java/io/solr/**']
 permissions: read-all
 
 jobs:
   run-precommit-java-io-solr:
     name: Run Precommit Java IO Solr
     runs-on: self-hosted
-    strategy:
-      fail-fast: true
-    timeout-minutes: 200
+    timeout-minutes: 60
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -50,7 +43,12 @@ jobs:
           submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action 
-      - name: SDKs Java IO Solr
+        with:
+          requires-py-37: false
+          requires-py-38: false
+          requires-py-39: false
+          requires-go-18: false
+      - name: SDKs Java IO Solr - :sdks:java:io:solr:test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:solr:test
