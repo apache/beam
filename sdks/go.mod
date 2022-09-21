@@ -23,7 +23,7 @@ module github.com/apache/beam/sdks/v2
 go 1.18
 
 require (
-	cloud.google.com/go/bigquery v1.39.0
+	cloud.google.com/go/bigquery v1.41.0
 	cloud.google.com/go/datastore v1.8.0
 	cloud.google.com/go/profiler v0.3.0
 	cloud.google.com/go/pubsub v1.25.1
@@ -31,7 +31,7 @@ require (
 	github.com/docker/go-connections v0.4.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang/protobuf v1.5.2 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
-	github.com/google/go-cmp v0.5.8
+	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
 	github.com/lib/pq v1.10.7
 	github.com/linkedin/goavro v2.1.0+incompatible
@@ -41,21 +41,22 @@ require (
 	github.com/testcontainers/testcontainers-go v0.14.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
-	golang.org/x/net v0.0.0-20220624214902-1bab6f366d9e
-	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
-	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
+	golang.org/x/net v0.0.0-20220909164309-bea034e7d591
+	golang.org/x/oauth2 v0.0.0-20220909003341-f21342109be1
+	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10
 	golang.org/x/text v0.3.7
-	google.golang.org/api v0.95.0
-	google.golang.org/genproto v0.0.0-20220822174746-9e6da59bd2fc
+	google.golang.org/api v0.96.0
+	google.golang.org/genproto v0.0.0-20220913154956-18f8339a66a5
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/retry.v1 v1.0.3
 	gopkg.in/yaml.v2 v2.4.0
 )
 
+require cloud.google.com/go/bigtable v1.16.0
+
 require (
 	cloud.google.com/go v0.104.0 // indirect
-	cloud.google.com/go/bigtable v1.16.0 // indirect
 	cloud.google.com/go/compute v1.7.0 // indirect
 	cloud.google.com/go/iam v0.3.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
