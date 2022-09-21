@@ -29,6 +29,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -73,6 +75,17 @@ public class CombinePerKeyTest implements Serializable {
     PCollection<KV<Integer, Integer>> input =
         pipeline.apply(Create.of(elems)).apply(Sum.integersPerKey());
     PAssert.that(input).containsInAnyOrder(KV.of(1, 9), KV.of(2, 12));
+    pipeline.run();
+  }
+
+  @Test
+  public void testDistinctViaCombinePerKey() {
+    List<Integer> elems = Lists.newArrayList(1, 2, 3, 3, 4, 4, 4, 4, 5, 5);
+
+    // Distinct is implemented in terms of CombinePerKey
+    PCollection<Integer> result = pipeline.apply(Create.of(elems)).apply(Distinct.create());
+
+    PAssert.that(result).containsInAnyOrder(1, 2, 3, 4, 5);
     pipeline.run();
   }
 
