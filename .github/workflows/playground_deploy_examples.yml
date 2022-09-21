@@ -16,15 +16,13 @@
 name: Collect And Deploy Playground Examples
 
 on:
-  workflow_dispatch:
-  push:
-#  pull_request:
-#    branches: ['master']
-#    paths:
-#     - playground/infrastructure/**
-#     - learning/katas/**
-#     - examples/**
-#     - sdks/**
+  pull_request:
+    branches: ['master']
+    paths:
+     - playground/infrastructure/**
+     - learning/katas/**
+     - examples/**
+     - sdks/**
 env:
   BEAM_ROOT_DIR: "../../"
   SDK_CONFIG: "../../playground/sdks.yaml"
@@ -77,8 +75,8 @@ jobs:
     if: needs.check_examples.outputs.example_has_changed == 'True'
     env:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
-      GOOGLE_CLOUD_PROJECT: ${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}
-      SA_KEY_CONTENT: ${{ secrets.EA_GCP_PLAYGROUND_SA_KEY }}
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+      SA_KEY_CONTENT: ${{ secrets.GCP_PLAYGROUND_SA_KEY }}
       REGION: us-central1
     steps:
       - name: Check out the repo
