@@ -56,13 +56,12 @@ jobs:
       - name: install deps
         run: pip install -r requirements.txt
         working-directory: playground/infrastructure
-      - shell: pwsh
-        name: get Difference
+      - name: get Difference
         id: check_file_changed
         run: |
-          $diff = git diff --name-only ${GITHUB_BASE_REF#origin/master} $GITHUB_SHA -- $SUBDIRS
-          echo "$diff"
-          Write-Host "::set-output name=example_diff::$diff"
+          diff=$(git diff --name-only ${GITHUB_BASE_REF#origin/master} $GITHUB_SHA -- $SUBDIRS)
+          echo $diff
+          echo "::set-output name=example_diff::$diff"
       - name: has Examples
         run: |
           output=$(python3 checker.py ${{ steps.check_file_changed.outputs.example_diff }})
