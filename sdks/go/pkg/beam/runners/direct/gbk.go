@@ -203,8 +203,13 @@ func (n *Inject) StartBundle(ctx context.Context, id string, data exec.DataConte
 func (n *Inject) ProcessElement(ctx context.Context, elm *exec.FullValue, values ...exec.ReStream) error {
 	v := *elm
 	v.Elm = n.N
-	elm.Elm2 = &v
-	return n.Out.ProcessElement(ctx, elm, values...)
+	return n.Out.ProcessElement(ctx, &exec.FullValue{
+		Elm:       elm.Elm,
+		Elm2:      &v,
+		Timestamp: elm.Timestamp,
+		Windows:   elm.Windows,
+		Pane:      elm.Pane,
+	}, values...)
 }
 
 func (n *Inject) FinishBundle(ctx context.Context) error {

@@ -250,9 +250,11 @@ func formatCoGBK2(s string, u func(*int64) bool, v func(*int64) bool) string {
 	for u(&val) {
 		ls0 = append(ls0, val)
 	}
+	sort.Slice(ls0, func(i, j int) bool { return ls0[i] < ls0[j] })
 	for v(&val) {
 		ls1 = append(ls1, val)
 	}
+	sort.Slice(ls1, func(i, j int) bool { return ls1[i] < ls1[j] })
 	return fmt.Sprintf("%s,%v,%v", s, ls0, ls1)
 }
 
