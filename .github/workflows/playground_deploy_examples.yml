@@ -34,6 +34,7 @@ env:
   HELM_APP_NAME: playground-backend
   SUBDIRS: "./learning/katas ./examples ./sdks"
   ORIGIN: PG_EXAMPLES
+  DOCKERTAG: 0c8afb3051f341def2d8ce7ece6a7c87d555c07e
 jobs:
   check_examples:
     name: Check examples
@@ -116,11 +117,11 @@ jobs:
              which gcloud
              gcloud auth activate-service-account --project=$GOOGLE_CLOUD_PROJECT \
               --key-file=$GOOGLE_APPLICATION_CREDENTIALS
-      - name: Set Docker Tag
-        run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
-      - name: Set Docker Tag If Github Tag was trigger
-        run: echo "DOCKERTAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-        if: startsWith(github.ref, 'refs/tags/')
+#      - name: Set Docker Tag
+#        run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
+#      - name: Set Docker Tag If Github Tag was trigger
+#        run: echo "DOCKERTAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+#        if: startsWith(github.ref, 'refs/tags/')
       - name: Set Docker Registry env
         run: echo "DOCKER_REGISTRY=$DOCKER_REGISTRY" >> $GITHUB_ENV
         env:
@@ -132,22 +133,22 @@ jobs:
         run: cat $GOOGLE_APPLICATION_CREDENTIALS | docker login -u _json_key --password-stdin "$PLAYGROUND_REGISTRY_URL"
         env:
           PLAYGROUND_REGISTRY_URL: https://${{ env.REGION }}-docker.pkg.dev
-      - name: Build And Push Java Backend
-        run: |
-             ./gradlew playground:backend:containers:java:dockerTagPush \
-             -Pdocker-repository-root="$DOCKER_REGISTRY" \
-             -Pbase-image="apache/beam_java8_sdk:$BEAM_VERSION" \
-             -Pdocker-tag="$DOCKERTAG"
-      - name: Build And Push Go Backend
-        run: |
-              ./gradlew playground:backend:containers:go:dockerTagPush \
-              -Pdocker-repository-root="$DOCKER_REGISTRY" \
-              -Pdocker-tag="$DOCKERTAG"
-      - name: Build And Push Python Backend
-        run: |
-              ./gradlew playground:backend:containers:python:dockerTagPush \
-              -Pdocker-repository-root="$DOCKER_REGISTRY" \
-              -Pdocker-tag="$DOCKERTAG"
+#      - name: Build And Push Java Backend
+#        run: |
+#             ./gradlew playground:backend:containers:java:dockerTagPush \
+#             -Pdocker-repository-root="$DOCKER_REGISTRY" \
+#             -Pbase-image="apache/beam_java8_sdk:$BEAM_VERSION" \
+#             -Pdocker-tag="$DOCKERTAG"
+#      - name: Build And Push Go Backend
+#        run: |
+#              ./gradlew playground:backend:containers:go:dockerTagPush \
+#              -Pdocker-repository-root="$DOCKER_REGISTRY" \
+#              -Pdocker-tag="$DOCKERTAG"
+#      - name: Build And Push Python Backend
+#        run: |
+#              ./gradlew playground:backend:containers:python:dockerTagPush \
+#              -Pdocker-repository-root="$DOCKER_REGISTRY" \
+#              -Pdocker-tag="$DOCKERTAG"
       - name: Clean All Build directories
         run: ./gradlew clean
       - name: Install helm chart
@@ -200,7 +201,7 @@ jobs:
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8080"
              python3 ci_cd.py --step CD --sdk SDK_JAVA --origin $ORIGIN --subdirs $SUBDIRS
         working-directory: playground/infrastructure
-      - name: Delete Helm Chart
-        if: always()
-        run: |
-             helm del --namespace $K8S_NAMESPACE $HELM_APP_NAME
+#      - name: Delete Helm Chart
+#        if: always()
+#        run: |
+#             helm del --namespace $K8S_NAMESPACE $HELM_APP_NAME
