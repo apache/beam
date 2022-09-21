@@ -17,11 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore.it;
 
-import static org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.assumeEnvVarSet;
 import static org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.chunkUpDocIds;
-import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assume.assumeThat;
 
 import com.google.api.core.ApiFutures;
 import com.google.cloud.firestore.WriteBatch;
@@ -42,7 +39,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreIO;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosOptions;
 import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.CleanupMode;
 import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.DataLayout;
@@ -58,9 +54,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
-import org.junit.AssumptionViolatedException;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -74,9 +68,6 @@ abstract class BaseFirestoreIT {
 
   protected static final int NUM_ITEMS_TO_GENERATE =
       768; // more than one read page and one write page
-  private static final String ENV_GOOGLE_APPLICATION_CREDENTIALS = "GOOGLE_APPLICATION_CREDENTIALS";
-  private static final String ENV_FIRESTORE_EMULATOR_HOST = "FIRESTORE_EMULATOR_HOST";
-  private static final String ENV_GOOGLE_CLOUD_PROJECT = "GOOGLE_CLOUD_PROJECT";
 
   @Rule(order = 1)
   public final TestName testName = new TestName();
@@ -93,43 +84,20 @@ abstract class BaseFirestoreIT {
   @Rule(order = 4)
   public final TestPipeline testPipeline = TestPipeline.create();
 
-  protected static String project;
-  protected static RpcQosOptions rpcQosOptions;
-  protected GcpOptions options;
+  protected static final RpcQosOptions RPC_QOS_OPTIONS =
+      RpcQosOptions.defaultOptions()
+          .toBuilder()
+          .withMaxAttempts(1)
+          .withHintMaxNumWorkers(1)
+          .build();
 
-  @BeforeClass
-  public static void beforeClass() {
-    try {
-      assumeEnvVarSet(ENV_GOOGLE_APPLICATION_CREDENTIALS);
-    } catch (AssumptionViolatedException e) {
-      try {
-        assumeEnvVarSet(ENV_FIRESTORE_EMULATOR_HOST);
-      } catch (AssumptionViolatedException exception) {
-        assumeThat(
-            String.format(
-                "Either %s or %s must be set",
-                ENV_GOOGLE_APPLICATION_CREDENTIALS, ENV_FIRESTORE_EMULATOR_HOST),
-            false,
-            equalTo(true));
-      }
-    }
-    project = assumeEnvVarSet(ENV_GOOGLE_CLOUD_PROJECT);
-    rpcQosOptions =
-        RpcQosOptions.defaultOptions()
-            .toBuilder()
-            .withMaxAttempts(1)
-            .withHintMaxNumWorkers(1)
-            .build();
-  }
+  protected GcpOptions options;
+  protected static String project;
 
   @Before
   public void setup() {
     options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
-    String emulatorHostPort = System.getenv(ENV_FIRESTORE_EMULATOR_HOST);
-    if (emulatorHostPort != null) {
-      options.as(FirestoreOptions.class).setEmulatorHost(emulatorHostPort);
-    }
-    options.setProject(project);
+    project = options.getProject();
   }
 
   @Test
@@ -165,7 +133,7 @@ abstract class BaseFirestoreIT {
                 FirestoreIO.v1()
                     .read()
                     .listCollectionIds()
-                    .withRpcQosOptions(rpcQosOptions)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build());
 
     PAssert.that(actualCollectionIds).containsInAnyOrder(collectionIds);
@@ -181,7 +149,8 @@ abstract class BaseFirestoreIT {
         testPipeline
             .apply(Create.of("a"))
             .apply(getListDocumentsPTransform(testName.getMethodName()))
-            .apply(FirestoreIO.v1().read().listDocuments().withRpcQosOptions(rpcQosOptions).build())
+            .apply(
+                FirestoreIO.v1().read().listDocuments().withRpcQosOptions(RPC_QOS_OPTIONS).build())
             .apply(ParDo.of(new DocumentToName()));
 
     PAssert.that(listDocumentPaths).containsInAnyOrder(documentGenerator.expectedDocumentPaths());
@@ -199,7 +168,7 @@ abstract class BaseFirestoreIT {
         testPipeline
             .apply(Create.of(collectionId))
             .apply(getRunQueryPTransform(testName.getMethodName()))
-            .apply(FirestoreIO.v1().read().runQuery().withRpcQosOptions(rpcQosOptions).build())
+            .apply(FirestoreIO.v1().read().runQuery().withRpcQosOptions(RPC_QOS_OPTIONS).build())
             .apply(ParDo.of(new RunQueryResponseToDocument()))
             .apply(ParDo.of(new DocumentToName()));
 
@@ -248,7 +217,7 @@ abstract class BaseFirestoreIT {
                 FirestoreIO.v1()
                     .read()
                     .batchGetDocuments()
-                    .withRpcQosOptions(rpcQosOptions)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build())
             .apply(Filter.by(BatchGetDocumentsResponse::hasFound))
             .apply(ParDo.of(new BatchGetDocumentsResponseToDocument()))
@@ -291,7 +260,7 @@ abstract class BaseFirestoreIT {
     testPipeline
         .apply(Create.of(Collections.singletonList(documentIds)))
         .apply(createWrite)
-        .apply(FirestoreIO.v1().write().batchWrite().withRpcQosOptions(rpcQosOptions).build());
+        .apply(FirestoreIO.v1().write().batchWrite().withRpcQosOptions(RPC_QOS_OPTIONS).build());
 
     testPipeline.run(options);
 

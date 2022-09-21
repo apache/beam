@@ -203,10 +203,11 @@ final class FirestoreV1WriteFn {
     @Override
     public final void startBundle(StartBundleContext c) {
       String project = c.getPipelineOptions().as(GcpOptions.class).getProject();
+      String databaseId = c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
       databaseRootName =
           DatabaseRootName.of(
               requireNonNull(project, "project must be defined on GcpOptions of PipelineOptions"),
-              "(default)");
+              databaseId);
       firestoreStub = firestoreStatefulComponentFactory.getFirestoreStub(c.getPipelineOptions());
     }
 
