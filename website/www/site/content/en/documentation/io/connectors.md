@@ -776,6 +776,32 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">✔</td>
   </tr>
+  <tr>
+    <td>SparkReceiverIO</td>
+    <td class="present">✔</td>
+    <td class="present">✘</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✘</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>CdapIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
 </table>
 </div>
 
