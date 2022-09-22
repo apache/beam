@@ -13,10 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Test for Precommit Java IO Google Cloud Platflorm 
+# Test for Precommit Java IO Google Cloud Platform 
+
+name: Precommit Java IO Google Cloud Platform 
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
@@ -25,20 +26,13 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['model/**',
-      'sdks/java/**',
-      'runners/**',
-      'examples/java/**',
-      'examples/kotlin/**',
-      'release/**'] 
+    paths: ['sdks/java/io/google-cloud-platform/**']
 permissions: read-all
 
 jobs:
   run-precommit-java-io-googlecloudplatform:
     name: Run Precommit Java IO Google Cloud Platform  
     runs-on: self-hosted
-    strategy:
-      fail-fast: true
     timeout-minutes: 200
     steps:
       - name: Checkout code
@@ -49,6 +43,11 @@ jobs:
           submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action 
+        with:
+          requires-py-37: false
+          requires-py-38: false
+          requires-py-39: false
+          requires-go-18: false
       - name: SDKs Java IO Google Cloud Platform 
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

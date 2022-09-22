@@ -15,11 +15,9 @@
 
 # Test for Precommit Java IO Clickhouse
 
-
 name: Precommit Java IO ClickHouse
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
@@ -28,20 +26,13 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['model/**',
-      'sdks/java/**',
-      'runners/**',
-      'examples/java/**',
-      'examples/kotlin/**',
-      'release/**'] 
+    paths: ['sdks/java/io/clickhouse/**']
 permissions: read-all
 
 jobs:
   run-precommit-java-io-clickhouse:
     name: Run Precommit Java IO ClickHouse 
     runs-on: self-hosted
-    strategy:
-      fail-fast: true
     timeout-minutes: 200
     steps:
       - name: Checkout code
@@ -52,7 +43,12 @@ jobs:
           submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action 
-      - name: SDKs Java IO ClickHouse
+        with:
+          requires-py-37: false
+          requires-py-38: false
+          requires-py-39: false
+          requires-go-18: false
+      - name: SDKs Java IO ClickHouse - :sdks:java:io:clickhouse:test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:clickhouse:test
