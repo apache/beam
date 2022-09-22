@@ -16,15 +16,22 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-import 'cache/content_tree.dart';
-import 'cache/sdk_cache.dart';
-import 'repositories/client/cloud_functions_client.dart';
+import 'module.dart';
 
-Future<void> initializeServiceLocator() async {
-  final client = CloudFunctionsTobClient();
+part 'content_tree.g.dart';
 
-  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
-  GetIt.instance.registerSingleton(SdkCache(client: client));
+@JsonSerializable(createToJson: false)
+class ContentTreeModel {
+  final String sdkId;
+  final List<ModuleModel> modules;
+
+  const ContentTreeModel({
+    required this.sdkId,
+    required this.modules,
+  });
+
+  factory ContentTreeModel.fromJson(Map<String, dynamic> json) =>
+      _$ContentTreeModelFromJson(json);
 }

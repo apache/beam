@@ -16,15 +16,30 @@
  * limitations under the License.
  */
 
+import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 
-import 'cache/content_tree.dart';
-import 'cache/sdk_cache.dart';
-import 'repositories/client/cloud_functions_client.dart';
+import '../../cache/content_tree.dart';
+import '../../models/content_tree.dart';
 
-Future<void> initializeServiceLocator() async {
-  final client = CloudFunctionsTobClient();
+class ContentTreeBuilder extends StatelessWidget {
+  final ValueWidgetBuilder<ContentTreeModel?> builder;
 
-  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
-  GetIt.instance.registerSingleton(SdkCache(client: client));
+  const ContentTreeBuilder({
+    required this.builder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cache = GetIt.instance.get<ContentTreeCache>();
+
+    return AnimatedBuilder(
+      animation: cache,
+      builder: (context, child) => builder(
+        context,
+        cache.getContentTree(),
+        child,
+      ),
+    );
+  }
 }

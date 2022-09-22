@@ -16,15 +16,18 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import '../repositories/models/group.dart';
+import 'abstract_node.dart';
 
-import 'cache/content_tree.dart';
-import 'cache/sdk_cache.dart';
-import 'repositories/client/cloud_functions_client.dart';
+class GroupModel extends NodeModel {
+  final List<NodeModel> nodes;
 
-Future<void> initializeServiceLocator() async {
-  final client = CloudFunctionsTobClient();
+  const GroupModel({
+    required super.title,
+    required this.nodes,
+  });
 
-  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
-  GetIt.instance.registerSingleton(SdkCache(client: client));
+  GroupModel.fromResponse(GroupResponseModel group)
+      : nodes = group.nodes.map(NodeModel.fromResponse).toList(growable: false),
+        super(title: group.title);
 }

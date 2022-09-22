@@ -21,11 +21,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../components/builders/content_tree.dart';
 import '../../components/expansion_tile_wrapper.dart';
 import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
+import '../../models/abstract_node.dart';
+import '../../models/group.dart';
+import '../../models/module.dart';
+import '../../models/unit.dart';
 import 'playground_demo.dart';
 
 class TourScreen extends StatelessWidget {
@@ -99,33 +104,40 @@ class _ContentTree extends StatelessWidget {
     return Container(
       width: 250,
       padding: const EdgeInsets.symmetric(horizontal: BeamSizes.size12),
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            const _ContentTreeTitle(),
-            ...[
-              'Core Transforms',
-              'Common Transforms',
-            ].map((e) => _Module(module: e)).toList(growable: false),
-            const SizedBox(height: BeamSizes.size12),
-          ],
-        ),
+      child: ContentTreeBuilder(
+        builder: (context, contentTree, child) {
+          if (contentTree == null) {
+            return Container();
+          }
+
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                const _ContentTreeTitle(),
+                ...contentTree.modules
+                    .map((module) => _Module(module: module))
+                    .toList(growable: false),
+                const SizedBox(height: BeamSizes.size12),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 }
 
 class _Module extends StatelessWidget {
-  final String module;
+  final ModuleModel module;
   const _Module({required this.module});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ModuleTitle(title: module),
-        ...['Map', 'Combine']
-            .map((group) => _Group(group: group))
+        _ModuleTitle(module: module),
+        ...module.nodes
+            .map((node) => _Node(node: node))
             .toList(growable: false),
         const BeamDivider(
           margin: EdgeInsets.symmetric(vertical: BeamSizes.size10),
@@ -156,8 +168,8 @@ class _ContentTreeTitle extends StatelessWidget {
 }
 
 class _ModuleTitle extends StatelessWidget {
-  final String title;
-  const _ModuleTitle({required this.title});
+  final ModuleModel module;
+  const _ModuleTitle({required this.module});
 
   @override
   Widget build(BuildContext context) {
@@ -167,12 +179,12 @@ class _ModuleTitle extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            title,
+            module.title,
             style: Theme.of(context).textTheme.headlineMedium,
           ),
-          const Padding(
-            padding: EdgeInsets.only(right: BeamSizes.size4),
-            child: ComplexityWidget(complexity: Complexity.basic),
+          Padding(
+            padding: const EdgeInsets.only(right: BeamSizes.size4),
+            child: ComplexityWidget(complexity: module.complexity),
           ),
         ],
       ),
@@ -180,8 +192,23 @@ class _ModuleTitle extends StatelessWidget {
   }
 }
 
+class _Node extends StatelessWidget {
+  final NodeModel node;
+  const _Node({required this.node});
+
+  @override
+  Widget build(BuildContext context) {
+    if (node is GroupModel) {
+      return _Group(group: node as GroupModel);
+    } else if (node is UnitModel) {
+      return _Unit(unit: node as UnitModel);
+    }
+    throw Exception('A node with an unknown type');
+  }
+}
+
 class _Group extends StatelessWidget {
-  final String group;
+  final GroupModel group;
   const _Group({required this.group});
 
   @override
@@ -189,44 +216,40 @@ class _Group extends StatelessWidget {
     return ExpansionTileWrapper(
       ExpansionTile(
         tilePadding: EdgeInsets.zero,
-        title: _GroupTitle(title: group),
+        title: _GroupTitle(title: group.title),
         childrenPadding: const EdgeInsets.only(
           left: BeamSizes.size24,
-          top: BeamSizes.size10,
         ),
-        children: const [_Units()],
+        children: [_GroupNodes(nodes: group.nodes)],
       ),
     );
   }
 }
 
-class _Units extends StatelessWidget {
-  const _Units();
+class _GroupNodes extends StatelessWidget {
+  final List<NodeModel> nodes;
+  const _GroupNodes({required this.nodes});
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: ['ParDo one-to-one', 'ParDo one-to-many']
-          .map((e) => _Unit(title: e))
-          .toList(growable: false),
+      children: nodes.map((node) => _Node(node: node)).toList(growable: false),
     );
   }
 }
 
 class _Unit extends StatelessWidget {
-  final String title;
-  const _Unit({required this.title});
+  final UnitModel unit;
+  const _Unit({required this.unit});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: BeamSizes.size18),
+      padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
       child: Row(
         children: [
-          _ProgressIndicator(
-            assetPath: Assets.svg.unitProgress100,
-          ),
-          Text(title),
+          _ProgressIndicator(assetPath: Assets.svg.unitProgress0),
+          Expanded(child: Text(unit.title)),
         ],
       ),
     );
@@ -241,9 +264,7 @@ class _GroupTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _ProgressIndicator(
-          assetPath: Assets.svg.unitProgress100,
-        ),
+        _ProgressIndicator(assetPath: Assets.svg.unitProgress0),
         Text(
           title,
           style: Theme.of(context).textTheme.headlineMedium,
