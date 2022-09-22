@@ -59,7 +59,7 @@ jobs:
         run: |
           BASE_BRANCH=$ORG:${{env.RELEASE_BRANCH}}
           echo $BASE_BRANCH
-          GITHUB_PR_URL=$(hub pull-request -b $BASE_BRANCH -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
+          GITHUB_PR_URL=$(hub pull-request -b ${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
 
           You can run many tests automatically using release/src/main/scripts/mass_comment.py.")
           echo "::set-output name=git_pr::${GITHUB_PR_URL}"
