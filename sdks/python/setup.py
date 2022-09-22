@@ -95,16 +95,6 @@ execution engines and providing extensibility points for connecting to
 different technologies and user communities.
 '''
 
-REQUIRED_PIP_VERSION = '7.0.0'
-_PIP_VERSION = get_distribution('pip').version
-if parse_version(_PIP_VERSION) < parse_version(REQUIRED_PIP_VERSION):
-  warnings.warn(
-      "You are using version {0} of pip. " \
-      "However, version {1} is recommended.".format(
-          _PIP_VERSION, REQUIRED_PIP_VERSION
-      )
-  )
-
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
   _CYTHON_VERSION = get_distribution('cython').version
