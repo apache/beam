@@ -43,6 +43,9 @@ jobs:
         uses: ./.github/actions/setup-self-hosted-action
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker
       - name: Get Credentials
         run: |
           gcloud container clusters get-credentials metrics-migration-test --zone us-central1-c --project apache-beam-testing
