@@ -33,7 +33,7 @@ jobs:
   run-precommit-java-io-splunk:
     name: Run Precommit Java IO Splunk
     runs-on: self-hosted
-    timeout-minutes: 200
+    timeout-minutes: 60
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
