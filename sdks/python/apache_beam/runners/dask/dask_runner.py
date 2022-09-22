@@ -88,13 +88,14 @@ class DaskRunnerResult(PipelineResult):
         # Convert milliseconds to seconds
         duration /= 1000
       self.client.wait_for_workers(timeout=duration)
-      self.client.gather(self.futures, errors='raise', asynchronous=True)
+      self.client.gather(self.futures, errors='raise')
       self._state = PipelineState.DONE
     except:  # pylint: disable=broad-except
       self._state = PipelineState.FAILED
       raise
-    # finally:
-    #   self.client.close(timeout=duration)
+    finally:
+      self.client.close()
+      self.client.cluster.close()
     return self._state
 
   def cancel(self) -> PipelineState:
