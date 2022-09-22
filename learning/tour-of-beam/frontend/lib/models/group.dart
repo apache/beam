@@ -18,11 +18,22 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-enum Complexity {
-  @JsonValue('BASIC')
-  basic,
-  @JsonValue('MEDIUM')
-  medium,
-  @JsonValue('ADVANCED')
-  advanced,
+import 'node.dart';
+
+part 'group.g.dart';
+
+@JsonSerializable()
+class GroupModel {
+  final String name;
+  final List<NodeModel> nodes;
+
+  GroupModel({
+    required this.name,
+    required this.nodes,
+  });
+
+  factory GroupModel.fromJson(Map<String, dynamic> json) =>
+      _$GroupModelFromJson(json);
+
+  Map<String, dynamic> toJson() => _$GroupModelToJson(this);
 }

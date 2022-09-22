@@ -26,6 +26,11 @@ import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
+import '../../models/content_tree.dart';
+import '../../models/group.dart';
+import '../../models/module.dart';
+import '../../models/node.dart';
+import '../../models/unit.dart';
 import 'playground_demo.dart';
 
 class TourScreen extends StatelessWidget {
@@ -94,6 +99,90 @@ class _NarrowTour extends StatelessWidget {
 class _ContentTree extends StatelessWidget {
   const _ContentTree();
 
+  static const _contentTreeJson = {
+    'sdk': 'Python',
+    'modules': [
+      {
+        'moduleId': 'introduction',
+        'name': 'Introduction',
+        'complexity': 'BASIC',
+        'nodes': [
+          {
+            'type': 'unit',
+            'unit': {'unitId': 'guide', 'name': 'Tour of Beam Guide'}
+          },
+          {
+            'type': 'group',
+            'group': {
+              'name': 'Beam Concepts',
+              'nodes': [
+                {
+                  'type': 'unit',
+                  'unit': {'unitId': 'runner-concepts', 'name': 'Runners'}
+                },
+                {
+                  'type': 'group',
+                  'group': {
+                    'name': 'Pipeline concepts',
+                    'nodes': [
+                      {
+                        'type': 'unit',
+                        'unit': {
+                          'unitId': 'creating-pipeline',
+                          'name': 'Creating pipelines'
+                        }
+                      },
+                      {
+                        'type': 'unit',
+                        'unit': {
+                          'unitId': 'setting-pipeline',
+                          'name': 'Configuring pipeline options'
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  'type': 'group',
+                  'group': {
+                    'name': 'Creating Collections',
+                    'nodes': [
+                      {
+                        'type': 'unit',
+                        'unit': {
+                          'unitId': 'from-memory',
+                          'name': 'Creating in-memory PCollections'
+                        }
+                      },
+                      {
+                        'type': 'unit',
+                        'unit': {
+                          'unitId': 'from-text',
+                          'name': 'Creating PCollections from text files'
+                        }
+                      },
+                      {
+                        'type': 'unit',
+                        'unit': {
+                          'unitId': 'from-csv',
+                          'name': 'Creating PCollections from csv files'
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            'type': 'unit',
+            'unit': {'unitId': 'terms', 'name': 'List of Beam Terms'}
+          }
+        ]
+      }
+    ]
+  };
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -103,10 +192,10 @@ class _ContentTree extends StatelessWidget {
         child: Column(
           children: [
             const _ContentTreeTitle(),
-            ...[
-              'Core Transforms',
-              'Common Transforms',
-            ].map((e) => _Module(module: e)).toList(growable: false),
+            ...ContentTreeModel.fromJson(_contentTreeJson)
+                .modules
+                .map((e) => _Module(module: e))
+                .toList(growable: false),
             const SizedBox(height: BeamSizes.size12),
           ],
         ),
@@ -116,16 +205,16 @@ class _ContentTree extends StatelessWidget {
 }
 
 class _Module extends StatelessWidget {
-  final String module;
+  final ModuleModel module;
   const _Module({required this.module});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ModuleTitle(title: module),
-        ...['Map', 'Combine']
-            .map((group) => _Group(group: group))
+        _ModuleTitle(module: module),
+        ...module.nodes
+            .map((node) => _Node(node: node))
             .toList(growable: false),
         const BeamDivider(
           margin: EdgeInsets.symmetric(vertical: BeamSizes.size10),
@@ -156,8 +245,8 @@ class _ContentTreeTitle extends StatelessWidget {
 }
 
 class _ModuleTitle extends StatelessWidget {
-  final String title;
-  const _ModuleTitle({required this.title});
+  final ModuleModel module;
+  const _ModuleTitle({required this.module});
 
   @override
   Widget build(BuildContext context) {
@@ -167,12 +256,12 @@ class _ModuleTitle extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            title,
+            module.name,
             style: Theme.of(context).textTheme.headlineMedium,
           ),
-          const Padding(
-            padding: EdgeInsets.only(right: BeamSizes.size4),
-            child: ComplexityWidget(complexity: Complexity.basic),
+          Padding(
+            padding: const EdgeInsets.only(right: BeamSizes.size4),
+            child: ComplexityWidget(complexity: module.complexity),
           ),
         ],
       ),
@@ -180,8 +269,23 @@ class _ModuleTitle extends StatelessWidget {
   }
 }
 
+class _Node extends StatelessWidget {
+  final NodeModel node;
+  const _Node({required this.node});
+
+  @override
+  Widget build(BuildContext context) {
+    if (node.group != null) {
+      return _Group(group: node.group!);
+    } else if (node.unit != null) {
+      return _Unit(unit: node.unit!);
+    }
+    throw Exception('A node with an unknown type');
+  }
+}
+
 class _Group extends StatelessWidget {
-  final String group;
+  final GroupModel group;
   const _Group({required this.group});
 
   @override
@@ -189,44 +293,40 @@ class _Group extends StatelessWidget {
     return ExpansionTileWrapper(
       ExpansionTile(
         tilePadding: EdgeInsets.zero,
-        title: _GroupTitle(title: group),
+        title: _GroupTitle(title: group.name),
         childrenPadding: const EdgeInsets.only(
           left: BeamSizes.size24,
-          top: BeamSizes.size10,
         ),
-        children: const [_Units()],
+        children: [_GroupNodes(nodes: group.nodes)],
       ),
     );
   }
 }
 
-class _Units extends StatelessWidget {
-  const _Units();
+class _GroupNodes extends StatelessWidget {
+  final List<NodeModel> nodes;
+  const _GroupNodes({required this.nodes});
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: ['ParDo one-to-one', 'ParDo one-to-many']
-          .map((e) => _Unit(title: e))
-          .toList(growable: false),
+      children: nodes.map((node) => _Node(node: node)).toList(growable: false),
     );
   }
 }
 
 class _Unit extends StatelessWidget {
-  final String title;
-  const _Unit({required this.title});
+  final UnitModel unit;
+  const _Unit({required this.unit});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: BeamSizes.size18),
+      padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
       child: Row(
         children: [
-          _ProgressIndicator(
-            assetPath: Assets.svg.unitProgress100,
-          ),
-          Text(title),
+          _ProgressIndicator(assetPath: Assets.svg.unitProgress0),
+          Expanded(child: Text(unit.name)),
         ],
       ),
     );
@@ -241,9 +341,7 @@ class _GroupTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _ProgressIndicator(
-          assetPath: Assets.svg.unitProgress100,
-        ),
+        _ProgressIndicator(assetPath: Assets.svg.unitProgress0),
         Text(
           title,
           style: Theme.of(context).textTheme.headlineMedium,
@@ -314,7 +412,8 @@ class _ContentFooter extends StatelessWidget {
         border: Border(
           top: BorderSide(color: themeData.dividerColor),
         ),
-        color: themeData.extension<BeamThemeExtension>()?.secondaryBackgroundColor,
+        color:
+            themeData.extension<BeamThemeExtension>()?.secondaryBackgroundColor,
       ),
       width: double.infinity,
       padding: const EdgeInsets.all(BeamSizes.size20),

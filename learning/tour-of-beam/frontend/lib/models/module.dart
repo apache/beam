@@ -17,12 +17,28 @@
  */
 
 import 'package:json_annotation/json_annotation.dart';
+import 'package:playground_components/playground_components.dart';
 
-enum Complexity {
-  @JsonValue('BASIC')
-  basic,
-  @JsonValue('MEDIUM')
-  medium,
-  @JsonValue('ADVANCED')
-  advanced,
+import 'node.dart';
+
+part 'module.g.dart';
+
+@JsonSerializable()
+class ModuleModel {
+  final String moduleId;
+  final String name;
+  final Complexity complexity;
+  final List<NodeModel> nodes;
+
+  ModuleModel({
+    required this.moduleId,
+    required this.name,
+    required this.complexity,
+    required this.nodes,
+  });
+
+  factory ModuleModel.fromJson(Map<String, dynamic> json) =>
+      _$ModuleModelFromJson(json);
+
+  Map<String, dynamic> toJson() => _$ModuleModelToJson(this);
 }

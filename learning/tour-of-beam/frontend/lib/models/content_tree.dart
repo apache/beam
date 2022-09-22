@@ -16,13 +16,26 @@
  * limitations under the License.
  */
 
+// TODO(nausharipov): hide generated files
+
 import 'package:json_annotation/json_annotation.dart';
 
-enum Complexity {
-  @JsonValue('BASIC')
-  basic,
-  @JsonValue('MEDIUM')
-  medium,
-  @JsonValue('ADVANCED')
-  advanced,
+import 'module.dart';
+
+part 'content_tree.g.dart';
+
+@JsonSerializable()
+class ContentTreeModel {
+  final String sdk;
+  final List<ModuleModel> modules;
+
+  ContentTreeModel({
+    required this.sdk,
+    required this.modules,
+  });
+
+  factory ContentTreeModel.fromJson(Map<String, dynamic> json) =>
+      _$ContentTreeModelFromJson(json);
+
+  Map<String, dynamic> toJson() => _$ContentTreeModelToJson(this);
 }

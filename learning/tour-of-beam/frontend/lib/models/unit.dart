@@ -18,11 +18,20 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-enum Complexity {
-  @JsonValue('BASIC')
-  basic,
-  @JsonValue('MEDIUM')
-  medium,
-  @JsonValue('ADVANCED')
-  advanced,
+part 'unit.g.dart';
+
+@JsonSerializable()
+class UnitModel {
+  final String unitId;
+  final String name;
+
+  UnitModel({
+    required this.unitId,
+    required this.name,
+  });
+
+  factory UnitModel.fromJson(Map<String, dynamic> json) =>
+      _$UnitModelFromJson(json);
+
+  Map<String, dynamic> toJson() => _$UnitModelToJson(this);
 }

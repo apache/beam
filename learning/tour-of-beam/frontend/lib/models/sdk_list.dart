@@ -18,11 +18,16 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-enum Complexity {
-  @JsonValue('BASIC')
-  basic,
-  @JsonValue('MEDIUM')
-  medium,
-  @JsonValue('ADVANCED')
-  advanced,
+part 'sdk_list.g.dart';
+
+@JsonSerializable()
+class SdkListModel {
+  final List<String> names;
+
+  SdkListModel({required this.names});
+
+  factory SdkListModel.fromJson(Map<String, dynamic> json) =>
+      _$SdkListModelFromJson(json);
+
+  Map<String, dynamic> toJson() => _$SdkListModelToJson(this);
 }

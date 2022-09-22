@@ -26,6 +26,9 @@ import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
+import '../../models/content_tree.dart';
+import '../../models/module.dart';
+import '../../models/sdk_list.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen();
@@ -124,31 +127,44 @@ class _TourSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final contentTreeJson = {
+      'sdk': 'Python',
+      'modules': [
+        'Core Transforms',
+        'Common Transforms',
+        'IO',
+        'Windowing',
+        'Triggers',
+      ]
+          .map(
+            (module) => {
+              'moduleId': 'introduction',
+              'name': module,
+              'complexity': 'BASIC',
+              'nodes': [],
+            },
+          )
+          .toList(),
+    };
+
+    final modules = ContentTreeModel.fromJson(contentTreeJson).modules;
     return Padding(
       padding: const EdgeInsets.symmetric(
         vertical: BeamSizes.size20,
         horizontal: 27,
       ),
       child: Column(
-        children: _modules
+        children: modules
             .map(
               (module) => _Module(
-                title: module,
-                isLast: module == _modules.last,
+                module: module,
+                isLast: module == modules.last,
               ),
             )
             .toList(growable: false),
       ),
     );
   }
-
-  static const List<String> _modules = [
-    'Core Transforms',
-    'Common Transforms',
-    'IO',
-    'Windowing',
-    'Triggers',
-  ];
 }
 
 class _IntroText extends StatelessWidget {
@@ -210,7 +226,10 @@ class _Buttons extends StatelessWidget {
     return Wrap(
       children: [
         Wrap(
-          children: ['Java', 'Python', 'Go']
+          children: SdkListModel.fromJson({
+            'names': ['Java', 'Python', 'Go'],
+          })
+              .names
               .map(
                 (e) => _SdkButton(
                   value: e,
@@ -265,11 +284,11 @@ class _SdkButton extends StatelessWidget {
 }
 
 class _Module extends StatelessWidget {
-  final String title;
+  final ModuleModel module;
   final bool isLast;
 
   const _Module({
-    required this.title,
+    required this.module,
     required this.isLast,
   });
 
@@ -277,7 +296,7 @@ class _Module extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ModuleHeader(title: title),
+        _ModuleHeader(title: module.name),
         if (isLast) const _LastModuleBody() else const _ModuleBody(),
       ],
     );
