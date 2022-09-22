@@ -24,6 +24,15 @@ import (
 )
 
 func TestHashStringToInt(t *testing.T) {
+	equalVal := "equal"
+	
+	firstHash := hashStringToInt(equalVal)
+	secondHash := hashStringToInt(equalVal)
+
+	if firstHash != secondHash {
+		t.Errorf("hashStringToInt(\"%s\") should equal hashStringToInt(\"%s\")", equalVal, equalVal)
+	}
+
 	if hashStringToInt("helloWorld") == hashStringToInt("helloworld") {
 		t.Error("hashStringToInt(\"helloWorld\") should not equal hashStringToInt(\"helloworld\")")
 	}
