@@ -21,7 +21,6 @@
 name: Precommit Python Validate Runner Flink
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
@@ -46,8 +45,6 @@ jobs:
   python-pvr-flink:
     name: Run Precommit Python Validation Runner Flink
     runs-on: self-hosted
-    strategy:
-      fail-fast: true
     timeout-minutes: 120
     steps:
       - name: Checkout code

@@ -48,7 +48,9 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python_ver: ['37','39']
+        version: ${{fromJson(needs.set-properties.outputs.properties).PythonTestProperties.ALL_SUPPORTED_VERSIONS}}
+        exclude:
+          - version: "38"
     timeout-minutes: 120
     steps:
       - name: Checkout code
@@ -57,12 +59,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
-      - name: Install python 3.7
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.7"
-      - name: Run :sdks:python:test-suites:portable:py${{ matrix.python_ver }}:preCommitPy${{ matrix.python_ver }}
+      - name: Setup environment
+        uses: ./.github/actions/setup-self-hosted-action
+      - name: Run :sdks:python:test-suites:portable:py${{ matrix.version }}:preCommitPy${{ matrix.version }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:portable:py${{ matrix.python_ver }}:preCommitPy${{ matrix.python_ver }}
-          gradle-switches: "--continue"
+          gradle-command: :sdks:python:test-suites:portable:py${{ matrix.version }}:preCommitPy${{ matrix.version }}
