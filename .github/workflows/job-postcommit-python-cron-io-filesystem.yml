@@ -17,13 +17,18 @@
 
 # This workflow will run the test of python Hadoop IO class.
 
-# Cron Job for Precommit Python IO GCP
-name: Precommit Python Cron IO GCP test 
+# Cron Job for PostCommit  Python IO Filesystem
+
+name: Post Python Cron IO Filesystem test 
 
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
+  push:
+    branches: ['master', 'release-*']
+    tags: ['v*']
+permissions: read-all
 
 jobs:
   set-properties:
@@ -39,9 +44,9 @@ jobs:
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
-  precommit-python-cron-io-gcp:
+  precommit-python-cron-io-filesystem:
     needs: set-properties
-    name: Precommit Python Cron IO GCP
+    name: Precommit Python Cron IO Filesystem
     runs-on: self-hosted
     strategy:
       fail-fast: false
@@ -58,8 +63,8 @@ jobs:
           echo "PYTHON_VERSION=$(echo ${{ matrix.version }} | sed -e 's/\.//g')" >> $GITHUB_ENV
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
-      - name: Run Precommit Python Cron IO GCP tests
+      - name: Run Precommit Python Cron IO Filesystem Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{env.PYTHON_VERSION}}:postCommitITByTestDirectory
-          arguments: "-Pposargs=apache_beam/io/gcp/"
+          arguments: "-Pposargs=apache_beam/io/fileio_test.py"

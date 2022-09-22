@@ -17,13 +17,17 @@
 
 # This workflow will run the test of python Hadoop IO class.
 
-# Cron Job for Precommit Python IO Parquet
-name: Precommit Python Cron IO Parquet test 
+# Cron Job for PostCommit Python IO Parquet
+name: PostCommit Python Cron IO Parquet test 
 
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
+  push:
+    branches: ['master', 'release-*']
+    tags: ['v*']
+permissions: read-all
 
 jobs:
   set-properties:
@@ -32,7 +36,7 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
@@ -63,4 +67,3 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{env.PYTHON_VERSION}}:postCommitITByTestDirectory
           arguments: "-Pposargs=apache_beam/io//Users/parquetio_it_test.py"
-      
