@@ -17,17 +17,15 @@
 
 # Test for Precommit Python Examples 
 
-
 name: Python Examples Test 
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['sdks/python/apache_beam/examples/**',
