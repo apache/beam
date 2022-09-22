@@ -69,7 +69,10 @@ func Write(s beam.Scope, project, instanceID, table string, col beam.PCollection
 // This is necessary due to the maximum amount of mutations allowed per bulk operation (100,000), see https://cloud.google.com/bigtable/docs/writes#batch for more.
 func WriteBatch(s beam.Scope, project, instanceID, table string, maxMutationsPerRow uint, col beam.PCollection) {
 	t := col.Type().Type()
-	mustBeRowKeyMutationPair(t)
+	err := mustBeRowKeyMutationPair(t)
+	if err != nil {
+		panic(err)
+	}
 
 	if maxMutationsPerRow == 0 {
 		panic("maxMutationsPerRow must not be 0")
@@ -99,10 +102,11 @@ func hashStringToInt(s string) int {
 	return int(h.Sum32())
 }
 
-func mustBeRowKeyMutationPair(t reflect.Type) {
+func mustBeRowKeyMutationPair(t reflect.Type) error {
 	if t != reflect.TypeOf(RowKeyMutationPair{}) {
-		panic(fmt.Sprintf("type must be bigtableio.KeyMutationPair, but is: %v", t))
+		return fmt.Errorf("type must be bigtableio.RowKeyMutationPair but is: %v", t)
 	}
+	return nil
 }
 
 type writeFn struct {
