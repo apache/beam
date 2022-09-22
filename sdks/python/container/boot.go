@@ -226,14 +226,15 @@ func mainError() error {
 		childPids.mu.Lock()
 		childPids.canceled = true
 		for _, pid := range childPids.v {
-			syscall.Kill(-pid, syscall.SIGTERM)
-			go func() {
+			go func(pid int) {
 				// This goroutine will be canceled if the main process exits before the 5 seconds
 				// have elapsed, i.e., as soon as all subprocesses have returned from Wait().
 				time.Sleep(5 * time.Second)
-				log.Printf("Worker process did not respond, killing it.")
-				syscall.Kill(-pid, syscall.SIGKILL)
-			}()
+				if err := syscall.Kill(-pid, syscall.SIGKILL); err == nil {
+					log.Printf("Worker process %v did not respond, killed it.", pid)
+				}
+			}(pid)
+			syscall.Kill(-pid, syscall.SIGTERM)
 		}
 		childPids.mu.Unlock()
 	}()
