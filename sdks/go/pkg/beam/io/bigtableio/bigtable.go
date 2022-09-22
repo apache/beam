@@ -55,7 +55,10 @@ func (rowKeyMutationPair *RowKeyMutationPair) WithGroupKey(key string) *RowKeyMu
 // Write writes the elements of the given PCollection<bigtableio.RowKeyMutationPair> to bigtable.
 func Write(s beam.Scope, project, instanceID, table string, col beam.PCollection) {
 	t := col.Type().Type()
-	mustBeRowKeyMutationPair(t)
+	err := mustBeRowKeyMutationPair(t)
+	if err != nil {
+		panic(err)
+	}
 
 	s = s.Scope("bigtable.Write")
 
