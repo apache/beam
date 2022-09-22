@@ -3369,6 +3369,44 @@ public class StreamingDataflowWorkerTest {
             .equals(Duration.millis(1000)));
   }
 
+  @Test
+  public void testLatencyAttributionToCommittingState() throws Exception {
+    final int workToken = 6464; // A unique id makes it easier to find logs.
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    // Inject latency on the fake clock when the server receives a CommitWork call.
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    server
+        .whenCommitWorkCalled()
+        .answerByDefault(
+            (request) -> {
+              FakeClock.DEFAULT.sleep(Duration.millis(1000));
+              Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+              return Windmill.CommitWorkResponse.getDefaultInstance();
+            });
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setActiveWorkRefreshPeriodMillis(100);
+    StreamingDataflowWorker worker =
+        makeWorker(instructions, options, false /* publishCounters */, FakeClock.DEFAULT);
+    worker.start();
+
+    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
+    server.whenGetWorkCalled().thenReturn(makeInput(workToken, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.waitForAndGetCommits(1);
+
+    worker.stop();
+
+    assertTrue(
+        awrSink
+            .getLatencyAttributionDuration(workToken, LatencyAttribution.State.COMMITTING)
+            .equals(Duration.millis(1000)));
+  }
+
   /** For each input element, emits a large string. */
   private static class InflateDoFn extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
 
