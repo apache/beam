@@ -115,16 +115,16 @@ public class OpAdapter<InT, OutT, K>
               String.format("Unexpected input type: %s", message.getType()));
       }
     } catch (Exception e) {
-      LOG.error("Op {} threw an exception during processing", transformFullName, e);
+      LOG.error("Exception happened in transform: {}", transformFullName, e);
+      // Attach the transform name to stack trace
       e.addSuppressed(
           new RuntimeException(
-              String.format("Op: %s threw an exception during processing", transformFullName)));
-      exceptionListeners.forEach(
-          listener -> {
-            listener
-                .getExceptionListener()
-                .onException(new SamzaPipelineExceptionContext(transformFullName, e));
-          });
+              String.format("Exception happened in transform: %s", transformFullName)));
+      try {
+        notifyExceptionListeners(transformFullName, e);
+      } catch (Exception t) {
+        // ignore exception/interruption by listeners
+      }
       throw UserCodeException.wrap(e);
     }
 
@@ -212,5 +212,14 @@ public class OpAdapter<InT, OutT, K>
     public <T> void emitView(String id, WindowedValue<Iterable<T>> elements) {
       outputList.add(OpMessage.ofSideInput(id, elements));
     }
+  }
+
+  private void notifyExceptionListeners(String transformFullName, Exception e) {
+    exceptionListeners.forEach(
+        listener -> {
+          listener
+              .getExceptionListener()
+              .onException(new SamzaPipelineExceptionContext(transformFullName, e));
+        });
   }
 }
