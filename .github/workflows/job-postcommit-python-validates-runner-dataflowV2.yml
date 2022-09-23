@@ -29,7 +29,7 @@ permissions: read-all
 jobs:
   postCommit-py-vr-dataflowV2:
     name: Run PostCommit Py VR Dataflow V2 
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: true
     timeout-minutes: 200

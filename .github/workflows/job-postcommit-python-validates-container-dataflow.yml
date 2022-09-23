@@ -31,7 +31,7 @@ env:
 jobs:
   postCommit-py-valcont:
     name: Run PostCommit Py Valcont 
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: true
     timeout-minutes: 200
