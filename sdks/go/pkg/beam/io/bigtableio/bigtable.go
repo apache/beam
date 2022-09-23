@@ -32,8 +32,8 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*writeBatchFn)(nil)).Elem())
 }
 
-// RowKeyMutationPair represents a planned row-mutation containing a rowKey and the mutation to be applied
-type RowKeyMutationPair struct {
+// BigtableMutation represents a bigtable mutation containing a rowKey and the mutation to be applied
+type BigtableMutation struct {
 	rowKey   string
 	mutation *bigtable.Mutation
 
@@ -41,21 +41,21 @@ type RowKeyMutationPair struct {
 	groupKey string
 }
 
-// NewRowKeyMutationPair returns a new *RowKeyMutationPair
-func NewRowKeyMutationPair(rowKey string, mutation *bigtable.Mutation) *RowKeyMutationPair {
-	return &RowKeyMutationPair{rowKey: rowKey, mutation: mutation}
+// NewBigtableMutation returns a new *BigtableMutation
+func NewBigtableMutation(rowKey string, mutation *bigtable.Mutation) *BigtableMutation {
+	return &BigtableMutation{rowKey: rowKey, mutation: mutation}
 }
 
 // GroupKey sets a custom group key to be handed to beam.GroupByKey
-func (rowKeyMutationPair *RowKeyMutationPair) WithGroupKey(key string) *RowKeyMutationPair {
-	rowKeyMutationPair.groupKey = key
-	return rowKeyMutationPair
+func (bigtableMutation *BigtableMutation) WithGroupKey(key string) *BigtableMutation {
+	bigtableMutation.groupKey = key
+	return bigtableMutation
 }
 
-// Write writes the elements of the given PCollection<bigtableio.RowKeyMutationPair> to bigtable.
+// Write writes the elements of the given PCollection<bigtableio.BigtableMutation> to bigtable.
 func Write(s beam.Scope, project, instanceID, table string, col beam.PCollection) {
 	t := col.Type().Type()
-	err := mustBeRowKeyMutationPair(t)
+	err := mustBeBigtableMutation(t)
 	if err != nil {
 		panic(err)
 	}
@@ -67,12 +67,12 @@ func Write(s beam.Scope, project, instanceID, table string, col beam.PCollection
 	beam.ParDo0(s, &writeFn{Project: project, InstanceID: instanceID, TableName: table, Type: beam.EncodedType{T: t}}, post)
 }
 
-// WriteBatch writes the elements of the given PCollection<bigtableio.RowKeyMutationPair> using ApplyBulk to bigtable.
-// For the underlying bigtable.ApplyBulk function to work properly the maximum number of mutations per RowKeyMutationPair (maxMutationsPerRow) must be given.
+// WriteBatch writes the elements of the given PCollection<bigtableio.BigtableMutation> using ApplyBulk to bigtable.
+// For the underlying bigtable.ApplyBulk function to work properly the maximum number of mutations per BigtableMutation (maxMutationsPerRow) must be given.
 // This is necessary due to the maximum amount of mutations allowed per bulk operation (100,000), see https://cloud.google.com/bigtable/docs/writes#batch for more.
 func WriteBatch(s beam.Scope, project, instanceID, table string, maxMutationsPerRow uint, col beam.PCollection) {
 	t := col.Type().Type()
-	err := mustBeRowKeyMutationPair(t)
+	err := mustBeBigtableMutation(t)
 	if err != nil {
 		panic(err)
 	}
@@ -92,11 +92,11 @@ func WriteBatch(s beam.Scope, project, instanceID, table string, maxMutationsPer
 	beam.ParDo0(s, &writeBatchFn{Project: project, InstanceID: instanceID, TableName: table, MaxMutationsPerRow: maxMutationsPerRow, Type: beam.EncodedType{T: t}}, post)
 }
 
-func addGroupKeyFn(rowKeyMutationPair RowKeyMutationPair) (int, RowKeyMutationPair) {
-	if rowKeyMutationPair.groupKey != "" {
-		return hashStringToInt(rowKeyMutationPair.groupKey), rowKeyMutationPair
+func addGroupKeyFn(bigtableMutation BigtableMutation) (int, BigtableMutation) {
+	if bigtableMutation.groupKey != "" {
+		return hashStringToInt(bigtableMutation.groupKey), bigtableMutation
 	}
-	return 1, rowKeyMutationPair
+	return 1, bigtableMutation
 }
 
 func hashStringToInt(s string) int {
@@ -105,9 +105,9 @@ func hashStringToInt(s string) int {
 	return int(h.Sum32())
 }
 
-func mustBeRowKeyMutationPair(t reflect.Type) error {
-	if t != reflect.TypeOf(RowKeyMutationPair{}) {
-		return fmt.Errorf("type must be bigtableio.RowKeyMutationPair but is: %v", t)
+func mustBeBigtableMutation(t reflect.Type) error {
+	if t != reflect.TypeOf(BigtableMutation{}) {
+		return fmt.Errorf("type must be bigtableio.BigtableMutation but is: %v", t)
 	}
 	return nil
 }
@@ -145,12 +145,12 @@ func (f *writeFn) FinishBundle() error {
 	return nil
 }
 
-func (f *writeFn) ProcessElement(key int, values func(*RowKeyMutationPair) bool) error {
-	var rowKeyMutationPair RowKeyMutationPair
-	for values(&rowKeyMutationPair) {
-		err := f.Table.Apply(context.Background(), rowKeyMutationPair.rowKey, rowKeyMutationPair.mutation)
+func (f *writeFn) ProcessElement(key int, values func(*BigtableMutation) bool) error {
+	var bigtableMutation BigtableMutation
+	for values(&bigtableMutation) {
+		err := f.Table.Apply(context.Background(), bigtableMutation.rowKey, bigtableMutation.mutation)
 		if err != nil {
-			return fmt.Errorf("could not apply mutation for row key='%s': %v", rowKeyMutationPair.rowKey, err)
+			return fmt.Errorf("could not apply mutation for row key='%s': %v", bigtableMutation.rowKey, err)
 		}
 	}
 	return nil
@@ -191,7 +191,7 @@ func (f *writeBatchFn) FinishBundle() error {
 	return nil
 }
 
-func (f *writeBatchFn) ProcessElement(key int, values func(*RowKeyMutationPair) bool) error {
+func (f *writeBatchFn) ProcessElement(key int, values func(*BigtableMutation) bool) error {
 	maxMutationsPerBatch := 100000 / int(f.MaxMutationsPerRow)
 
 	var rowKeys []string
@@ -199,11 +199,11 @@ func (f *writeBatchFn) ProcessElement(key int, values func(*RowKeyMutationPair) 
 
 	mutationsAdded := 0
 
-	var rowKeyMutationPair RowKeyMutationPair
-	for values(&rowKeyMutationPair) {
+	var bigtableMutation BigtableMutation
+	for values(&bigtableMutation) {
 
-		rowKeys = append(rowKeys, rowKeyMutationPair.rowKey)
-		mutations = append(mutations, rowKeyMutationPair.mutation)
+		rowKeys = append(rowKeys, bigtableMutation.rowKey)
+		mutations = append(mutations, bigtableMutation.mutation)
 		mutationsAdded += int(f.MaxMutationsPerRow)
 
 		if (mutationsAdded + int(f.MaxMutationsPerRow)) > maxMutationsPerBatch {
