@@ -29,7 +29,7 @@ permissions: read-all
 jobs:      
   java-postcommit-tpcds-spark:
     name: Run PostCommit Java Tpcds Spark 
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: true
     timeout-minutes: 240
