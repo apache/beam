@@ -57,13 +57,11 @@ func TestSdkList(t *testing.T) {
 		t.Fatal(PORT_SDK_LIST, "env not set")
 	}
 	url := "http://localhost:" + port
-	exp := SdkList{
-		[]SdkItem{
-			{"java", "Java"},
-			{"python", "Python"},
-			{"go", "Go"},
-			{"scio", "SCIO"},
-		},
+
+	mock_path := filepath.Join("..", "samples", "api", "get_sdk_list.json")
+	var exp SdkList
+	if err := loadJson(mock_path, &exp); err != nil {
+		t.Fatal(err)
 	}
 
 	resp, err := GetSdkList(url)
