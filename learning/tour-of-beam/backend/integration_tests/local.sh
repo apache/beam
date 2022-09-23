@@ -49,7 +49,7 @@ docker-compose down
 ls "$DATASTORE_EMULATOR_DATADIR"
 cat "$DATASTORE_EMULATOR_DATADIR/WEB-INF/index.yaml"
 
-diff -q "$DATASTORE_EMULATOR_DATADIR/WEB-INF/index.yaml" internal/storage/index.yaml || ( echo "index.yaml mismatch"; exit 1)
+diff "$DATASTORE_EMULATOR_DATADIR/WEB-INF/index.yaml" internal/storage/index.yaml || ( echo "index.yaml mismatch"; exit 1)
 
 
 rm -rf "$DATASTORE_EMULATOR_DATADIR"
