@@ -34,7 +34,7 @@ permissions: read-all
 jobs:
   java-debezium-io:
     name: Run Java Debezium IO Direct
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 60
     steps:
       - name: Checkout code
