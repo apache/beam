@@ -1,5 +1,5 @@
 {
-    "unitId": "challenge1",
+    "id": "challenge1",
     "title": "Challenge Name",
     "description": "## Challenge description\n\nawesome description\n",
     "hints" : [

@@ -24,7 +24,7 @@ type SdkList struct {
 }
 
 type Unit struct {
-	Id    string `json:"unitId"`
+	Id    string `json:"id"`
 	Title string `json:"title"`
 
 	// optional
@@ -60,7 +60,7 @@ type Node struct {
 }
 
 type Module struct {
-	Id         string `json:"moduleId"`
+	Id         string `json:"id"`
 	Title      string `json:"title"`
 	Complexity string `json:"complexity"`
 	Nodes      []Node `json:"nodes"`

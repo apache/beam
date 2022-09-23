@@ -2,14 +2,14 @@
   "modules" : [
      {
         "complexity" : "BASIC",
-        "moduleId" : "module1",
+        "id" : "module1",
         "title" : "Module One",
         "nodes" : [
            {
               "type" : "unit",
               "unit" : {
                  "title" : "Intro Unit Name",
-                 "unitId" : "intro-unit"
+                 "id" : "intro-unit"
               }
            },
            {
@@ -20,14 +20,14 @@
                        "type" : "unit",
                        "unit" : {
                           "title" : "Example Unit Name",
-                          "unitId" : "example1"
+                          "id" : "example1"
                        }
                     },
                     {
                        "type" : "unit",
                        "unit" : {
                           "title" : "Challenge Name",
-                          "unitId" : "challenge1"
+                          "id" : "challenge1"
                        }
                     }
                  ]
