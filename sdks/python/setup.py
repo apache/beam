@@ -95,6 +95,22 @@ execution engines and providing extensibility points for connecting to
 different technologies and user communities.
 '''
 
+
+RECOMMENDED_MIN_PIP_VERSION = '7.0.0'
+try:
+  _PIP_VERSION = get_distribution('pip').version
+  if parse_version(_PIP_VERSION) < parse_version(RECOMMENDED_MIN_PIP_VERSION):
+    warnings.warn(
+        "You are using version {0} of pip. " \
+        "However, the recommended min version is {1}.".format(
+            _PIP_VERSION, RECOMMENDED_MIN_PIP_VERSION
+        )
+    )
+except DistributionNotFound:
+  # Do nothing if pip is not found. This can happen when using `Poetry` or
+  # `pipenv` package managers.
+  pass
+
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
   _CYTHON_VERSION = get_distribution('cython').version
