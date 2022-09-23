@@ -3,30 +3,30 @@
      {
         "complexity" : "BASIC",
         "moduleId" : "module1",
-        "name" : "Module One",
+        "title" : "Module One",
         "nodes" : [
            {
               "type" : "unit",
               "unit" : {
-                 "name" : "Intro Unit Name",
+                 "title" : "Intro Unit Name",
                  "unitId" : "intro-unit"
               }
            },
            {
               "group" : {
-                 "name" : "The Group",
+                 "title" : "The Group",
                  "nodes" : [
                     {
                        "type" : "unit",
                        "unit" : {
-                          "name" : "Example Unit Name",
+                          "title" : "Example Unit Name",
                           "unitId" : "example1"
                        }
                     },
                     {
                        "type" : "unit",
                        "unit" : {
-                          "name" : "Challenge Name",
+                          "title" : "Challenge Name",
                           "unitId" : "challenge1"
                        }
                     }
