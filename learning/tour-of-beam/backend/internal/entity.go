@@ -24,8 +24,8 @@ type SdkList struct {
 }
 
 type Unit struct {
-	Id   string `json:"unitId"`
-	Name string `json:"name"`
+	Id    string `json:"unitId"`
+	Title string `json:"title"`
 
 	// optional
 	Description       string   `json:"description,omitempty"`
@@ -49,7 +49,7 @@ const (
 )
 
 type Group struct {
-	Name  string `json:"name"`
+	Title string `json:"title"`
 	Nodes []Node `json:"nodes"`
 }
 
@@ -61,7 +61,7 @@ type Node struct {
 
 type Module struct {
 	Id         string `json:"moduleId"`
-	Name       string `json:"name"`
+	Title      string `json:"title"`
 	Complexity string `json:"complexity"`
 	Nodes      []Node `json:"nodes"`
 }
