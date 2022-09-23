@@ -33,7 +33,7 @@ func GetContentTree(url, sdk string) (ContentTree, error) {
 
 func GetUnitContent(url, sdk, unitId string) (Unit, error) {
 	var result Unit
-	err := Get(&result, url, map[string]string{"sdk": sdk, "unitId": unitId})
+	err := Get(&result, url, map[string]string{"sdk": sdk, "id": unitId})
 	return result, err
 }
 

@@ -158,7 +158,7 @@ func getContentTree(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 // description, hints, code snippets
 // Required to be wrapped into ParseSdkParam middleware.
 func getUnitContent(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
-	unitId := r.URL.Query().Get("unitId")
+	unitId := r.URL.Query().Get("id")
 
 	unit, err := svc.GetUnitContent(r.Context(), sdk, unitId, nil /*TODO userId*/)
 	if err == service.ErrNoUnit {
