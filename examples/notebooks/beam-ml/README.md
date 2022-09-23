@@ -16,20 +16,21 @@
     specific language governing permissions and limitations
     under the License.
 -->
-# ML Implementations on Beam
+# ML Sample Notebooks
 
-As of Beam 2.40 users now have access to a simple
+As of Beam 2.40 users now have access to a
 [RunInference](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference)
 transform.
 
-This allows inferences or predictions of data on
+This allows inferences or predictions of on data for
 popular ML frameworks like TensorFlow, PyTorch and
 scikit-learn.
 
 ## Using The Notebooks
 
 These notebooks illustrate usages of Beam's RunInference, as well as different
-usages of implementations of [ModelHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler). Beam comes with various implementations of ModelHandler. 
+usages of implementations of [ModelHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler).
+Beam comes with various implementations of ModelHandler. 
 
 ### Loading the Notebooks
 
@@ -41,4 +42,3 @@ https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom
 
 3. To run most notebooks, you will need to change the GCP project and bucket
 to your project and bucket.
-
