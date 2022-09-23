@@ -20,17 +20,18 @@
 
 name: Python Precommit Runners Portability Flink
 on:
-  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
     branches: ['master', 'release-*']
     tags: ['v*']
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: ['v*']
-    #paths: ['sdks/python/apache_beam/examples/**',
-    #        'sdks/python/apache_beam/examples/**']
+    paths: ['sdks/python/apache_beam/runners/portability/flink_runner.py',
+            'sdks/python/apache_beam/runners/portability/flink_runner_test.py',
+            'sdks/python/apache_beam/runners/portability/flink_uber_jar_job_server.py',
+            'sdks/python/apache_beam/runners/portability/flink_uber_jar_job_server_test.py']
 permissions: read-all
 
 env:
@@ -41,13 +42,14 @@ env:
 
 jobs:
   set-properties:
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - id: test-properties
@@ -65,6 +67,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - name: Set python version and tox env
