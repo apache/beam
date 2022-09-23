@@ -31,7 +31,7 @@ permissions: read-all
 
 jobs:
   set-properties:
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
@@ -46,7 +46,7 @@ jobs:
   postcommit-java-examples-dataflow-v2:
     needs: set-properties
     name: Run PostCommit Java Examples Dataflow v2
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: true
       matrix: #JDK11 and 17 compilation will fail due to changes in ByteBuffer class since JDK9
