@@ -21,13 +21,15 @@ jobs:
   # Run Gradle release build and all Tests against Release Branch on Jenkins.
   # This create_release_pr task will create a PR against apache/beam.
   update_create_release_pr:
-    runs-on: ubuntu-latest
-    # permissions:
-    #   pull-requests: write
-    #   contents: write
+    runs-on: [self-hosted, ubuntu-20.04]
+    permissions:
+      pull-requests: write
+      contents: write
     env:
       RELEASE_VER: ${{ github.event.inputs.RELEASE_VER }}
     steps:
+      - name: Install gh cli
+        uses: ./.github/actions/setup-gh-cli-linux
       - name: Set RELEASE_BRANCH env variable
         run: |
           RELEASE_BRANCH=release-${{env.RELEASE_VER}}
@@ -40,31 +42,29 @@ jobs:
         run: |
           git config user.name $GITHUB_ACTOR
       #git config user.email actions@"$RUNNER_NAME".local
-      - name: Set Release Version
-        run: |
-          git checkout -b ${{env.WORKING_BRANCH}} --quiet
-          /bin/bash release/src/main/scripts/set_version.sh "$RELEASE_VER" --git-add
-          # In case the version string was not changed, append a newline to CHANGES.md
-          echo "" >> CHANGES.md
-      - name: Push Changes in ${{ env.WORKING_BRANCH }} Branch
-        run: |
-          git add CHANGES.md
-          git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
-          git push origin $WORKING_BRANCH --quiet
-      - name: Create new Release PR
-        id: create_pr
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ORG: ${{ github.event.inputs.ORG }}
-        run: |
-          BASE_BRANCH=$ORG:${{env.RELEASE_BRANCH}}
-          echo $BASE_BRANCH
-          GITHUB_PR_URL=$(hub pull-request -b ${{env.RELEASE_BRANCH}} -h $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -l ${{env.RELEASE_BRANCH}}  -F - <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch.
-
-          You can run many tests automatically using release/src/main/scripts/mass_comment.py.")
-          echo "::set-output name=git_pr::${GITHUB_PR_URL}"
-    outputs:
-      git_pr: ${{ steps.create_pr.outputs.git_pr }}
+    #   - name: Set Release Version
+    #     run: |
+    #       git checkout -b ${{env.WORKING_BRANCH}} --quiet
+    #       /bin/bash release/src/main/scripts/set_version.sh "$RELEASE_VER" --git-add
+    #       # In case the version string was not changed, append a newline to CHANGES.md
+    #       echo "" >> CHANGES.md
+    #   - name: Push Changes in ${{ env.WORKING_BRANCH }} Branch
+    #     run: |
+    #       git add CHANGES.md
+    #       git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
+    #       git push origin $WORKING_BRANCH --quiet
+    #   - name: Create new Release PR
+    #     id: create_pr
+    #     env:
+    #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #       ORG: ${{ github.event.inputs.ORG }}
+    #     run: |
+    #       BASE_BRANCH=$ORG:${{env.RELEASE_BRANCH}}
+    #       echo $BASE_BRANCH
+    #       GITHUB_PR_URL=$(gh pr create -B ${{env.RELEASE_BRANCH}} -H $GITHUB_ACTOR:${{env.WORKING_BRANCH}} -t "[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch" -b You can run many tests automatically using release/src/main/scripts/mass_comment.py.")
+    #       echo "::set-output name=git_pr::${GITHUB_PR_URL}"
+    # outputs:
+    #   git_pr: ${{ steps.create_pr.outputs.git_pr }}
 #  comment_trigger_phrases:
 #    if: ${{ github.event.inputs.COMMENT_TRIGGER_PHRASES == 'true' }}
 #    needs: update_create_release_pr
