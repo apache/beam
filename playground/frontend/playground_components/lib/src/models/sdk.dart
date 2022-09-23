@@ -85,11 +85,11 @@ class Sdk with EquatableMixin {
     return known.firstWhereOrNull((e) => e.id == value);
   }
 
-  static final _idToHighlightMode = {
+  static final _idToHighlightMode = <String, Mode>{
     Sdk.java.id: mode_java.java,
     Sdk.go.id: mode_go.go,
-    Sdk.python: mode_python.python,
-    Sdk.scio: mode_scala.scala,
+    Sdk.python.id: mode_python.python,
+    Sdk.scio.id: mode_scala.scala,
   };
 
   Mode? get highlightMode => _idToHighlightMode[id];
