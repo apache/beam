@@ -28,7 +28,7 @@ on:
 jobs:
   java-postcommit-jpbs-java11-dataflow:
     name: Run PostCommit Java JPBS Dataflow - Java 11
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 240
     steps:
       - name: Checkout code
