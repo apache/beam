@@ -73,7 +73,8 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def __init__(
       self,
       model_uri: str,
-      model_file_type: ModelFileType = ModelFileType.PICKLE):
+      model_file_type: ModelFileType = ModelFileType.PICKLE,
+      drop_example: Optional[bool] = False):
     """ Implementation of the ModelHandler interface for scikit-learn
     using numpy arrays as input.
 
@@ -85,7 +86,10 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_uri: The URI to where the model is saved.
       model_file_type: The method of serialization of the argument.
         default=pickle
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
     """
+    super().__init__(drop_example)
     self._model_uri = model_uri
     self._model_file_type = model_file_type
 
@@ -98,7 +102,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       batch: Sequence[numpy.ndarray],
       model: BaseEstimator,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: Optional[bool] = False) -> Iterable[PredictionResult]:
+  ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of numpy arrays.
 
     Args:
@@ -107,8 +111,6 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model: A numpy model or pipeline. Must implement predict(X).
         Where the parameter X is a numpy array.
       inference_args: Any additional arguments for an inference.
-      drop_example: Boolean flag indicating whether to
-        drop the example from PredictionResult
 
     Returns:
       An Iterable of type PredictionResult.
@@ -117,7 +119,8 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
 
-    return _convert_to_result(batch, predictions, drop_example=drop_example)
+    return _convert_to_result(
+        batch, predictions, drop_example=self.drop_example)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """
@@ -141,7 +144,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
   def __init__(
       self,
       model_uri: str,
-      model_file_type: ModelFileType = ModelFileType.PICKLE):
+      model_file_type: ModelFileType = ModelFileType.PICKLE,
+      drop_example: Optional[bool] = False):
     """Implementation of the ModelHandler interface for scikit-learn that
     supports pandas dataframes.
 
@@ -156,7 +160,10 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       model_uri: The URI to where the model is saved.
       model_file_type: The method of serialization of the argument.
         default=pickle
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
     """
+    super().__init__(drop_example)
     self._model_uri = model_uri
     self._model_file_type = model_file_type
 
@@ -169,7 +176,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       batch: Sequence[pandas.DataFrame],
       model: BaseEstimator,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: Optional[bool] = False) -> Iterable[PredictionResult]:
+  ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of pandas dataframes.
 
@@ -179,8 +186,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       model: A dataframe model or pipeline. Must implement predict(X).
         Where the parameter X is a pandas dataframe.
       inference_args: Any additional arguments for an inference.
-      drop_example: Boolean flag indicating whether to
-        drop the example from PredictionResult
+
     Returns:
       An Iterable of type PredictionResult.
     """
@@ -196,7 +202,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
         vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
     ]
 
-    return _convert_to_result(splits, predictions, drop_example=drop_example)
+    return _convert_to_result(
+        splits, predictions, drop_example=self.drop_example)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """

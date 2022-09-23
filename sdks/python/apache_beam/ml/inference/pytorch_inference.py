@@ -91,7 +91,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       state_dict_path: str,
       model_class: Callable[..., torch.nn.Module],
       model_params: Dict[str, Any],
-      device: str = 'CPU'):
+      device: str = 'CPU',
+      drop_example: Optional[bool] = False):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage::
@@ -107,10 +108,13 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       device: the device on which you wish to run the model. If
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
 
     See https://pytorch.org/tutorials/beginner/saving_loading_models.html
     for details
     """
+    super().__init__(drop_example)
     self._state_dict_path = state_dict_path
     if device == 'GPU':
       logging.info("Device is set to CUDA")
@@ -136,7 +140,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       batch: Sequence[torch.Tensor],
       model: torch.nn.Module,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: Optional[bool] = False) -> Iterable[PredictionResult]:
+  ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
@@ -153,8 +157,6 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       inference_args: Non-batchable arguments required as inputs to the model's
         forward() function. Unlike Tensors in `batch`, these parameters will
         not be dynamically batched
-      drop_example: Boolean flag indicating whether to
-        drop the example from PredictionResult
     Returns:
       An Iterable of type PredictionResult.
     """
@@ -166,7 +168,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       batched_tensors = torch.stack(batch)
       batched_tensors = _convert_to_device(batched_tensors, self._device)
       predictions = model(batched_tensors, **inference_args)
-      return _convert_to_result(batch, predictions, drop_example=drop_example)
+      return _convert_to_result(
+          batch, predictions, drop_example=self.drop_example)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -195,7 +198,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       state_dict_path: str,
       model_class: Callable[..., torch.nn.Module],
       model_params: Dict[str, Any],
-      device: str = 'CPU'):
+      device: str = 'CPU',
+      drop_example: Optional[bool] = False):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage::
@@ -218,7 +222,10 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       device: the device on which you wish to run the model. If
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
     """
+    super().__init__(drop_example)
     self._state_dict_path = state_dict_path
     if device == 'GPU':
       logging.info("Device is set to CUDA")
@@ -244,7 +251,6 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       batch: Sequence[Dict[str, torch.Tensor]],
       model: torch.nn.Module,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: Optional[bool] = False,
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Keyed Tensors and returns an Iterable of
@@ -262,8 +268,6 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       inference_args: Non-batchable arguments required as inputs to the model's
         forward() function. Unlike Tensors in `batch`, these parameters will
         not be dynamically batched
-      drop_example: Boolean flag indicating whether to
-        drop the example from PredictionResult
 
     Returns:
       An Iterable of type PredictionResult.
@@ -287,7 +291,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         key_to_batched_tensors[key] = batched_tensors
       predictions = model(**key_to_batched_tensors, **inference_args)
 
-      return _convert_to_result(batch, predictions, drop_example=drop_example)
+      return _convert_to_result(
+          batch, predictions, drop_example=self.drop_example)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """

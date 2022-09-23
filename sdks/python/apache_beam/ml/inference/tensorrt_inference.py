@@ -169,7 +169,12 @@ class TensorRTEngine:
 class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
                                               PredictionResult,
                                               TensorRTEngine]):
-  def __init__(self, min_batch_size: int, max_batch_size: int, **kwargs):
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      drop_example: Optional[bool] = False,
+      **kwargs):
     """Implementation of the ModelHandler interface for TensorRT.
 
     Example Usage::
@@ -192,6 +197,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     See https://docs.nvidia.com/deeplearning/tensorrt/api/python_api/
     for details
     """
+    super().__init__(drop_example)
     self.min_batch_size = min_batch_size
     self.max_batch_size = max_batch_size
     if 'engine_path' in kwargs:
@@ -227,7 +233,6 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       batch: Sequence[np.ndarray],
       engine: TensorRTEngine,
       inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: Optional[bool] = False,
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
@@ -276,7 +281,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       for idx in range(len(batch)):
         predictions.append([prediction[idx] for prediction in cpu_allocations])
 
-      return _convert_to_result(batch, predictions, drop_example=drop_example)
+      return _convert_to_result(
+          batch, predictions, drop_example=self.drop_example)
 
   def get_num_bytes(self, batch: Sequence[np.ndarray]) -> int:
     """

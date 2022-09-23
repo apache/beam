@@ -36,7 +36,8 @@ class FakeModel:
 
 
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
-  def __init__(self, clock=None):
+  def __init__(self, clock=None, drop_example=False):
+    super().__init__(drop_example)
     self._fake_clock = clock
 
   def load_model(self):
@@ -49,7 +50,7 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       batch: Sequence[int],
       model: FakeModel,
       inference_args=None,
-      drop_example=False) -> Iterable[int]:
+  ) -> Iterable[int]:
     if self._fake_clock:
       self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
     for example in batch:
@@ -58,7 +59,8 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
 
 class FakeModelHandlerReturnsPredictionResult(
     base.ModelHandler[int, base.PredictionResult, FakeModel]):
-  def __init__(self, clock=None):
+  def __init__(self, clock=None, drop_example=False):
+    super().__init__(drop_example)
     self._fake_clock = clock
 
   def load_model(self):
@@ -71,13 +73,13 @@ class FakeModelHandlerReturnsPredictionResult(
       batch: Sequence[int],
       model: FakeModel,
       inference_args=None,
-      drop_example=False) -> Iterable[base.PredictionResult]:
+  ) -> Iterable[base.PredictionResult]:
     if self._fake_clock:
       self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
 
     predictions = [model.predict(example) for example in batch]
     return base._convert_to_result(
-        batch=batch, predictions=predictions, drop_example=drop_example)
+        batch=batch, predictions=predictions, drop_example=self.drop_example)
 
 
 class FakeClock:
@@ -285,10 +287,10 @@ class RunInferenceBaseTest(unittest.TestCase):
 
     pipeline = TestPipeline()
     examples = [1, 3, 5]
-    model_handler = FakeModelHandlerReturnsPredictionResult()
+    model_handler = FakeModelHandlerReturnsPredictionResult(drop_example=True)
     _ = (
         pipeline | 'keyed' >> beam.Create(examples)
-        | 'RunKeyed' >> base.RunInference(model_handler, drop_example=True)
+        | 'RunKeyed' >> base.RunInference(model_handler)
         | beam.Map(assert_drop_example))
     pipeline.run()
 
