@@ -42,28 +42,36 @@ func TestHashStringToInt(t *testing.T) {
 	}
 }
 
-func TestAddGroupKeyFnHashesGroupKey(t *testing.T) {
-	rkmp := NewRowKeyMutationPair("rowKey", bigtable.NewMutation()).WithGroupKey("1")
-	groupKey, _ := addGroupKeyFn(*rkmp)
+func TestAddGroupKeyFnGroupKeyGiven(t *testing.T) {
+	bmWithGroupKey := NewBigtableMutation("rowKey", bigtable.NewMutation()).WithGroupKey("1")
+	groupKey, _ := addGroupKeyFn(*bmWithGroupKey)
 	if groupKey == 1 {
 		t.Error("addGroupKeyFn should hash groupKey values properly, but projected \"1\" -> 1")
 	}
 }
 
-func TestMustBeRowKeyMutationPair(t *testing.T) {
-	passValues := []RowKeyMutationPair {
+func TestAddGroupKeyFnNoGroupKeyGiven(t *testing.T) {
+	bmNoGroupKey := NewBigtableMutation("rowKey", bigtable.NewMutation())
+	groupKey, _ := addGroupKeyFn(*bmNoGroupKey)
+	if groupKey != 1 {
+		t.Errorf("addGroupKeyFn should assign 1 as hash if no groupKey is given, but projected nil -> %d", groupKey)
+	}
+}
+
+func TestMustBeBigtableMutation(t *testing.T) {
+	passValues := []BigtableMutation {
 		{},
 		{rowKey: "key"},
 		{mutation: bigtable.NewMutation()},
-		*NewRowKeyMutationPair("key", bigtable.NewMutation()),
-		*NewRowKeyMutationPair("key", bigtable.NewMutation()).WithGroupKey("groupKey"),
+		*NewBigtableMutation("key", bigtable.NewMutation()),
+		*NewBigtableMutation("key", bigtable.NewMutation()).WithGroupKey("groupKey"),
 	}
 
 	for _, passValue := range passValues {
 		passType := reflect.TypeOf(passValue)
-		err := mustBeRowKeyMutationPair(passType)
+		err := mustBeBigtableMutation(passType)
 		if err != nil {
-			t.Errorf("input type %v should be considered a bigtableio.RowKeyMutationPair", passType)
+			t.Errorf("input type %v should be considered a bigtableio.BigtableMutation", passType)
 		}
 	}
 
@@ -76,9 +84,9 @@ func TestMustBeRowKeyMutationPair(t *testing.T) {
 
 	for _, failValue := range failValues {
 		failType := reflect.TypeOf(reflect.ValueOf(failValue))
-		err := mustBeRowKeyMutationPair(failType)
+		err := mustBeBigtableMutation(failType)
 		if err == nil {
-			t.Errorf("input type %v should not be considered a bigtableio.RowKeyMutationPair", failType)
+			t.Errorf("input type %v should not be considered a bigtableio.BigtableMutation", failType)
 		}
 	}
 }
