@@ -16,7 +16,8 @@
 package internal
 
 type SdkItem struct {
-	Id, Title string
+	Id    string `json:"id"`
+	Title string `json:"title"`
 }
 
 type SdkList struct {

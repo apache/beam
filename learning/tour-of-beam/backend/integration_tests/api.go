@@ -17,7 +17,8 @@ package main
 // * Internal enumerations: sdk, node.type to string params
 
 type SdkItem struct {
-	Id, Title string
+	Id    string `json:"id"`
+	Title string `json:"title"`
 }
 
 type SdkList struct {
