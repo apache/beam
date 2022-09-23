@@ -74,7 +74,9 @@ func TestMustBeBigtableMutation(t *testing.T) {
 			t.Errorf("input type %v should be considered a bigtableio.BigtableMutation", passType)
 		}
 	}
+}
 
+func TestMustNotBeBigtableMutation(t *testing.T) {
 	failValues := []interface{} {
 		1,
 		1.0,
