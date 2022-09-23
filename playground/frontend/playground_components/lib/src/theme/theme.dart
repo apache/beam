@@ -311,7 +311,10 @@ OutlinedButtonThemeData _getOutlineButtonTheme(
     style: OutlinedButton.styleFrom(
       foregroundColor: textColor,
       side: BorderSide(color: outlineColor, width: 3),
-      padding: _buttonPadding,
+      padding: const EdgeInsets.symmetric(
+        vertical: BeamSizes.size20,
+        horizontal: BeamSizes.size40,
+      ),
       shape: _getButtonBorder(BeamBorderRadius.small),
     ),
   );
@@ -320,6 +323,7 @@ OutlinedButtonThemeData _getOutlineButtonTheme(
 ElevatedButtonThemeData _getElevatedButtonTheme(Color color) {
   return ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
+      padding: const EdgeInsets.all(BeamSizes.size20),
       foregroundColor: BeamColors.white,
       backgroundColor: color,
     ),
@@ -350,11 +354,6 @@ AppBarTheme _getAppBarTheme(Color backgroundColor) {
     toolbarHeight: BeamSizes.appBarHeight,
   );
 }
-
-const EdgeInsets _buttonPadding = EdgeInsets.symmetric(
-  vertical: BeamSizes.size20,
-  horizontal: BeamSizes.size40,
-);
 
 RoundedRectangleBorder _getButtonBorder(double radius) {
   return RoundedRectangleBorder(

@@ -224,7 +224,7 @@ class _Buttons extends StatelessWidget {
           onPressed: () {
             // TODO(nausharipov): redirect
           },
-          child: const Text('pages.welcome.startLearning').tr(),
+          child: const Text('pages.welcome.startTour').tr(),
         ),
       ],
     );

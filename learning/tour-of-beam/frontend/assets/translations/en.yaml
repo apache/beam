@@ -33,7 +33,7 @@ pages:
     ifSaveProgress: Your journey is broken down into learning modules. If you would like to save your progress and track completed modules, please
     selectLanguage: 'Please select the default language (you may change the language at any time):'
     signIn: ' sign in.'
-    startLearning: Start learning
+    startTour: Start your tour
     title: Welcome to the Tour of Beam!
   tour:
     completeUnit: Complete Unit
