@@ -314,7 +314,8 @@ class _ContentFooter extends StatelessWidget {
         border: Border(
           top: BorderSide(color: themeData.dividerColor),
         ),
-        color: themeData.extension<BeamThemeExtension>()?.secondaryBackgroundColor,
+        color:
+            themeData.extension<BeamThemeExtension>()?.secondaryBackgroundColor,
       ),
       width: double.infinity,
       padding: const EdgeInsets.all(BeamSizes.size20),

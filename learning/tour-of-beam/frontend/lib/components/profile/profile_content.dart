@@ -125,7 +125,7 @@ class _IconLabel extends StatelessWidget {
   final String label;
   final void Function()? onTap;
 
-  // TODO: Auto-determine.
+  // TODO(nausharipov): Auto-determine.
   final bool isSvg;
 
   const _IconLabel({
