@@ -281,6 +281,7 @@ if __name__ == '__main__':
             'psycopg2-binary>=2.8.5,<3.0.0',
             'testcontainers[mysql]>=3.0.3,<4.0.0',
             'cryptography>=36.0.0',
+            'hypothesis>5.0.0,<=7.0.0',
           ],
           'gcp': [
             'cachetools>=3.1.0,<5',

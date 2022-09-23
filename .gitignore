@@ -45,6 +45,7 @@ sdks/java/maven-archetypes/examples/src/main/resources/archetype-resources/sampl
 **/env/**/*
 **/.mypy_cache
 **/.dmypy.json
+**/.hypothesis
 sdks/python/**/*.c
 sdks/python/**/*.so
 sdks/python/**/*.egg
