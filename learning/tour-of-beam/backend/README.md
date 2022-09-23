@@ -69,7 +69,7 @@ gcloud datastore indexes create ./internal/storage/index.yaml
 
 2. Deploy cloud functions
 ```
-$ gcloud functions deploy sdkList --entry-point sdkList \
+$ gcloud functions deploy getSdkList --entry-point getSdkList \
   --region us-central1 --runtime go116 --allow-unauthenticated \
   --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID"
 
@@ -85,6 +85,7 @@ $ gcloud functions deploy getUnitContent --entry-point getUnitContent \
 Environment variables:
 - TOB_MOCK: set to 1 to deliver mock responses from samples/api
 - DATASTORE_PROJECT_ID: Google Cloud PROJECT_ID
+- GOOGLE_APPLICATION_CREDENTIALS: path to json auth key
 
 ### Sample usage
 
