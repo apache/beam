@@ -44,7 +44,7 @@ jobs:
   python_ml:
     needs: set-properties
     name: Python ML
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: true
       matrix:
