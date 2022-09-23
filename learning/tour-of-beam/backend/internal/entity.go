@@ -20,7 +20,7 @@ type SdkItem struct {
 }
 
 type SdkList struct {
-	Sdks []SdkItem
+	Sdks []SdkItem `json:"sdks"`
 }
 
 type Unit struct {
