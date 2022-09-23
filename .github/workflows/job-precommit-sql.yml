@@ -35,7 +35,7 @@ permissions: read-all
 
 jobs:
   set-properties:
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
@@ -51,7 +51,7 @@ jobs:
   sql-precommit:
     needs: set-properties
     name: Run PreCommit SQL
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: true
       matrix:
