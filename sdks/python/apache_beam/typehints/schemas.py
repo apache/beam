@@ -455,6 +455,7 @@ class SchemaTranslation(object):
           (schema.SerializeToString(), tuple(self)))
 
     setattr(user_type, '__reduce__', __reduce__)
+    setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
 
     self.schema_registry.add(user_type, schema)
     coders.registry.register_coder(user_type, coders.RowCoder)
