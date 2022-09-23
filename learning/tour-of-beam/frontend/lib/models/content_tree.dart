@@ -29,7 +29,7 @@ class ContentTreeModel {
   final String sdk;
   final List<ModuleModel> modules;
 
-  ContentTreeModel({
+  const ContentTreeModel({
     required this.sdk,
     required this.modules,
   });

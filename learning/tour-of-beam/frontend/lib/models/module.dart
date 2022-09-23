@@ -30,7 +30,7 @@ class ModuleModel {
   final Complexity complexity;
   final List<NodeModel> nodes;
 
-  ModuleModel({
+  const ModuleModel({
     required this.moduleId,
     required this.name,
     required this.complexity,

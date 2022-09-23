@@ -24,7 +24,7 @@ part 'sdk_list.g.dart';
 class SdkListModel {
   final List<String> names;
 
-  SdkListModel({required this.names});
+  const SdkListModel({required this.names});
 
   factory SdkListModel.fromJson(Map<String, dynamic> json) =>
       _$SdkListModelFromJson(json);

@@ -27,7 +27,7 @@ class GroupModel {
   final String name;
   final List<NodeModel> nodes;
 
-  GroupModel({
+  const GroupModel({
     required this.name,
     required this.nodes,
   });

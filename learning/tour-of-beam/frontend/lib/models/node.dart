@@ -29,7 +29,7 @@ class NodeModel {
   final UnitModel? unit;
   final GroupModel? group;
 
-  NodeModel({
+  const NodeModel({
     required this.type,
     required this.unit,
     required this.group,

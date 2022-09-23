@@ -25,7 +25,7 @@ class UnitModel {
   final String unitId;
   final String name;
 
-  UnitModel({
+  const UnitModel({
     required this.unitId,
     required this.name,
   });
