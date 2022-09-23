@@ -95,7 +95,6 @@ execution engines and providing extensibility points for connecting to
 different technologies and user communities.
 '''
 
-
 RECOMMENDED_MIN_PIP_VERSION = '7.0.0'
 try:
   _PIP_VERSION = get_distribution('pip').version
