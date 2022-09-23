@@ -116,15 +116,7 @@ public class OpAdapter<InT, OutT, K>
       }
     } catch (Exception e) {
       LOG.error("Exception happened in transform: {}", transformFullName, e);
-      // Attach the transform name to stack trace
-      e.addSuppressed(
-          new RuntimeException(
-              String.format("Exception happened in transform: %s", transformFullName)));
-      try {
-        notifyExceptionListeners(transformFullName, e);
-      } catch (Exception t) {
-        // ignore exception/interruption by listeners
-      }
+      notifyExceptionListeners(transformFullName, e);
       throw UserCodeException.wrap(e);
     }
 
@@ -215,11 +207,15 @@ public class OpAdapter<InT, OutT, K>
   }
 
   private void notifyExceptionListeners(String transformFullName, Exception e) {
-    exceptionListeners.forEach(
-        listener -> {
-          listener
-              .getExceptionListener()
-              .onException(new SamzaPipelineExceptionContext(transformFullName, e));
-        });
+    try {
+      exceptionListeners.forEach(
+          listener -> {
+            listener
+                .getExceptionListener()
+                .onException(new SamzaPipelineExceptionContext(transformFullName, e));
+          });
+    } catch (Exception t) {
+      // ignore exception/interruption by listeners
+    }
   }
 }
