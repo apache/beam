@@ -34,7 +34,7 @@ permissions: read-all
 jobs:
   whitespace:
     name: Run PreCommit Whitespace
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
