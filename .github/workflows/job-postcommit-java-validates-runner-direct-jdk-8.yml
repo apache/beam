@@ -33,7 +33,7 @@ permissions: read-all
 jobs:
   postcommit-java-validates-runner-direct-jdk-8:
     name: Run PostCommit Java Validates Runner Direct JDK8
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
