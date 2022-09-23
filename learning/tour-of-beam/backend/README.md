@@ -90,74 +90,92 @@ Environment variables:
 
 Entry point: list sdk names
 ```
-$ curl -X GET https://us-central1-$PROJECT_ID.cloudfunctions.net/sdkList | json_pp
+$ curl -X GET https://us-central1-$PROJECT_ID.cloudfunctions.net/getSdkList | json_pp
 {
-   "names" : [
-      "Java",
-      "Python",
-      "Go"
+   "sdks" : [
+      {
+         "Id" : "java",
+         "Title" : "Java"
+      },
+      {
+         "Id" : "python",
+         "Title" : "Python"
+      },
+      {
+         "Id" : "go",
+         "Title" : "Go"
+      },
+      {
+         "Id" : "scio",
+         "Title" : "SCIO"
+      }
    ]
 }
 ```
 
 Get content tree by sdk name (SDK name == SDK id)
 ```
-$ curl -X GET 'https://us-central1-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=Python'
+$ curl -X GET 'https://us-central1-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=python'
 {
-   "modules" : [
-      {
-         "complexity" : "BASIC",
-         "moduleId" : "module1",
-         "name" : "Module One",
-         "nodes" : [
-            {
-               "type" : "unit",
-               "unit" : {
-                  "name" : "Intro Unit Name",
-                  "unitId" : "intro-unit"
-               }
-            },
-            {
-               "group" : {
-                  "name" : "The Group",
-                  "nodes" : [
-                     {
-                        "type" : "unit",
-                        "unit" : {
-                           "name" : "Example Unit Name",
-                           "unitId" : "example1"
-                        }
-                     },
-                     {
-                        "type" : "unit",
-                        "unit" : {
-                           "name" : "Challenge Name",
-                           "unitId" : "challenge1"
-                        }
-                     }
-                  ]
-               },
-               "type" : "group"
-            }
-         ]
-      }
-   ],
-   "sdk" : "Python"
+  "modules" : [
+     {
+        "complexity" : "BASIC",
+        "id" : "module1",
+        "title" : "Module One",
+        "nodes" : [
+           {
+              "type" : "unit",
+              "unit" : {
+                 "title" : "Intro Unit Name",
+                 "id" : "intro-unit"
+              }
+           },
+           {
+              "group" : {
+                 "title" : "The Group",
+                 "nodes" : [
+                    {
+                       "type" : "unit",
+                       "unit" : {
+                          "title" : "Example Unit Name",
+                          "id" : "example1"
+                       }
+                    },
+                    {
+                       "type" : "unit",
+                       "unit" : {
+                          "title" : "Challenge Name",
+                          "id" : "challenge1"
+                       }
+                    }
+                 ]
+              },
+              "type" : "group"
+           }
+        ]
+     }
+  ],
+  "sdkId" : "python"
 }
 ```
 
 
 Get unit content tree by sdk name and unitId
 ```
-$ curl -X GET 'https://us-central1-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=Python&unitId=challenge1'
+$ curl -X GET 'https://us-central1-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=python&id=challenge1'
 {
-   "description" : "## Challenge description\n\nawesome description\n",
-   "hints" : [
-      "## Hint 1\n\nhint 1",
-      "## Hint 2\n\nhint 2"
-   ],
-   "name" : "Challenge Name",
-   "unitId" : "challenge1"
-}
+    "id": "challenge1",
+    "title": "Challenge Name",
+    "description": "## Challenge description\n\nawesome description\n",
+    "hints" : [
+        "## Hint 1\n\nhint 1",
+        "## Hint 2\n\nhint 2"
+     ],
 
+    "taskSnippetId": "taskSnippetId",
+    "solutionSnippetId": "solutionSnippetId",
+
+    "userSnippetId": "userSnippetId",
+    "isCompleted": true
+}
 ```
