@@ -106,14 +106,16 @@ KEYED_TORCH_DICT_OUT_PREDICTIONS = [
 
 
 class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandlerTensor):
-  def __init__(self, device):
+  def __init__(self, device, drop_example=False):
     self._device = device
+    self.drop_example = drop_example
 
 
 class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
     PytorchModelHandlerKeyedTensor):
-  def __init__(self, device):
+  def __init__(self, device, drop_example=False):
     self._device = device
+    self.drop_example = drop_example
 
 
 def _compare_prediction_result(x, y):
