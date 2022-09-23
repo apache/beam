@@ -34,7 +34,7 @@ permissions: read-all
 jobs:
   java-parquet-io:
     name: Run Java Parquet IO
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 60
     steps:
       - name: Checkout code
