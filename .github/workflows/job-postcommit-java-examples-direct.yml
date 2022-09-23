@@ -32,7 +32,7 @@ permissions: read-all
 
 jobs:
   set-properties:
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
@@ -47,7 +47,7 @@ jobs:
   postcommit-java-examples-direct:
     needs: set-properties
     name: Run PostCommit Java Examples Direct
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: true
       matrix: #JDK17 execution will fail due to new access policies applied to the core JDK libraries starting at JDK 16.
