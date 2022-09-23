@@ -44,7 +44,7 @@ permissions: read-all
 jobs:
   python-pvr-flink:
     name: Run Precommit Python Validation Runner Flink
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 120
     steps:
       - name: Checkout code

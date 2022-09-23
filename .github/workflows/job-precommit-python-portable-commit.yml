@@ -44,7 +44,7 @@ permissions: read-all
 jobs:
   python-portable-commit:
     name: Run Python Portable Commit
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: true
       matrix:
