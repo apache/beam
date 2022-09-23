@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
-  pull_request:
+  push:
     branches: ['master', 'release-*']
     tags: ['v*']
 
@@ -46,13 +46,6 @@ jobs:
           submodules: recursive
       - name: Setup Environment
         uses: ./.github/actions/setup-self-hosted-action
-      - name: Remove default github maven configuration
-        if: ${{ inputs.requires-java-8 == 'true'  }}
-        # This step is a workaround to avoid a decryption issue of Beam's
-        # gradle-command-action plugin and github's provided maven
-        # settings.xml file
-        shell: bash
-        run: rm ~/.m2/settings.xml
       - name: Run :runners:google-cloud-dataflow-java:validatesRunnerV2
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
