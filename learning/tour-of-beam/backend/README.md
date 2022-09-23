@@ -98,24 +98,12 @@ Entry point: list sdk names
 ```
 $ curl -X GET https://us-central1-$PROJECT_ID.cloudfunctions.net/getSdkList | json_pp
 {
-   "sdks" : [
-      {
-         "Id" : "java",
-         "Title" : "Java"
-      },
-      {
-         "Id" : "python",
-         "Title" : "Python"
-      },
-      {
-         "Id" : "go",
-         "Title" : "Go"
-      },
-      {
-         "Id" : "scio",
-         "Title" : "SCIO"
-      }
-   ]
+  "sdks" : [
+   {"id": "java", "title": "Java"},
+   {"id": "python", "title": "Python"},
+   {"id": "go", "title": "Go"},
+   {"id": "scio", "title": "SCIO"}
+  ]
 }
 ```
 
