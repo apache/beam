@@ -15,6 +15,14 @@
 
 package internal
 
+type SdkItem struct {
+	Id, Title string
+}
+
+type SdkList struct {
+	Sdks []SdkItem
+}
+
 type Unit struct {
 	Id   string `json:"unitId"`
 	Name string `json:"name"`
@@ -59,7 +67,7 @@ type Module struct {
 }
 
 type ContentTree struct {
-	Sdk     Sdk      `json:"sdk"`
+	Sdk     Sdk      `json:"sdkId"`
 	Modules []Module `json:"modules"`
 }
 

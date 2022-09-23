@@ -16,8 +16,12 @@ package main
 // * No hidden fields
 // * Internal enumerations: sdk, node.type to string params
 
-type sdkListResponse struct {
-	Names []string
+type SdkItem struct {
+	Id, Title string
+}
+
+type SdkList struct {
+	Sdks []SdkItem
 }
 
 type Unit struct {

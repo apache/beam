@@ -57,11 +57,16 @@ func TestSdkList(t *testing.T) {
 		t.Fatal(PORT_SDK_LIST, "env not set")
 	}
 	url := "http://localhost:" + port
-	exp := sdkListResponse{
-		Names: []string{"Java", "Python", "Go"},
+	exp := SdkList{
+		[]SdkItem{
+			{"java", "Java"},
+			{"python", "Python"},
+			{"go", "Go"},
+			{"scio", "SCIO"},
+		},
 	}
 
-	resp, err := SdkList(url)
+	resp, err := GetSdkList(url)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +86,7 @@ func TestGetContentTree(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, err := GetContentTree(url, "Python")
+	resp, err := GetContentTree(url, "python")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +106,7 @@ func TestGetUnitContent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, err := GetUnitContent(url, "Python", "challenge1")
+	resp, err := GetUnitContent(url, "python", "challenge1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,14 +122,14 @@ func TestNegative(t *testing.T) {
 		{PORT_GET_CONTENT_TREE, nil,
 			ErrorResponse{
 				Code:    "BAD_FORMAT",
-				Message: "Sdk not in: [Java Python Go SCIO]",
+				Message: "unknown sdk",
 			},
 		},
-		{PORT_GET_CONTENT_TREE, map[string]string{"sdk": "SCIO"},
+		{PORT_GET_CONTENT_TREE, map[string]string{"sdk": "scio"},
 			// TODO: actually here should be a NOT_FOUND error
 			ErrorResponse{Code: "INTERNAL_ERROR", Message: "storage error"},
 		},
-		{PORT_GET_UNIT_CONTENT, map[string]string{"sdk": "Python", "unitId": "unknown_unitId"},
+		{PORT_GET_UNIT_CONTENT, map[string]string{"sdk": "python", "unitId": "unknown_unitId"},
 			ErrorResponse{
 				Code:    "NOT_FOUND",
 				Message: "unit not found",

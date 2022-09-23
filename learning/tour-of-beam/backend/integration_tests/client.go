@@ -19,8 +19,8 @@ import (
 	"os"
 )
 
-func SdkList(url string) (sdkListResponse, error) {
-	var result sdkListResponse
+func GetSdkList(url string) (SdkList, error) {
+	var result SdkList
 	err := Get(&result, url, nil)
 	return result, err
 }

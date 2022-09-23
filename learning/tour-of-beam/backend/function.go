@@ -20,7 +20,6 @@ package tob
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -75,10 +74,7 @@ func ParseSdkParam(next HandlerFuncWithSdk) http.HandlerFunc {
 
 		if sdk == tob.SDK_UNDEFINED {
 			log.Printf("Bad sdk: %v", sdkStr)
-
-			message := fmt.Sprintf("Sdk not in: %v", tob.SdksList())
-			finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, message)
-
+			finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, "unknown sdk")
 			return
 		}
 
@@ -119,15 +115,22 @@ func init() {
 	ensureGet := EnsureMethod(http.MethodGet)
 
 	// functions framework
-	functions.HTTP("sdkList", ensureGet(addHeader(sdkList)))
+	functions.HTTP("getSdkList", ensureGet(addHeader(getSdkList)))
 	functions.HTTP("getContentTree", ensureGet(addHeader(ParseSdkParam(getContentTree))))
 	functions.HTTP("getUnitContent", ensureGet(addHeader(ParseSdkParam(getUnitContent))))
 }
 
 // Get list of SDK names
 // Used in both representation and accessing content.
-func sdkList(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, `{"names": ["Java", "Python", "Go"]}`)
+func getSdkList(w http.ResponseWriter, r *http.Request) {
+	sdks := tob.MakeSdkList()
+
+	err := json.NewEncoder(w).Encode(sdks)
+	if err != nil {
+		log.Println("Format sdk list error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format sdk list")
+		return
+	}
 }
 
 // Get the content tree for a given SDK and user

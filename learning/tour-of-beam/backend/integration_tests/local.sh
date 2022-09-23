@@ -27,7 +27,7 @@ docker-compose up -d
 
 go build -o tob_function cmd/main.go
 
-PORT=$PORT_SDK_LIST FUNCTION_TARGET=sdkList         ./tob_function &
+PORT=$PORT_SDK_LIST FUNCTION_TARGET=getSdkList         ./tob_function &
 PORT=$PORT_GET_CONTENT_TREE FUNCTION_TARGET=getContentTree  ./tob_function &
 PORT=$PORT_GET_UNIT_CONTENT FUNCTION_TARGET=getUnitContent  ./tob_function &
 
