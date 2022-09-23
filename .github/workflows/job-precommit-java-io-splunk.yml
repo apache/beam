@@ -32,7 +32,7 @@ permissions: read-all
 jobs:
   run-precommit-java-io-splunk:
     name: Run Precommit Java IO Splunk
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 60
     steps:
       - name: Checkout code
