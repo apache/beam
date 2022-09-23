@@ -32,7 +32,7 @@ permissions: read-all
 jobs:
   run-precommit-java-io-tika:
     name: Run Precommit Java IO Tika
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 60
     steps:
       - name: Checkout code
