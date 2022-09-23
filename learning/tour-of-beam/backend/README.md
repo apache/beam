@@ -81,11 +81,16 @@ $ gcloud functions deploy getUnitContent --entry-point getUnitContent \
   --region us-central1 --runtime go116 --allow-unauthenticated \
   --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID"
 ```
-
-Environment variables:
+3. Set environment variables:
 - TOB_MOCK: set to 1 to deliver mock responses from samples/api
 - DATASTORE_PROJECT_ID: Google Cloud PROJECT_ID
 - GOOGLE_APPLICATION_CREDENTIALS: path to json auth key
+- TOB_LEARNING_PATH: path the content tree root
+
+4. Populate datastore
+```
+$ go run cmd/ci_cd/ci_cd.go
+```
 
 ### Sample usage
 
