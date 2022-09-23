@@ -32,7 +32,7 @@ permissions: read-all
 
 jobs:
   set-properties:
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
@@ -47,7 +47,7 @@ jobs:
   postcommit-go:
     needs: set-properties
     name: Run Go PostCommit
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: true
       matrix:
