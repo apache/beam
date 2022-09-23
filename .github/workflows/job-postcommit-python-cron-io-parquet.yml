@@ -31,7 +31,7 @@ permissions: read-all
 
 jobs:
   set-properties:
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
@@ -46,7 +46,7 @@ jobs:
   precommit-python-cron-io-parquet:
     needs: set-properties
     name: Precommit Python Cron IO Parquet
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: false
       matrix:
