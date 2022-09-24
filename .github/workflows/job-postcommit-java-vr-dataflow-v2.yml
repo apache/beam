@@ -29,7 +29,7 @@ on:
 jobs:
   java_vr_dataflow_v2:
     name: Run Java Dataflow V2 ValidatesRunner
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 390
     steps:
       - name: Get number of available processors
