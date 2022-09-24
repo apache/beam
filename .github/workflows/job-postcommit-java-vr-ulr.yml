@@ -29,7 +29,7 @@ on:
 jobs:
   java_vr_spark:
     name: Run ULR Loopback ValidatesRunner
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 180
     steps:
       - name: Checkout code

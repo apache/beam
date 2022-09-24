@@ -28,7 +28,7 @@ on:
 
 jobs:
   set-properties:
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
@@ -43,7 +43,7 @@ jobs:
   java_vr_spark-structured-streaming:
     needs: set-properties
     name: Run Spark Structured Streaming ValidatesRunner
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: true
       matrix:

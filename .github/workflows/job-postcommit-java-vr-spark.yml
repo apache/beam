@@ -29,7 +29,7 @@ on:
 
 jobs:
   set-properties:
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
@@ -44,7 +44,7 @@ jobs:
   java_vr_spark:
     needs: set-properties
     name: Run Spark ValidatesRunner
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: true
       matrix:
