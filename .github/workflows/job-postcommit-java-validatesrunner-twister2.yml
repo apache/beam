@@ -29,7 +29,7 @@ on:
 jobs:
   java_vr_twister:
     name: Run Twister2 Java ValidatesRunner
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
