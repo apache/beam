@@ -19,27 +19,22 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import com.google.bigtable.admin.v2.ColumnFamily;
-import com.google.bigtable.admin.v2.CreateTableRequest;
-import com.google.bigtable.admin.v2.DeleteTableRequest;
-import com.google.bigtable.admin.v2.GetTableRequest;
-import com.google.bigtable.admin.v2.Table;
+import com.google.api.gax.rpc.ServerStream;
 import com.google.bigtable.v2.Mutation;
-import com.google.bigtable.v2.ReadRowsRequest;
-import com.google.bigtable.v2.Row;
-import com.google.bigtable.v2.RowRange;
-import com.google.bigtable.v2.RowSet;
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
+import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
+import com.google.cloud.bigtable.admin.v2.models.Table;
 import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.cloud.bigtable.config.CredentialOptions;
-import com.google.cloud.bigtable.grpc.BigtableSession;
-import com.google.cloud.bigtable.grpc.BigtableTableAdminClient;
-import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
+import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.models.Query;
+import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.protobuf.ByteString;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -66,8 +61,9 @@ public class BigtableWriteIT implements Serializable {
   private static final String COLUMN_FAMILY_NAME = "cf";
 
   private static BigtableTestOptions options;
+  private static BigtableHBaseVeneeringSettings veneerSettings;
   private BigtableOptions bigtableOptions;
-  private static BigtableSession session;
+  private static BigtableDataClient client;
   private static BigtableTableAdminClient tableAdminClient;
   private final String tableId =
       String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
@@ -86,24 +82,18 @@ public class BigtableWriteIT implements Serializable {
             .setUserAgent("apache-beam-test")
             .build();
 
-    session =
-        new BigtableSession(
-            bigtableOptions
-                .toBuilder()
-                .setCredentialOptions(
-                    CredentialOptions.credential(options.as(GcpOptions.class).getGcpCredential()))
-                .build());
-    tableAdminClient = session.getTableAdminClient();
+    veneerSettings = BigtableHBaseVeneeringSettings.create(bigtableOptions);
+
+    client = BigtableDataClient.create(veneerSettings.getDataSettings());
+    tableAdminClient = BigtableTableAdminClient.create(veneerSettings.getTableAdminSettings());
   }
 
   @Test
   public void testE2EBigtableWrite() throws Exception {
-    final String tableName = bigtableOptions.getInstanceName().toTableNameStr(tableId);
-    final String instanceName = bigtableOptions.getInstanceName().toString();
     final int numRows = 1000;
     final List<KV<ByteString, ByteString>> testData = generateTableData(numRows);
 
-    createEmptyTable(instanceName, tableId);
+    createEmptyTable(tableId);
 
     Pipeline p = Pipeline.create(options);
     p.apply(GenerateSequence.from(0).to(numRows))
@@ -129,20 +119,22 @@ public class BigtableWriteIT implements Serializable {
     p.run();
 
     // Test number of column families and column family name equality
-    Table table = getTable(tableName);
-    assertThat(table.getColumnFamiliesMap().keySet(), Matchers.hasSize(1));
-    assertThat(table.getColumnFamiliesMap(), Matchers.hasKey(COLUMN_FAMILY_NAME));
+    Table table = getTable(tableId);
+    assertThat(table.getColumnFamilies(), Matchers.hasSize(1));
+    assertThat(
+        table.getColumnFamilies().stream().map((c) -> c.getId()).collect(Collectors.toList()),
+        Matchers.contains(COLUMN_FAMILY_NAME));
 
     // Test table data equality
-    List<KV<ByteString, ByteString>> tableData = getTableData(tableName);
+    List<KV<ByteString, ByteString>> tableData = getTableData(tableId);
     assertThat(tableData, Matchers.containsInAnyOrder(testData.toArray()));
   }
 
   @After
   public void tearDown() throws Exception {
-    final String tableName = bigtableOptions.getInstanceName().toTableNameStr(tableId);
-    deleteTable(tableName);
-    session.close();
+    deleteTable(tableId);
+    tableAdminClient.close();
+    client.close();
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////
@@ -159,54 +151,35 @@ public class BigtableWriteIT implements Serializable {
   }
 
   /** Helper function to create an empty table. */
-  private void createEmptyTable(String instanceName, String tableId) {
-    Table.Builder tableBuilder = Table.newBuilder();
-    tableBuilder.putColumnFamilies(COLUMN_FAMILY_NAME, ColumnFamily.newBuilder().build());
-
-    CreateTableRequest.Builder createTableRequestBuilder =
-        CreateTableRequest.newBuilder()
-            .setParent(instanceName)
-            .setTableId(tableId)
-            .setTable(tableBuilder.build());
-    tableAdminClient.createTable(createTableRequestBuilder.build());
+  private void createEmptyTable(String tableId) {
+    tableAdminClient.createTable(CreateTableRequest.of(tableId).addFamily(COLUMN_FAMILY_NAME));
   }
 
   /** Helper function to get a table. */
-  private Table getTable(String tableName) {
-    GetTableRequest.Builder getTableRequestBuilder =
-        GetTableRequest.newBuilder().setName(tableName);
-    return tableAdminClient.getTable(getTableRequestBuilder.build());
+  private Table getTable(String tableId) {
+    return tableAdminClient.getTable(tableId);
   }
 
   /** Helper function to get a table's data. */
-  private List<KV<ByteString, ByteString>> getTableData(String tableName) throws IOException {
-    // Add empty range to avoid TARGET_NOT_SET error
-    RowRange range =
-        RowRange.newBuilder()
-            .setStartKeyClosed(ByteString.EMPTY)
-            .setEndKeyOpen(ByteString.EMPTY)
-            .build();
-    RowSet rowSet = RowSet.newBuilder().addRowRanges(range).build();
-    ReadRowsRequest.Builder readRowsRequestBuilder =
-        ReadRowsRequest.newBuilder().setTableName(tableName).setRows(rowSet);
-    ResultScanner<Row> scanner = session.getDataClient().readRows(readRowsRequestBuilder.build());
+  private List<KV<ByteString, ByteString>> getTableData(String tableId) {
+    ServerStream<Row> rows = client.readRows(Query.create(tableId));
+
+    Iterator<Row> iterator = rows.iterator();
 
     Row currentRow;
     List<KV<ByteString, ByteString>> tableData = new ArrayList<>();
-    while ((currentRow = scanner.next()) != null) {
+    while (iterator.hasNext()) {
+      currentRow = iterator.next();
       ByteString key = currentRow.getKey();
-      ByteString value = currentRow.getFamilies(0).getColumns(0).getCells(0).getValue();
+      ByteString value = currentRow.getCells(COLUMN_FAMILY_NAME).get(0).getValue();
       tableData.add(KV.of(key, value));
     }
-    scanner.close();
 
     return tableData;
   }
 
   /** Helper function to delete a table. */
-  private void deleteTable(String tableName) {
-    DeleteTableRequest.Builder deleteTableRequestBuilder =
-        DeleteTableRequest.newBuilder().setName(tableName);
-    tableAdminClient.deleteTable(deleteTableRequestBuilder.build());
+  private void deleteTable(String tableId) {
+    tableAdminClient.deleteTable(tableId);
   }
 }

@@ -48,6 +48,9 @@ abstract class BigtableConfig implements Serializable {
   /** Returns the table being read from. */
   abstract @Nullable ValueProvider<String> getTableId();
 
+  /** Returns the app profile id of this workload. */
+  abstract @Nullable ValueProvider<String> getAppProfileId();
+
   /**
    * Returns the Google Cloud Bigtable instance being written to, and other parameters.
    *
@@ -84,6 +87,8 @@ abstract class BigtableConfig implements Serializable {
 
     abstract Builder setTableId(ValueProvider<String> tableId);
 
+    abstract Builder setAppProfileId(ValueProvider<String> appProfileId);
+
     /** @deprecated will be replaced by bigtable options configurator. */
     @Deprecated
     abstract Builder setBigtableOptions(BigtableOptions options);
@@ -113,6 +118,11 @@ abstract class BigtableConfig implements Serializable {
   BigtableConfig withTableId(ValueProvider<String> tableId) {
     checkArgument(tableId != null, "tableId can not be null");
     return toBuilder().setTableId(tableId).build();
+  }
+
+  BigtableConfig withAppProfileId(@Nullable ValueProvider<String> appProfileId) {
+    checkArgument(appProfileId != null, "App profile id can not be null");
+    return toBuilder().setAppProfileId(appProfileId).build();
   }
 
   /** @deprecated will be replaced by bigtable options configurator. */
@@ -250,6 +260,7 @@ abstract class BigtableConfig implements Serializable {
         .add("projectId", getProjectId())
         .add("instanceId", getInstanceId())
         .add("tableId", getTableId())
+        .add("appProfileId", getAppProfileId())
         .add(
             "bigtableOptionsConfigurator",
             getBigtableOptionsConfigurator() == null

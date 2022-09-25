@@ -26,8 +26,8 @@ import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
-import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -960,8 +960,7 @@ public class BigtableIO {
      * boundaries and estimated sizes. We can use these samples to ensure that splits are on
      * different tablets, and possibly generate sub-splits within tablets.
      */
-    private List<SampleRowKeysResponse> getSampleRowKeys(PipelineOptions pipelineOptions)
-        throws IOException {
+    private List<KeyOffset> getSampleRowKeys(PipelineOptions pipelineOptions) throws IOException {
       return config.getBigtableService(pipelineOptions).getSampleRowKeys(this);
     }
 
@@ -1079,7 +1078,7 @@ public class BigtableIO {
 
     /** Helper that splits this source into bundles based on Cloud Bigtable sampled row keys. */
     private List<BigtableSource> splitBasedOnSamples(
-        long desiredBundleSizeBytes, List<SampleRowKeysResponse> sampleRowKeys) {
+        long desiredBundleSizeBytes, List<KeyOffset> sampleRowKeys) {
       // There are no regions, or no samples available. Just scan the entire range.
       if (sampleRowKeys.isEmpty()) {
         LOG.info("Not splitting source {} because no sample row keys are available.", this);
@@ -1103,9 +1102,7 @@ public class BigtableIO {
      * keys.
      */
     private List<BigtableSource> splitRangeBasedOnSamples(
-        long desiredBundleSizeBytes,
-        List<SampleRowKeysResponse> sampleRowKeys,
-        ByteKeyRange range) {
+        long desiredBundleSizeBytes, List<KeyOffset> sampleRowKeys, ByteKeyRange range) {
 
       // Loop through all sampled responses and generate splits from the ones that overlap the
       // scan range. The main complication is that we must track the end range of the previous
@@ -1113,9 +1110,9 @@ public class BigtableIO {
       ByteKey lastEndKey = ByteKey.EMPTY;
       long lastOffset = 0;
       ImmutableList.Builder<BigtableSource> splits = ImmutableList.builder();
-      for (SampleRowKeysResponse response : sampleRowKeys) {
-        ByteKey responseEndKey = makeByteKey(response.getRowKey());
-        long responseOffset = response.getOffsetBytes();
+      for (KeyOffset keyOffset : sampleRowKeys) {
+        ByteKey responseEndKey = makeByteKey(keyOffset.getKey());
+        long responseOffset = keyOffset.getOffsetBytes();
         checkState(
             responseOffset >= lastOffset,
             "Expected response byte offset %s to come after the last offset %s",
@@ -1184,16 +1181,16 @@ public class BigtableIO {
      * Computes the estimated size in bytes based on the total size of all samples that overlap the
      * key ranges this source will scan.
      */
-    private long getEstimatedSizeBytesBasedOnSamples(List<SampleRowKeysResponse> samples) {
+    private long getEstimatedSizeBytesBasedOnSamples(List<KeyOffset> samples) {
       long estimatedSizeBytes = 0;
       long lastOffset = 0;
       ByteKey currentStartKey = ByteKey.EMPTY;
       // Compute the total estimated size as the size of each sample that overlaps the scan range.
       // TODO: In future, Bigtable service may provide finer grained APIs, e.g., to sample given a
       // filter or to sample on a given key range.
-      for (SampleRowKeysResponse response : samples) {
-        ByteKey currentEndKey = makeByteKey(response.getRowKey());
-        long currentOffset = response.getOffsetBytes();
+      for (KeyOffset keyOffset : samples) {
+        ByteKey currentEndKey = makeByteKey(keyOffset.getKey());
+        long currentOffset = keyOffset.getOffsetBytes();
         if (!currentStartKey.isEmpty() && currentStartKey.equals(currentEndKey)) {
           // Skip an empty region.
           lastOffset = currentOffset;

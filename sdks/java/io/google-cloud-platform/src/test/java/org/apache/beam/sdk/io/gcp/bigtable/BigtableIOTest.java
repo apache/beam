@@ -49,12 +49,12 @@ import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Mutation.SetCell;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
-import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.cloud.bigtable.config.RetryOptions;
+import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
@@ -1604,7 +1604,7 @@ public class BigtableIOTest {
   /** A {@link BigtableService} implementation that stores tables and their contents in memory. */
   private static class FakeBigtableService implements BigtableService {
     private final Map<String, SortedMap<ByteString, ByteString>> tables = new HashMap<>();
-    private final Map<String, List<SampleRowKeysResponse>> sampleRowKeys = new HashMap<>();
+    private final Map<String, List<KeyOffset>> sampleRowKeys = new HashMap<>();
 
     @Override
     public BigtableOptions getBigtableOptions() {
@@ -1645,8 +1645,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) {
-      List<SampleRowKeysResponse> samples = sampleRowKeys.get(source.getTableId().get());
+    public List<KeyOffset> getSampleRowKeys(BigtableSource source) {
+      List<KeyOffset> samples = sampleRowKeys.get(source.getTableId().get());
       checkNotNull(samples, "No samples found for table %s", source.getTableId().get());
       return samples;
     }
@@ -1657,26 +1657,25 @@ public class BigtableIOTest {
       checkArgument(numSamples > 0, "Number of samples must be positive: %s", numSamples);
       checkArgument(bytesPerRow > 0, "Bytes/Row must be positive: %s", bytesPerRow);
 
-      ImmutableList.Builder<SampleRowKeysResponse> ret = ImmutableList.builder();
+      ImmutableList.Builder<KeyOffset> ret = ImmutableList.builder();
       SortedMap<ByteString, ByteString> rows = getTable(tableId);
+      System.out.println("num of rows = " + rows.size());
       int currentSample = 1;
       int rowsSoFar = 0;
       for (Map.Entry<ByteString, ByteString> entry : rows.entrySet()) {
         if (((double) rowsSoFar) / rows.size() >= ((double) currentSample) / numSamples) {
           // add the sample with the total number of bytes in the table before this key.
-          ret.add(
-              SampleRowKeysResponse.newBuilder()
-                  .setRowKey(entry.getKey())
-                  .setOffsetBytes(rowsSoFar * bytesPerRow)
-                  .build());
+          ret.add(KeyOffset.create(entry.getKey(), rowsSoFar * bytesPerRow));
           // Move on to next sample
           currentSample++;
         }
         ++rowsSoFar;
       }
 
-      // Add the last sample indicating the end of the table, with all rows before it.
-      ret.add(SampleRowKeysResponse.newBuilder().setOffsetBytes(rows.size() * bytesPerRow).build());
+      System.out.println("ret size=" + ret.build().size());
+      // Add the last sample indicating the end of the table, with all rows before it
+      ret.add(KeyOffset.create(ByteString.EMPTY, rows.size() * bytesPerRow));
+
       sampleRowKeys.put(tableId, ret.build());
     }
   }
@@ -1698,7 +1697,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) {
+    public List<KeyOffset> getSampleRowKeys(BigtableSource source) {
       if (failureOptions.getFailAtSplit()) {
         throw new RuntimeException("Fake Exception in getSampleRowKeys()");
       }
@@ -1781,7 +1780,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public Row getCurrentRow() {
+    public com.google.bigtable.v2.Row getCurrentRow() {
       if (currentRow == null) {
         throw new NoSuchElementException();
       }

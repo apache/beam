@@ -36,6 +36,7 @@ import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
 import com.google.bigtable.v2.Family;
 import java.util.List;
+import org.apache.beam.sdk.io.gcp.bigtable.BigtableClientWrapper;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;

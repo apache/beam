@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
-import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
@@ -101,5 +101,5 @@ interface BigtableService extends Serializable {
    * Returns a set of row keys sampled from the underlying table. These contain information about
    * the distribution of keys within the table.
    */
-  List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) throws IOException;
+  List<KeyOffset> getSampleRowKeys(BigtableSource source) throws IOException;
 }
