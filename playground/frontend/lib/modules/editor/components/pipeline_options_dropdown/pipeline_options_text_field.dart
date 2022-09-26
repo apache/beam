@@ -17,8 +17,8 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground_components/playground_components.dart';
 
 class PipelineOptionsTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -32,6 +32,9 @@ class PipelineOptionsTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+    final ext = themeData.extension<BeamThemeExtension>()!;
+
     return Container(
       margin: const EdgeInsets.only(
         top: kMdSpacing,
@@ -48,16 +51,15 @@ class PipelineOptionsTextField extends StatelessWidget {
           controller: controller,
           decoration: InputDecoration(
             contentPadding: const EdgeInsets.all(kMdSpacing),
-            border: _getInputBorder(ThemeColors.of(context).lightGreyColor),
-            focusedBorder: _getInputBorder(ThemeColors.of(context).primary),
+            border: _getInputBorder(ext.borderColor),
+            focusedBorder: _getInputBorder(themeData.primaryColor),
           ),
-          cursorColor: ThemeColors.of(context).textColor,
         ),
       ),
     );
   }
 
-  _getInputBorder(Color color) {
+  OutlineInputBorder _getInputBorder(Color color) {
     return OutlineInputBorder(
       borderSide: BorderSide(color: color),
       borderRadius: BorderRadius.circular(kMdBorderRadius),
