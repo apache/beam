@@ -389,6 +389,8 @@ public class TextIOReadTest {
               FileSystems.matchSingleFileSpec(source.getFileOrPatternSpec()).resourceId());
       InputStream stream = Channels.newInputStream(channel);
       reader.startReading(
+          // Placeholder channel that only yields 0- and 1-length buffers.
+          // Data is read at most one byte at a time from line parameter.
           new ReadableByteChannel() {
             int readCount = 0;
 
@@ -492,6 +494,8 @@ public class TextIOReadTest {
               FileSystems.matchSingleFileSpec(source.getFileOrPatternSpec()).resourceId());
       InputStream stream = Channels.newInputStream(channel);
       reader.startReading(
+          // Placeholder channel that only yields 0- and 1-length buffers.
+          // Data is read at most one byte at a time from testCase parameter.
           new ReadableByteChannel() {
             int readCount = 0;
 
