@@ -45,6 +45,7 @@ func setup() {
 		}
 	}
 	ctx = context.Background()
+	ctx = context.WithValue(ctx, constants.DatastoreNamespaceKey, "migration")
 	var err error
 	datastoreDb, err = datastore.New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	if err != nil {

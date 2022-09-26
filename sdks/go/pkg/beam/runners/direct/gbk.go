@@ -186,7 +186,7 @@ func (n *CoGBK) String() string {
 }
 
 // Inject injects the predecessor index into each FullValue, effectively
-// converting KV<X,Y> into KV<X,KV<int,Y>>. Used to prime CoGBK.
+// converting KV<X,Y> into KV<int,KV<X,Y>>. Used to prime CoGBK.
 type Inject struct {
 	UID exec.UnitID
 	N   int

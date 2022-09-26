@@ -17,26 +17,24 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
+import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.listOf;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.seqOf;
+
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke;
 import org.apache.spark.sql.types.DataType;
-import scala.collection.immutable.List;
-import scala.collection.immutable.Nil$;
-import scala.collection.mutable.WrappedArray;
 import scala.reflect.ClassTag$;
 
 public class EncoderFactory {
 
   static <T> Encoder<T> create(
       Expression serializer, Expression deserializer, Class<? super T> clazz) {
-    // TODO Isolate usage of Scala APIs in utility https://github.com/apache/beam/issues/22382
-    List<Expression> serializers = Nil$.MODULE$.$colon$colon(serializer);
     return new ExpressionEncoder<>(
         SchemaHelpers.binarySchema(),
         false,
-        serializers,
+        listOf(serializer),
         deserializer,
         ClassTag$.MODULE$.apply(clazz));
   }
@@ -46,6 +44,6 @@ public class EncoderFactory {
    * input arg is {@code null}.
    */
   static Expression invokeIfNotNull(Class<?> cls, String fun, DataType type, Expression... args) {
-    return new StaticInvoke(cls, type, fun, new WrappedArray.ofRef<>(args), true, true);
+    return new StaticInvoke(cls, type, fun, seqOf(args), true, true);
   }
 }

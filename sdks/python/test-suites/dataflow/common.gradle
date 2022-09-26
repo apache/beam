@@ -389,3 +389,38 @@ task validatesContainer() {
     }
   }
 }
+
+def tensorRTTests = tasks.create("tensorRTtests") {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+ doLast {
+  def testOpts = basicPytestOpts
+  def argMap = [
+    "runner": "DataflowRunner",
+    "machine_type":"n1-standard-4",
+    "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest",
+    "sdk_location": files(configurations.distTarBall.files).singleFile,
+    "project": "apache-beam-testing",
+    "region": "us-central1",
+    "input": "gs://apache-beam-ml/testing/inputs/tensorrt_image_file_names.txt",
+    "output": "gs://apache-beam-ml/outputs/tensorrt_predictions.txt",
+    "engine_path":  "gs://apache-beam-ml/models/ssd_mobilenet_v2_320x320_coco17_tpu-8.trt",
+    "disk_size_gb": 75
+  ]
+  def cmdArgs = mapToArgString(argMap)
+  exec {
+    executable 'sh'
+    args '-c', ". ${envdir}/bin/activate && pip install pillow && python -m apache_beam.examples.inference.tensorrt_object_detection $cmdArgs --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver' --experiment=no_use_multiple_sdk_containers"
+  }
+ }
+}
+
+// add all RunInference E2E tests that run on DataflowRunner
+// As of now, this test suite is enable in py38 suite as the base NVIDIA image used for Tensor RT
+// contains Python 3.8.
+// TODO: https://github.com/apache/beam/issues/22651
+project.tasks.register("inferencePostCommitIT") {
+  dependsOn = [
+  'tensorRTtests',
+  ]
+}
