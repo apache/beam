@@ -125,34 +125,29 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### All migrated workflows run based on the following triggers
+
+| Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
+|-------------|------------------|-----------------------|---------------|-------------------|
+| PostCommit  | No               | Yes                   | Yes           | Yes               |
+| PreCommit   | Yes              | Yes                   | Yes           | Yes               |              
+
+### PreCommit Workflows
+| Workflow                                                                         | Description             | Requires GCP Credentials  |
+|----------------------------------------------------------------------------------|-------------------------|---------------------------|
+| [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml) | Description placeholder | Yes/No                    |
+
 ### PostCommit Workflows
-
-#### Go PostCommit - [job-postcommit-go.yml](.github/workflows/job-postcommit-go.yml)
-
-| Job               | Description        | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-------------------|--------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Go PostCommit | Runs Go PostCommit | No               | Yes                   | Yes           | No                       |
-
-#### Go PostCommit VR Flink - [job-postcommit-go-validates-runner-flink.yml](.github/workflows/job-postcommit-go-validates-runner-flink.yml)
-
-| Job                        | Description                 | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|----------------------------|-----------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Go PostCommit VR Flink | Runs Go PostCommit VR Flink | No               | Yes                   | Yes           | No                       |
-
-#### Go PostCommit VR Samza - [job-postcommit-go-validates-runner-samza.yml](.github/workflows/job-postcommit-go-validates-runner-samza.yml)
-
-| Job                        | Description                 | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|----------------------------|-----------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Go PostCommit VR Samza | Runs Go PostCommit VR Samza | No               | Yes                   | Yes           | No                       |
-
-#### Go PostCommit VR Spark - [job-postcommit-go-validates-runner-spark.yml](.github/workflows/job-postcommit-go-validates-runner-spark.yml)
-
-| Job                        | Description                 | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|----------------------------|-----------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Go PostCommit VR Spark | Runs Go PostCommit VR Spark | No               | Yes                   | Yes           | No                       |
+| Workflow                                                                                                       | Description                 | Requires GCP Credentials |
+|----------------------------------------------------------------------------------------------------------------|-----------------------------|--------------------------|
+| [job-postcommit-go.yml](.github/workflows/job-postcommit-go.yml)                                               | Runs Go PostCommit          | No                       |
+| [job-postcommit-go-validates-runner-flink.yml](.github/workflows/job-postcommit-go-validates-runner-flink.yml) | Runs Go PostCommit VR Flink | No                       |
+| [job-postcommit-go-validates-runner-samza.yml](.github/workflows/job-postcommit-go-validates-runner-samza.yml) | Runs Go PostCommit VR Samza | No                       |
+| [job-postcommit-go-validates-runner-spark.yml](.github/workflows/job-postcommit-go-validates-runner-spark.yml) | Runs Go PostCommit VR Spark | No                       |
 
 ### GitHub Action Tips
 
+* All migrated workflows get executed on **pre-configured self-hosted** runners. For this reason, GCP credentials are **only** needed when running the workflows in a different runner.
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
 In this case please attach link to the modified workflow run executed on your fork.
 * Possible timeouts with macOS runner - existing issue: [(X) This check failed - sometimes happens on macOS runner #841](https://github.com/actions/virtual-environments/issues/841)
