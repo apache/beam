@@ -102,7 +102,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "RunInference Image Classification - ResNet 101",
+      "title": "Pytorch RunInference Image Classification - ResNet 101",
       "tooltip": {
         "shared": true,
         "sort": 0,
