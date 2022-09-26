@@ -539,16 +539,18 @@ func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 
 	case coder.Timer:
 		comp := []string{}
-		if ids, err := b.AddMulti(c.Components); err != nil {
+		ids, err := b.AddMulti(c.Components)
+		if err != nil {
 			return "", errors.SetTopLevelMsgf(err, "failed to marshal timer coder %v", c)
-		} else {
-			comp = append(comp, ids...)
 		}
-		if id, err := b.AddWindowCoder(c.Window); err != nil {
+		comp = append(comp, ids...)
+
+		id, err := b.AddWindowCoder(c.Window)
+		if err != nil {
 			return "", errors.Wrapf(err, "failed to marshal window coder %v", c)
-		} else {
-			comp = append(comp, id)
 		}
+		comp = append(comp, id)
+
 		return b.internBuiltInCoder(urnTimerCoder, comp...), nil
 
 	default:

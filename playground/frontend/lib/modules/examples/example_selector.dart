@@ -18,18 +18,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/components/horizontal_divider/horizontal_divider.dart';
-import 'package:playground/components/loading_indicator/loading_indicator.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/constants/links.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/examples_components.dart';
 import 'package:playground/modules/examples/components/outside_click_handler.dart';
 import 'package:playground/modules/examples/models/popover_state.dart';
 import 'package:playground/pages/playground/states/example_selector_state.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:playground/utils/dropdown_utils.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -90,10 +86,10 @@ class _ExampleSelectorState extends State<ExampleSelector>
     return Container(
       height: kContainerHeight,
       decoration: BoxDecoration(
-        color: ThemeColors.of(context).dropdownButton,
+        color: Theme.of(context).dividerColor,
         borderRadius: BorderRadius.circular(kSmBorderRadius),
       ),
-      child: Consumer<PlaygroundState>(
+      child: Consumer<PlaygroundController>(
         builder: (context, state, child) => TextButton(
           key: selectorKey,
           onPressed: () {
@@ -111,7 +107,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Consumer<PlaygroundState>(
+              Consumer<PlaygroundController>(
                 builder: (context, state, child) => Text(state.examplesTitle),
               ),
               const Icon(Icons.keyboard_arrow_down),
@@ -130,12 +126,12 @@ class _ExampleSelectorState extends State<ExampleSelector>
         return ChangeNotifierProvider<PopoverState>(
           create: (context) => PopoverState(false),
           builder: (context, state) {
-            return Consumer<PlaygroundState>(
-              builder: (context, playgroundState, child) => Stack(
+            return Consumer<PlaygroundController>(
+              builder: (context, playgroundController, child) => Stack(
                 children: [
                   OutsideClickHandler(
                     onTap: () {
-                      _closeDropdown(playgroundState.exampleState);
+                      _closeDropdown(playgroundController.exampleCache);
                       // handle description dialogs
                       Navigator.of(context, rootNavigator: true)
                           .popUntil((route) {
@@ -145,9 +141,9 @@ class _ExampleSelectorState extends State<ExampleSelector>
                   ),
                   ChangeNotifierProvider(
                     create: (context) => ExampleSelectorState(
-                      playgroundState,
-                      playgroundState.exampleState
-                          .getCategories(playgroundState.sdk),
+                      playgroundController,
+                      playgroundController.exampleCache
+                          .getCategories(playgroundController.sdk),
                     ),
                     builder: (context, _) => Positioned(
                       left: dropdownOffset.dx,
@@ -166,7 +162,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
                             ),
                             child: _buildDropdownContent(
                               context,
-                              playgroundState,
+                              playgroundController,
                             ),
                           ),
                         ),
@@ -184,13 +180,11 @@ class _ExampleSelectorState extends State<ExampleSelector>
 
   Widget _buildDropdownContent(
     BuildContext context,
-    PlaygroundState playgroundState,
+    PlaygroundController playgroundController,
   ) {
-    if (playgroundState.exampleState.sdkCategories == null ||
-        playgroundState.selectedExample == null) {
-      return const LoadingIndicator(
-        size: kMdLoadingIndicatorSize,
-      );
+    if (playgroundController.exampleCache.categoryListsBySdk.isEmpty ||
+        playgroundController.selectedExample == null) {
+      return const LoadingIndicator();
     }
 
     return Column(
@@ -199,11 +193,11 @@ class _ExampleSelectorState extends State<ExampleSelector>
         const TypeFilter(),
         ExampleList(
           controller: scrollController,
-          selectedExample: playgroundState.selectedExample!,
+          selectedExample: playgroundController.selectedExample!,
           animationController: animationController,
           dropdown: examplesDropdown,
         ),
-        const HorizontalDivider(indent: kLgSpacing),
+        const BeamDivider(),
         SizedBox(
           width: double.infinity,
           child: TextButton(
@@ -213,7 +207,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
                 alignment: Alignment.centerLeft,
                 child: Text(
                   AppLocalizations.of(context)!.addExample,
-                  style: TextStyle(color: ThemeColors.of(context).primary),
+                  style: TextStyle(color: Theme.of(context).primaryColor),
                 ),
               ),
             ),
@@ -224,9 +218,9 @@ class _ExampleSelectorState extends State<ExampleSelector>
     );
   }
 
-  void _closeDropdown(ExampleState exampleState) {
+  void _closeDropdown(ExampleCache exampleCache) {
     animationController.reverse();
     examplesDropdown?.remove();
-    exampleState.changeSelectorVisibility();
+    exampleCache.changeSelectorVisibility();
   }
 }
