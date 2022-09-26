@@ -17,33 +17,27 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import java.util.Collections;
-import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
+import static org.apache.beam.repackaged.core.org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
+
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.spark.sql.Dataset;
 
 public class ImpulseTranslatorBatch
-    implements TransformTranslator<PTransform<PBegin, PCollection<byte[]>>> {
+    extends TransformTranslator<PBegin, PCollection<byte[]>, Impulse> {
 
   @Override
-  public void translateTransform(
-      PTransform<PBegin, PCollection<byte[]>> transform, AbstractTranslationContext context) {
-    Coder<WindowedValue<byte[]>> windowedValueCoder =
-        WindowedValue.FullWindowedValueCoder.of(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE);
+  public void translate(Impulse transform, Context cxt) {
     Dataset<WindowedValue<byte[]>> dataset =
-        context
-            .getSparkSession()
-            .createDataset(
-                Collections.singletonList(WindowedValue.valueInGlobalWindow(new byte[0])),
-                EncoderHelpers.fromBeamCoder(windowedValueCoder));
-    context.putDataset(context.getOutput(), dataset);
+        cxt.createDataset(
+            ImmutableList.of(WindowedValue.valueInGlobalWindow(EMPTY_BYTE_ARRAY)),
+            cxt.windowedEncoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
+    cxt.putDataset(cxt.getOutput(), dataset);
   }
 }
