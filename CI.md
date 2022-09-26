@@ -125,34 +125,29 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### All migrated workflows run based on the following triggers
+
+| Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
+|-------------|------------------|-----------------------|---------------|-------------------|
+| PostCommit  | No               | Yes                   | Yes           | Yes               |
+| PreCommit   | Yes              | Yes                   | Yes           | Yes               |
+
+### PreCommit Workflows
+| Workflow                                                                         | Description             | Requires GCP Credentials  |
+|----------------------------------------------------------------------------------|-------------------------|---------------------------|
+| [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml) | Description placeholder | Yes/No                    |
+
 ### PostCommit Workflows
-
-#### Java PostCommit PVR Flink Streaming - [job-postcommit-java-pvr-flink-streaming.yml](.github/workflows/job-postcommit-java-pvr-flink-streaming.yml)
-
-| Job                                     | Description                              | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------------------------------|------------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java PostCommit PVR Flink Streaming | Runs Java PostCommit PVR Flink Streaming | Yes              | Yes                   | Yes           | No                       |
-
-#### Java PostCommit PVR Samza - [job-postcommit-java-pvr-samza.yml](.github/workflows/job-postcommit-java-pvr-samza.yml)
-
-| Job                             | Description                     | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|---------------------------------|---------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java PostCommit PVR Samza   | Runs Java PostCommit PVR Samza  | Yes              | Yes                   | Yes           | No                       |
-
-#### Java PostCommit Spark Batch - [job-postcommit-java-pvr-spark-batch.yml](.github/workflows/job-postcommit-java-pvr-spark-batch.yml)
-
-| Job                               | Description                       | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------------------------|-----------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java PostCommit Spark Batch   | Runs Java PostCommit Spark Batch  | Yes              | Yes                   | Yes           | No                       |
-
-#### Java PostCommit Spark Streaming - [job-postcommit-java-pvr-spark-streaming.yml](.github/workflows/job-postcommit-java-pvr-spark-streaming.yml)
-
-| Job                                 | Description                          | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-------------------------------------|--------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java PostCommit Spark Streaming | Runs Java PostCommit Spark Streaming | Yes              | Yes                   | Yes           | No                       |
+| Workflow                                                                                                     | Description                              | Requires GCP Credentials |
+|--------------------------------------------------------------------------------------------------------------|------------------------------------------|--------------------------|
+| [job-postcommit-java-pvr-flink-streaming.yml](.github/workflows/job-postcommit-java-pvr-flink-streaming.yml) | Runs Java PostCommit PVR Flink Streaming | No                       |
+| [job-postcommit-java-pvr-samza.yml](.github/workflows/job-postcommit-java-pvr-samza.yml)                     | Runs Java PostCommit PVR Samza           | No                       |
+| [job-postcommit-java-pvr-spark-batch.yml](.github/workflows/job-postcommit-java-pvr-spark-batch.yml)         | Runs Java PostCommit Spark Batch         | No                       |
+| [job-postcommit-java-pvr-spark-streaming.yml](.github/workflows/job-postcommit-java-pvr-spark-streaming.yml) | Runs Java PostCommit Spark Streaming     | No                       |
 
 ### GitHub Action Tips
 
+* All migrated workflows get executed on **pre-configured self-hosted** runners. For this reason, GCP credentials are **only** needed when running the workflows in a different runner.
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
 In this case please attach link to the modified workflow run executed on your fork.
 * Possible timeouts with macOS runner - existing issue: [(X) This check failed - sometimes happens on macOS runner #841](https://github.com/actions/virtual-environments/issues/841)
