@@ -22,13 +22,13 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const kDescriptionWidth = 300.0;
 
 class DescriptionPopover extends StatelessWidget {
-  final ExampleModel example;
+  final ExampleBase example;
 
   const DescriptionPopover({Key? key, required this.example}) : super(key: key);
 
