@@ -18,6 +18,7 @@
 name: Precommit Java IO Thrift
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
