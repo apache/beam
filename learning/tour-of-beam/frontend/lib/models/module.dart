@@ -19,7 +19,7 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'node_server.dart';
+import 'node_abstract.dart';
 
 part 'module.g.dart';
 
@@ -28,7 +28,8 @@ class ModuleModel {
   final String id;
   final String title;
   final Complexity complexity;
-  final List<NodeServerModel> nodes;
+  @JsonKey(fromJson: NodeModel.nodesFromServer)
+  final List<NodeModel> nodes;
 
   const ModuleModel({
     required this.id,

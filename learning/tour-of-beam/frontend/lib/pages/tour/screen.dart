@@ -27,10 +27,10 @@ import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
 import '../../models/content_tree.dart';
-import '../../models/group_server.dart';
+import '../../models/group.dart';
 import '../../models/module.dart';
-import '../../models/node_server.dart';
-import '../../models/unit_server.dart';
+import '../../models/node_abstract.dart';
+import '../../models/unit.dart';
 import 'playground_demo.dart';
 
 class TourScreen extends StatelessWidget {
@@ -270,22 +270,22 @@ class _ModuleTitle extends StatelessWidget {
 }
 
 class _Node extends StatelessWidget {
-  final NodeServerModel node;
+  final NodeModel node;
   const _Node({required this.node});
 
   @override
   Widget build(BuildContext context) {
-    if (node.group != null) {
-      return _Group(group: node.group!);
-    } else if (node.unit != null) {
-      return _Unit(unit: node.unit!);
+    if (node.type == NodeType.group) {
+      return _Group(group: node as GroupModel);
+    } else if (node.type == NodeType.unit) {
+      return _Unit(unit: node as UnitModel);
     }
     throw Exception('A node with an unknown type');
   }
 }
 
 class _Group extends StatelessWidget {
-  final GroupServerModel group;
+  final GroupModel group;
   const _Group({required this.group});
 
   @override
@@ -304,7 +304,7 @@ class _Group extends StatelessWidget {
 }
 
 class _GroupNodes extends StatelessWidget {
-  final List<NodeServerModel> nodes;
+  final List<NodeModel> nodes;
   const _GroupNodes({required this.nodes});
 
   @override
@@ -316,7 +316,7 @@ class _GroupNodes extends StatelessWidget {
 }
 
 class _Unit extends StatelessWidget {
-  final UnitServerModel unit;
+  final UnitModel unit;
   const _Unit({required this.unit});
 
   @override

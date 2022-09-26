@@ -18,26 +18,34 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-import 'group_server.dart';
-import 'node_abstract.dart';
-import 'unit_server.dart';
+import 'group.dart';
+import 'node_server.dart';
+import 'unit.dart';
 
-part 'node_server.g.dart';
+enum NodeType { group, unit }
 
 @JsonSerializable()
-class NodeServerModel {
+abstract class NodeModel {
   final NodeType type;
-  final UnitServerModel? unit;
-  final GroupServerModel? group;
+  final String title;
+  const NodeModel({required this.type, required this.title});
 
-  const NodeServerModel({
-    required this.type,
-    required this.unit,
-    required this.group,
-  });
+  static List<NodeModel> nodesFromServer(List<Map<String, dynamic>> json) {
+    return json
+        .map<NodeServerModel>(NodeServerModel.fromJson)
+        .map(_nodeFromServer)
+        .toList();
+  }
 
-  factory NodeServerModel.fromJson(Map<String, dynamic> json) =>
-      _$NodeServerModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$NodeServerModelToJson(this);
+  static NodeModel _nodeFromServer(NodeServerModel nodeServer) {
+    return nodeServer.type == NodeType.group
+        ? GroupModel(
+            title: nodeServer.group!.title,
+            nodes: nodeServer.group!.nodes.map(_nodeFromServer).toList(),
+          )
+        : UnitModel(
+            id: nodeServer.unit!.id,
+            title: nodeServer.unit!.title,
+          );
+  }
 }
