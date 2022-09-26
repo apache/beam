@@ -125,14 +125,6 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
-
-
-
-#### Java JPMS Spark - 
-| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java JPMS Spark | Runs Java JPMS Spark | No              | Yes                   | Yes           | No                       |
-
 ### All migrated workflows run based on the following triggers
 
 | Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
