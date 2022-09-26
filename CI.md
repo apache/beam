@@ -136,10 +136,10 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Workflow                                                                                             | Description               | Requires GCP Credentials  |
 |------------------------------------------------------------------------------------------------------|---------------------------|---------------------------|
 | [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml)                     | Description placeholder   | Yes/No                    |
-| [job-precommit-java-io-clickhouse.yml](.github/workflows/job-precommit-java-io-clickhouse.yml)       | Run Java IO Clickhouse    | No
-| [job-precommit-java-io-elasticsearch.yml](.github/workflows/job-precommit-java-io-elasticsearch.yml) | Run Java IO ElasticSearch | No
-| [job-precommit-java-io-gcp.yml](.github/workflows/job-precommit-java-io-gcp.yml)                     | Run Java IO GCP           | No
-| [job-precommit-java-io-file-based.yml](.github/workflows/job-precommit-java-io-file-based.yml)       | Run Java IO File Based    | No 
+| [job-precommit-java-io-clickhouse.yml](.github/workflows/job-precommit-java-io-clickhouse.yml)       | Run Java IO Clickhouse    | No                        |
+| [job-precommit-java-io-elasticsearch.yml](.github/workflows/job-precommit-java-io-elasticsearch.yml) | Run Java IO ElasticSearch | No                        |
+| [job-precommit-java-io-gcp.yml](.github/workflows/job-precommit-java-io-gcp.yml)                     | Run Java IO GCP           | No                        |
+| [job-precommit-java-io-file-based.yml](.github/workflows/job-precommit-java-io-file-based.yml)       | Run Java IO File Based    | No                        |
 
 ### PostCommit Workflows
 | Workflow                                                                           | Description             | Requires GCP Credentials |
