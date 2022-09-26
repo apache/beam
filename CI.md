@@ -126,6 +126,7 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
 ### All migrated workflows run based on the following triggers
+
 | Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
 |-------------|------------------|-----------------------|---------------|-------------------|
 | PostCommit  | No               | Yes                   | Yes           | Yes               |

@@ -23,8 +23,6 @@ FROM google/cloud-sdk:$GCLOUD_SDK_VERSION
 # Volume to persist Datastore data
 VOLUME /opt/data
 
-# RUN mkdir -p /opt/data/WEB-INF
-COPY index.yaml /opt/data/WEB-INF/index.yaml
 COPY start-datastore.sh .
 
 EXPOSE 8081

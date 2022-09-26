@@ -20,7 +20,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -217,7 +216,7 @@ func scan(dir string) ([]KeyedFile, error) {
 }
 
 func walk(dir, key string, accum *[]KeyedFile) error {
-	list, err := ioutil.ReadDir(dir)
+	list, err := os.ReadDir(dir)
 	if err != nil {
 		return err
 	}

@@ -92,7 +92,7 @@ echo ${MASTER_BRANCH}
 echo "==============================================================="
 
 # Update master branch
-sh "$SCRIPT_DIR"/set_version.sh "$NEXT_VERSION_IN_BASE_BRANCH"
+bash "$SCRIPT_DIR"/set_version.sh "$NEXT_VERSION_IN_BASE_BRANCH"
 
 echo "==============Update master branch as following================"
 git diff
