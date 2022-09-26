@@ -50,21 +50,13 @@ func EnsureMethod(method string) func(http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// Set CORS header
-func CORSEnable(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-
-		next(w, r)
-	}
-}
-
 // Helper common AIO middleware
 func Common(next http.HandlerFunc) http.HandlerFunc {
-	addHeader := AddHeader("Content-Type", "application/json")
+	addContentType := AddHeader("Content-Type", "application/json")
+	addCORS := AddHeader("Access-Control-Allow-Origin", "*")
 	ensureGet := EnsureMethod(http.MethodGet)
 
-	return ensureGet(CORSEnable(addHeader(next)))
+	return ensureGet(addCORS(addContentType(next)))
 }
 
 // HandleFunc enriched with sdk.
