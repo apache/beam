@@ -22,6 +22,7 @@
 name: PreCommit Python Filesystem IO
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
@@ -30,6 +31,18 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
+    paths: [ 'sdks/python/apache_beam/io/filesystemio.py',
+             'sdks/python/apache_beam/io/filesystemio_test.py',
+             'sdks/python/apache_beam/io/filebasedsink.py',
+             'sdks/python/apache_beam/io/filebasedsink_test.py',
+             'sdks/python/apache_beam/io/filebasedsource.py',
+             'sdks/python/apache_beam/io/filebasedsource_test.py',
+             'sdks/python/apache_beam/io/filesystem.py',
+             'sdks/python/apache_beam/io/filesystem_test.py',
+             'sdks/python/apache_beam/io/fileio.py',
+             'sdks/python/apache_beam/io/fileio_test.py',
+             'sdks/python/apache_beam/io/filesystems.py',
+             'sdks/python/apache_beam/io/filesystems_test.py']
 permissions: read-all
 
 jobs:
