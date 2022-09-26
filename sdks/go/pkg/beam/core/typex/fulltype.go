@@ -139,6 +139,8 @@ func New(t reflect.Type, components ...FullType) FullType {
 				panic("Invalid to nest composites inside CoGBK")
 			}
 			return &tree{class, t, components}
+		case TimersType:
+			return &tree{class, t, components}
 		default:
 			panic(fmt.Sprintf("Unexpected composite type: %v", t))
 		}

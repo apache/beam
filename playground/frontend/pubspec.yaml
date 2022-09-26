@@ -21,29 +21,29 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ">=2.17.0 <3.0.0"
+  sdk: ">=2.18.1 <3.0.0"
+  flutter: ">=3.3.2"
 
 dependencies:
   akvelon_flutter_issue_106664_workaround: ^0.1.2
   aligned_dialog: ^0.0.6
-  code_text_field:
-    git:
-      url: https://github.com/BertrandBev/code_field.git
-      ref: 9e2c9fe52a69481f038f4b6609e8a0a776429437
   collection: ^1.15.0
+  easy_localization: ^3.0.1
+  easy_localization_ext: ^0.1.1
+  easy_localization_loader: ^1.0.0
   expansion_widget: ^0.0.2
   flutter: { sdk: flutter }
   flutter_localizations: { sdk: flutter }
-  flutter_svg: ^0.22.0
+  flutter_svg: ^1.0.3
   flutter_web_plugins: { sdk: flutter }
-  google_fonts: ^2.3.1
-  grpc: ^3.0.0
-  highlight: ^0.7.0
+  google_fonts: ^3.0.1
   intl: ^0.17.0
   onmessage: ^0.2.0
+  playground_components: { path: playground_components }
   provider: ^6.0.0
   shared_preferences: ^2.0.12
   url_launcher: ^6.0.12
+  url_strategy: ^0.2.0
   usage: ^4.0.2
 
 dev_dependencies:
@@ -56,6 +56,7 @@ dev_dependencies:
 flutter:
   assets:
     - assets/
+    - assets/translations/en.yaml
 
   generate: true
   uses-material-design: true

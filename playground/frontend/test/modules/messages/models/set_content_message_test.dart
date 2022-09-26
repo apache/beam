@@ -17,14 +17,11 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/modules/examples/models/example_loading_descriptors/content_example_loading_descriptor.dart';
-import 'package:playground/modules/examples/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
-import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor.dart';
 import 'package:playground/modules/messages/models/set_content_message.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground_components/playground_components.dart';
 
 const _content = 'my_code';
-const _sdk = SDK.python;
+const _sdk = Sdk.python;
 
 void main() {
   group('SetContentMessage.tryParse', () {
@@ -50,7 +47,7 @@ void main() {
           parsed,
           const SetContentMessage(
             descriptor: ExamplesLoadingDescriptor(
-              descriptors: [EmptyExampleLoadingDescriptor(sdk: SDK.java)],
+              descriptors: [EmptyExampleLoadingDescriptor(sdk: Sdk.java)],
             ),
           ),
         );
@@ -71,7 +68,7 @@ void main() {
           parsed,
           const SetContentMessage(
             descriptor: ExamplesLoadingDescriptor(
-              descriptors: [EmptyExampleLoadingDescriptor(sdk: SDK.java)],
+              descriptors: [EmptyExampleLoadingDescriptor(sdk: Sdk.java)],
             ),
           ),
         );
@@ -94,16 +91,16 @@ void main() {
               {
                 'content': _content,
                 'name': 'name',
-                'sdk': _sdk.name,
+                'sdk': _sdk.id,
               },
               {
                 'content': _content,
                 'name': null,
-                'sdk': _sdk.name,
+                'sdk': _sdk.id,
               },
               {
                 'content': _content,
-                'sdk': _sdk.name,
+                'sdk': _sdk.id,
               },
             ],
           },

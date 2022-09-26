@@ -30,6 +30,7 @@ import torch
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import _convert_to_result
 from apache_beam.utils.annotations import experimental
 
 __all__ = [
@@ -134,8 +135,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       self,
       batch: Sequence[torch.Tensor],
       model: torch.nn.Module,
-      inference_args: Optional[Dict[str, Any]] = None
-  ) -> Iterable[PredictionResult]:
+      inference_args: Optional[Dict[str, Any]] = None,
+      drop_example: Optional[bool] = False) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
@@ -152,7 +153,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       inference_args: Non-batchable arguments required as inputs to the model's
         forward() function. Unlike Tensors in `batch`, these parameters will
         not be dynamically batched
-
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
     Returns:
       An Iterable of type PredictionResult.
     """
@@ -164,7 +166,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       batched_tensors = torch.stack(batch)
       batched_tensors = _convert_to_device(batched_tensors, self._device)
       predictions = model(batched_tensors, **inference_args)
-      return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+      return _convert_to_result(batch, predictions, drop_example=drop_example)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -178,7 +180,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferencePytorch'
+    return 'BeamML_PyTorch'
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
@@ -241,7 +243,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       self,
       batch: Sequence[Dict[str, torch.Tensor]],
       model: torch.nn.Module,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[Dict[str, Any]] = None,
+      drop_example: Optional[bool] = False,
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Keyed Tensors and returns an Iterable of
@@ -259,6 +262,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       inference_args: Non-batchable arguments required as inputs to the model's
         forward() function. Unlike Tensors in `batch`, these parameters will
         not be dynamically batched
+      drop_example: Boolean flag indicating whether to
+        drop the example from PredictionResult
 
     Returns:
       An Iterable of type PredictionResult.
@@ -281,7 +286,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         batched_tensors = _convert_to_device(batched_tensors, self._device)
         key_to_batched_tensors[key] = batched_tensors
       predictions = model(**key_to_batched_tensors, **inference_args)
-      return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+
+      return _convert_to_result(batch, predictions, drop_example=drop_example)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -297,7 +303,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferencePytorch'
+    return 'BeamML_PyTorch'
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass

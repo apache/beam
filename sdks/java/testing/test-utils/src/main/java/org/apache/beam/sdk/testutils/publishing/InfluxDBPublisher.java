@@ -106,6 +106,17 @@ public final class InfluxDBPublisher {
         measurement, tags, fields, timestampSecs, TimeUnit.SECONDS);
   }
 
+  /** Creates an InfluxDB data point. */
+  public static DataPoint dataPoint(
+      String measurement,
+      Map<String, String> tags,
+      Map<String, Number> fields,
+      @Nullable Long timestamp,
+      TimeUnit timestampUnit) {
+    return new AutoValue_InfluxDBPublisher_DataPoint(
+        measurement, tags, fields, timestamp, timestampUnit);
+  }
+
   /** @deprecated Use {@link #publish} instead. */
   @Deprecated
   public static void publishNexmarkResults(

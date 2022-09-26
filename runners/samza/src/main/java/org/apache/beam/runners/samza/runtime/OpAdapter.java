@@ -21,9 +21,14 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import org.apache.beam.runners.samza.SamzaPipelineExceptionContext;
+import org.apache.beam.runners.samza.translation.TranslationContext;
+import org.apache.beam.runners.samza.util.SamzaPipelineExceptionListener;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
@@ -51,20 +56,23 @@ public class OpAdapter<InT, OutT, K>
   private static final Logger LOG = LoggerFactory.getLogger(OpAdapter.class);
 
   private final Op<InT, OutT, K> op;
+  private final String transformFullName;
   private transient List<OpMessage<OutT>> outputList;
   private transient CompletionStage<Collection<OpMessage<OutT>>> outputFuture;
   private transient Instant outputWatermark;
   private transient OpEmitter<OutT> emitter;
   private transient Config config;
   private transient Context context;
+  private transient List<SamzaPipelineExceptionListener.Registrar> exceptionListeners;
 
   public static <InT, OutT, K> AsyncFlatMapFunction<OpMessage<InT>, OpMessage<OutT>> adapt(
-      Op<InT, OutT, K> op) {
-    return new OpAdapter<>(op);
+      Op<InT, OutT, K> op, TranslationContext ctx) {
+    return new OpAdapter<>(op, ctx.getTransformFullName());
   }
 
-  private OpAdapter(Op<InT, OutT, K> op) {
+  private OpAdapter(Op<InT, OutT, K> op, String transformFullName) {
     this.op = op;
+    this.transformFullName = transformFullName;
   }
 
   @Override
@@ -73,6 +81,11 @@ public class OpAdapter<InT, OutT, K>
     this.emitter = new OpEmitterImpl();
     this.config = context.getJobContext().getConfig();
     this.context = context;
+    this.exceptionListeners =
+        StreamSupport.stream(
+                ServiceLoader.load(SamzaPipelineExceptionListener.Registrar.class).spliterator(),
+                false)
+            .collect(Collectors.toList());
   }
 
   @Override
@@ -102,7 +115,8 @@ public class OpAdapter<InT, OutT, K>
               String.format("Unexpected input type: %s", message.getType()));
       }
     } catch (Exception e) {
-      LOG.error("Op {} threw an exception during processing", this.getClass().getName(), e);
+      LOG.error("Exception happened in transform: {}", transformFullName, e);
+      notifyExceptionListeners(transformFullName, e);
       throw UserCodeException.wrap(e);
     }
 
@@ -189,6 +203,19 @@ public class OpAdapter<InT, OutT, K>
     @Override
     public <T> void emitView(String id, WindowedValue<Iterable<T>> elements) {
       outputList.add(OpMessage.ofSideInput(id, elements));
+    }
+  }
+
+  private void notifyExceptionListeners(String transformFullName, Exception e) {
+    try {
+      exceptionListeners.forEach(
+          listener -> {
+            listener
+                .getExceptionListener()
+                .onException(new SamzaPipelineExceptionContext(transformFullName, e));
+          });
+    } catch (Exception t) {
+      // ignore exception/interruption by listeners
     }
   }
 }

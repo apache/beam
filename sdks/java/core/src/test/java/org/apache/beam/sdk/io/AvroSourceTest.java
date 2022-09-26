@@ -25,11 +25,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PushbackInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -52,8 +50,6 @@ import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.AvroSource.AvroMetadata;
-import org.apache.beam.sdk.io.AvroSource.AvroReader;
-import org.apache.beam.sdk.io.AvroSource.AvroReader.Seeker;
 import org.apache.beam.sdk.io.BlockBasedSource.BlockBasedReader;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -589,168 +585,6 @@ public class AvroSourceTest {
       assertEquals(fixed.quality, generic.get("quality").toString()); // From Avro util.Utf8
       assertEquals(fixed.quantity, generic.get("quantity"));
       assertEquals(fixed.species, generic.get("species").toString());
-    }
-  }
-
-  /**
-   * Creates a haystack byte array of the give size with a needle that starts at the given position.
-   */
-  private byte[] createHaystack(byte[] needle, int position, int size) {
-    byte[] haystack = new byte[size];
-    for (int i = position, j = 0; i < size && j < needle.length; i++, j++) {
-      haystack[i] = needle[j];
-    }
-    return haystack;
-  }
-
-  /**
-   * Asserts that advancePastNextSyncMarker advances an input stream past a sync marker and
-   * correctly returns the number of bytes consumed from the stream. Creates a haystack of size
-   * bytes and places a 16-byte sync marker at the position specified.
-   */
-  private void testAdvancePastNextSyncMarkerAt(int position, int size) throws IOException {
-    byte sentinel = (byte) 0xFF;
-    byte[] marker = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6};
-    byte[] haystack = createHaystack(marker, position, size);
-    PushbackInputStream stream =
-        new PushbackInputStream(new ByteArrayInputStream(haystack), marker.length);
-    if (position + marker.length < size) {
-      haystack[position + marker.length] = sentinel;
-      assertEquals(position + marker.length, AvroReader.advancePastNextSyncMarker(stream, marker));
-      assertEquals(sentinel, (byte) stream.read());
-    } else {
-      assertEquals(size, AvroReader.advancePastNextSyncMarker(stream, marker));
-      assertEquals(-1, stream.read());
-    }
-  }
-
-  @Test
-  public void testAdvancePastNextSyncMarker() throws IOException {
-    // Test placing the sync marker at different locations at the start and in the middle of the
-    // buffer.
-    for (int i = 0; i <= 16; i++) {
-      testAdvancePastNextSyncMarkerAt(i, 1000);
-      testAdvancePastNextSyncMarkerAt(160 + i, 1000);
-    }
-    // Test placing the sync marker at the end of the buffer.
-    testAdvancePastNextSyncMarkerAt(983, 1000);
-    // Test placing the sync marker so that it begins at the end of the buffer.
-    testAdvancePastNextSyncMarkerAt(984, 1000);
-    testAdvancePastNextSyncMarkerAt(985, 1000);
-    testAdvancePastNextSyncMarkerAt(999, 1000);
-    // Test with no sync marker.
-    testAdvancePastNextSyncMarkerAt(1000, 1000);
-  }
-
-  // Tests for Seeker.
-  @Test
-  public void testSeekerFind() {
-    byte[] marker = {0, 1, 2, 3};
-    byte[] buffer;
-    Seeker s;
-    s = new Seeker(marker);
-
-    buffer = new byte[] {0, 1, 2, 3, 4, 5, 6, 7};
-    assertEquals(3, s.find(buffer, buffer.length));
-
-    buffer = new byte[] {0, 0, 0, 0, 0, 1, 2, 3};
-    assertEquals(7, s.find(buffer, buffer.length));
-
-    buffer = new byte[] {0, 1, 2, 0, 0, 1, 2, 3};
-    assertEquals(7, s.find(buffer, buffer.length));
-
-    buffer = new byte[] {0, 1, 2, 3};
-    assertEquals(3, s.find(buffer, buffer.length));
-  }
-
-  @Test
-  public void testSeekerFindResume() {
-    byte[] marker = {0, 1, 2, 3};
-    byte[] buffer;
-    Seeker s;
-    s = new Seeker(marker);
-
-    buffer = new byte[] {0, 0, 0, 0, 0, 0, 0, 0};
-    assertEquals(-1, s.find(buffer, buffer.length));
-    buffer = new byte[] {1, 2, 3, 0, 0, 0, 0, 0};
-    assertEquals(2, s.find(buffer, buffer.length));
-
-    buffer = new byte[] {0, 0, 0, 0, 0, 0, 1, 2};
-    assertEquals(-1, s.find(buffer, buffer.length));
-    buffer = new byte[] {3, 0, 1, 2, 3, 0, 1, 2};
-    assertEquals(0, s.find(buffer, buffer.length));
-
-    buffer = new byte[] {0};
-    assertEquals(-1, s.find(buffer, buffer.length));
-    buffer = new byte[] {1};
-    assertEquals(-1, s.find(buffer, buffer.length));
-    buffer = new byte[] {2};
-    assertEquals(-1, s.find(buffer, buffer.length));
-    buffer = new byte[] {3};
-    assertEquals(0, s.find(buffer, buffer.length));
-  }
-
-  @Test
-  public void testSeekerUsesBufferLength() {
-    byte[] marker = {0, 0, 1};
-    byte[] buffer;
-    Seeker s;
-    s = new Seeker(marker);
-
-    buffer = new byte[] {0, 0, 0, 1};
-    assertEquals(-1, s.find(buffer, 3));
-
-    s = new Seeker(marker);
-    buffer = new byte[] {0, 0};
-    assertEquals(-1, s.find(buffer, 1));
-    buffer = new byte[] {1, 0};
-    assertEquals(-1, s.find(buffer, 1));
-
-    s = new Seeker(marker);
-    buffer = new byte[] {0, 2};
-    assertEquals(-1, s.find(buffer, 1));
-    buffer = new byte[] {0, 2};
-    assertEquals(-1, s.find(buffer, 1));
-    buffer = new byte[] {1, 2};
-    assertEquals(0, s.find(buffer, 1));
-  }
-
-  @Test
-  public void testSeekerFindPartial() {
-    byte[] marker = {0, 0, 1};
-    byte[] buffer;
-    Seeker s;
-    s = new Seeker(marker);
-
-    buffer = new byte[] {0, 0, 0, 1};
-    assertEquals(3, s.find(buffer, buffer.length));
-
-    marker = new byte[] {1, 1, 1, 2};
-    s = new Seeker(marker);
-
-    buffer = new byte[] {1, 1, 1, 1, 1};
-    assertEquals(-1, s.find(buffer, buffer.length));
-    buffer = new byte[] {1, 1, 2};
-    assertEquals(2, s.find(buffer, buffer.length));
-
-    buffer = new byte[] {1, 1, 1, 1, 1};
-    assertEquals(-1, s.find(buffer, buffer.length));
-    buffer = new byte[] {2, 1, 1, 1, 2};
-    assertEquals(0, s.find(buffer, buffer.length));
-  }
-
-  @Test
-  public void testSeekerFindAllLocations() {
-    byte[] marker = {1, 1, 2};
-    byte[] allOnes = new byte[] {1, 1, 1, 1};
-    byte[] findIn = new byte[] {1, 1, 1, 1};
-    Seeker s = new Seeker(marker);
-
-    for (int i = 0; i < findIn.length; i++) {
-      assertEquals(-1, s.find(allOnes, allOnes.length));
-      findIn[i] = 2;
-      assertEquals(i, s.find(findIn, findIn.length));
-      findIn[i] = 1;
     }
   }
 

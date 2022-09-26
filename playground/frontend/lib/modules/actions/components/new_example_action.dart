@@ -16,13 +16,11 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/modules/actions/components/header_icon_button.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class NewExampleAction extends StatelessWidget {
@@ -35,9 +33,9 @@ class NewExampleAction extends StatelessWidget {
       child: HeaderIconButton(
         icon: Icon(
           Icons.add_circle_outline,
-          color: ThemeColors.of(context).grey1Color,
+          color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
         ),
-        label: AppLocalizations.of(context)!.newExample,
+        label: 'intents.playground.newExample'.tr(),
         onPressed: () {
           launchUrl(Uri.parse('/'));
           AnalyticsService.get(context).trackClickNewExample();

@@ -467,8 +467,8 @@ def generate_proto_files(force=False):
     return
 
   elif not out_files and not proto_files:
-    common = os.path.join(PYTHON_SDK_ROOT, '..', 'common')
-    if os.path.exists(common):
+    model = os.path.join(PROJECT_ROOT, 'model')
+    if os.path.exists(model):
       error_msg = 'No proto files found in %s.' % proto_dirs
     else:
       error_msg = 'Not in apache git tree, unable to find proto definitions.'
