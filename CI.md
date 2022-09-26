@@ -125,22 +125,27 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### All migrated workflows run based on the following triggers
+
+| Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
+|-------------|------------------|-----------------------|---------------|-------------------|
+| PostCommit  | No               | Yes                   | Yes           | Yes               |
+| PreCommit   | Yes              | Yes                   | Yes           | Yes               |
+
+### PreCommit Workflows
+| Workflow                                                                         | Description             | Requires GCP Credentials  |
+|----------------------------------------------------------------------------------|-------------------------|---------------------------|
+| [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml) | Description placeholder | Yes/No                    |
+
 ### PostCommit Workflows
-
-#### Java PostCommit DataFlow v1- [job-postcommit-java-dataflow-v1.yml](.github/workflows/job-postcommit-java-dataflow-v1.yml)
-
-| Job                             | Description                      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|---------------------------------|----------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java PostCommit DataFlow v1 | Runs Java PostCommit DataFlow v1 | No               | Yes                   | Yes           | Yes                      |
-
-#### Java PostCommit DataFlow v2- [job-postcommit-java-dataflow-v2.yml](.github/workflows/job-postcommit-java-dataflow-v2.yml)
-
-| Job                               | Description                        | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------------------------|------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java PostCommit DataFlow v2   | Runs Java PostCommit DataFlow v2   | No               | Yes                   | Yes           | Yes                      |
+| Workflow                                                                                     | Description                      | Requires GCP Credentials |
+|----------------------------------------------------------------------------------------------|----------------------------------|--------------------------|
+| [job-postcommit-java-dataflow-v1.yml](.github/workflows/job-postcommit-java-dataflow-v1.yml) | Runs Java PostCommit DataFlow v1 | Yes                      |
+| [job-postcommit-java-dataflow-v2.yml](.github/workflows/job-postcommit-java-dataflow-v2.yml) | Runs Java PostCommit DataFlow v2 | Yes                      |
 
 ### GitHub Action Tips
 
+* All migrated workflows get executed on **pre-configured self-hosted** runners. For this reason, GCP credentials are **only** needed when running the workflows in a different runner.
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
 In this case please attach link to the modified workflow run executed on your fork.
 * Possible timeouts with macOS runner - existing issue: [(X) This check failed - sometimes happens on macOS runner #841](https://github.com/actions/virtual-environments/issues/841)
