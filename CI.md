@@ -130,7 +130,7 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
 |-------------|------------------|-----------------------|---------------|-------------------|
 | PostCommit  | No               | Yes                   | Yes           | Yes               |
-| PreCommit   | Yes              | Yes                   | Yes           | Yes               |              
+| PreCommit   | Yes              | Yes                   | Yes           | Yes               |
 
 ### PreCommit Workflows
 | Workflow                                                                                 | Description                    | Requires GCP Credentials |
