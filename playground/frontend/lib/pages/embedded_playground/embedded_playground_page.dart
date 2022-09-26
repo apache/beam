@@ -17,12 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/output/components/output.dart';
 import 'package:playground/pages/embedded_playground/components/embedded_actions.dart';
 import 'package:playground/pages/embedded_playground/components/embedded_appbar_title.dart';
 import 'package:playground/pages/embedded_playground/components/embedded_editor.dart';
 import 'package:playground/pages/embedded_playground/components/embedded_split_view.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 const kActionsWidth = 300.0;
@@ -38,8 +37,8 @@ class EmbeddedPlaygroundPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PlaygroundState>(
-      builder: (context, state, child) => Scaffold(
+    return Consumer<PlaygroundController>(
+      builder: (context, controller, child) => Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: const EmbeddedAppBarTitle(),
@@ -49,9 +48,9 @@ class EmbeddedPlaygroundPage extends StatelessWidget {
           first: EmbeddedEditor(isEditable: isEditable),
           second: Container(
             color: Theme.of(context).backgroundColor,
-            child: Output(
-              isEmbedded: true,
-              playgroundState: state,
+            child: OutputWidget(
+              playgroundController: controller,
+              graphDirection: Axis.horizontal,
             ),
           ),
         ),
