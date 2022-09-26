@@ -34,7 +34,7 @@
       },
       "hiddenSeries": false,
       "id": 3,
-      "interval": "6h",
+      "interval": "24h",
       "legend": {
         "avg": false,
         "current": false,
