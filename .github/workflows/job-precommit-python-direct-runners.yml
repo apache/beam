@@ -22,6 +22,7 @@
 name: PreCommit Python Runners Direct
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
@@ -30,6 +31,7 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
+    paths: [ 'sdks/python/apache_beam/runners/direct/**' ]
 permissions: read-all
 
 jobs:
