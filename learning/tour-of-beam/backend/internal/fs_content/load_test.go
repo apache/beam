@@ -26,10 +26,10 @@ import (
 func genUnitNode(id string) tob.Node {
 	return tob.Node{Type: tob.NODE_UNIT, Unit: &tob.Unit{
 		Id: id, Name: "Challenge Name",
-		Description: "## Challenge description\n\nbla bla bla",
+		Description: "## Challenge description\n\nawesome description\n",
 		Hints: []string{
-			"## Hint 1\n\napply yourself :)",
-			"## Hint 2\n\napply more",
+			"## Hint 1\n\nhint 1",
+			"## Hint 2\n\nhint 2",
 		},
 	}}
 }
