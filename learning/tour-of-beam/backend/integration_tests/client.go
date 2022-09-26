@@ -14,10 +14,28 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 )
+
+var (
+	ExpectedHeaders = map[string]string{
+		"Access-Control-Allow-Origin": "*",
+		"Content-Type":                "application/json",
+	}
+)
+
+func verifyHeaders(header http.Header) error {
+	for k, v := range ExpectedHeaders {
+		if actual := header.Get(k); actual != v {
+			return fmt.Errorf("header %s mismatch: %s (expected %s)", k, actual, v)
+		}
+	}
+
+	return nil
+}
 
 func GetSdkList(url string) (SdkList, error) {
 	var result SdkList
@@ -61,6 +79,10 @@ func Get(dst interface{}, url string, queryParams map[string]string) error {
 	}
 
 	defer resp.Body.Close()
+
+	if err := verifyHeaders(resp.Header); err != nil {
+		return err
+	}
 
 	tee := io.TeeReader(resp.Body, os.Stdout)
 	return json.NewDecoder(tee).Decode(dst)

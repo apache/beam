@@ -37,51 +37,6 @@ const (
 	NOT_FOUND      = "NOT_FOUND"
 )
 
-// Middleware-maker for setting a header
-// We also make this less generic: it works with HandlerFunc's
-// so that to be convertible to func(w http ResponseWriter, r *http.Request)
-// and be accepted by functions.HTTP.
-func AddHeader(header, value string) func(http.HandlerFunc) http.HandlerFunc {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Add(header, value)
-			next(w, r)
-		}
-	}
-}
-
-// Middleware to check http method.
-func EnsureMethod(method string) func(http.HandlerFunc) http.HandlerFunc {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == method {
-				next(w, r)
-			} else {
-				w.WriteHeader(http.StatusMethodNotAllowed)
-			}
-		}
-	}
-}
-
-// HandleFunc enriched with sdk.
-type HandlerFuncWithSdk func(w http.ResponseWriter, r *http.Request, sdk tob.Sdk)
-
-// middleware to parse sdk query param and pass it as additional handler param.
-func ParseSdkParam(next HandlerFuncWithSdk) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		sdkStr := r.URL.Query().Get("sdk")
-		sdk := tob.ParseSdk(sdkStr)
-
-		if sdk == tob.SDK_UNDEFINED {
-			log.Printf("Bad sdk: %v", sdkStr)
-			finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, "unknown sdk")
-			return
-		}
-
-		next(w, r, sdk)
-	}
-}
-
 // Helper to format http error messages.
 func finalizeErrResponse(w http.ResponseWriter, status int, code, message string) {
 	resp := tob.CodeMessage{Code: code, Message: message}
@@ -111,13 +66,10 @@ func init() {
 		svc = &service.Svc{Repo: &storage.DatastoreDb{Client: client}}
 	}
 
-	addHeader := AddHeader("Content-Type", "application/json")
-	ensureGet := EnsureMethod(http.MethodGet)
-
 	// functions framework
-	functions.HTTP("getSdkList", ensureGet(addHeader(getSdkList)))
-	functions.HTTP("getContentTree", ensureGet(addHeader(ParseSdkParam(getContentTree))))
-	functions.HTTP("getUnitContent", ensureGet(addHeader(ParseSdkParam(getUnitContent))))
+	functions.HTTP("getSdkList", Common(getSdkList))
+	functions.HTTP("getContentTree", Common(ParseSdkParam(getContentTree)))
+	functions.HTTP("getUnitContent", Common(ParseSdkParam(getUnitContent)))
 }
 
 // Get list of SDK names
