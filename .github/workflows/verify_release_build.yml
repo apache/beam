@@ -9,14 +9,11 @@ on:
       COMMENT_TRIGGER_PHRASES:
         description: Flag to comment the Jenkins Trigger Phrases in the new PR
         required: true
-        default: 'true'
+        default: 'false'
 env:
-  #WORKING_BRANCH: postcommit_validation_pr # Is it always the same branch name? or should we need to add it as input?
-  WORKING_BRANCH: 'verify-release-pr-test'
+  WORKING_BRANCH: postcommit_validation_pr # Is it always the same branch name? or should we need to add it as input?
 jobs:
-  # Run Gradle release build and all Tests against Release Branch on Jenkins.
-  # This create_release_pr task will create a PR against apache/beam.
-  update_create_release_pr:
+  verify_release:
     runs-on: [self-hosted, ubuntu-20.04]
     permissions:
       pull-requests: write
@@ -53,7 +50,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          GITHUB_PR_URL=$(gh pr create -B ${{env.RELEASE_BRANCH}} -H ${{env.WORKING_BRANCH}} -t "[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch" -b "You can run many tests automatically using release/src/main/scripts/mass_comment.py.")
+          GITHUB_PR_URL=$(gh pr create -B ${{env.RELEASE_BRANCH}} -H ${{env.WORKING_BRANCH}} -t "[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch" -b "You are going to run many tests automatically in this PR (refer to scripts/ci/release/jenkins_trigger_phrases.txt), however, there are some PostCommits jobs that have been migrated to GitHub Actions workflows and for the moment they don't have Trigger Phrases. Please run the rest of PostCommit tests manually.")
       - name: Comment Jenkins Trigger Phrases in PR
         if: ${{ github.event.inputs.COMMENT_TRIGGER_PHRASES == 'true' }}
         run: |
