@@ -146,7 +146,6 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 |------------------------------------------------------------------------------------|-------------------------|--------------------------|
 | [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
 
-
 ### GitHub Action Tips
 * All migrated workflows get executed on **pre-configured self-hosted** runners. For this reason, GCP credentials are **only** needed when running the workflows in a different runner.
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
