@@ -125,42 +125,31 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### All migrated workflows run based on the following triggers
+
+| Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
+|-------------|------------------|-----------------------|---------------|-------------------|
+| PostCommit  | No               | Yes                   | Yes           | Yes               |
+| PreCommit   | Yes              | Yes                   | Yes           | Yes               |
+
 ### PreCommit Workflows
+| Workflow                                                                                       | Description             | Requires GCP Credentials  |
+|------------------------------------------------------------------------------------------------|-------------------------|---------------------------|
+| [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml)               | Description placeholder | Yes/No                    |
+| [job-precommit-java-io-hadoop.yml](.github/workflows/job-precommit-java-io-hadoop.yml)         | Run Java IO Hadoop      | No                        |
+| [job-precommit-java-io-hbase.yml](.github/workflows/job-precommit-java-io-hbase.yml)           | Run Java IO Hbase       | No                        |
+| [job-precommit-java-io-hcatalog.yml](.github/workflows/job-precommit-java-io-hcatalog.yml)     | Run Java IO HCatalog    | No                        |
+| [job-precommit-java-io-hdfs.yml](.github/workflows/job-precommit-java-io-hdfs.yml)             | Run Java IO HDFS        | No                        |
+| [job-precommit-java-io-file-based.yml](.github/workflows/job-precommit-java-io-file-based.yml) | Run Java IO File Based  | No                        |
+| [job-precommit-java-io-influxdb.yml](.github/workflows/job-precommit-java-io-influxdb.yml)     | Run Java IO InfluxDB    | No                        |
 
-#### Java IO hadoop - [job-precommit-java-io-hadoop.yml](.github/workflows/job-precommit-java-io-hadoop.yml)
-
-| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO hadoop| Runs Java IO hadoop | Yes              | Yes                   | Yes           | No                       |
-
-#### Java IO Hbase - [job-precommit-java-io-hbase.yml](.github/workflows/job-precommit-java-io-hbase.yml)
-
-| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO hbase| Runs Java IO hbase | Yes              | Yes                   | Yes           | No                       |
-
-#### Java IO hcatalog - [job-precommit-java-io-hcatalog.yml](.github/workflows/job-precommit-java-io-hcatalog.yml)
-
-| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO hcatalog| Runs Java IO hcatalog | Yes              | Yes                   | Yes           | No                       |
-
-#### Java IO HDFS - [job-precommit-java-io-hdfs.yml](.github/workflows/job-precommit-java-io-hdfs.yml)
-
-| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO HDFS | Runs Java IO HDFS | Yes              | Yes                   | Yes           | No                       |
-
-#### Java IO Influxdb - [job-precommit-java-io-influxdb.yml](.github/workflows/job-precommit-java-io-influxdb.yml)
-
-| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java IO Influxdb | Runs Java IO Influxdb | Yes              | Yes                   | Yes           | No                       |
-
-
+### PostCommit Workflows
+| Workflow                                                                           | Description             | Requires GCP Credentials |
+|------------------------------------------------------------------------------------|-------------------------|--------------------------|
+| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
 
 ### GitHub Action Tips
-
+* All migrated workflows get executed on **pre-configured self-hosted** runners. For this reason, GCP credentials are **only** needed when running the workflows in a different runner.
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
 In this case please attach link to the modified workflow run executed on your fork.
 * Possible timeouts with macOS runner - existing issue: [(X) This check failed - sometimes happens on macOS runner #841](https://github.com/actions/virtual-environments/issues/841)
