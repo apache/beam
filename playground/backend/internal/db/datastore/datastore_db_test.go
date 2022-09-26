@@ -763,18 +763,7 @@ func TestDatastore_GetExampleGraph(t *testing.T) {
 				if output != "MOCK_CONTENT_GRAPH" {
 					t.Errorf("GetExampleGraph() unexpected result: wrong precompiled obj")
 				}
-				if actualPCObj.DefaultExample != false ||
-					actualPCObj.Multifile != false ||
-					actualPCObj.Name != "MOCK_EXAMPLE" ||
-					actualPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
-					actualPCObj.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE" ||
-					actualPCObj.PipelineOptions != "MOCK_OPTIONS" ||
-					actualPCObj.Description != "MOCK_DESCR" ||
-					actualPCObj.Link != "MOCK_PATH" ||
-					actualPCObj.ContextLine != 32 {
-					t.Error("GetCatalog() unexpected result: wrong precompiled obj")
-				}
-				tt.cleanData()
+				tt.clean()
 			}
 		})
 	}
