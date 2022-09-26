@@ -125,13 +125,22 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### All migrated workflows run based on the following triggers
+
+| Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
+|-------------|------------------|-----------------------|---------------|-------------------|
+| PostCommit  | No               | Yes                   | Yes           | Yes               |
+| PreCommit   | Yes              | Yes                   | Yes           | Yes               |              
+
+### PreCommit Workflows
+| Workflow                                                                         | Description             | Requires GCP Credentials  |
+|----------------------------------------------------------------------------------|-------------------------|---------------------------|
+| [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml) | Description placeholder | Yes/No                    |
+
 ### PostCommit Workflows
-
-#### PostCommit Beam Metrics Publish - [job-postcommit-beam-metrics-publish.yml](.github/workflows/job-postcommit-beam-metrics-publish.yml)
-
-| Job                                 | Description                                              | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-------------------------------------|----------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run PostCommit Beam Metrics Publish | Applies new configuration to Beam Metrics infrastructure | No               | Yes                   | Yes           | Yes                      |
+| Workflow                                                                                             | Description                                              | Requires GCP Credentials |
+|------------------------------------------------------------------------------------------------------|----------------------------------------------------------|--------------------------|
+| [job-postcommit-beam-metrics-publish.yml](.github/workflows/job-postcommit-beam-metrics-publish.yml) | Applies new configuration to Beam Metrics infrastructure | Yes                      |
 
 ### GitHub Action Tips
 
