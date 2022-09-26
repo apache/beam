@@ -128,7 +128,7 @@ class _TourSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final contentTreeJson = {
-      'sdk': 'Python',
+      'sdkId': 'Python',
       'modules': [
         'Core Transforms',
         'Common Transforms',
@@ -138,10 +138,10 @@ class _TourSummary extends StatelessWidget {
       ]
           .map(
             (module) => {
-              'moduleId': 'introduction',
-              'name': module,
+              'id': 'introduction',
+              'title': module,
               'complexity': 'BASIC',
-              'nodes': [],
+              'nodes': <Map<String, dynamic>>[],
             },
           )
           .toList(),
@@ -227,12 +227,17 @@ class _Buttons extends StatelessWidget {
       children: [
         Wrap(
           children: SdkListModel.fromJson({
-            'names': ['Java', 'Python', 'Go'],
+            'sdks': [
+              {'id': 'java', 'title': 'Java'},
+              {'id': 'python', 'title': 'Python'},
+              {'id': 'go', 'title': 'Go'},
+              {'id': 'scio', 'title': 'SCIO'}
+            ]
           })
-              .names
+              .sdks
               .map(
-                (e) => _SdkButton(
-                  value: e,
+                (sdk) => _SdkButton(
+                  value: sdk.id,
                   groupValue: _sdk,
                   onChanged: _onSdkChanged,
                 ),
@@ -249,7 +254,7 @@ class _Buttons extends StatelessWidget {
     );
   }
 
-  static const String _sdk = 'Java';
+  static const String _sdk = 'java';
 }
 
 class _SdkButton extends StatelessWidget {

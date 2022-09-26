@@ -17,18 +17,18 @@
  */
 
 import 'package:json_annotation/json_annotation.dart';
-import 'sdk.dart';
 
-part 'sdk_list.g.dart';
+part 'sdk.g.dart';
 
 @JsonSerializable()
-class SdkListModel {
-  final List<SdkModel> sdks;
+class SdkModel {
+  final String id;
+  final String title;
 
-  const SdkListModel({required this.sdks});
+  const SdkModel({required this.id, required this.title});
 
-  factory SdkListModel.fromJson(Map<String, dynamic> json) =>
-      _$SdkListModelFromJson(json);
+  factory SdkModel.fromJson(Map<String, dynamic> json) =>
+      _$SdkModelFromJson(json);
 
-  Map<String, dynamic> toJson() => _$SdkListModelToJson(this);
+  Map<String, dynamic> toJson() => _$SdkModelToJson(this);
 }
