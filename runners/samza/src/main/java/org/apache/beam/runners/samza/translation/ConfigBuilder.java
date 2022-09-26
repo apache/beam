@@ -107,7 +107,11 @@ public class ConfigBuilder {
         if (threadPoolSize > 1 && options.getNumThreadsForProcessElement() <= 1) {
           // In case the user sets the thread pool through samza config instead options,
           // set the bundle thread pool size based on container thread pool config
-          LOG.info("set options NumThreadsForProcessElement to be " + threadPoolSize);
+          LOG.info(
+              "Set NumThreadsForProcessElement based on "
+                  + JOB_CONTAINER_THREAD_POOL_SIZE
+                  + " to "
+                  + threadPoolSize);
           options.setNumThreadsForProcessElement(threadPoolSize);
         }
       }

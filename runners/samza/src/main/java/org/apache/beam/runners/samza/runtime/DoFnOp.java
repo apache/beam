@@ -485,10 +485,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     private CompletionStage<Collection<WindowedValue<OutT>>> outputFuture;
 
     FutureCollectorImpl() {
-      /*
-       * Choosing synchronized list here since the concurrency is low as the message dispatch thread is single threaded.
-       * We need this guard against scenarios when watermark/finish bundle trigger outputs.
-       */
       outputFuture = CompletableFuture.completedFuture(new ArrayList<>());
       collectorSealed = new AtomicBoolean(true);
     }
@@ -497,25 +493,38 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     public void add(CompletionStage<WindowedValue<OutT>> element) {
       checkState(
           !collectorSealed.get(),
-          "Cannot add elements to an unprepared collector. Make sure prepare() is invoked before adding elements.");
-      outputFuture =
-          outputFuture.thenCombine(
-              element,
-              (collection, event) -> {
-                collection.add(event);
-                return collection;
-              });
+          "Cannot add element to an unprepared collector. Make sure prepare() is invoked before adding elements.");
+
+      // We need synchronize guard against scenarios when watermark/finish bundle trigger outputs.
+      synchronized (this) {
+        outputFuture =
+            outputFuture.thenCombine(
+                element,
+                (collection, event) -> {
+                  collection.add(event);
+                  return collection;
+                });
+      }
     }
 
     @Override
     public void addAll(CompletionStage<Collection<WindowedValue<OutT>>> elements) {
-      outputFuture = FutureUtils.combineFutures(outputFuture, elements);
+      checkState(
+          !collectorSealed.get(),
+          "Cannot add elements to an unprepared collector. Make sure prepare() is invoked before adding elements.");
+
+      synchronized (this) {
+        outputFuture = FutureUtils.combineFutures(outputFuture, elements);
+      }
     }
 
     @Override
     public void discard() {
       collectorSealed.compareAndSet(false, true);
-      outputFuture = CompletableFuture.completedFuture(new ArrayList<>());
+
+      synchronized (this) {
+        outputFuture = CompletableFuture.completedFuture(new ArrayList<>());
+      }
     }
 
     @Override
@@ -526,9 +535,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
        */
       collectorSealed.compareAndSet(false, true);
 
-      final CompletionStage<Collection<WindowedValue<OutT>>> sealedOutputFuture = outputFuture;
-      outputFuture = CompletableFuture.completedFuture(new ArrayList<>());
-      return sealedOutputFuture;
+      synchronized (this) {
+        final CompletionStage<Collection<WindowedValue<OutT>>> sealedOutputFuture = outputFuture;
+        outputFuture = CompletableFuture.completedFuture(new ArrayList<>());
+        return sealedOutputFuture;
+      }
     }
 
     @Override

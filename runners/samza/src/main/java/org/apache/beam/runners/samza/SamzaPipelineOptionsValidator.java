@@ -48,7 +48,7 @@ public class SamzaPipelineOptionsValidator {
       checkArgument(
           jobConfig.getThreadPoolSize() <= 1,
           JOB_CONTAINER_THREAD_POOL_SIZE
-              + " should be replaced with SamzaPipelineOptions.bundleThreadNum");
+              + " config should be replaced with SamzaPipelineOptions.numThreadsForProcessElement");
     }
   }
 }
