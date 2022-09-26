@@ -22,6 +22,7 @@
 name: PreCommit Whitespace
 
 on:
+  workflow_dispatch:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
