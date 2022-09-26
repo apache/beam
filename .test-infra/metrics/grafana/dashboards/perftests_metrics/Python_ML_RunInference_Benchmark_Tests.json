@@ -60,7 +60,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "latency_milli_seconds",
+          "alias": "mean_load_model_latency_milli_seconds",
           "groupBy": [
             {
               "params": [
@@ -77,7 +77,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT mean(\"value\") FROM \"torch_inference_imagenet_resnet101\" WHERE metric = 'BeamML_PyTorch_pytorchruninference/beamml_runinference_count_load_model_latency_milli_secs' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
+          "query": "SELECT mean(\"value\") FROM \"torch_inference_imagenet_resnet101\" WHERE metric = 'BeamML_PyTorch_pytorchruninference/beamml_runinference_mean_load_model_latency_milli_secs' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
