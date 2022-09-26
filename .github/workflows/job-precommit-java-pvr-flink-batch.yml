@@ -22,6 +22,7 @@
 name: PreCommit Java PVR Flink Batch
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
