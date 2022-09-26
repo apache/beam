@@ -42,7 +42,7 @@ public class CheckpointMarkImplTest {
 
   @Before
   public void setUp() {
-    mark = new CheckpointMarkImpl(OFFSET, committer);
+    mark = new CheckpointMarkImpl(OFFSET, () -> committer);
   }
 
   @Test
