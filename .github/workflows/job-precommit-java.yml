@@ -36,52 +36,7 @@ on:
     #        'examples/java/**',
     #        'examples/kotlin/**',
     #        'release/**']
-env:
-  tests: ":sdks:java:harness:test \
-           :runners:core-java:test \
-           :runners:java-fn-execution:test \
-           :runners:java-fn-execution:testDocker \
-           :runners:extensions-java:metrics:test \
-           :runners:java-job-service:test \
-           :runners:local-java:test \
-           :runners:portability:java:test \
-           :sdks:java:expansion-service:test \
-           :sdks:java:extensions:arrow:test \
-           :sdks:java:extensions:euphoria:test --tests 'org.apache.beam.sdk.extensions.euphoria.core.*' \
-           :sdks:java:extensions:google-cloud-platform-core:test \
-           :sdks:java:extensions:google-cloud-platform-core:integrationTestKms \
-           :sdks:java:extensions:jackson:test \
-           :sdks:java:extensions:join-library:test \
-           :sdks:java:extensions:kryo:test \
-           :sdks:java:extensions:ml:test \
-           :sdks:java:extensions:ml:integrationTest \
-           :sdks:java:extensions:protobuf:test \
-           :sdks:java:extensions:python:test \
-           :sdks:java:extensions:sbe:test \
-           :sdks:java:extensions:schemaio-expansion-service:test \
-           :sdks:java:extensions:sketching:test \
-           :sdks:java:extensions:sorter:test \
-           :sdks:java:extensions:sorter:hadoopVersion2102Test \
-           :sdks:java:extensions:sorter:hadoopVersion285Test \
-           :sdks:java:extensions:sorter:hadoopVersion292Test \
-           :sdks:java:extensions:sorter:hadoopVersion324Test \
-           :sdks:java:extensions:sql:test \
-           :sdks:java:extensions:sql:integrationTest \
-           :sdks:java:extensions:sql:hadoopVersion2102Test \
-           :sdks:java:extensions:sql:hadoopVersion285Test \
-           :sdks:java:extensions:sql:hadoopVersion292Test \
-           :sdks:java:extensions:sql:hadoopVersion324Test \
-           :sdks:java:extensions:timeseries:test \
-           :sdks:java:extensions:zetasketch:test \
-           :sdks:java:extensions:zetasketch:integrationTest \
-           :sdks:java:fn-execution:test \
-           :sdks:java:core:test --tests 'org.apache.beam.sdk.io.*' \
-           :sdks:java:testing:nexmark:test \
-           :sdks:java:testing:test-utils:test --tests 'org.apache.beam.sdk.testutils.metrics.*' \
-           :sdks:java:core:jmh:test \
-           :sdks:java:io:common:test \
-           :sdks:java:io:contextualtextio:test \
-           :sdks:java:testing:tpcds:test"
+
 jobs:
   java_precommit:
     name: Run Java Precommit
@@ -96,11 +51,25 @@ jobs:
           submodules: recursive
       - name: Setup Environment
         uses: ./.github/actions/setup-self-hosted-action
-      - name: Run ${{env.tests}}
+      - name: Run javaPrecommitSharding
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: ${{env.tests}}
+          gradle-command: javaPrecommitSharding
           arguments: -PdisableSpotlessCheck=true -PdisableCheckStyle=true
-
+      - name: Run :sdks:java:testing:test-utils:test
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:testing:test-utils:test
+          arguments: --tests 'org.apache.beam.sdk.testutils.metrics.*' -PdisableSpotlessCheck=true -PdisableCheckStyle=true
+      - name: Run :sdks:java:extensions:euphoria:test
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:extensions:euphoria:test
+          arguments: --tests 'org.apache.beam.sdk.extensions.euphoria.core.*' -PdisableSpotlessCheck=true -PdisableCheckStyle=true
+      - name: Run :sdks:java:core:test
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:core:test
+          arguments: --tests 'org.apache.beam.sdk.io.*' -PdisableSpotlessCheck=true -PdisableCheckStyle=true
 
 

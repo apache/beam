@@ -1,3 +1,5 @@
+import org.codehaus.groovy.ast.tools.GeneralUtils.args
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -434,6 +436,47 @@ tasks.register("checkSetup") {
   dependsOn(":sdks:python:wordCount")
   dependsOn(":examples:java:wordCount")
 }
+
+tasks.register("javaPrecommitSharding") {
+  dependsOn(":sdks:java:harness:test")
+  dependsOn(":runners:core-java:test")
+  dependsOn(":runners:java-fn-execution:test")
+  dependsOn(":runners:java-fn-execution:testDocker")
+  dependsOn(":runners:extensions-java:metrics:test")
+  dependsOn(":runners:java-job-service:test")
+  dependsOn(":runners:local-java:test")
+  dependsOn(":runners:portability:java:test")
+  dependsOn(":sdks:java:expansion-service:test")
+  dependsOn(":sdks:java:extensions:arrow:test")
+  dependsOn(":sdks:java:extensions:google-cloud-platform-core:test")
+  dependsOn(":sdks:java:extensions:google-cloud-platform-core:integrationTestKms")
+  dependsOn(":sdks:java:extensions:jackson:test")
+  dependsOn(":sdks:java:extensions:join-library:test")
+  dependsOn(":sdks:java:extensions:kryo:test")
+  dependsOn(":sdks:java:extensions:ml:test")
+  dependsOn(":sdks:java:extensions:ml:integrationTest")
+  dependsOn(":sdks:java:extensions:protobuf:test")
+  dependsOn(":sdks:java:extensions:python:test")
+  dependsOn(":sdks:java:extensions:sbe:test")
+  dependsOn(":sdks:java:extensions:schemaio-expansion-service:test")
+  dependsOn(":sdks:java:extensions:sketching:test")
+  dependsOn(":sdks:java:extensions:sorter:test")
+  dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest") // includes version 2102, 285, 292, 324
+  dependsOn(":sdks:java:extensions:sql:test")
+  dependsOn(":sdks:java:extensions:sql:integrationTest")
+  dependsOn(":sdks:java:extensions:sql:hadoopVersionsTest") // includes version 2102, 285, 292, 324
+  dependsOn(":sdks:java:extensions:timeseries:test")
+  dependsOn(":sdks:java:extensions:zetasketch:test")
+  dependsOn(":sdks:java:extensions:zetasketch:integrationTest")
+  dependsOn(":sdks:java:fn-execution:test")
+  dependsOn(":sdks:java:testing:nexmark:test")
+  dependsOn(":sdks:java:core:jmh:test")
+  dependsOn(":sdks:java:io:common:test")
+  dependsOn(":sdks:java:io:contextualtextio:test")
+  dependsOn(":sdks:java:testing:tpcds:test")
+
+}
+
 
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
