@@ -45,6 +45,81 @@ func TestPrecompiledObjectMapper_ToObjectInfo(t *testing.T) {
 	}
 }
 
+func TestPrecompiledObjectMapper_ToPrecompiledObj(t *testing.T) {
+	actualResult := pcObjMapper.ToPrecompiledObj(getExampleDTO("MOCK_NAME", "MOCK_DEFAULT_EXAMPLE", pb.Sdk_SDK_JAVA.String()))
+	if actualResult.Multifile != false ||
+		actualResult.DefaultExample != false ||
+		actualResult.Name != "MOCK_NAME" ||
+		actualResult.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME" ||
+		actualResult.Description != "MOCK_DESCR" ||
+		actualResult.PipelineOptions != "MOCK_OPTIONS" ||
+		actualResult.Link != "MOCK_PATH" ||
+		actualResult.ContextLine != 32 ||
+		actualResult.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" {
+		t.Error("ToPrecompiledObj() unexpected result")
+	}
+}
+
+func TestPrecompiledObjectMapper_ToDefaultPrecompiledObjects(t *testing.T) {
+	actualResult := pcObjMapper.ToDefaultPrecompiledObjects(getDefaultExamplesDTO())
+	javaPCObj, ok := actualResult[pb.Sdk_SDK_JAVA]
+	if !ok ||
+		javaPCObj.DefaultExample != true ||
+		javaPCObj.Name != "1_MOCK_DEFAULT_EXAMPLE" ||
+		javaPCObj.Multifile != false ||
+		javaPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
+		javaPCObj.ContextLine != 32 ||
+		javaPCObj.Link != "MOCK_PATH" ||
+		javaPCObj.Description != "MOCK_DESCR" ||
+		javaPCObj.PipelineOptions != "MOCK_OPTIONS" ||
+		javaPCObj.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/1_MOCK_DEFAULT_EXAMPLE" {
+		t.Error("ToDefaultPrecompiledObjects() unexpected result for SDK_JAVA")
+	}
+	goPCObj, ok := actualResult[pb.Sdk_SDK_GO]
+	if !ok ||
+		goPCObj.DefaultExample != true ||
+		goPCObj.Name != "2_MOCK_DEFAULT_EXAMPLE" ||
+		goPCObj.Multifile != false ||
+		goPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
+		goPCObj.ContextLine != 32 ||
+		goPCObj.Link != "MOCK_PATH" ||
+		goPCObj.Description != "MOCK_DESCR" ||
+		goPCObj.PipelineOptions != "MOCK_OPTIONS" ||
+		goPCObj.CloudPath != "SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/2_MOCK_DEFAULT_EXAMPLE" {
+		t.Error("ToDefaultPrecompiledObjects() unexpected result for SDK_GO")
+	}
+	scioPCObj, ok := actualResult[pb.Sdk_SDK_SCIO]
+	if !ok ||
+		scioPCObj.DefaultExample != true ||
+		scioPCObj.Name != "4_MOCK_DEFAULT_EXAMPLE" ||
+		scioPCObj.Multifile != false ||
+		scioPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
+		scioPCObj.ContextLine != 32 ||
+		scioPCObj.Link != "MOCK_PATH" ||
+		scioPCObj.Description != "MOCK_DESCR" ||
+		scioPCObj.PipelineOptions != "MOCK_OPTIONS" ||
+		scioPCObj.CloudPath != "SDK_SCIO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/4_MOCK_DEFAULT_EXAMPLE" {
+		t.Error("ToDefaultPrecompiledObjects() unexpected result for SDK_SCIO")
+	}
+	pythonPCObj, ok := actualResult[pb.Sdk_SDK_PYTHON]
+	if !ok ||
+		pythonPCObj.DefaultExample != true ||
+		pythonPCObj.Name != "3_MOCK_DEFAULT_EXAMPLE" ||
+		pythonPCObj.Multifile != false ||
+		pythonPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
+		pythonPCObj.ContextLine != 32 ||
+		pythonPCObj.Link != "MOCK_PATH" ||
+		pythonPCObj.Description != "MOCK_DESCR" ||
+		pythonPCObj.PipelineOptions != "MOCK_OPTIONS" ||
+		pythonPCObj.CloudPath != "SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_EXAMPLE/3_MOCK_DEFAULT_EXAMPLE" {
+		t.Error("ToDefaultPrecompiledObjects() unexpected result for SDK_PYTHON")
+	}
+	_, ok = actualResult[pb.Sdk_SDK_UNSPECIFIED]
+	if ok {
+		t.Error("ToDefaultPrecompiledObjects() unexpected result for SDK_UNSPECIFIED")
+	}
+}
+
 func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 	actualResult := pcObjMapper.ToArrayCategories(getCatalogDTO())
 	javaCatalog := getCategoryBySdk(actualResult, pb.Sdk_SDK_JAVA)
@@ -141,6 +216,26 @@ func getExampleDTO(name, defaultName, sdk string) *dto.ExampleDTO {
 			IsMain:   true,
 		}},
 		DefaultExampleName: defaultName,
+	}
+}
+
+func getDefaultExamplesDTO() *dto.DefaultExamplesDTO {
+	examples := make([]*entity.ExampleEntity, 0, 4)
+	snippets := make([]*entity.SnippetEntity, 0, 4)
+	files := make([]*entity.FileEntity, 0, 4)
+	for sdk, sdkNum := range pb.Sdk_value {
+		if sdk == pb.Sdk_SDK_UNSPECIFIED.String() {
+			continue
+		}
+		exampleDTO := getExampleDTO(utils.GetIDWithDelimiter(sdkNum, "MOCK_DEFAULT_EXAMPLE"), "MOCK_DEFAULT_EXAMPLE", sdk)
+		examples = append(examples, exampleDTO.Example)
+		snippets = append(snippets, exampleDTO.Snippet)
+		files = append(files, exampleDTO.Files[0])
+	}
+	return &dto.DefaultExamplesDTO{
+		Examples: examples,
+		Snippets: snippets,
+		Files:    files,
 	}
 }
 
