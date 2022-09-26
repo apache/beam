@@ -42,7 +42,7 @@ jaxen:
   '1.1.6':
     type: "3-Clause BSD"
 libraries-bom:
-  '25.2.0':
+  '26.1.1':
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/cloud-opensource-java/master/LICENSE"
     type: "Apache License 2.0"
 paranamer:
