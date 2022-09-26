@@ -27,10 +27,10 @@ import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
 import '../../models/content_tree.dart';
-import '../../models/group.dart';
+import '../../models/group_server.dart';
 import '../../models/module.dart';
-import '../../models/node.dart';
-import '../../models/unit.dart';
+import '../../models/node_server.dart';
+import '../../models/unit_server.dart';
 import 'playground_demo.dart';
 
 class TourScreen extends StatelessWidget {
@@ -100,43 +100,43 @@ class _ContentTree extends StatelessWidget {
   const _ContentTree();
 
   static const _contentTreeJson = {
-    'sdk': 'Python',
+    'sdkId': 'python',
     'modules': [
       {
-        'moduleId': 'introduction',
-        'name': 'Introduction',
+        'id': 'introduction',
+        'title': 'Introduction',
         'complexity': 'BASIC',
         'nodes': [
           {
             'type': 'unit',
-            'unit': {'unitId': 'guide', 'name': 'Tour of Beam Guide'}
+            'unit': {'id': 'guide', 'title': 'Tour of Beam Guide'}
           },
           {
             'type': 'group',
             'group': {
-              'name': 'Beam Concepts',
+              'title': 'Beam Concepts',
               'nodes': [
                 {
                   'type': 'unit',
-                  'unit': {'unitId': 'runner-concepts', 'name': 'Runners'}
+                  'unit': {'id': 'runner-concepts', 'title': 'Runners'}
                 },
                 {
                   'type': 'group',
                   'group': {
-                    'name': 'Pipeline concepts',
+                    'title': 'Pipeline concepts',
                     'nodes': [
                       {
                         'type': 'unit',
                         'unit': {
-                          'unitId': 'creating-pipeline',
-                          'name': 'Creating pipelines'
+                          'id': 'creating-pipeline',
+                          'title': 'Creating pipelines'
                         }
                       },
                       {
                         'type': 'unit',
                         'unit': {
-                          'unitId': 'setting-pipeline',
-                          'name': 'Configuring pipeline options'
+                          'id': 'setting-pipeline',
+                          'title': 'Configuring pipeline options'
                         }
                       }
                     ]
@@ -145,27 +145,27 @@ class _ContentTree extends StatelessWidget {
                 {
                   'type': 'group',
                   'group': {
-                    'name': 'Creating Collections',
+                    'title': 'Creating Collections',
                     'nodes': [
                       {
                         'type': 'unit',
                         'unit': {
-                          'unitId': 'from-memory',
-                          'name': 'Creating in-memory PCollections'
+                          'id': 'from-memory',
+                          'title': 'Creating in-memory PCollections'
                         }
                       },
                       {
                         'type': 'unit',
                         'unit': {
-                          'unitId': 'from-text',
-                          'name': 'Creating PCollections from text files'
+                          'id': 'from-text',
+                          'title': 'Creating PCollections from text files'
                         }
                       },
                       {
                         'type': 'unit',
                         'unit': {
-                          'unitId': 'from-csv',
-                          'name': 'Creating PCollections from csv files'
+                          'id': 'from-csv',
+                          'title': 'Creating PCollections from csv files'
                         }
                       }
                     ]
@@ -176,7 +176,7 @@ class _ContentTree extends StatelessWidget {
           },
           {
             'type': 'unit',
-            'unit': {'unitId': 'terms', 'name': 'List of Beam Terms'}
+            'unit': {'id': 'terms', 'title': 'List of Beam Terms'}
           }
         ]
       }
@@ -194,7 +194,7 @@ class _ContentTree extends StatelessWidget {
             const _ContentTreeTitle(),
             ...ContentTreeModel.fromJson(_contentTreeJson)
                 .modules
-                .map((e) => _Module(module: e))
+                .map((module) => _Module(module: module))
                 .toList(growable: false),
             const SizedBox(height: BeamSizes.size12),
           ],
@@ -256,7 +256,7 @@ class _ModuleTitle extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            module.name,
+            module.title,
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           Padding(
@@ -270,7 +270,7 @@ class _ModuleTitle extends StatelessWidget {
 }
 
 class _Node extends StatelessWidget {
-  final NodeModel node;
+  final NodeServerModel node;
   const _Node({required this.node});
 
   @override
@@ -285,7 +285,7 @@ class _Node extends StatelessWidget {
 }
 
 class _Group extends StatelessWidget {
-  final GroupModel group;
+  final GroupServerModel group;
   const _Group({required this.group});
 
   @override
@@ -293,7 +293,7 @@ class _Group extends StatelessWidget {
     return ExpansionTileWrapper(
       ExpansionTile(
         tilePadding: EdgeInsets.zero,
-        title: _GroupTitle(title: group.name),
+        title: _GroupTitle(title: group.title),
         childrenPadding: const EdgeInsets.only(
           left: BeamSizes.size24,
         ),
@@ -304,7 +304,7 @@ class _Group extends StatelessWidget {
 }
 
 class _GroupNodes extends StatelessWidget {
-  final List<NodeModel> nodes;
+  final List<NodeServerModel> nodes;
   const _GroupNodes({required this.nodes});
 
   @override
@@ -316,7 +316,7 @@ class _GroupNodes extends StatelessWidget {
 }
 
 class _Unit extends StatelessWidget {
-  final UnitModel unit;
+  final UnitServerModel unit;
   const _Unit({required this.unit});
 
   @override
@@ -326,7 +326,7 @@ class _Unit extends StatelessWidget {
       child: Row(
         children: [
           _ProgressIndicator(assetPath: Assets.svg.unitProgress0),
-          Expanded(child: Text(unit.name)),
+          Expanded(child: Text(unit.title)),
         ],
       ),
     );

@@ -296,7 +296,7 @@ class _Module extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ModuleHeader(title: module.name),
+        _ModuleHeader(title: module.title),
         if (isLast) const _LastModuleBody() else const _ModuleBody(),
       ],
     );

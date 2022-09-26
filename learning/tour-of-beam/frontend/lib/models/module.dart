@@ -19,20 +19,20 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'node.dart';
+import 'node_server.dart';
 
 part 'module.g.dart';
 
 @JsonSerializable()
 class ModuleModel {
-  final String moduleId;
-  final String name;
+  final String id;
+  final String title;
   final Complexity complexity;
-  final List<NodeModel> nodes;
+  final List<NodeServerModel> nodes;
 
   const ModuleModel({
-    required this.moduleId,
-    required this.name,
+    required this.id,
+    required this.title,
     required this.complexity,
     required this.nodes,
   });

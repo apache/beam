@@ -26,11 +26,11 @@ part 'content_tree.g.dart';
 
 @JsonSerializable()
 class ContentTreeModel {
-  final String sdk;
+  final String sdkId;
   final List<ModuleModel> modules;
 
   const ContentTreeModel({
-    required this.sdk,
+    required this.sdkId,
     required this.modules,
   });
 
