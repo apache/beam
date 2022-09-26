@@ -125,19 +125,23 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### All migrated workflows run based on the following triggers
+
+| Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
+|-------------|------------------|-----------------------|---------------|-------------------|
+| PostCommit  | No               | Yes                   | Yes           | Yes               |
+| PreCommit   | Yes              | Yes                   | Yes           | Yes               |              
+
 ### PreCommit Workflows
+| Workflow                                                                         | Description                | Requires GCP Credentials |
+|----------------------------------------------------------------------------------|----------------------------|--------------------------|
+| [job-precommit-go.yml](.github/workflows/job-precommit-go.yml)                   | Runs Go PreCommit          | No                       |
+| [job-portable-precommit-go.yml](.github/workflows/job-portable-precommit-go.yml) | Runs Go Portable PreCommit | No                       |
 
-#### Go PreCommit - [job-precommit-go.yml](.github/workflows/job-precommit-go.yml)
-
-| Job                   | Description        | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------------|--------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Go PreCommit      | Runs Go PreCommit  | Yes              | Yes                   | Yes           | No                       |
-
-#### Go Portable PreCommit - [job-portable-precommit-go.yml](.github/workflows/job-portable-precommit-go.yml)
-
-| Job                       | Description                | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|---------------------------|----------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Go Portable PreCommit | Runs Go Portable PreCommit | Yes              | Yes                   | Yes           | No                       |
+### PostCommit Workflows
+| Workflow                                                                           | Description             | Requires GCP Credentials |
+|------------------------------------------------------------------------------------|-------------------------|--------------------------|
+| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
 
 ### GitHub Action Tips
 
