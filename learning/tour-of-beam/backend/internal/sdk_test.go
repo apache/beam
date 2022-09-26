@@ -63,6 +63,7 @@ func TestSerialize(t *testing.T) {
 }
 
 func TestSdkList(t *testing.T) {
+
 	assert.Equal(t, SdkList{
 		[]SdkItem{
 			{"java", "Java"},
