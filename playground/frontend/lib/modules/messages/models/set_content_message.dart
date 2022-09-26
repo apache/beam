@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
 import 'package:playground/modules/messages/models/abstract_message.dart';
+import 'package:playground_components/playground_components.dart';
 
 /// A message that sets content for multiple snippets.
 ///

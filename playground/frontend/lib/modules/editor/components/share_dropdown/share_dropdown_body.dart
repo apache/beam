@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_tabs/share_tabs.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_tabs_headers.dart';
-import 'package:playground/modules/output/components/output_header/tab_header.dart';
+import 'package:playground_components/playground_components.dart';
 
 const _kTabsCount = 2;
 
