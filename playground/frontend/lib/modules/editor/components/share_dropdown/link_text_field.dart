@@ -18,9 +18,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground_components/playground_components.dart';
 
 const _kTextFieldMaxHeight = 45.0;
 
@@ -45,9 +45,11 @@ class _LinkTextFieldState extends State<LinkTextField> {
 
   @override
   Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+
     return Container(
       decoration: BoxDecoration(
-        color: ThemeColors.of(context).dropdownButton,
+        color: themeData.extension<BeamThemeExtension>()?.borderColor,
         borderRadius: BorderRadius.circular(kSmBorderRadius),
       ),
       child: Container(
@@ -66,7 +68,7 @@ class _LinkTextFieldState extends State<LinkTextField> {
             style: TextStyle(
               fontSize: kLabelFontSize,
               fontWeight: kNormalWeight,
-              color: ThemeColors.of(context).primary,
+              color: themeData.primaryColor,
             ),
           ),
         ),

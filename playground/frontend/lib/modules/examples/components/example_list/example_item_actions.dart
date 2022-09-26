@@ -18,14 +18,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
 import 'package:playground/modules/examples/models/popover_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
-import '../multifile_popover/multifile_popover_button.dart';
-
 class ExampleItemActions extends StatelessWidget {
-  final ExampleModel example;
+  final ExampleBase example;
   final BuildContext parentContext;
 
   const ExampleItemActions(

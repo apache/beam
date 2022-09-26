@@ -37,7 +37,14 @@ import software.amazon.awssdk.awscore.AwsResponseMetadata;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.utils.ImmutableMap;
 
-/** {@link Coder}s for common AWS SDK objects. */
+/**
+ * {@link Coder}s for common AWS SDK objects.
+ *
+ * @deprecated {@link org.apache.beam.sdk.schemas.SchemaCoder SchemaCoders} for {@link
+ *     software.amazon.awssdk.core.SdkPojo AWS model classes} will be automatically inferred by
+ *     means of {@link org.apache.beam.sdk.io.aws2.schemas.AwsSchemaProvider AwsSchemaProvider}.
+ */
+@Deprecated
 public final class AwsCoders {
 
   private AwsCoders() {}
