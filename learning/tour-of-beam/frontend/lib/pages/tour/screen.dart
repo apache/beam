@@ -25,6 +25,7 @@ import '../../components/expansion_tile_wrapper.dart';
 import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
+import '../../enums.dart';
 import '../../generated/assets.gen.dart';
 import '../../models/content_tree.dart';
 import '../../models/group.dart';

@@ -18,6 +18,7 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
+import '../enums.dart';
 import 'node_abstract.dart';
 
 part 'group.g.dart';

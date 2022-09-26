@@ -1,0 +1,1 @@
+enum NodeType { group, unit }

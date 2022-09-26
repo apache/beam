@@ -18,11 +18,10 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
+import '../enums.dart';
 import 'group.dart';
 import 'node_server.dart';
 import 'unit.dart';
-
-enum NodeType { group, unit }
 
 @JsonSerializable()
 abstract class NodeModel {

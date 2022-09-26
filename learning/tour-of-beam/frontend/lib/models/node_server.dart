@@ -18,8 +18,8 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
+import '../enums.dart';
 import 'group_server.dart';
-import 'node_abstract.dart';
 import 'unit_server.dart';
 
 part 'node_server.g.dart';
