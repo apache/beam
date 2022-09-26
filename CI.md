@@ -125,34 +125,29 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### All migrated workflows run based on the following triggers
+
+| Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
+|-------------|------------------|-----------------------|---------------|-------------------|
+| PostCommit  | No               | Yes                   | Yes           | Yes               |
+| PreCommit   | Yes              | Yes                   | Yes           | Yes               |
+
+### PreCommit Workflows
+| Workflow                                                                         | Description             | Requires GCP Credentials  |
+|----------------------------------------------------------------------------------|-------------------------|---------------------------|
+| [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml) | Description placeholder | Yes/No                    |
+
 ### PostCommit Workflows
-
-#### Java PostCommit Examples Direct - [job-postcommit-java-examples-direct.yml](.github/workflows/job-postcommit-java-examples-direct.yml)
-
-| Job                                 | Description                          | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-------------------------------------|--------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java PostCommit Examples Direct | Runs Java PostCommit Examples Direct | Yes              | Yes                   | Yes           | No                       |
-
-#### Java PostCommit Examples Flink - [job-postcommit-java-examples-flink.yml](.github/workflows/job-postcommit-java-examples-flink.yml)
-
-| Job                                | Description                         | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|------------------------------------|-------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java PostCommit Examples Flink | Runs Java PostCommit Examples Flink | Yes              | Yes                   | Yes           | No                       |
-
-#### Java PostCommit Examples Spark - [job-postcommit-java-examples-spark.yml](.github/workflows/job-postcommit-java-examples-spark.yml)
-
-| Job                                | Description                         | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|------------------------------------|-------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java PostCommit Examples Spark | Runs Java PostCommit Examples Spark | Yes              | Yes                   | Yes           | No                       |
-
-#### Java PostCommit Hadoop Versions - [job-postcommit-java-hadoop-versions.yml](.github/workflows/job-postcommit-java-hadoop-versions.yml)
-
-| Job                                 | Description                          | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-------------------------------------|--------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java PostCommit Hadoop Versions | Runs Java PostCommit Hadoop Versions | Yes              | Yes                   | Yes           | No                       |
+| Workflow                                                                                             | Description                          | Requires GCP Credentials |
+|------------------------------------------------------------------------------------------------------|--------------------------------------|--------------------------|
+| [job-postcommit-java-examples-direct.yml](.github/workflows/job-postcommit-java-examples-direct.yml) | Runs Java PostCommit Examples Direct | No                       |
+| [job-postcommit-java-examples-flink.yml](.github/workflows/job-postcommit-java-examples-flink.yml)   | Runs Java PostCommit Examples Flink  | No                       |
+| [job-postcommit-java-examples-spark.yml](.github/workflows/job-postcommit-java-examples-spark.yml)   | Runs Java PostCommit Examples Spark  | No                       |
+| [job-postcommit-java-hadoop-versions.yml](.github/workflows/job-postcommit-java-hadoop-versions.yml) | Runs Java PostCommit Hadoop Versions | No                       |
 
 ### GitHub Action Tips
 
+* All migrated workflows get executed on **pre-configured self-hosted** runners. For this reason, GCP credentials are **only** needed when running the workflows in a different runner.
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
 In this case please attach link to the modified workflow run executed on your fork.
 * Possible timeouts with macOS runner - existing issue: [(X) This check failed - sometimes happens on macOS runner #841](https://github.com/actions/virtual-environments/issues/841)
