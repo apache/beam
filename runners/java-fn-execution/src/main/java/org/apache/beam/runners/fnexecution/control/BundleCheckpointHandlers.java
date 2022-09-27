@@ -27,7 +27,7 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerator;SparkPipelineRunner
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -42,7 +42,8 @@ import org.joda.time.Instant;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class BundleCheckpointHandlers {
+public class
+BundleCheckpointHandlers {
 
   /**
    * A {@link BundleCheckpointHandler} which uses {@link
