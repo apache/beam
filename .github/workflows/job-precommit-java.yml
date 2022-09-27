@@ -27,26 +27,33 @@ on:
   push:
     branches: [ 'master', 'release-*' ]
     tags: ['v*']
-  pull_request:
+    paths: [ 'model/**',
+             'sdks/java/**',
+             'runners/**',
+             'examples/java/**',
+             'examples/kotlin/**',
+             'release/**' ]
+  pull_request_target:
     branches: ['master', 'release-*']
     tags: ['v*']
-    #paths: ['model/**',
-    #        'sdks/java/**',
-    #        'runners/**',
-    #        'examples/java/**',
-    #        'examples/kotlin/**',
-    #        'release/**']
+    paths: ['model/**',
+            'sdks/java/**',
+            'runners/**',
+            'examples/java/**',
+            'examples/kotlin/**',
+            'release/**']
 
 jobs:
   java_precommit:
     name: Run Java Precommit
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 180
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - name: Setup Environment
