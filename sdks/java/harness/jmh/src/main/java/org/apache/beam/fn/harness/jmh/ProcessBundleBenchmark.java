@@ -120,7 +120,10 @@ public class ProcessBundleBenchmark {
     public SdkHarness() {
       try {
         // Setup execution-time servers
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setDaemon(true).build();
+        ThreadFactory threadFactory = new ThreadFactoryBuilder()
+            .setDaemon(true)
+            .setNameFormat("ProcessBundlesBenchmark-thread")
+            .build();
         serverExecutor = Executors.newCachedThreadPool(threadFactory);
         ServerFactory serverFactory = ServerFactory.createDefault();
         dataServer =

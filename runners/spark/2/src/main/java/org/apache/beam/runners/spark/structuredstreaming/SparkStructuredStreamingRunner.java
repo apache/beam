@@ -22,6 +22,8 @@ import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFi
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
+import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.structuredstreaming.aggregators.AggregatorsAccumulator;
@@ -141,7 +143,11 @@ public final class SparkStructuredStreamingRunner
 
     final AbstractTranslationContext translationContext = translatePipeline(pipeline);
 
-    final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    final ExecutorService executorService = Executors.newSingleThreadExecutor(
+        new ThreadFactoryBuilder()
+            .setDaemon(true)
+            .setNameFormat("LocalSpark-thread")
+            .build());
     final Future<?> submissionFuture =
         executorService.submit(
             () -> {

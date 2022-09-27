@@ -22,6 +22,8 @@ import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+
+import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -201,7 +203,11 @@ public class DataflowRunnerHarness {
       }
       worker.startStatusPages();
       worker.start();
-      ExecutorService executor = Executors.newSingleThreadExecutor();
+      ExecutorService executor = Executors.newSingleThreadExecutor(
+          new ThreadFactoryBuilder()
+          .setDaemon(true)
+          .setNameFormat("ControlClient-thread")
+          .build());
       executor.execute(
           () -> { // Task to get new client connections
             while (true) {

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
@@ -1681,7 +1682,12 @@ class BigQueryServicesImpl implements BigQueryServices {
     BoundedExecutorService(ListeningExecutorService taskExecutor, int parallelism) {
       this.taskExecutor = taskExecutor;
       this.taskSubmitExecutor =
-          MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+          MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor(
+              new ThreadFactoryBuilder()
+                  .setDaemon(true)
+                  .setNameFormat("BoundedBigQueryService-thread")
+                  .build()
+          ));
       this.semaphore = new Semaphore(parallelism);
     }
 

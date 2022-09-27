@@ -25,6 +25,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
@@ -96,7 +98,11 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
             (StreamingModeExecutionContext.StreamingModeStepContext)
                 stepContext.namespacedToUser());
     this.elementsToProcess = new LinkedBlockingQueue<>();
-    this.singleThreadExecutor = Executors.newSingleThreadExecutor();
+    this.singleThreadExecutor = Executors.newSingleThreadExecutor(
+        new ThreadFactoryBuilder()
+        .setDaemon(true)
+        .setNameFormat("FetchAndFilterStreamingSideInput-thread")
+        .build());
   }
 
   /** A {@link PCollectionView} which forwards all calls to its delegate. */
