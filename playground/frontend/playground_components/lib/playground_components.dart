@@ -20,7 +20,6 @@ export 'src/cache/example_cache.dart';
 
 export 'src/constants/colors.dart';
 export 'src/constants/links.dart';
-export 'src/constants/playground_components.dart';
 export 'src/constants/sizes.dart';
 
 export 'src/controllers/example_loaders/examples_loader.dart';
@@ -44,6 +43,8 @@ export 'src/models/sdk.dart';
 export 'src/models/shortcut.dart';
 
 export 'src/notifications/notification.dart';
+
+export 'src/playground_components.dart';
 
 export 'src/repositories/code_client/grpc_code_client.dart';
 export 'src/repositories/code_repository.dart';
