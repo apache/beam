@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+"""This file contains the pipeline for doing online clustering."""
 import argparse
 import sys
 
@@ -37,29 +37,38 @@ from pipeline.transformations import (
 
 
 def parse_arguments(argv):
-  parser = argparse.ArgumentParser(description="online-clustering")
+    """
+    It parses the arguments passed to the command line and returns them as an object
 
-  parser.add_argument(
-      "-m",
-      "--mode",
-      help="Mode to run pipeline in.",
-      choices=["local", "cloud"],
-      default="local",
-  )
-  parser.add_argument(
-      "-p",
-      "--project",
-      help="GCP project to run pipeline on.",
-      default=cfg.PROJECT_ID,
-  )
+    Args:
+      argv: The arguments passed to the command line.
 
-  args, _ = parser.parse_known_args(args=argv)
-  return args
+    Returns:
+      The arguments that are being passed in.
+    """
+    parser = argparse.ArgumentParser(description="online-clustering")
+
+    parser.add_argument(
+        "-m",
+        "--mode",
+        help="Mode to run pipeline in.",
+        choices=["local", "cloud"],
+        default="local",
+    )
+    parser.add_argument(
+        "-p",
+        "--project",
+        help="GCP project to run pipeline on.",
+        default=cfg.PROJECT_ID,
+    )
+
+    args, _ = parser.parse_known_args(args=argv)
+    return args
 
 
 # Can be removed once: https://github.com/apache/beam/issues/21863 is fixed
 class PytorchNoBatchModelHandler(PytorchModelHandlerKeyedTensor):
-  """Wrapper to PytorchModelHandler to limit batch size to 1.
+    """Wrapper to PytorchModelHandler to limit batch size to 1.
     The tokenized strings generated from BertTokenizer may have different
     lengths, which doesn't work with torch.stack() in current RunInference
     implementation since stack() requires tensors to be the same size.
@@ -67,47 +76,48 @@ class PytorchNoBatchModelHandler(PytorchModelHandlerKeyedTensor):
     in the run_inference() call.
     """
 
-  def batch_elements_kwargs(self):
-    return {"max_batch_size": 1}
+    def batch_elements_kwargs(self):
+        return {"max_batch_size": 1}
 
 
 def run():
-  args = parse_arguments(sys.argv)
-  pipeline_options = get_pipeline_options(
-      job_name=cfg.JOB_NAME,
-      num_workers=cfg.NUM_WORKERS,
-      project=args.project,
-      mode=args.mode,
-  )
+    """
+    It runs the pipeline.  It read from PubSub, decode the message,
+    tokenize the text, get the embedding, normalize the embedding,
+    map the document to a key, and then perform stateful clustering using Birch
+    """
+    args = parse_arguments(sys.argv)
+    pipeline_options = get_pipeline_options(
+        job_name=cfg.JOB_NAME,
+        num_workers=cfg.NUM_WORKERS,
+        project=args.project,
+        mode=args.mode,
+    )
 
-  model_handler = PytorchNoBatchModelHandler(
-      state_dict_path=cfg.MODEL_STATE_DICT_PATH,
-      model_class=ModelWrapper,
-      model_params={
-          "config": AutoConfig.from_pretrained(cfg.MODEL_CONFIG_PATH)
-      },
-      device="cpu",
-  )
+    model_handler = PytorchNoBatchModelHandler(
+        state_dict_path=cfg.MODEL_STATE_DICT_PATH,
+        model_class=ModelWrapper,
+        model_params={
+            "config": AutoConfig.from_pretrained(cfg.MODEL_CONFIG_PATH)
+        },
+        device="cpu",
+    )
 
-  with beam.Pipeline(options=pipeline_options) as pipeline:
-    docs = (
-        pipeline
-        | "Read from PubSub" >> ReadFromPubSub(
-            subscription=cfg.SUBSCRIPTION_ID, with_attributes=True)
-        | "Decode PubSubMessage" >> beam.ParDo(Decode()))
-    normalized_embedding = (
-        docs
-        | "Tokenize Text" >> beam.Map(tokenize_sentence)
-        | "Get Embedding" >> RunInference(KeyedModelHandler(model_handler))
-        | "Normalize Embedding" >> beam.ParDo(NormalizeEmbedding()))
-    clustering = (
-        normalized_embedding
-        | "Map doc to key" >> beam.Map(lambda x: (1, x))
-        | "StatefulClustering using Birch" >> beam.ParDo(
-            StatefulOnlineClustering()))
+    with beam.Pipeline(options=pipeline_options) as pipeline:
+        docs = (pipeline | "Read from PubSub" >> ReadFromPubSub(
+            subscription=cfg.SUBSCRIPTION_ID, with_attributes=True) |
+                "Decode PubSubMessage" >> beam.ParDo(Decode()))
+        normalized_embedding = (
+            docs | "Tokenize Text" >> beam.Map(tokenize_sentence) |
+            "Get Embedding" >> RunInference(KeyedModelHandler(model_handler)) |
+            "Normalize Embedding" >> beam.ParDo(NormalizeEmbedding()))
+        clustering = (normalized_embedding |
+                      "Map doc to key" >> beam.Map(lambda x: (1, x)) |
+                      "StatefulClustering using Birch" >> beam.ParDo(
+                          StatefulOnlineClustering()))
 
-    updated_clusters = clustering | "Format Update" >> beam.ParDo(GetUpdates())
+        _ = clustering | "Format Update" >> beam.ParDo(GetUpdates())
 
 
 if __name__ == "__main__":
-  run()
+    run()

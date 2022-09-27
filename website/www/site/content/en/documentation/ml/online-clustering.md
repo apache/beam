@@ -170,7 +170,7 @@ After getting the embedding for each twitter text, the embeddings are normalized
 
 
 ### StatefulOnlineClustering
-As the data is coming in a streaming fashion, so to cluster them we need an iterative clustering algorithm like BIRCH. As, the algorithm is iterative, we need a mechanism to store the previous state so that when a twitter text arrives, it can be updated accordingly.  * Stateful Processing * enables a `DoFn` to have persistent state which can be read and written during the processing of each element. One can read about Stateful Processing in the official documentation from Beam: [Link](https://beam.apache.org/blog/stateful-processing/).
+As the data is coming in a streaming fashion, so to cluster them we need an iterative clustering algorithm like BIRCH. As, the algorithm is iterative, we need a mechanism to store the previous state so that when a twitter text arrives, it can be updated accordingly.  **Stateful Processing** enables a `DoFn` to have persistent state which can be read and written during the processing of each element. One can read about Stateful Processing in the official documentation from Beam: [Link](https://beam.apache.org/blog/stateful-processing/).
 
 In this example, every time a new message is Read from PubSub, we retrieve the existing state of the clustering model, update it and write it back to the state.
 
