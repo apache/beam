@@ -125,58 +125,33 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### All migrated workflows run based on the following triggers
+
+| Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
+|-------------|------------------|-----------------------|---------------|-------------------|
+| PostCommit  | No               | Yes                   | Yes           | Yes               |
+| PreCommit   | Yes              | Yes                   | Yes           | Yes               |
+
 ### PreCommit Workflows
+| Workflow                                                                                                 | Description                                                                  | Requires GCP Credentials |
+|----------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|--------------------------|
+| [job-precommit-java-debezium-io-direct.yml](.github/workflows/job-precommit-java-debezium-io-direct.yml) | Runs Java SDK Debezium IO unit tests and integration tests with DirectRunner | No                       |
+| [job-precommit-java-jdbc-io-direct.yml](.github/workflows/job-precommit-java-jdbc-io-direct.yml)         | Runs Java SDK JDBC IO unit tests and integration tests with DirectRunner     | No                       |
+| [job-precommit-java-jms-io-direct.yml](.github/workflows/job-precommit-java-jms-io-direct.yml)           | Runs Java SDK JMS IO unit tests                                              | No                       |
+| [job-precommit-java-kafka-io-direct.yml](.github/workflows/job-precommit-java-kafka-io-direct.yml)       | Runs Java SDK Kafka IO unit tests and integration tests with DirectRunner    | No                       |
+| [job-precommit-java-kinesis-io-direct.yml](.github/workflows/job-precommit-java-kinesis-io-direct.yml)   | Runs Java SDK Kinesis IO unit tests and integration tests with DirectRunner  | No                       |
+| [job-precommit-java-kudu-io-direct.yml](.github/workflows/job-precommit-java-kudu-io-direct.yml)         | Runs Java SDK Kudu IO unit tests                                             | No                       |
+| [job-precommit-java-mongodb-io-direct.yml](.github/workflows/job-precommit-java-mongodb-io-direct.yml)   | Runs Java SDK MongoDB IO unit tests                                          | No                       |
+| [job-precommit-java-neo4j-io-direct.yml](.github/workflows/job-precommit-java-neo4j-io-direct.yml)       | Runs Java SDK Neo4j IO unit tests and integration tests with DirectRunner    | No                       |
 
-#### Java Debezium IO Direct - [job-precommit-java-debezium-io-direct.yml](.github/workflows/job-precommit-java-debezium-io-direct.yml)
-
-| Job                         | Description                                                                  | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------------------|------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java Debezium IO Direct | Runs Java SDK Debezium IO unit tests and integration tests with DirectRunner | Yes              | Yes                   | Yes           | No                       |
-
-#### Java JDBC IO Direct - [job-precommit-java-jdbc-io-direct.yml](.github/workflows/job-precommit-java-jdbc-io-direct.yml)
-
-| Job                     | Description                                                              | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-------------------------|--------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java JDBC IO Direct | Runs Java SDK JDBC IO unit tests and integration tests with DirectRunner | Yes              | Yes                   | Yes           | No                       |
-
-#### Java JMS IO Direct - [job-precommit-java-jms-io-direct.yml](.github/workflows/job-precommit-java-jms-io-direct.yml)
-
-| Job                    | Description                     | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|------------------------|---------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java JMS IO Direct | Runs Java SDK JMS IO unit tests | Yes              | Yes                   | Yes           | No                       |
-
-#### Java Kafka IO Direct - [job-precommit-java-kafka-io-direct.yml](.github/workflows/job-precommit-java-kafka-io-direct.yml)
-
-| Job                      | Description                                                               | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|--------------------------|---------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java Kafka IO Direct | Runs Java SDK Kafka IO unit tests and integration tests with DirectRunner | Yes              | Yes                   | Yes           | No                       |
-
-#### Java Kinesis IO Direct - [job-precommit-java-kinesis-io-direct.yml](.github/workflows/job-precommit-java-kinesis-io-direct.yml)
-
-| Job                        | Description                                                                 | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|----------------------------|-----------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java Kinesis IO Direct | Runs Java SDK Kinesis IO unit tests and integration tests with DirectRunner | Yes              | Yes                   | Yes           | No                       |
-
-#### Java Kudu IO Direct - [job-precommit-java-kudu-io-direct.yml](.github/workflows/job-precommit-java-kudu-io-direct.yml)
-
-| Job                     | Description                      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-------------------------|----------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java Kudu IO Direct | Runs Java SDK Kudu IO unit tests | Yes              | Yes                   | Yes           | No                       |
-
-#### Java MongoDB IO Direct - [job-precommit-java-mongodb-io-direct.yml](.github/workflows/job-precommit-java-mongodb-io-direct.yml)
-
-| Job                        | Description                         | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|----------------------------|-------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java MongoDB IO Direct | Runs Java SDK MongoDB IO unit tests | Yes              | Yes                   | Yes           | No                       |
-
-#### Java Neo4j IO Direct - [job-precommit-java-neo4j-io-direct.yml](.github/workflows/job-precommit-java-neo4j-io-direct.yml)
-
-| Job                      | Description                                                               | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|--------------------------|---------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Java Neo4j IO Direct | Runs Java SDK Neo4j IO unit tests and integration tests with DirectRunner | Yes              | Yes                   | Yes           | No                       |
+### PostCommit Workflows
+| Workflow                                                                           | Description             | Requires GCP Credentials |
+|------------------------------------------------------------------------------------|-------------------------|--------------------------|
+| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
 
 ### GitHub Action Tips
 
+* All migrated workflows get executed on **pre-configured self-hosted** runners. For this reason, GCP credentials are **only** needed when running the workflows in a different runner.
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
 In this case please attach link to the modified workflow run executed on your fork.
 * Possible timeouts with macOS runner - existing issue: [(X) This check failed - sometimes happens on macOS runner #841](https://github.com/actions/virtual-environments/issues/841)

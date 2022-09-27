@@ -20,6 +20,7 @@
 name: Java Kafka IO Direct
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
   push:
