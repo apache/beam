@@ -28,7 +28,6 @@ from pipeline.utils import ConvertToPubSubMessage
 from pipeline.utils import get_dataset
 
 
-
 def parse_arguments(argv):
   """
     It parses the arguments passed to the command line and returns them as an object
