@@ -32,6 +32,8 @@ cython<1
 # some versions of libraries that lauch Beam pipelines, like tensorflow-transform.
 # Leaving 'future' in our containers for now prevent breaking tft users.
 future
+# TODO: Remove the upper bound once Tensorflow 2.11 is released.
+# https://github.com/apache/beam/issues/23355
 google-cloud-profiler<4.0.0
 google-python-cloud-debugger
 guppy3  # Memory profiler
