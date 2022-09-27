@@ -6,8 +6,6 @@ env:
   BEAM_ROOT_DIR: ../../
   BEAM_EXAMPLE_CATEGORIES: ../categories.yaml
   BEAM_VERSION: 2.40.0
-  K8S_NAMESPACE: playground-backend
-  HELM_APP_NAME: playground-backend
   DOCKERTAG: beta
 jobs:
   deployBackend:
