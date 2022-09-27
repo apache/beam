@@ -186,7 +186,7 @@ public class SpannerAccessor implements AutoCloseable {
     String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
     builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
     ValueProvider<String> databaseRole = spannerConfig.getDatabaseRole();
-    if (databaseRole != null && !databaseRole.get().isEmpty()){
+    if (databaseRole != null && !databaseRole.get().isEmpty()) {
       builder.setDatabaseRole(databaseRole.get());
     }
     SpannerOptions options = builder.build();
