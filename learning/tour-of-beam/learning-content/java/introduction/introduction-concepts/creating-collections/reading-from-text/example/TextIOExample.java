@@ -22,6 +22,7 @@
 //   context_line: 36
 //   categories:
 //     - Quickstart
+//   complexity: BASIC
 
 package org.apache.beam.examples;
 

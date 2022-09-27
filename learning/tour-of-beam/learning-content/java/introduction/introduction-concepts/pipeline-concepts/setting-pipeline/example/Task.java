@@ -24,6 +24,7 @@
 //   context_line: 33
 //   categories:
 //     - Quickstart
+//   complexity: BASIC
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;

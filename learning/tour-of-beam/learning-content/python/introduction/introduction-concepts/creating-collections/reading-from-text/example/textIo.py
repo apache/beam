@@ -21,6 +21,7 @@
 #   context_line: 43
 #   categories:
 #     - Quickstart
+#   complexity: BASIC
 
 import apache_beam as beam
 

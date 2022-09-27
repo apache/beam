@@ -23,6 +23,7 @@
 //   context_line: 50
 //   categories:
 //     - Quickstart
+//   complexity: BASIC
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;

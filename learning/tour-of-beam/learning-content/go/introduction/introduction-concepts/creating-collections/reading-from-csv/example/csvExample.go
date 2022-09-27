@@ -23,6 +23,7 @@
 //   context_line: 44
 //   categories:
 //     - Quickstart
+//   complexity: BASIC
 
 package main
 

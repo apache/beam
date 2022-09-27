@@ -21,6 +21,7 @@
 //   pipeline_options: --output output.txt
 //   categories:
 //     - Quickstart
+//   complexity: BASIC
 
 package main
 

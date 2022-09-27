@@ -22,6 +22,7 @@
 #   categories:
 #     - Quickstart
 #   context_line: 47
+#   complexity: BASIC
 
 import argparse
 import logging
