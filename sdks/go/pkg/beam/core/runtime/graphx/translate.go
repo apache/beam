@@ -176,8 +176,6 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pipepb.Pipeline, error) {
 		return nil, err
 	}
 
-	AddFakeImpulses(p)
-
 	// If there are external transforms that need expanding, do it now.
 	if m.needsExpansion {
 		// Merge the expanded components into the existing pipeline
