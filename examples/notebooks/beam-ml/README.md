@@ -30,7 +30,7 @@ scikit-learn.
 
 These notebooks illustrate usages of Beam's RunInference, as well as different
 usages of implementations of [ModelHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler).
-Beam comes with various implementations of ModelHandler. 
+Beam comes with various implementations of ModelHandler.
 
 ### Loading the Notebooks
 
