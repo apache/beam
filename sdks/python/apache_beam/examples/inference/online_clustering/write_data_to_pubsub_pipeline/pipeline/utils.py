@@ -54,7 +54,6 @@ def get_dataset(categories: list, split: str = "train"):
 
 class AssignUniqueID(beam.DoFn):
   """A DoFn for assigning Unique ID to each text."""
-
   def process(self, element, *args, **kwargs):
     uid = str(uuid.uuid4())
     yield {"id": uid, "text": element}
@@ -62,7 +61,6 @@ class AssignUniqueID(beam.DoFn):
 
 class ConvertToPubSubMessage(beam.DoFn):
   """A DoFn for converting into PubSub message format."""
-
   def process(self, element, *args, **kwargs):
     yield PubsubMessage(
         data=element["text"].encode("utf-8"), attributes={"id": element["id"]})

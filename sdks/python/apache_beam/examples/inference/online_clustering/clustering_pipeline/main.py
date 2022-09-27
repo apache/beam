@@ -75,7 +75,6 @@ class PytorchNoBatchModelHandler(PytorchModelHandlerKeyedTensor):
     Restricting max_batch_size to 1 means there is only 1 example per `batch`
     in the run_inference() call.
     """
-
   def batch_elements_kwargs(self):
     return {"max_batch_size": 1}
 
