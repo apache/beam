@@ -28,7 +28,7 @@ class SdkDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: getSdks(),
+      future: kGetSdks(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return Container();
         final sdks = SdkListModel.fromJson(snapshot.data!).sdks;

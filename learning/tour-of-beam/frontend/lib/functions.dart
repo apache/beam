@@ -22,7 +22,7 @@ import 'package:http/http.dart' as http;
 
 // TODO(nausharipov): remove after demo
 
-Future<Map<String, dynamic>> getSdks() async {
+Future<Map<String, dynamic>> kGetSdks() async {
   final response = await http.get(
     Uri.parse(
       'https://us-central1-tour-of-beam-2.cloudfunctions.net/getSdkList',
@@ -32,7 +32,7 @@ Future<Map<String, dynamic>> getSdks() async {
   return decodedResponse;
 }
 
-Future<Map<String, dynamic>> getContentTree() async {
+Future<Map<String, dynamic>> kGetContentTree() async {
   final response = await http.get(
     Uri.parse(
       'https://us-central1-tour-of-beam-2.cloudfunctions.net/getContentTree?sdk=Python',

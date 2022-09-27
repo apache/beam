@@ -107,7 +107,7 @@ class _ContentTree extends StatelessWidget {
       width: 250,
       padding: const EdgeInsets.symmetric(horizontal: BeamSizes.size12),
       child: FutureBuilder(
-        future: getContentTree(),
+        future: kGetContentTree(),
         builder: (context, snapshot) => snapshot.data == null
             ? Container()
             : SingleChildScrollView(

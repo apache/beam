@@ -114,7 +114,7 @@ class _SdkSelection extends StatelessWidget {
                 const _IntroText(),
                 const SizedBox(height: BeamSizes.size32),
                 FutureBuilder(
-                  future: getSdks(),
+                  future: kGetSdks(),
                   builder: (context, snapshot) => snapshot.data == null
                       ? Container()
                       : _Buttons(
@@ -141,7 +141,7 @@ class _TourSummary extends StatelessWidget {
         horizontal: 27,
       ),
       child: FutureBuilder(
-        future: getContentTree(),
+        future: kGetContentTree(),
         builder: (context, snapshot) {
           if (snapshot.data == null) return Container();
           final modules = ContentTreeModel.fromJson(snapshot.data!).modules;
