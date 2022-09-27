@@ -66,6 +66,7 @@
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Added support for Zstd compression to the Python SDK.
 * Added support for stateful DoFns to the Go SDK.
+* Name all Java threads to aid in debugging([#23049](https://github.com/apache/beam/issues/23049)).
 
 ## Breaking Changes
 
