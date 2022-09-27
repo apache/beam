@@ -17,49 +17,47 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.fun1;
 
 import java.util.Collection;
-import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
+import java.util.Iterator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoder;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class FlattenTranslatorBatch<T>
-    implements TransformTranslator<PTransform<PCollectionList<T>, PCollection<T>>> {
+    extends TransformTranslator<PCollectionList<T>, PCollection<T>, Flatten.PCollections<T>> {
 
   @Override
-  public void translateTransform(
-      PTransform<PCollectionList<T>, PCollection<T>> transform,
-      AbstractTranslationContext context) {
-    Collection<PCollection<?>> pcollectionList = context.getInputs().values();
-    Dataset<WindowedValue<T>> result = null;
-    if (pcollectionList.isEmpty()) {
-      result = context.emptyDataset();
-    } else {
-      for (PValue pValue : pcollectionList) {
-        checkArgument(
-            pValue instanceof PCollection,
-            "Got non-PCollection input to flatten: %s of type %s",
-            pValue,
-            pValue.getClass().getSimpleName());
-        @SuppressWarnings("unchecked")
-        PCollection<T> pCollection = (PCollection<T>) pValue;
-        Dataset<WindowedValue<T>> current = context.getDataset(pCollection);
-        if (result == null) {
-          result = current;
-        } else {
-          result = result.union(current);
-        }
+  public void translate(Flatten.PCollections<T> transform, Context cxt) {
+    Collection<PCollection<?>> pCollections = cxt.getInputs().values();
+    Coder<T> outputCoder = cxt.getOutput().getCoder();
+    Encoder<WindowedValue<T>> outputEnc =
+        cxt.windowedEncoder(outputCoder, windowCoder(cxt.getOutput()));
+
+    Dataset<WindowedValue<T>> result;
+    Iterator<PCollection<T>> pcIt = (Iterator) pCollections.iterator();
+    if (pcIt.hasNext()) {
+      result = getDataset(pcIt.next(), outputCoder, outputEnc, cxt);
+      while (pcIt.hasNext()) {
+        result = result.union(getDataset(pcIt.next(), outputCoder, outputEnc, cxt));
       }
+    } else {
+      result = cxt.createDataset(ImmutableList.of(), outputEnc);
     }
-    context.putDataset(context.getOutput(), result);
+    cxt.putDataset(cxt.getOutput(), result);
+  }
+
+  private Dataset<WindowedValue<T>> getDataset(
+      PCollection<T> pc, Coder<T> coder, Encoder<WindowedValue<T>> enc, Context cxt) {
+    Dataset<WindowedValue<T>> current = cxt.getDataset(pc);
+    // if coders don't match, map using identity function to replace encoder
+    return pc.getCoder().equals(coder) ? current : current.map(fun1(v -> v), enc);
   }
 }

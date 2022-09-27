@@ -227,5 +227,34 @@ func (d *DatastoreDb) SaveContentTrees(ctx context.Context, trees []tob.ContentT
 	return nil
 }
 
+// Get learning unit content by unitId
+func (d *DatastoreDb) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (unit *tob.Unit, err error) {
+	var tbNodes []TbLearningNode
+	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(sdk), nil)
+
+	query := datastore.NewQuery(TbLearningNodeKind).
+		Namespace(PgNamespace).
+		Ancestor(rootKey).
+		FilterField("id", "=", unitId)
+
+	_, err = d.Client.GetAll(ctx, query, &tbNodes)
+	if err != nil {
+		return nil, fmt.Errorf("query unit failed: %w", err)
+	}
+
+	switch {
+	case len(tbNodes) == 0:
+		return nil, nil
+	case len(tbNodes) > 1:
+		return nil, fmt.Errorf("query by unitId returned %v units", len(tbNodes))
+	}
+
+	node := FromDatastoreNode(tbNodes[0])
+	if node.Type != tob.NODE_UNIT {
+		return nil, fmt.Errorf("wrong node type: %v, unit expected", node.Type)
+	}
+	return node.Unit, nil
+}
+
 // check if the interface is implemented.
 var _ Iface = &DatastoreDb{}

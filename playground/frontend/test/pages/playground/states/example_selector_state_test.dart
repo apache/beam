@@ -18,30 +18,34 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/pages/playground/states/example_loaders/examples_loader.dart';
+import 'package:playground_components/src/models/example_base.dart';
+import 'package:playground_components/src/controllers/example_loaders/examples_loader.dart';
 import 'package:playground/pages/playground/states/example_selector_state.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/src/cache/example_cache.dart';
+import 'package:playground_components/src/controllers/playground_controller.dart';
 
 import 'example_selector_state_test.mocks.dart';
-import 'mocks/categories_mock.dart';
-import 'mocks/example_repository_mock.dart';
+import '../../../../playground_components/test/src/common/categories.dart';
+import '../../../../playground_components/test/src/common/example_repository_mock.dart';
 
 @GenerateMocks([ExamplesLoader])
 void main() {
-  late PlaygroundState playgroundState;
-  late ExampleState exampleState;
+  late PlaygroundController playgroundController;
+  late ExampleCache exampleCache;
   late ExampleSelectorState state;
   final mockExampleRepository = getMockExampleRepository();
 
   setUp(() {
-    exampleState = ExampleState(mockExampleRepository);
-    playgroundState = PlaygroundState(
-      examplesLoader: MockExamplesLoader(),
-      exampleState: exampleState,
+    exampleCache = ExampleCache(
+      exampleRepository: mockExampleRepository,
+      hasCatalog: true,
     );
-    state = ExampleSelectorState(playgroundState, []);
+
+    playgroundController = PlaygroundController(
+      examplesLoader: MockExamplesLoader(),
+      exampleCache: exampleCache,
+    );
+    state = ExampleSelectorState(playgroundController, []);
   });
 
   test(
@@ -95,7 +99,7 @@ void main() {
       '- affect Example state categories', () {
     state.addListener(() {
       expect(state.categories, []);
-      expect(exampleState.sdkCategories, exampleState.sdkCategories);
+      expect(exampleCache.categoryListsBySdk, exampleCache.categoryListsBySdk);
     });
     state.sortCategories();
   });
@@ -107,12 +111,12 @@ void main() {
       'but should NOT:'
       '- affect Example state categories', () {
     final state = ExampleSelectorState(
-      playgroundState,
+      playgroundController,
       categoriesMock,
     );
     state.addListener(() {
       expect(state.categories, examplesSortedByTypeMock);
-      expect(exampleState.sdkCategories, exampleState.sdkCategories);
+      expect(exampleCache.categoryListsBySdk, exampleCache.categoryListsBySdk);
     });
     state.sortExamplesByType(unsortedExamples, ExampleType.kata);
   });
@@ -126,12 +130,12 @@ void main() {
       '- be sensitive for register,'
       '- affect Example state categories', () {
     final state = ExampleSelectorState(
-      playgroundState,
+      playgroundController,
       categoriesMock,
     );
     state.addListener(() {
       expect(state.categories, examplesSortedByNameMock);
-      expect(exampleState.sdkCategories, exampleState.sdkCategories);
+      expect(exampleCache.categoryListsBySdk, exampleCache.categoryListsBySdk);
     });
     state.sortExamplesByName(unsortedExamples, 'X1');
   });

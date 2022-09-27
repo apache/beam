@@ -242,7 +242,7 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
     Returns:
         Parsed Example object.
     """
-    name = _get_name(filename)
+    name = tag.tag_as_dict[TagFields.name]
     sdk = Config.EXTENSION_TO_SDK[filename.split(os.extsep)[-1]]
     object_type = _get_object_type(filename, filepath)
     with open(filepath, encoding="utf-8") as parsed_file:
@@ -425,13 +425,12 @@ def validate_examples_for_duplicates_by_name(examples: List[Example]):
     Validate examples for duplicates by example name to avoid duplicates in the Cloud Datastore
     :param examples: examples from the repository for saving to the Cloud Datastore
     """
-    example_names = list(map(lambda example: example.name, examples))
-    duplicates = []
-    for name in example_names:
-        if name not in duplicates:
-            duplicates.append(name)
+    duplicates = {str: Example}
+    for example in examples:
+        if example.name not in duplicates.keys():
+            duplicates[example.name] = example
         else:
-            err_msg = f"Examples have duplicate names, duplicates: {name}"
+            err_msg = f"Examples have duplicate names.\nDuplicates: \n - path #1: {duplicates[example.name].filepath} \n - path #2: {example.filepath}"
             logging.error(err_msg)
             raise ValidationException(err_msg)
 

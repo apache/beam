@@ -36,6 +36,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
+	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/db"
 	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
@@ -43,18 +44,16 @@ import (
 	"beam.apache.org/playground/backend/internal/db/schema"
 	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/tests/test_cleaner"
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
 const (
-	bufSize                    = 1024 * 1024
-	javaConfig                 = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
-	javaLogConfigFilename      = "logging.properties"
-	baseFileFolder             = "executable_files"
-	configFolder               = "configs"
-	datastoreEmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
-	datastoreEmulatorHostValue = "127.0.0.1:8888"
-	datastoreEmulatorProjectId = "test"
+	bufSize               = 1024 * 1024
+	javaConfig            = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	javaLogConfigFilename = "logging.properties"
+	baseFileFolder        = "executable_files"
+	configFolder          = "configs"
 )
 
 var lis *bufconn.Listener
@@ -97,13 +96,13 @@ func setup() *grpc.Server {
 	cacheService = local.New(ctx)
 
 	// setup database
-	datastoreEmulatorHost := os.Getenv(datastoreEmulatorHostKey)
+	datastoreEmulatorHost := os.Getenv(constants.EmulatorHostKey)
 	if datastoreEmulatorHost == "" {
-		if err = os.Setenv(datastoreEmulatorHostKey, datastoreEmulatorHostValue); err != nil {
+		if err = os.Setenv(constants.EmulatorHostKey, constants.EmulatorHostValue); err != nil {
 			panic(err)
 		}
 	}
-	dbClient, err = datastoreDb.New(ctx, datastoreEmulatorProjectId)
+	dbClient, err = datastoreDb.New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	if err != nil {
 		panic(err)
 	}
@@ -119,10 +118,13 @@ func setup() *grpc.Server {
 	if err = os.Setenv("APP_WORK_DIR", path); err != nil {
 		panic(err)
 	}
-	if err = os.Setenv("SDK_CONFIG", "../../../sdks.yaml"); err != nil {
+	if err = os.Setenv("SDK_CONFIG", "../../../sdks-emulator.yaml"); err != nil {
 		panic(err)
 	}
 	if err = os.Setenv("PROPERTY_PATH", "../../."); err != nil {
+		panic(err)
+	}
+	if err = os.Setenv(constants.DatastoreNamespaceKey, "main"); err != nil {
 		panic(err)
 	}
 
@@ -156,7 +158,7 @@ func setup() *grpc.Server {
 	}
 	appEnv.SetSchemaVersion(actualSchemaVersion)
 
-	entityMapper := mapper.New(appEnv, props)
+	entityMapper := mapper.NewDatastoreMapper(ctx, appEnv, props)
 
 	pb.RegisterPlaygroundServiceServer(s, &playgroundController{
 		env:          environment.NewEnvironment(*networkEnv, *sdkEnv, *appEnv),
@@ -866,6 +868,8 @@ func TestPlaygroundController_SaveSnippet(t *testing.T) {
 				if len(got.Id) != 11 {
 					t.Errorf("PlaygroundController_SaveSnippet() unexpected generated ID")
 				}
+				test_cleaner.CleanFiles(ctx, t, got.Id, 1)
+				test_cleaner.CleanSnippet(ctx, t, got.Id)
 			}
 		})
 	}
@@ -882,10 +886,11 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 		info *pb.GetSnippetRequest
 	}
 	tests := []struct {
-		name    string
-		args    args
-		prepare func()
-		wantErr bool
+		name      string
+		args      args
+		prepare   func()
+		wantErr   bool
+		cleanData func()
 	}{
 		// Test case with calling GetSnippet method with ID that is not in the database.
 		// As a result, want to receive an error.
@@ -895,8 +900,9 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 				ctx:  ctx,
 				info: &pb.GetSnippetRequest{Id: "MOCK_ID_G"},
 			},
-			prepare: func() {},
-			wantErr: true,
+			prepare:   func() {},
+			wantErr:   true,
+			cleanData: func() {},
 		},
 		// Test case with calling GetSnippet method with a correct ID.
 		// As a result, want to receive a snippet entity.
@@ -911,10 +917,10 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 					&entity.Snippet{
 						Snippet: &entity.SnippetEntity{
 							OwnerId:       "",
-							Sdk:           utils.GetNameKey(datastoreDb.SdkKind, pb.Sdk_SDK_JAVA.String(), datastoreDb.Namespace, nil),
+							Sdk:           utils.GetSdkKey(ctx, pb.Sdk_SDK_JAVA.String()),
 							PipeOpts:      "MOCK_OPTIONS",
 							Created:       nowDate,
-							Origin:        "PG_USER",
+							Origin:        constants.UserSnippetOrigin,
 							NumberOfFiles: 1,
 						},
 						Files: []*entity.FileEntity{{
@@ -925,6 +931,10 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 				)
 			},
 			wantErr: false,
+			cleanData: func() {
+				test_cleaner.CleanFiles(ctx, t, "MOCK_ID", 1)
+				test_cleaner.CleanSnippet(ctx, t, "MOCK_ID")
+			},
 		},
 	}
 
@@ -940,6 +950,7 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 					t.Errorf("PlaygroundController_GetSnippet() unexpected response")
 				}
 			}
+			tt.cleanData()
 		})
 	}
 }

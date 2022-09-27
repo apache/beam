@@ -15,7 +15,7 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: WordCount
+#   name: WordCountKata
 #   description: Task from katas to create a pipeline that counts the number of words.
 #   multifile: false
 #   context_line: 29
