@@ -129,7 +129,7 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 #### Verify Release Build - [verify_release_build.yml](.github/workflows/verify_release_build.yml)
 | Job                          | Description                                                                                   | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
 |------------------------------|-----------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
-| Verify Release Build         | Verifies the release branch, creates a PR and comments Trigger Phrases.                       | No               | No                    | No            | No                       |
+| Verify Release Build         | Verifies full life cycle of Gradle Build and all PostCommit/PreCommit tests against Release Branch on Jenkins.                   | No               | No                    | No            | No                       |
 
 
 ### All migrated workflows run based on the following triggers
