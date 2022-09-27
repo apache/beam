@@ -31,8 +31,6 @@ jobs:
              echo "${{ secrets.S3D_GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
              which gcloud
              gcloud auth activate-service-account --project=${{ secrets.S3D_GCP_PLAYGROUND_PROJECT_ID }} --key-file=/tmp/gcp_access.json
-      - name: create static ip
-        run: gcloud compute addresses create ${{ secrets.S3D_GCP_PLAYGROUND_PROJECT_ID }}-static --global
       - name: Update variables
         run: |
              echo "redis_ip: $(gcloud redis instances list --region us-central1 --format="value(host)"):6379" >> playground/infrastructure/helm-backend/values.yaml
