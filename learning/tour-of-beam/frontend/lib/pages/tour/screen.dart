@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
+import 'dart:convert';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:http/http.dart' as http;
 import 'package:playground_components/playground_components.dart';
 
 import '../../components/expansion_tile_wrapper.dart';
@@ -100,106 +103,38 @@ class _NarrowTour extends StatelessWidget {
 class _ContentTree extends StatelessWidget {
   const _ContentTree();
 
-  static const _contentTreeJson = {
-    'sdkId': 'python',
-    'modules': [
-      {
-        'id': 'introduction',
-        'title': 'Introduction',
-        'complexity': 'BASIC',
-        'nodes': [
-          {
-            'type': 'unit',
-            'unit': {'id': 'guide', 'title': 'Tour of Beam Guide'}
-          },
-          {
-            'type': 'group',
-            'group': {
-              'title': 'Beam Concepts',
-              'nodes': [
-                {
-                  'type': 'unit',
-                  'unit': {'id': 'runner-concepts', 'title': 'Runners'}
-                },
-                {
-                  'type': 'group',
-                  'group': {
-                    'title': 'Pipeline concepts',
-                    'nodes': [
-                      {
-                        'type': 'unit',
-                        'unit': {
-                          'id': 'creating-pipeline',
-                          'title': 'Creating pipelines'
-                        }
-                      },
-                      {
-                        'type': 'unit',
-                        'unit': {
-                          'id': 'setting-pipeline',
-                          'title': 'Configuring pipeline options'
-                        }
-                      }
-                    ]
-                  }
-                },
-                {
-                  'type': 'group',
-                  'group': {
-                    'title': 'Creating Collections',
-                    'nodes': [
-                      {
-                        'type': 'unit',
-                        'unit': {
-                          'id': 'from-memory',
-                          'title': 'Creating in-memory PCollections'
-                        }
-                      },
-                      {
-                        'type': 'unit',
-                        'unit': {
-                          'id': 'from-text',
-                          'title': 'Creating PCollections from text files'
-                        }
-                      },
-                      {
-                        'type': 'unit',
-                        'unit': {
-                          'id': 'from-csv',
-                          'title': 'Creating PCollections from csv files'
-                        }
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          },
-          {
-            'type': 'unit',
-            'unit': {'id': 'terms', 'title': 'List of Beam Terms'}
-          }
-        ]
-      }
-    ]
-  };
+  // TODO(nausharipov): remove after demo
+  Future<Map<String, dynamic>> _getContentTree() async {
+    final response = await http.get(
+      Uri.parse(
+        'https://us-central1-tour-of-beam-2.cloudfunctions.net/getContentTree?sdk=Python',
+      ),
+    );
+    final decodedResponse = jsonDecode(utf8.decode(response.bodyBytes));
+    return decodedResponse;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 250,
       padding: const EdgeInsets.symmetric(horizontal: BeamSizes.size12),
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            const _ContentTreeTitle(),
-            ...ContentTreeModel.fromJson(_contentTreeJson)
-                .modules
-                .map((module) => _Module(module: module))
-                .toList(growable: false),
-            const SizedBox(height: BeamSizes.size12),
-          ],
-        ),
+      child: FutureBuilder(
+        future: _getContentTree(),
+        builder: (context, snapshot) => snapshot.data == null
+            ? Container()
+            : SingleChildScrollView(
+                child: Column(
+                  children: [
+                    const _ContentTreeTitle(),
+                    ...ContentTreeModel.fromJson(snapshot.data!)
+                        .modules
+                        .map((module) => _Module(module: module))
+                        .toList(growable: false),
+                    const SizedBox(height: BeamSizes.size12),
+                  ],
+                ),
+              ),
       ),
     );
   }

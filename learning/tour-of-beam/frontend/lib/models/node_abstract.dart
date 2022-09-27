@@ -29,8 +29,9 @@ abstract class NodeModel {
   final String title;
   const NodeModel({required this.type, required this.title});
 
-  static List<NodeModel> nodesFromServer(List<Map<String, dynamic>> json) {
+  static List<NodeModel> nodesFromServer(List json) {
     return json
+        .map<Map<String, dynamic>>((map) => map)
         .map<NodeServerModel>(NodeServerModel.fromJson)
         .map(_nodeFromServer)
         .toList();

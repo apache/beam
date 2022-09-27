@@ -16,10 +16,13 @@
  * limitations under the License.
  */
 
+import 'dart:convert';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:http/http.dart' as http;
 import 'package:playground_components/playground_components.dart';
 
 import '../../components/filler_text.dart';
@@ -85,6 +88,17 @@ class _SdkSelection extends StatelessWidget {
 
   static const double _minimalHeight = 900;
 
+  // TODO(nausharipov): remove after demo
+  Future<Map<String, dynamic>> _getSdks() async {
+    final response = await http.get(
+      Uri.parse(
+        'https://us-central1-tour-of-beam-2.cloudfunctions.net/getSdkList',
+      ),
+    );
+    final decodedResponse = jsonDecode(utf8.decode(response.bodyBytes));
+    return decodedResponse;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -109,10 +123,17 @@ class _SdkSelection extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(50, 60, 50, 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                _IntroText(),
-                SizedBox(height: BeamSizes.size32),
-                _Buttons(),
+              children: [
+                const _IntroText(),
+                const SizedBox(height: BeamSizes.size32),
+                FutureBuilder(
+                  future: _getSdks(),
+                  builder: (context, snapshot) => snapshot.data == null
+                      ? Container()
+                      : _Buttons(
+                          sdkList: SdkListModel.fromJson(snapshot.data!),
+                        ),
+                ),
               ],
             ),
           ),
@@ -125,43 +146,40 @@ class _SdkSelection extends StatelessWidget {
 class _TourSummary extends StatelessWidget {
   const _TourSummary();
 
+  // TODO(nausharipov): remove after demo
+  Future<Map<String, dynamic>> _getContentTree() async {
+    final response = await http.get(
+      Uri.parse(
+        'https://us-central1-tour-of-beam-2.cloudfunctions.net/getContentTree?sdk=Python',
+      ),
+    );
+    final decodedResponse = jsonDecode(utf8.decode(response.bodyBytes));
+    return decodedResponse;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final contentTreeJson = {
-      'sdkId': 'Python',
-      'modules': [
-        'Core Transforms',
-        'Common Transforms',
-        'IO',
-        'Windowing',
-        'Triggers',
-      ]
-          .map(
-            (module) => {
-              'id': 'introduction',
-              'title': module,
-              'complexity': 'BASIC',
-              'nodes': <Map<String, dynamic>>[],
-            },
-          )
-          .toList(),
-    };
-
-    final modules = ContentTreeModel.fromJson(contentTreeJson).modules;
     return Padding(
       padding: const EdgeInsets.symmetric(
         vertical: BeamSizes.size20,
         horizontal: 27,
       ),
-      child: Column(
-        children: modules
-            .map(
-              (module) => _Module(
-                module: module,
-                isLast: module == modules.last,
-              ),
-            )
-            .toList(growable: false),
+      child: FutureBuilder(
+        future: _getContentTree(),
+        builder: (context, snapshot) {
+          if (snapshot.data == null) return Container();
+          final modules = ContentTreeModel.fromJson(snapshot.data!).modules;
+          return Column(
+            children: modules
+                .map(
+                  (module) => _Module(
+                    module: module,
+                    isLast: module == modules.last,
+                  ),
+                )
+                .toList(growable: false),
+          );
+        },
       ),
     );
   }
@@ -215,7 +233,8 @@ class _IntroText extends StatelessWidget {
 }
 
 class _Buttons extends StatelessWidget {
-  const _Buttons();
+  final SdkListModel sdkList;
+  const _Buttons({required this.sdkList});
 
   void _onSdkChanged(String value) {
     // TODO(nausharipov): change sdk
@@ -226,17 +245,10 @@ class _Buttons extends StatelessWidget {
     return Wrap(
       children: [
         Wrap(
-          children: SdkListModel.fromJson({
-            'sdks': [
-              {'id': 'java', 'title': 'Java'},
-              {'id': 'python', 'title': 'Python'},
-              {'id': 'go', 'title': 'Go'},
-              {'id': 'scio', 'title': 'SCIO'}
-            ]
-          })
-              .sdks
+          children: sdkList.sdks
               .map(
                 (sdk) => _SdkButton(
+                  title: sdk.title,
                   value: sdk.id,
                   groupValue: _sdk,
                   onChanged: _onSdkChanged,
@@ -258,11 +270,13 @@ class _Buttons extends StatelessWidget {
 }
 
 class _SdkButton extends StatelessWidget {
+  final String title;
   final String value;
   final String groupValue;
   final ValueChanged<String> onChanged;
 
   const _SdkButton({
+    required this.title,
     required this.value,
     required this.groupValue,
     required this.onChanged,
@@ -282,7 +296,7 @@ class _SdkButton extends StatelessWidget {
         onPressed: () {
           onChanged(value);
         },
-        child: Text(value),
+        child: Text(title),
       ),
     );
   }

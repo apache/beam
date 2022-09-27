@@ -38,6 +38,7 @@ dependencies:
   flutter_svg: ^1.0.3
   get_it: ^7.2.0
   google_fonts: ^3.0.1
+  http: ^0.13.5
   json_annotation: ^4.7.0
   playground_components: { path: ../../../playground/frontend/playground_components }
   provider: ^6.0.3

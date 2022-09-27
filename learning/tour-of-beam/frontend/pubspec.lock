@@ -370,12 +370,12 @@ packages:
     source: hosted
     version: "0.7.0"
   http:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.13.4"
+    version: "0.13.5"
   http2:
     dependency: transitive
     description:
