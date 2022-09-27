@@ -210,8 +210,16 @@ final class FirestoreTestingHelper implements TestRule {
     return documentGenerator(to, collectionId, false);
   }
 
+  DocumentGenerator documentGenerator(int from, int to, String collectionId) {
+    return documentGenerator(from, to, collectionId, false);
+  }
+
   DocumentGenerator documentGenerator(int to, String collectionId, boolean addBazDoc) {
-    return new DocumentGenerator(to, collectionId, addBazDoc);
+    return documentGenerator(1, to, collectionId, addBazDoc);
+  }
+
+  DocumentGenerator documentGenerator(int from, int to, String collectionId, boolean addBazDoc) {
+    return new DocumentGenerator(from, to, collectionId, addBazDoc);
   }
 
   Stream<String> listCollectionIds(String parent) {
@@ -328,10 +336,10 @@ final class FirestoreTestingHelper implements TestRule {
     private final String collectionId;
     private final boolean addBazDoc;
 
-    private DocumentGenerator(int to, String collectionId, boolean addBazDoc) {
+    private DocumentGenerator(int from, int to, String collectionId, boolean addBazDoc) {
       this.documentIds =
           Collections.unmodifiableList(
-              IntStream.rangeClosed(1, to).mapToObj(i -> docId()).collect(Collectors.toList()));
+              IntStream.rangeClosed(from, to).mapToObj(i -> docId()).collect(Collectors.toList()));
       this.collectionId = collectionId;
       this.addBazDoc = addBazDoc;
     }
