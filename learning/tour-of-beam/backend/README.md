@@ -54,3 +54,110 @@ __Kinds__
   key: `<SDK>_<persistentID>`
 
   parentKey: parent module/group key
+
+
+### Deployment
+Prerequisites:
+ - GCP project with enabled Billing API & Cloud Functions API
+ - set environment PROJECT_ID var
+ - existing setup of Playground backend in a project
+
+1. Deploy Datastore indexes
+```
+gcloud datastore indexes create ./internal/storage/index.yaml
+```
+
+2. Deploy cloud functions
+```
+$ gcloud functions deploy sdkList --entry-point sdkList \
+  --region us-central1 --runtime go116 --allow-unauthenticated \
+  --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID"
+
+$ gcloud functions deploy getContentTree --entry-point getContentTree \
+  --region us-central1 --runtime go116 --allow-unauthenticated \
+  --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID"
+
+$ gcloud functions deploy getUnitContent --entry-point getUnitContent \
+  --region us-central1 --runtime go116 --allow-unauthenticated \
+  --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID"
+```
+
+Environment variables:
+- TOB_MOCK: set to 1 to deliver mock responses from samples/api
+- DATASTORE_PROJECT_ID: Google Cloud PROJECT_ID
+
+### Sample usage
+
+Entry point: list sdk names
+```
+$ curl -X GET https://us-central1-$PROJECT_ID.cloudfunctions.net/sdkList | json_pp
+{
+   "names" : [
+      "Java",
+      "Python",
+      "Go"
+   ]
+}
+```
+
+Get content tree by sdk name (SDK name == SDK id)
+```
+$ curl -X GET 'https://us-central1-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=Python'
+{
+   "modules" : [
+      {
+         "complexity" : "BASIC",
+         "moduleId" : "module1",
+         "name" : "Module One",
+         "nodes" : [
+            {
+               "type" : "unit",
+               "unit" : {
+                  "name" : "Intro Unit Name",
+                  "unitId" : "intro-unit"
+               }
+            },
+            {
+               "group" : {
+                  "name" : "The Group",
+                  "nodes" : [
+                     {
+                        "type" : "unit",
+                        "unit" : {
+                           "name" : "Example Unit Name",
+                           "unitId" : "example1"
+                        }
+                     },
+                     {
+                        "type" : "unit",
+                        "unit" : {
+                           "name" : "Challenge Name",
+                           "unitId" : "challenge1"
+                        }
+                     }
+                  ]
+               },
+               "type" : "group"
+            }
+         ]
+      }
+   ],
+   "sdk" : "Python"
+}
+```
+
+
+Get unit content tree by sdk name and unitId
+```
+$ curl -X GET 'https://us-central1-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=Python&unitId=challenge1'
+{
+   "description" : "## Challenge description\n\nawesome description\n",
+   "hints" : [
+      "## Hint 1\n\nhint 1",
+      "## Hint 2\n\nhint 2"
+   ],
+   "name" : "Challenge Name",
+   "unitId" : "challenge1"
+}
+
+```
