@@ -30,7 +30,6 @@ import java.io.Serializable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -161,8 +160,7 @@ public abstract class SpannerConfig implements Serializable {
 
   /** Specifies the Cloud Spanner instance ID. */
   public SpannerConfig withInstanceId(ValueProvider<String> instanceId) {
-    Preconditions.checkNotNull(instanceId);
-    Preconditions.checkNotNull(instanceId.get());
+    checkNotNull(instanceId, "withInstanceId(instanceId) called with null input.");
     return toBuilder().setInstanceId(instanceId).build();
   }
 
@@ -173,8 +171,7 @@ public abstract class SpannerConfig implements Serializable {
 
   /** Specifies the Cloud Spanner database ID. */
   public SpannerConfig withDatabaseId(ValueProvider<String> databaseId) {
-    Preconditions.checkNotNull(databaseId);
-    Preconditions.checkNotNull(databaseId.get());
+    checkNotNull(databaseId, "withDatabaseId(databaseId) called with null input.");
     return toBuilder().setDatabaseId(databaseId).build();
   }
 
@@ -185,8 +182,7 @@ public abstract class SpannerConfig implements Serializable {
 
   /** Specifies the Cloud Spanner host. */
   public SpannerConfig withHost(ValueProvider<String> host) {
-    Preconditions.checkNotNull(host);
-    Preconditions.checkNotNull(host.get());
+    checkNotNull(host, "withHost(host) called with null input.");
     return toBuilder().setHost(host).build();
   }
 
@@ -257,8 +253,7 @@ public abstract class SpannerConfig implements Serializable {
 
   /** Specifies the RPC priority. */
   public SpannerConfig withRpcPriority(ValueProvider<RpcPriority> rpcPriority) {
-    Preconditions.checkNotNull(rpcPriority);
-    Preconditions.checkNotNull(rpcPriority.get());
+    checkNotNull(rpcPriority, "withRpcPriority(rpcPriority) called with null input.");
     return toBuilder().setRpcPriority(rpcPriority).build();
   }
 }

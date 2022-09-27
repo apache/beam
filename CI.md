@@ -125,29 +125,28 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### All migrated workflows run based on the following triggers
+
+| Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
+|-------------|------------------|-----------------------|---------------|-------------------|
+| PostCommit  | No               | Yes                   | Yes           | Yes               |
+| PreCommit   | Yes              | Yes                   | Yes           | Yes               |
+
 ### PreCommit Workflows
+| Workflow                                                                                 | Description           | Requires GCP Credentials |
+|------------------------------------------------------------------------------------------|-----------------------|--------------------------|
+| [job-precommit-pythondocs.yml](.github/workflows/job-precommit-pythondocs.yml)           | Runs Python Docs      | No                       |
+| [job-precommit-pythonformatter.yml](.github/workflows/job-precommit-pythonformatter.yml) | Runs Python Formatter | No                       |
+| [job-precommit-pythonlint.yml](.github/workflows/job-precommit-pythonlint.yml)           | Runs Python Lint      | No                       |
 
-#### Python Docs - [job-precommit-pythondocs.yml](.github/workflows/job-precommit-pythondocs.yml)
-
-| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Python Docs | Runs Python Docs | Yes              | Yes                   | Yes           | No                       |
-
-#### Python Formatter - [job-precommit-pythonformatter.yml](.github/workflows/job-precommit-pythonformatter.yml)
-
-| Job                  | Description           | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|----------------------|-----------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Python Formatter | Runs Python Formatter | Yes              | Yes                   | Yes           | No                       |
-
-#### Python Lint - [job-precommit-pythonlint.yml](.github/workflows/job-precommit-pythonlint.yml)
-
-| Job             | Description      | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
-|-----------------|------------------|------------------|-----------------------|---------------|--------------------------|
-| Run Python Lint | Runs Python Lint | Yes              | Yes                   | Yes           | No                       |
-
+### PostCommit Workflows
+| Workflow                                                                           | Description             | Requires GCP Credentials |
+|------------------------------------------------------------------------------------|-------------------------|--------------------------|
+| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
 
 ### GitHub Action Tips
 
+* All migrated workflows get executed on **pre-configured self-hosted** runners. For this reason, GCP credentials are **only** needed when running the workflows in a different runner.
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
 In this case please attach link to the modified workflow run executed on your fork.
 * Possible timeouts with macOS runner - existing issue: [(X) This check failed - sometimes happens on macOS runner #841](https://github.com/actions/virtual-environments/issues/841)
