@@ -16,14 +16,13 @@
 #
 """This file contains the pipeline for writing twitter messages to PubSub."""
 import argparse
+import config as cfg
 import sys
+from pipeline.options import get_pipeline_options
+from pipeline.utils import AssignUniqueID, ConvertToPubSubMessage, get_dataset
 
 import apache_beam as beam
 from apache_beam.io.gcp.pubsub import WriteToPubSub
-
-import config as cfg
-from pipeline.options import get_pipeline_options
-from pipeline.utils import AssignUniqueID, ConvertToPubSubMessage, get_dataset
 
 
 def parse_arguments(argv):

@@ -15,9 +15,10 @@
 # limitations under the License.
 #
 """This file contains the pipeline options to configure the Dataflow pipeline."""
-from datetime import datetime
-from apache_beam.options.pipeline_options import PipelineOptions
 import config as cfg
+from datetime import datetime
+
+from apache_beam.options.pipeline_options import PipelineOptions
 
 
 def get_pipeline_options(

@@ -16,9 +16,10 @@
 #
 """This file contains the transformations and utility functions for
 the pipeline."""
-import uuid
 import numpy as np
+import uuid
 from datasets import load_dataset
+
 import apache_beam as beam
 from apache_beam.io.gcp.pubsub import PubsubMessage
 
