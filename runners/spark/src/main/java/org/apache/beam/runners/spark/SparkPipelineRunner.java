@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
-
 import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.UUID;

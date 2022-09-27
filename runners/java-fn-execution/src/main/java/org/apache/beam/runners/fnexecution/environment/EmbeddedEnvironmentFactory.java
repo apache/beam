@@ -25,7 +25,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
-
 import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.FnHarness;

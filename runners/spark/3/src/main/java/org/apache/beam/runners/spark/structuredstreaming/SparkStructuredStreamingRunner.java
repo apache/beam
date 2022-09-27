@@ -22,7 +22,6 @@ import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFi
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
 import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
