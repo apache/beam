@@ -83,7 +83,7 @@ output "playground_static_ip_address" {
 }
 
 output "playground_gke_project" {
- value = module.infrastructure.gke_project
+ value = module.infrastructure.playground_gke_project
 }
 
 output "playground_static_ip_address_name" {
