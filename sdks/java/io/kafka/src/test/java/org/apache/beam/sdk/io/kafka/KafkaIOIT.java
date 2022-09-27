@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 
 import com.google.cloud.Timestamp;
@@ -32,7 +33,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.io.Read;
@@ -196,7 +196,7 @@ public class KafkaIOIT {
         .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
 
     PipelineResult writeResult = writePipeline.run();
-    writeResult.waitUntilFinish();
+    PipelineResult.State writeState = writeResult.waitUntilFinish();
 
     PipelineResult readResult = readPipeline.run();
     PipelineResult.State readState =
@@ -212,6 +212,9 @@ public class KafkaIOIT {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
       IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
     }
+    // Fail the test if pipeline failed.
+    assertNotEquals(writeState, PipelineResult.State.FAILED);
+    assertNotEquals(readState, PipelineResult.State.FAILED);
   }
 
   @Test
@@ -225,13 +228,13 @@ public class KafkaIOIT {
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
-        .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic() + "-batch"));
+        .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic()));
 
     PCollection<String> hashcode =
         readPipeline
             .apply(
                 "Read from bounded Kafka",
-                readFromBoundedKafka().withTopic(options.getKafkaTopic() + "-batch"))
+                readFromBoundedKafka().withTopic(options.getKafkaTopic()))
             .apply(
                 "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
             .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
@@ -247,6 +250,8 @@ public class KafkaIOIT {
         readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
 
     cancelIfTimeouted(readResult, readState);
+    // Fail the test if pipeline failed.
+    assertEquals(readState, PipelineResult.State.DONE);
 
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
@@ -459,11 +464,12 @@ public class KafkaIOIT {
 
       PipelineResult readResult = sdfReadPipeline.run();
 
-      State readState =
+      PipelineResult.State readState =
           readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout() / 2));
 
       cancelIfTimeouted(readResult, readState);
-
+      // Fail the test if pipeline failed.
+      assertNotEquals(readState, PipelineResult.State.FAILED);
     } finally {
       client.deleteTopics(ImmutableSet.of(topicName));
     }

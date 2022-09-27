@@ -155,7 +155,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
       WindowedValue.WindowedValueCoder<KV<K, InputT>> windowedInputCoder,
       TupleTag<KV<K, OutputT>> outputTag,
       PortableTranslationContext ctx) {
-    final boolean needRepartition = ctx.getSamzaPipelineOptions().getMaxSourceParallelism() > 1;
+    final boolean needRepartition = ctx.getPipelineOptions().getMaxSourceParallelism() > 1;
     final Coder<BoundedWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
     final KvCoder<K, InputT> kvInputCoder = (KvCoder<K, InputT>) windowedInputCoder.getValueCoder();
     final Coder<WindowedValue<KV<K, InputT>>> elementCoder =

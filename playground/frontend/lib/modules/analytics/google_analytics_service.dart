@@ -19,24 +19,23 @@
 import 'package:playground/config.g.dart';
 import 'package:playground/modules/analytics/analytics_events.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:usage/usage_html.dart';
 
 class GoogleAnalyticsService implements AnalyticsService {
   final _analytics = AnalyticsHtml(kAnalyticsUA, 'beam', '1.0');
 
   @override
-  void trackSelectSdk(SDK? oldSdk, SDK newSdk) {
+  void trackSelectSdk(Sdk? oldSdk, Sdk newSdk) {
     safeSendEvent(
       kSdkCategory,
       kSelectSdkEvent,
-      label: '${oldSdk?.displayName}_${newSdk.displayName}',
+      label: '${oldSdk?.title}_${newSdk.title}',
     );
   }
 
   @override
-  void trackSelectExample(ExampleModel newExample) {
+  void trackSelectExample(ExampleBase newExample) {
     safeSendEvent(
       kExampleCategory,
       kSelectExampleEvent,
