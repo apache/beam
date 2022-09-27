@@ -40,9 +40,17 @@ dependencies {
   dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
 }
 
+task configure {
+  group = "build"
+  description = "After checkout, gets everything ready for local development, test, or build."
+
+  dependsOn("playground_components:configure")
+  dependsOn("generateCode")
+}
+
 task analyze  {
-  dependsOn("playground_components:generate")
-  dependsOn("generate")
+  dependsOn("playground_components:generateCode")
+  dependsOn("generateCode")
 
   group = "verification"
   description = "Analyze dart code"
@@ -91,8 +99,8 @@ task run {
 }
 
 task test {
-  dependsOn("playground_components:generate")
-  dependsOn("generate")
+  dependsOn("playground_components:generateCode")
+  dependsOn("generateCode")
 
   group = "verification"
   description = "flutter test"
@@ -112,7 +120,7 @@ task precommit {
   dependsOn("test")
 }
 
-task generate {
+task generateCode {
   dependsOn("flutterClean")
   dependsOn("pubGet")
 

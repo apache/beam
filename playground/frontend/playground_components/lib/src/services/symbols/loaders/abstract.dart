@@ -16,25 +16,10 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization_ext/easy_localization_ext.dart';
-import 'package:get_it/get_it.dart';
+import '../../../models/symbols_dictionary.dart';
 
-import '../locator.dart';
-import '../services/symbols/symbols_notifier.dart';
+abstract class AbstractSymbolsLoader {
+  const AbstractSymbolsLoader();
 
-class PlaygroundComponents {
-  static const packageName = 'playground_components';
-
-  // TODO(alexeyinkin): Make const when this is fixed: https://github.com/aissat/easy_localization_loader/issues/39
-  static final translationLoader = YamlPackageAssetLoader(
-    packageName,
-    path: 'assets/translations',
-  );
-
-  static Future<void> ensureInitialized() async {
-    await initializeServiceLocator();
-  }
-
-  static SymbolsNotifier get symbolsNotifier =>
-      GetIt.instance.get<SymbolsNotifier>();
+  Future<SymbolsDictionary> get future;
 }

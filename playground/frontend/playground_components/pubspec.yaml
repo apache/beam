@@ -37,6 +37,7 @@ dependencies:
   equatable: ^2.0.5
   flutter: { sdk: flutter }
   flutter_svg: ^1.0.3
+  get_it: ^7.2.0
   google_fonts: ^3.0.1
   grpc: ^3.0.2
   highlight: ^0.7.0
@@ -44,6 +45,7 @@ dependencies:
   protobuf: ^2.1.0
   provider: ^6.0.3
   shared_preferences: ^2.0.15
+  yaml: ^3.1.1
 
 dev_dependencies:
   build_runner: ^2.2.0
@@ -59,6 +61,7 @@ flutter:
     - assets/notification_icons/
     - assets/png/
     - assets/svg/
+    - assets/symbols/python.yaml
     - assets/translations/en.yaml
 
 flutter_gen:

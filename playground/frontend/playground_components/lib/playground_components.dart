@@ -50,6 +50,8 @@ export 'src/repositories/code_repository.dart';
 export 'src/repositories/example_client/grpc_example_client.dart';
 export 'src/repositories/example_repository.dart';
 
+export 'src/services/symbols/loaders/yaml.dart';
+
 export 'src/theme/switch_notifier.dart';
 export 'src/theme/theme.dart';
 
