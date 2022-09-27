@@ -61,7 +61,7 @@ Prerequisites:
  - GCP project with enabled Billing API & Cloud Functions API
  - set environment variables:
    * PROJECT_ID: GCP id
-   * REGION: the region, "us-central1" fe 
+   * REGION: the region, "us-central1" fe
  - existing setup of Playground backend in a project
 
 1. Deploy Datastore indexes
