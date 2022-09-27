@@ -1447,6 +1447,8 @@ class BeamModulePlugin implements Plugin<Project> {
             // that ends up on the runtime classpath.
             args 'org.apache.beam'
           }
+          // Reduce forks to 3
+          args '-f=3'
           args '-foe=true'
         }
 
