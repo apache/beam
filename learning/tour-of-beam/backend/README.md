@@ -59,7 +59,9 @@ __Kinds__
 ### Deployment
 Prerequisites:
  - GCP project with enabled Billing API & Cloud Functions API
- - set environment PROJECT_ID var
+ - set environment variables:
+   * PROJECT_ID: GCP id
+   * REGION: the region, "us-central1" fe 
  - existing setup of Playground backend in a project
 
 1. Deploy Datastore indexes
@@ -70,15 +72,15 @@ gcloud datastore indexes create ./internal/storage/index.yaml
 2. Deploy cloud functions
 ```
 $ gcloud functions deploy getSdkList --entry-point getSdkList \
-  --region us-central1 --runtime go116 --allow-unauthenticated \
+  --region $REGION --runtime go116 --allow-unauthenticated \
   --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID"
 
 $ gcloud functions deploy getContentTree --entry-point getContentTree \
-  --region us-central1 --runtime go116 --allow-unauthenticated \
+  --region $REGION --runtime go116 --allow-unauthenticated \
   --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID"
 
 $ gcloud functions deploy getUnitContent --entry-point getUnitContent \
-  --region us-central1 --runtime go116 --allow-unauthenticated \
+  --region $REGION --runtime go116 --allow-unauthenticated \
   --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID"
 ```
 3. Set environment variables:
@@ -96,19 +98,19 @@ $ go run cmd/ci_cd/ci_cd.go
 
 Entry point: list sdk names
 ```
-$ curl -X GET https://us-central1-$PROJECT_ID.cloudfunctions.net/getSdkList | json_pp
+$ curl -X GET https://$REGION-$PROJECT_ID.cloudfunctions.net/getSdkList | json_pp
 ```
 [response](./samples/api/get_sdk_list.json)
 
 Get content tree by sdk name (SDK name == SDK id)
 ```
-$ curl -X GET 'https://us-central1-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=python'
+$ curl -X GET 'https://$REGION-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=python'
 ```
 [response](./samples/api/get_content_tree.json)
 
 
 Get unit content tree by sdk name and unitId
 ```
-$ curl -X GET 'https://us-central1-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=python&id=challenge1'
+$ curl -X GET 'https://$REGION-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=python&id=challenge1'
 ```
 [response](./samples/api/get_unit_content.json)
