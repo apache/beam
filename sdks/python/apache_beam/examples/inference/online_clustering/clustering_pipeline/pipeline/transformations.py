@@ -17,16 +17,19 @@
 
 """This file contains the transformations and utility functions for
 the online_clustering pipeline."""
-import config as cfg
+from collections import Counter
+from collections import defaultdict
+
 import numpy as np
-import torch
-from collections import Counter, defaultdict
 from sklearn.cluster import Birch
-from transformers import AutoTokenizer, DistilBertModel
 
 import apache_beam as beam
+import config as cfg
+import torch
 from apache_beam.coders import PickleCoder
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
+from transformers import AutoTokenizer
+from transformers import DistilBertModel
 
 Tokenizer = AutoTokenizer.from_pretrained(cfg.TOKENIZER_NAME)
 

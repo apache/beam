@@ -16,9 +16,9 @@
 #
 
 """This file contains the pipeline options to configure the Dataflow pipeline."""
-import config as cfg
 from datetime import datetime
 
+import config as cfg
 from apache_beam.options.pipeline_options import PipelineOptions
 
 

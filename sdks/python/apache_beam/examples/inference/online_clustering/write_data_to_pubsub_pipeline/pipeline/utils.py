@@ -17,12 +17,13 @@
 
 """This file contains the transformations and utility functions for
 the pipeline."""
-import numpy as np
 import uuid
-from datasets import load_dataset
+
+import numpy as np
 
 import apache_beam as beam
 from apache_beam.io.gcp.pubsub import PubsubMessage
+from datasets import load_dataset
 
 
 def get_dataset(categories: list, split: str = "train"):

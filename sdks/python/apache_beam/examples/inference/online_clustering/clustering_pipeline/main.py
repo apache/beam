@@ -17,23 +17,22 @@
 
 """This file contains the pipeline for doing online clustering."""
 import argparse
-import config as cfg
 import sys
-from pipeline.options import get_pipeline_options
-from pipeline.transformations import (
-    Decode,
-    GetUpdates,
-    ModelWrapper,
-    NormalizeEmbedding,
-    StatefulOnlineClustering,
-    tokenize_sentence)
-from transformers import AutoConfig
 
 import apache_beam as beam
+import config as cfg
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
-from apache_beam.ml.inference.base import KeyedModelHandler, RunInference
-from apache_beam.ml.inference.pytorch_inference import \
-    PytorchModelHandlerKeyedTensor
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
+from pipeline.options import get_pipeline_options
+from pipeline.transformations import Decode
+from pipeline.transformations import GetUpdates
+from pipeline.transformations import ModelWrapper
+from pipeline.transformations import NormalizeEmbedding
+from pipeline.transformations import StatefulOnlineClustering
+from pipeline.transformations import tokenize_sentence
+from transformers import AutoConfig
 
 
 def parse_arguments(argv):
