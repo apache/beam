@@ -21,27 +21,24 @@
 
 ## About
 
-Beam Playground is an interactive environment to try out Beam transforms and examples. The vision for the Playground is to be a web application where users can try out Beam without having to install/initialize a Beam environment.
+Beam Playground is an interactive environment to try out Beam transforms and examples.
+The vision for the Playground is to be a web application where users can try out Beam
+without having to install/initialize a Beam environment.
 
 ## Getting Started
 
 Running, debugging, and testing all require this first step that fetches
-dependencies and generates code:
+dependencies and generates code. Run this in the Beam root:
 
 ```bash
-cd playground_components
-flutter pub get
-flutter pub run build_runner build
-cd ..
-flutter pub get
-flutter pub run build_runner build
+$ ./gradlew :playground:frontend:configure
 ```
 
 ### Run
 
 See [playground/README.md](../README.md) for details on requirements and setup.
 
-The following command is used to build and serve the website locally:
+The following command is used to build and serve the frontend app locally:
 
 `$ flutter run`
 
@@ -51,26 +48,48 @@ Run the following command to generate a release build:
 
 `$ flutter build web`
 
-### Tests
+This produces `build/web` directory with static files. Deploy them to your web server.
 
-Playground tests may be run using next commands:
+### Docker
 
-`$ flutter pub run build_runner build`
+To run the frontend app with Docker, run this in the frontend directory:
 
-`$ flutter test`
+```bash
+$ docker build -t playground-frontend .
+$ docker run -p 1234:8080 playground-frontend
+```
+
+The container sets up NGINX on port 8080.
+This example exposes it as port 1234 on the host,
+and the app can be served at http://localhost:1234
+
+### Pre-commit Checks
+
+To run all pre-commit checks, execute this in the beam root:
+
+```bash
+./gradlew :playground:frontend:precommit
+```
+
+This includes:
+
+- Tests.
+- Linter.
 
 ### Code style
-
-Dart code should follow next [code style](https://dart-lang.github.io/linter/lints/index.html). Code
-may be analyzed using this command:
-
-`$ flutter analyze`
 
 Code can be automatically reformatted using:
 
 `$ flutter format ./lib`
 
 ### Localization
+
+The project is in the process of migrating from
+[the built-in Flutter localization](https://docs.flutter.dev/development/accessibility-and-localization/internationalization)
+to [easy_localization](https://pub.dev/packages/easy_localization).
+It temporarily uses both ways.
+
+#### Flutter Built-in Localization
 
 To add a new localization, follow next steps:
 
@@ -81,6 +100,18 @@ To add a new localization, follow next steps:
 3. Run the following command to generate a build and localization files:
 
 `$ flutter build web`
+
+#### easy_localization
+
+To add a new localization (using `fr` as an example):
+
+1. Create `playground_components/assets/translations/fr.yaml`.
+   Fill it with content copied from an existing translation file in another language.
+
+2. Create `assets/translations/fr.yaml`.
+   Fill it with content copied from an existing translation file in another language.
+
+3. Add the locale to the list in `lib/l10n/l10n.dart`.
 
 ### Configuration
 
