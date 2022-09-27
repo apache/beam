@@ -25,6 +25,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
+
+import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -94,7 +96,11 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
   @SuppressWarnings("FutureReturnValueIgnored") // no need to monitor shutdown thread
   public RemoteEnvironment createEnvironment(Environment environment, String workerId)
       throws Exception {
-    ExecutorService executor = Executors.newSingleThreadExecutor();
+    ExecutorService executor = Executors.newSingleThreadExecutor(
+        new ThreadFactoryBuilder()
+            .setDaemon(true)
+            .setNameFormat("CreateEnvironment-thread")
+            .build());
     Future<?> fnHarness =
         executor.submit(
             () -> {

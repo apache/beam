@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -35,7 +37,11 @@ import java.util.concurrent.Executors;
  */
 class JfrInterop {
   // ensure only a single JFR profile is running at once
-  private static final ExecutorService JFR_EXECUTOR = Executors.newSingleThreadExecutor();
+  private static final ExecutorService JFR_EXECUTOR = Executors.newSingleThreadExecutor(
+      new ThreadFactoryBuilder()
+          .setDaemon(true)
+          .setNameFormat("JFRprofile-thread")
+          .build());
 
   private final Constructor<?> recordingCtor;
   private final Method recordingStart;

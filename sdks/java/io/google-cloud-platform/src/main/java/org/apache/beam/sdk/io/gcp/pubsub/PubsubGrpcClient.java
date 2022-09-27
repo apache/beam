@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.auth.Credentials;
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.AcknowledgeRequest;
@@ -166,7 +167,12 @@ public class PubsubGrpcClient extends PubsubClient {
   private Channel newChannel() throws IOException {
     checkState(publisherChannel != null, "PubsubGrpcClient has been closed");
     ClientAuthInterceptor interceptor =
-        new ClientAuthInterceptor(credentials, Executors.newSingleThreadExecutor());
+        new ClientAuthInterceptor(credentials, Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("PubsubGrpcClient-thread")
+                .build()
+        ));
     return ClientInterceptors.intercept(publisherChannel, interceptor);
   }
 

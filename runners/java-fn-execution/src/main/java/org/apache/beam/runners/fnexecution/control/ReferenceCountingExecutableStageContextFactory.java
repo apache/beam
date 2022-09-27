@@ -158,7 +158,11 @@ public class ReferenceCountingExecutableStageContextFactory
     synchronized (this) {
       if (executor == null) {
         executor =
-            Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setDaemon(true).build());
+            Executors.newScheduledThreadPool(1,
+                new ThreadFactoryBuilder()
+                    .setNameFormat("ScheduledExecutor-thread")
+                    .setDaemon(true)
+                    .build());
       }
       return executor;
     }
