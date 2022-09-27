@@ -50,7 +50,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          GITHUB_PR_URL=$(gh pr create -B ${{env.RELEASE_BRANCH}} -H ${{env.WORKING_BRANCH}} -t "[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch" -b "You are going to run many tests automatically in this PR (refer to scripts/ci/release/jenkins_trigger_phrases.txt), however, there are some PostCommits jobs that have been migrated to GitHub Actions workflows and for the moment they don't have Trigger Phrases. Please run the rest of PostCommit tests manually.")
+          GITHUB_PR_URL=$(gh pr create -B ${{env.RELEASE_BRANCH}} -H ${{env.WORKING_BRANCH}} -t "[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch" -b "Run Gradle Release Build and many PreCommit and PostCommits tests automatically in this PR (refer to scripts/ci/release/jenkins_trigger_phrases.txt), however, there are some PreCommit and PostCommit jobs that have been migrated to GitHub Actions workflows and for the moment they don't have Trigger Phrases enabled. Please run the missing tests manually.")
+      # Run Gradle Release Build and PostCommit Tests against Release Branch on Jenkins.
       - name: Comment Jenkins Trigger Phrases in PR
         if: ${{ github.event.inputs.COMMENT_TRIGGER_PHRASES == 'true' }}
         run: |
