@@ -151,7 +151,7 @@ def get_all_distributions_by_type(dist, metric_id):
     list of :class:`DistributionMetric` objects
   """
   submit_timestamp = time.time()
-  dist_types = ['count', 'max', 'min', 'sum']
+  dist_types = ['count', 'max', 'min', 'sum', 'mean']
   distribution_dicts = []
   for dist_type in dist_types:
     try:
