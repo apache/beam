@@ -276,8 +276,8 @@ class SchemaTranslation(object):
                 representation=self.typing_to_runner_api(
                     logical_type.representation_type())))
       else:
-        # TODO(bhulette,yathu): Complete support for logical types that require
-        # arguments.
+        # TODO(https://github.com/apache/beam/issues/23373): Complete support
+        # for logical types that require arguments.
         # This include implement SchemaTranslation.value_to_runner_api (see Java
         # SDK's SchemaTranslation.fieldValueToProto)
         return schema_pb2.FieldType(
@@ -773,14 +773,12 @@ FixedPrecisionDecimalArgumentRepresentation = NamedTuple(
 
 
 class DecimalLogicalType(NoArgumentLogicalType[decimal.Decimal, bytes]):
-  def __init__(self):
-    from apache_beam.coders.coder_impl import DecimalCoderImpl
-
-    self.coder_impl = DecimalCoderImpl()
-
+  """A logical type for decimal objects handling values consistent with that
+  encoded by ``BigDecimalCoder`` in the Java SDK.
+  """
   @classmethod
   def urn(cls):
-    return "beam:logical_type:decimal:v1"
+    return common_urns.decimal.urn
 
   @classmethod
   def representation_type(cls):
@@ -793,13 +791,11 @@ class DecimalLogicalType(NoArgumentLogicalType[decimal.Decimal, bytes]):
 
   def to_representation_type(self, value):
     # type: (decimal.Decimal) -> bytes
-
-    return self.coder_impl.encode(value)
+    return str(value).encode()
 
   def to_language_type(self, value):
     # type: (bytes) -> decimal.Decimal
-
-    return self.coder_impl.decode(value)
+    return decimal.Decimal(value.decode())
 
 
 @LogicalType.register_logical_type
@@ -829,12 +825,12 @@ class FixedPrecisionDecimalLogicalType(
   def to_representation_type(self, value):
     # type: (decimal.Decimal) -> bytes
 
-    return DecimalLogicalType().coder_impl.encode(value)
+    return DecimalLogicalType().to_representation_type(value)
 
   def to_language_type(self, value):
     # type: (bytes) -> decimal.Decimal
 
-    return DecimalLogicalType().coder_impl.decode(value)
+    return DecimalLogicalType().to_language_type(value)
 
   @classmethod
   def argument_type(cls):
