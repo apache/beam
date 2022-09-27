@@ -1,5 +1,5 @@
 #!/bin/bash
-file="./jenkins_trigger_phrases.txt"
+file="./mass_comment.txt"
 GITHUB_PR=$1
 while IFS= read -r trigger_phrase
 do
