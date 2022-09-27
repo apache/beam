@@ -859,11 +859,11 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) (string, error) {
 //
 // In particular, the "backup plan" needs to:
 //
-//   - Encode the windowed element, preserving timestamps.
-//   - Add random keys to the encoded windowed element []bytes
-//   - GroupByKey (in the global window).
-//   - Explode the resulting elements list.
-//   - Decode the windowed element []bytes.
+//   * Encode the windowed element, preserving timestamps.
+//   * Add random keys to the encoded windowed element []bytes
+//   * GroupByKey (in the global window).
+//   * Explode the resulting elements list.
+//   * Decode the windowed element []bytes.
 //
 // While a simple reshard can be written in user terms, (timestamps and windows
 // are accessible to user functions) there are some framework internal
