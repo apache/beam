@@ -317,6 +317,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.1.3"
+  get_it:
+    dependency: transitive
+    description:
+      name: get_it
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "7.2.0"
   glob:
     dependency: transitive
     description:
@@ -353,7 +360,7 @@ packages:
     source: hosted
     version: "3.0.2"
   highlight:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: highlight
       url: "https://pub.dartlang.org"
