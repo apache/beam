@@ -18,8 +18,7 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-import '../enums.dart';
-import 'node_abstract.dart';
+import 'abstract_node.dart';
 
 part 'unit.g.dart';
 
@@ -29,7 +28,6 @@ class UnitModel extends NodeModel {
 
   const UnitModel({
     required this.id,
-    super.type = NodeType.unit,
     required super.title,
   });
 

@@ -18,8 +18,7 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-import '../enums.dart';
-import 'node_abstract.dart';
+import 'abstract_node.dart';
 
 part 'group.g.dart';
 
@@ -29,7 +28,6 @@ class GroupModel extends NodeModel {
   final List<NodeModel> nodes;
 
   const GroupModel({
-    super.type = NodeType.group,
     required super.title,
     required this.nodes,
   });

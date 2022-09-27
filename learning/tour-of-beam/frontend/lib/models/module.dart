@@ -19,7 +19,7 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'node_abstract.dart';
+import 'abstract_node.dart';
 
 part 'module.g.dart';
 

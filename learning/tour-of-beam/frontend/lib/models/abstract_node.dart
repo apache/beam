@@ -23,29 +23,34 @@ import 'group.dart';
 import 'server/node_server.dart';
 import 'unit.dart';
 
+/// Abstract NodeModel is used as the parent class of node models.
+/// Nodes on server are based on composition,
+/// because Golang doesn't support inheritance.
 @JsonSerializable()
 abstract class NodeModel {
-  final NodeType type;
   final String title;
-  const NodeModel({required this.type, required this.title});
+  const NodeModel({required this.title});
 
   static List<NodeModel> nodesFromServer(List json) {
     return json
-        .map<Map<String, dynamic>>((map) => map)
+        .cast<Map<String, dynamic>>()
         .map<NodeServerModel>(NodeServerModel.fromJson)
         .map(_nodeFromServer)
         .toList();
   }
 
-  static NodeModel _nodeFromServer(NodeServerModel nodeServer) {
-    return nodeServer.type == NodeType.group
-        ? GroupModel(
-            title: nodeServer.group!.title,
-            nodes: nodeServer.group!.nodes.map(_nodeFromServer).toList(),
-          )
-        : UnitModel(
-            id: nodeServer.unit!.id,
-            title: nodeServer.unit!.title,
-          );
+  static NodeModel _nodeFromServer(NodeServerModel node) {
+    switch (node.type) {
+      case NodeType.group:
+        return GroupModel(
+          title: node.group!.title,
+          nodes: node.group!.nodes.map(_nodeFromServer).toList(),
+        );
+      case NodeType.unit:
+        return UnitModel(
+          id: node.unit!.id,
+          title: node.unit!.title,
+        );
+    }
   }
 }

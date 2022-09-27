@@ -25,13 +25,12 @@ import '../../components/expansion_tile_wrapper.dart';
 import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
-import '../../enums.dart';
 import '../../functions.dart';
 import '../../generated/assets.gen.dart';
+import '../../models/abstract_node.dart';
 import '../../models/content_tree.dart';
 import '../../models/group.dart';
 import '../../models/module.dart';
-import '../../models/node_abstract.dart';
 import '../../models/unit.dart';
 import 'playground_demo.dart';
 
@@ -198,9 +197,9 @@ class _Node extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (node.type == NodeType.group) {
+    if (node is GroupModel) {
       return _Group(group: node as GroupModel);
-    } else if (node.type == NodeType.unit) {
+    } else if (node is UnitModel) {
       return _Unit(unit: node as UnitModel);
     }
     throw Exception('A node with an unknown type');

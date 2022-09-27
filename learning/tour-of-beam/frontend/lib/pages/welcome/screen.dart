@@ -29,6 +29,7 @@ import '../../functions.dart';
 import '../../generated/assets.gen.dart';
 import '../../models/content_tree.dart';
 import '../../models/module.dart';
+import '../../models/sdk.dart';
 import '../../models/server/sdk_list.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -118,7 +119,7 @@ class _SdkSelection extends StatelessWidget {
                   builder: (context, snapshot) => snapshot.data == null
                       ? Container()
                       : _Buttons(
-                          sdkList: SdkListModel.fromJson(snapshot.data!),
+                          sdks: SdkListModel.fromJson(snapshot.data!).sdks,
                         ),
                 ),
               ],
@@ -143,7 +144,9 @@ class _TourSummary extends StatelessWidget {
       child: FutureBuilder(
         future: kGetContentTree(),
         builder: (context, snapshot) {
-          if (snapshot.data == null) return Container();
+          if (snapshot.data == null) {
+            return Container();
+          }
           final modules = ContentTreeModel.fromJson(snapshot.data!).modules;
           return Column(
             children: modules
@@ -209,8 +212,8 @@ class _IntroText extends StatelessWidget {
 }
 
 class _Buttons extends StatelessWidget {
-  final SdkListModel sdkList;
-  const _Buttons({required this.sdkList});
+  final List<SdkModel> sdks;
+  const _Buttons({required this.sdks});
 
   void _onSdkChanged(String value) {
     // TODO(nausharipov): change sdk
@@ -221,7 +224,7 @@ class _Buttons extends StatelessWidget {
     return Wrap(
       children: [
         Wrap(
-          children: sdkList.sdks
+          children: sdks
               .map(
                 (sdk) => _SdkButton(
                   title: sdk.title,
