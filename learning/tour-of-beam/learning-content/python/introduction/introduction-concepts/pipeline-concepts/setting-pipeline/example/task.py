@@ -23,6 +23,8 @@
 #     - Quickstart
 #   context_line: 47
 #   complexity: BASIC
+#   tags:
+#     - hellobeam
 
 import argparse
 import logging

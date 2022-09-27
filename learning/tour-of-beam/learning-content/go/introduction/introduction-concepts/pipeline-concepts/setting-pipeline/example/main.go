@@ -22,6 +22,8 @@
 //   categories:
 //     - Quickstart
 //   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 package main
 

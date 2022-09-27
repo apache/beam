@@ -25,6 +25,8 @@
 //   categories:
 //     - Quickstart
 //   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;

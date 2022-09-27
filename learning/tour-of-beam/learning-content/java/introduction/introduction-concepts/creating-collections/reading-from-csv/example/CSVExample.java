@@ -24,6 +24,8 @@
 //   categories:
 //     - Quickstart
 //   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;

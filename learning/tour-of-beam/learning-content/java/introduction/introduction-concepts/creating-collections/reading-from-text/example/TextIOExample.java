@@ -23,6 +23,8 @@
 //   categories:
 //     - Quickstart
 //   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 package org.apache.beam.examples;
 
