@@ -16,18 +16,16 @@
  * limitations under the License.
  */
 
-import 'dart:convert';
-
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:http/http.dart' as http;
 import 'package:playground_components/playground_components.dart';
 
 import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
+import '../../functions.dart';
 import '../../generated/assets.gen.dart';
 import '../../models/content_tree.dart';
 import '../../models/module.dart';
@@ -88,17 +86,6 @@ class _SdkSelection extends StatelessWidget {
 
   static const double _minimalHeight = 900;
 
-  // TODO(nausharipov): remove after demo
-  Future<Map<String, dynamic>> _getSdks() async {
-    final response = await http.get(
-      Uri.parse(
-        'https://us-central1-tour-of-beam-2.cloudfunctions.net/getSdkList',
-      ),
-    );
-    final decodedResponse = jsonDecode(utf8.decode(response.bodyBytes));
-    return decodedResponse;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -127,7 +114,7 @@ class _SdkSelection extends StatelessWidget {
                 const _IntroText(),
                 const SizedBox(height: BeamSizes.size32),
                 FutureBuilder(
-                  future: _getSdks(),
+                  future: getSdks(),
                   builder: (context, snapshot) => snapshot.data == null
                       ? Container()
                       : _Buttons(
@@ -146,17 +133,6 @@ class _SdkSelection extends StatelessWidget {
 class _TourSummary extends StatelessWidget {
   const _TourSummary();
 
-  // TODO(nausharipov): remove after demo
-  Future<Map<String, dynamic>> _getContentTree() async {
-    final response = await http.get(
-      Uri.parse(
-        'https://us-central1-tour-of-beam-2.cloudfunctions.net/getContentTree?sdk=Python',
-      ),
-    );
-    final decodedResponse = jsonDecode(utf8.decode(response.bodyBytes));
-    return decodedResponse;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -165,7 +141,7 @@ class _TourSummary extends StatelessWidget {
         horizontal: 27,
       ),
       child: FutureBuilder(
-        future: _getContentTree(),
+        future: getContentTree(),
         builder: (context, snapshot) {
           if (snapshot.data == null) return Container();
           final modules = ContentTreeModel.fromJson(snapshot.data!).modules;

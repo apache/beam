@@ -16,12 +16,9 @@
  * limitations under the License.
  */
 
-import 'dart:convert';
-
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:http/http.dart' as http;
 import 'package:playground_components/playground_components.dart';
 
 import '../../components/expansion_tile_wrapper.dart';
@@ -29,6 +26,7 @@ import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import '../../enums.dart';
+import '../../functions.dart';
 import '../../generated/assets.gen.dart';
 import '../../models/content_tree.dart';
 import '../../models/group.dart';
@@ -103,24 +101,13 @@ class _NarrowTour extends StatelessWidget {
 class _ContentTree extends StatelessWidget {
   const _ContentTree();
 
-  // TODO(nausharipov): remove after demo
-  Future<Map<String, dynamic>> _getContentTree() async {
-    final response = await http.get(
-      Uri.parse(
-        'https://us-central1-tour-of-beam-2.cloudfunctions.net/getContentTree?sdk=Python',
-      ),
-    );
-    final decodedResponse = jsonDecode(utf8.decode(response.bodyBytes));
-    return decodedResponse;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 250,
       padding: const EdgeInsets.symmetric(horizontal: BeamSizes.size12),
       child: FutureBuilder(
-        future: _getContentTree(),
+        future: getContentTree(),
         builder: (context, snapshot) => snapshot.data == null
             ? Container()
             : SingleChildScrollView(
