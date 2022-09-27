@@ -1,0 +1,7 @@
+network_name = "playground"
+project_id   = "pg-second"
+gke_name     = "playground-backend"
+region       = "us-east1"
+pg_location  = "us-east1-b"
+state_bucket = "pg-second"
+bucket_examples_name = "pg-second-example"
