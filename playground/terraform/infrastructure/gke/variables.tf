@@ -42,7 +42,6 @@ variable "name" {
 
 variable "location" {
   description = "Location of GKE cluster"
-  default     = "us-central1-a"
 }
 
 variable "network" {
