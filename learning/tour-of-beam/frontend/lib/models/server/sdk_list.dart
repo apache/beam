@@ -18,26 +18,18 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-import '../enums.dart';
-import 'group_server.dart';
-import 'unit_server.dart';
+import '../sdk.dart';
 
-part 'node_server.g.dart';
+part 'sdk_list.g.dart';
 
 @JsonSerializable()
-class NodeServerModel {
-  final NodeType type;
-  final UnitServerModel? unit;
-  final GroupServerModel? group;
+class SdkListModel {
+  final List<SdkModel> sdks;
 
-  const NodeServerModel({
-    required this.type,
-    required this.unit,
-    required this.group,
-  });
+  const SdkListModel({required this.sdks});
 
-  factory NodeServerModel.fromJson(Map<String, dynamic> json) =>
-      _$NodeServerModelFromJson(json);
+  factory SdkListModel.fromJson(Map<String, dynamic> json) =>
+      _$SdkListModelFromJson(json);
 
-  Map<String, dynamic> toJson() => _$NodeServerModelToJson(this);
+  Map<String, dynamic> toJson() => _$SdkListModelToJson(this);
 }

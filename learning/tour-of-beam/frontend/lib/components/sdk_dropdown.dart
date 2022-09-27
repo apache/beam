@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../functions.dart';
-import '../models/sdk_list.dart';
+import '../models/server/sdk_list.dart';
 
 class SdkDropdown extends StatelessWidget {
   const SdkDropdown();

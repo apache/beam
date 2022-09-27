@@ -29,7 +29,7 @@ import '../../functions.dart';
 import '../../generated/assets.gen.dart';
 import '../../models/content_tree.dart';
 import '../../models/module.dart';
-import '../../models/sdk_list.dart';
+import '../../models/server/sdk_list.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen();

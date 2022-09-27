@@ -20,7 +20,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 import '../enums.dart';
 import 'group.dart';
-import 'node_server.dart';
+import 'server/node_server.dart';
 import 'unit.dart';
 
 @JsonSerializable()
