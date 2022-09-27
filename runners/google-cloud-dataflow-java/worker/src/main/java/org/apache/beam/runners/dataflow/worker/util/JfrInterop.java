@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
-import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -26,6 +25,8 @@ import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 
 /**
  * Exposes methods to interop with JFR. This is only supported on java 9 and up, java 8 does not

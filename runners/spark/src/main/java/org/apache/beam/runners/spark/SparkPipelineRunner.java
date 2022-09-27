@@ -19,7 +19,7 @@ package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
-import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -55,6 +55,7 @@ import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
