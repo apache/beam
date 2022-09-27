@@ -1,0 +1,18 @@
+name: New environment creation
+on:
+  workflow_dispatch:
+jobs:
+  Infrastructure_deployment:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ENV: beta
+    steps:
+      - name: git clone repo
+        uses: actions/checkout@v2
+      - name: Setup GCP account
+        run: |
+             echo "${{ secrets.S3D_GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
+      - name: Deploy infrastructure
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
+        run: ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="${{ env.PROJECT_ENV }}"
