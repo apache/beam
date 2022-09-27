@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.util;
 
 import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;

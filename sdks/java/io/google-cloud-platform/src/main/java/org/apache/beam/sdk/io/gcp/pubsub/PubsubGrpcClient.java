@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-
 import avro.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.auth.Credentials;
 import com.google.protobuf.Timestamp;
