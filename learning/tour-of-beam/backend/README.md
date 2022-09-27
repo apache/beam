@@ -97,79 +97,18 @@ $ go run cmd/ci_cd/ci_cd.go
 Entry point: list sdk names
 ```
 $ curl -X GET https://us-central1-$PROJECT_ID.cloudfunctions.net/getSdkList | json_pp
-{
-  "sdks" : [
-   {"id": "java", "title": "Java"},
-   {"id": "python", "title": "Python"},
-   {"id": "go", "title": "Go"},
-   {"id": "scio", "title": "SCIO"}
-  ]
-}
 ```
+[response](./samples/api/get_sdk_list.json)
 
 Get content tree by sdk name (SDK name == SDK id)
 ```
 $ curl -X GET 'https://us-central1-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=python'
-{
-  "modules" : [
-     {
-        "complexity" : "BASIC",
-        "id" : "module1",
-        "title" : "Module One",
-        "nodes" : [
-           {
-              "type" : "unit",
-              "unit" : {
-                 "title" : "Intro Unit Name",
-                 "id" : "intro-unit"
-              }
-           },
-           {
-              "group" : {
-                 "title" : "The Group",
-                 "nodes" : [
-                    {
-                       "type" : "unit",
-                       "unit" : {
-                          "title" : "Example Unit Name",
-                          "id" : "example1"
-                       }
-                    },
-                    {
-                       "type" : "unit",
-                       "unit" : {
-                          "title" : "Challenge Name",
-                          "id" : "challenge1"
-                       }
-                    }
-                 ]
-              },
-              "type" : "group"
-           }
-        ]
-     }
-  ],
-  "sdkId" : "python"
-}
 ```
+[response](./samples/api/get_content_tree.json)
 
 
 Get unit content tree by sdk name and unitId
 ```
 $ curl -X GET 'https://us-central1-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=python&id=challenge1'
-{
-    "id": "challenge1",
-    "title": "Challenge Name",
-    "description": "## Challenge description\n\nawesome description\n",
-    "hints" : [
-        "## Hint 1\n\nhint 1",
-        "## Hint 2\n\nhint 2"
-     ],
-
-    "taskSnippetId": "taskSnippetId",
-    "solutionSnippetId": "solutionSnippetId",
-
-    "userSnippetId": "userSnippetId",
-    "isCompleted": true
-}
 ```
+[response](./samples/api/get_unit_content.json)
