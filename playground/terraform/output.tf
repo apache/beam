@@ -77,3 +77,15 @@ output "scio-server-url" {
 output "front-server-url" {
   value = module.applications.front-server-url
 }
+
+output "playground_static_ip_address" {
+  value = module.infrastructure.playground_static_ip_address
+}
+
+output "playground_gke_project" {
+ value = module.infrastructure.gke_project
+}
+
+output "playground_static_ip_address_name" {
+  value = module.infrastructure.playground_static_ip_address_name
+}
