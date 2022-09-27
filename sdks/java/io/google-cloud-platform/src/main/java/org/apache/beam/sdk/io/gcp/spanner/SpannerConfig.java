@@ -263,8 +263,7 @@ public abstract class SpannerConfig implements Serializable {
 
   /** Specifies the Cloud Spanner database role. */
   public SpannerConfig withDatabaseRole(ValueProvider<String> databaseRole) {
-    Preconditions.checkNotNull(databaseRole);
-    Preconditions.checkNotNull(databaseRole.get());
+    checkNotNull(databaseRole, "withDatabaseRole(databaseRole) called with null input.");
     return toBuilder().setDatabaseRole(databaseRole).build();
   }
 
