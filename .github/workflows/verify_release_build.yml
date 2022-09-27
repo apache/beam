@@ -24,11 +24,9 @@ on:
       RELEASE_VER:
         description: Beam version of current release
         required: true
-        default: vtest # remove default before merging
       COMMENT_TRIGGER_PHRASES:
         description: Flag to comment the Jenkins Trigger Phrases in the new PR
         required: true
-        default: 'false'
 env:
   WORKING_BRANCH: postcommit_validation_pr # Is it always the same branch name? or should we need to add it as input?
 jobs:
