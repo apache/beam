@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """The file defines global variables."""
 PROJECT_ID = "apache-beam-testing"
 # PubSub Topic ID

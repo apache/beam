@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Setup.py module for the workflow's worker utilities.
 All the workflow related code is gathered in a package that will be built as a
 source distribution, staged in the staging area for the workflow being run and
