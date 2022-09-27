@@ -19,9 +19,9 @@
 # pytype: skip-file
 
 import logging
+import threading
 import unittest
 import weakref
-import threading
 
 from apache_beam.runners.worker.statecache import CacheAware
 from apache_beam.runners.worker.statecache import StateCache

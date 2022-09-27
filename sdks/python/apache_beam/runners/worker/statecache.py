@@ -30,6 +30,7 @@ import weakref
 from typing import Any
 from typing import List
 from typing import Optional
+from typing import Union
 from typing import Tuple
 
 import objsize
@@ -87,7 +88,7 @@ class CacheAware(object):
 
 
 def _safe_isinstance(obj, type):
-  # type: (Any, type_tuple) -> bool
+  # type: (Any, Union[type, Tuple[type, ...]]) -> bool
 
   """
   Return whether an object is an instance of a class or of a subclass thereof.
@@ -117,7 +118,7 @@ def _size_func(obj):
     current_time = time.time()
     # Limit outputting this log so we don't spam the logs on these
     # occurrences.
-    if _size_func.last_log_time + 300 < current_time:
+    if _size_func.last_log_time + 300 < current_time:  # type: ignore
       _LOGGER.warning(
           'Failed to size %s of type %s. Note that this may '
           'impact cache sizing such that the cache is over '
@@ -125,13 +126,13 @@ def _size_func(obj):
           obj,
           type(obj),
           exc_info=e)
-      _size_func.last_log_time = current_time
+      _size_func.last_log_time = current_time  # type: ignore
     # Use an arbitrary default size that would account for some of the object
     # overhead.
     return _DEFAULT_WEIGHT
 
 
-_size_func.last_log_time = 0
+_size_func.last_log_time = 0  # type: ignore
 
 
 def _get_referents_func(*objs):
@@ -146,7 +147,7 @@ def _get_referents_func(*objs):
   rval = []
   for obj in objs:
     if _safe_isinstance(obj, CacheAware):
-      rval.extend(obj.get_referents_for_cache())
+      rval.extend(obj.get_referents_for_cache())  # type: ignore
     else:
       rval.extend(gc.get_referents(obj))
   return rval
