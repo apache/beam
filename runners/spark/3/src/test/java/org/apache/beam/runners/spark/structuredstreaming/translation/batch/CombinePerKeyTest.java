@@ -22,65 +22,44 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableBiFunction;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Test class for beam to spark {@link org.apache.beam.sdk.transforms.Combine} translation. */
+/**
+ * Test class for beam to spark {@link
+ * org.apache.beam.sdk.transforms.Combine#perKey(CombineFnBase.GlobalCombineFn)} translation.
+ */
 @RunWith(JUnit4.class)
-public class CombineTest implements Serializable {
-  private static Pipeline pipeline;
+public class CombinePerKeyTest implements Serializable {
+  @Rule public transient TestPipeline pipeline = TestPipeline.fromOptions(testOptions());
 
-  @BeforeClass
-  public static void beforeClass() {
+  private static PipelineOptions testOptions() {
     SparkStructuredStreamingPipelineOptions options =
         PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
     options.setTestMode(true);
-    pipeline = Pipeline.create(options);
-  }
-
-  @Test
-  public void testCombineGlobally() {
-    PCollection<Integer> input =
-        pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)).apply(Sum.integersGlobally());
-    PAssert.that(input).containsInAnyOrder(55);
-    // uses combine per key
-    pipeline.run();
-  }
-
-  @Test
-  public void testCombineGloballyPreservesWindowing() {
-    PCollection<Integer> input =
-        pipeline
-            .apply(
-                Create.timestamped(
-                    TimestampedValue.of(1, new Instant(1)),
-                    TimestampedValue.of(2, new Instant(2)),
-                    TimestampedValue.of(3, new Instant(11)),
-                    TimestampedValue.of(4, new Instant(3)),
-                    TimestampedValue.of(5, new Instant(11)),
-                    TimestampedValue.of(6, new Instant(12))))
-            .apply(Window.into(FixedWindows.of(Duration.millis(10))))
-            .apply(Combine.globally(Sum.ofIntegers()).withoutDefaults());
-    PAssert.that(input).containsInAnyOrder(7, 14);
+    return options;
   }
 
   @Test
@@ -96,6 +75,17 @@ public class CombineTest implements Serializable {
     PCollection<KV<Integer, Integer>> input =
         pipeline.apply(Create.of(elems)).apply(Sum.integersPerKey());
     PAssert.that(input).containsInAnyOrder(KV.of(1, 9), KV.of(2, 12));
+    pipeline.run();
+  }
+
+  @Test
+  public void testDistinctViaCombinePerKey() {
+    List<Integer> elems = Lists.newArrayList(1, 2, 3, 3, 4, 4, 4, 4, 5, 5);
+
+    // Distinct is implemented in terms of CombinePerKey
+    PCollection<Integer> result = pipeline.apply(Create.of(elems)).apply(Distinct.create());
+
+    PAssert.that(result).containsInAnyOrder(1, 2, 3, 4, 5);
     pipeline.run();
   }
 
@@ -142,22 +132,26 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  public void testBinaryCombineWithSlidingWindows() {
-    PCollection<Integer> input =
+  public void testCombineByKeyWithMergingWindows() {
+    PCollection<KV<Integer, Integer>> input =
         pipeline
             .apply(
                 Create.timestamped(
-                    TimestampedValue.of(1, new Instant(1)),
-                    TimestampedValue.of(3, new Instant(2)),
-                    TimestampedValue.of(5, new Instant(3))))
-            .apply(Window.into(SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1))))
-            .apply(
-                Combine.globally(
-                        Combine.BinaryCombineFn.of(
-                            (SerializableBiFunction<Integer, Integer, Integer>)
-                                (integer1, integer2) -> integer1 > integer2 ? integer1 : integer2))
-                    .withoutDefaults());
-    PAssert.that(input).containsInAnyOrder(1, 3, 5, 5, 5);
+                    TimestampedValue.of(KV.of(1, 1), new Instant(5)),
+                    TimestampedValue.of(KV.of(1, 3), new Instant(7)),
+                    TimestampedValue.of(KV.of(1, 5), new Instant(11)),
+                    TimestampedValue.of(KV.of(2, 2), new Instant(5)),
+                    TimestampedValue.of(KV.of(2, 4), new Instant(11)),
+                    TimestampedValue.of(KV.of(2, 6), new Instant(12))))
+            .apply(Window.into(Sessions.withGapDuration(Duration.millis(5))))
+            .apply(Sum.integersPerKey());
+
+    PAssert.that(input)
+        .containsInAnyOrder(
+            KV.of(1, 9), // window [5-16)
+            KV.of(2, 2), // window [5-10)
+            KV.of(2, 10) // window [11-17)
+            );
     pipeline.run();
   }
 

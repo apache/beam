@@ -15,17 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
+package org.apache.beam.runners.spark.structuredstreaming.translation.utils;
 
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
-import org.apache.spark.api.java.function.MapFunction;
+import scala.collection.Seq;
+import scala.collection.immutable.List;
+import scala.collection.immutable.Nil$;
+import scala.collection.mutable.WrappedArray;
 
-/** Helper functions for working with {@link org.apache.beam.sdk.values.KV}. */
-public final class KVHelpers {
+/** Utilities for easier interoperability with the Spark Scala API. */
+public class ScalaInterop {
+  private ScalaInterop() {}
 
-  /** A Spark {@link MapFunction} for extracting the key out of a {@link KV} for GBK for example. */
-  public static <K, V> MapFunction<WindowedValue<KV<K, V>>, K> extractKey() {
-    return wv -> wv.getValue().getKey();
+  public static <T> Seq<T> seqOf(T... t) {
+    return new WrappedArray.ofRef<>(t);
+  }
+
+  public static <T> Seq<T> listOf(T t) {
+    return emptyList().$colon$colon(t);
+  }
+
+  public static <T> List<T> emptyList() {
+    return (List<T>) Nil$.MODULE$;
   }
 }

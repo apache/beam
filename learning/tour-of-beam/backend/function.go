@@ -20,7 +20,6 @@ package tob
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -37,54 +36,6 @@ const (
 	INTERNAL_ERROR = "INTERNAL_ERROR"
 	NOT_FOUND      = "NOT_FOUND"
 )
-
-// Middleware-maker for setting a header
-// We also make this less generic: it works with HandlerFunc's
-// so that to be convertible to func(w http ResponseWriter, r *http.Request)
-// and be accepted by functions.HTTP.
-func AddHeader(header, value string) func(http.HandlerFunc) http.HandlerFunc {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Add(header, value)
-			next(w, r)
-		}
-	}
-}
-
-// Middleware to check http method.
-func EnsureMethod(method string) func(http.HandlerFunc) http.HandlerFunc {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == method {
-				next(w, r)
-			} else {
-				w.WriteHeader(http.StatusMethodNotAllowed)
-			}
-		}
-	}
-}
-
-// HandleFunc enriched with sdk.
-type HandlerFuncWithSdk func(w http.ResponseWriter, r *http.Request, sdk tob.Sdk)
-
-// middleware to parse sdk query param and pass it as additional handler param.
-func ParseSdkParam(next HandlerFuncWithSdk) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		sdkStr := r.URL.Query().Get("sdk")
-		sdk := tob.ParseSdk(sdkStr)
-
-		if sdk == tob.SDK_UNDEFINED {
-			log.Printf("Bad sdk: %v", sdkStr)
-
-			message := fmt.Sprintf("Sdk not in: %v", tob.SdksList())
-			finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, message)
-
-			return
-		}
-
-		next(w, r, sdk)
-	}
-}
 
 // Helper to format http error messages.
 func finalizeErrResponse(w http.ResponseWriter, status int, code, message string) {
@@ -115,19 +66,23 @@ func init() {
 		svc = &service.Svc{Repo: &storage.DatastoreDb{Client: client}}
 	}
 
-	addHeader := AddHeader("Content-Type", "application/json")
-	ensureGet := EnsureMethod(http.MethodGet)
-
 	// functions framework
-	functions.HTTP("sdkList", ensureGet(addHeader(sdkList)))
-	functions.HTTP("getContentTree", ensureGet(addHeader(ParseSdkParam(getContentTree))))
-	functions.HTTP("getUnitContent", ensureGet(addHeader(ParseSdkParam(getUnitContent))))
+	functions.HTTP("getSdkList", Common(getSdkList))
+	functions.HTTP("getContentTree", Common(ParseSdkParam(getContentTree)))
+	functions.HTTP("getUnitContent", Common(ParseSdkParam(getUnitContent)))
 }
 
 // Get list of SDK names
 // Used in both representation and accessing content.
-func sdkList(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, `{"names": ["Java", "Python", "Go"]}`)
+func getSdkList(w http.ResponseWriter, r *http.Request) {
+	sdks := tob.MakeSdkList()
+
+	err := json.NewEncoder(w).Encode(sdks)
+	if err != nil {
+		log.Println("Format sdk list error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format sdk list")
+		return
+	}
 }
 
 // Get the content tree for a given SDK and user
@@ -155,7 +110,7 @@ func getContentTree(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 // description, hints, code snippets
 // Required to be wrapped into ParseSdkParam middleware.
 func getUnitContent(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
-	unitId := r.URL.Query().Get("unitId")
+	unitId := r.URL.Query().Get("id")
 
 	unit, err := svc.GetUnitContent(r.Context(), sdk, unitId, nil /*TODO userId*/)
 	if err == service.ErrNoUnit {

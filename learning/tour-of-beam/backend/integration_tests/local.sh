@@ -27,7 +27,7 @@ docker-compose up -d
 
 go build -o tob_function cmd/main.go
 
-PORT=$PORT_SDK_LIST FUNCTION_TARGET=sdkList         ./tob_function &
+PORT=$PORT_SDK_LIST FUNCTION_TARGET=getSdkList         ./tob_function &
 PORT=$PORT_GET_CONTENT_TREE FUNCTION_TARGET=getContentTree  ./tob_function &
 PORT=$PORT_GET_UNIT_CONTENT FUNCTION_TARGET=getUnitContent  ./tob_function &
 
@@ -49,7 +49,7 @@ docker-compose down
 ls "$DATASTORE_EMULATOR_DATADIR"
 cat "$DATASTORE_EMULATOR_DATADIR/WEB-INF/index.yaml"
 
-diff -q "$DATASTORE_EMULATOR_DATADIR/WEB-INF/index.yaml" internal/storage/index.yaml || ( echo "index.yaml mismatch"; exit 1)
+diff "$DATASTORE_EMULATOR_DATADIR/WEB-INF/index.yaml" internal/storage/index.yaml || ( echo "index.yaml mismatch"; exit 1)
 
 
 rm -rf "$DATASTORE_EMULATOR_DATADIR"
