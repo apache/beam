@@ -17,28 +17,27 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: Javadoc postcommit
+name: Javadoc Postcommit
 on:
   schedule:
     - cron: '0 */6 * * *'
   push:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
   pull_request:
     branches: ['master', 'release-*']
-    tags: 'v*'
-    paths: '^sdks/java/javadoc/build/docs/javadoc'
+    tags: ['v*']
+permissions: read-all
 
 jobs:
   javadoc:
     name: Run Javadoc PostCommit
-    runs-on: self-hosted
-    strategy:
-      fail-fast: false
+    runs-on: [self-hosted, ubuntu-20.04]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           submodules: recursive
       - name: Gradle Javadoc Postcommit
