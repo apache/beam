@@ -44,6 +44,20 @@ func (s Sdk) Title() string {
 	}
 }
 
+func (s Sdk) StorageID() string {
+	switch s {
+	case SDK_GO:
+		return "SDK_GO"
+	case SDK_PYTHON:
+		return "SDK_PYTHON"
+	case SDK_JAVA:
+		return "SDK_JAVA"
+	case SDK_SCIO:
+		return "SDK_SCIO"
+	}
+	panic("undefined storage id for sdk")
+}
+
 // Parse sdk from string names, f.e. "java" -> Sdk.GO_JAVA
 // Returns SDK_UNDEFINED on error.
 func ParseSdk(s string) Sdk {
