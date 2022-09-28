@@ -1,0 +1,14 @@
+name: "Setup RC Variables"
+description: Setup Common RC Variables and dependecies
+runs:
+  using: composite
+  steps:
+    - id: set_common_vars
+      shell: bash
+      run: |
+        echo "RC_TAG=v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}" >>  $GITHUB_ENV
+        echo "RELEASE_BRANCH=releasev${{github.event.inputs.RELEASE_VER}}" >>  $GITHUB_ENV
+        echo "WORKING_BRANCH=v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}_validations" >>  $GITHUB_ENV
+        echo "GIT_REPO_URL=https://github.com/elink21/beam.git" >>  $GITHUB_ENV
+        echo "PYTHON_RC_DOWNLOAD_URL=https://dist.apache.org/repos/dist/dev/beam" >>  $GITHUB_ENV
+        echo "RELEASE_VER=${{github.event.inputs.RELEASE_VER}}" >> $GITHUB_ENV
