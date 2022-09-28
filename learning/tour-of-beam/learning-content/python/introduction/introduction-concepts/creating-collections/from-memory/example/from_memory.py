@@ -44,9 +44,10 @@ class Output(beam.PTransform):
     def expand(self, input):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
-with beam.Pipeline() as p:
-  (p | beam.Create(['Hello Beam','It`s introdction'])
+with beam.Pipeline() as p1:
+  (p1 | beam.Create(['Hello Beam','It`s introduction'])
      | 'Log words' >> Output())
-
-  (p | beam.Create(range(1, 11))
+     
+with beam.Pipeline() as p2:
+  (p2 | beam.Create(range(1, 11))
    | 'Log numbers' >> Output())
