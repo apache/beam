@@ -82,7 +82,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 
 
-# [2.42.0] - Cut 2022-10-04
+# [2.42.0] - 2022-10-04
 
 ## Highlights
 
