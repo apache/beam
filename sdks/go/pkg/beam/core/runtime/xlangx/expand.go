@@ -20,6 +20,7 @@ package xlangx
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -65,8 +66,11 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 		extTransform = transforms[extTransformID]
 	}
 
+	names := strings.Split(ext.Urn, ":")
 	// Python external transform needs the producer of input PCollection in expansion request.
-	graphx.AddFakeImpulses(p)
+	if len(names) > 2 && names[2] == "python" {
+		graphx.AddFakeImpulses(p)
+	}
 
 	// Scoping the ExternalTransform with respect to it's unique namespace, thus
 	// avoiding future collisions
@@ -80,7 +84,9 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 	}
 
 	// Remove fake impulses added earlier.
-	graphx.RemoveFakeImpulses(res.GetComponents(), res.GetTransform())
+	if len(names) > 2 && names[2] == "python" {
+		graphx.RemoveFakeImpulses(res.GetComponents(), res.GetTransform())
+	}
 
 	exp := &graph.ExpandedTransform{
 		Components:   res.GetComponents(),
