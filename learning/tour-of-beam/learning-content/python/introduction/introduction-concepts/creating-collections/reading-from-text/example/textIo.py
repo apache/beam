@@ -46,14 +46,14 @@ class Output(beam.PTransform):
 
 
 with beam.Pipeline() as p:
-    lines = p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
+  lines = p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
             | beam.Filter(lambda line: line != "")
 
-    lines | 'Log fixed lines' >> beam.combiners.Sample.FixedSizeGlobally(10) \
+  lines | 'Log fixed lines' >> beam.combiners.Sample.FixedSizeGlobally(10) \
     | beam.FlatMap(lambda sentence: sentence) \
     | Output(prefix = 'Fixed first 10 lines: ')
 
-    words = p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
+  words = p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
             | beam.FlatMap(lambda sentence: sentence.split()) \
             | beam.Filter(lambda word: not word.isspace() or word.isalnum()) \
             | beam.combiners.Sample.FixedSizeGlobally(10) \

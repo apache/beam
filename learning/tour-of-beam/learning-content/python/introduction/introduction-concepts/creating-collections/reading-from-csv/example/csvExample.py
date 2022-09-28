@@ -58,7 +58,7 @@ def tryParseTaxiRideCost(line,index):
         yield 0.0
 
 with beam.Pipeline() as p:
-    lines = p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv') \
+  lines = p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv') \
             | beam.ParDo(ExtractTaxiRideCostFn()) \
             | beam.combiners.Sample.FixedSizeGlobally(10) \
             | beam.FlatMap(lambda cost: cost) \
