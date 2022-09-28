@@ -25,6 +25,10 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: ['v*']
+    paths: [ 'sdks/python/apache_beam/runners/portability/flink_runner.py',
+             'sdks/python/apache_beam/runners/portability/flink_runner_test.py',
+             'sdks/python/apache_beam/runners/portability/flink_uber_jar_job_server.py',
+             'sdks/python/apache_beam/runners/portability/flink_uber_jar_job_server_test.py' ]
   pull_request_target:
     branches: ['master', 'release-*']
     tags: ['v*']
