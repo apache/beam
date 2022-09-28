@@ -19,8 +19,6 @@ import (
 	"errors"
 	"reflect"
 	"testing"
-
-	"cloud.google.com/go/bigtable"
 )
 
 func TestHashStringToInt(t *testing.T) {
@@ -43,7 +41,7 @@ func TestHashStringToInt(t *testing.T) {
 }
 
 func TestAddGroupKeyFnGroupKeyGiven(t *testing.T) {
-	bmWithGroupKey := NewBigtableMutation("rowKey", bigtable.NewMutation()).WithGroupKey("1")
+	bmWithGroupKey := NewMutation("rowKey").WithGroupKey("1")
 	groupKey, _ := addGroupKeyFn(*bmWithGroupKey)
 	if groupKey == 1 {
 		t.Error("addGroupKeyFn should hash groupKey values properly, but projected \"1\" -> 1")
@@ -51,7 +49,7 @@ func TestAddGroupKeyFnGroupKeyGiven(t *testing.T) {
 }
 
 func TestAddGroupKeyFnNoGroupKeyGiven(t *testing.T) {
-	bmNoGroupKey := NewBigtableMutation("rowKey", bigtable.NewMutation())
+	bmNoGroupKey := NewMutation("rowKey")
 	groupKey, _ := addGroupKeyFn(*bmNoGroupKey)
 	if groupKey != 1 {
 		t.Errorf("addGroupKeyFn should assign 1 as hash if no groupKey is given, but projected nil -> %d", groupKey)
@@ -59,17 +57,24 @@ func TestAddGroupKeyFnNoGroupKeyGiven(t *testing.T) {
 }
 
 func TestMustBeBigtableMutation(t *testing.T) {
-	passValues := []BigtableMutation {
+
+	mutation := NewMutation("key")
+	mutation.Set("family", "column", 0, []byte{})
+
+	mutationWithGroupKey := NewMutation("key").WithGroupKey("groupKey")
+	mutationWithGroupKey.Set("family", "column", 0, []byte{})
+
+	passValues := []BigtableioMutation {
 		{},
-		{rowKey: "key"},
-		{mutation: bigtable.NewMutation()},
-		*NewBigtableMutation("key", bigtable.NewMutation()),
-		*NewBigtableMutation("key", bigtable.NewMutation()).WithGroupKey("groupKey"),
+		{RowKey: "key"},
+		{Mutations: []Mutation {{}}},
+		*mutation,
+		*mutationWithGroupKey,
 	}
 
 	for _, passValue := range passValues {
 		passType := reflect.TypeOf(passValue)
-		err := mustBeBigtableMutation(passType)
+		err := mustBeBigtableioMutation(passType)
 		if err != nil {
 			t.Errorf("input type %v should be considered a bigtableio.BigtableMutation", passType)
 		}
@@ -86,7 +91,7 @@ func TestMustNotBeBigtableMutation(t *testing.T) {
 
 	for _, failValue := range failValues {
 		failType := reflect.TypeOf(reflect.ValueOf(failValue))
-		err := mustBeBigtableMutation(failType)
+		err := mustBeBigtableioMutation(failType)
 		if err == nil {
 			t.Errorf("input type %v should not be considered a bigtableio.BigtableMutation", failType)
 		}
