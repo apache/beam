@@ -140,7 +140,10 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 ### PostCommit Workflows
 | Workflow                                                                           | Description             | Requires GCP Credentials |
 |------------------------------------------------------------------------------------|-------------------------|--------------------------|
-| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
+| [job-postcommit-java-validaterunners-samza.yml](.github/workflows/job-postcommit-java-validaterunners-samza.yml) | Run Samza ValidatesRunner Java | Yes/No                   |
+| [job-postcommit-java-validaterunners-flink.yml](.github/workflows/job-postcommit-java-validaterunners-flink.yml) | Run Flink ValidatesRunner Java | Yes/No                   |
+| [job-postcommit-java-validaterunners-flink-java11.yml](.github/workflows/job-postcommit-java-validaterunners-flink-java11.yml) | Run Flink ValidatesRunner Java 11 | Yes/No                   |
+| [job-postcommit-java-validaterunners-twister2.yml](.github/workflows/job-postcommit-java-validaterunners-twister2.yml) | Run Twister2 ValidatesRunner Java | Yes/No                   |
 
 ### GitHub Action Tips
 
