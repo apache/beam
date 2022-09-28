@@ -29,6 +29,7 @@ func (s Sdk) String() string {
 	return string(s)
 }
 
+// get Title which is shown on the landing page
 func (s Sdk) Title() string {
 	switch s {
 	case SDK_GO:
@@ -45,6 +46,7 @@ func (s Sdk) Title() string {
 }
 
 // Parse sdk from string names, f.e. "java" -> Sdk.GO_JAVA
+// Make allowance for the case if the Title is given, not Id 
 // Returns SDK_UNDEFINED on error.
 func ParseSdk(s string) Sdk {
 	switch s {
