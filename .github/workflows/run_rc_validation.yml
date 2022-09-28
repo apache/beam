@@ -5,43 +5,53 @@ on:
       RELEASE_VER:
         description: Beam version of current release
         required: true
-        default: 2.42.0 # remove default before merging
-      USER_GCS_BUCKET:
-        description: Bucket to upload results
-        required: false
-        default: gs://rc-validation-migration-tests
+        default: "02" # remove default before merging
+#      USER_GCS_BUCKET:
+#        description: Bucket to upload results
+#        required: false
+#        default: gs://rc-validation-migration-tests
       RC_NUM:
         description: RC number
         required: true
         default: "1"
-env: # This should be a set of github secrets    
-  USER_GCP_PROJECT: apache-beam-testing
-  USER_GCP_REGION: us-central1
-  USER_GCP_ZONE: us-central1-a
-  REPO_URL: https://repository.apache.org/content/repositories/orgapachebeam-1284
+#env: # This should be a set of github secrets
+#  USER_GCP_PROJECT: apache-beam-testing
+#  USER_GCP_REGION: us-central1
+#  USER_GCP_ZONE: us-central1-a
+#  REPO_URL: https://repository.apache.org/content/repositories/orgapachebeam-1284
 jobs:
   python_release_candidate:
     #runs-on: [self-hosted, ubuntu-20.04]
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
     steps:
-      - name: Setup Common
-        uses: ./.github/actions/common-rc-validation
+      - name: Set RC_TAG branch
+        run: |
+          echo "RC_TAG=v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}" >>  $GITHUB_ENV
       - name: Check out code
         uses: actions/checkout@v3
         with:
           ref: ${{ env.RC_TAG }}
+          #token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup Common
+        uses: ./.github/actions/common-rc-validation
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
       - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git checkout -b ${{env.WORKING_BRANCH}} --quiet
+          git checkout -b ${{env.WORKING_BRANCH}} ${{env.RC_TAG}} --quiet
           touch empty_file.txt
           git add empty_file.txt
           git commit -m "Add empty file in order to create PR" --quiet
           git push origin ${{env.WORKING_BRANCH}} --quiet
-          GITHUB_PR_URL=$(gh pr create -B ${{env.RELEASE_BRANCH}} -H ${{env.WORKING_BRANCH}} -t"[DO NOT MERGE] Run Python RC Validation Tests"
+          GITHUB_PR_URL=$(gh pr create -B ${{env.RELEASE_BRANCH}} -H ${{env.RC_TAG}} -t"[DO NOT MERGE] Run Python RC Validation Tests")
+
 #GITHUB_PR_URL=$(gh pr create -B ${RELEASE_BRANCH} -H ${RC_TAG} -t"[DO NOT MERGE] Run Python RC Validation Tests"
       - name: Comment on PR to Trigger Python ReleaseCandidate Test
         run: |
