@@ -198,7 +198,8 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
        * can be active.
        */
 
-      return Executors.newScheduledThreadPool(Math.max(4, Runtime.getRuntime().availableProcessors()), threadFactoryBuilder.build());
+      return Executors.newScheduledThreadPool(
+          Math.max(4, Runtime.getRuntime().availableProcessors()), threadFactoryBuilder.build());
     }
   }
 
