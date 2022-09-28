@@ -25,11 +25,14 @@ import (
 
 	"cloud.google.com/go/bigtable"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*writeFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*writeBatchFn)(nil)).Elem())
+	register.DoFn2x1[int, func(*BigtableioMutation) bool, error](&writeFn{})
+	register.Iter1[*BigtableioMutation]()
+	register.DoFn2x1[int, func(*BigtableioMutation) bool, error](&writeBatchFn{})
+	register.Iter1[*BigtableioMutation]()
 }
 
 // BigtableioMutation represents a bigtable mutation containing a rowKey and the mutation to be applied
