@@ -23,12 +23,12 @@ import 'abstract_node.dart';
 
 part 'module.g.dart';
 
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 class ModuleModel {
   final String id;
   final String title;
   final Complexity complexity;
-  @JsonKey(fromJson: NodeModel.nodesFromServer)
+  @JsonKey(fromJson: NodeModel.nodesFromResponse)
   final List<NodeModel> nodes;
 
   const ModuleModel({
@@ -40,6 +40,4 @@ class ModuleModel {
 
   factory ModuleModel.fromJson(Map<String, dynamic> json) =>
       _$ModuleModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$ModuleModelToJson(this);
 }

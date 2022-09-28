@@ -16,13 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:json_annotation/json_annotation.dart';
-
 import 'abstract_node.dart';
 
-part 'unit.g.dart';
-
-@JsonSerializable()
 class UnitModel extends NodeModel {
   final String id;
 
@@ -30,9 +25,4 @@ class UnitModel extends NodeModel {
     required this.id,
     required super.title,
   });
-
-  factory UnitModel.fromJson(Map<String, dynamic> json) =>
-      _$UnitModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$UnitModelToJson(this);
 }

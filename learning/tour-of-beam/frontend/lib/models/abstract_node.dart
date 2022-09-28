@@ -16,30 +16,27 @@
  * limitations under the License.
  */
 
-import 'package:json_annotation/json_annotation.dart';
-
 import '../enums.dart';
+import '../repositories/models/node.dart';
 import 'group.dart';
-import 'server/node_server.dart';
 import 'unit.dart';
 
 /// Abstract NodeModel is used as the parent class of node models.
 /// Nodes on server are based on composition,
 /// because Golang doesn't support inheritance.
-@JsonSerializable()
 abstract class NodeModel {
   final String title;
   const NodeModel({required this.title});
 
-  static List<NodeModel> nodesFromServer(List json) {
+  static List<NodeModel> nodesFromResponse(List json) {
     return json
         .cast<Map<String, dynamic>>()
-        .map<NodeServerModel>(NodeServerModel.fromJson)
+        .map<NodeResponseModel>(NodeResponseModel.fromJson)
         .map(_nodeFromServer)
         .toList();
   }
 
-  static NodeModel _nodeFromServer(NodeServerModel node) {
+  static NodeModel _nodeFromServer(NodeResponseModel node) {
     switch (node.type) {
       case NodeType.group:
         return GroupModel(

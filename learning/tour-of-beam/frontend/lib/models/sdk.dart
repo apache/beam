@@ -20,7 +20,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'sdk.g.dart';
 
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 class SdkModel {
   final String id;
   final String title;
@@ -29,6 +29,4 @@ class SdkModel {
 
   factory SdkModel.fromJson(Map<String, dynamic> json) =>
       _$SdkModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$SdkModelToJson(this);
 }

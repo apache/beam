@@ -16,26 +16,26 @@
  * limitations under the License.
  */
 
-import 'package:json_annotation/json_annotation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:get_it/get_it.dart';
 
-import '../../enums.dart';
-import 'group.dart';
-import 'unit.dart';
+import '../cache/sdk_cache.dart';
+import '../models/sdk.dart';
 
-part 'node.g.dart';
+class SdksBuilder extends StatelessWidget {
+  final ValueWidgetBuilder<List<SdkModel>> builder;
 
-@JsonSerializable(createToJson: false)
-class NodeResponseModel {
-  final NodeType type;
-  final UnitResponseModel? unit;
-  final GroupResponseModel? group;
-
-  const NodeResponseModel({
-    required this.type,
-    required this.unit,
-    required this.group,
+  const SdksBuilder({
+    required this.builder,
   });
 
-  factory NodeResponseModel.fromJson(Map<String, dynamic> json) =>
-      _$NodeResponseModelFromJson(json);
+  @override
+  Widget build(BuildContext context) {
+    final cache = GetIt.instance.get<SdkCache>();
+
+    return AnimatedBuilder(
+      animation: cache,
+      builder: (context, child) => builder(context, cache.getSdks(), child),
+    );
+  }
 }

@@ -16,9 +16,13 @@
  * limitations under the License.
  */
 
-//import 'package:get_it/get_it.dart';
+import 'package:get_it/get_it.dart';
+
+import 'cache/sdk_cache.dart';
+import 'repositories/client/cloud_functions_client.dart';
 
 Future<void> initializeServiceLocator() async {
-  // See https://github.com/alexeyinkin/mefolio-standalone/blob/main/flutter/lib/locator.dart
-  // as an example.
+  final client = CloudFunctionsTobClient();
+
+  GetIt.instance.registerSingleton(SdkCache(client: client));
 }

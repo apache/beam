@@ -16,24 +16,13 @@
  * limitations under the License.
  */
 
-import 'package:json_annotation/json_annotation.dart';
-
 import 'abstract_node.dart';
 
-part 'group.g.dart';
-
-@JsonSerializable()
 class GroupModel extends NodeModel {
-  @JsonKey(fromJson: NodeModel.nodesFromServer)
   final List<NodeModel> nodes;
 
   const GroupModel({
     required super.title,
     required this.nodes,
   });
-
-  factory GroupModel.fromJson(Map<String, dynamic> json) =>
-      _$GroupModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$GroupModelToJson(this);
 }

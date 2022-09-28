@@ -16,26 +16,23 @@
  * limitations under the License.
  */
 
-import 'package:json_annotation/json_annotation.dart';
+import 'dart:convert';
 
-import '../../enums.dart';
-import 'group.dart';
-import 'unit.dart';
+import 'package:http/http.dart' as http;
 
-part 'node.g.dart';
+import '../models/get_sdks_response.dart';
+import 'client.dart';
 
-@JsonSerializable(createToJson: false)
-class NodeResponseModel {
-  final NodeType type;
-  final UnitResponseModel? unit;
-  final GroupResponseModel? group;
+class CloudFunctionsTobClient extends TobClient {
+  @override
+  Future<GetSdksResponse> getSdks() async {
+    final json = await http.get(
+      Uri.parse(
+        'https://us-central1-tour-of-beam-2.cloudfunctions.net/getSdkList',
+      ),
+    );
 
-  const NodeResponseModel({
-    required this.type,
-    required this.unit,
-    required this.group,
-  });
-
-  factory NodeResponseModel.fromJson(Map<String, dynamic> json) =>
-      _$NodeResponseModelFromJson(json);
+    final map = jsonDecode(utf8.decode(json.bodyBytes)) as Map<String, dynamic>;
+    return GetSdksResponse.fromJson(map);
+  }
 }

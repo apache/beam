@@ -16,26 +16,38 @@
  * limitations under the License.
  */
 
-import 'package:json_annotation/json_annotation.dart';
+import 'dart:async';
 
-import '../../enums.dart';
-import 'group.dart';
-import 'unit.dart';
+import 'package:flutter/widgets.dart';
 
-part 'node.g.dart';
+import '../models/sdk.dart';
+import '../repositories/client/client.dart';
+import '../repositories/models/get_sdks_response.dart';
 
-@JsonSerializable(createToJson: false)
-class NodeResponseModel {
-  final NodeType type;
-  final UnitResponseModel? unit;
-  final GroupResponseModel? group;
+class SdkCache extends ChangeNotifier {
+  final TobClient client;
 
-  const NodeResponseModel({
-    required this.type,
-    required this.unit,
-    required this.group,
+  final _sdks = <SdkModel>[];
+  Future<GetSdksResponse>? _future;
+
+  SdkCache({
+    required this.client,
   });
 
-  factory NodeResponseModel.fromJson(Map<String, dynamic> json) =>
-      _$NodeResponseModelFromJson(json);
+  List<SdkModel> getSdks() {
+    if (_future == null) {
+      unawaited(_loadSdks());
+    }
+
+    return _sdks;
+  }
+
+  Future<List<SdkModel>> _loadSdks() async {
+    _future = client.getSdks();
+    final result = await _future!;
+
+    _sdks.addAll(result.sdks);
+    notifyListeners();
+    return _sdks;
+  }
 }

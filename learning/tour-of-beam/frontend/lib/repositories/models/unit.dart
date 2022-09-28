@@ -18,20 +18,18 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-part 'unit_server.g.dart';
+part 'unit.g.dart';
 
-@JsonSerializable()
-class UnitServerModel {
+@JsonSerializable(createToJson: false)
+class UnitResponseModel {
   final String id;
   final String title;
 
-  const UnitServerModel({
+  const UnitResponseModel({
     required this.id,
     required this.title,
   });
 
-  factory UnitServerModel.fromJson(Map<String, dynamic> json) =>
-      _$UnitServerModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$UnitServerModelToJson(this);
+  factory UnitResponseModel.fromJson(Map<String, dynamic> json) =>
+      _$UnitResponseModelFromJson(json);
 }

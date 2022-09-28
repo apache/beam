@@ -18,22 +18,20 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-import 'node_server.dart';
+import 'node.dart';
 
-part 'group_server.g.dart';
+part 'group.g.dart';
 
-@JsonSerializable()
-class GroupServerModel {
+@JsonSerializable(createToJson: false)
+class GroupResponseModel {
   final String title;
-  final List<NodeServerModel> nodes;
+  final List<NodeResponseModel> nodes;
 
-  const GroupServerModel({
+  const GroupResponseModel({
     required this.title,
     required this.nodes,
   });
 
-  factory GroupServerModel.fromJson(Map<String, dynamic> json) =>
-      _$GroupServerModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$GroupServerModelToJson(this);
+  factory GroupResponseModel.fromJson(Map<String, dynamic> json) =>
+      _$GroupResponseModelFromJson(json);
 }

@@ -16,15 +16,13 @@
  * limitations under the License.
  */
 
-// TODO(nausharipov): hide generated files
-
 import 'package:json_annotation/json_annotation.dart';
 
 import 'module.dart';
 
 part 'content_tree.g.dart';
 
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 class ContentTreeModel {
   final String sdkId;
   final List<ModuleModel> modules;
@@ -36,6 +34,4 @@ class ContentTreeModel {
 
   factory ContentTreeModel.fromJson(Map<String, dynamic> json) =>
       _$ContentTreeModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$ContentTreeModelToJson(this);
 }

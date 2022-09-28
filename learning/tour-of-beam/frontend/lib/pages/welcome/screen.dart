@@ -24,13 +24,13 @@ import 'package:playground_components/playground_components.dart';
 
 import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
+import '../../components/sdks_builder.dart';
 import '../../constants/sizes.dart';
 import '../../functions.dart';
 import '../../generated/assets.gen.dart';
 import '../../models/content_tree.dart';
 import '../../models/module.dart';
 import '../../models/sdk.dart';
-import '../../models/server/sdk_list.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen();
@@ -114,13 +114,14 @@ class _SdkSelection extends StatelessWidget {
               children: [
                 const _IntroText(),
                 const SizedBox(height: BeamSizes.size32),
-                FutureBuilder(
-                  future: kGetSdks(),
-                  builder: (context, snapshot) => snapshot.data == null
-                      ? Container()
-                      : _Buttons(
-                          sdks: SdkListModel.fromJson(snapshot.data!).sdks,
-                        ),
+                SdksBuilder(
+                  builder: (context, sdks, child) {
+                    if (sdks.isEmpty) {
+                      return Container();
+                    }
+
+                    return _Buttons(sdks: sdks);
+                  },
                 ),
               ],
             ),

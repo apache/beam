@@ -19,19 +19,19 @@
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../functions.dart';
-import '../models/server/sdk_list.dart';
+import 'sdks_builder.dart';
 
 class SdkDropdown extends StatelessWidget {
   const SdkDropdown();
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: kGetSdks(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Container();
-        final sdks = SdkListModel.fromJson(snapshot.data!).sdks;
+    return SdksBuilder(
+      builder: (context, sdks, _) {
+        if (sdks.isEmpty) {
+          return Container();
+        }
+
         return _DropdownWrapper(
           child: DropdownButton(
             value: sdks.first.id,

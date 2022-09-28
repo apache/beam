@@ -16,26 +16,9 @@
  * limitations under the License.
  */
 
-import 'package:json_annotation/json_annotation.dart';
+import '../models/get_sdks_response.dart';
 
-import '../../enums.dart';
-import 'group.dart';
-import 'unit.dart';
-
-part 'node.g.dart';
-
-@JsonSerializable(createToJson: false)
-class NodeResponseModel {
-  final NodeType type;
-  final UnitResponseModel? unit;
-  final GroupResponseModel? group;
-
-  const NodeResponseModel({
-    required this.type,
-    required this.unit,
-    required this.group,
-  });
-
-  factory NodeResponseModel.fromJson(Map<String, dynamic> json) =>
-      _$NodeResponseModelFromJson(json);
+abstract class TobClient {
+  // TODO(alexeyinkin): Add getContentTree();
+  Future<GetSdksResponse> getSdks();
 }
