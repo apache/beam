@@ -140,7 +140,8 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 ### PostCommit Workflows
 | Workflow                                                                           | Description             | Requires GCP Credentials |
 |------------------------------------------------------------------------------------|-------------------------|--------------------------|
-| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
+| [job-postcommit-java-vr-dataflow-v2.yml](.github/workflows/job-postcommit-java-vr-dataflow-v2.yml) | Runs Java ValidatesRunner suite on the Dataflow runner V2 | Yes/No                   |
+| [job-postcommit-java-vr-dataflow-v2-streaming.yml](.github/workflows/job-postcommit-java-vr-dataflow-v2-streaming.yml) | Runs Java ValidatesRunner suite on the Dataflow runner V2 forcing streaming mode | Yes/No                   |
 
 ### GitHub Action Tips
 
