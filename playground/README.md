@@ -54,6 +54,7 @@ cd beam
 ```
 
 ## Re-generate protobuf
+We store generated protobuf files in the repository. This task should be executed only if you introduced changes to ./api/v1/api.proto file. Do not forget to check-in changes to generated files. 
 
 ```
 cd beam
