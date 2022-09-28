@@ -70,19 +70,18 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   void setExecutorService(ExecutorService value);
 
-  // TODO update docs
   /**
-   * The ExecutorService instance to use to create threads, can be overridden to specify an
-   * ExecutorService that is compatible with the user's environment. If unset, the default is to
-   * create an ExecutorService with an unbounded number of threads; this is compatible with Google
-   * AppEngine.
+   * The ScheduledExecutorService instance to use to create threads, can be overridden to specify a
+   * ScheduledExecutorService that is compatible with the user's environment. If unset, the default
+   * is to create an ScheduledExecutorService with a core number of threads equal to Math.max(4,
+   * Runtime.getRuntime().availableProcessors())
    */
   @JsonIgnore
   @Description(
-      "The ExecutorService instance to use to create multiple threads. Can be overridden "
-          + "to specify an ExecutorService that is compatible with the user's environment. If unset, "
-          + "the default is to create an ExecutorService with an unbounded number of threads; this "
-          + "is compatible with Google AppEngine.")
+      "The ScheduledExecutorService instance to use to create threads, can be overridden to specify "
+          + "a ScheduledExecutorService that is compatible with the user's environment. If unset, "
+          + "the default is to create an ScheduledExecutorService with a core number of threads "
+          + "equal to Math.max(4, Runtime.getRuntime().availableProcessors())")
   @Default.InstanceFactory(ScheduledExecutorServiceFactory.class)
   @Hidden
   ScheduledExecutorService getScheduledExecutorService();
