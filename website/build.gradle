@@ -80,10 +80,10 @@ task createDockerContainer(type: Exec) {
     } else {
       // Otherwise: run as current user, so as to not require sudo to clean up
       // build/ directory.
-      extraOptions += " -u \$(id -u):\$(id -g)"
+      extraOptions += " -u 0:0"
     }
     commandLine '/bin/bash', '-c',
-      "docker create -v $project.rootDir:$dockerWorkDir $extraOptions $dockerImageTag sh -c 'trap \"exit 0\" INT; while true; do sleep 30; done;'"
+      "docker create $extraOptions $dockerImageTag sh -c 'trap \"exit 0\" INT; while true; do sleep 30; done;'"
   }
 }
 
@@ -115,9 +115,35 @@ task buildCodeSamples(type: Exec) {
               "${->startDockerContainer.containerId()}", 'yarn', 'build_code_samples'
 }
 
+task cloneRepository(type: Exec) {
+  commandLine 'docker', 'exec',
+          "${->startDockerContainer.containerId()}", "git", "clone", "-b", System.getenv('ghBranch'),
+          "https://github.com/${System.getenv('repositoryUrl')}", "."
+}
+
+task setupVirtualenvWithDependenciesInDocker {
+  doLast {
+    exec {
+      commandLine 'docker', 'exec',
+              "${->startDockerContainer.containerId()}", "python${project.ext.pythonVersion}",
+              '-m', 'venv', "${envdir}"
+    }
+    exec {
+      commandLine 'docker', 'exec',
+              "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+              """. ${envdir}/bin/activate && pip install beautifulsoup4"""
+    }
+  }
+}
+
+initGitSubmodules.mustRunAfter cloneRepository
+installDependencies.mustRunAfter cloneRepository
+buildCodeSamples.mustRunAfter cloneRepository
+
 task setupDockerContainer(type: Exec) {
   dependsOn startDockerContainer
-  finalizedBy initGitSubmodules, installDependencies, buildCodeSamples
+  finalizedBy cloneRepository, initGitSubmodules, installDependencies, buildCodeSamples,
+          setupVirtualenvWithDependenciesInDocker
   ext.containerId = {
     return startDockerContainer.containerId()
   }
@@ -147,7 +173,6 @@ def createBuildTask = {
   BuildTaskConfiguration config = it as BuildTaskConfiguration
   task "build${config.name}Website" (type:Exec) {
     dependsOn setupDockerContainer
-    finalizedBy stopAndRemoveDockerContainer
 
     def configs = "$dockerSourceDir/site/config.toml"
     def baseUrlFlag = config.baseUrl ? "--baseURL /${config.baseUrl}" : ""
@@ -230,13 +255,13 @@ def getBranchRepo() {
   return "apache/beam/blob/master"
 }
 
-def buildContentDir(name) {
-  "${project.rootDir}/build/website/generated-${name.toLowerCase()}-content"
+def buildContentDir(name, dir = project.rootDir) {
+  "${dir}/build/website/generated-${name.toLowerCase()}-content"
 }
 
 task serveWebsite(type: Exec) {
   dependsOn setupDockerContainer
-  finalizedBy stopAndRemoveDockerContainer
+//  finalizedBy stopAndRemoveDockerContainer
   commandLine 'docker', 'exec',
     "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerSourceDir && \
@@ -263,6 +288,7 @@ task preCommit {
 
 // Creates a new commit on asf-site branch
 task commitWebsite {
+  finalizedBy stopAndRemoveDockerContainer
   doLast {
     assert grgit : "Cannot commit website outside of git repository"
     assert file("${buildContentDir('apache')}/index.html").exists()
@@ -346,6 +372,7 @@ publishWebsite.dependsOn commitWebsite
  *   ./gradlew :website:stageWebsite -PwebsiteBucket=foo
  */
 task stageWebsite {
+  finalizedBy stopAndRemoveDockerContainer
   doLast {
     def baseUrl = getBaseUrl()
     assert baseUrl : 'Website staging requires a valid baseUrl'
@@ -353,10 +380,18 @@ task stageWebsite {
     def gcs_path = "gs://${gcs_bucket}/${baseUrl}"
 
     // Fixup the links to index.html files
-    shell ". ${envdir}/bin/activate && python append_index_html_to_internal_links.py ${buildContentDir('gcs')}"
+    exec {
+      commandLine 'docker', 'exec', '--workdir', "$dockerWorkDir/website",
+              "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+              """. ${envdir}/bin/activate && python append_index_html_to_internal_links.py ${buildContentDir('gcs', ".")} """
+    }
 
     // Copy the build website to GCS
-    shell "gsutil -m rsync -r -d ${buildContentDir('gcs')} ${gcs_path}"
+    exec {
+      commandLine 'docker', 'exec', '--workdir', "$dockerWorkDir",
+              "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+              """gsutil -m rsync -r -d ${buildContentDir('gcs', ".")} ${gcs_path}"""
+    }
 
     println "Website published to http://${gcs_bucket}." +
         "storage.googleapis.com/${baseUrl}/index.html"

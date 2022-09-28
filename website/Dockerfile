@@ -69,4 +69,26 @@ RUN HUGOHOME="$(mktemp -d)" \
     && chmod +x /usr/local/bin/hugo \
     && rm -r "${HUGOHOME}"
 
+
+# Install gcloud
+# Make sure that your operating system meets the requirements
+
+# Add the gcloud CLI distribution URI as a package source
+RUN apt-get install apt-transport-https ca-certificates gnupg
+RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+# Import the Google Cloud public key
+RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg |  apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+# Update and install the gcloud CLI
+RUN  apt-get update && apt-get install google-cloud-cli
+# #Installing and replacing default python version
+RUN  apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libsqlite3-dev libreadline-dev libffi-dev curl libbz2-dev \
+    && curl -O https://www.python.org/ftp/python/3.8.2/Python-3.8.2.tar.xz \
+    && tar -xf Python-3.8.2.tar.xz  \
+    && cd Python-3.8.2 && ./configure --enable-optimizations \
+    && make -j 4 && make altinstall
+
+RUN update-alternatives --install /usr/bin/python python /usr/local/bin/python3.8 1\
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.5 2  \
+    &&  update-alternatives --set python $(update-alternatives --list python | grep python3.8)
+
 WORKDIR /opt/

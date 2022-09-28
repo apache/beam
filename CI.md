@@ -133,9 +133,11 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | PreCommit   | Yes              | Yes                   | Yes           | Yes               |
 
 ### PreCommit Workflows
-| Workflow                                                                         | Description             | Requires GCP Credentials  |
-|----------------------------------------------------------------------------------|-------------------------|---------------------------|
-| [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml) | Description placeholder | Yes/No                    |
+| Workflow                                                                                     | Description               | Requires GCP Credentials |
+|----------------------------------------------------------------------------------------------|---------------------------|--------------------------|
+| [job-precommit-typescript.yml](.github/workflows/job-precommit-typescript.yml)               | Runs Typescript PreCommit | No                       |
+| [job-precommit-website.yml](.github/workflows/job-precommit-website.yml)                     | Runs Website PreCommit    | No                       |
+| [job-precommit-website-stage-gcs.yml](.github/workflows/job-precommit-website-stage-gcs.yml) | Runs Website in Stage GCS | Yes                      |
 
 ### PostCommit Workflows
 | Workflow                                                                           | Description             | Requires GCP Credentials |
