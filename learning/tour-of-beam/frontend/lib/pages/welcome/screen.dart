@@ -22,13 +22,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../components/builders/content_tree.dart';
+import '../../components/builders/sdks_builder.dart';
 import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
-import '../../components/sdks_builder.dart';
 import '../../constants/sizes.dart';
-import '../../functions.dart';
 import '../../generated/assets.gen.dart';
-import '../../models/content_tree.dart';
 import '../../models/module.dart';
 import '../../models/sdk.dart';
 
@@ -142,19 +141,18 @@ class _TourSummary extends StatelessWidget {
         vertical: BeamSizes.size20,
         horizontal: 27,
       ),
-      child: FutureBuilder(
-        future: kGetContentTree(),
-        builder: (context, snapshot) {
-          if (snapshot.data == null) {
+      child: ContentTreeBuilder(
+        builder: (context, contentTree, child) {
+          if (contentTree == null) {
             return Container();
           }
-          final modules = ContentTreeModel.fromJson(snapshot.data!).modules;
+
           return Column(
-            children: modules
+            children: contentTree.modules
                 .map(
                   (module) => _Module(
                     module: module,
-                    isLast: module == modules.last,
+                    isLast: module == contentTree.modules.last,
                   ),
                 )
                 .toList(growable: false),

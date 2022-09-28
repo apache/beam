@@ -19,8 +19,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 
-import '../cache/sdk_cache.dart';
-import '../models/sdk.dart';
+import '../../cache/sdk_cache.dart';
+import '../../models/sdk.dart';
 
 class SdksBuilder extends StatelessWidget {
   final ValueWidgetBuilder<List<SdkModel>> builder;

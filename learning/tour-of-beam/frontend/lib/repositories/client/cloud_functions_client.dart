@@ -20,6 +20,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../models/content_tree.dart';
 import '../models/get_sdks_response.dart';
 import 'client.dart';
 
@@ -34,5 +35,16 @@ class CloudFunctionsTobClient extends TobClient {
 
     final map = jsonDecode(utf8.decode(json.bodyBytes)) as Map<String, dynamic>;
     return GetSdksResponse.fromJson(map);
+  }
+
+  @override
+  Future<ContentTreeModel> getContentTree() async {
+    final json = await http.get(
+      Uri.parse(
+        'https://us-central1-tour-of-beam-2.cloudfunctions.net/getContentTree?sdk=Python',
+      ),
+    );
+    final map = jsonDecode(utf8.decode(json.bodyBytes)) as Map<String, dynamic>;
+    return ContentTreeModel.fromJson(map);
   }
 }

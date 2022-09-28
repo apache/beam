@@ -21,14 +21,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../components/builders/content_tree.dart';
 import '../../components/expansion_tile_wrapper.dart';
 import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
-import '../../functions.dart';
 import '../../generated/assets.gen.dart';
 import '../../models/abstract_node.dart';
-import '../../models/content_tree.dart';
 import '../../models/group.dart';
 import '../../models/module.dart';
 import '../../models/unit.dart';
@@ -105,22 +104,24 @@ class _ContentTree extends StatelessWidget {
     return Container(
       width: 250,
       padding: const EdgeInsets.symmetric(horizontal: BeamSizes.size12),
-      child: FutureBuilder(
-        future: kGetContentTree(),
-        builder: (context, snapshot) => snapshot.data == null
-            ? Container()
-            : SingleChildScrollView(
-                child: Column(
-                  children: [
-                    const _ContentTreeTitle(),
-                    ...ContentTreeModel.fromJson(snapshot.data!)
-                        .modules
-                        .map((module) => _Module(module: module))
-                        .toList(growable: false),
-                    const SizedBox(height: BeamSizes.size12),
-                  ],
-                ),
-              ),
+      child: ContentTreeBuilder(
+        builder: (context, contentTree, child) {
+          if (contentTree == null) {
+            return Container();
+          }
+
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                const _ContentTreeTitle(),
+                ...contentTree.modules
+                    .map((module) => _Module(module: module))
+                    .toList(growable: false),
+                const SizedBox(height: BeamSizes.size12),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

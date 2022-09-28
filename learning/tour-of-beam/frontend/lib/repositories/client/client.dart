@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
+import '../../models/content_tree.dart';
 import '../models/get_sdks_response.dart';
 
 abstract class TobClient {
-  // TODO(alexeyinkin): Add getContentTree();
   Future<GetSdksResponse> getSdks();
+  Future<ContentTreeModel> getContentTree();
 }

@@ -16,28 +16,30 @@
  * limitations under the License.
  */
 
-import 'dart:convert';
+import 'package:flutter/widgets.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:http/http.dart' as http;
+import '../../cache/content_tree.dart';
+import '../../models/content_tree.dart';
 
-// TODO(nausharipov): remove after demo
+class ContentTreeBuilder extends StatelessWidget {
+  final ValueWidgetBuilder<ContentTreeModel?> builder;
 
-Future<Map<String, dynamic>> kGetSdks() async {
-  final response = await http.get(
-    Uri.parse(
-      'https://us-central1-tour-of-beam-2.cloudfunctions.net/getSdkList',
-    ),
-  );
-  final decodedResponse = jsonDecode(utf8.decode(response.bodyBytes));
-  return decodedResponse;
-}
+  const ContentTreeBuilder({
+    required this.builder,
+  });
 
-Future<Map<String, dynamic>> kGetContentTree() async {
-  final response = await http.get(
-    Uri.parse(
-      'https://us-central1-tour-of-beam-2.cloudfunctions.net/getContentTree?sdk=Python',
-    ),
-  );
-  final decodedResponse = jsonDecode(utf8.decode(response.bodyBytes));
-  return decodedResponse;
+  @override
+  Widget build(BuildContext context) {
+    final cache = GetIt.instance.get<ContentTreeCache>();
+
+    return AnimatedBuilder(
+      animation: cache,
+      builder: (context, child) => builder(
+        context,
+        cache.getContentTree(),
+        child,
+      ),
+    );
+  }
 }
