@@ -35,7 +35,7 @@ func init() {
 	register.Iter1[*BigtableioMutation]()
 }
 
-// BigtableioMutation represents a bigtable mutation containing a rowKey and the mutation to be applied
+// BigtableioMutation represents a bigtable mutation containing a rowKey and the mutations to be applied
 type BigtableioMutation struct {
 	RowKey   string
 	Mutations []Mutation
