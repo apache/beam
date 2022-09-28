@@ -20,111 +20,137 @@ env: # This should be a set of github secrets
   USER_GCP_ZONE: us-central1-a
   REPO_URL: https://repository.apache.org/content/repositories/orgapachebeam-1284
 jobs:
-  python_cross_validation:
-    runs-on: [self-hosted,ubuntu-20.04]
+  python_release_candidate:
+    #runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    - name: Common tasks
-      uses: ./.github/actions/common-rc-validation
-    - name: Verify ENV values
-      run: |
-        echo ""
-        echo "====================Checking Environment & Variables================="
-        echo ""
-        echo "running validations on release ${{github.event.inputs.RELEASE_VER}} RC${{github.event.inputs.RC_NUM}}."
-        echo "repo URL for this RC: $GIT_REPO_URL"
-    - name: Install Kubectl 
-      uses: azure/setup-kubectl@v3
-
-    - name: Setup Java JDK
-      uses: actions/setup-java@v3.5.1
-      with:
-        distribution: 'temurin'
-        java-version: 11
-
-    - name: Install Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.8'
-        cache: 'pip' # caching pip dependencies
-    - name: Downloading Python Staging RC
-      run: |
-        echo ""
-        echo "====================Starting Python Cross-language Validations==============="
-  
-
-        echo "---------------------Downloading Python Staging RC----------------------------"
-        wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-        wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-        if [[ ! -f apache-beam-$RELEASE_VER.zip ]]; then
-          { echo "Fail to download Python Staging RC files." ;exit 1; }
-        fi
-
-        echo "--------------------------Verifying Hashes------------------------------------"
-        sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-
-        `which pip` install --upgrade pip
-        `which pip` install --upgrade setuptools
-
-        KAFKA_CLUSTER_NAME=xlang-kafka-cluster-$RANDOM
-    - name: Installing gcloud-auth-plugin
-      run: sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin
-    - name: Setting Kafka Cluster Name # TODO: change to random again once the tests are finished
-      run: |
-        echo "KAFKA_CLUSTER_NAME=xlang-kafka-cluster-12817">> $GITHUB_ENV 
-#    - name: Creating Kafka Cluster
+      - name: Setup Common
+        uses: ./.github/actions/common-rc-validation
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ env.RC_TAG }}
+      - name: Set git config
+        run: |
+          git config user.name $GITHUB_ACTOR
+          git config user.email actions@"$RUNNER_NAME".local
+      - name: Create Pull Request
+        run: |
+          git checkout -b ${{env.WORKING_BRANCH}} --quiet
+          touch empty_file.txt
+          git add empty_file.txt
+          git commit -m "Add empty file in order to create PR" --quiet
+          git push origin ${{env.WORKING_BRANCH}} --quiet
+          GITHUB_PR_URL=$(gh pr create -B ${{env.RELEASE_BRANCH}} -H ${{env.WORKING_BRANCH}} -t"[DO NOT MERGE] Run Python RC Validation Tests"
+#GITHUB_PR_URL=$(gh pr create -B ${RELEASE_BRANCH} -H ${RC_TAG} -t"[DO NOT MERGE] Run Python RC Validation Tests"
+      - name: Comment on PR to Trigger Python ReleaseCandidate Test
+        run: |
+          gh pr comment "$GITHUB_PR_URL" --body "Run Python ReleaseCandidate"
+#  python_cross_validation:
+#    runs-on: [self-hosted, ubuntu-20.04]
+#    steps:
+#    - name: Checkout code
+#      uses: actions/checkout@v3
+#    - name: Common tasks
+#      uses: ./.github/actions/common-rc-validation
+#    - name: Verify ENV values
 #      run: |
-#        gcloud container clusters create --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --no-enable-ip-alias $KAFKA_CLUSTER_NAME
-#        kubectl apply -R -f .test-infra/kubernetes/kafka-cluster
-    - name: Getting cluster credentials
-      run: gcloud container clusters get-credentials ${KAFKA_CLUSTER_NAME} --region ${USER_GCP_REGION} --project ${USER_GCP_PROJECT}
-    - name: Setting Python Environment
-      run: |
-        echo "--------------------------Installing Python SDK-------------------------------"
-        pip install --upgrade pip setuptools wheel
-        pip install apache-beam-${RELEASE_VER}.zip[gcp]
-    - name: Waiting for Kafka cluster to be ready
-      run: kubectl wait --for=condition=Ready pod/kafka-0 --timeout=900s
-    - name: Start xlang Kafka Taxi with Dataflow Runner 
-      run: |
-        echo "BOOTSTRAP_SERVERS=$(kubectl get svc outside-0 -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):32400" >> $GITHUB_ENV
-        echo "KAFKA_TAXI_DF_DATASET=${GITHUB_ACTOR}_python_validations_$(date +%m%d)_$RANDOM" >> $GITHUB_ENV
-        echo "KAFKA_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-io-expansion-service/${RELEASE_VER}/beam-sdks-java-io-expansion-service-${RELEASE_VER}.jar" >> $GITHUB_ENV
-    - name: Checking variables
-      run: |
-        echo $BOOTSTRAP_SERVERS
-        echo $KAFKA_TAXI_DF_DATASET
-        echo $KAFKA_EXPANSION_SERVICE_JAR
-    - name: Creating BigQuery Dataset
-      run: bq mk --project_id=${USER_GCP_PROJECT} ${KAFKA_TAXI_DF_DATASET}
-    - name: Running Xlang Kafka Taxi with Dataflow Runner
-      run: |
-        echo '*****************************************************';
-        echo '* Running Python XLang Kafka Taxi with DataflowRunner';
-        echo '*****************************************************';
-        python -m apache_beam.examples.kafkataxi.kafka_taxi \
-        --project=${USER_GCP_PROJECT} \
-        --region=${USER_GCP_REGION} \
-        --topic beam-runnerv2 \
-        --bootstrap_servers ${BOOTSTRAP_SERVERS} \
-        --bq_dataset ${KAFKA_TAXI_DF_DATASET} \
-        --runner DataflowRunner \
-        --num_workers 5 \
-        --temp_location=${USER_GCS_BUCKET}/temp/ \
-        --with_metadata \
-        --beam_services="{\"sdks:java:io:expansion-service:shadowJar\": \"${KAFKA_EXPANSION_SERVICE_JAR}\"}" \
-        --sdk_location apache-beam-${RELEASE_VER}.zip; \
-    - name: Sleep Warning
-      run: |
-        echo "***************************************************************"
-        echo "* Please wait for at least 20 mins to let Dataflow job be launched and results get populated."
-        echo "* Sleeping for 20 mins"
-        sleep 20m  
-    - name: Remove BigQuery Dataset
-      run: |
-        bq rm -f ${KAFKA_TAXI_DF_DATASET}
-    #- name: Delete Kafka Cluster
-    #  run: gcloud container clusters delete --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --async -q $KAFKA_CLUSTER_NAME
-    # #From this point, steps 7 to last can be implemented as independent jobs
-    # The ones that uses python_versions_to_validate should use matrix instead
+#        echo ""
+#        echo "====================Checking Environment & Variables================="
+#        echo ""
+#        echo "running validations on release ${{github.event.inputs.RELEASE_VER}} RC${{github.event.inputs.RC_NUM}}."
+#        echo "repo URL for this RC: $GIT_REPO_URL"
+#    - name: Install Kubectl
+#      uses: azure/setup-kubectl@v3
+#
+#    - name: Setup Java JDK
+#      uses: actions/setup-java@v3.5.1
+#      with:
+#        distribution: 'temurin'
+#        java-version: 11
+#
+#    - name: Install Python
+#      uses: actions/setup-python@v4
+#      with:
+#        python-version: '3.8'
+#        cache: 'pip' # caching pip dependencies
+#    - name: Downloading Python Staging RC
+#      run: |
+#        echo ""
+#        echo "====================Starting Python Cross-language Validations==============="
+#
+#
+#        echo "---------------------Downloading Python Staging RC----------------------------"
+#        wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
+#        wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
+#        if [[ ! -f apache-beam-$RELEASE_VER.zip ]]; then
+#          { echo "Fail to download Python Staging RC files." ;exit 1; }
+#        fi
+#
+#        echo "--------------------------Verifying Hashes------------------------------------"
+#        sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
+#
+#        `which pip` install --upgrade pip
+#        `which pip` install --upgrade setuptools
+#
+#        KAFKA_CLUSTER_NAME=xlang-kafka-cluster-$RANDOM
+#    - name: Installing gcloud-auth-plugin
+#      run: sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin
+#    - name: Setting Kafka Cluster Name # TODO: change to random again once the tests are finished
+#      run: |
+#        echo "KAFKA_CLUSTER_NAME=xlang-kafka-cluster-12817">> $GITHUB_ENV
+##    - name: Creating Kafka Cluster
+##      run: |
+##        gcloud container clusters create --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --no-enable-ip-alias $KAFKA_CLUSTER_NAME
+##        kubectl apply -R -f .test-infra/kubernetes/kafka-cluster
+#    - name: Getting cluster credentials
+#      run: gcloud container clusters get-credentials ${KAFKA_CLUSTER_NAME} --region ${USER_GCP_REGION} --project ${USER_GCP_PROJECT}
+#    - name: Setting Python Environment
+#      run: |
+#        echo "--------------------------Installing Python SDK-------------------------------"
+#        pip install --upgrade pip setuptools wheel
+#        pip install apache-beam-${RELEASE_VER}.zip[gcp]
+#    - name: Waiting for Kafka cluster to be ready
+#      run: kubectl wait --for=condition=Ready pod/kafka-0 --timeout=900s
+#    - name: Start xlang Kafka Taxi with Dataflow Runner
+#      run: |
+#        echo "BOOTSTRAP_SERVERS=$(kubectl get svc outside-0 -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):32400" >> $GITHUB_ENV
+#        echo "KAFKA_TAXI_DF_DATASET=${GITHUB_ACTOR}_python_validations_$(date +%m%d)_$RANDOM" >> $GITHUB_ENV
+#        echo "KAFKA_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-io-expansion-service/${RELEASE_VER}/beam-sdks-java-io-expansion-service-${RELEASE_VER}.jar" >> $GITHUB_ENV
+#    - name: Checking variables
+#      run: |
+#        echo $BOOTSTRAP_SERVERS
+#        echo $KAFKA_TAXI_DF_DATASET
+#        echo $KAFKA_EXPANSION_SERVICE_JAR
+#    - name: Creating BigQuery Dataset
+#      run: bq mk --project_id=${USER_GCP_PROJECT} ${KAFKA_TAXI_DF_DATASET}
+#    - name: Running Xlang Kafka Taxi with Dataflow Runner
+#      run: |
+#        echo '*****************************************************';
+#        echo '* Running Python XLang Kafka Taxi with DataflowRunner';
+#        echo '*****************************************************';
+#        python -m apache_beam.examples.kafkataxi.kafka_taxi \
+#        --project=${USER_GCP_PROJECT} \
+#        --region=${USER_GCP_REGION} \
+#        --topic beam-runnerv2 \
+#        --bootstrap_servers ${BOOTSTRAP_SERVERS} \
+#        --bq_dataset ${KAFKA_TAXI_DF_DATASET} \
+#        --runner DataflowRunner \
+#        --num_workers 5 \
+#        --temp_location=${USER_GCS_BUCKET}/temp/ \
+#        --with_metadata \
+#        --beam_services="{\"sdks:java:io:expansion-service:shadowJar\": \"${KAFKA_EXPANSION_SERVICE_JAR}\"}" \
+#        --sdk_location apache-beam-${RELEASE_VER}.zip; \
+#    - name: Sleep Warning
+#      run: |
+#        echo "***************************************************************"
+#        echo "* Please wait for at least 20 mins to let Dataflow job be launched and results get populated."
+#        echo "* Sleeping for 20 mins"
+#        sleep 20m
+#    - name: Remove BigQuery Dataset
+#      run: |
+#        bq rm -f ${KAFKA_TAXI_DF_DATASET}
+#    #- name: Delete Kafka Cluster
+#    #  run: gcloud container clusters delete --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --async -q $KAFKA_CLUSTER_NAME
+#    # #From this point, steps 7 to last can be implemented as independent jobs
+#    # The ones that uses python_versions_to_validate should use matrix instead
