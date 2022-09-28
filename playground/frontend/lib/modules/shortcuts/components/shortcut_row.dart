@@ -18,11 +18,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/shortcuts/models/shortcut.dart';
-import 'package:playground/modules/shortcuts/utils/shortcuts_display_name.dart';
+import 'package:playground_components/playground_components.dart';
 
 class ShortcutRow extends StatelessWidget {
-  final Shortcut shortcut;
+  final BeamShortcut shortcut;
 
   const ShortcutRow({Key? key, required this.shortcut}) : super(key: key);
 
@@ -39,7 +38,7 @@ class ShortcutRow extends StatelessWidget {
           ),
           padding: const EdgeInsets.all(kMdSpacing),
           child: Text(
-            getShortcutDisplayName(shortcut),
+            shortcut.title,
             style: TextStyle(color: primaryColor),
           ),
         ),

@@ -200,6 +200,8 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/BigQueryToTableIT.class'
   exclude '**/BigQueryIOJsonTest.class'
+  // TODO Firestore IT test needs to run in a separate project from Datastore.
+  exclude '**/FirestoreV1IT.class'
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs

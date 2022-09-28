@@ -17,13 +17,13 @@
  */
 
 import 'package:playground/modules/messages/models/abstract_message.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground_components/playground_components.dart';
 
 /// A message that switches the SDK.
 ///
 /// Sent to iframes by Beam documentation HTML when the language is switched.
 class SetSdkMessage extends AbstractMessage {
-  final SDK sdk;
+  final Sdk sdk;
 
   static const type = 'SetSdk';
 
@@ -36,7 +36,7 @@ class SetSdkMessage extends AbstractMessage {
       return null;
     }
 
-    final sdk = SDK.tryParse(map['sdk']);
+    final sdk = Sdk.tryParse(map['sdk']);
     if (sdk == null) {
       return null;
     }
@@ -63,7 +63,7 @@ class SetSdkMessage extends AbstractMessage {
   @override
   Map<String, dynamic> toJson() {
     return {
-      'sdk': sdk.name,
+      'sdk': sdk.id,
     };
   }
 }

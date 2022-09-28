@@ -125,6 +125,7 @@ website/www/yarn-error.log
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
 **/generated_plugin_registrant.dart
+**/*.mocks.dart
 
 # Ignore Beam Playground Terraform
 **/.terraform
