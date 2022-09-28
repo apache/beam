@@ -2,32 +2,32 @@
   "modules" : [
      {
         "complexity" : "BASIC",
-        "moduleId" : "module1",
-        "name" : "Module One",
+        "id" : "module1",
+        "title" : "Module One",
         "nodes" : [
            {
               "type" : "unit",
               "unit" : {
-                 "name" : "Intro Unit Name",
-                 "unitId" : "intro-unit"
+                 "title" : "Intro Unit Name",
+                 "id" : "intro-unit"
               }
            },
            {
               "group" : {
-                 "name" : "The Group",
+                 "title" : "The Group",
                  "nodes" : [
                     {
                        "type" : "unit",
                        "unit" : {
-                          "name" : "Example Unit Name",
-                          "unitId" : "example1"
+                          "title" : "Example Unit Name",
+                          "id" : "example1"
                        }
                     },
                     {
                        "type" : "unit",
                        "unit" : {
-                          "name" : "Challenge Name",
-                          "unitId" : "challenge1"
+                          "title" : "Challenge Name",
+                          "id" : "challenge1"
                        }
                     }
                  ]
@@ -37,5 +37,5 @@
         ]
      }
   ],
-  "sdk" : "Python"
+  "sdkId" : "python"
 }

@@ -26,7 +26,7 @@ type UnitBuilder struct {
 func NewUnitBuilder(info learningUnitInfo) UnitBuilder {
 	return UnitBuilder{tob.Unit{
 		Id:           info.Id,
-		Name:         info.Name,
+		Title:        info.Name,
 		TaskName:     info.TaskName,
 		SolutionName: info.SolutionName,
 	}}
