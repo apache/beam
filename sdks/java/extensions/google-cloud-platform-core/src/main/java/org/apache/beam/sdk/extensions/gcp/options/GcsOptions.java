@@ -168,14 +168,14 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
        * them in forward order thus requiring enough threads so that each step's writers
        * can be active.
        */
-      return Executors.newScheduledThreadPool(0, threadFactoryBuilder.build());
-      // return new ThreadPoolExecutor(
-      //     0,
-      //     Integer.MAX_VALUE, // Allow an unlimited number of re-usable threads.
-      //     Long.MAX_VALUE,
-      //     TimeUnit.NANOSECONDS, // Keep non-core threads alive forever.
-      //     new SynchronousQueue<>(),
-      //     threadFactoryBuilder.build());
+      // return Executors.newScheduledThreadPool(0, threadFactoryBuilder.build());
+      return new ThreadPoolExecutor(
+          0,
+          Integer.MAX_VALUE, // Allow an unlimited number of re-usable threads.
+          Long.MAX_VALUE,
+          TimeUnit.NANOSECONDS, // Keep non-core threads alive forever.
+          new SynchronousQueue<>(),
+          threadFactoryBuilder.build());
     }
   }
 
@@ -198,7 +198,7 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
        * can be active.
        */
 
-      return Executors.newScheduledThreadPool(0, threadFactoryBuilder.build());
+      return Executors.newScheduledThreadPool(Math.max(4, Runtime.getRuntime().availableProcessors()), threadFactoryBuilder.build());
     }
   }
 
