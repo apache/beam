@@ -5,7 +5,7 @@ on:
       RELEASE_VER:
         description: Beam version of current release
         required: true
-        default: "02" # remove default before merging
+        default: "05" # remove default before merging
 #      USER_GCS_BUCKET:
 #        description: Bucket to upload results
 #        required: false
@@ -26,6 +26,8 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Set RC_TAG branch
         run: |
@@ -42,16 +44,13 @@ jobs:
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
       - name: Create Pull Request
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git checkout -b ${{env.WORKING_BRANCH}} ${{env.RC_TAG}} --quiet
+          git checkout -b ${{env.WORKING_BRANCH}} --quiet
           touch empty_file.txt
           git add empty_file.txt
           git commit -m "Add empty file in order to create PR" --quiet
           git push origin ${{env.WORKING_BRANCH}} --quiet
-          GITHUB_PR_URL=$(gh pr create -B ${{env.RELEASE_BRANCH}} -H ${{env.RC_TAG}} -t"[DO NOT MERGE] Run Python RC Validation Tests")
-
+          GITHUB_PR_URL=$(gh pr create -B ${{env.RELEASE_BRANCH}} -H ${{env.WORKING_BRANCH}} -t"[DO NOT MERGE] Run Python RC Validation Tests" -b "PR to run Python ReleaseCandidate Jenkins Job.")
 #GITHUB_PR_URL=$(gh pr create -B ${RELEASE_BRANCH} -H ${RC_TAG} -t"[DO NOT MERGE] Run Python RC Validation Tests"
       - name: Comment on PR to Trigger Python ReleaseCandidate Test
         run: |
