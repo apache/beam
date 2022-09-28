@@ -140,7 +140,10 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 ### PostCommit Workflows
 | Workflow                                                                           | Description             | Requires GCP Credentials |
 |------------------------------------------------------------------------------------|-------------------------|--------------------------|
-| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
+| [job-postcommit-java-vr-spark.yml](.github/workflows/job-postcommit-java-vr-spark.yml) | Runs the ValidatesRunner suite on the Spark runner | Yes/No                   |
+| [job-postcommit-java-vr-spark-java11.yml](.github/workflows/job-postcommit-java-vr-spark-java11.yml) | Runs the ValidatesRunner suite on the Spark runner with Java 11 | Yes/No                   |
+| [job-postcommit-java-vr-spark-structured-streaming.yml](.github/workflows/job-postcommit-java-vr-spark-structured-streaming.yml) | Runs the ValidatesRunner suite on the Structured Streaming Spark runner | Yes/No                   |
+| [job-postcommit-java-vr-spark.yml](.github/workflows/job-postcommit-java-vr-spark.yml) | Builds the Universal Local Runner and runs the Java ValidatesRunner test suite in LOOPBACK mode (no Docker). | Yes/No                   |
 
 ### GitHub Action Tips
 
