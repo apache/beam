@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import '../enums.dart';
 import '../repositories/models/node.dart';
+import '../repositories/models/node_type_enum.dart';
 import 'group.dart';
 import 'unit.dart';
 

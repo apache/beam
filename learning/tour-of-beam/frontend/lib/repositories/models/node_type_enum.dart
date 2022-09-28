@@ -16,4 +16,7 @@
  * limitations under the License.
  */
 
-enum NodeType { group, unit }
+enum NodeType {
+  group,
+  unit,
+}
