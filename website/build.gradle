@@ -116,9 +116,13 @@ task buildCodeSamples(type: Exec) {
 }
 
 task cloneRepository(type: Exec) {
+  def branch = System.getenv('ghBranch') ?  System.getenv('ghBranch'):
+          grgit ? grgit.branch.current().getName(): 'master'
+  def repositoryUrl = System.getenv('repositoryUrl') ? "https://github.com/${System.getenv('repositoryUrl')}" :
+          "https://github.com/apache/beam"
+
   commandLine 'docker', 'exec',
-          "${->startDockerContainer.containerId()}", "git", "clone", "-b", System.getenv('ghBranch'),
-          "https://github.com/${System.getenv('repositoryUrl')}", "."
+          "${->startDockerContainer.containerId()}", "git", "clone", "-b", branch, repositoryUrl, "."
 }
 
 task setupVirtualenvWithDependenciesInDocker {
