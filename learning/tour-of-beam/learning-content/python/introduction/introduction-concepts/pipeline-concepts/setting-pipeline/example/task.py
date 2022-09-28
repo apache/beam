@@ -19,6 +19,7 @@
 #   description: Setting pipeline example.
 #   multifile: false
 #   context_line: 35
+#   pipeline_options: --output output.txt
 #   categories:
 #     - Quickstart
 #   context_line: 47
