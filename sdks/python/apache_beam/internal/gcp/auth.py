@@ -45,6 +45,7 @@ executing_project = None
 _LOGGER = logging.getLogger(__name__)
 
 CLIENT_SCOPES = [
+    'https://www.googleapis.com/auth/cloud-platform',
     'https://www.googleapis.com/auth/bigquery',
     'https://www.googleapis.com/auth/cloud-platform',
     'https://www.googleapis.com/auth/devstorage.full_control',
