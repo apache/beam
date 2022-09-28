@@ -46,7 +46,7 @@ func (s Sdk) Title() string {
 }
 
 // Parse sdk from string names, f.e. "java" -> Sdk.GO_JAVA
-// Make allowance for the case if the Title is given, not Id 
+// Make allowance for the case if the Title is given, not Id
 // Returns SDK_UNDEFINED on error.
 func ParseSdk(s string) Sdk {
 	switch s {
