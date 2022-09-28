@@ -23,6 +23,7 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
+    paths: ['learning/tour-of-beam/backend/**']
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
@@ -73,8 +74,8 @@ jobs:
       # 2. start function-framework processes in BG
       - name: Compile CF
         run: go build -o ./tob_function cmd/main.go
-      - name: Run sdkList in background
-        run: PORT=${{ env.PORT_SDK_LIST }} FUNCTION_TARGET=sdkList ./tob_function &
+      - name: Run getSdkList in background
+        run: PORT=${{ env.PORT_SDK_LIST }} FUNCTION_TARGET=getSdkList ./tob_function &
       - name: Run getContentTree in background
         run: PORT=${{ env.PORT_GET_CONTENT_TREE }} FUNCTION_TARGET=getContentTree ./tob_function &
       - name: Run getUnitContent in background
