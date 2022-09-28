@@ -47,9 +47,6 @@ jobs:
         uses: ./.github/actions/setup-self-hosted-action
         with:
           requires-go-18: false
-          requires-py-37: false
-          requires-py-38: false
-          requires-py-39: false
       - name: Run :typescriptPreCommit
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
