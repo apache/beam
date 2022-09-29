@@ -21,6 +21,8 @@ import (
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 )
 
+
+// Common SDK-wide context
 type sdkContext struct {
 	sdk tob.Sdk
 
