@@ -125,6 +125,18 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### Release Preparation and Validation Workflows
+#### Verify Release Build - [verify_release_build.yml](.github/workflows/verify_release_build.yml)
+| Job                          | Description                                                                                   | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|------------------------------|-----------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Verify Release Build         | Verifies full life cycle of Gradle Build and all PostCommit/PreCommit tests against Release Branch on Jenkins.                   | No               | No                    | No            | No                       |
+
+#### Run RC Validation - [run_rc_validation.yml](.github/workflows/run_rc_validation.yml)
+| Job                          | Description                                                                                   | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|------------------------------|-----------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Python Release Candidate     | Comment on PR to trigger Python ReleaseCandidate Jenkins job.                                 | No               | No                    | No            | No                       |
+
+
 ### All migrated workflows run based on the following triggers
 
 | Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
