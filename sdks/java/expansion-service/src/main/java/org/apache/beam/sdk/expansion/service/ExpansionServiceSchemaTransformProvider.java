@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({"rawtypes"})
 public class ExpansionServiceSchemaTransformProvider implements TransformProvider {
@@ -49,9 +50,9 @@ public class ExpansionServiceSchemaTransformProvider implements TransformProvide
 
   private Map<String, org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider>
       schemaTransformProviders = new HashMap<>();
-  private static ExpansionServiceSchemaTransformProvider transformProvider = null;
+  private static @Nullable ExpansionServiceSchemaTransformProvider transformProvider = null;
 
-  private void loadSchemaTransforms() {
+  private ExpansionServiceSchemaTransformProvider() {
     try {
       for (org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider schemaTransformProvider :
           ServiceLoader.load(
@@ -66,10 +67,6 @@ public class ExpansionServiceSchemaTransformProvider implements TransformProvide
     } catch (Exception e) {
       throw new RuntimeException(e.getMessage());
     }
-  }
-
-  private ExpansionServiceSchemaTransformProvider() {
-    loadSchemaTransforms();
   }
 
   public static ExpansionServiceSchemaTransformProvider of() {
@@ -142,6 +139,10 @@ public class ExpansionServiceSchemaTransformProvider implements TransformProvide
     String identifier = payload.getIdentifier();
     org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider provider =
         schemaTransformProviders.get(identifier);
+    if (provider == null) {
+      throw new IllegalArgumentException(
+          "Could not find a SchemaTransform with identifier " + identifier);
+    }
 
     Schema configSchemaFromRequest =
         SchemaTranslation.schemaFromProto((payload.getConfigurationSchema()));
