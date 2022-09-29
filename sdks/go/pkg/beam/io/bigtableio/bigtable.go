@@ -86,28 +86,28 @@ func Write(s beam.Scope, project, instanceID, table string, col beam.PCollection
 }
 
 // WriteBatch writes the elements of the given PCollection<bigtableio.Mutation> using ApplyBulk to bigtable.
-// For the underlying bigtable.ApplyBulk function to work properly the maximum number of mutations per bigtableio.Mutation (maxMutationsPerRow) must be given.
+// For the underlying bigtable.ApplyBulk function to work properly the maximum number of operations per bigtableio.Mutation (maxOpsPerMutation) must be given.
 // This is necessary due to the maximum amount of mutations allowed per bulk operation (100,000), see https://cloud.google.com/bigtable/docs/writes#batch for more.
-func WriteBatch(s beam.Scope, project, instanceID, table string, maxMutationsPerRow uint, col beam.PCollection) {
+func WriteBatch(s beam.Scope, project, instanceID, table string, maxOpsPerMutation uint, col beam.PCollection) {
 	t := col.Type().Type()
 	err := mustBeBigtableioMutation(t)
 	if err != nil {
 		panic(err)
 	}
 
-	if maxMutationsPerRow == 0 {
-		panic("maxMutationsPerRow must not be 0")
+	if maxOpsPerMutation == 0 {
+		panic("maxOpsPerMutation must not be 0")
 	}
 
-	if maxMutationsPerRow > 100000 {
-		panic("maxMutationsPerRow must not be greater than 100,000, see https://cloud.google.com/bigtable/docs/writes#batch")
+	if maxOpsPerMutation > 100000 {
+		panic("maxOpsPerMutation must not be greater than 100,000, see https://cloud.google.com/bigtable/docs/writes#batch")
 	}
 
 	s = s.Scope("bigtable.WriteBatch")
 
 	pre := beam.ParDo(s, addGroupKeyFn, col)
 	post := beam.GroupByKey(s, pre)
-	beam.ParDo0(s, &writeBatchFn{Project: project, InstanceID: instanceID, TableName: table, MaxMutationsPerRow: maxMutationsPerRow, Type: beam.EncodedType{T: t}}, post)
+	beam.ParDo0(s, &writeBatchFn{Project: project, InstanceID: instanceID, TableName: table, MaxOpsPerMutation: maxOpsPerMutation, Type: beam.EncodedType{T: t}}, post)
 }
 
 func addGroupKeyFn(mutation Mutation) (int, Mutation) {
@@ -189,8 +189,8 @@ type writeBatchFn struct {
 	TableName string `json:"tableName"`
 	// Table is a bigtable.Table instance with an eventual open connection
 	Table *bigtable.Table `json:"table"`
-	// Indicator of how many mutations exist per row at max
-	MaxMutationsPerRow uint `json:"mutationsPerRow"`
+	// MaxOpsPerMutation indicates how many operations are contained within a bigtableio.Mutation at max
+	MaxOpsPerMutation uint `json:"maxOpsPerMutation"`
 	// Type is the encoded schema type.
 	Type beam.EncodedType `json:"type"`
 }
@@ -214,7 +214,7 @@ func (f *writeBatchFn) FinishBundle() error {
 }
 
 func (f *writeBatchFn) ProcessElement(key int, values func(*Mutation) bool) error {
-	maxMutationsPerBatch := 100000 / int(f.MaxMutationsPerRow)
+	maxMutationsPerBatch := 100000 / int(f.MaxOpsPerMutation)
 
 	var rowKeys []string
 	var mutations []*bigtable.Mutation
@@ -226,9 +226,9 @@ func (f *writeBatchFn) ProcessElement(key int, values func(*Mutation) bool) erro
 
 		rowKeys = append(rowKeys, mutation.RowKey)
 		mutations = append(mutations, getBigtableMutation(mutation))
-		mutationsAdded += int(f.MaxMutationsPerRow)
+		mutationsAdded += int(f.MaxOpsPerMutation)
 
-		if (mutationsAdded + int(f.MaxMutationsPerRow)) > maxMutationsPerBatch {
+		if (mutationsAdded + int(f.MaxOpsPerMutation)) > maxMutationsPerBatch {
 			err := tryApplyBulk(f.Table.ApplyBulk(context.Background(), rowKeys, mutations))
 			if err != nil {
 				return err
