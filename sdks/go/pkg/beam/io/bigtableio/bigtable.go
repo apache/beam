@@ -66,7 +66,7 @@ func (m *Mutation) Set(family, column string, ts bigtable.Timestamp, value []byt
 	m.Ops = append(m.Ops, Operation{Family: family, Column: column, Ts: ts, Value: value})
 }
 
-// GroupKey sets a custom group key to be utilised by beam.GroupByKey.
+// WithGroupKey sets a custom group key to be utilised by beam.GroupByKey.
 func (m *Mutation) WithGroupKey(key string) *Mutation {
 	m.GroupKey = key
 	return m
