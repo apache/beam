@@ -698,7 +698,6 @@ class WriteToMongoDB(PTransform):
        over the write process. For example,
        using UpdateOne or InsertOne instead of ReplaceOne for bulk_write
        refer to _defaultWriteFn as a template.
-client, db, coll, documents, logger
     Returns:
       :class:`~apache_beam.transforms.ptransform.PTransform`
 
