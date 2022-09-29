@@ -50,7 +50,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
+          submodules: false
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -59,7 +59,7 @@ jobs:
     name: Run PreCommit Java Examples Dataflow
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix: #JDK11 and 17 compilation will fail due to changes in ByteBuffer class since JDK9
               #TODO: Retest once issue https://github.com/apache/beam/issues/23068 gets resolved.
         java: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SUPPORTED_VERSIONS}}
@@ -73,7 +73,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
+          submodules: false
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
       - name: Setup Java
