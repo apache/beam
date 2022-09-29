@@ -260,22 +260,29 @@ class TrivialInferenceTest(unittest.TestCase):
 
   def testSetAttr(self):
     def fn(obj, flag):
-      global glob
       if flag == 1:
         obj.attr = 1
         res = 1
       elif flag == 2:
         obj.attr = 2
         res = 1.5
-      elif flag == 3:
-        glob = 3
-        res = "str"
-      elif flag == 4:
-        del glob
-        res = "another str"
       return res
 
-    self.assertReturnType(typehints.Union[int, float, str], fn, [int])
+    self.assertReturnType(typehints.Union[int, float], fn, [int])
+
+  def testSetDeleteGlobal(self):
+    def fn(flag):
+      # lint: disable=global-variable-undefined
+      global global_var
+      if flag == 1:
+        global_var = 3
+        res = 1
+      elif flag == 4:
+        del global_var
+        res = "str"
+      return res
+
+    self.assertReturnType(typehints.Union[int, str], fn, [int])
 
   def testMethod(self):
     class A(object):
