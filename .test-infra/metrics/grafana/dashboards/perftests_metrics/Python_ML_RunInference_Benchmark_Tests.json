@@ -1,4 +1,4 @@
-               {
+{
   "annotations": {
     "list": [
       {
@@ -170,7 +170,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:72",
-          "format": "s",
+          "format": "ms",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -338,7 +338,8 @@
       },
       "yaxes": [
         {
-          "format": "s",
+          "$$hashKey": "object:156",
+          "format": "µs",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -346,6 +347,7 @@
           "show": true
         },
         {
+          "$$hashKey": "object:157",
           "format": "short",
           "label": null,
           "logBase": 1,
@@ -558,5 +560,5 @@
   "timezone": "",
   "title": "Python ML RunInference Benchmarks",
   "uid": "1cnwVDkGk",
-  "version": 20
+  "version": 30
 }
