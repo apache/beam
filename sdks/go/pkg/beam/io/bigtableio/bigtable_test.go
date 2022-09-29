@@ -135,7 +135,7 @@ func ExampleWriteBatch() {
 		deviceA := "tablet"
 		rowKeyA := deviceA + "#a0b81f74#20190501"
 
-		// bigtableio.NewMutation(rowKeyA)
+		// bigtableio.NewMutation(rowKeyA).WithGroupKey(deviceA)
 		mutA := NewMutation(rowKeyA).WithGroupKey(deviceA) // this groups bundles by device identifiers
 		mutA.Set(columnFamilyName, "connected_wifi", timestamp, []byte("1"))
 		mutA.Set(columnFamilyName, "os_build", timestamp, []byte("12155.0.0-rc1"))
