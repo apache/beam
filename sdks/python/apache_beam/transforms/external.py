@@ -26,6 +26,7 @@ import copy
 import functools
 import glob
 import logging
+import re
 import threading
 from collections import OrderedDict
 from typing import Dict
@@ -104,6 +105,43 @@ class PayloadBuilder(object):
     """
     return self.build().SerializeToString()
 
+  def _get_schema_proto_and_payload(self, ignored_arg_format, *args, **kwargs):
+    named_fields = []
+    fields_to_values = OrderedDict()
+    next_field_id = 0
+    if args and not ignored_arg_format:
+      raise ValueError(
+          'If args are provided an ignored_arg_format must'
+          'also be provided')
+    for value in args:
+      if value is None:
+        raise ValueError(
+            'Received value None. None values are currently not supported')
+      named_fields.append(
+          ((JavaClassLookupPayloadBuilder.IGNORED_ARG_FORMAT % next_field_id),
+           convert_to_typing_type(instance_to_type(value))))
+      fields_to_values[(
+          JavaClassLookupPayloadBuilder.IGNORED_ARG_FORMAT %
+          next_field_id)] = value
+      next_field_id += 1
+    for key, value in kwargs.items():
+      if not key:
+        raise ValueError('Parameter name cannot be empty')
+      if value is None:
+        raise ValueError(
+            'Received value None for key %s. None values are currently not '
+            'supported' % key)
+      named_fields.append(
+          (key, convert_to_typing_type(instance_to_type(value))))
+      fields_to_values[key] = value
+
+    schema_proto = named_fields_to_schema(named_fields)
+    row = named_tuple_from_schema(schema_proto)(**fields_to_values)
+    schema = named_tuple_to_schema(type(row))
+
+    payload = RowCoder(schema).encode(row)
+    return (schema_proto, payload)
+
 
 class SchemaBasedPayloadBuilder(PayloadBuilder):
   """
@@ -156,6 +194,21 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
     return self._tuple_instance
 
 
+class SchemaTransformPayloadBuilder(PayloadBuilder):
+  def __init__(self, identifier, **kwargs):
+    self._identifier = identifier
+    self._kwargs = kwargs
+
+  def build(self):
+    schema_proto, payload = self._get_schema_proto_and_payload(
+        ignored_arg_format=None, **self._kwargs)
+    payload = external_transforms_pb2.SchemaTransformPayload(
+        identifier=self._identifier,
+        configuration_schema=schema_proto,
+        configuration_row=payload)
+    return payload
+
+
 class JavaClassLookupPayloadBuilder(PayloadBuilder):
   """
   Builds a payload for directly instantiating a Java transform using a
@@ -177,44 +230,12 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
     self._constructor_param_kwargs = None
     self._builder_methods_and_params = OrderedDict()
 
-  def _get_schema_proto_and_payload(self, *args, **kwargs):
-    named_fields = []
-    fields_to_values = OrderedDict()
-    next_field_id = 0
-    for value in args:
-      if value is None:
-        raise ValueError(
-            'Received value None. None values are currently not supported')
-      named_fields.append(
-          ((JavaClassLookupPayloadBuilder.IGNORED_ARG_FORMAT % next_field_id),
-           convert_to_typing_type(instance_to_type(value))))
-      fields_to_values[(
-          JavaClassLookupPayloadBuilder.IGNORED_ARG_FORMAT %
-          next_field_id)] = value
-      next_field_id += 1
-    for key, value in kwargs.items():
-      if not key:
-        raise ValueError('Parameter name cannot be empty')
-      if value is None:
-        raise ValueError(
-            'Received value None for key %s. None values are currently not '
-            'supported' % key)
-      named_fields.append(
-          (key, convert_to_typing_type(instance_to_type(value))))
-      fields_to_values[key] = value
-
-    schema_proto = named_fields_to_schema(named_fields)
-    row = named_tuple_from_schema(schema_proto)(**fields_to_values)
-    schema = named_tuple_to_schema(type(row))
-
-    payload = RowCoder(schema).encode(row)
-    return (schema_proto, payload)
-
   def build(self):
     constructor_param_args = self._constructor_param_args or []
     constructor_param_kwargs = self._constructor_param_kwargs or {}
     constructor_schema, constructor_payload = (
-        self._get_schema_proto_and_payload(
+      self._get_schema_proto_and_payload(
+            JavaClassLookupPayloadBuilder.IGNORED_ARG_FORMAT,
             *constructor_param_args, **constructor_param_kwargs))
     payload = external_transforms_pb2.JavaClassLookupPayload(
         class_name=self._class_name,
@@ -226,7 +247,8 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
     for builder_method_name, params in self._builder_methods_and_params.items():
       builder_method_args, builder_method_kwargs = params
       builder_method_schema, builder_method_payload = (
-          self._get_schema_proto_and_payload(
+        self._get_schema_proto_and_payload(
+              JavaClassLookupPayloadBuilder.IGNORED_ARG_FORMAT,
               *builder_method_args, **builder_method_kwargs))
       builder_method = external_transforms_pb2.BuilderMethod(
           name=builder_method_name,
@@ -287,6 +309,96 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
     return (
         self._constructor_method or self._constructor_param_args or
         self._constructor_param_kwargs)
+
+
+class SchemaTransformsConfig(object):
+  """
+  Information regarding a SchemaTransform available in an external SDK.
+  """
+  def __init__(self, identifier, schema, named_inputs, named_outputs):
+    self._identifier = identifier
+    self._configuration_schema = schema
+    self._named_inputs = named_inputs
+    self._named_outputs = named_outputs
+
+  @property
+  def identifier(self):
+    return self._identifier
+
+  @property
+  def configuration_schema(self):
+    return self._configuration_schema
+
+  @property
+  def named_inputs(self):
+    return self._named_inputs
+
+  @property
+  def named_outputs(self):
+    return self._named_outputs
+
+
+class SchemaAwareExternalTransform(ptransform.PTransform):
+  """A proxy transform for SchemaTransforms implemented in external SDKs.
+
+  This allows Python pipelines to directly use existing SchemaTransforms
+  available to the expansion service without adding additional code in external
+  SDKs.
+
+  :param identifier: unique identifier of the SchemaTransform.
+  :param expansion_service: (Optional) an expansion service to use.  If none is
+      provided, a default expansion service will be started.
+  :param classpath: (Optional) A list paths to additional jars to place on the
+      expansion service classpath.
+  :kwargs: field name to value mapping for configuring the schema transform.
+      keys map to the field names of the schema of the SchemaTransform
+      (in-order).
+  """
+  def __init__(
+      self, identifier, expansion_service=None, classpath=None, **kwargs):
+    self._expansion_service = expansion_service
+    self._payload_builder = SchemaTransformPayloadBuilder(identifier, **kwargs)
+    self._classpath = classpath
+
+  def expand(self, pcolls):
+    # Register transform with the expansion service and the identifier.
+    # Expand the transform using the expansion service and the config_row.
+    if self._expansion_service is None:
+      self._expansion_service = BeamJarExpansionService(
+          ':sdks:java:expansion-service:app:shadowJar',
+          extra_args=['{{PORT}}'],
+          classpath=self._classpath)
+    return pcolls | ExternalTransform(
+        common_urns.schematransform_based_expand.urn,
+        self._payload_builder,
+        self._expansion_service)
+
+  @staticmethod
+  def discover(expansion_service, regex=None):
+    """Discover all SchemaTransforms available to the given expansion service.
+
+    :return: a list of SchemaTransformsConfigs that represent the discovered
+        SchemaTransforms.
+    """
+
+    matcher = re.compile(regex) if regex else None
+
+    with ExternalTransform.service(expansion_service) as service:
+      discover_response = service.DiscoverSchemaTransform(
+          beam_expansion_api_pb2.DiscoverSchemaTransformRequest())
+
+      for identifier in discover_response.schema_transform_configs:
+        if matcher and not matcher.match(identifier):
+          continue
+
+        proto_config = discover_response.schema_transform_configs[identifier]
+        schema = named_tuple_from_schema(proto_config.config_schema)
+
+        yield SchemaTransformsConfig(
+            identifier,
+            schema,
+            proto_config.input_pcollection_names,
+            proto_config.output_pcollection_names)
 
 
 class JavaExternalTransform(ptransform.PTransform):
@@ -520,7 +632,7 @@ class ExternalTransform(ptransform.PTransform):
         transform=transform_proto,
         output_coder_requests=output_coders)
 
-    with self._service() as service:
+    with ExternalTransform.service(self._expansion_service) as service:
       response = service.Expand(request)
       if response.error:
         raise RuntimeError(response.error)
@@ -549,9 +661,10 @@ class ExternalTransform(ptransform.PTransform):
 
     return self._output_to_pvalueish(self._outputs)
 
+  @staticmethod
   @contextlib.contextmanager
-  def _service(self):
-    if isinstance(self._expansion_service, str):
+  def service(expansion_service):
+    if isinstance(expansion_service, str):
       channel_options = [("grpc.max_receive_message_length", -1),
                          ("grpc.max_send_message_length", -1)]
       if hasattr(grpc, 'local_channel_credentials'):
@@ -560,7 +673,7 @@ class ExternalTransform(ptransform.PTransform):
         # TODO: update this to support secure non-local channels.
         channel_factory_fn = functools.partial(
             grpc.secure_channel,
-            self._expansion_service,
+            expansion_service,
             grpc.local_channel_credentials(),
             options=channel_options)
       else:
@@ -568,15 +681,13 @@ class ExternalTransform(ptransform.PTransform):
         # by older versions of grpc which may be pulled in due to other project
         # dependencies.
         channel_factory_fn = functools.partial(
-            grpc.insecure_channel,
-            self._expansion_service,
-            options=channel_options)
+            grpc.insecure_channel, expansion_service, options=channel_options)
       with channel_factory_fn() as channel:
         yield ExpansionAndArtifactRetrievalStub(channel)
-    elif hasattr(self._expansion_service, 'Expand'):
-      yield self._expansion_service
+    elif hasattr(expansion_service, 'Expand'):
+      yield expansion_service
     else:
-      with self._expansion_service as stub:
+      with expansion_service as stub:
         yield stub
 
   def _resolve_artifacts(self, components, service, dest):
