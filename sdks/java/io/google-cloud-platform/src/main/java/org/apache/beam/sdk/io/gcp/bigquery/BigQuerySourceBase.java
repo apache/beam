@@ -242,7 +242,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       throws IOException, InterruptedException {
 
     if (avroSchema == null) {
-      avroSchema = BigQueryAvroUtils.toGenericAvroSchema("root", schema.getFields()).toString();
+      avroSchema =
+          BigQueryAvroUtils.toGenericAvroSchema("root", schema.getFields()).toString();
     }
 
     AvroSource.DatumReaderFactory<T> factory = readerFactory.apply(schema);
