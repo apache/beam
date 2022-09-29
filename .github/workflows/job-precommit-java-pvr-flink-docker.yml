@@ -50,7 +50,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
+          submodules: false
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -59,7 +59,7 @@ jobs:
     name: Run PreCommit Java PVR Flink Docker
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix: #JDK17 execution will fail due to new access policies applied to the core JDK libraries starting at JDK 16.
         java: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SUPPORTED_VERSIONS}}
         flink: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.FLINK_VERSIONS}}
@@ -73,7 +73,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
+          submodules: false
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
       - name: Setup Java
