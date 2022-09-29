@@ -25,6 +25,6 @@ import 'repositories/client/cloud_functions_client.dart';
 Future<void> initializeServiceLocator() async {
   final client = CloudFunctionsTobClient();
 
-  GetIt.instance.registerSingleton(SdkCache(client: client));
   GetIt.instance.registerSingleton(ContentTreeCache(client: client));
+  GetIt.instance.registerSingleton(SdkCache(client: client));
 }

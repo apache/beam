@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import '../repositories/models/group.dart';
 import 'abstract_node.dart';
 
 class GroupModel extends NodeModel {
@@ -25,4 +26,8 @@ class GroupModel extends NodeModel {
     required super.title,
     required this.nodes,
   });
+
+  GroupModel.fromResponse(GroupResponseModel group)
+      : nodes = group.nodes.map(NodeModel.fromResponse).toList(growable: false),
+        super(title: group.title);
 }

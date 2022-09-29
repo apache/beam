@@ -21,33 +21,30 @@ import '../repositories/models/node_type_enum.dart';
 import 'group.dart';
 import 'unit.dart';
 
-/// Abstract NodeModel is used as the parent class of node models.
-/// Nodes on server are based on composition,
-/// because Golang doesn't support inheritance.
 abstract class NodeModel {
   final String title;
   const NodeModel({required this.title});
 
-  static List<NodeModel> nodesFromResponse(List json) {
+  /// Constructs nodes from the response data.
+  ///
+  /// Models from the response are inconvenient for a direct use in the app
+  /// because they come from a golang backend which does not
+  /// support inheritance, and so they use an extra layer of composition
+  /// which is inconvenient in Flutter.
+  static List<NodeModel> fromMaps(List json) {
     return json
         .cast<Map<String, dynamic>>()
         .map<NodeResponseModel>(NodeResponseModel.fromJson)
-        .map(_nodeFromServer)
+        .map(fromResponse)
         .toList();
   }
 
-  static NodeModel _nodeFromServer(NodeResponseModel node) {
+  static NodeModel fromResponse(NodeResponseModel node) {
     switch (node.type) {
       case NodeType.group:
-        return GroupModel(
-          title: node.group!.title,
-          nodes: node.group!.nodes.map(_nodeFromServer).toList(),
-        );
+        return GroupModel.fromResponse(node.group!);
       case NodeType.unit:
-        return UnitModel(
-          id: node.unit!.id,
-          title: node.unit!.title,
-        );
+        return UnitModel.fromResponse(node.unit!);
     }
   }
 }

@@ -28,7 +28,7 @@ class ModuleModel {
   final String id;
   final String title;
   final Complexity complexity;
-  @JsonKey(fromJson: NodeModel.nodesFromResponse)
+  @JsonKey(fromJson: NodeModel.fromMaps)
   final List<NodeModel> nodes;
 
   const ModuleModel({

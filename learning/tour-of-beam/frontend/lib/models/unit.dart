@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
+import '../repositories/models/unit.dart';
 import 'abstract_node.dart';
 
 class UnitModel extends NodeModel {
   final String id;
 
-  const UnitModel({
-    required this.id,
-    required super.title,
-  });
+  UnitModel.fromResponse(UnitResponseModel unit)
+      : id = unit.id,
+        super(title: unit.title);
 }

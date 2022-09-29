@@ -20,6 +20,7 @@ import '../../models/content_tree.dart';
 import '../models/get_sdks_response.dart';
 
 abstract class TobClient {
-  Future<GetSdksResponse> getSdks();
   Future<ContentTreeModel> getContentTree();
+
+  Future<GetSdksResponse> getSdks();
 }
