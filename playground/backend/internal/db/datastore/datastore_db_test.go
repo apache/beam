@@ -371,9 +371,10 @@ func TestDatastore_GetCatalog(t *testing.T) {
 		{
 			name: "Getting catalog in the usual case",
 			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
 				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				saveSnippet("SDK_JAVA_MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				savePCObjs("SDK_JAVA_MOCK_EXAMPLE")
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
 			},
 			args: args{
 				ctx: ctx,
@@ -390,10 +391,11 @@ func TestDatastore_GetCatalog(t *testing.T) {
 			},
 			wantErr: false,
 			cleanData: func() {
-				test_cleaner.CleanPCObjs(ctx, t, "SDK_JAVA_MOCK_EXAMPLE")
-				test_cleaner.CleanFiles(ctx, t, "SDK_JAVA_MOCK_EXAMPLE", 1)
-				test_cleaner.CleanSnippet(ctx, t, "SDK_JAVA_MOCK_EXAMPLE")
-				test_cleaner.CleanExample(ctx, t, "SDK_JAVA_MOCK_EXAMPLE")
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}
@@ -910,7 +912,7 @@ func saveExample(name, sdk string) {
 		Cats:       []string{"MOCK_CATEGORY"},
 		Complexity: "MEDIUM",
 		Path:       "MOCK_PATH",
-		Type:       "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
+		Type:       pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
 		Origin:     constants.ExampleOrigin,
 		SchVer:     utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 	})
