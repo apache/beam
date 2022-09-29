@@ -37,7 +37,7 @@ void main() {
         loadedSymbols =
             List<String>.from(notifier.getDictionary(mode)!.symbols);
       });
-      notifier.addLoader(mode, const TestLoader(symbols));
+      notifier.addLoader(mode, const _TestLoader(symbols));
       await Future.delayed(Duration.zero);
 
       expect(notified, 1);
@@ -46,13 +46,12 @@ void main() {
   );
 }
 
-class TestLoader extends AbstractSymbolsLoader {
+class _TestLoader extends AbstractSymbolsLoader {
   final List<String> symbols;
 
-  const TestLoader(this.symbols);
+  const _TestLoader(this.symbols);
 
   @override
-  // TODO: implement future
   Future<SymbolsDictionary> get future async {
     return SymbolsDictionary(symbols: symbols);
   }

@@ -25,7 +25,6 @@ import 'abstract.dart';
 class YamlSymbolsLoader extends AbstractSymbolsLoader {
   final String path;
   final String? package;
-  Future<SymbolsDictionary>? _future;
 
   YamlSymbolsLoader({
     required this.path,
@@ -35,14 +34,7 @@ class YamlSymbolsLoader extends AbstractSymbolsLoader {
   static const _methodsKey = 'methods';
 
   @override
-  Future<SymbolsDictionary> get future {
-    if (_future != null) {
-      return _future!;
-    }
-
-    _future = _load();
-    return _future!;
-  }
+  late Future<SymbolsDictionary> future = _load();
 
   Future<SymbolsDictionary> _load() async {
     final map = await _getMap();
