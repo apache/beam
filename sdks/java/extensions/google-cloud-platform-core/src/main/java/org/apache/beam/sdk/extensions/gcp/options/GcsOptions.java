@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.gcp.options;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
@@ -36,7 +37,7 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options used to configure Google Cloud Storage. */
-public interface GcsOptions extends ApplicationNameOptions, GcpOptions, ExecutorOptions, PipelineOptions {
+public interface GcsOptions extends ApplicationNameOptions, GcpOptions, PipelineOptions {
   /** The GcsUtil instance that should be used to communicate with Google Cloud Storage. */
   @JsonIgnore
   @Description("The GcsUtil instance that should be used to communicate with Google Cloud Storage.")
@@ -48,26 +49,23 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Executor
 
   /**
    * The ExecutorService instance to use to create threads, can be overridden to specify an
-   * ExecutorService that is compatible with the user's environment. If unset, the default is to
-   * create a ScheduledExecutorService with a core number of threads equal to
-   * Math.max(4, Runtime.getRuntime().availableProcessors()). Deprecated in favor of
-   * getScheduledExecutorService instead
+   * ExecutorService that is compatible with the user's environment. If unset, the default is to use
+   * {@link ExecutorOptions} default ScheduledExecutorService.
+   *
+   * @deprecated use {@link ExecutorOptions#getScheduledExecutorService()} instead instead
    */
   @JsonIgnore
-  @Description(
-      "The ExecutorService instance to use to create multiple threads. Can be overridden "
-          + "to specify an ExecutorService that is compatible with the user's environment. If unset, "
-          + "the default is to create a ScheduledExecutorService with a core number of threads"
-          + "equal to Math.max(4, Runtime.getRuntime().availableProcessors()).")
-  @Default.InstanceFactory(ScheduledExecutorServiceFactory.class)
+  @Default.InstanceFactory(ExecutorServiceFactory.class)
   @Hidden
   @Deprecated
   ExecutorService getExecutorService();
 
+  /**
+   * @deprecated use {@link ExecutorOptions#setScheduledExecutorService(ScheduledExecutorService)}
+   *     instead
+   */
   @Deprecated
   void setExecutorService(ExecutorService value);
-
-
 
   /** GCS endpoint to use. If unspecified, uses the default endpoint. */
   @JsonIgnore
@@ -129,6 +127,17 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Executor
   Boolean getGcsPerformanceMetrics();
 
   void setGcsPerformanceMetrics(Boolean reportPerformanceMetrics);
+
+  /**
+   * Returns the default {@link ExecutorService} to use within the Apache Beam SDK. The {@link
+   * ExecutorService} is compatible with AppEngine.
+   */
+  class ExecutorServiceFactory implements DefaultValueFactory<ExecutorService> {
+    @Override
+    public ExecutorService create(PipelineOptions options) {
+      return options.as(ExecutorOptions.class).getScheduledExecutorService();
+    }
+  }
 
   /**
    * Creates a {@link PathValidator} object using the class specified in {@link
