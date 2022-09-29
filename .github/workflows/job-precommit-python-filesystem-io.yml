@@ -56,7 +56,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
+          submodules: false
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -75,7 +75,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
+          submodules: false
       - name: Set python version
         run: echo "PYTHON_VERSION=$(echo ${{ matrix.version }} | sed -e 's/\.//g')" >> $GITHUB_ENV
       - name: Setup environment
