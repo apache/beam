@@ -39,12 +39,10 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
 
   private transient JmsIO.UnboundedJmsReader<?> reader;
   private transient List<Message> messagesToAck;
-  private final int readerHash;
 
   JmsCheckpointMark(JmsIO.UnboundedJmsReader<?> reader, @Nullable List<Message> messagesToAck) {
     this.reader = reader;
     this.messagesToAck = messagesToAck;
-    this.readerHash = System.identityHashCode(reader);
   }
 
   // set an empty list to messages when deserialize
@@ -68,7 +66,7 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
           message.acknowledge();
           Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
           reader.watermark.updateAndGet(
-              prev -> Math.max(currentMessageTimestamp.getMillis(), prev));
+              prev -> Math.min(currentMessageTimestamp.getMillis(), prev));
         }
       }
     } catch (JMSException e) {
@@ -87,11 +85,11 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
       return false;
     }
     JmsCheckpointMark that = (JmsCheckpointMark) o;
-    return readerHash == that.readerHash;
+    return reader == that.reader;
   }
 
   @Override
   public int hashCode() {
-    return readerHash;
+    return System.identityHashCode(reader);
   }
 }

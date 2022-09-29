@@ -30,13 +30,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
-import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
@@ -129,11 +131,13 @@ import org.slf4j.LoggerFactory;
 public class JmsIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);
+  private static final long DEFAULT_CLOSE_TIMEOUT = 1000L;
 
   public static Read<JmsRecord> read() {
     return new AutoValue_JmsIO_Read.Builder<JmsRecord>()
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCoder(SerializableCoder.of(JmsRecord.class))
+        .setCloseTimeout(DEFAULT_CLOSE_TIMEOUT)
         .setMessageMapper(
             (MessageMapper<JmsRecord>)
                 new MessageMapper<JmsRecord>() {
@@ -168,7 +172,10 @@ public class JmsIO {
   }
 
   public static <T> Read<T> readMessage() {
-    return new AutoValue_JmsIO_Read.Builder<T>().setMaxNumRecords(Long.MAX_VALUE).build();
+    return new AutoValue_JmsIO_Read.Builder<T>()
+        .setMaxNumRecords(Long.MAX_VALUE)
+        .setCloseTimeout(DEFAULT_CLOSE_TIMEOUT)
+        .build();
   }
 
   public static <EventT> Write<EventT> write() {
@@ -212,6 +219,8 @@ public class JmsIO {
 
     abstract @Nullable AutoScaler getAutoScaler();
 
+    abstract long getCloseTimeout();
+
     abstract Builder<T> builder();
 
     @AutoValue.Builder
@@ -235,6 +244,8 @@ public class JmsIO {
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setAutoScaler(AutoScaler autoScaler);
+
+      abstract Builder<T> setCloseTimeout(long closeTimeout);
 
       abstract Read<T> build();
     }
@@ -370,6 +381,10 @@ public class JmsIO {
       return builder().setAutoScaler(autoScaler).build();
     }
 
+    public Read<T> withCloseTimeout(long closeTimeout) {
+      return builder().setCloseTimeout(closeTimeout).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
@@ -475,7 +490,6 @@ public class JmsIO {
     private AutoScaler autoScaler;
 
     private T currentMessage;
-    private Message currentJmsMessage;
     private Instant currentTimestamp;
 
     Set<Message> messagesToAck;
@@ -535,25 +549,20 @@ public class JmsIO {
 
     @Override
     public boolean advance() throws IOException {
-      if (active.get()) {
-        try {
-          Message message = this.consumer.receiveNoWait();
+      try {
+        Message message = this.consumer.receiveNoWait();
 
-          if (message == null) {
-            currentMessage = null;
-            return false;
-          }
-          currentJmsMessage = message;
-          messagesToAck.add(message);
-          currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
-          currentTimestamp = new Instant(message.getJMSTimestamp());
-          return true;
-
-        } catch (Exception e) {
-          throw new IOException(e);
+        if (message == null) {
+          currentMessage = null;
+          return false;
         }
-      } else {
-        return false;
+        messagesToAck.add(message);
+        currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
+        currentTimestamp = new Instant(message.getJMSTimestamp());
+        return true;
+
+      } catch (Exception e) {
+        throw new IOException(e);
       }
     }
 
@@ -599,35 +608,32 @@ public class JmsIO {
     }
 
     @Override
-    public void close() throws IOException {
-      active.set(false);
-      maybeCloseClient();
+    public void close() {
+      doClose();
     }
 
-    private void maybeCloseClient() throws IOException {
-      try {
-        if (!active.get()) {
-          doClose();
-        }
-      } catch (Exception e) {
-        throw new IOException(e);
-      }
-    }
-
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void doClose() {
-      acknowledgeLastMessage();
-      closeAutoscaler();
-      closeConsumer();
-      closeSession();
-      closeConnection();
-    }
-
-    private void acknowledgeLastMessage() {
-      if (currentJmsMessage != null) {
+      if (active.get()) {
         try {
-          currentJmsMessage.acknowledge();
-        } catch (JMSException e) {
-          LOG.error("Impossible to acknowledge last message", e);
+          closeAutoscaler();
+          closeConsumer();
+          ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+
+          executorService.schedule(
+              () -> {
+                LOG.debug(
+                    "Closing session and connection after delay {}", source.spec.getCloseTimeout());
+                // Discard the checkpoints
+                active.set(false);
+                closeSession();
+                closeConnection();
+              },
+              source.spec.getCloseTimeout(),
+              TimeUnit.MILLISECONDS);
+
+        } catch (Exception e) {
+          LOG.error("Error closing reader", e);
         }
       }
     }
@@ -651,7 +657,7 @@ public class JmsIO {
           session = null;
         }
       } catch (Exception e) {
-        LOG.error("Error closing session", e);
+        LOG.error("Error closing session" + e.getMessage(), e);
       }
     }
 
