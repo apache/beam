@@ -60,7 +60,7 @@ func teardown() {
 }
 
 func TestInitialStructure_InitiateData(t *testing.T) {
-	appEnvs := environment.NewApplicationEnvs("/app", "", "", "", "", "../../../../../sdks-emulator.yaml", "../../../../.", nil, 0)
+	appEnvs := environment.NewApplicationEnvs("/app", "", "", "", "../../../../../sdks-emulator.yaml", "../../../../.", nil, 0)
 	props, err := environment.NewProperties(appEnvs.PropertyPath())
 	if err != nil {
 		t.Errorf("InitiateData(): error during properties initialization, err: %s", err.Error())
