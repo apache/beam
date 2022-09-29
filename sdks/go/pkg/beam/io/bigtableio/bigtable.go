@@ -35,16 +35,17 @@ func init() {
 	register.Iter1[*Mutation]()
 }
 
-// Mutation represents a necessary serializable wrapper analogue to bigtable.Mutation containing a rowKey and the operations to be applied
+// Mutation represents a necessary serializable wrapper analogue 
+// to bigtable.Mutation containing a rowKey and the operations to be applied.
 type Mutation struct {
 	RowKey   string
 	Ops []Operation
 
-	// optional custom beam.GroupByKey key, default is a fixed key of 1
+	// optional custom beam.GroupByKey key, default is a fixed key of 1.
 	GroupKey string
 }
 
-// Operation represents a raw change to be applied within a Mutation
+// Operation represents a raw change to be applied within a Mutation.
 type Operation struct {
 	Family string
 	Column string
@@ -52,19 +53,20 @@ type Operation struct {
 	Value []byte
 }
 
-// NewMutation returns a new *Mutation, analogue to bigtable.NewMutation()
+// NewMutation returns a new *Mutation, analogue to bigtable.NewMutation().
 func NewMutation(rowKey string) *Mutation {
 	return &Mutation{RowKey: rowKey}
 }
 
-// Set sets a value in a specified column, with the given timestamp, analogue to bigtable.Mutation.Set().
+// Set sets a value in a specified column, with the given timestamp,
+// analogue to bigtable.Mutation.Set().
 // The timestamp will be truncated to millisecond granularity.
 // A timestamp of ServerTime means to use the server timestamp.
 func (m *Mutation) Set(family, column string, ts bigtable.Timestamp, value []byte) {
 	m.Ops = append(m.Ops, Operation{Family: family, Column: column, Ts: ts, Value: value})
 }
 
-// GroupKey sets a custom group key to be utilised by beam.GroupByKey
+// GroupKey sets a custom group key to be utilised by beam.GroupByKey.
 func (m *Mutation) WithGroupKey(key string) *Mutation {
 	m.GroupKey = key
 	return m
@@ -85,10 +87,13 @@ func Write(s beam.Scope, project, instanceID, table string, col beam.PCollection
 	beam.ParDo0(s, &writeFn{Project: project, InstanceID: instanceID, TableName: table, Type: beam.EncodedType{T: t}}, post)
 }
 
-// WriteBatch writes the elements of the given PCollection<bigtableio.Mutation> using ApplyBulk to bigtable.
-// For the underlying bigtable.ApplyBulk function to work properly the maximum number of operations per bigtableio.Mutation
-// of the input PCollection must be given (maxOpsPerMutation).
-// This is necessary due to the maximum amount of mutations allowed per bulk operation (100,000), see https://cloud.google.com/bigtable/docs/writes#batch for more.
+// WriteBatch writes the elements of the given PCollection<bigtableio.Mutation> 
+// to bigtable using bigtable.ApplyBulk().
+// For the underlying bigtable.ApplyBulk function to work properly 
+// the maximum number of operations per bigtableio.Mutation of the input
+// PCollection must be given (maxOpsPerMutation). This is necessary due to 
+// the maximum amount of mutations allowed per bulk operation (100,000),
+// see https://cloud.google.com/bigtable/docs/writes#batch for more.
 func WriteBatch(s beam.Scope, project, instanceID, table string, maxOpsPerMutation uint, col beam.PCollection) {
 	t := col.Type().Type()
 	err := mustBeBigtableioMutation(t)
