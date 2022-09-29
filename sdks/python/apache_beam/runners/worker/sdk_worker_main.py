@@ -177,7 +177,11 @@ def main(unused_argv):
         raise RuntimeError('Unable to find the job id or job name from envvar.')
     except Exception as e:  # pylint: disable=broad-except
       _LOGGER.warning(
-          'Unable to start google cloud profiler due to error: %s' % e)
+          'Unable to start google cloud profiler due to error: %s. For how to '
+          'enable Cloud Profiler with Dataflow see '
+          'https://cloud.google.com/dataflow/docs/guides/profiling-a-pipeline.'
+          'For troubleshooting tips with Cloud Profiler see '
+          'https://cloud.google.com/profiler/docs/troubleshooting.' % e)
   try:
     _LOGGER.info('Python sdk harness starting.')
     sdk_harness.run()

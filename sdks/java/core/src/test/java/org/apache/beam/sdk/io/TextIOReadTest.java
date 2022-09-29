@@ -43,9 +43,13 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Writer;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -59,7 +63,9 @@ import java.util.zip.ZipOutputStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -337,7 +343,7 @@ public class TextIOReadTest {
 
   /** Tests for reading files with various delimiters. */
   @RunWith(Parameterized.class)
-  public static class ReadWithDelimiterTest {
+  public static class ReadWithDefaultDelimiterTest {
     private static final ImmutableList<String> EXPECTED = ImmutableList.of("asdf", "hjkl", "xyz");
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -363,8 +369,57 @@ public class TextIOReadTest {
     public ImmutableList<String> expected;
 
     @Test
-    public void testReadLinesWithDelimiter() throws Exception {
+    public void testReadLinesWithDefaultDelimiter() throws Exception {
       runTestReadWithData(line.getBytes(UTF_8), expected);
+    }
+
+    @Test
+    public void testReadLinesWithDefaultDelimiterAndZeroAndOneLengthReturningChannel()
+        throws Exception {
+      Path path = tempFolder.newFile().toPath();
+      Files.write(path, line.getBytes(UTF_8));
+      Metadata metadata = FileSystems.matchSingleFileSpec(path.toString());
+      FileBasedSource source =
+          getTextSource(path.toString(), null)
+              .createForSubrangeOfFile(metadata, 0, metadata.sizeBytes());
+      FileBasedReader<String> reader =
+          source.createSingleFileReader(PipelineOptionsFactory.create());
+      ReadableByteChannel channel =
+          FileSystems.open(
+              FileSystems.matchSingleFileSpec(source.getFileOrPatternSpec()).resourceId());
+      InputStream stream = Channels.newInputStream(channel);
+      reader.startReading(
+          // Placeholder channel that only yields 0- and 1-length buffers.
+          // Data is read at most one byte at a time from line parameter.
+          new ReadableByteChannel() {
+            int readCount = 0;
+
+            @Override
+            public int read(ByteBuffer dst) throws IOException {
+              if (++readCount % 3 == 0) {
+                if (dst.hasRemaining()) {
+                  int value = stream.read();
+                  if (value == -1) {
+                    return -1;
+                  }
+                  dst.put((byte) value);
+                  return 1;
+                }
+              }
+              return 0;
+            }
+
+            @Override
+            public boolean isOpen() {
+              return channel.isOpen();
+            }
+
+            @Override
+            public void close() throws IOException {
+              stream.close();
+            }
+          });
+      assertEquals(expected, SourceTestUtils.readFromStartedReader(reader));
     }
 
     @Test
@@ -420,6 +475,58 @@ public class TextIOReadTest {
       SourceTestUtils.assertSplitAtFractionExhaustive(
           TextIOReadTest.prepareSource(tempFolder, testCase.getBytes(UTF_8), new byte[] {'|', '*'}),
           PipelineOptionsFactory.create());
+    }
+
+    @Test
+    public void testReadLinesWithCustomDelimiterAndZeroAndOneLengthReturningChannel()
+        throws Exception {
+      byte[] delimiter = new byte[] {'|', '*'};
+      Path path = tempFolder.newFile().toPath();
+      Files.write(path, testCase.getBytes(UTF_8));
+      Metadata metadata = FileSystems.matchSingleFileSpec(path.toString());
+      FileBasedSource source =
+          getTextSource(path.toString(), delimiter)
+              .createForSubrangeOfFile(metadata, 0, metadata.sizeBytes());
+      FileBasedReader<String> reader =
+          source.createSingleFileReader(PipelineOptionsFactory.create());
+      ReadableByteChannel channel =
+          FileSystems.open(
+              FileSystems.matchSingleFileSpec(source.getFileOrPatternSpec()).resourceId());
+      InputStream stream = Channels.newInputStream(channel);
+      reader.startReading(
+          // Placeholder channel that only yields 0- and 1-length buffers.
+          // Data is read at most one byte at a time from testCase parameter.
+          new ReadableByteChannel() {
+            int readCount = 0;
+
+            @Override
+            public int read(ByteBuffer dst) throws IOException {
+              if (++readCount % 3 == 0) {
+                if (dst.hasRemaining()) {
+                  int value = stream.read();
+                  if (value == -1) {
+                    return -1;
+                  }
+                  dst.put((byte) value);
+                  return 1;
+                }
+              }
+              return 0;
+            }
+
+            @Override
+            public boolean isOpen() {
+              return channel.isOpen();
+            }
+
+            @Override
+            public void close() throws IOException {
+              stream.close();
+            }
+          });
+      assertEquals(
+          SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create()),
+          SourceTestUtils.readFromStartedReader(reader));
     }
   }
 
