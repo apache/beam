@@ -138,9 +138,13 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml) | Description placeholder | Yes/No                    |
 
 ### PostCommit Workflows
-| Workflow                                                                           | Description             | Requires GCP Credentials |
-|------------------------------------------------------------------------------------|-------------------------|--------------------------|
-| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
+| Workflow                                                                                                             | Description                                                                        | Requires GCP Credentials |
+|----------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|--------------------------|
+| [job-postcommit-xvr-direct.yml](.github/workflows/job-postcommit-xvr-direct.yml)                                     | Runs the CrossLanguageValidatesRunner suite on the Direct runner                   | No                       |
+| [job-postcommit-xvr-flink.yml](.github/workflows/job-postcommit-xvr-flink.yml)                                       | Runs the CrossLanguageValidatesRunner suite on the Flink runner                    | No                       |
+| [job-postcommit-xvr-gousingjava-dataflow.yml](.github/workflows/job-postcommit-xvr-gousingjava-dataflow.yml)         | Runs the CrossLanguageValidatesRunner GoUsingJava suite on the Dataflow runner     | No                       |
+| [job-postcommit-xvr-javausingpython-dataflow.yml](.github/workflows/job-postcommit-xvr-javausingpython-dataflow.yml) | Runs the CrossLanguageValidatesRunner JavaUsingPython suite on the Dataflow runner | No                       |
+| [job-postcommit-xvr-pythonusingjava-dataflow.yml](.github/workflows/job-postcommit-xvr-pythonusingjava-dataflow.yml) | Runs the CrossLanguageValidatesRunner PythonUsingJava suite on the Dataflow runner | No                       |
 
 ### GitHub Action Tips
 

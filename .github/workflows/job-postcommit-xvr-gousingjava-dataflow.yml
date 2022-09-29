@@ -25,7 +25,7 @@ on:
   schedule:
     - cron: '0 */6 * * *'
   push:
-    branches: ['master', 'release-*', 'postcommit-xvr-migration']
+    branches: ['master', 'release-*']
     tags: 'v*'
   pull_request_target:
     branches: [ 'master', 'release-*' ]
@@ -42,7 +42,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
 
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
