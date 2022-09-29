@@ -86,7 +86,8 @@ func Write(s beam.Scope, project, instanceID, table string, col beam.PCollection
 }
 
 // WriteBatch writes the elements of the given PCollection<bigtableio.Mutation> using ApplyBulk to bigtable.
-// For the underlying bigtable.ApplyBulk function to work properly the maximum number of operations per bigtableio.Mutation (maxOpsPerMutation) must be given.
+// For the underlying bigtable.ApplyBulk function to work properly the maximum number of operations per bigtableio.Mutation
+// of the input PCollection must be given (maxOpsPerMutation).
 // This is necessary due to the maximum amount of mutations allowed per bulk operation (100,000), see https://cloud.google.com/bigtable/docs/writes#batch for more.
 func WriteBatch(s beam.Scope, project, instanceID, table string, maxOpsPerMutation uint, col beam.PCollection) {
 	t := col.Type().Type()
