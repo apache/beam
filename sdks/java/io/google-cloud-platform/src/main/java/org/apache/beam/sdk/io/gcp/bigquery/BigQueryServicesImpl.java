@@ -122,6 +122,7 @@ import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -1491,6 +1492,10 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
   }
 
+  /**
+   * OptionsExecutionProvider is a utility class used to wrap the Pipeline-wide
+   * {@link ScheduledExecutorService} into a supplier for the {@link BigQueryWriteClient}
+   */
   private static class OptionsExecutionProvider implements ExecutorProvider {
 
     private final BigQueryOptions options;
@@ -1506,7 +1511,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public ScheduledExecutorService getExecutor() {
-      return options.as(GcsOptions.class).getScheduledExecutorService();
+      return options.as(ExecutorOptions.class).getScheduledExecutorService();
     }
   }
 
