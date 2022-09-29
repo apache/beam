@@ -44,6 +44,9 @@ import com.google.firestore.v1.StructuredQuery.FieldReference;
 import com.google.firestore.v1.StructuredQuery.Filter;
 import com.google.firestore.v1.StructuredQuery.Order;
 import com.google.firestore.v1.Value;
+import com.google.protobuf.util.Timestamps;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
@@ -51,18 +54,38 @@ import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.RunQueryFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.AbstractIterator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
-@SuppressWarnings(
-    "initialization.fields.uninitialized") // mockito fields are initialized via the Mockito Runner
+@RunWith(Parameterized.class)
 public final class FirestoreV1FnRunQueryTest
     extends BaseFirestoreV1ReadFnTest<RunQueryRequest, RunQueryResponse> {
+
+  @Parameterized.Parameter public Instant readTime;
+
+  @Rule public MockitoRule rule = MockitoJUnit.rule();
 
   @Mock private ServerStreamingCallable<RunQueryRequest, RunQueryResponse> callable;
   @Mock private ServerStream<RunQueryResponse> responseStream;
   @Mock private ServerStream<RunQueryResponse> retryResponseStream;
+
+  @Parameterized.Parameters(name = "readTime = {0}")
+  public static Collection<Object> data() {
+    return Arrays.asList(null, Instant.now());
+  }
+
+  private RunQueryRequest withReadTime(RunQueryRequest request, Instant readTime) {
+    return readTime == null
+        ? request
+        : request.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
+  }
 
   @Test
   public void endToEnd() throws Exception {
@@ -73,7 +96,7 @@ public final class FirestoreV1FnRunQueryTest
         ImmutableList.of(testData.response1, testData.response2, testData.response3);
     when(responseStream.iterator()).thenReturn(responses.iterator());
 
-    when(callable.call(testData.request)).thenReturn(responseStream);
+    when(callable.call(withReadTime(testData.request, readTime))).thenReturn(responseStream);
 
     when(stub.runQueryCallable()).thenReturn(callable);
 
@@ -89,7 +112,7 @@ public final class FirestoreV1FnRunQueryTest
 
     when(processContext.element()).thenReturn(testData.request);
 
-    RunQueryFn fn = new RunQueryFn(clock, ff, options);
+    RunQueryFn fn = new RunQueryFn(clock, ff, options, readTime);
 
     runFunction(fn);
 
@@ -210,11 +233,12 @@ public final class FirestoreV1FnRunQueryTest
               }
             });
 
-    when(callable.call(testData.request)).thenReturn(responseStream);
+    when(callable.call(withReadTime(testData.request, readTime))).thenReturn(responseStream);
     doNothing().when(attempt).checkCanRetry(any(), eq(RETRYABLE_ERROR));
     when(retryResponseStream.iterator())
         .thenReturn(ImmutableList.of(testData.response3).iterator());
-    when(callable.call(expectedRetryRequest)).thenReturn(retryResponseStream);
+    when(callable.call(withReadTime(expectedRetryRequest, readTime)))
+        .thenReturn(retryResponseStream);
 
     when(stub.runQueryCallable()).thenReturn(callable);
 
@@ -230,12 +254,12 @@ public final class FirestoreV1FnRunQueryTest
 
     when(processContext.element()).thenReturn(testData.request);
 
-    RunQueryFn fn = new RunQueryFn(clock, ff, rpcQosOptions);
+    RunQueryFn fn = new RunQueryFn(clock, ff, rpcQosOptions, readTime);
 
     runFunction(fn);
 
-    verify(callable, times(1)).call(testData.request);
-    verify(callable, times(1)).call(expectedRetryRequest);
+    verify(callable, times(1)).call(withReadTime(testData.request, readTime));
+    verify(callable, times(1)).call(withReadTime(expectedRetryRequest, readTime));
     verify(attempt, times(3)).recordStreamValue(any());
 
     List<RunQueryResponse> allValues = responsesCaptor.getAllValues();

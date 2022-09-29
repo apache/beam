@@ -17,98 +17,141 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.eligibleForGlobalGroupBy;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.eligibleForGroupByWindow;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.explodeWindowedKey;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.value;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.valueKey;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.valueValue;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.GroupByKeyHelpers.windowedKV;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.fun1;
+
+import java.util.Collection;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.KVHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop;
+import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.Fun1;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.KeyValueGroupedDataset;
+import org.apache.spark.sql.Encoder;
+import org.apache.spark.sql.expressions.Aggregator;
 import scala.Tuple2;
+import scala.collection.TraversableOnce;
 
-@SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
-})
-class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
-    implements TransformTranslator<
-        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
+/**
+ * Translator for {@link Combine.PerKey} using {@link Dataset#groupByKey} with a Spark {@link
+ * Aggregator}.
+ *
+ * <ul>
+ *   <li>When using the default global window, window information is dropped and restored after the
+ *       aggregation.
+ *   <li>For non-merging windows, windows are exploded and moved into a composite key for better
+ *       distribution. After the aggregation, windowed values are restored from the composite key.
+ *   <li>All other cases use an aggregator on windowed values that is optimized for the current
+ *       windowing strategy.
+ * </ul>
+ *
+ * TODOs:
+ * <li>combine with context (CombineFnWithContext)?
+ * <li>combine with sideInputs?
+ * <li>other there other missing features?
+ */
+class CombinePerKeyTranslatorBatch<K, InT, AccT, OutT>
+    extends TransformTranslator<
+        PCollection<KV<K, InT>>, PCollection<KV<K, OutT>>, Combine.PerKey<K, InT, OutT>> {
 
   @Override
-  public void translateTransform(
-      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
-      AbstractTranslationContext context) {
+  public void translate(Combine.PerKey<K, InT, OutT> transform, Context cxt) {
+    WindowingStrategy<?, ?> windowing = cxt.getInput().getWindowingStrategy();
+    CombineFn<InT, AccT, OutT> combineFn = (CombineFn<InT, AccT, OutT>) transform.getFn();
 
-    Combine.PerKey combineTransform = (Combine.PerKey) transform;
-    @SuppressWarnings("unchecked")
-    final PCollection<KV<K, InputT>> input = (PCollection<KV<K, InputT>>) context.getInput();
-    @SuppressWarnings("unchecked")
-    final PCollection<KV<K, OutputT>> output = (PCollection<KV<K, OutputT>>) context.getOutput();
-    @SuppressWarnings("unchecked")
-    final Combine.CombineFn<InputT, AccumT, OutputT> combineFn =
-        (Combine.CombineFn<InputT, AccumT, OutputT>) combineTransform.getFn();
-    WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+    KvCoder<K, InT> inputCoder = (KvCoder<K, InT>) cxt.getInput().getCoder();
+    KvCoder<K, OutT> outputCoder = (KvCoder<K, OutT>) cxt.getOutput().getCoder();
 
-    Dataset<WindowedValue<KV<K, InputT>>> inputDataset = context.getDataset(input);
+    Encoder<K> keyEnc = cxt.keyEncoderOf(inputCoder);
+    Encoder<KV<K, InT>> inputEnc = cxt.encoderOf(inputCoder);
+    Encoder<WindowedValue<KV<K, OutT>>> wvOutputEnc = cxt.windowedEncoder(outputCoder);
+    Encoder<AccT> accumEnc = accumEncoder(combineFn, inputCoder.getValueCoder(), cxt);
 
-    KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) input.getCoder();
-    Coder<K> keyCoder = inputCoder.getKeyCoder();
-    KvCoder<K, OutputT> outputKVCoder = (KvCoder<K, OutputT>) output.getCoder();
-    Coder<OutputT> outputCoder = outputKVCoder.getValueCoder();
+    final Dataset<WindowedValue<KV<K, OutT>>> result;
 
-    KeyValueGroupedDataset<K, WindowedValue<KV<K, InputT>>> groupedDataset =
-        inputDataset.groupByKey(KVHelpers.extractKey(), EncoderHelpers.fromBeamCoder(keyCoder));
+    boolean globalGroupBy = eligibleForGlobalGroupBy(windowing, true);
+    boolean groupByWindow = eligibleForGroupByWindow(windowing, true);
 
-    Coder<AccumT> accumulatorCoder = null;
+    if (globalGroupBy || groupByWindow) {
+      Aggregator<KV<K, InT>, ?, OutT> valueAgg =
+          Aggregators.value(combineFn, KV::getValue, accumEnc, cxt.valueEncoderOf(outputCoder));
+
+      if (globalGroupBy) {
+        // Drop window and group by key globally to run the aggregation (combineFn), afterwards the
+        // global window is restored
+        result =
+            cxt.getDataset(cxt.getInput())
+                .groupByKey(valueKey(), keyEnc)
+                .mapValues(value(), inputEnc)
+                .agg(valueAgg.toColumn())
+                .map(globalKV(), wvOutputEnc);
+      } else {
+        Encoder<Tuple2<BoundedWindow, K>> windowedKeyEnc =
+            cxt.tupleEncoder(cxt.windowEncoder(), keyEnc);
+
+        // Group by window and key to run the aggregation (combineFn)
+        result =
+            cxt.getDataset(cxt.getInput())
+                .flatMap(explodeWindowedKey(value()), cxt.tupleEncoder(windowedKeyEnc, inputEnc))
+                .groupByKey(fun1(Tuple2::_1), windowedKeyEnc)
+                .mapValues(fun1(Tuple2::_2), inputEnc)
+                .agg(valueAgg.toColumn())
+                .map(windowedKV(), wvOutputEnc);
+      }
+    } else {
+      // Optimized aggregator for non-merging and session window functions, all others depend on
+      // windowFn.mergeWindows
+      Aggregator<WindowedValue<KV<K, InT>>, ?, Collection<WindowedValue<OutT>>> aggregator =
+          Aggregators.windowedValue(
+              combineFn,
+              valueValue(),
+              windowing,
+              cxt.windowEncoder(),
+              accumEnc,
+              cxt.windowedEncoder(outputCoder.getValueCoder()));
+      result =
+          cxt.getDataset(cxt.getInput())
+              .groupByKey(valueKey(), keyEnc)
+              .agg(aggregator.toColumn())
+              .flatMap(explodeWindows(), wvOutputEnc);
+    }
+
+    cxt.putDataset(cxt.getOutput(), result);
+  }
+
+  private static <K, V>
+      Fun1<Tuple2<K, Collection<WindowedValue<V>>>, TraversableOnce<WindowedValue<KV<K, V>>>>
+          explodeWindows() {
+    return t ->
+        ScalaInterop.scalaIterator(t._2).map(wv -> wv.withValue(KV.of(t._1, wv.getValue())));
+  }
+
+  private static <K, V> Fun1<Tuple2<K, V>, WindowedValue<KV<K, V>>> globalKV() {
+    return t -> WindowedValue.valueInGlobalWindow(KV.of(t._1, t._2));
+  }
+
+  private Encoder<AccT> accumEncoder(
+      CombineFn<InT, AccT, OutT> fn, Coder<InT> valueCoder, Context cxt) {
     try {
-      accumulatorCoder =
-          combineFn.getAccumulatorCoder(
-              input.getPipeline().getCoderRegistry(), inputCoder.getValueCoder());
+      CoderRegistry registry = cxt.getInput().getPipeline().getCoderRegistry();
+      return cxt.encoderOf(fn.getAccumulatorCoder(registry, valueCoder));
     } catch (CannotProvideCoderException e) {
       throw new RuntimeException(e);
     }
-
-    Dataset<Tuple2<K, Iterable<WindowedValue<OutputT>>>> combinedDataset =
-        groupedDataset.agg(
-            new AggregatorCombiner<K, InputT, AccumT, OutputT, BoundedWindow>(
-                    combineFn, windowingStrategy, accumulatorCoder, outputCoder)
-                .toColumn());
-
-    // expand the list into separate elements and put the key back into the elements
-    WindowedValue.WindowedValueCoder<KV<K, OutputT>> wvCoder =
-        WindowedValue.FullWindowedValueCoder.of(
-            outputKVCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
-    Dataset<WindowedValue<KV<K, OutputT>>> outputDataset =
-        combinedDataset.flatMap(
-            (FlatMapFunction<
-                    Tuple2<K, Iterable<WindowedValue<OutputT>>>, WindowedValue<KV<K, OutputT>>>)
-                tuple2 -> {
-                  K key = tuple2._1();
-                  Iterable<WindowedValue<OutputT>> windowedValues = tuple2._2();
-                  List<WindowedValue<KV<K, OutputT>>> result = new ArrayList<>();
-                  for (WindowedValue<OutputT> windowedValue : windowedValues) {
-                    KV<K, OutputT> kv = KV.of(key, windowedValue.getValue());
-                    result.add(
-                        WindowedValue.of(
-                            kv,
-                            windowedValue.getTimestamp(),
-                            windowedValue.getWindows(),
-                            windowedValue.getPane()));
-                  }
-                  return result.iterator();
-                },
-            EncoderHelpers.fromBeamCoder(wvCoder));
-    context.putDataset(output, outputDataset);
   }
 }

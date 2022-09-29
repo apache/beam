@@ -40,15 +40,15 @@ const (
 
 // tb_learning_path.
 type TbLearningPath struct {
-	Key  *datastore.Key `datastore:"__key__"`
-	Name string         `datastore:"name"`
+	Key   *datastore.Key `datastore:"__key__"`
+	Title string         `datastore:"title"`
 }
 
 // tb_learning_module.
 type TbLearningModule struct {
 	Key        *datastore.Key `datastore:"__key__"`
 	Id         string         `datastore:"id"`
-	Name       string         `datastore:"name"`
+	Title      string         `datastore:"title"`
 	Complexity string         `datastore:"complexity"`
 
 	// internal, only db
@@ -57,14 +57,14 @@ type TbLearningModule struct {
 
 // tb_learning_node.group.
 type TbLearningGroup struct {
-	Name string `datastore:"name"`
+	Title string `datastore:"title"`
 }
 
 // tb_learning_node.unit
 // Learning Unit content.
 type TbLearningUnit struct {
 	Id          string   `datastore:"id"`
-	Name        string   `datastore:"name"`
+	Title       string   `datastore:"title"`
 	Description string   `datastore:"description,noindex"`
 	Hints       []string `datastore:"hints,noindex"`
 
@@ -78,8 +78,8 @@ type TbLearningNode struct {
 	Type tob.NodeType `datastore:"type"`
 	// common fields, duplicate same fields from the nested entities
 	// (needed to allow projection when getting the content tree)
-	Id   string `datastore:"id"`
-	Name string `datastore:"name"`
+	Id    string `datastore:"id"`
+	Title string `datastore:"title"`
 
 	// type-specific nested info
 	Unit  *TbLearningUnit  `datastore:"unit,noindex"`

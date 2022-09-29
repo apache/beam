@@ -49,28 +49,26 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.XX.X] - Unreleased
+# [2.43.0] - Unreleased
 
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-* Added support for stateful DoFns to the Go SDK.
 
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Decreased TextSource CPU utilization by 2.3x (Java) ([#23193](https://github.com/apache/beam/issues/23193)).
+* Fixed bug when using SpannerIO with RuntimeValueProvider options (Java) ([#22146](https://github.com/apache/beam/issues/22146)).
 
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Added support for Zstd compression to the Python SDK.
-* Added support for stateful DoFns to the Go SDK.
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
-* The Go SDK's Row Coder now uses a different single-precision float encoding for float32 types to match Java's behavior ([#22629](https://github.com/apache/beam/issues/22629)).
+* Python SDK CoGroupByKey outputs an iterable allowing for arbitrarily large results. [#21556](https://github.com/apache/beam/issues/21556) Beam users may see an error on transforms downstream from CoGroupByKey. Users must change methods expecting a List to expect an Iterable going forward. See [document](https://docs.google.com/document/d/1RIzm8-g-0CyVsPb6yasjwokJQFoKHG4NjRUcKHKINu0) for information and fixes.
 
 ## Deprecations
 
@@ -79,11 +77,35 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Fixed Python cross-language JDBC IO Connector cannot read or write rows containing Timestamp type values [19817](https://github.com/apache/beam/issues/19817).
-
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
+
+
+# [2.42.0] - Unreleased, Cut 2022-09-07
+
+## Highlights
+
+* Added support for stateful DoFns to the Go SDK.
+
+## New Features / Improvements
+
+* Added support for Zstd compression to the Python SDK.
+* Added support for Google Cloud Profiler to the Go SDK.
+* Added support for stateful DoFns to the Go SDK.
+
+## Breaking Changes
+
+* The Go SDK's Row Coder now uses a different single-precision float encoding for float32 types to match Java's behavior ([#22629](https://github.com/apache/beam/issues/22629)).
+
+## Bugfixes
+
+* Fixed Python cross-language JDBC IO Connector cannot read or write rows containing Timestamp type values [#19817](https://github.com/apache/beam/issues/19817).
+* Fixed `AfterProcessingTime` behavior in Python's `DirectRunner` to match Java ([#23071](https://github.com/apache/beam/issues/23071))
+
+## Known Issues
+
+* Go SDK doesn't yet support Slowly Changing Side Input pattern ([#23106](https://github.com/apache/beam/issues/23106))
 
 # [2.41.0] - 2022-08-23
 

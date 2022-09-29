@@ -31,6 +31,11 @@ on:
     paths: ['sdks/python/**', 'model/**', 'release/**']
   workflow_dispatch:
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
 env:
   GCP_PATH: "gs://${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
 
@@ -235,11 +240,13 @@ jobs:
       if: ${{matrix.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel
-      run: pip install cibuildwheel==1.11.0
+      run: pip install cibuildwheel==2.9.0
     - name: Build wheel
       working-directory: apache-beam-source
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
+        # TODO: https://github.com/apache/beam/issues/23048
+        CIBW_SKIP: "*-musllinux_*"
         CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
         CIBW_BEFORE_BUILD: pip install cython && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
@@ -264,6 +271,8 @@ jobs:
       working-directory: apache-beam-source-rc
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
+        # TODO: https://github.com/apache/beam/issues/23048
+        CIBW_SKIP: "*-musllinux_*"
         CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
         CIBW_BEFORE_BUILD: pip install cython && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse

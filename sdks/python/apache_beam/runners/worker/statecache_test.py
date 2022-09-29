@@ -19,7 +19,9 @@
 # pytype: skip-file
 
 import logging
+import threading
 import unittest
+import weakref
 
 from apache_beam.runners.worker.statecache import CacheAware
 from apache_beam.runners.worker.statecache import StateCache
@@ -27,6 +29,73 @@ from apache_beam.runners.worker.statecache import WeightedValue
 
 
 class StateCacheTest(unittest.TestCase):
+  def test_weakref(self):
+    test_value = WeightedValue('test', 10 << 20)
+
+    class WeightedValueRef():
+      def __init__(self):
+        self.ref = weakref.ref(test_value)
+
+    cache = StateCache(5 << 20)
+    wait_event = threading.Event()
+    o = WeightedValueRef()
+    cache.put('deep ref', 'a', o)
+    # Ensure that the contents of the internal weak ref isn't sized
+    self.assertIsNotNone(cache.get('deep ref', 'a'))
+    self.assertEqual(
+        cache.describe_stats(),
+        'used/max 0/5 MB, hit 100.00%, lookups 1, evictions 0')
+    cache.invalidate_all()
+
+    # Ensure that putting in a weakref doesn't fail regardless of whether
+    # it is alive or not
+    o_ref = weakref.ref(o, lambda value: wait_event.set())
+    cache.put('not deleted ref', 'a', o_ref)
+    del o
+    wait_event.wait()
+    cache.put('deleted', 'a', o_ref)
+
+  def test_weakref_proxy(self):
+    test_value = WeightedValue('test', 10 << 20)
+
+    class WeightedValueRef():
+      def __init__(self):
+        self.ref = weakref.ref(test_value)
+
+    cache = StateCache(5 << 20)
+    wait_event = threading.Event()
+    o = WeightedValueRef()
+    cache.put('deep ref', 'a', o)
+    # Ensure that the contents of the internal weak ref isn't sized
+    self.assertIsNotNone(cache.get('deep ref', 'a'))
+    self.assertEqual(
+        cache.describe_stats(),
+        'used/max 0/5 MB, hit 100.00%, lookups 1, evictions 0')
+    cache.invalidate_all()
+
+    # Ensure that putting in a weakref doesn't fail regardless of whether
+    # it is alive or not
+    o_ref = weakref.proxy(o, lambda value: wait_event.set())
+    cache.put('not deleted', 'a', o_ref)
+    del o
+    wait_event.wait()
+    cache.put('deleted', 'a', o_ref)
+
+  def test_size_of_fails(self):
+    class BadSizeOf(object):
+      def __sizeof__(self):
+        raise RuntimeError("TestRuntimeError")
+
+    cache = StateCache(5 << 20)
+    with self.assertLogs('apache_beam.runners.worker.statecache',
+                         level='WARNING') as context:
+      cache.put('key', 'a', BadSizeOf())
+      self.assertEqual(1, len(context.output))
+      self.assertTrue('Failed to size' in context.output[0])
+      # Test that we don't spam the logs
+      cache.put('key', 'a', BadSizeOf())
+      self.assertEqual(1, len(context.output))
+
   def test_empty_cache_get(self):
     cache = StateCache(5 << 20)
     self.assertEqual(cache.get("key", 'cache_token'), None)

@@ -21,8 +21,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/components/dropdown_button/dropdown_button.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/sdk/components/sdk_selector_row.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 const kEmptyExampleName = 'Catalog';
@@ -31,8 +30,8 @@ const double kWidth = 150;
 const double kHeight = 172;
 
 class SDKSelector extends StatelessWidget {
-  final SDK? value;
-  final ValueChanged<SDK> onChanged;
+  final Sdk? value;
+  final ValueChanged<Sdk> onChanged;
 
   const SDKSelector({
     Key? key,
@@ -45,35 +44,35 @@ class SDKSelector extends StatelessWidget {
     final localizations = AppLocalizations.of(context)!;
     final text = value == null
         ? localizations.selectSdkPlaceholder
-        : 'SDK: ${value?.displayName}';
+        : 'SDK: ${value?.title}';
 
     return Semantics(
       container: true,
       button: true,
       label: localizations.selectSdkDropdownSemantics,
-      child: AppDropdownButton(
-        buttonText: Text(text),
-        createDropdown: (close) => Column(
-          children: [
-            const SizedBox(height: kMdSpacing),
-            ...SDK.values.map((SDK value) {
-              return SizedBox(
-                width: double.infinity,
-                child: Consumer<PlaygroundState>(
-                  builder: (context, state, child) => SdkSelectorRow(
+      child: Consumer<PlaygroundController>(
+        builder: (context, controller, child) => AppDropdownButton(
+          buttonText: Text(text),
+          createDropdown: (close) => Column(
+            children: [
+              const SizedBox(height: kMdSpacing),
+              ...Sdk.known.map((Sdk value) {
+                return SizedBox(
+                  width: double.infinity,
+                  child: SdkSelectorRow(
                     sdk: value,
                     onSelect: () {
                       close();
                       onChanged(value);
                     },
                   ),
-                ),
-              );
-            }),
-          ],
+                );
+              }),
+            ],
+          ),
+          width: kWidth,
+          height: kHeight,
         ),
-        width: kWidth,
-        height: kHeight,
       ),
     );
   }
