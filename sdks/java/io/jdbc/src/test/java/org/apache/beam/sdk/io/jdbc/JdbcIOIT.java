@@ -55,6 +55,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GenerateSequence;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -208,7 +209,7 @@ public class JdbcIOIT {
    */
   private PipelineResult runWrite() {
     pipelineWrite
-        .apply(Create.of(LongStream.range(0, numberOfRows).boxed().collect(Collectors.toList())))
+        .apply(GenerateSequence.from(0).to(numberOfRows))
         .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
         .apply(
