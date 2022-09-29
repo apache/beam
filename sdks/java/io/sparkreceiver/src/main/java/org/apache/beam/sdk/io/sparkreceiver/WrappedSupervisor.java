@@ -25,19 +25,21 @@ import org.apache.spark.streaming.receiver.BlockGenerator;
 import org.apache.spark.streaming.receiver.BlockGeneratorListener;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.apache.spark.streaming.receiver.ReceiverSupervisor;
+import scala.Function0;
 import scala.Option;
 import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
 
 /** Wrapper class for {@link ReceiverSupervisor} that doesn't use Spark Environment. */
-@SuppressWarnings("return.type.incompatible")
 public class WrappedSupervisor extends ReceiverSupervisor {
 
+  private final SparkConf sparkConf;
   private final SerializableFunction<Object[], Void> storeFn;
 
   public WrappedSupervisor(
       Receiver<?> receiver, SparkConf conf, SerializableFunction<Object[], Void> storeFn) {
     super(receiver, conf);
+    this.sparkConf = conf;
     this.storeFn = storeFn;
   }
 
@@ -66,7 +68,11 @@ public class WrappedSupervisor extends ReceiverSupervisor {
 
   @Override
   public BlockGenerator createBlockGenerator(BlockGeneratorListener blockGeneratorListener) {
-    return null;
+    return new BlockGenerator(
+        blockGeneratorListener,
+        this.streamId(),
+        this.sparkConf,
+        BlockGenerator.$lessinit$greater$default$4());
   }
 
   @Override
@@ -85,5 +91,10 @@ public class WrappedSupervisor extends ReceiverSupervisor {
   @Override
   public boolean isReceiverStopped() {
     return super.isReceiverStopped();
+  }
+
+  @Override
+  public void logInfo(Function0<String> msg) {
+    // Do not log with Spark logging
   }
 }

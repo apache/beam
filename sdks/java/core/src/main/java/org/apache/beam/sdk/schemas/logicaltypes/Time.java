@@ -33,10 +33,11 @@ import org.apache.beam.sdk.schemas.Schema;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Time implements Schema.LogicalType<LocalTime, Long> {
+  public static final String IDENTIFIER = "beam:logical_type:time:v1";
 
   @Override
   public String getIdentifier() {
-    return "beam:logical_type:time:v1";
+    return IDENTIFIER;
   }
 
   // unused

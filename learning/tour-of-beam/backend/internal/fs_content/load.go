@@ -115,7 +115,7 @@ func collectUnit(infopath string, ids_watcher *idsWatcher) (unit *tob.Unit, err 
 func collectGroup(infopath string, ids_watcher *idsWatcher) (*tob.Group, error) {
 	info := loadLearningGroupInfo(infopath)
 	log.Printf("Found Group %v metadata at %v\n", info.Name, infopath)
-	group := tob.Group{Name: info.Name}
+	group := tob.Group{Title: info.Name}
 	for _, item := range info.Content {
 		node, err := collectNode(filepath.Join(infopath, "..", item), ids_watcher)
 		if err != nil {
@@ -153,7 +153,7 @@ func collectModule(infopath string, ids_watcher *idsWatcher) (tob.Module, error)
 	info := loadLearningModuleInfo(infopath)
 	log.Printf("Found Module %v metadata at %v\n", info.Id, infopath)
 	ids_watcher.CheckId(info.Id)
-	module := tob.Module{Id: info.Id, Name: info.Name, Complexity: info.Complexity}
+	module := tob.Module{Id: info.Id, Title: info.Name, Complexity: info.Complexity}
 	for _, item := range info.Content {
 		node, err := collectNode(filepath.Join(infopath, "..", item), ids_watcher)
 		if err != nil {
