@@ -693,11 +693,12 @@ class WriteToMongoDB(PTransform):
       extra_client_params(dict): Optional `MongoClient
        <https://api.mongodb.com/python/current/api/pymongo/mongo_client.html>`_
        parameters as keyword arguments
-      writeFn(callable[`MongoClient`]):
+      writeFn(callable[`MongoClient`, str, str, Iterable[dict], `logger`]): Optional 
        A custom function that user could implement to gain more control
        over the write process. For example,
        using UpdateOne or InsertOne instead of ReplaceOne for bulk_write
-
+       refer to _defaultWriteFn as a template.
+client, db, coll, documents, logger
     Returns:
       :class:`~apache_beam.transforms.ptransform.PTransform`
 
