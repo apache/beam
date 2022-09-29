@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import org.apache.avro.specific.SpecificDatumReader;
@@ -555,8 +554,7 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   @Test
-  public void testReadTableWithDefaultReaderDatumFactory()
-      throws IOException, InterruptedException {
+  public void testReadTableWithReaderDatumFactory() throws IOException, InterruptedException {
     // setup
     Table someTable = new Table();
     someTable.setSchema(
