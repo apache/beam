@@ -27,6 +27,7 @@ from typing import Sequence
 import numpy as np
 
 import apache_beam as beam
+import apache_beam.utils.timestamp
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.portability.api import schema_pb2
 
@@ -41,10 +42,13 @@ BIG_QUERY_TO_PYTHON_TYPES = {
     "FLOAT": np.float64,
     "BOOLEAN": bool,
     "BYTES": bytes,
-    "TIMESTAMP": datetime.datetime
+    datetime.datetime: apache_beam.utils.timestamp.Timestamp
     #TODO(https://github.com/apache/beam/issues/20810):
     # Finish mappings for all BQ types
 }
+
+# Some BQ Types map are equivalent to Beam Types.
+BIG_QUERY_TO_BEAM_TYPES = {"TIMESTAMP": datetime.datetime}
 
 
 def generate_user_type_from_bq_schema(the_table_schema):
@@ -62,6 +66,10 @@ def generate_user_type_from_bq_schema(the_table_schema):
   if the_schema == {}:
     raise ValueError("Encountered an empty schema")
   dict_of_tuples = []
+  for i in range(len(the_schema['fields'])):
+    if the_schema['fields'][i]['type'] in BIG_QUERY_TO_BEAM_TYPES:
+      the_schema['fields'][i]['type'] = BIG_QUERY_TO_BEAM_TYPES[
+          the_schema['fields'][i]['type']]
   for i in range(len(the_schema['fields'])):
     if the_schema['fields'][i]['type'] in BIG_QUERY_TO_PYTHON_TYPES:
       typ = bq_field_to_type(
