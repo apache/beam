@@ -274,9 +274,8 @@ class TrivialInferenceTest(unittest.TestCase):
         del glob
         res = "another str"
       return res
-    self.assertReturnType(
-        typehints.Union[int, float, str],
-        fn, [int])
+
+    self.assertReturnType(typehints.Union[int, float, str], fn, [int])
 
   def testMethod(self):
     class A(object):
