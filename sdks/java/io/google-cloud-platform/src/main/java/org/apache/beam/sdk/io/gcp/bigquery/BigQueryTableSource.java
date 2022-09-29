@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
@@ -39,19 +40,11 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       BigQueryTableSourceDef tableDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
-      AvroSource.DatumReaderFactory<T> factory,
+      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
       String avroSchema,
       boolean useAvroLogicalTypes) {
-    if (parseFn != null) {
-      return new BigQueryTableSource<>(
-          stepUuid, tableDef, bqServices, coder, parseFn, useAvroLogicalTypes);
-    } else if (factory != null) {
-      return new BigQueryTableSource<>(
-          stepUuid, tableDef, bqServices, coder, factory, avroSchema, useAvroLogicalTypes);
-    } else {
-      throw new IllegalArgumentException("Either parseFn or factory should be provided!");
-    }
+    return new BigQueryTableSource<>(
+        stepUuid, tableDef, bqServices, coder, readerFactory, avroSchema, useAvroLogicalTypes);
   }
 
   private final BigQueryTableSourceDef tableDef;
@@ -62,22 +55,10 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       BigQueryTableSourceDef tableDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
-      boolean useAvroLogicalTypes) {
-    super(stepUuid, bqServices, coder, parseFn, useAvroLogicalTypes);
-    this.tableDef = tableDef;
-    this.tableSizeBytes = new AtomicReference<>();
-  }
-
-  private BigQueryTableSource(
-      String stepUuid,
-      BigQueryTableSourceDef tableDef,
-      BigQueryServices bqServices,
-      Coder<T> coder,
-      AvroSource.DatumReaderFactory<T> factory,
+      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
       String avroSchema,
       boolean useAvroLogicalTypes) {
-    super(stepUuid, bqServices, coder, factory, avroSchema, useAvroLogicalTypes);
+    super(stepUuid, bqServices, coder, readerFactory, avroSchema, useAvroLogicalTypes);
     this.tableDef = tableDef;
     this.tableSizeBytes = new AtomicReference<>();
   }

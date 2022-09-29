@@ -96,12 +96,11 @@ class BigQueryTableSourceDef implements BigQuerySourceDef {
   public <T> BigQuerySourceBase<T> toSource(
       String stepUuid,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
-      AvroSource.DatumReaderFactory<T> factory,
+      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
       String avroSchema,
       boolean useAvroLogicalTypes) {
     return BigQueryTableSource.create(
-        stepUuid, this, bqServices, coder, parseFn, factory, avroSchema, useAvroLogicalTypes);
+        stepUuid, this, bqServices, coder, readerFactory, avroSchema, useAvroLogicalTypes);
   }
 
   /** {@inheritDoc} */

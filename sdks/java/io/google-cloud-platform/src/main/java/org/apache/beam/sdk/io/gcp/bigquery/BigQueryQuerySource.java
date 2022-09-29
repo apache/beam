@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.AvroSource;
@@ -35,22 +36,11 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryQuerySourceDef queryDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
-      boolean useAvroLogicalTypes) {
-    return new BigQueryQuerySource<>(
-        stepUuid, queryDef, bqServices, coder, parseFn, useAvroLogicalTypes);
-  }
-
-  static <T> BigQueryQuerySource<T> create(
-      String stepUuid,
-      BigQueryQuerySourceDef queryDef,
-      BigQueryServices bqServices,
-      Coder<T> coder,
-      AvroSource.DatumReaderFactory<T> factory,
+      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
       String avroSchema,
       boolean useAvroLogicalTypes) {
     return new BigQueryQuerySource<>(
-        stepUuid, queryDef, bqServices, coder, factory, avroSchema, useAvroLogicalTypes);
+        stepUuid, queryDef, bqServices, coder, readerFactory, avroSchema, useAvroLogicalTypes);
   }
 
   private final BigQueryQuerySourceDef queryDef;
@@ -60,21 +50,10 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryQuerySourceDef queryDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
-      boolean useAvroLogicalTypes) {
-    super(stepUuid, bqServices, coder, parseFn, useAvroLogicalTypes);
-    this.queryDef = queryDef;
-  }
-
-  private BigQueryQuerySource(
-      String stepUuid,
-      BigQueryQuerySourceDef queryDef,
-      BigQueryServices bqServices,
-      Coder<T> coder,
-      AvroSource.DatumReaderFactory<T> factory,
+      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
       String avroSchema,
       boolean useAvroLogicalTypes) {
-    super(stepUuid, bqServices, coder, factory, avroSchema, useAvroLogicalTypes);
+    super(stepUuid, bqServices, coder, readerFactory, avroSchema, useAvroLogicalTypes);
     this.queryDef = queryDef;
   }
 

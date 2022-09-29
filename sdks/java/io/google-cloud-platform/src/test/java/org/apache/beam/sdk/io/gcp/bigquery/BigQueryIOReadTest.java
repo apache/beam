@@ -31,14 +31,10 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.specific.SpecificData;
-import org.apache.avro.specific.SpecificRecord;
-import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -506,8 +502,8 @@ public class BigQueryIOReadTest implements Serializable {
     p.run();
   }
 
-  public static class User extends SpecificData implements SpecificRecord, Serializable {
-    public static final org.apache.avro.Schema SCHEMA$ =
+  static class User extends SpecificRecordBase {
+    private static final org.apache.avro.Schema schema =
         org.apache.avro.SchemaBuilder.record("User")
             .namespace("org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadTest$")
             .fields()
@@ -529,7 +525,7 @@ public class BigQueryIOReadTest implements Serializable {
     @Override
     public void put(int i, Object v) {
       if (i == 0) {
-        setName(v.toString());
+        setName(((org.apache.avro.util.Utf8) v).toString());
       }
     }
 
@@ -543,30 +539,16 @@ public class BigQueryIOReadTest implements Serializable {
 
     @Override
     public org.apache.avro.Schema getSchema() {
-      return SCHEMA$;
+      return schema;
     }
 
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      User user = (User) o;
-      return Objects.equals(name, user.name);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(name);
+    public static org.apache.avro.Schema getAvroSchema() {
+      return schema;
     }
   }
 
   @Test
-  public void testReadTableWithDefaultReaderDatumFactory()
-      throws IOException, InterruptedException {
+  public void testReadTableWithReaderDatumFactory() throws IOException, InterruptedException {
     // setup
     Table someTable = new Table();
     someTable.setSchema(
@@ -596,11 +578,14 @@ public class BigQueryIOReadTest implements Serializable {
             .withDatasetService(fakeDatasetService);
 
     BigQueryIO.TypedRead<User> read =
-        BigQueryIO.read(User.class)
+        BigQueryIO.read(
+                (AvroSource.DatumReaderFactory<User>)
+                    (writer, reader) -> new SpecificDatumReader<>(reader),
+                User.getAvroSchema())
             .from("non-executing-project:schema_dataset.schema_table")
             .withTestServices(fakeBqServices)
             .withoutValidation()
-            .withCoder(AvroCoder.of(User.class));
+            .withCoder(SerializableCoder.of(User.class));
 
     PCollection<User> bqRows = p.apply(read);
 
@@ -609,90 +594,6 @@ public class BigQueryIOReadTest implements Serializable {
     User b = new User();
     b.setName("b");
     User c = new User();
-    c.setName("c");
-
-    PAssert.that(bqRows).containsInAnyOrder(ImmutableList.of(a, b, c));
-
-    p.run();
-  }
-
-  static class User2 implements Serializable {
-    private String name;
-
-    public String getName() {
-      return this.name;
-    }
-
-    public void setName(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      User2 user = (User2) o;
-      return Objects.equals(name, user.name);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(name);
-    }
-  }
-
-  @Test
-  public void testReadTableWithCustomReaderDatumFactory() throws IOException, InterruptedException {
-    // setup
-    Table someTable = new Table();
-    someTable.setSchema(
-        new TableSchema()
-            .setFields(ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING"))));
-    someTable.setTableReference(
-        new TableReference()
-            .setProjectId("non-executing-project")
-            .setDatasetId("schema_dataset")
-            .setTableId("schema_table"));
-    someTable.setNumBytes(1024L * 1024L);
-    FakeDatasetService fakeDatasetService = new FakeDatasetService();
-    fakeDatasetService.createDataset("non-executing-project", "schema_dataset", "", "", null);
-    fakeDatasetService.createTable(someTable);
-
-    List<TableRow> records =
-        Lists.newArrayList(
-            new TableRow().set("name", "a"),
-            new TableRow().set("name", "b"),
-            new TableRow().set("name", "c"));
-
-    fakeDatasetService.insertAll(someTable.getTableReference(), records, null);
-
-    FakeBigQueryServices fakeBqServices =
-        new FakeBigQueryServices()
-            .withJobService(new FakeJobService())
-            .withDatasetService(fakeDatasetService);
-
-    BigQueryIO.TypedRead<User2> read =
-        BigQueryIO.read(User2.class)
-            .from("non-executing-project:schema_dataset.schema_table")
-            .withTestServices(fakeBqServices)
-            .withoutValidation()
-            .withAvroReader(
-                (AvroSource.DatumReaderFactory<User2>)
-                    (writer, reader) -> new ReflectDatumReader<>(writer, reader),
-                input -> ReflectData.get().getSchema(input))
-            .withCoder(SerializableCoder.of(User2.class));
-
-    PCollection<User2> bqRows = p.apply(read);
-
-    User2 a = new User2();
-    a.setName("a");
-    User2 b = new User2();
-    b.setName("b");
-    User2 c = new User2();
     c.setName("c");
 
     PAssert.that(bqRows).containsInAnyOrder(ImmutableList.of(a, b, c));
@@ -771,8 +672,12 @@ public class BigQueryIOReadTest implements Serializable {
             .toSource(
                 stepUuid,
                 TableRowJsonCoder.of(),
-                BigQueryIO.TableRowParser.INSTANCE,
-                null,
+                (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
+                    input ->
+                        (AvroSource.DatumReaderFactory<TableRow>)
+                            (writer, reader) ->
+                                new BigQueryIO.GenericDatumTransformer<>(
+                                    BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
                 null,
                 false);
 
@@ -826,8 +731,12 @@ public class BigQueryIOReadTest implements Serializable {
             .toSource(
                 stepUuid,
                 TableRowJsonCoder.of(),
-                BigQueryIO.TableRowParser.INSTANCE,
-                null,
+                (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
+                    input ->
+                        (AvroSource.DatumReaderFactory<TableRow>)
+                            (writer, reader) ->
+                                new BigQueryIO.GenericDatumTransformer<>(
+                                    BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
                 null,
                 false);
 
@@ -870,8 +779,12 @@ public class BigQueryIOReadTest implements Serializable {
             .toSource(
                 stepUuid,
                 TableRowJsonCoder.of(),
-                BigQueryIO.TableRowParser.INSTANCE,
-                null,
+                (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
+                    input ->
+                        (AvroSource.DatumReaderFactory<TableRow>)
+                            (writer, reader) ->
+                                new BigQueryIO.GenericDatumTransformer<>(
+                                    BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
                 null,
                 false);
 
@@ -907,8 +820,12 @@ public class BigQueryIOReadTest implements Serializable {
             .toSource(
                 stepUuid,
                 TableRowJsonCoder.of(),
-                BigQueryIO.TableRowParser.INSTANCE,
-                null,
+                (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
+                    input ->
+                        (AvroSource.DatumReaderFactory<TableRow>)
+                            (writer, reader) ->
+                                new BigQueryIO.GenericDatumTransformer<>(
+                                    BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
                 null,
                 false);
 
@@ -989,8 +906,12 @@ public class BigQueryIOReadTest implements Serializable {
             .toSource(
                 stepUuid,
                 TableRowJsonCoder.of(),
-                BigQueryIO.TableRowParser.INSTANCE,
-                null,
+                (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
+                    input ->
+                        (AvroSource.DatumReaderFactory<TableRow>)
+                            (writer, reader) ->
+                                new BigQueryIO.GenericDatumTransformer<>(
+                                    BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
                 null,
                 false);
 
@@ -1061,8 +982,12 @@ public class BigQueryIOReadTest implements Serializable {
             .toSource(
                 stepUuid,
                 TableRowJsonCoder.of(),
-                BigQueryIO.TableRowParser.INSTANCE,
-                null,
+                (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
+                    input ->
+                        (AvroSource.DatumReaderFactory<TableRow>)
+                            (writer, reader) ->
+                                new BigQueryIO.GenericDatumTransformer<>(
+                                    BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
                 null,
                 false);
 
