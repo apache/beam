@@ -140,7 +140,7 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 ### PostCommit Workflows
 | Workflow                                                                           | Description             | Requires GCP Credentials |
 |------------------------------------------------------------------------------------|-------------------------|--------------------------|
-| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
+| [job-postcommit-python-io-kafka.yml](.github/workflows/job-postcommit-python-io-kafka.yml) | Run Python Postcommit IO Kafka XLang Test | Yes/No                   |
 
 ### GitHub Action Tips
 
