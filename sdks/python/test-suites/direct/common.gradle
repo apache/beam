@@ -163,7 +163,7 @@ tasks.register("directRunnerIT") {
         "apache_beam/io/gcp/bigquery_test.py::PubSubBigQueryIT",
         "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming",
         "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming_with_dynamic_destinations",
-        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_one_job_fails_all_jobs_fail",
+        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming_with_copy_jobs",
     ]
     def streamingTestOpts = basicTestOpts + ["${tests.join(' ')}"]
     def argMap = ["runner": "TestDirectRunner",
