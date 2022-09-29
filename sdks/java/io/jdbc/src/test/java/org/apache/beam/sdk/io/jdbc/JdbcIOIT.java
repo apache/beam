@@ -25,7 +25,6 @@ import static org.junit.Assert.assertNotEquals;
 
 import com.google.cloud.Timestamp;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -406,12 +405,8 @@ public class JdbcIOIT {
                       }));
       resultSetCollection.setCoder(JdbcTestHelper.TEST_DTO_CODER);
 
-      List<JdbcTestHelper.TestDto> expectedResult = new ArrayList<>();
-      for (int id = 0; id < numberOfRows; id++) {
-        expectedResult.add(new JdbcTestHelper.TestDto(id));
-      }
-
-      PAssert.that(resultSetCollection).containsInAnyOrder(expectedResult);
+      PAssert.that(resultSetCollection.apply(Count.globally()))
+          .containsInAnyOrder(Long.valueOf(numberOfRows));
 
       pipelineWrite.run().waitUntilFinish();
 
