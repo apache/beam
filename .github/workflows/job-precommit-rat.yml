@@ -41,7 +41,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
+          submodules: false
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
       - name: Run PreCommit RAT
