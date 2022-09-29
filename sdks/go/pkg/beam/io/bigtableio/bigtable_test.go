@@ -41,22 +41,22 @@ func TestHashStringToInt(t *testing.T) {
 }
 
 func TestAddGroupKeyFnGroupKeyGiven(t *testing.T) {
-	bmWithGroupKey := NewMutation("rowKey").WithGroupKey("1")
-	groupKey, _ := addGroupKeyFn(*bmWithGroupKey)
+	mutationWithGroupKey := NewMutation("rowKey").WithGroupKey("1")
+	groupKey, _ := addGroupKeyFn(*mutationWithGroupKey)
 	if groupKey == 1 {
 		t.Error("addGroupKeyFn should hash groupKey values properly, but projected \"1\" -> 1")
 	}
 }
 
 func TestAddGroupKeyFnNoGroupKeyGiven(t *testing.T) {
-	bmNoGroupKey := NewMutation("rowKey")
-	groupKey, _ := addGroupKeyFn(*bmNoGroupKey)
+	mutationNoGroupKey := NewMutation("rowKey")
+	groupKey, _ := addGroupKeyFn(*mutationNoGroupKey)
 	if groupKey != 1 {
 		t.Errorf("addGroupKeyFn should assign 1 as hash if no groupKey is given, but projected nil -> %d", groupKey)
 	}
 }
 
-func TestMustBeBigtableMutation(t *testing.T) {
+func TestMustBeBigtableioMutation(t *testing.T) {
 
 	mutation := NewMutation("key")
 	mutation.Set("family", "column", 0, []byte{})
@@ -64,10 +64,10 @@ func TestMustBeBigtableMutation(t *testing.T) {
 	mutationWithGroupKey := NewMutation("key").WithGroupKey("groupKey")
 	mutationWithGroupKey.Set("family", "column", 0, []byte{})
 
-	passValues := []BigtableioMutation {
+	passValues := []Mutation {
 		{},
 		{RowKey: "key"},
-		{Mutations: []Mutation {{}}},
+		{Ops: []Opperation {{}}},
 		*mutation,
 		*mutationWithGroupKey,
 	}
@@ -76,12 +76,12 @@ func TestMustBeBigtableMutation(t *testing.T) {
 		passType := reflect.TypeOf(passValue)
 		err := mustBeBigtableioMutation(passType)
 		if err != nil {
-			t.Errorf("input type %v should be considered a bigtableio.BigtableMutation", passType)
+			t.Errorf("input type %v should be considered a bigtableio.Mutation", passType)
 		}
 	}
 }
 
-func TestMustNotBeBigtableMutation(t *testing.T) {
+func TestMustNotBeBigtableioMutation(t *testing.T) {
 	failValues := []interface{} {
 		1,
 		1.0,
@@ -93,7 +93,7 @@ func TestMustNotBeBigtableMutation(t *testing.T) {
 		failType := reflect.TypeOf(reflect.ValueOf(failValue))
 		err := mustBeBigtableioMutation(failType)
 		if err == nil {
-			t.Errorf("input type %v should not be considered a bigtableio.BigtableMutation", failType)
+			t.Errorf("input type %v should not be considered a bigtableio.Mutation", failType)
 		}
 	}
 }
