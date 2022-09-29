@@ -45,7 +45,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
+          submodules: false
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -54,7 +54,7 @@ jobs:
     name: Run PreCommit SQL
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         java: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SUPPORTED_VERSIONS}}
         exclude: #Skipping Java 11 and 17 due to issues caused by new access options added in JDK 9 and onwards.
@@ -67,7 +67,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
+          submodules: false
       - name: Setup Java
         uses: actions/setup-java@v3
         with:
