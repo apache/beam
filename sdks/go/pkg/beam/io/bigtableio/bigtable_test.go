@@ -67,7 +67,7 @@ func TestMustBeBigtableioMutation(t *testing.T) {
 	passValues := []Mutation {
 		{},
 		{RowKey: "key"},
-		{Ops: []Opperation {{}}},
+		{Ops: []Operation {{}}},
 		*mutation,
 		*mutationWithGroupKey,
 	}
