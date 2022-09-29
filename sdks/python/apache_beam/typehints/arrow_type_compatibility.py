@@ -20,6 +20,7 @@
 For internal use only, no backward compatibility guarantees.
 """
 
+from functools import partial
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -41,7 +42,10 @@ __all__ = []
 PYARROW_VERSION = tuple(map(int, pa.__version__.split('.')[0:2]))
 
 BEAM_SCHEMA_ID_KEY = b'beam:schema_id'
-BEAM_OPTION_KEY_PREFIX = b'beam:option:'
+# We distinguish between schema and field options, because they have to be
+# combined into arrow Field-level metadata for nested structs.
+BEAM_SCHEMA_OPTION_KEY_PREFIX = b'beam:schema_option:'
+BEAM_FIELD_OPTION_KEY_PREFIX = b'beam:field_option:'
 
 
 def _hydrate_beam_option(encoded_option: bytes) -> schema_pb2.Option:
@@ -54,7 +58,7 @@ def beam_schema_from_arrow_schema(arrow_schema: pa.Schema) -> schema_pb2.Schema:
     schema_options = [
         _hydrate_beam_option(value) for key,
         value in arrow_schema.metadata.items()
-        if key.startswith(BEAM_OPTION_KEY_PREFIX)
+        if key.startswith(BEAM_SCHEMA_OPTION_KEY_PREFIX)
     ]
   else:
     schema_id = None
@@ -76,8 +80,18 @@ def _beam_field_from_arrow_field(arrow_field: pa.Field) -> schema_pb2.Field:
     field_options = [
         _hydrate_beam_option(value) for key,
         value in arrow_field.metadata.items()
-        if key.startswith(BEAM_OPTION_KEY_PREFIX)
+        if key.startswith(BEAM_FIELD_OPTION_KEY_PREFIX)
     ]
+    if isinstance(arrow_field.type, pa.StructType):
+      beam_fieldtype.row_type.schema.options.extend([
+          _hydrate_beam_option(value) for key,
+          value in arrow_field.metadata.items()
+          if key.startswith(BEAM_SCHEMA_OPTION_KEY_PREFIX)
+      ])
+      if BEAM_SCHEMA_ID_KEY in arrow_field.metadata:
+        beam_fieldtype.row_type.schema.id = arrow_field.metadata[
+            BEAM_SCHEMA_ID_KEY]
+
   else:
     field_options = None
 
@@ -106,19 +120,32 @@ def _beam_fieldtype_from_arrow_type(
             element_type=_beam_fieldtype_from_arrow_field(
                 arrow_type.value_field)))
   elif isinstance(arrow_type, pa.MapType):
-    return schema_pb2.FieldType(
-        map_type=_arrow_map_to_beam_map(arrow_type))
+    return schema_pb2.FieldType(map_type=_arrow_map_to_beam_map(arrow_type))
   elif isinstance(arrow_type, pa.StructType):
-    raise NotImplementedError("TODO: Nested structs")
+    return schema_pb2.FieldType(
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(
+                fields=[
+                    _beam_field_from_arrow_field(arrow_type[i])
+                    for i in range(arrow_type.num_fields)
+                ],
+            )))
+
   else:
     raise ValueError(f"Unrecognized arrow type: {arrow_type!r}")
 
 
-def _option_as_arrow_metadata(
-    beam_option: schema_pb2.Option) -> Tuple[bytes, bytes]:
+def _option_as_arrow_metadata(beam_option: schema_pb2.Option, *,
+                              prefix: bytes) -> Tuple[bytes, bytes]:
   return (
-      BEAM_OPTION_KEY_PREFIX + beam_option.name.encode('UTF-8'),
+      prefix + beam_option.name.encode('UTF-8'),
       beam_option.SerializeToString())
+
+
+_field_option_as_arrow_metadata = partial(
+    _option_as_arrow_metadata, prefix=BEAM_FIELD_OPTION_KEY_PREFIX)
+_schema_option_as_arrow_metadata = partial(
+    _option_as_arrow_metadata, prefix=BEAM_SCHEMA_OPTION_KEY_PREFIX)
 
 
 def arrow_schema_from_beam_schema(beam_schema: schema_pb2.Schema) -> pa.Schema:
@@ -127,14 +154,14 @@ def arrow_schema_from_beam_schema(beam_schema: schema_pb2.Schema) -> pa.Schema:
       {
           BEAM_SCHEMA_ID_KEY: beam_schema.id,
           **dict(
-              _option_as_arrow_metadata(option) for option in beam_schema.options)  # pylint: disable=line-too-long
+              _schema_option_as_arrow_metadata(option) for option in beam_schema.options)  # pylint: disable=line-too-long
       },
   )
 
 
 def _arrow_field_from_beam_field(beam_field: schema_pb2.Field) -> pa.Field:
   return _arrow_field_from_beam_fieldtype(
-      beam_field.type, name=beam_field.name, options=beam_field.options)
+      beam_field.type, name=beam_field.name, field_options=beam_field.options)
 
 
 _ARROW_PRIMITIVE_MAPPING = [
@@ -163,12 +190,24 @@ PYARROW_TO_ATOMIC_TYPE = {
 def _arrow_field_from_beam_fieldtype(
     beam_fieldtype: schema_pb2.FieldType,
     name=b'',
-    options: Sequence[schema_pb2.Option] = None) -> pa.DataType:
+    field_options: Sequence[schema_pb2.Option] = None) -> pa.DataType:
   arrow_type = _arrow_type_from_beam_fieldtype(beam_fieldtype)
-  if options is not None:
-    metadata = dict(_option_as_arrow_metadata(option) for option in options)
+  if field_options is not None:
+    metadata = dict(
+        _field_option_as_arrow_metadata(field_option)
+        for field_option in field_options)
   else:
     metadata = {}
+
+  type_info = beam_fieldtype.WhichOneof("type_info")
+  if type_info == "row_type":
+    schema = beam_fieldtype.row_type.schema
+    metadata.update(
+        dict(
+            _schema_option_as_arrow_metadata(schema_option)
+            for schema_option in schema.options))
+    if schema.id:
+      metadata[BEAM_SCHEMA_ID_KEY] = schema.id
 
   return pa.field(
       name=name,
@@ -176,6 +215,7 @@ def _arrow_field_from_beam_fieldtype(
       nullable=beam_fieldtype.nullable,
       metadata=metadata,
   )
+
 
 if PYARROW_VERSION < (6, 0):
   # In pyarrow < 6.0.0 we cannot construct a MapType object from Field
@@ -191,12 +231,14 @@ if PYARROW_VERSION < (6, 0):
   OPTIONS_WARNING = (
       "Beam options will not be propagated to arrow schema. If options must be "
       "propagated please use pyarrow>=6.0.0. Dropped options\n:{option}")
+
   def _make_arrow_map(beam_map_type: schema_pb2.MapType):
     if beam_map_type.key_type.nullable:
       raise TypeError('Arrow map key field cannot be nullable')
     elif beam_map_type.value_type.nullable:
-      raise TypeError("pyarrow<6 does not support creating maps with nullable "
-                       "values. Please use pyarrow>=6.0.0")
+      raise TypeError(
+          "pyarrow<6 does not support creating maps with nullable "
+          "values. Please use pyarrow>=6.0.0")
 
     return pa.map_(
         _arrow_type_from_beam_fieldtype(beam_map_type.key_type),
@@ -208,6 +250,7 @@ if PYARROW_VERSION < (6, 0):
         value_type=_beam_fieldtype_from_arrow_type(arrow_map_type.item_type))
 
 else:
+
   def _make_arrow_map(beam_map_type: schema_pb2.MapType):
     return pa.map_(
         _arrow_field_from_beam_fieldtype(beam_map_type.key_type),
@@ -239,7 +282,8 @@ def _arrow_type_from_beam_fieldtype(
     output_arrow_type = _make_arrow_map(beam_fieldtype.map_type)
   elif type_info == "row_type":
     schema = beam_fieldtype.row_type.schema
-    # TODO: What about the schema ID?
+    # Note schema id and options are handled at the arrow field level, they are
+    # added at field-level metadata.
     output_arrow_type = pa.struct(
         [_arrow_field_from_beam_field(field) for field in schema.fields])
   elif type_info == "logical_type":

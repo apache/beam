@@ -59,6 +59,26 @@ class ArrowTypeCompatibilityTest(unittest.TestCase):
             'baz': pa.array([str(i) for i in range(100)], type=pa.string()),
         }),
     },
+    {
+        'batch_typehint': pa.Table,
+        'element_typehint': row_type.RowTypeConstraint.from_fields([
+            ('foo', Optional[int]),
+            (
+                'nested',
+                Optional[row_type.RowTypeConstraint.from_fields([
+                    ('bar', Optional[float]),
+                    ('baz', Optional[str]),
+                ])]),
+        ]),
+        'batch': pa.Table.from_pydict({
+            'foo': pa.array(range(100), type=pa.int64()),
+            'nested': pa.array([
+                None if i % 11 else {
+                    'bar': i / 100, 'baz': str(i)
+                } for i in range(100)
+            ]),
+        }),
+    },
 ])
 @pytest.mark.uses_pyarrow
 class ArrowBatchConverterTest(unittest.TestCase):
