@@ -57,6 +57,7 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -360,6 +361,22 @@ public class GcsUtil {
    * GcsPath GcsPaths}.
    */
   public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths) throws IOException {
+    if (gcsPaths.isEmpty()) {
+      return ImmutableList.of();
+    } else if (gcsPaths.size() == 1) {
+      GcsPath path = gcsPaths.get(0);
+      try {
+        StorageObject object = getObject(path);
+        return ImmutableList.of(StorageObjectOrIOException.create(object));
+      } catch (IOException e) {
+        return ImmutableList.of(StorageObjectOrIOException.create(e));
+      } catch (Exception e) {
+        IOException ioException =
+            new IOException(String.format("Error trying to get %s: %s", path, e));
+        return ImmutableList.of(StorageObjectOrIOException.create(ioException));
+      }
+    }
+
     List<StorageObjectOrIOException[]> results = new ArrayList<>();
     executeBatches(makeGetBatches(gcsPaths, results));
     ImmutableList.Builder<StorageObjectOrIOException> ret = ImmutableList.builder();
@@ -748,7 +765,7 @@ public class GcsUtil {
 
     List<CompletionStage<Void>> futures = new ArrayList<>();
     for (final BatchInterface batch : batches) {
-      futures.add(MoreFutures.runAsync(() -> batch.execute(), executor));
+      futures.add(MoreFutures.runAsync(batch::execute, executor));
     }
 
     try {
@@ -914,6 +931,33 @@ public class GcsUtil {
           lastError = null;
         } else {
           throw new FileNotFoundException(e.getMessage());
+        }
+      } else if (e.getCode() == 403
+          && e.getErrors().size() == 1
+          && e.getErrors().get(0).getReason().equals("retentionPolicyNotMet")) {
+        List<StorageObjectOrIOException> srcAndDestObjects = getObjects(Arrays.asList(from, to));
+        String srcHash = srcAndDestObjects.get(0).storageObject().getMd5Hash();
+        String destHash = srcAndDestObjects.get(1).storageObject().getMd5Hash();
+        if (srcHash != null && srcHash.equals(destHash)) {
+          // Source and destination are identical. Treat this as a successful rewrite
+          LOG.warn(
+              "Caught retentionPolicyNotMet error while rewriting to a bucket with retention "
+                  + "policy. Skipping because destination {} and source {} are considered identical "
+                  + "because their MD5 Hashes are equal.",
+              getFrom(),
+              getTo());
+
+          if (deleteSource) {
+            readyToEnqueue = true;
+            performDelete = true;
+          } else {
+            readyToEnqueue = false;
+          }
+          lastError = null;
+        } else {
+          // User is attempting to write to a file that hasn't met its retention policy yet.
+          // Not a transient error so likely will not be fixed by a retry
+          throw new IOException(e.getMessage());
         }
       } else {
         lastError = e;

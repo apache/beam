@@ -16,8 +16,9 @@
 package utils
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"testing"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 )
 
 func TestGetFileName(t *testing.T) {
@@ -29,6 +30,7 @@ func TestGetFileName(t *testing.T) {
 		name           string
 		args           args
 		expectedResult string
+		expectedErr    bool
 	}{
 		{
 			name: "Get file name when name is empty and sdk is JAVA",
@@ -68,7 +70,7 @@ func TestGetFileName(t *testing.T) {
 				name: "MOCK_NAME",
 				sdk:  pb.Sdk_SDK_JAVA,
 			},
-			expectedResult: defaultJavaFileName,
+			expectedResult: "MOCK_NAME" + javaExt,
 		},
 		{
 			name: "Get file name when name has wrong extension and sdk is JAVA",
@@ -76,7 +78,7 @@ func TestGetFileName(t *testing.T) {
 				name: "MOCK_NAME.py",
 				sdk:  pb.Sdk_SDK_JAVA,
 			},
-			expectedResult: "MOCK_NAME.java",
+			expectedErr: true,
 		},
 		{
 			name: "Get file name when name is a random string and sdk is GO",
@@ -84,7 +86,7 @@ func TestGetFileName(t *testing.T) {
 				name: "MOCK_NAME",
 				sdk:  pb.Sdk_SDK_GO,
 			},
-			expectedResult: defaultGoFileName,
+			expectedResult: "MOCK_NAME" + goExt,
 		},
 		{
 			name: "Get file name when name has wrong extension and sdk is GO",
@@ -92,7 +94,7 @@ func TestGetFileName(t *testing.T) {
 				name: "MOCK_NAME.py",
 				sdk:  pb.Sdk_SDK_GO,
 			},
-			expectedResult: "MOCK_NAME.go",
+			expectedErr: true,
 		},
 		{
 			name: "Get file name when name is a random string and sdk is PYTHON",
@@ -100,7 +102,7 @@ func TestGetFileName(t *testing.T) {
 				name: "MOCK_NAME",
 				sdk:  pb.Sdk_SDK_PYTHON,
 			},
-			expectedResult: defaultPythonFileName,
+			expectedResult: "MOCK_NAME" + pythonExt,
 		},
 		{
 			name: "Get file name when name has wrong extension and sdk is PYTHON",
@@ -108,7 +110,7 @@ func TestGetFileName(t *testing.T) {
 				name: "MOCK_NAME.java",
 				sdk:  pb.Sdk_SDK_PYTHON,
 			},
-			expectedResult: "MOCK_NAME.py",
+			expectedErr: true,
 		},
 		{
 			name: "Get file name when name is a random string and sdk is SCIO",
@@ -116,7 +118,7 @@ func TestGetFileName(t *testing.T) {
 				name: "MOCK_NAME",
 				sdk:  pb.Sdk_SDK_SCIO,
 			},
-			expectedResult: defaultScioFileName,
+			expectedResult: "MOCK_NAME" + scioExt,
 		},
 		{
 			name: "Get file name when name has wrong extension and sdk is SCIO",
@@ -124,7 +126,7 @@ func TestGetFileName(t *testing.T) {
 				name: "MOCK_NAME.java",
 				sdk:  pb.Sdk_SDK_SCIO,
 			},
-			expectedResult: "MOCK_NAME.scala",
+			expectedErr: true,
 		},
 		{
 			name: "Get file name when name is correct and sdk is JAVA",
@@ -161,7 +163,11 @@ func TestGetFileName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualResult := GetFileName(tt.args.name, tt.args.sdk)
+			actualResult, err := GetFileName(tt.args.name, "", tt.args.sdk)
+			if (err != nil) != tt.expectedErr {
+				t.Errorf("GetFileName() unexpected error")
+				return
+			}
 			if actualResult != tt.expectedResult {
 				t.Errorf("GetFileName() actual result is not equal to the expected result")
 			}

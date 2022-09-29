@@ -132,7 +132,6 @@ public abstract class Plugin {
   /** Sets a plugin Hadoop configuration. */
   public Plugin withHadoopConfiguration(Configuration hadoopConfiguration) {
     this.hadoopConfiguration = hadoopConfiguration;
-
     return this;
   }
 

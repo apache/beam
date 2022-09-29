@@ -325,6 +325,7 @@ When executing your pipeline with the Spark Runner, you should consider the foll
 <br><b>For RDD/DStream based runner:</b><br>
 {{< /paragraph >}}
 
+<div class="table-container-wrapper">
 <table class="language-java table table-bordered">
 <tr>
   <th>Field</th>
@@ -362,11 +363,13 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>false</td>
 </tr>
 </table>
+</div>
 
 {{< paragraph class="language-java" >}}
 <br><b>For Structured Streaming based runner:</b><br>
 {{< /paragraph >}}
 
+<div class="table-container-wrapper">
 <table class="language-java table table-bordered">
 <tr>
   <th>Field</th>
@@ -409,7 +412,9 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>true</td>
 </tr>
 </table>
+</div>
 
+<div class="table-container-wrapper">
 <table class="language-py table table-bordered">
 <tr>
   <th>Field</th>
@@ -427,6 +432,7 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>Set to match your job service endpoint (localhost:8099 by default)</td>
 </tr>
 </table>
+</div>
 
 ## Additional notes
 
@@ -443,7 +449,11 @@ You can monitor a running Spark job using the Spark [Web Interfaces](https://spa
 Spark also has a history server to [view after the fact](https://spark.apache.org/docs/latest/monitoring.html#viewing-after-the-fact).
 {{< paragraph class="language-java" >}}
 Metrics are also available via [REST API](https://spark.apache.org/docs/latest/monitoring.html#rest-api).
-Spark provides a [metrics system](https://spark.apache.org/docs/latest/monitoring.html#metrics) that allows reporting Spark metrics to a variety of Sinks. The Spark runner reports user-defined Beam Aggregators using this same metrics system and currently supports <code>GraphiteSink</code> and <code>CSVSink</code>, and providing support for additional Sinks supported by Spark is easy and straight-forward.
+Spark provides a [metrics system](https://spark.apache.org/docs/latest/monitoring.html#metrics) that allows reporting Spark metrics to a variety of Sinks.
+The Spark runner reports user-defined Beam Aggregators using this same metrics system and currently supports
+[GraphiteSink](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/runners/spark/metrics/sink/GraphiteSink.html)
+and [CSVSink](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/runners/spark/metrics/sink/CsvSink.html).
+Providing support for additional Sinks supported by Spark is easy and straight-forward.
 {{< /paragraph >}}
 {{< paragraph class="language-py" >}}Spark metrics are not yet supported on the portable runner.{{< /paragraph >}}
 

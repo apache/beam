@@ -71,6 +71,22 @@ type StateReader interface {
 	OpenMultiMapSideInput(ctx context.Context, id StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error)
 	// OpenIterable opens a byte stream for reading unwindowed iterables from the runner.
 	OpenIterable(ctx context.Context, id StreamID, key []byte) (io.ReadCloser, error)
+	// OpenBagUserStateReader opens a byte stream for reading user bag state.
+	OpenBagUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error)
+	// OpenBagUserStateAppender opens a byte stream for appending user bag state.
+	OpenBagUserStateAppender(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error)
+	// OpenBagUserStateClearer opens a byte stream for clearing user bag state.
+	OpenBagUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error)
+	// OpenMultimapUserStateReader opens a byte stream for reading user multimap state.
+	OpenMultimapUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.ReadCloser, error)
+	// OpenMultimapUserStateAppender opens a byte stream for appending user multimap state.
+	OpenMultimapUserStateAppender(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error)
+	// OpenMultimapUserStateClearer opens a byte stream for clearing user multimap state by key.
+	OpenMultimapUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error)
+	// OpenMultimapKeysUserStateReader opens a byte stream for reading the keys of user multimap state.
+	OpenMultimapKeysUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error)
+	// OpenMultimapKeysUserStateClearer opens a byte stream for clearing all keys of user multimap state.
+	OpenMultimapKeysUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error)
 	// GetSideInputCache returns the SideInputCache being used at the harness level.
 	GetSideInputCache() SideCache
 }

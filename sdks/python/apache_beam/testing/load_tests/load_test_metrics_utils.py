@@ -48,13 +48,13 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import Timestamp
 
 try:
-  from google.cloud import bigquery  # type: ignore[attr-defined]
+  from google.cloud import bigquery
   from google.cloud.bigquery.schema import SchemaField
   from google.cloud.exceptions import NotFound
 except ImportError:
-  bigquery = None
-  SchemaField = None
-  NotFound = None
+  bigquery = None  # type: ignore
+  SchemaField = None  # type: ignore
+  NotFound = None  # type: ignore
 
 RUNTIME_METRIC = 'runtime'
 COUNTER_LABEL = 'total_bytes_count'
@@ -92,7 +92,12 @@ def parse_step(step_name):
   Returns:
     lower case step name without namespace and step label
   """
-  return step_name.lower().replace(' ', '_').strip('step:_')
+  prefix = 'step'
+  step_name = step_name.lower().replace(' ', '_')
+  step_name = (
+      step_name[len(prefix):]
+      if prefix and step_name.startswith(prefix) else step_name)
+  return step_name.strip(':_')
 
 
 def split_metrics_by_namespace_and_name(metrics, namespace, name):
@@ -146,7 +151,7 @@ def get_all_distributions_by_type(dist, metric_id):
     list of :class:`DistributionMetric` objects
   """
   submit_timestamp = time.time()
-  dist_types = ['count', 'max', 'min', 'sum']
+  dist_types = ['count', 'max', 'min', 'sum', 'mean']
   distribution_dicts = []
   for dist_type in dist_types:
     try:

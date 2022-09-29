@@ -1068,16 +1068,20 @@ public class BigQueryIO {
       checkArgument(getParseFn() != null, "A parseFn is required");
 
       // if both toRowFn and fromRowFn values are set, enable Beam schema support
-      boolean beamSchemaEnabled = false;
+      Pipeline p = input.getPipeline();
+      final BigQuerySourceDef sourceDef = createSourceDef();
+
+      Schema beamSchema = null;
       if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
-        beamSchemaEnabled = true;
+        BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
+        beamSchema = sourceDef.getBeamSchema(bqOptions);
+        beamSchema = getFinalSchema(beamSchema, getSelectedFields());
       }
 
-      Pipeline p = input.getPipeline();
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
 
       if (getMethod() == TypedRead.Method.DIRECT_READ) {
-        return expandForDirectRead(input, coder);
+        return expandForDirectRead(input, coder, beamSchema);
       }
 
       checkArgument(
@@ -1090,7 +1094,6 @@ public class BigQueryIO {
           "Invalid BigQueryIO.Read: Specifies row restriction, "
               + "which only applies when using Method.DIRECT_READ");
 
-      final BigQuerySourceDef sourceDef = createSourceDef();
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection;
       PCollection<T> rows;
@@ -1221,33 +1224,60 @@ public class BigQueryIO {
 
       rows = rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
 
-      if (beamSchemaEnabled) {
-        BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
-        Schema beamSchema = sourceDef.getBeamSchema(bqOptions);
-        SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
-        SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
-
-        rows.setSchema(beamSchema, getTypeDescriptor(), toBeamRow, fromBeamRow);
+      if (beamSchema != null) {
+        rows.setSchema(
+            beamSchema,
+            getTypeDescriptor(),
+            getToBeamRowFn().apply(beamSchema),
+            getFromBeamRowFn().apply(beamSchema));
       }
       return rows;
     }
 
-    private PCollection<T> expandForDirectRead(PBegin input, Coder<T> outputCoder) {
+    private static Schema getFinalSchema(
+        Schema beamSchema, ValueProvider<List<String>> selectedFields) {
+      List<Schema.Field> flds =
+          beamSchema.getFields().stream()
+              .filter(
+                  field -> {
+                    if (selectedFields != null
+                        && selectedFields.isAccessible()
+                        && selectedFields.get() != null) {
+                      return selectedFields.get().contains(field.getName());
+                    } else {
+                      return true;
+                    }
+                  })
+              .collect(Collectors.toList());
+      return Schema.builder().addFields(flds).build();
+    }
+
+    private PCollection<T> expandForDirectRead(
+        PBegin input, Coder<T> outputCoder, Schema beamSchema) {
       ValueProvider<TableReference> tableProvider = getTableProvider();
       Pipeline p = input.getPipeline();
       if (tableProvider != null) {
         // No job ID is required. Read directly from BigQuery storage.
-        return p.apply(
-            org.apache.beam.sdk.io.Read.from(
-                BigQueryStorageTableSource.create(
-                    tableProvider,
-                    getFormat(),
-                    getSelectedFields(),
-                    getRowRestriction(),
-                    getParseFn(),
-                    outputCoder,
-                    getBigQueryServices(),
-                    getProjectionPushdownApplied())));
+        PCollection<T> rows =
+            p.apply(
+                org.apache.beam.sdk.io.Read.from(
+                    BigQueryStorageTableSource.create(
+                        tableProvider,
+                        getFormat(),
+                        getSelectedFields(),
+                        getRowRestriction(),
+                        getParseFn(),
+                        outputCoder,
+                        getBigQueryServices(),
+                        getProjectionPushdownApplied())));
+        if (beamSchema != null) {
+          rows.setSchema(
+              beamSchema,
+              getTypeDescriptor(),
+              getToBeamRowFn().apply(beamSchema),
+              getFromBeamRowFn().apply(beamSchema));
+        }
+        return rows;
       }
 
       checkArgument(
@@ -1437,6 +1467,13 @@ public class BigQueryIO {
             }
           };
 
+      if (beamSchema != null) {
+        rows.setSchema(
+            beamSchema,
+            getTypeDescriptor(),
+            getToBeamRowFn().apply(beamSchema),
+            getFromBeamRowFn().apply(beamSchema));
+      }
       return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
     }
 
@@ -1766,6 +1803,7 @@ public class BigQueryIO {
         .setOptimizeWrites(false)
         .setUseBeamSchema(false)
         .setAutoSharding(false)
+        .setPropagateSuccessful(true)
         .setDeterministicRecordIdFn(null)
         .build();
   }
@@ -1840,7 +1878,7 @@ public class BigQueryIO {
 
     abstract RowWriterFactory.@Nullable AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
 
-    abstract @Nullable SerializableFunction<TableSchema, org.apache.avro.Schema>
+    abstract @Nullable SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema>
         getAvroSchemaFactory();
 
     abstract boolean getUseAvroLogicalTypes();
@@ -1907,6 +1945,8 @@ public class BigQueryIO {
     @Experimental
     abstract Boolean getAutoSharding();
 
+    abstract Boolean getPropagateSuccessful();
+
     @Experimental
     abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
 
@@ -1930,7 +1970,7 @@ public class BigQueryIO {
           RowWriterFactory.AvroRowWriterFactory<T, ?, ?> avroRowWriterFactory);
 
       abstract Builder<T> setAvroSchemaFactory(
-          SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory);
+          SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory);
 
       abstract Builder<T> setUseAvroLogicalTypes(boolean useAvroLogicalTypes);
 
@@ -1995,6 +2035,8 @@ public class BigQueryIO {
 
       @Experimental
       abstract Builder<T> setAutoSharding(Boolean autoSharding);
+
+      abstract Builder<T> setPropagateSuccessful(Boolean propagateSuccessful);
 
       @Experimental
       abstract Builder<T> setDeterministicRecordIdFn(
@@ -2200,7 +2242,7 @@ public class BigQueryIO {
      * <p>If not specified, the TableSchema will automatically be converted to an avro schema.
      */
     public Write<T> withAvroSchemaFactory(
-        SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory) {
+        SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory) {
       return toBuilder().setAvroSchemaFactory(avroSchemaFactory).build();
     }
 
@@ -2502,13 +2544,24 @@ public class BigQueryIO {
     }
 
     /**
+     * If true, it enables the propagation of the successfully inserted TableRows on BigQuery as
+     * part of the {@link WriteResult} object when using {@link Method#STREAMING_INSERTS}. By
+     * default this property is set on true. In the cases where a pipeline won't make use of the
+     * insert results this property can be set on false, which will make the pipeline let go of
+     * those inserted TableRows and reclaim worker resources.
+     */
+    public Write<T> withSuccessfulInsertsPropagation(boolean propagateSuccessful) {
+      return toBuilder().setPropagateSuccessful(propagateSuccessful).build();
+    }
+
+    /**
      * Provides a function which can serve as a source of deterministic unique ids for each record
      * to be written, replacing the unique ids generated with the default scheme. When used with
      * {@link Method#STREAMING_INSERTS} This also elides the re-shuffle from the BigQueryIO Write by
      * using the keys on which the data is grouped at the point at which BigQueryIO Write is
      * applied, since the reshuffle is necessary only for the checkpointing of the default-generated
      * ids for determinism. This may be beneficial as a performance optimization in the case when
-     * the current sharding is already sufficient for writing to BigQuery. Thi behavior takes
+     * the current sharding is already sufficient for writing to BigQuery. This behavior takes
      * precedence over {@link #withAutoSharding}.
      */
     @Experimental
@@ -2709,9 +2762,6 @@ public class BigQueryIO {
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }
-      if (method == Write.Method.STORAGE_WRITE_API) {
-        checkArgument(!getAutoSharding(), "Auto sharding not yet available for Storage API writes");
-      }
 
       if (getJsonTimePartitioning() != null) {
         checkArgument(
@@ -2819,7 +2869,7 @@ public class BigQueryIO {
               "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set,"
                   + " not both.");
 
-          SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory =
+          SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory =
               getAvroSchemaFactory();
           if (avroSchemaFactory == null) {
             checkArgument(
@@ -2911,6 +2961,7 @@ public class BigQueryIO {
                 .withIgnoreUnknownValues(getIgnoreUnknownValues())
                 .withIgnoreInsertIds(getIgnoreInsertIds())
                 .withAutoSharding(getAutoSharding())
+                .withSuccessfulInsertsPropagation(getPropagateSuccessful())
                 .withDeterministicRecordIdFn(getDeterministicRecordIdFn())
                 .withKmsKey(getKmsKey());
         return input.apply(streamingInserts);
@@ -3006,7 +3057,8 @@ public class BigQueryIO {
                 getStorageApiTriggeringFrequency(bqOptions),
                 getBigQueryServices(),
                 getStorageApiNumStreams(bqOptions),
-                method == Method.STORAGE_API_AT_LEAST_ONCE);
+                method == Method.STORAGE_API_AT_LEAST_ONCE,
+                getAutoSharding());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);

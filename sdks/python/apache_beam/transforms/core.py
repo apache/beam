@@ -708,14 +708,44 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return get_function_arguments(self, func)
 
   def default_type_hints(self):
-    fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self.process)
-    if fn_type_hints is not None:
-      try:
-        fn_type_hints = fn_type_hints.strip_iterable()
-      except ValueError as e:
-        raise ValueError('Return value not iterable: %s: %s' % (self, e))
+    process_type_hints = typehints.decorators.IOTypeHints.from_callable(
+        self.process) or typehints.decorators.IOTypeHints.empty()
+
+    if self._process_yields_batches:
+      # process() produces batches, don't use it's output typehint
+      process_type_hints = process_type_hints.with_output_types_from(
+          typehints.decorators.IOTypeHints.empty())
+
+    if self._process_batch_yields_elements:
+      # process_batch() produces elements, *do* use it's output typehint
+
+      # First access the typehint
+      process_batch_type_hints = typehints.decorators.IOTypeHints.from_callable(
+          self.process_batch) or typehints.decorators.IOTypeHints.empty()
+
+      # Then we deconflict with the typehint from process, if it exists
+      if (process_batch_type_hints.output_types !=
+          typehints.decorators.IOTypeHints.empty().output_types):
+        if (process_type_hints.output_types !=
+            typehints.decorators.IOTypeHints.empty().output_types and
+            process_batch_type_hints.output_types !=
+            process_type_hints.output_types):
+          raise TypeError(
+              f"DoFn {self!r} yields element from both process and "
+              "process_batch, but they have mismatched output typehints:\n"
+              f" process: {process_type_hints.output_types}\n"
+              f" process_batch: {process_batch_type_hints.output_types}")
+
+        process_type_hints = process_type_hints.with_output_types_from(
+            process_batch_type_hints)
+
+    try:
+      process_type_hints = process_type_hints.strip_iterable()
+    except ValueError as e:
+      raise ValueError('Return value not iterable: %s: %s' % (self, e))
+
     # Prefer class decorator type hints for backwards compatibility.
-    return get_type_hints(self.__class__).with_defaults(fn_type_hints)
+    return get_type_hints(self.__class__).with_defaults(process_type_hints)
 
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
@@ -2947,7 +2977,7 @@ class GroupBy(PTransform):
       expr = self._key_fields[0][1]
       return trivial_inference.infer_return_type(expr, [input_type])
     else:
-      return row_type.RowTypeConstraint([
+      return row_type.RowTypeConstraint.from_fields([
           (name, trivial_inference.infer_return_type(expr, [input_type]))
           for (name, expr) in self._key_fields
       ])
@@ -3059,7 +3089,7 @@ class Select(PTransform):
                                 for name, expr in self._fields}))
 
   def infer_output_type(self, input_type):
-    return row_type.RowTypeConstraint([
+    return row_type.RowTypeConstraint.from_fields([
         (name, trivial_inference.infer_return_type(expr, [input_type]))
         for (name, expr) in self._fields
     ])

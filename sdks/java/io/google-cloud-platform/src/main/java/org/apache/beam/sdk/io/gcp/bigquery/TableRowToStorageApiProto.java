@@ -43,6 +43,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
@@ -73,7 +74,12 @@ public class TableRowToStorageApiProto {
   // The old dremel parser accepts this format, and so does insertall. We need to accept it
   // for backwards compatibility, and it is based on UTC time.
   private static final DateTimeFormatter DATETIME_SPACE_FORMATTER =
-      DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSS").withZone(ZoneOffset.UTC);
+      new DateTimeFormatterBuilder()
+          .append(DateTimeFormatter.ISO_LOCAL_DATE)
+          .appendLiteral(' ')
+          .append(DateTimeFormatter.ISO_LOCAL_TIME)
+          .toFormatter()
+          .withZone(ZoneOffset.UTC);
 
   public static class SchemaConversionException extends Exception {
     SchemaConversionException(String msg) {
@@ -590,7 +596,18 @@ public class TableRowToStorageApiProto {
         return BaseEncoding.base64().encode(((ByteString) fieldValue).toByteArray());
       case ENUM:
         throw new RuntimeException("Enumerations not supported");
+      case INT32:
+      case FLOAT:
+      case BOOL:
+      case DOUBLE:
+        // The above types have native representations in JSON for all their
+        // possible values.
+        return fieldValue;
+      case STRING:
+      case INT64:
       default:
+        // The above types must be cast to string to be safely encoded in
+        // JSON (due to JSON's float-based representation of all numbers).
         return fieldValue.toString();
     }
   }

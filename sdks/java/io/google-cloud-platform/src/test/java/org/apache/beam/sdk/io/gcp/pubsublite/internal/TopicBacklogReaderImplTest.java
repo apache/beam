@@ -66,7 +66,7 @@ public final class TopicBacklogReaderImplTest {
             example(TopicPath.class),
             example(Partition.class),
             example(Offset.class),
-            Offset.of(Integer.MAX_VALUE)))
+            Offset.of(Long.MAX_VALUE)))
         .thenReturn(
             ApiFutures.immediateFailedFuture(new CheckedApiException(Code.UNAVAILABLE).underlying));
 
@@ -91,7 +91,7 @@ public final class TopicBacklogReaderImplTest {
             example(TopicPath.class),
             example(Partition.class),
             example(Offset.class),
-            Offset.of(Integer.MAX_VALUE)))
+            Offset.of(Long.MAX_VALUE)))
         .thenReturn(ApiFutures.immediateFuture(response));
 
     assertEquals(reader.computeMessageStats(example(Offset.class)), response);
