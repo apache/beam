@@ -30,6 +30,9 @@ import org.apache.beam.sdk.values.Row;
 
 /** Fixed precision numeric types used to represent jdbc NUMERIC and DECIMAL types. */
 public class FixedPrecisionNumeric extends PassThroughLogicalType<BigDecimal> {
+  // TODO(https://github.com/apache/beam/issues/23373) promote this URN to schema.proto once logical
+  // types with arguments are fully supported and the implementation of this logical type can thus
+  // be considered standardized.
   public static final String IDENTIFIER = "beam:logical_type:fixed_decimal:v1";
 
   // TODO(https://github.com/apache/beam/issues/23374) implement beam:logical_type:decimal:v1 as

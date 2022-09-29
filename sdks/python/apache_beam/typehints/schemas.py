@@ -811,6 +811,9 @@ class FixedPrecisionDecimalLogicalType(
 
   @classmethod
   def urn(cls):
+    # TODO(https://github.com/apache/beam/issues/23373) promote this URN to
+    # schema.proto once logical types with argument are fully supported and the
+    # implementation of this logical type can thus be considered standardized.
     return "beam:logical_type:fixed_decimal:v1"
 
   @classmethod
@@ -842,7 +845,6 @@ class FixedPrecisionDecimalLogicalType(
 
   @classmethod
   def _from_typing(cls, typ):
-    print(typ)
     return cls()
 
 
