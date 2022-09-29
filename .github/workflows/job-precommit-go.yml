@@ -45,7 +45,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
+          submodules: false
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -54,7 +54,7 @@ jobs:
     name: Run PreCommit Go
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         golang: ${{fromJson(needs.set-properties.outputs.properties).GoTestProperties.SUPPORTED_VERSIONS}}
     steps:
@@ -63,7 +63,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
+          submodules: false
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
       - name: Set Go Version
