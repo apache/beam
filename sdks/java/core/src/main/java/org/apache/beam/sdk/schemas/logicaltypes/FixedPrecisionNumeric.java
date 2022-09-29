@@ -39,14 +39,18 @@ public class FixedPrecisionNumeric extends PassThroughLogicalType<BigDecimal> {
    * FieldType#DECIMAL}. It is the underlying representation type of FixedPrecisionNumeric logical
    * type in order to be compatible with existing Java field types.
    */
-  public static final String BASE_IDENTIFIER =
-      SchemaApi.LogicalTypes.Enum.DECIMAL
-          .getValueDescriptor()
-          .getOptions()
-          .getExtension(RunnerApi.beamUrn);
+  public static final String BASE_IDENTIFIER;
 
-  private static final Schema SCHEMA =
-      Schema.builder().addInt32Field("precision").addInt32Field("scale").build();
+  private static final Schema SCHEMA;
+
+  static {
+    BASE_IDENTIFIER =
+        SchemaApi.LogicalTypes.Enum.DECIMAL
+            .getValueDescriptor()
+            .getOptions()
+            .getExtension(RunnerApi.beamUrn);
+    SCHEMA = Schema.builder().addInt32Field("precision").addInt32Field("scale").build();
+  }
 
   private final int precision;
   private final int scale;
