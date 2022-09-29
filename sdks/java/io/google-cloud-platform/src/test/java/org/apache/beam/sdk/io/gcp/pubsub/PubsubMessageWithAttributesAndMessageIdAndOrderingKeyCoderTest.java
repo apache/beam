@@ -31,16 +31,17 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Unit tests for {@link PubsubMessageCoder}. */
+/** Unit tests for {@link PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder}. */
 @RunWith(JUnit4.class)
-public class PubsubMessageCoderTest {
+public class PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoderTest {
 
   private static final String DATA = "testData";
   private static final String MESSAGE_ID = "testMessageId";
   private static final Map<String, String> ATTRIBUTES =
       new ImmutableMap.Builder<String, String>().put("1", "hello").build();
   private static final String ORDERING_KEY = "key123";
-  private static final Coder<PubsubMessage> TEST_CODER = PubsubMessageCoder.of();
+  private static final Coder<PubsubMessage> TEST_CODER =
+      PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder.of();
   private static final PubsubMessage TEST_VALUE =
       new PubsubMessage(
           DATA.getBytes(StandardCharsets.UTF_8), ATTRIBUTES, MESSAGE_ID, ORDERING_KEY);

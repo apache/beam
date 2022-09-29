@@ -38,6 +38,8 @@ public class PubsubCoderProviderRegistrar implements CoderProviderRegistrar {
         CoderProviders.forCoder(
             TypeDescriptor.of(PubsubMessage.class),
             PubsubMessageWithAttributesAndMessageIdCoder.of()),
-        CoderProviders.forCoder(TypeDescriptor.of(PubsubMessage.class), PubsubMessageCoder.of()));
+        CoderProviders.forCoder(
+            TypeDescriptor.of(PubsubMessage.class),
+            PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder.of()));
   }
 }

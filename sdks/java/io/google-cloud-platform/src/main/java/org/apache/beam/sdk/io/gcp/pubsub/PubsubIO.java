@@ -531,7 +531,10 @@ public class PubsubIO {
    * messageId} and {PubsubMessage#getOrderingKey() orderingKey} from PubSub.
    */
   public static Read<PubsubMessage> readMessagesWithAttributesAndMessageIdAndOrderingKey() {
-    return Read.newBuilder().setCoder(PubsubMessageCoder.of()).setNeedsOrderingKey(true).build();
+    return Read.newBuilder()
+        .setCoder(PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder.of())
+        .setNeedsOrderingKey(true)
+        .build();
   }
 
   /**

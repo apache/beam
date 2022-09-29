@@ -1355,7 +1355,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
     Coder<PubsubMessage> messageCoder;
     if (getNeedsOrderingKey()) {
-      messageCoder = PubsubMessageCoder.of();
+      messageCoder = PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder.of();
     } else {
       if (getNeedsMessageId()) {
         messageCoder =

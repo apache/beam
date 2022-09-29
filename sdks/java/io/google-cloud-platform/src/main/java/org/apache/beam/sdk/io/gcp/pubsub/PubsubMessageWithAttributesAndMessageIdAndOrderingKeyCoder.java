@@ -35,7 +35,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class PubsubMessageCoder extends CustomCoder<PubsubMessage> {
+public class PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder
+    extends CustomCoder<PubsubMessage> {
   // A message's payload cannot be null
   private static final Coder<byte[]> PAYLOAD_CODER = ByteArrayCoder.of();
   // A message's attributes can be null.
@@ -52,8 +53,8 @@ public class PubsubMessageCoder extends CustomCoder<PubsubMessage> {
     return of();
   }
 
-  public static PubsubMessageCoder of() {
-    return new PubsubMessageCoder();
+  public static PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder of() {
+    return new PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder();
   }
 
   @Override
