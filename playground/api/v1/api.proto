@@ -166,6 +166,7 @@ message PrecompiledObject{
   bool multifile = 7;
   int32 context_line = 8;
   bool default_example = 9;
+  Sdk sdk = 10;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk

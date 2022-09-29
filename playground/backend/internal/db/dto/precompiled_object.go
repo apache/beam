@@ -23,14 +23,15 @@ import (
 type ObjectInfo struct {
 	Name            string
 	CloudPath       string
-	Description     string                   `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Type            pb.PrecompiledObjectType `protobuf:"varint,4,opt,name=type,proto3,enum=api.v1.PrecompiledObjectType" json:"type,omitempty"`
-	Categories      []string                 `json:"categories,omitempty"`
-	PipelineOptions string                   `protobuf:"bytes,3,opt,name=pipeline_options,proto3" json:"pipeline_options,omitempty"`
-	Link            string                   `protobuf:"bytes,3,opt,name=link,proto3" json:"link,omitempty"`
-	Multifile       bool                     `protobuf:"varint,7,opt,name=multifile,proto3" json:"multifile,omitempty"`
-	ContextLine     int32                    `protobuf:"varint,7,opt,name=context_line,proto3" json:"context_line,omitempty"`
-	DefaultExample  bool                     `protobuf:"varint,7,opt,name=default_example,json=defaultExample,proto3" json:"default_example,omitempty"`
+	Description     string
+	Type            pb.PrecompiledObjectType
+	Categories      []string
+	PipelineOptions string
+	Link            string
+	Multifile       bool
+	ContextLine     int32
+	DefaultExample  bool
+	Sdk             pb.Sdk
 }
 
 type PrecompiledObjects []ObjectInfo
@@ -79,4 +80,8 @@ func (e *ExampleDTO) GetType() pb.PrecompiledObjectType {
 
 func (e *ExampleDTO) GetContextLine() int32 {
 	return e.Files[0].CntxLine
+}
+
+func (e *ExampleDTO) GetSDK() pb.Sdk {
+	return pb.Sdk(pb.Sdk_value[e.Example.Sdk.Name])
 }
