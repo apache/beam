@@ -1,3 +1,22 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# To learn more about GitHub Actions in Apache Beam check the CI.m
+
 name: Run RC Validation
 on:
   workflow_dispatch:
@@ -29,28 +48,33 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Set RC_TAG branch
+      - name: Set environment variables
         run: |
           echo "RC_TAG=v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}" >>  $GITHUB_ENV
+          echo "RELEASE_BRANCH=release-${{github.event.inputs.RELEASE_VER}}" >>  $GITHUB_ENV
+          echo "WORKING_BRANCH=v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}_validations" >>  $GITHUB_ENV
       - name: Check out code
         uses: actions/checkout@v3
         with:
           ref: ${{ env.RC_TAG }}
-          #token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup Common
-        uses: ./.github/actions/common-rc-validation
+#      - name: Setup Common
+#        uses: ./.github/actions/common-rc-validation
+      #- name: Setup GitHub CLI
+      #  uses: ./.github/actions/setup-gh-cli-linux
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
       - name: Create Pull Request
         run: |
-          git checkout -b ${{env.WORKING_BRANCH}} --quiet
+          git checkout -b ${{env.WORKING_BRANCH}} ${{ env.RC_TAG }} --quiet
           touch empty_file.txt
           git add empty_file.txt
           git commit -m "Add empty file in order to create PR" --quiet
           git push origin ${{env.WORKING_BRANCH}} --quiet
           GITHUB_PR_URL=$(gh pr create -B ${{env.RELEASE_BRANCH}} -H ${{env.WORKING_BRANCH}} -t"[DO NOT MERGE] Run Python RC Validation Tests" -b "PR to run Python ReleaseCandidate Jenkins Job.")
+#git push origin ${{env.WORKING_BRANCH}} --quiet
+#git checkout -b ${{env.WORKING_BRANCH}} --quiet
 #GITHUB_PR_URL=$(gh pr create -B ${RELEASE_BRANCH} -H ${RC_TAG} -t"[DO NOT MERGE] Run Python RC Validation Tests"
       - name: Comment on PR to Trigger Python ReleaseCandidate Test
         run: |
