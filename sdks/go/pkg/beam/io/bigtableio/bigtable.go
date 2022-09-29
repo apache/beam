@@ -35,7 +35,7 @@ func init() {
 	register.Iter1[*Mutation]()
 }
 
-// Mutation represents a necessary serializable wrapper analogue to bigtable.Mutation containing a rowKey and the opperations to be applied
+// Mutation represents a necessary serializable wrapper analogue to bigtable.Mutation containing a rowKey and the operations to be applied
 type Mutation struct {
 	RowKey   string
 	Ops []Operation
