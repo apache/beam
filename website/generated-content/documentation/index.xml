@@ -15,8 +15,8 @@ limitations under the License.
 &lt;nav class="language-switcher">
 &lt;strong>Adapt for:&lt;/strong>
 &lt;ul>
-&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
-&lt;li data-type="language-py">Python SDK&lt;/li>
+&lt;li data-value="java" class="active">Java SDK&lt;/li>
+&lt;li data-value="py">Python SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;h2 id="analysing-the-structure-and-meaning-of-text">Analysing the structure and meaning of text&lt;/h2>
@@ -1741,8 +1741,8 @@ limitations under the License.
 &lt;nav class="language-switcher">
 &lt;strong>Adapt for:&lt;/strong>
 &lt;ul>
-&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
-&lt;li data-type="language-py">Python SDK&lt;/li>
+&lt;li data-value="java" class="active">Java SDK&lt;/li>
+&lt;li data-value="py">Python SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;p>The Beam SDKs include built-in transforms that can read data from and write data
@@ -4213,10 +4213,10 @@ programming guide, take a look at the
 &lt;nav class="language-switcher">
 &lt;strong>Adapt for:&lt;/strong>
 &lt;ul>
-&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
-&lt;li data-type="language-py">Python SDK&lt;/li>
-&lt;li data-type="language-go">Go SDK&lt;/li>
-&lt;li data-type="language-typescript">Typescript SDK&lt;/li>
+&lt;li data-value="java" class="active">Java SDK&lt;/li>
+&lt;li data-value="py">Python SDK&lt;/li>
+&lt;li data-value="go">Go SDK&lt;/li>
+&lt;li data-value="typescript">TypeScript SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;p class="language-py">The Python SDK supports Python 3.7, 3.8, and 3.9.&lt;/p>
@@ -8568,9 +8568,9 @@ In addition, often Beam pipelines have intermediate stages and types, and those 
 &lt;nav class="language-switcher">
 &lt;strong>Adapt for:&lt;/strong>
 &lt;ul>
-&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
-&lt;li data-type="language-py">Python SDK&lt;/li>
-&lt;li data-type="language-go">Go SDK&lt;/li>
+&lt;li data-value="java" class="active">Java SDK&lt;/li>
+&lt;li data-value="py">Python SDK&lt;/li>
+&lt;li data-value="go">Go SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;p class="language-java">Beam is able to infer schemas from a variety of common Java types.
@@ -9392,9 +9392,9 @@ automatically convert to any matching schema type, just like when reading the en
 &lt;nav class="language-switcher">
 &lt;strong>Adapt for:&lt;/strong>
 &lt;ul>
-&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
-&lt;li data-type="language-py">Python SDK&lt;/li>
-&lt;li data-type="language-go">Go SDK&lt;/li>
+&lt;li data-value="java" class="active">Java SDK&lt;/li>
+&lt;li data-value="py">Python SDK&lt;/li>
+&lt;li data-value="go">Go SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;p>When Beam runners execute your pipeline, they often need to materialize the
@@ -12982,8 +12982,8 @@ limitations under the License.
 &lt;nav class="language-switcher">
 &lt;strong>Adapt for:&lt;/strong>
 &lt;ul>
-&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
-&lt;li data-type="language-py">Python SDK&lt;/li>
+&lt;li data-value="java" class="active">Java SDK&lt;/li>
+&lt;li data-value="py">Python SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;h2 id="create-and-train-your-bigquery-ml-model">Create and train your BigQuery ML model&lt;/h2>
@@ -13066,8 +13066,8 @@ limitations under the License.
 &lt;nav class="language-switcher">
 &lt;strong>Adapt for:&lt;/strong>
 &lt;ul>
-&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
-&lt;li data-type="language-py">Python SDK&lt;/li>
+&lt;li data-value="java" class="active">Java SDK&lt;/li>
+&lt;li data-value="py">Python SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;h2 id="bigqueryio-deadletter-pattern">BigQueryIO deadletter pattern&lt;/h2>
@@ -13168,9 +13168,9 @@ limitations under the License.
 &lt;nav class="language-switcher">
 &lt;strong>Adapt for:&lt;/strong>
 &lt;ul>
-&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
-&lt;li data-type="language-py">Python SDK&lt;/li>
-&lt;li data-type="language-go">Go SDK&lt;/li>
+&lt;li data-value="java" class="active">Java SDK&lt;/li>
+&lt;li data-value="py">Python SDK&lt;/li>
+&lt;li data-value="go">Go SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;h3>File-based&lt;/h3>
@@ -15718,8 +15718,8 @@ limitations under the License.
 &lt;nav class="language-switcher">
 &lt;strong>Adapt for:&lt;/strong>
 &lt;ul>
-&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
-&lt;li data-type="language-py">Python SDK&lt;/li>
+&lt;li data-value="java" class="active">Java SDK&lt;/li>
+&lt;li data-value="py">Python SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;h2 id="choosing-between-built-in-and-custom-connectors">Choosing between built-in and custom connectors&lt;/h2>
@@ -16373,8 +16373,8 @@ limitations under the License.
 &lt;nav class="language-switcher">
 &lt;strong>Adapt for:&lt;/strong>
 &lt;ul>
-&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
-&lt;li data-type="language-py">Python SDK&lt;/li>
+&lt;li data-value="java" class="active">Java SDK&lt;/li>
+&lt;li data-value="py">Python SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;h2 id="processing-files-as-they-arrive">Processing files as they arrive&lt;/h2>
@@ -17573,8 +17573,8 @@ limitations under the License.
 &lt;nav class="language-switcher">
 &lt;strong>Adapt for:&lt;/strong>
 &lt;ul>
-&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
-&lt;li data-type="language-py">Python SDK&lt;/li>
+&lt;li data-value="java" class="active">Java SDK&lt;/li>
+&lt;li data-value="py">Python SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;p>The Beam SDKs include built-in transforms that can read data from and write data
