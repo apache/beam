@@ -24,6 +24,7 @@ These tests are similar to fuzzing, except they test invariant properties
 of code.
 """
 
+import keyword
 import math
 import typing
 import unittest
@@ -86,15 +87,10 @@ SCHEMA_GENERATOR_STRATEGY = st.lists(
         st.sampled_from(SCHEMA_TYPES),
         st.booleans()))
 
-FORBIDDEN_FIELD_NAMES = {
-    'as', 'for', 'in', 'with', 'or', 'is', 'not', 'if', 'elif', 'else'
-}
-
 TYPES_UNSUPPORTED_BY_ROW_CODER = {np.int8, np.int16}
 
 
 class TypesAreAllTested(unittest.TestCase):
-
   def test_all_types_are_tested(self):
     # Verify that all types among Beam's defined types are being tested
     self.assertEqual(
@@ -104,7 +100,6 @@ class TypesAreAllTested(unittest.TestCase):
 
 
 class ProperyTestingCoders(unittest.TestCase):
-
   @given(st.text())
   def test_string_coder(self, txt: str):
     coder = StrUtf8Coder()
@@ -134,10 +129,7 @@ class ProperyTestingCoders(unittest.TestCase):
     # If this condition does not hold, then we must not continue the
     # test.
     assume(len({name for name, _, _ in schema}) == len(schema))
-    assume(
-        len({name
-             for name, _, _ in schema}.intersection(FORBIDDEN_FIELD_NAMES)) ==
-        0)
+    assume(all(not keyword.iskeyword(name) for name, _, _ in schema))
     assume(
         len({n[0]
              for n, _, _ in schema}.intersection(set(digits + '_'))) == 0)
