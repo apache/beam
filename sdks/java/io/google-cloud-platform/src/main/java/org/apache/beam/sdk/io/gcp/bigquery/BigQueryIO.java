@@ -631,8 +631,7 @@ public class BigQueryIO {
                         (writer, reader) ->
                             new GenericDatumTransformer<>(parseFn, input, writer, reader))
         .setParseFn(
-            parseFn) // TODO: Remove setParseFn once https://github.com/apache/beam/issues/21076 is
-        // fixed.
+            parseFn) // TODO: Remove setParseFn once https://github.com/apache/beam/issues/21076 is fixed.
         .setMethod(TypedRead.Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.AVRO)
