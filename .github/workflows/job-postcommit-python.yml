@@ -28,9 +28,6 @@ on:
     tags: ['v*']
     paths: [ 'sdks/python/apache_beam/testing/test_stream_it_test.py',
              'sdks/python/apache_beam/transforms/external_it_test.py']
-  pull_request:
-    branches: [ 'master', 'release-*']
-    tags: [ 'v*' ]
 permissions: read-all
 
 env:
