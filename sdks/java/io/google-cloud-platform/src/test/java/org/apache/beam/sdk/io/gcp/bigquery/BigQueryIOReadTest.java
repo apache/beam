@@ -574,7 +574,8 @@ public class BigQueryIOReadTest implements Serializable {
         Lists.newArrayList(
             new TableRow().set("name", "a"),
             new TableRow().set("name", "b"),
-            new TableRow().set("name", "c"));
+            new TableRow().set("name", "c"),
+            new TableRow().set("name", "d"));
 
     fakeDatasetService.insertAll(someTable.getTableReference(), records, null);
 
@@ -601,8 +602,10 @@ public class BigQueryIOReadTest implements Serializable {
     b.setName("b");
     User c = new User();
     c.setName("c");
+    User d = new User();
+    d.setName("d");
 
-    PAssert.that(bqRows).containsInAnyOrder(ImmutableList.of(a, b, c));
+    PAssert.that(bqRows).containsInAnyOrder(ImmutableList.of(a, b, c, d));
 
     p.run();
   }
