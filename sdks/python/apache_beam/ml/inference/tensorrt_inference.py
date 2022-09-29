@@ -287,4 +287,4 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     """
     Returns a namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferenceTensorRT'
+    return 'BeamML_TensorRT'
