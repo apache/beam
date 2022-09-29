@@ -443,7 +443,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
     predictions = list(result_generator)
 
-    if self._drop_example:
+    if isinstance(predictions[0], PredictionResult) and self._drop_example:
       predictions = [
           PredictionResult(None, prediction_result.inference)
           for prediction_result in predictions
