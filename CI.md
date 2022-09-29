@@ -138,9 +138,11 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml) | Description placeholder | Yes/No                    |
 
 ### PostCommit Workflows
-| Workflow                                                                           | Description             | Requires GCP Credentials |
-|------------------------------------------------------------------------------------|-------------------------|--------------------------|
-| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
+| Workflow                                                                                   | Description                                               | Requires GCP Credentials |
+|--------------------------------------------------------------------------------------------|-----------------------------------------------------------|--------------------------|
+| [job-postcommit-python-vr-flink.yml](.github/workflows/job-postcommit-python-vr-flink.yml) | Runs the Python ValidatesRunner suite on the Flink runner | No                       |
+| [job-postcommit-python-vr-samza.yml](.github/workflows/job-postcommit-python-vr-samza.yml) | Runs the Python ValidatesRunner suite on the Samza runner | No                       |
+| [job-postcommit-python-vr-spark.yml](.github/workflows/job-postcommit-python-vr-spark.yml) | Runs the Python ValidatesRunner suite on the Spark runner | No                       |
 
 ### GitHub Action Tips
 
