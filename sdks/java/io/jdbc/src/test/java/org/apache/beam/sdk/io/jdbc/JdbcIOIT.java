@@ -32,8 +32,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.LongStream;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -53,9 +51,8 @@ import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GenerateSequence;
+import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -65,6 +62,7 @@ import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -387,9 +385,15 @@ public class JdbcIOIT {
     String firstTableName = DatabaseTestHelper.getTestTableName("JDBCIT_WRITE");
     DatabaseTestHelper.createTable(dataSource, firstTableName);
     try {
-      ArrayList<KV<Integer, String>> data = getTestDataToWrite(numberOfRows);
 
-      PCollection<KV<Integer, String>> dataCollection = pipelineWrite.apply(Create.of(data));
+      PCollection<KV<Integer, String>> dataCollection =
+          pipelineWrite
+              .apply(GenerateSequence.from(0).to(numberOfRows))
+              .apply(
+                  FlatMapElements.into(
+                          TypeDescriptors.kvs(
+                              TypeDescriptors.integers(), TypeDescriptors.strings()))
+                      .via(num -> getTestDataToWrite(1)));
       PCollection<JdbcTestHelper.TestDto> resultSetCollection =
           dataCollection.apply(
               getJdbcWriteWithReturning(firstTableName)
