@@ -19,11 +19,14 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+
+	"cloud.google.com/go/bigtable"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 func TestHashStringToInt(t *testing.T) {
 	equalVal := "equal"
-	
+
 	firstHash := hashStringToInt(equalVal)
 	secondHash := hashStringToInt(equalVal)
 
@@ -64,10 +67,10 @@ func TestMustBeBigtableioMutation(t *testing.T) {
 	mutationWithGroupKey := NewMutation("key").WithGroupKey("groupKey")
 	mutationWithGroupKey.Set("family", "column", 0, []byte{})
 
-	passValues := []Mutation {
+	passValues := []Mutation{
 		{},
 		{RowKey: "key"},
-		{Ops: []Operation {{}}},
+		{Ops: []Operation{{}}},
 		*mutation,
 		*mutationWithGroupKey,
 	}
@@ -82,7 +85,7 @@ func TestMustBeBigtableioMutation(t *testing.T) {
 }
 
 func TestMustNotBeBigtableioMutation(t *testing.T) {
-	failValues := []interface{} {
+	failValues := []interface{}{
 		1,
 		1.0,
 		"strings must fail",
@@ -108,10 +111,51 @@ func TestTryApplyBulk(t *testing.T) {
 	if err == nil {
 		t.Error("tryApplyBulk should return an error for inputs <nil, error>")
 	}
-	
-	err = tryApplyBulk([]error { errors.New("error") }, nil)
+
+	err = tryApplyBulk([]error{errors.New("error")}, nil)
 	if err == nil {
 		t.Error("tryApplyBulk should return an error for inputs <[]error, nil>")
 	}
 }
 
+// Examples:
+
+func ExampleWriteBatch() {
+	pipeline := beam.NewPipeline()
+	s := pipeline.Root()
+
+	//sample PBCollection<bigtableio.Mutation>
+	bigtableioMutationCol := beam.CreateList(s, func() []Mutation {
+		columnFamilyName := "stats_summary"
+		timestamp := bigtable.Now()
+
+		// var muts []bigtableio.Mutation
+		var muts []Mutation
+
+		deviceA := "tablet"
+		rowKeyA := deviceA + "#a0b81f74#20190501"
+
+		// bigtableio.NewMutation(rowKeyA)
+		mutA := NewMutation(rowKeyA).WithGroupKey(deviceA) // this groups bundles by device identifiers
+		mutA.Set(columnFamilyName, "connected_wifi", timestamp, []byte("1"))
+		mutA.Set(columnFamilyName, "os_build", timestamp, []byte("12155.0.0-rc1"))
+
+		muts = append(muts, *mutA)
+
+		deviceB := "phone"
+		rowKeyB := deviceB + "#a0b81f74#20190502"
+
+		mutB := NewMutation(rowKeyB).WithGroupKey(deviceB)
+		mutB.Set(columnFamilyName, "connected_wifi", timestamp, []byte("1"))
+		mutB.Set(columnFamilyName, "os_build", timestamp, []byte("12145.0.0-rc6"))
+
+		muts = append(muts, *mutB)
+
+		return muts
+	}())
+
+	var maxOpsPerMutation uint = 2 // since we Set() 2 ops in the above mutations at max
+	
+	// bigtableio.WriteBatch(...)
+	WriteBatch(s, "project", "instanceId", "tableName", maxOpsPerMutation, bigtableioMutationCol)
+}
