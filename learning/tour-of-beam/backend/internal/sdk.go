@@ -45,6 +45,7 @@ func (s Sdk) Title() string {
 	}
 }
 
+// SDK type representation in datastore
 func (s Sdk) StorageID() string {
 	switch s {
 	case SDK_GO:
