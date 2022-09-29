@@ -241,10 +241,6 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       List<ResourceId> files, TableSchema schema, @Nullable List<MatchResult.Metadata> metadata)
       throws IOException, InterruptedException {
 
-    if (readerFactory == null) {
-      throw new IllegalArgumentException("A readerFactory should be provided!");
-    }
-
     if (avroSchema == null) {
       avroSchema = BigQueryAvroUtils.toGenericAvroSchema("root", schema.getFields()).toString();
     }

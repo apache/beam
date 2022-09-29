@@ -37,6 +37,7 @@ interface BigQuerySourceDef extends Serializable {
    * @param stepUuid Job UUID
    * @param coder Coder
    * @param readerFactory Reader factory
+   * @param avroSchema Avro schema
    * @param useAvroLogicalTypes Use avro logical types i.e DATE, TIME
    * @param <T> Type of the resulting PCollection
    * @return An implementation of {@link BigQuerySourceBase}
