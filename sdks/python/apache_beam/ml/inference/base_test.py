@@ -55,6 +55,32 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       yield model.predict(example)
 
 
+class FakeModelHandlerReturnsPredictionResult(
+    base.ModelHandler[int, base.PredictionResult, FakeModel]):
+  def __init__(self, clock=None):
+    self._fake_clock = clock
+
+  def load_model(self):
+    if self._fake_clock:
+      self._fake_clock.current_time_ns += 500_000_000  # 500ms
+    return FakeModel()
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModel,
+      inference_args=None,
+      drop_example=False) -> Iterable[base.PredictionResult]:
+    if self._fake_clock:
+      self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
+
+    predictions = [
+        base.PredictionResult(example, model.predict(example))
+        for example in batch
+    ]
+    return predictions
+
+
 class FakeClock:
   def __init__(self):
     # Start at 10 seconds.
@@ -250,6 +276,21 @@ class RunInferenceBaseTest(unittest.TestCase):
           pipeline | 'keyed' >> beam.Create(keyed_examples)
           | 'RunKeyed' >> base.RunInference(model_handler))
       pipeline.run()
+
+  def test_drop_example(self):
+    def assert_prediction(x):
+      assert x.example is None
+
+    pipeline = TestPipeline()
+    examples = [1, 3, 5]
+    model_handler = FakeModelHandlerReturnsPredictionResult()
+    _ = (
+        pipeline
+        | 'Create examples' >> beam.Create(examples)
+        | 'RunInferenceWithDropExample' >> base.RunInference(
+            model_handler, drop_example=True)
+        | beam.Map(assert_prediction))
+    pipeline.run()
 
 
 if __name__ == '__main__':

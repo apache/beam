@@ -273,7 +273,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock=time,
       inference_args: Optional[Dict[str, Any]] = None,
-      metrics_namespace: Optional[str] = None):
+      metrics_namespace: Optional[str] = None,
+      drop_example: Optional[bool] = False,
+  ):
     """A transform that takes a PCollection of examples (or features) to be used
     on an ML model. It will then output inferences (or predictions) for those
     examples in a PCollection of PredictionResults, containing the input
@@ -291,11 +293,14 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
         metrics_namespace: Namespace of the transform to collect metrics.
+        drop_example: Boolean flag indicating whether to
+          drop the example from PredictionResult
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
     self._metrics_namespace = metrics_namespace
+    self._drop_example = drop_example
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -327,7 +332,10 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         | 'BeamML_RunInference' >> (
             beam.ParDo(
                 _RunInferenceDoFn(
-                    self._model_handler, self._clock, self._metrics_namespace),
+                    self._model_handler,
+                    self._clock,
+                    self._metrics_namespace,
+                    self._drop_example),
                 self._inference_args).with_resource_hints(**resource_hints)))
 
 
@@ -385,19 +393,23 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       self,
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock,
-      metrics_namespace):
+      metrics_namespace,
+      drop_example: Optional[bool] = False):
     """A DoFn implementation generic to frameworks.
 
       Args:
         model_handler: An implementation of ModelHandler.
         clock: A clock implementing time_ns. *Used for unit testing.*
         metrics_namespace: Namespace of the transform to collect metrics.
+        drop_example: Boolean flag indicating whether to
+          drop the example from PredictionResult
     """
     self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
     self._clock = clock
     self._model = None
     self._metrics_namespace = metrics_namespace
+    self._drop_example = drop_example
 
   def _load_model(self):
     def load():
@@ -428,7 +440,14 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     start_time = _to_microseconds(self._clock.time_ns())
     result_generator = self._model_handler.run_inference(
         batch, self._model, inference_args)
+
     predictions = list(result_generator)
+
+    if self._drop_example:
+      predictions = [
+          PredictionResult(None, prediction_result.inference)
+          for prediction_result in predictions
+      ]
 
     end_time = _to_microseconds(self._clock.time_ns())
     inference_latency = end_time - start_time
