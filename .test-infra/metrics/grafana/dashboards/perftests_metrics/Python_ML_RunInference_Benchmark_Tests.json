@@ -1,4 +1,4 @@
-{
+               {
   "annotations": {
     "list": [
       {
@@ -8,6 +8,12 @@
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
         "type": "dashboard"
       }
     ]
@@ -15,7 +21,6 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 16,
   "links": [],
   "panels": [
     {
@@ -24,6 +29,12 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "BeamInfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "links": []
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -48,9 +59,10 @@
       "linewidth": 2,
       "nullPointMode": "connected",
       "options": {
-        "dataLinks": []
+        "alertThreshold": true
       },
       "percentage": false,
+      "pluginVersion": "8.1.8",
       "pointradius": 2,
       "points": true,
       "renderer": "flot",
@@ -157,6 +169,7 @@
       },
       "yaxes": [
         {
+          "$$hashKey": "object:72",
           "format": "s",
           "label": null,
           "logBase": 1,
@@ -165,6 +178,7 @@
           "show": true
         },
         {
+          "$$hashKey": "object:73",
           "format": "short",
           "label": null,
           "logBase": 1,
@@ -184,6 +198,12 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "BeamInfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "links": []
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -208,9 +228,10 @@
       "linewidth": 2,
       "nullPointMode": "connected",
       "options": {
-        "dataLinks": []
+        "alertThreshold": true
       },
       "percentage": false,
+      "pluginVersion": "8.1.8",
       "pointradius": 2,
       "points": true,
       "renderer": "flot",
@@ -344,6 +365,12 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "BeamInfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "links": []
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -368,9 +395,10 @@
       "linewidth": 2,
       "nullPointMode": "connected",
       "options": {
-        "dataLinks": []
+        "alertThreshold": true
       },
       "percentage": false,
+      "pluginVersion": "8.1.8",
       "pointradius": 2,
       "points": true,
       "renderer": "flot",
@@ -477,7 +505,8 @@
       },
       "yaxes": [
         {
-          "format": "s",
+          "$$hashKey": "object:168",
+          "format": "none",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -485,6 +514,7 @@
           "show": true
         },
         {
+          "$$hashKey": "object:169",
           "format": "short",
           "label": null,
           "logBase": 1,
@@ -499,9 +529,11 @@
       }
     }
   ],
-  "schemaVersion": 22,
+  "schemaVersion": 30,
   "style": "dark",
-  "tags": ["performance tests"],
+  "tags": [
+    "performance tests"
+  ],
   "templating": {
     "list": []
   },
@@ -526,8 +558,5 @@
   "timezone": "",
   "title": "Python ML RunInference Benchmarks",
   "uid": "1cnwVDkGk",
-  "variables": {
-    "list": []
-  },
-  "version": 2
+  "version": 20
 }
