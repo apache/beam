@@ -25,16 +25,12 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -64,7 +60,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -131,7 +126,7 @@ import org.slf4j.LoggerFactory;
 public class JmsIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);
-  private static final long DEFAULT_CLOSE_TIMEOUT = 1000L;
+  private static final long DEFAULT_CLOSE_TIMEOUT = 60000L;
 
   public static Read<JmsRecord> read() {
     return new AutoValue_JmsIO_Read.Builder<JmsRecord>()
@@ -484,6 +479,7 @@ public class JmsIO {
   static class UnboundedJmsReader<T> extends UnboundedReader<T> {
 
     private UnboundedJmsSource<T> source;
+    private JmsCheckpointMark checkpointMark;
     private Connection connection;
     private Session session;
     private MessageConsumer consumer;
@@ -492,15 +488,10 @@ public class JmsIO {
     private T currentMessage;
     private Instant currentTimestamp;
 
-    Set<Message> messagesToAck;
-    AtomicBoolean active = new AtomicBoolean(true);
-    AtomicLong watermark = new AtomicLong(0);
-
     public UnboundedJmsReader(UnboundedJmsSource<T> source) {
       this.source = source;
+      this.checkpointMark = new JmsCheckpointMark();
       this.currentMessage = null;
-      this.messagesToAck = new HashSet<>();
-      watermark.getAndSet(System.currentTimeMillis());
     }
 
     @Override
@@ -522,7 +513,6 @@ public class JmsIO {
           this.autoScaler = spec.getAutoScaler();
         }
         this.autoScaler.start();
-
       } catch (Exception e) {
         throw new IOException("Error connecting to JMS", e);
       }
@@ -542,7 +532,6 @@ public class JmsIO {
       } catch (Exception e) {
         throw new IOException("Error creating JMS consumer", e);
       }
-      this.active.set(true);
 
       return advance();
     }
@@ -556,11 +545,13 @@ public class JmsIO {
           currentMessage = null;
           return false;
         }
-        messagesToAck.add(message);
+
+        checkpointMark.add(message);
+
         currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
         currentTimestamp = new Instant(message.getJMSTimestamp());
-        return true;
 
+        return true;
       } catch (Exception e) {
         throw new IOException(e);
       }
@@ -576,10 +567,7 @@ public class JmsIO {
 
     @Override
     public Instant getWatermark() {
-      if (watermark == null) {
-        return new Instant(0);
-      }
-      return new Instant(watermark.get());
+      return checkpointMark.getOldestMessageTimestamp();
     }
 
     @Override
@@ -592,9 +580,7 @@ public class JmsIO {
 
     @Override
     public CheckpointMark getCheckpointMark() {
-      List<Message> msgToAcks = Lists.newArrayList(messagesToAck);
-      messagesToAck.clear();
-      return new JmsCheckpointMark(this, msgToAcks);
+      return checkpointMark;
     }
 
     @Override
@@ -614,27 +600,25 @@ public class JmsIO {
 
     @SuppressWarnings("FutureReturnValueIgnored")
     private void doClose() {
-      if (active.get()) {
-        try {
-          closeAutoscaler();
-          closeConsumer();
-          ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
 
-          executorService.schedule(
-              () -> {
-                LOG.debug(
-                    "Closing session and connection after delay {}", source.spec.getCloseTimeout());
-                // Discard the checkpoints
-                active.set(false);
-                closeSession();
-                closeConnection();
-              },
-              source.spec.getCloseTimeout(),
-              TimeUnit.MILLISECONDS);
+      try {
+        closeAutoscaler();
+        closeConsumer();
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        executorService.schedule(
+            () -> {
+              LOG.debug(
+                  "Closing session and connection after delay {}", source.spec.getCloseTimeout());
+              // Discard the checkpoints and set the reader as inactive
+              checkpointMark.discard();
+              closeSession();
+              closeConnection();
+            },
+            source.spec.getCloseTimeout(),
+            TimeUnit.MILLISECONDS);
 
-        } catch (Exception e) {
-          LOG.error("Error closing reader", e);
-        }
+      } catch (Exception e) {
+        LOG.error("Error closing reader", e);
       }
     }
 
