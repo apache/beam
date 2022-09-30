@@ -32,4 +32,3 @@ with beam.Pipeline() as p:
   (p | beam.Create(range(1, 11))
      | beam.combiners.Mean.Globally()
      | LogElements())
-

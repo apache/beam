@@ -20,7 +20,7 @@
 #   multifile: false
 #   context_line: 29
 #   categories:
-#     - Combiners
+#     - Combine
 #   complexity: BASIC
 
 import apache_beam as beam
@@ -33,4 +33,3 @@ with beam.Pipeline() as p:
      | beam.Map(lambda word: (word[0], word))
      | beam.GroupByKey()
      | LogElements())
-

@@ -33,4 +33,3 @@ with beam.Pipeline() as p:
   (p | beam.Create(['Apache Beam', 'Unified Batch and Streaming'])
      | beam.FlatMap(lambda sentence: sentence.split())
      | LogElements())
-
