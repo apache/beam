@@ -578,10 +578,11 @@ public class BigQueryIO {
   }
 
   @VisibleForTesting
-  static class GenericDatumTransformer<T> extends GenericDatumReader<T> {
+  static class GenericDatumTransformer<T> implements DatumReader<T> {
     private final SerializableFunction<SchemaAndRecord, T> parseFn;
     private final TableSchema tableSchema;
     private final GenericDatumReader<T> reader;
+    private org.apache.avro.Schema writerSchema;
 
     public GenericDatumTransformer(
         SerializableFunction<SchemaAndRecord, T> parseFn,
@@ -590,7 +591,13 @@ public class BigQueryIO {
         org.apache.avro.Schema reader) {
       this.parseFn = parseFn;
       this.tableSchema = tableSchema;
-      this.reader = new GenericDatumReader<>(writer, reader);
+      this.setSchema(writer);
+      this.reader = new GenericDatumReader<>(this.writerSchema, reader);
+    }
+
+    @Override
+    public void setSchema(org.apache.avro.Schema schema) {
+      this.writerSchema = schema;
     }
 
     @Override
