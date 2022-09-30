@@ -45,7 +45,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-          submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
       - name: Spark 3 Test Jobs
