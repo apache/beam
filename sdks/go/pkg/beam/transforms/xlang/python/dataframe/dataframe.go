@@ -23,7 +23,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
-	python "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
 )
 
 func init() {
@@ -33,8 +33,8 @@ func init() {
 }
 
 type kwargs struct {
-	Fn             python.PythonCallableSource `beam:"func"`
-	IncludeIndexes bool                        `beam:"include_indexes"`
+	Fn             xlang.PythonCallableSource `beam:"func"`
+	IncludeIndexes bool                       `beam:"include_indexes"`
 }
 
 type argStruct struct {
@@ -69,7 +69,7 @@ func WithIndexes() configOption {
 func Transform(s beam.Scope, fn string, col beam.PCollection, outT reflect.Type, opts ...configOption) beam.PCollection {
 	s.Scope("xlang.python.DataframeTransform")
 	cfg := config{
-		dpl: kwargs{Fn: python.PythonCallableSource(fn)},
+		dpl: kwargs{Fn: xlang.PythonCallableSource(fn)},
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -80,7 +80,7 @@ func Transform(s beam.Scope, fn string, col beam.PCollection, outT reflect.Type,
 		panic("no expansion service address provided for xlang.DataframeTransform(), pass xlang.WithExpansionAddr(address) as a param.")
 	}
 
-	pet := python.NewPythonExternalTransform[argStruct, kwargs]("apache_beam.dataframe.transforms.DataframeTransform")
+	pet := xlang.NewPythonExternalTransform[argStruct, kwargs]("apache_beam.dataframe.transforms.DataframeTransform")
 	pet.WithKwargs(cfg.dpl)
 	pl := beam.CrossLanguagePayload(pet)
 	result := beam.CrossLanguage(s, "beam:transforms:python:fully_qualified_named", pl, cfg.expansionAddr, beam.UnnamedInput(col), beam.UnnamedOutput(typex.New(outT)))

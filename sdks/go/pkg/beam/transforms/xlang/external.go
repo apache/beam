@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package python contains data structures required for python external transforms in a multilanguage pipeline.
-package python
+// Package xlang contains data structures required for python external transforms in a multilanguage pipeline.
+package xlang
 
 import (
 	"fmt"
