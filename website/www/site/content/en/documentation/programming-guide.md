@@ -4097,23 +4097,39 @@ Will result in the following schema
 
 ##### **Grouping aggregations**
 
+{{< paragraph class="language-java" >}}
 The `Group` transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
 those groupings, and storing the result of those aggregations in a new schema field. The output of the `Group` transform
 has a schema with one field corresponding to each aggregation performed.
+{{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
+The `GroupBy` transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
+those groupings, and storing the result of those aggregations in a new schema field. The output of the `GroupBy` transform
+has a schema with one field corresponding to each aggregation performed.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 The simplest usage of `Group` specifies no aggregations, in which case all inputs matching the provided set of fields
 are grouped together into an `ITERABLE` field. For example
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+The simplest usage of `GroupBy` specifies no aggregations, in which case all inputs matching the provided set of fields
+are grouped together into an `ITERABLE` field. For example
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
-{{< paragraph class="language-py" >}}
-Support for nested fields hasn't been developed for python SDK yet
-{{< /paragraph >}}
+{{< highlight python >}}
+input_pc = ... # {"user_id": ...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.GroupBy('user_id','bank')
+{{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
-Support for nested hasn't been developed for GO SDK yet
+Support for nested fields hasn't been developed for GO SDK yet
 {{< /paragraph >}}
 
 {{< paragraph class="lanuage-java" >}}
@@ -4132,6 +4148,28 @@ The output schema of this is:
     <tr>
       <td>key</td>
       <td>ROW{userId:STRING, streetAddress:STRING}</td>
+    </tr>
+    <tr>
+      <td>values</td>
+      <td>ITERABLE[ROW[Purchase]]</td>
+    </tr>
+  </tbody>
+</table>
+<br/>
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>key</td>
+      <td>ROW{userId:STRING, bank:STRING}</td>
     </tr>
     <tr>
       <td>values</td>
@@ -4165,9 +4203,12 @@ purchases.apply(Group.byFieldNames("userId")
     .aggregateField("costCents", Top.<Long>largestLongsFn(10), "topPurchases"));
 {{< /highlight >}}
 
-{{< paragraph class="language-py" >}}
-Support for nested fields hasn't been developed for python SDK yet
-{{< /paragraph >}}
+{{< highlight python >}}
+input_pc = ... # {"user_id": ...,"item_Id": ..., "cost_cents": ...}
+output_pc = input_pc | beam.GroupBy("user_id")
+	.aggregate_field("item_id",count,"num_purchases")
+	.aggregate_field("cost_cents",sum,"total_spendcents")
+{{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
 Support for nested fields hasn't been developed for GO SDK yet
@@ -4196,6 +4237,29 @@ The result of this aggregation will have the following schema:
 <br/>
 {{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
+The result of this aggregation will have the following schema:
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>key</td>
+      <td>ROW{userId:STRING}</td>
+    </tr>
+    <tr>
+      <td>value</td>
+      <td>ROW{num_purchases: INT64, total_spendCents: INT64}</td>
+    </tr>
+  </tbody>
+</table>
+<br/>
+{{< /paragraph >}}
+
 Often `Selected.flattenedSchema` will be use to flatten the result into a non-nested, flat schema.
 
 ##### **Joins**
@@ -4206,6 +4270,14 @@ that are likely associated with that transaction (both the user and product matc
 "natural join" - one in which the same field names are used on both the left-hand and right-hand sides of the join -
 and is specified with the `using` keyword:
 
+{{< paragraph class="language-py" >}}
+Support for joins hasn't been developed for python SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for joins hasn't been developed for GO SDK yet
+{{< /paragraph >}}
+
 {{< highlight java >}}
 PCollection<Transaction> transactions = readTransactions();
 PCollection<Review> reviews = readReviews();
@@ -4213,6 +4285,7 @@ PCollection<Row> joined = transactions.apply(
     Join.innerJoin(reviews).using("userId", "productId"));
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 The resulting schema is the following:
 <table>
   <thead>
@@ -4233,11 +4306,20 @@ The resulting schema is the following:
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 Each resulting row contains one Transaction and one Review that matched the join condition.
 
 If the fields to match in the two schemas have different names, then the on function can be used. For example, if the
 Review schema named those fields differently than the Transaction schema, then we could write the following:
+
+{{< paragraph class="language-py" >}}
+Support for joins hasn't been developed for python SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for joins hasn't been developed for GO SDK yet
+{{< /paragraph >}}
 
 {{< highlight java >}}
 PCollection<Row> joined = transactions.apply(
