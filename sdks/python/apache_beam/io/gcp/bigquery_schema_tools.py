@@ -47,9 +47,6 @@ BIG_QUERY_TO_PYTHON_TYPES = {
     # Finish mappings for all BQ types
 }
 
-# Some BQ Types map are equivalent to Beam Types.
-#BIG_QUERY_TO_BEAM_TYPES = {"TIMESTAMP": datetime.datetime}
-
 
 def generate_user_type_from_bq_schema(the_table_schema):
   #type: (bigquery.TableSchema) -> type
@@ -66,10 +63,6 @@ def generate_user_type_from_bq_schema(the_table_schema):
   if the_schema == {}:
     raise ValueError("Encountered an empty schema")
   dict_of_tuples = []
-  #for i in range(len(the_schema['fields'])):
-  #if the_schema['fields'][i]['type'] in BIG_QUERY_TO_BEAM_TYPES:
-  #the_schema['fields'][i]['type'] = BIG_QUERY_TO_BEAM_TYPES[
-  #the_schema['fields'][i]['type']]
   for i in range(len(the_schema['fields'])):
     if the_schema['fields'][i]['type'] in BIG_QUERY_TO_PYTHON_TYPES:
       typ = bq_field_to_type(
@@ -80,18 +73,17 @@ def generate_user_type_from_bq_schema(the_table_schema):
           f"an unsupported type: {the_schema['fields'][i]['type']!r}")
     # TODO svetaksundhar@: Map remaining BQ types
     dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
-  #Timestamp here
   sample_schema = beam.typehints.schemas.named_fields_to_schema(dict_of_tuples)
   usertype = beam.typehints.schemas.named_tuple_from_schema(sample_schema)
   return usertype
 
 
 def bq_field_to_type(field, mode):
-  if mode == 'NULLABLE':
+  if mode == 'NULLABLE' or mode is None or mode == '':
     return Optional[BIG_QUERY_TO_PYTHON_TYPES[field]]
   elif mode == 'REPEATED':
     return Sequence[BIG_QUERY_TO_PYTHON_TYPES[field]]
-  elif mode is None or mode == '' or mode == 'REQUIRED':
+  elif mode == 'REQUIRED':
     return BIG_QUERY_TO_PYTHON_TYPES[field]
   else:
     raise ValueError(f"Encountered an unsupported mode: {mode!r}")

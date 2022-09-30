@@ -13,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import logging
 import typing
 import unittest.mock
@@ -77,7 +76,7 @@ class TestBigQueryToSchema(unittest.TestCase):
         {
             'stn': typing.Optional[str],
             'temp': typing.Sequence[np.float64],
-            'times': typing.Optional[apache_beam.utils.timestamp.Timestamp]
+            'times': typing.Any
         })
 
   def test_unsupported_type(self):
