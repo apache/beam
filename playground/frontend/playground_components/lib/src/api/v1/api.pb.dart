@@ -993,7 +993,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..a<$core.int>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'contextLine', $pb.PbFieldType.O3)
     ..aOB(9, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'defaultExample')
     ..e<Sdk>(10, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
-    ..e<Complexity>(11, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'complexity', $pb.PbFieldType.OE, defaultOrMaker: Complexity.BASIC, valueOf: Complexity.valueOf, enumValues: Complexity.values)
+    ..e<Complexity>(11, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'complexity', $pb.PbFieldType.OE, defaultOrMaker: Complexity.COMPLEXITY_UNSPECIFIED, valueOf: Complexity.valueOf, enumValues: Complexity.values)
     ..pPS(12, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'tags')
     ..hasRequiredFields = false
   ;

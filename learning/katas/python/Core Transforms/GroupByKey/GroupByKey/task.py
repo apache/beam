@@ -20,7 +20,7 @@
 #   multifile: false
 #   context_line: 29
 #   categories:
-#     - Combine
+#     - Combiners
 #   complexity: BASIC
 #   tags:
 #     - map

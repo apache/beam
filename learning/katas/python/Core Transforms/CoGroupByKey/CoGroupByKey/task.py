@@ -21,7 +21,7 @@
 #   multifile: false
 #   context_line: 31
 #   categories:
-#     - Combine
+#     - Combiners
 #   complexity: MEDIUM
 #   tags:
 #     - join
