@@ -571,7 +571,7 @@ public class BigQueryIOReadTest implements Serializable {
             .withDatasetService(fakeDatasetService);
 
     BigQueryIO.TypedRead<User> read =
-        BigQueryIO.read(
+        BigQueryIO.readWithDatumReader(
                 (AvroSource.DatumReaderFactory<User>)
                     (writer, reader) -> new SpecificDatumReader<>(User.getAvroSchema()))
             .from("non-executing-project:schema_dataset.schema_table")
