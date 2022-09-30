@@ -272,7 +272,7 @@ class TrivialInferenceTest(unittest.TestCase):
 
   def testSetDeleteGlobal(self):
     def fn(flag):
-      # lint: disable=global-variable-undefined
+      # pylint: disable=global-variable-undefined
       global global_var
       if flag == 1:
         global_var = 3
