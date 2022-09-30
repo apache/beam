@@ -27,9 +27,6 @@ on:
     branches: ['master', 'release-*']
     tags: ['v*']
     paths: [ 'sdks/python/apache_beam/io/external/xlang_kinesisio_it_test.py']
-  pull_request:
-    branches: [ 'master', 'release-*']
-    tags: [ 'v*' ]
 permissions: read-all
 
 env:
