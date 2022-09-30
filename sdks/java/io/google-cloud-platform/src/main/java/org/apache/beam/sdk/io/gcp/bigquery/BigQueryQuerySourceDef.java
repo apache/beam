@@ -155,10 +155,9 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
       String stepUuid,
       Coder<T> coder,
       SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
-      String avroSchema,
       boolean useAvroLogicalTypes) {
     return BigQueryQuerySource.create(
-        stepUuid, this, bqServices, coder, readerFactory, avroSchema, useAvroLogicalTypes);
+        stepUuid, this, bqServices, coder, readerFactory, useAvroLogicalTypes);
   }
 
   /** {@inheritDoc} */

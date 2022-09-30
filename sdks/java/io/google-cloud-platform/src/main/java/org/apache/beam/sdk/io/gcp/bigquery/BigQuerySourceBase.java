@@ -70,7 +70,6 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
 
   private transient @Nullable List<BoundedSource<T>> cachedSplitResult = null;
   private SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory;
-  private String avroSchema;
   private Coder<T> coder;
   private final boolean useAvroLogicalTypes;
 
@@ -79,13 +78,11 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
-      String avroSchema,
       boolean useAvroLogicalTypes) {
     this.stepUuid = checkArgumentNotNull(stepUuid, "stepUuid");
     this.bqServices = checkArgumentNotNull(bqServices, "bqServices");
     this.coder = checkArgumentNotNull(coder, "coder");
     this.readerFactory = checkArgumentNotNull(readerFactory, "readerFactory");
-    this.avroSchema = avroSchema;
     this.useAvroLogicalTypes = useAvroLogicalTypes;
   }
 
@@ -240,11 +237,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   List<BoundedSource<T>> createSources(
       List<ResourceId> files, TableSchema schema, @Nullable List<MatchResult.Metadata> metadata)
       throws IOException, InterruptedException {
-
-    if (avroSchema == null) {
-      avroSchema =
-          BigQueryAvroUtils.toGenericAvroSchema("root", schema.getFields()).toString();
-    }
+    String avroSchema =
+        BigQueryAvroUtils.toGenericAvroSchema("root", schema.getFields()).toString();
 
     AvroSource.DatumReaderFactory<T> factory = readerFactory.apply(schema);
 

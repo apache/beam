@@ -17,6 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatistics2;
 import com.google.api.services.bigquery.model.Streamingbuffer;
@@ -35,12 +42,6 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecordBase;
-import java.util.concurrent.ExecutionException;
-import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.specific.SpecificData;
-import org.apache.avro.specific.SpecificRecord;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -86,21 +87,6 @@ import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.math.BigInteger;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 /** Tests for {@link BigQueryIO#read}. */
 @RunWith(JUnit4.class)
@@ -687,7 +673,6 @@ public class BigQueryIOReadTest implements Serializable {
                             (writer, reader) ->
                                 new BigQueryIO.GenericDatumTransformer<>(
                                     BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
-                null,
                 false);
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -746,7 +731,6 @@ public class BigQueryIOReadTest implements Serializable {
                             (writer, reader) ->
                                 new BigQueryIO.GenericDatumTransformer<>(
                                     BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
-                null,
                 false);
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -794,7 +778,6 @@ public class BigQueryIOReadTest implements Serializable {
                             (writer, reader) ->
                                 new BigQueryIO.GenericDatumTransformer<>(
                                     BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
-                null,
                 false);
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -835,7 +818,6 @@ public class BigQueryIOReadTest implements Serializable {
                             (writer, reader) ->
                                 new BigQueryIO.GenericDatumTransformer<>(
                                     BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
-                null,
                 false);
 
     fakeJobService.expectDryRunQuery(
@@ -921,7 +903,6 @@ public class BigQueryIOReadTest implements Serializable {
                             (writer, reader) ->
                                 new BigQueryIO.GenericDatumTransformer<>(
                                     BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
-                null,
                 false);
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
@@ -997,7 +978,6 @@ public class BigQueryIOReadTest implements Serializable {
                             (writer, reader) ->
                                 new BigQueryIO.GenericDatumTransformer<>(
                                     BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
-                null,
                 false);
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());

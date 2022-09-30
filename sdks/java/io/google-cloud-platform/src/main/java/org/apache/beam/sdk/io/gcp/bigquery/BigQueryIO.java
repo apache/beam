@@ -56,6 +56,7 @@ import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Decoder;
 import org.apache.beam.sdk.Pipeline;
@@ -599,6 +600,30 @@ public class BigQueryIO {
     }
   }
 
+  @VisibleForTesting
+  private static class DatumReaderWrapper<T> implements DatumReader<T> {
+    private final DatumReader<T> reader;
+    private org.apache.avro.Schema writerSchema;
+
+    public DatumReaderWrapper(
+        org.apache.avro.Schema writerSchema,
+        org.apache.avro.Schema readerSchema,
+        AvroSource.DatumReaderFactory<T> factory) {
+      this.setSchema(writerSchema);
+      this.reader = factory.apply(this.writerSchema, readerSchema);
+    }
+
+    @Override
+    public void setSchema(org.apache.avro.Schema schema) {
+      this.writerSchema = schema;
+    }
+
+    @Override
+    public T read(T reuse, Decoder in) throws IOException {
+      return this.reader.read(reuse, in);
+    }
+  }
+
   /**
    * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
    * each row of the table or query result, parsed from the BigQuery AVRO format using the specified
@@ -631,7 +656,8 @@ public class BigQueryIO {
                         (writer, reader) ->
                             new GenericDatumTransformer<>(parseFn, input, writer, reader))
         .setParseFn(
-            parseFn) // TODO: Remove setParseFn once https://github.com/apache/beam/issues/21076 is fixed.
+            parseFn) // TODO: Remove setParseFn once https://github.com/apache/beam/issues/21076 is
+        // fixed.
         .setMethod(TypedRead.Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.AVRO)
@@ -654,14 +680,21 @@ public class BigQueryIO {
    */
   public static <T> TypedRead<T> read(
       AvroSource.DatumReaderFactory<T> readerFactory, org.apache.avro.Schema readerSchema) {
+    String serializedReaderSchema = readerSchema.toString();
     return new AutoValue_BigQueryIO_TypedRead.Builder<T>()
         .setValidate(true)
         .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
         .setDatumReaderFactory(
             (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>>)
-                input -> readerFactory)
-        .setReaderSchema(readerSchema.toString())
+                input ->
+                    (AvroSource.DatumReaderFactory<T>)
+                        (writer, reader) -> {
+                          org.apache.avro.Schema.Parser parser =
+                              new org.apache.avro.Schema.Parser();
+                          return new DatumReaderWrapper<>(
+                              writer, parser.parse(serializedReaderSchema), readerFactory);
+                        })
         .setMethod(TypedRead.Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.AVRO)
@@ -870,8 +903,6 @@ public class BigQueryIO {
       abstract Builder<T> setDatumReaderFactory(
           SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> factoryFn);
 
-      abstract Builder<T> setReaderSchema(String schema);
-
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setKmsKey(String kmsKey);
@@ -908,8 +939,6 @@ public class BigQueryIO {
 
     abstract @Nullable SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>>
         getDatumReaderFactory();
-
-    abstract @Nullable String getReaderSchema();
 
     abstract @Nullable QueryPriority getQueryPriority();
 
@@ -1182,11 +1211,7 @@ public class BigQueryIO {
             p.apply(
                 org.apache.beam.sdk.io.Read.from(
                     sourceDef.toSource(
-                        staticJobUuid,
-                        coder,
-                        getDatumReaderFactory(),
-                        getReaderSchema(),
-                        getUseAvroLogicalTypes())));
+                        staticJobUuid, coder, getDatumReaderFactory(), getUseAvroLogicalTypes())));
       } else {
         // Create a singleton job ID token at execution time.
         jobIdTokenCollection =
@@ -1217,7 +1242,6 @@ public class BigQueryIO {
                                     jobUuid,
                                     coder,
                                     getDatumReaderFactory(),
-                                    getReaderSchema(),
                                     getUseAvroLogicalTypes());
                             BigQueryOptions options =
                                 c.getPipelineOptions().as(BigQueryOptions.class);
@@ -1254,7 +1278,6 @@ public class BigQueryIO {
                                         jobUuid,
                                         coder,
                                         getDatumReaderFactory(),
-                                        getReaderSchema(),
                                         getUseAvroLogicalTypes());
                                 List<BoundedSource<T>> sources =
                                     source.createSources(

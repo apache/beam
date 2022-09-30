@@ -37,10 +37,9 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
-      String avroSchema,
       boolean useAvroLogicalTypes) {
     return new BigQueryQuerySource<>(
-        stepUuid, queryDef, bqServices, coder, readerFactory, avroSchema, useAvroLogicalTypes);
+        stepUuid, queryDef, bqServices, coder, readerFactory, useAvroLogicalTypes);
   }
 
   private final BigQueryQuerySourceDef queryDef;
@@ -51,9 +50,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
-      String avroSchema,
       boolean useAvroLogicalTypes) {
-    super(stepUuid, bqServices, coder, readerFactory, avroSchema, useAvroLogicalTypes);
+    super(stepUuid, bqServices, coder, readerFactory, useAvroLogicalTypes);
     this.queryDef = queryDef;
   }
 
