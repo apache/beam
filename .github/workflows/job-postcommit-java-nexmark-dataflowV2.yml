@@ -47,15 +47,12 @@ jobs:
   java-postcommit-nexmark-dataflowv2:
     name: Run PostCommit Java Nexmark - Dataflow V2  - JAVA 8
     runs-on: [self-hosted, ubuntu-20.04]
-    strategy:
-      fail-fast: true
     timeout-minutes: 240
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
           persist-credentials: false
-          submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
       - name: Run *** RUN NEXMARK IN BATCH MODE USING DATAFLOW RUNNER JAVA 8 ***
