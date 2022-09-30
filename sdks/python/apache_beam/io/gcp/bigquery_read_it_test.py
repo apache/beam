@@ -260,15 +260,120 @@ class ReadTests(BigQueryReadIntegrationTests):
 
   @pytest.mark.it_postcommit
   def test_table_schema_retrieve_with_timestamp(self):
+    the_table = bigquery_tools.BigQueryWrapper().get_table(
+        project_id="apache-beam-testing",
+        dataset_id="beam_bigquery_io_test",
+        table_id="taxi_small")
+    table = the_table.schema
+    utype = bigquery_schema_tools. \
+          generate_user_type_from_bq_schema(table)
     with beam.Pipeline(argv=self.args) as p:
       result = (
           p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
               gcs_location="gs://bqio_schema_test",
               dataset="beam_bigquery_io_test",
-              table="taxi",
+              table="taxi_small",
               project="apache-beam-testing",
               output_type='BEAM_ROW'))
-      assert_that(result, equal_to([]))
+      assert_that(
+          result,
+          equal_to([
+              utype(
+                  event_timestamp=datetime.datetime(
+                      2021,
+                      11,
+                      5,
+                      20,
+                      57,
+                      43,
+                      612000,
+                      tzinfo=datetime.timezone.utc),
+                  ride_id='0004b5de-8db1-425b-8eec-7a25b04a1ee0',
+                  point_idx=9,
+                  latitude=40.757380000000005,
+                  timestamp='2021-11-05T16:57:43.60906-04:00',
+                  meter_reading=0.37846154,
+                  meter_increment=0.04205128,
+                  ride_status='enroute',
+                  passenger_count=1,
+                  longitude=-73.98969000000001),
+              utype(
+                  event_timestamp=datetime.datetime(
+                      2021,
+                      11,
+                      5,
+                      20,
+                      57,
+                      36,
+                      214000,
+                      tzinfo=datetime.timezone.utc),
+                  ride_id='0004b5de-8db1-425b-8eec-7a25b04a1ee0',
+                  point_idx=6,
+                  latitude=40.757130000000004,
+                  timestamp='2021-11-05T16:57:34.92445-04:00',
+                  meter_reading=0.25230768,
+                  meter_increment=0.04205128,
+                  ride_status='enroute',
+                  passenger_count=1,
+                  longitude=-73.98987000000001),
+              utype(
+                  event_timestamp=datetime.datetime(
+                      2021,
+                      11,
+                      5,
+                      20,
+                      52,
+                      37,
+                      244000,
+                      tzinfo=datetime.timezone.utc),
+                  ride_id='00101404-c323-4eb6-9f74-f23f3317d905',
+                  point_idx=531,
+                  latitude=40.79684,
+                  timestamp='2021-11-05T16:52:37.23995-04:00',
+                  meter_reading=11.999221,
+                  meter_increment=0.022597402,
+                  ride_status='enroute',
+                  passenger_count=1,
+                  longitude=-73.92925000000001),
+              utype(
+                  event_timestamp=datetime.datetime(
+                      2021,
+                      11,
+                      5,
+                      20,
+                      57,
+                      19,
+                      749000,
+                      tzinfo=datetime.timezone.utc),
+                  ride_id='00101404-c323-4eb6-9f74-f23f3317d905',
+                  point_idx=702,
+                  latitude=40.794500000000006,
+                  timestamp='2021-11-05T16:55:52.61301-04:00',
+                  meter_reading=15.863377,
+                  meter_increment=0.022597402,
+                  ride_status='enroute',
+                  passenger_count=1,
+                  longitude=-73.92292),
+              utype(
+                  event_timestamp=datetime.datetime(
+                      2021,
+                      11,
+                      5,
+                      20,
+                      57,
+                      26,
+                      957000,
+                      tzinfo=datetime.timezone.utc),
+                  ride_id='00101404-c323-4eb6-9f74-f23f3317d905',
+                  point_idx=714,
+                  latitude=40.79345,
+                  timestamp='2021-11-05T16:56:06.3234-04:00',
+                  meter_reading=16.134544,
+                  meter_increment=0.022597402,
+                  ride_status='enroute',
+                  passenger_count=1,
+                  longitude=-73.92358)
+          ]))
 
 
 class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
