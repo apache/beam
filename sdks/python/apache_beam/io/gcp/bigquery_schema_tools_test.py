@@ -50,7 +50,7 @@ class TestBigQueryToSchema(unittest.TestCase):
         {
             'stn': typing.Optional[str],
             'temp': typing.Sequence[np.float64],
-            'count': np.int64
+            'count': typing.Optional[np.int64]
         })
 
   def test_check_conversion_with_empty_schema(self):
