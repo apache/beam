@@ -37,7 +37,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-          submodules: recursive
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -46,7 +45,7 @@ jobs:
     name: Run Spark Structured Streaming ValidatesRunner
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         spark-versions: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SPARK_VERSIONS}}
     timeout-minutes: 120
@@ -55,7 +54,6 @@ jobs:
         uses: actions/checkout@v2
         with:
           persist-credentials: false
-          submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
       - name: Run :runners:spark:${{ matrix.spark-versions }}:validatesStructuredStreamingRunnerBatch
