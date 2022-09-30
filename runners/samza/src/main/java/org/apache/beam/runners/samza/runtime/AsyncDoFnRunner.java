@@ -43,12 +43,22 @@ import org.slf4j.LoggerFactory;
 public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
   private static final Logger LOG = LoggerFactory.getLogger(AsyncDoFnRunner.class);
 
+  // A dummy key to represent null keys
+  private static final Object NULL_KEY = new Object();
+
   private final DoFnRunner<InT, OutT> underlying;
   private final ExecutorService executor;
   private final OpEmitter<OutT> emitter;
   private final FutureCollector<OutT> futureCollector;
   private final boolean isStateful;
-  private final KeyedOutputFutures<Object, OutT> keyedOutputFutures;
+
+  /**
+   * This map keeps track of the last outputFutures for a certain key. When the next element of the
+   * key comes in, its outputFutures will be chained from the last outputFutures in the map. When
+   * all futures of a key have been complete, the key entry will be removed. The map is bounded by
+   * (bundle size * 2).
+   */
+  private final Map<Object, CompletableFuture<Collection<WindowedValue<OutT>>>> keyedOutputFutures;
 
   public static <InT, OutT> AsyncDoFnRunner<InT, OutT> create(
       DoFnRunner<InT, OutT> runner,
@@ -72,7 +82,7 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
     this.emitter = emitter;
     this.futureCollector = futureCollector;
     this.isStateful = isStateful;
-    this.keyedOutputFutures = isStateful ? new KeyedOutputFutures<>() : null;
+    this.keyedOutputFutures = isStateful ? new ConcurrentHashMap<>() : null;
   }
 
   @Override
@@ -97,7 +107,7 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
             ? CompletableFuture.completedFuture(Collections.emptyList())
             : prevOutputFuture;
 
-    // For stateful processing, we chain the processing of the elem to the completion of
+    // For ordering by key, we chain the processing of the elem to the completion of
     // the previous output of the same key
     return prevFuture.thenApplyAsync(
         x -> {
@@ -117,15 +127,22 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
     final CompletableFuture<Collection<WindowedValue<OutT>>> outputFutures =
         processElement(elem, keyedOutputFutures.get(key));
 
-    // Track the latest outputFuture for key
+    // Update the latest outputFuture for key
     keyedOutputFutures.put(key, outputFutures);
 
-    // Remove the outputFuture from the map once it's complete
+    // Remove the outputFuture from the map once it's complete.
+    // This ensures the map will be cleaned up immediately.
     return outputFutures.thenApply(
         output -> {
+          // Under the condition that the outputFutures has not been updated
           keyedOutputFutures.remove(key, outputFutures);
           return output;
         });
+  }
+
+  /** Package private for testing. */
+  boolean hasOutputFuturesForKey(Object key) {
+    return keyedOutputFutures.containsKey(key);
   }
 
   @Override
@@ -156,23 +173,7 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
   }
 
   private Object getKey(WindowedValue<InT> elem) {
-    return ((KV) elem.getValue()).getKey();
-  }
-
-  private static class KeyedOutputFutures<K, OutT> {
-    private final Map<K, CompletableFuture<Collection<WindowedValue<OutT>>>> keyToOutputFutures =
-        new ConcurrentHashMap<>();
-
-    CompletableFuture<Collection<WindowedValue<OutT>>> get(K key) {
-      return keyToOutputFutures.get(key);
-    }
-
-    void put(K key, CompletableFuture<Collection<WindowedValue<OutT>>> outputFuture) {
-      keyToOutputFutures.put(key, outputFuture);
-    }
-
-    void remove(K key, CompletableFuture<Collection<WindowedValue<OutT>>> outputFuture) {
-      keyToOutputFutures.remove(key, outputFuture);
-    }
+    Object key = ((KV) elem.getValue()).getKey();
+    return key == null ? NULL_KEY : key;
   }
 }
