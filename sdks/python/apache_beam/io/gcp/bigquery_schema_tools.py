@@ -27,7 +27,6 @@ from typing import Sequence
 import numpy as np
 
 import apache_beam as beam
-# import apache_beam.utils.timestamp
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.portability.api import schema_pb2
 
