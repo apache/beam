@@ -59,8 +59,7 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
    * all futures of a key have been complete, the key entry will be removed. The map is bounded by
    * (bundle size * 2).
    */
-  private final @Nullable Map<Object, CompletableFuture<Collection<WindowedValue<OutT>>>>
-      keyedOutputFutures;
+  private final Map<Object, CompletableFuture<Collection<WindowedValue<OutT>>>> keyedOutputFutures;
 
   public static <InT, OutT> AsyncDoFnRunner<InT, OutT> create(
       DoFnRunner<InT, OutT> runner,
@@ -84,7 +83,7 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
     this.emitter = emitter;
     this.futureCollector = futureCollector;
     this.isStateful = isStateful;
-    this.keyedOutputFutures = isStateful ? new ConcurrentHashMap<>() : null;
+    this.keyedOutputFutures = new ConcurrentHashMap<>();
   }
 
   @Override
@@ -175,7 +174,12 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
   }
 
   private Object getKey(WindowedValue<InT> elem) {
-    Object key = ((KV) elem.getValue()).getKey();
-    return key == null ? NULL_KEY : key;
+    KV<?, ?> kv = (KV<?, ?>) elem.getValue();
+    if (kv == null) {
+      return NULL_KEY;
+    } else {
+      Object key = kv.getKey();
+      return key == null ? NULL_KEY : key;
+    }
   }
 }
