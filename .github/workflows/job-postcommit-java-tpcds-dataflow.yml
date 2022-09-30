@@ -30,14 +30,13 @@ jobs:
     name: Run PostCommit Java Tpcds Dataflow 
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
-      fail-fast: true
+      fail-fast: false
     timeout-minutes: 240
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
-          persist-credentials: false
-          submodules: recursive
+          persist-credentials: false          
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action 
       - name: Run *** RUN TPCDS IN BATCH MODE USING DATAFLOW RUNNER ***

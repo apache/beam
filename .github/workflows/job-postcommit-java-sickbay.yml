@@ -31,14 +31,13 @@ jobs:
     name: Run PostCommit Java Sickbay
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
-      fail-fast: true
+      fail-fast: false
     timeout-minutes: 120
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
-          persist-credentials: false
-          submodules: recursive
+          persist-credentials: false          
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
       - name: Run :javaPostCommitSickbay
