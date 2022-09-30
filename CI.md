@@ -139,7 +139,6 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | [job-precommit-python-azure-io.yml](.github/workflows/job-precommit-python-azure-io.yml)   | Runs Python Azure IO Unit Tests  | No                       |
 | [job-precommit-python-flink-io.yml](.github/workflows/job-precommit-python-flink-io.yml)   | Runs Python Flink IO Unit Tests  | No                       |
 | [job-precommit-python-gcp-io.yml](.github/workflows/job-precommit-python-gcp-io.yml)       | Runs Python GCP IO Unit Tests    | No                       |
-| [job-precommit-python-hadoop-io.yml](.github/workflows/job-precommit-python-hadoop-io.yml) | Runs Python Hadoop IO Unit Tests | No                       |
 | [job-precommit-python-ml.yml](.github/workflows/job-precommit-python-ml.yml)               | Runs Python ML Unit Tests        | No                       |
 
 ### PostCommit Workflows
