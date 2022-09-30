@@ -33,14 +33,13 @@ jobs:
     name: Run PostCommit Py Valcont 
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
-      fail-fast: true
+      fail-fast: false
     timeout-minutes: 200
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
-          submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action 
       - name: Run Runs Python ValidatesContainer suite on the Dataflow runner.
