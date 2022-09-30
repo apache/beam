@@ -31,6 +31,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +59,8 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
    * all futures of a key have been complete, the key entry will be removed. The map is bounded by
    * (bundle size * 2).
    */
-  private final Map<Object, CompletableFuture<Collection<WindowedValue<OutT>>>> keyedOutputFutures;
+  private final @Nullable Map<Object, CompletableFuture<Collection<WindowedValue<OutT>>>>
+      keyedOutputFutures;
 
   public static <InT, OutT> AsyncDoFnRunner<InT, OutT> create(
       DoFnRunner<InT, OutT> runner,
@@ -100,7 +102,7 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
 
   private CompletableFuture<Collection<WindowedValue<OutT>>> processElement(
       WindowedValue<InT> elem,
-      CompletableFuture<Collection<WindowedValue<OutT>>> prevOutputFuture) {
+      @Nullable CompletableFuture<Collection<WindowedValue<OutT>>> prevOutputFuture) {
 
     final CompletableFuture<Collection<WindowedValue<OutT>>> prevFuture =
         prevOutputFuture == null
