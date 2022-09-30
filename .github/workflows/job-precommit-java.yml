@@ -42,6 +42,7 @@ on:
             'examples/java/**',
             'examples/kotlin/**',
             'release/**']
+permissions: read-all
 
 jobs:
   java_precommit:
@@ -55,7 +56,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
       - name: Setup Environment
         uses: ./.github/actions/setup-self-hosted-action
       - name: Run javaPrecommitSharding
