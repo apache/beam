@@ -13,22 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package entity
+package migration
 
-import "cloud.google.com/go/datastore"
+import (
+	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/db/schema"
+)
 
-type ExampleEntity struct {
-	Name   string         `datastore:"name"`
-	Sdk    *datastore.Key `datastore:"sdk"`
-	Descr  string         `datastore:"descr"`
-	Tags   []string       `datastore:"tags"`
-	Cats   []string       `datastore:"cats"`
-	Path   string         `datastore:"path"`
-	Type   string         `datastore:"type"`
-	Origin string         `datastore:"origin"`
-	SchVer *datastore.Key `datastore:"schVer"`
+type AddingComplexityProperty struct {
 }
 
-type PrecompiledObjectEntity struct {
-	Content string `datastore:"content,noindex"`
+func (is *AddingComplexityProperty) InitiateData(args *schema.DBArgs) error {
+	schemaEntity := &entity.SchemaEntity{Descr: is.GetDescription()}
+	if err := args.Db.PutSchemaVersion(args.Ctx, is.GetVersion(), schemaEntity); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (is *AddingComplexityProperty) GetVersion() string {
+	return "0.0.2"
+}
+
+func (is AddingComplexityProperty) GetDescription() string {
+	return "Adding a complexity property to the example entity"
 }

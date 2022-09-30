@@ -24,6 +24,10 @@ package org.apache.beam.sdk.testing;
 //   context_line: 87
 //   categories:
 //     - Streaming
+//   complexity: ADVANCED
+//   tags:
+//     - stream
+//     - test
 
 import static org.apache.beam.sdk.transforms.windowing.Window.into;
 import static org.hamcrest.MatcherAssert.assertThat;

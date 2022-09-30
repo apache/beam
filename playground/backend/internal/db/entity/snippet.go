@@ -47,6 +47,7 @@ type SnippetEntity struct {
 	VisitCount    int            `datastore:"visitCount"`
 	SchVer        *datastore.Key `datastore:"schVer"`
 	NumberOfFiles int            `datastore:"numberOfFiles"`
+	Complexity    string         `datastore:"complexity"`
 }
 
 type Snippet struct {
@@ -74,7 +75,7 @@ func combineUniqueSnippetContent(snippet *Snippet) string {
 	for i, file := range files {
 		contentBuilder.WriteString(file)
 		if i == len(files)-1 {
-			contentBuilder.WriteString(fmt.Sprintf("%v%s", snippet.Snippet.Sdk, strings.TrimSpace(snippet.Snippet.PipeOpts)))
+			contentBuilder.WriteString(fmt.Sprintf("%v%s%s", snippet.Snippet.Sdk, strings.TrimSpace(snippet.Snippet.PipeOpts), snippet.Snippet.Complexity))
 		}
 	}
 
