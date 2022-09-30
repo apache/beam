@@ -127,7 +127,7 @@ def _beam_fieldtype_from_arrow_type(
             schema=schema_pb2.Schema(
                 fields=[
                     _beam_field_from_arrow_field(arrow_type[i])
-                    for i in range(arrow_type.num_fields)
+                    for i in range(len(arrow_type))
                 ],
             )))
 
