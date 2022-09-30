@@ -20,7 +20,6 @@ package tob
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -32,12 +31,21 @@ import (
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
 
-var svc service.IContent
-
 const (
 	BAD_FORMAT     = "BAD_FORMAT"
 	INTERNAL_ERROR = "INTERNAL_ERROR"
+	NOT_FOUND      = "NOT_FOUND"
 )
+
+// Helper to format http error messages.
+func finalizeErrResponse(w http.ResponseWriter, status int, code, message string) {
+	resp := tob.CodeMessage{Code: code, Message: message}
+
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+var svc service.IContent
 
 func init() {
 	// dependencies
@@ -50,6 +58,7 @@ func init() {
 	if os.Getenv("TOB_MOCK") > "" {
 		svc = &service.Mock{}
 	} else {
+		// consumes DATASTORE_* env variables
 		client, err := datastore.NewClient(context.Background(), "")
 		if err != nil {
 			log.Fatalf("new datastore client: %v", err)
@@ -58,41 +67,29 @@ func init() {
 	}
 
 	// functions framework
-	functions.HTTP("sdkList", sdkList)
-	functions.HTTP("getContentTree", getContentTree)
+	functions.HTTP("getSdkList", Common(getSdkList))
+	functions.HTTP("getContentTree", Common(ParseSdkParam(getContentTree)))
+	functions.HTTP("getUnitContent", Common(ParseSdkParam(getUnitContent)))
 }
 
-func finalizeErrResponse(w http.ResponseWriter, status int, code, message string) {
-	w.WriteHeader(status)
-	resp := tob.CodeMessage{Code: code, Message: message}
-	_ = json.NewEncoder(w).Encode(resp)
+// Get list of SDK names
+// Used in both representation and accessing content.
+func getSdkList(w http.ResponseWriter, r *http.Request) {
+	sdks := tob.MakeSdkList()
+
+	err := json.NewEncoder(w).Encode(sdks)
+	if err != nil {
+		log.Println("Format sdk list error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format sdk list")
+		return
+	}
 }
 
-func sdkList(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	w.Header().Add("Content-Type", "application/json")
-	fmt.Fprint(w, `{"names": ["Java", "Python", "Go"]}`)
-}
-
-func getContentTree(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
-	if r.Method != "GET" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	sdkStr := r.URL.Query().Get("sdk")
-	sdk := tob.ParseSdk(sdkStr)
-	if sdk == tob.SDK_UNDEFINED {
-		log.Printf("Bad sdk: %v", sdkStr)
-		message := fmt.Sprintf("Sdk not in: %v", tob.SdksList())
-		finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, message)
-		return
-	}
-
+// Get the content tree for a given SDK and user
+// Merges info from the default tree and per-user information:
+// user code snippets and progress
+// Required to be wrapped into ParseSdkParam middleware.
+func getContentTree(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 	tree, err := svc.GetContentTree(r.Context(), sdk, nil /*TODO userId*/)
 	if err != nil {
 		log.Println("Get content tree error:", err)
@@ -104,6 +101,32 @@ func getContentTree(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Format content tree error:", err)
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format content tree")
+		return
+	}
+}
+
+// Get unit content
+// Everything needed to render a learning unit:
+// description, hints, code snippets
+// Required to be wrapped into ParseSdkParam middleware.
+func getUnitContent(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
+	unitId := r.URL.Query().Get("id")
+
+	unit, err := svc.GetUnitContent(r.Context(), sdk, unitId, nil /*TODO userId*/)
+	if err == service.ErrNoUnit {
+		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
+		return
+	}
+	if err != nil {
+		log.Println("Get unit content error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(unit)
+	if err != nil {
+		log.Println("Format unit content error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format unit content")
 		return
 	}
 }

@@ -19,8 +19,8 @@ and currently logged-in user's snippets and progress.
 Currently it supports Java, Python, and Go Beam SDK.
 
 It is comprised of several Cloud Functions, with Firerstore in Datastore mode as a storage.
-* list-sdks
-* get-content-tree?sdk=(Java|Go|Python)
+* get-sdk-list
+* get-content-tree?sdk=(java|go|python)
 * get-unit-content?unitId=<id>
 TODO: add response schemas
 TODO: add save functions info

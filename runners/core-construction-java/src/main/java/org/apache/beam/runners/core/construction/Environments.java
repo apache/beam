@@ -59,12 +59,16 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utilities for interacting with portability {@link Environment environments}. */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Environments {
+
+  private static final Logger LOG = LoggerFactory.getLogger(Environments.class);
 
   private static final ObjectMapper MAPPER =
       new ObjectMapper()
@@ -88,9 +92,9 @@ public class Environments {
           .build();
 
   public enum JavaVersion {
-    java8("java", "1.8"),
-    java11("java11", "11"),
-    java17("java17", "17");
+    java8("java", "1.8", 8),
+    java11("java11", "11", 11),
+    java17("java17", "17", 17);
 
     // Legacy name, as used in container image
     private final String legacyName;
@@ -98,9 +102,13 @@ public class Environments {
     // Specification version (e.g. System java.specification.version)
     private final String specification;
 
-    JavaVersion(final String legacyName, final String specification) {
+    // an integer representation of the specification, used for finding the nearest
+    private final int specificationInt;
+
+    JavaVersion(final String legacyName, final String specification, final int specificationInt) {
       this.legacyName = legacyName;
       this.specification = specification;
+      this.specificationInt = specificationInt;
     }
 
     public String legacyName() {
@@ -112,6 +120,30 @@ public class Environments {
     }
 
     public static JavaVersion forSpecification(String specification) {
+      for (JavaVersion ver : JavaVersion.values()) {
+        if (ver.specification.equals(specification)) {
+          return ver;
+        }
+      }
+
+      JavaVersion fallback = null;
+      int specificationInt = Integer.parseInt(specification);
+      int minDistance = Integer.MAX_VALUE;
+      for (JavaVersion candidate : JavaVersion.values()) {
+        int distance = Math.abs(candidate.specificationInt - specificationInt);
+        if (distance <= minDistance) {
+          fallback = candidate;
+          minDistance = distance;
+        }
+      }
+      LOG.warn(
+          "unsupported Java version: {}, falling back to: {}",
+          specification,
+          fallback.specification);
+      return fallback;
+    }
+
+    public static JavaVersion forSpecificationStrict(String specification) {
       for (JavaVersion ver : JavaVersion.values()) {
         if (ver.specification.equals(specification)) {
           return ver;

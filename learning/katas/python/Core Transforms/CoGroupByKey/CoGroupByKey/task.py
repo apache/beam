@@ -68,4 +68,3 @@ with beam.Pipeline() as p:
 
   (apply_transforms(fruits, countries)
    | LogElements())
-

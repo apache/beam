@@ -22,6 +22,7 @@ import io
 import logging
 import os
 from typing import Iterable
+from typing import Iterator
 from typing import Optional
 from typing import Tuple
 
@@ -61,6 +62,11 @@ def preprocess_image(data: Image.Image) -> torch.Tensor:
       normalize,
   ])
   return transform(data)
+
+
+def filter_empty_lines(text: str) -> Iterator[str]:
+  if len(text.strip()) > 0:
+    yield text
 
 
 class PostProcessor(beam.DoFn):
@@ -122,10 +128,14 @@ def run(
     model_class = models.mobilenet_v2
     model_params = {'num_classes': 1000}
 
+  class PytorchModelHandlerTensorWithBatchSize(PytorchModelHandlerTensor):
+    def batch_elements_kwargs(self):
+      return {'min_batch_size': 10, 'max_batch_size': 100}
+
   # In this example we pass keyed inputs to RunInference transform.
   # Therefore, we use KeyedModelHandler wrapper over PytorchModelHandler.
   model_handler = KeyedModelHandler(
-      PytorchModelHandlerTensor(
+      PytorchModelHandlerTensorWithBatchSize(
           state_dict_path=known_args.model_state_dict_path,
           model_class=model_class,
           model_params=model_params))
@@ -136,8 +146,8 @@ def run(
 
   filename_value_pair = (
       pipeline
-      | 'ReadImageNames' >> beam.io.ReadFromText(
-          known_args.input, skip_header_lines=1)
+      | 'ReadImageNames' >> beam.io.ReadFromText(known_args.input)
+      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
       | 'ReadImageData' >> beam.Map(
           lambda image_name: read_image(
               image_file_name=image_name, path_to_dir=known_args.images_dir))

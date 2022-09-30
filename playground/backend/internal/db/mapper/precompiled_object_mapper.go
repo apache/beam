@@ -93,8 +93,8 @@ func (pom *PrecompiledObjectMapper) ToDefaultPrecompiledObjects(defaultExamplesD
 			ContextLine:     defaultExamplesDTO.Files[exampleIndx].CntxLine,
 			DefaultExample:  true,
 			Sdk:             pb.Sdk(pb.Sdk_value[example.Sdk.Name]),
-			Complexity:      pb.Complexity(pb.Complexity_value[example.Complexity]),
 			Tags:            example.Tags,
+			Complexity:      pb.Complexity(pb.Complexity_value[defaultExamplesDTO.Snippets[exampleIndx].Complexity]),
 		}
 	}
 	return result

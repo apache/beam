@@ -55,7 +55,7 @@ processResources {
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
     'dataflow.legacy_container_version' : 'beam-master-20220816',
-    'dataflow.fnapi_container_version' : 'beam-master-20220824',
+    'dataflow.fnapi_container_version' : 'beam-master-20220923',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -504,7 +504,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesStrictTimerOrdering' /* https://github.com/apache/beam/issues/19957 */,
-      'org.apache.beam.sdk.testing.UsesTestStream',
       'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
     ],
     excludedTests: [
@@ -538,9 +537,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
 
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded',
-
-      // TODO: remove once dataflow runner v2 fixed fake windowing strategy.
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerSetWithinAllowedLateness',
 
       'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics',
 

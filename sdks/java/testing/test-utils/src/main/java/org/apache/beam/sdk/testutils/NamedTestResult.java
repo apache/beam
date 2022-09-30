@@ -19,6 +19,7 @@ package org.apache.beam.sdk.testutils;
 
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import java.util.Map;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,10 +77,9 @@ public class NamedTestResult implements TestResult {
   @Override
   public Map<String, Object> toMap() {
     return ImmutableMap.<String, Object>builder()
-        .put("test_id", testId)
+        .putAll(tags())
+        .putAll(fields())
         .put("timestamp", timestamp)
-        .put("metric", metric)
-        .put("value", value)
         .build();
   }
 
@@ -93,5 +93,18 @@ public class NamedTestResult implements TestResult {
 
   public double getValue() {
     return value;
+  }
+
+  public Map<String, String> tags() {
+    return ImmutableMap.of("test_id", testId, "metric", metric);
+  }
+
+  public Map<String, Number> fields() {
+    return ImmutableMap.of("value", value);
+  }
+
+  /** Convert this result to InfluxDB data point. */
+  public InfluxDBPublisher.DataPoint toInfluxDBDataPoint(String measurement) {
+    return InfluxDBPublisher.dataPoint(measurement, tags(), fields(), null);
   }
 }

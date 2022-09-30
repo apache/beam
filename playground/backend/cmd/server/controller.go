@@ -471,6 +471,7 @@ func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb
 	response := pb.GetSnippetResponse{
 		Sdk:             pb.Sdk(pb.Sdk_value[snippet.Sdk.Name]),
 		PipelineOptions: snippet.PipeOpts,
+		Complexity:      pb.Complexity(pb.Complexity_value[snippet.Complexity]),
 	}
 	files, err := controller.db.GetFiles(ctx, info.GetId(), snippet.NumberOfFiles)
 	if err != nil {

@@ -37,4 +37,3 @@ with beam.Pipeline() as p:
      | beam.Map(lambda word: (word[0], word))
      | beam.GroupByKey()
      | LogElements())
-
