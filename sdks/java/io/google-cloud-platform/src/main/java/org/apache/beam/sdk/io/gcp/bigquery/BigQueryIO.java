@@ -581,8 +581,9 @@ public class BigQueryIO {
   static class GenericDatumTransformer<T> implements DatumReader<T> {
     private final SerializableFunction<SchemaAndRecord, T> parseFn;
     private final TableSchema tableSchema;
-    private final GenericDatumReader<T> reader;
+    private GenericDatumReader<T> reader;
     private org.apache.avro.Schema writerSchema;
+    private org.apache.avro.Schema readerSchema;
 
     public GenericDatumTransformer(
         SerializableFunction<SchemaAndRecord, T> parseFn,
@@ -591,43 +592,29 @@ public class BigQueryIO {
         org.apache.avro.Schema reader) {
       this.parseFn = parseFn;
       this.tableSchema = tableSchema;
-      this.setSchema(writer);
-      this.reader = new GenericDatumReader<>(this.writerSchema, reader);
+      this.writerSchema = writer;
+      this.readerSchema = reader;
+      this.reader = new GenericDatumReader<>(this.writerSchema, this.readerSchema);
     }
 
     @Override
     public void setSchema(org.apache.avro.Schema schema) {
+      if (this.writerSchema.equals(schema)) {
+        return;
+      }
+
       this.writerSchema = schema;
+      if (this.readerSchema == null) {
+        this.readerSchema = schema;
+      }
+
+      this.reader = new GenericDatumReader<>(this.writerSchema, this.readerSchema);
     }
 
     @Override
     public T read(T reuse, Decoder in) throws IOException {
       GenericRecord record = (GenericRecord) this.reader.read(reuse, in);
       return parseFn.apply(new SchemaAndRecord(record, tableSchema));
-    }
-  }
-
-  @VisibleForTesting
-  private static class DatumReaderWrapper<T> implements DatumReader<T> {
-    private final DatumReader<T> reader;
-    private org.apache.avro.Schema writerSchema;
-
-    public DatumReaderWrapper(
-        org.apache.avro.Schema writerSchema,
-        org.apache.avro.Schema readerSchema,
-        AvroSource.DatumReaderFactory<T> factory) {
-      this.setSchema(writerSchema);
-      this.reader = factory.apply(this.writerSchema, readerSchema);
-    }
-
-    @Override
-    public void setSchema(org.apache.avro.Schema schema) {
-      this.writerSchema = schema;
-    }
-
-    @Override
-    public T read(T reuse, Decoder in) throws IOException {
-      return this.reader.read(reuse, in);
     }
   }
 
@@ -681,27 +668,17 @@ public class BigQueryIO {
    * class ClickEvent { long userId; String url; ... }
    *
    * p.apply(BigQueryIO.read(ClickEvent.class)).from("...")
-   * .read((AvroSource.DatumReaderFactory<ClickEvent>) (writer, reader) -> new ReflectDatumReader<>(writer, reader),
-   * ReflectData.get().getSchema(ClickEvent.class));
+   * .read((AvroSource.DatumReaderFactory<ClickEvent>) (writer, reader) -> new ReflectDatumReader<>(ReflectData.get().getSchema(ClickEvent.class)));
    * }</pre>
    */
-  public static <T> TypedRead<T> read(
-      AvroSource.DatumReaderFactory<T> readerFactory, org.apache.avro.Schema readerSchema) {
-    String serializedReaderSchema = readerSchema.toString();
+  public static <T> TypedRead<T> read(AvroSource.DatumReaderFactory<T> readerFactory) {
     return new AutoValue_BigQueryIO_TypedRead.Builder<T>()
         .setValidate(true)
         .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
         .setDatumReaderFactory(
             (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>>)
-                input ->
-                    (AvroSource.DatumReaderFactory<T>)
-                        (writer, reader) -> {
-                          org.apache.avro.Schema.Parser parser =
-                              new org.apache.avro.Schema.Parser();
-                          return new DatumReaderWrapper<>(
-                              writer, parser.parse(serializedReaderSchema), readerFactory);
-                        })
+                input -> readerFactory)
         .setMethod(TypedRead.Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.AVRO)
