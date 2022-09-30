@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.common.DatabaseTestHelper.assertRowCount;
 import static org.apache.beam.sdk.io.common.DatabaseTestHelper.getTestDataToWrite;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.junit.Assert.assertNotEquals;
 
 import com.google.cloud.Timestamp;
 import java.sql.SQLException;
@@ -135,10 +136,13 @@ public class JdbcIOIT {
     DatabaseTestHelper.createTable(dataSource, tableName);
     try {
       PipelineResult writeResult = runWrite();
-      writeResult.waitUntilFinish();
+      PipelineResult.State writeState = writeResult.waitUntilFinish();
       PipelineResult readResult = runRead();
-      readResult.waitUntilFinish();
+      PipelineResult.State readState = readResult.waitUntilFinish();
       gatherAndPublishMetrics(writeResult, readResult);
+      // Fail the test if pipeline failed.
+      assertNotEquals(writeState, PipelineResult.State.FAILED);
+      assertNotEquals(readState, PipelineResult.State.FAILED);
     } finally {
       DatabaseTestHelper.deleteTable(dataSource, tableName);
     }

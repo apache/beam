@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.python.transforms;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -31,15 +33,19 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Wrapper for invoking external Python {@code RunInference}. @Experimental */
 public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollection<OutputT>> {
+  private static final Logger LOG = LoggerFactory.getLogger(RunInference.class);
 
   private final String modelLoader;
   private final Schema schema;
   private final Map<String, Object> kwargs;
   private final String expansionService;
   private final @Nullable Coder<?> keyCoder;
+  private final List<String> extraPackages;
 
   /**
    * Instantiates a multi-language wrapper for a Python RunInference with a given model loader.
@@ -122,6 +128,24 @@ public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollectio
   }
 
   /**
+   * Specifies any extra Pypi packages required by the RunInference model handler.
+   *
+   * <p>This should only be specified when using the default expansion service, i.e. when not using
+   * {@link #withExpansionService(String)} to provide an expansion service.
+   *
+   * <p>For model handlers provided by Beam Python SDK, the implementation will automatically try to
+   * infer correct packages needed, so this may be omitted.
+   *
+   * @param extraPackages a list of PyPi packages. May include the version.
+   */
+  public void withExtraPackages(List<String> extraPackages) {
+    if (!this.extraPackages.isEmpty()) {
+      throw new IllegalArgumentException("Extra packages were already specified");
+    }
+    this.extraPackages.addAll(extraPackages);
+  }
+
+  /**
    * Sets an expansion service endpoint for RunInference.
    *
    * @param expansionService A URL for a Python expansion service.
@@ -142,6 +166,24 @@ public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollectio
     this.kwargs = kwargs;
     this.keyCoder = keyCoder;
     this.expansionService = expansionService;
+    this.extraPackages = new ArrayList<>();
+  }
+
+  private List<String> inferExtraPackagesFromModelHandler() {
+    List<String> extraPackages = new ArrayList<>();
+    if (this.modelLoader.toLowerCase().contains("sklearn")) {
+      extraPackages.add("scikit-learn");
+      extraPackages.add("pandas");
+    } else if (this.modelLoader.toLowerCase().contains("pytorch")) {
+      extraPackages.add("torch");
+    }
+
+    if (!extraPackages.isEmpty()) {
+      LOG.info(
+          "Automatically inferred dependencies {} from the provided model handler.", extraPackages);
+    }
+
+    return extraPackages;
   }
 
   @Override
@@ -153,12 +195,17 @@ public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollectio
       outputCoder = (Coder<OutputT>) KvCoder.of(keyCoder, RowCoder.of(schema));
     }
 
+    if (this.expansionService.isEmpty() && this.extraPackages.isEmpty()) {
+      this.extraPackages.addAll(inferExtraPackagesFromModelHandler());
+    }
+
     return (PCollection<OutputT>)
         input.apply(
             PythonExternalTransform.<PCollection<?>, PCollection<Row>>from(
                     "apache_beam.ml.inference.base.RunInference.from_callable", expansionService)
                 .withKwarg("model_handler_provider", PythonCallableSource.of(modelLoader))
                 .withOutputCoder(outputCoder)
+                .withExtraPackages(this.extraPackages)
                 .withKwargs(kwargs));
   }
 }

@@ -17,24 +17,25 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
+import java.io.IOException;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
-import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * {@link Pipeline.PipelineVisitor} that translates the Beam operators to their Spark counterparts.
  * It also does the pipeline preparation: mode detection, transforms replacement, classpath
- * preparation. If we have a streaming job, it is instantiated as a {@link
- * PipelineTranslatorStreaming}. If we have a batch job, it is instantiated as a {@link
- * PipelineTranslatorBatch}.
+ * preparation.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -42,7 +43,7 @@ import org.slf4j.LoggerFactory;
 public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
   private int depth = 0;
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslator.class);
-  protected AbstractTranslationContext translationContext;
+  protected TranslationContext translationContext;
 
   // --------------------------------------------------------------------------------------------
   //  Pipeline preparation methods
@@ -123,22 +124,25 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
   }
 
   /** Get a {@link TransformTranslator} for the given {@link TransformHierarchy.Node}. */
-  protected abstract TransformTranslator<?> getTransformTranslator(TransformHierarchy.Node node);
+  protected abstract @Nullable <
+          InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>>
+      TransformTranslator<InT, OutT, TransformT> getTransformTranslator(
+          @Nullable TransformT transform);
 
   /** Apply the given TransformTranslator to the given node. */
-  private <T extends PTransform<?, ?>> void applyTransformTranslator(
-      TransformHierarchy.Node node, TransformTranslator<?> transformTranslator) {
+  private <InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>>
+      void applyTransformTranslator(
+          TransformHierarchy.Node node,
+          TransformT transform,
+          TransformTranslator<InT, OutT, TransformT> transformTranslator) {
     // create the applied PTransform on the translationContext
-    translationContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
-
-    // avoid type capture
-    @SuppressWarnings("unchecked")
-    T typedTransform = (T) node.getTransform();
-    @SuppressWarnings("unchecked")
-    TransformTranslator<T> typedTransformTranslator = (TransformTranslator<T>) transformTranslator;
-
-    // apply the transformTranslator
-    typedTransformTranslator.translateTransform(typedTransform, translationContext);
+    AppliedPTransform<InT, OutT, PTransform<InT, OutT>> appliedTransform =
+        (AppliedPTransform) node.toAppliedPTransform(getPipeline());
+    try {
+      transformTranslator.translate(transform, appliedTransform, translationContext);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   // --------------------------------------------------------------------------------------------
@@ -164,10 +168,12 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
     LOG.debug("{} enterCompositeTransform- {}", genSpaces(depth), node.getFullName());
     depth++;
 
-    TransformTranslator<?> transformTranslator = getTransformTranslator(node);
+    PTransform<PInput, POutput> transform = (PTransform<PInput, POutput>) node.getTransform();
+    TransformTranslator<PInput, POutput, PTransform<PInput, POutput>> transformTranslator =
+        getTransformTranslator(transform);
 
     if (transformTranslator != null) {
-      applyTransformTranslator(node, transformTranslator);
+      applyTransformTranslator(node, transform, transformTranslator);
       LOG.debug("{} translated- {}", genSpaces(depth), node.getFullName());
       return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
     } else {
@@ -187,16 +193,19 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
 
     // get the transformation corresponding to the node we are
     // currently visiting and translate it into its Spark alternative.
-    TransformTranslator<?> transformTranslator = getTransformTranslator(node);
+    PTransform<PInput, POutput> transform = (PTransform<PInput, POutput>) node.getTransform();
+    TransformTranslator<PInput, POutput, PTransform<PInput, POutput>> transformTranslator =
+        getTransformTranslator(transform);
+
     if (transformTranslator == null) {
       String transformUrn = PTransformTranslation.urnForTransform(node.getTransform());
       throw new UnsupportedOperationException(
           "The transform " + transformUrn + " is currently not supported.");
     }
-    applyTransformTranslator(node, transformTranslator);
+    applyTransformTranslator(node, transform, transformTranslator);
   }
 
-  public AbstractTranslationContext getTranslationContext() {
+  public TranslationContext getTranslationContext() {
     return translationContext;
   }
 }

@@ -54,16 +54,16 @@ func MakeUnitNode(unit *tob.Unit, order, level int) *TbLearningNode {
 		return nil
 	}
 	return &TbLearningNode{
-		Id:   unit.Id,
-		Name: unit.Name,
+		Id:    unit.Id,
+		Title: unit.Title,
 
 		Type:  tob.NODE_UNIT,
 		Order: order,
 		Level: level,
 
 		Unit: &TbLearningUnit{
-			Id:   unit.Id,
-			Name: unit.Name,
+			Id:    unit.Id,
+			Title: unit.Title,
 
 			Description:       unit.Description,
 			Hints:             unit.Hints,
@@ -80,28 +80,28 @@ func MakeGroupNode(group *tob.Group, order, level int) *TbLearningNode {
 	return &TbLearningNode{
 		// ID doesn't make much sense for groups,
 		// but we have to define it to include in queries
-		Id:   group.Name,
-		Name: group.Name,
+		Id:    group.Title,
+		Title: group.Title,
 
 		Type:  tob.NODE_GROUP,
 		Order: order,
 		Level: level,
 
 		Group: &TbLearningGroup{
-			Name: group.Name,
+			Title: group.Title,
 		},
 	}
 }
 
 // Depending on the projection, we either convert TbLearningUnit to a model
-// Or we use common fields Id, Name to make it.
-func FromDatastoreUnit(tbUnit *TbLearningUnit, id, name string) *tob.Unit {
+// Or we use common fields Id, Title to make it.
+func FromDatastoreUnit(tbUnit *TbLearningUnit, id, title string) *tob.Unit {
 	if tbUnit == nil {
-		return &tob.Unit{Id: id, Name: name}
+		return &tob.Unit{Id: id, Title: title}
 	}
 	return &tob.Unit{
 		Id:                tbUnit.Id,
-		Name:              tbUnit.Name,
+		Title:             tbUnit.Title,
 		Description:       tbUnit.Description,
 		Hints:             tbUnit.Hints,
 		TaskSnippetId:     tbUnit.TaskSnippetId,
@@ -110,13 +110,13 @@ func FromDatastoreUnit(tbUnit *TbLearningUnit, id, name string) *tob.Unit {
 }
 
 // Depending on the projection, we either convert TbLearningGroup to a model
-// Or we use common field Name to make it.
-func FromDatastoreGroup(tbGroup *TbLearningGroup, name string) *tob.Group {
+// Or we use common field Title to make it.
+func FromDatastoreGroup(tbGroup *TbLearningGroup, title string) *tob.Group {
 	if tbGroup == nil {
-		return &tob.Group{Name: name}
+		return &tob.Group{Title: title}
 	}
 	return &tob.Group{
-		Name: tbGroup.Name,
+		Title: tbGroup.Title,
 	}
 }
 
@@ -126,9 +126,9 @@ func FromDatastoreNode(tbNode TbLearningNode) tob.Node {
 	}
 	switch tbNode.Type {
 	case tob.NODE_GROUP:
-		node.Group = FromDatastoreGroup(tbNode.Group, tbNode.Name)
+		node.Group = FromDatastoreGroup(tbNode.Group, tbNode.Title)
 	case tob.NODE_UNIT:
-		node.Unit = FromDatastoreUnit(tbNode.Unit, tbNode.Id, tbNode.Name)
+		node.Unit = FromDatastoreUnit(tbNode.Unit, tbNode.Id, tbNode.Title)
 	default:
 		panic("undefined node type")
 	}
@@ -138,7 +138,7 @@ func FromDatastoreNode(tbNode TbLearningNode) tob.Node {
 func MakeDatastoreModule(mod *tob.Module, order int) *TbLearningModule {
 	return &TbLearningModule{
 		Id:         mod.Id,
-		Name:       mod.Name,
+		Title:      mod.Title,
 		Complexity: mod.Complexity,
 
 		Order: order,

@@ -41,4 +41,3 @@ with beam.Pipeline() as p:
   ((wordsStartingWithA, wordsStartingWithB)
       | beam.Flatten()
       | LogElements())
-

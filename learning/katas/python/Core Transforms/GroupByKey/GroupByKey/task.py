@@ -20,7 +20,7 @@
 #   multifile: false
 #   context_line: 29
 #   categories:
-#     - Combiners
+#     - Combine
 #   complexity: BASIC
 #   tags:
 #     - map
@@ -37,4 +37,3 @@ with beam.Pipeline() as p:
      | beam.Map(lambda word: (word[0], word))
      | beam.GroupByKey()
      | LogElements())
-

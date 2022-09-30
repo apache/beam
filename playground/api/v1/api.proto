@@ -53,9 +53,10 @@ enum PrecompiledObjectType {
 }
 
 enum Complexity {
-  BASIC = 0;
-  MEDIUM = 1;
-  ADVANCED = 2;
+  COMPLEXITY_UNSPECIFIED = 0;
+  COMPLEXITY_BASIC = 1;
+  COMPLEXITY_MEDIUM = 2;
+  COMPLEXITY_ADVANCED = 3;
 }
 
 // RunCodeRequest represents a code text and options of SDK which executes the code.
@@ -271,6 +272,7 @@ message SaveSnippetRequest {
   Sdk sdk = 2;
   // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
   string pipeline_options = 3;
+  Complexity complexity = 4;
 }
 
 // SaveSnippetResponse contains information of the generated ID.
@@ -289,6 +291,7 @@ message GetSnippetResponse {
   Sdk sdk = 2;
   // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
   string pipeline_options = 3;
+  Complexity complexity = 4;
 }
 
 service PlaygroundService {

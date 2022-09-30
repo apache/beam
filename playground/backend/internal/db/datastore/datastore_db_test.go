@@ -425,7 +425,7 @@ func TestDatastore_GetCatalog(t *testing.T) {
 					actualPCObj.Description != "MOCK_DESCR" ||
 					actualPCObj.Link != "MOCK_PATH" ||
 					actualPCObj.ContextLine != 32 ||
-					actualPCObj.Complexity != pb.Complexity_MEDIUM {
+					actualPCObj.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
 					t.Error("GetCatalog() unexpected result: wrong precompiled obj")
 				}
 				tt.cleanData()
@@ -493,7 +493,7 @@ func TestDatastore_GetDefaultExamples(t *testing.T) {
 						example.PipelineOptions != "MOCK_OPTIONS" ||
 						example.Description != "MOCK_DESCR" ||
 						example.Link != "MOCK_PATH" ||
-						example.Complexity != pb.Complexity_MEDIUM {
+						example.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
 						t.Errorf("GetDefaultExamples() unexpected result: wrong precompiled obj")
 					}
 				}
@@ -557,7 +557,7 @@ func TestDatastore_GetExample(t *testing.T) {
 					example.Link != "MOCK_PATH" ||
 					example.PipelineOptions != "MOCK_OPTIONS" ||
 					example.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE" ||
-					example.Complexity != pb.Complexity_MEDIUM {
+					example.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
 					t.Errorf("GetExample() unexpected result: wrong precompiled obj")
 				}
 				tt.clean()
@@ -909,15 +909,14 @@ func TestNew(t *testing.T) {
 
 func saveExample(name, sdk string) {
 	_, _ = datastoreDb.Client.Put(ctx, utils.GetExampleKey(ctx, sdk, name), &entity.ExampleEntity{
-		Name:       name,
-		Sdk:        utils.GetSdkKey(ctx, sdk),
-		Descr:      "MOCK_DESCR",
-		Cats:       []string{"MOCK_CATEGORY"},
-		Complexity: pb.Complexity_MEDIUM.String(),
-		Path:       "MOCK_PATH",
-		Type:       pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
-		Origin:     constants.ExampleOrigin,
-		SchVer:     utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
+		Name:   name,
+		Sdk:    utils.GetSdkKey(ctx, sdk),
+		Descr:  "MOCK_DESCR",
+		Cats:   []string{"MOCK_CATEGORY"},
+		Path:   "MOCK_PATH",
+		Type:   pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
+		Origin: constants.ExampleOrigin,
+		SchVer: utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 	})
 }
 
@@ -932,6 +931,7 @@ func saveSnippet(snipId, sdk string) {
 			PipeOpts:      "MOCK_OPTIONS",
 			Origin:        constants.ExampleOrigin,
 			NumberOfFiles: 1,
+			Complexity:    pb.Complexity_COMPLEXITY_MEDIUM.String(),
 		},
 		Files: []*entity.FileEntity{{
 			Name:     "MOCK_NAME",

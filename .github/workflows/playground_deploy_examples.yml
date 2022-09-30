@@ -50,11 +50,6 @@ jobs:
           $diff = git diff --name-only ${{ github.event.before }} ${{ github.event.after }}
           echo "$diff"
           Write-Host "::set-output name=example_diff::$diff"
-      - name: Setup GCP account
-        run: |
-             echo "${{ secrets.GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
-             which gcloud
-             gcloud auth activate-service-account --project=apache-beam-testing --key-file=/tmp/gcp_access.json
       - name: has Examples
         run: |
           output=$(python3 checker.py ${{ steps.check_file_changed.outputs.example_diff }})

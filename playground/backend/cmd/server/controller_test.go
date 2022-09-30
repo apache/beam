@@ -1046,7 +1046,7 @@ func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
 				got.PrecompiledObject.Link != "MOCK_PATH" ||
 				got.PrecompiledObject.Description != "MOCK_DESCR" ||
 				!got.PrecompiledObject.DefaultExample ||
-				got.PrecompiledObject.Complexity != pb.Complexity_MEDIUM {
+				got.PrecompiledObject.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
 				t.Error("PlaygroundController_GetPrecompiledObject() unexpected result")
 			}
 		})
@@ -1253,7 +1253,7 @@ func TestPlaygroundController_GetDefaultPrecompiledObject(t *testing.T) {
 				got.PrecompiledObject.Link != "MOCK_PATH" ||
 				got.PrecompiledObject.Description != "MOCK_DESCR" ||
 				!got.PrecompiledObject.DefaultExample ||
-				got.PrecompiledObject.Complexity != pb.Complexity_MEDIUM {
+				got.PrecompiledObject.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
 				t.Error("PlaygroundController_GetDefaultPrecompiledObject() unexpected result")
 			}
 		})

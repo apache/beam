@@ -175,7 +175,8 @@ class DatastoreClient:
                 "created": now,
                 "origin": DatastoreProps.ORIGIN_PROPERTY_VALUE,
                 "numberOfFiles": 1,
-                "schVer": schema_key
+                "schVer": schema_key,
+                "complexity": f"COMPLEXITY_{example.complexity}"
             }
         )
         snippets.append(snippet_entity)
@@ -195,7 +196,6 @@ class DatastoreClient:
                 "descr": example.tag.description,
                 "tags": example.tag.tags,
                 "cats": example.tag.categories,
-                "complexity": example.complexity,
                 "path": example.link,
                 "type": PrecompiledObjectType.Name(example.type),
                 "origin": DatastoreProps.ORIGIN_PROPERTY_VALUE,

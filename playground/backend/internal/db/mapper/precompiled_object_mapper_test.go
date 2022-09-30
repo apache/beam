@@ -202,15 +202,14 @@ func getCategoryBySdk(catalog []*pb.Categories, sdk pb.Sdk) *pb.Categories {
 func getExampleDTO(name, defaultName, sdk string) *dto.ExampleDTO {
 	return &dto.ExampleDTO{
 		Example: &entity.ExampleEntity{
-			Name:       name,
-			Sdk:        utils.GetSdkKey(pcObjMapperCtx, sdk),
-			Descr:      "MOCK_DESCR",
-			Cats:       []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
-			Complexity: pb.Complexity_MEDIUM.String(),
-			Path:       "MOCK_PATH",
-			Type:       pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
-			Origin:     constants.ExampleOrigin,
-			SchVer:     utils.GetSchemaVerKey(pcObjMapperCtx, "MOCK_VERSION"),
+			Name:   name,
+			Sdk:    utils.GetSdkKey(pcObjMapperCtx, sdk),
+			Descr:  "MOCK_DESCR",
+			Cats:   []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
+			Path:   "MOCK_PATH",
+			Type:   pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
+			Origin: constants.ExampleOrigin,
+			SchVer: utils.GetSchemaVerKey(pcObjMapperCtx, "MOCK_VERSION"),
 		},
 		Snippet: &entity.SnippetEntity{
 			Sdk:           utils.GetSdkKey(pcObjMapperCtx, sdk),
@@ -218,6 +217,7 @@ func getExampleDTO(name, defaultName, sdk string) *dto.ExampleDTO {
 			Origin:        constants.ExampleOrigin,
 			SchVer:        utils.GetSchemaVerKey(pcObjMapperCtx, "MOCK_VERSION"),
 			NumberOfFiles: 1,
+			Complexity:    pb.Complexity_COMPLEXITY_MEDIUM.String(),
 		},
 		Files: []*entity.FileEntity{{
 			Name:     "MOCK_NAME",

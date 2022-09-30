@@ -21,7 +21,7 @@
 #   multifile: false
 #   context_line: 31
 #   categories:
-#     - Combiners
+#     - Combine
 #   complexity: MEDIUM
 #   tags:
 #     - join
@@ -68,4 +68,3 @@ with beam.Pipeline() as p:
 
   (apply_transforms(fruits, countries)
    | LogElements())
-
