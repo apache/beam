@@ -93,8 +93,8 @@ Download latest Hazelcast Jet version compatible with the Beam you are using fro
 <nav class="version-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="version-jet3">Hazelcast Jet 3.x</li>
-    <li data-type="version-jet4">Hazelcast Jet 4.x</li>
+    <li data-value="jet3">Hazelcast Jet 3.x</li>
+    <li data-value="jet4">Hazelcast Jet 4.x</li>
   </ul>
 </nav>
 

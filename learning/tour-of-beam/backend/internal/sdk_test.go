@@ -15,45 +15,61 @@
 
 package internal
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestParse(t *testing.T) {
 	for _, s := range []struct {
 		str      string
 		expected Sdk
 	}{
+		{"go", SDK_GO},
+		{"python", SDK_PYTHON},
+		{"java", SDK_JAVA},
+		{"scio", SDK_SCIO},
+
 		{"Go", SDK_GO},
 		{"Python", SDK_PYTHON},
 		{"Java", SDK_JAVA},
 		{"SCIO", SDK_SCIO},
-		{"Bad", SDK_UNDEFINED},
+
 		{"", SDK_UNDEFINED},
 	} {
-		if parsed := ParseSdk(s.str); parsed != s.expected {
-			t.Errorf("Failed to parse %v: got %v (expected %v)", s.str, parsed, s.expected)
-		}
+		assert.Equal(t, s.expected, ParseSdk(s.str))
 	}
 }
 
 func TestSerialize(t *testing.T) {
 	for _, s := range []struct {
-		expected string
-		sdk      Sdk
+		expectedId, expectedTitle string
+		sdk                       Sdk
 	}{
-		{"Go", SDK_GO},
-		{"Python", SDK_PYTHON},
-		{"Java", SDK_JAVA},
-		{"SCIO", SDK_SCIO},
-		{"", SDK_UNDEFINED},
+		{"go", "Go", SDK_GO},
+		{"python", "Python", SDK_PYTHON},
+		{"java", "Java", SDK_JAVA},
+		{"scio", "SCIO", SDK_SCIO},
+		{"", "", SDK_UNDEFINED},
 	} {
-		if txt := s.sdk.String(); txt != s.expected {
-			t.Errorf("Failed to serialize %v to string: got %v (expected %v)", s.sdk, txt, s.expected)
+		assert.Equal(t, s.expectedId, s.sdk.String())
+		if s.sdk == SDK_UNDEFINED {
+			assert.Panics(t, func() { s.sdk.Title() })
+		} else {
+			assert.Equal(t, s.expectedTitle, s.sdk.Title())
 		}
 	}
 }
 
 func TestSdkList(t *testing.T) {
-	if SdksList() != [4]string{"Java", "Python", "Go", "SCIO"} {
-		t.Error("Sdk list mismatch: ", SdksList())
-	}
+
+	assert.Equal(t, SdkList{
+		[]SdkItem{
+			{"java", "Java"},
+			{"python", "Python"},
+			{"go", "Go"},
+			{"scio", "SCIO"},
+		},
+	}, MakeSdkList())
 }

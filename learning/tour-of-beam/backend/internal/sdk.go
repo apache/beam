@@ -19,33 +19,54 @@ type Sdk string
 
 const (
 	SDK_UNDEFINED Sdk = ""
-	SDK_GO        Sdk = "Go"
-	SDK_PYTHON    Sdk = "Python"
-	SDK_JAVA      Sdk = "Java"
-	SDK_SCIO      Sdk = "SCIO"
+	SDK_GO        Sdk = "go"
+	SDK_PYTHON    Sdk = "python"
+	SDK_JAVA      Sdk = "java"
+	SDK_SCIO      Sdk = "scio"
 )
 
 func (s Sdk) String() string {
 	return string(s)
 }
 
-// Parse sdk from string names, f.e. "Java" -> Sdk.GO_JAVA
+// get Title which is shown on the landing page
+func (s Sdk) Title() string {
+	switch s {
+	case SDK_GO:
+		return "Go"
+	case SDK_JAVA:
+		return "Java"
+	case SDK_PYTHON:
+		return "Python"
+	case SDK_SCIO:
+		return "SCIO"
+	default:
+		panic("undefined/unknown SDK title")
+	}
+}
+
+// Parse sdk from string names, f.e. "java" -> Sdk.GO_JAVA
+// Make allowance for the case if the Title is given, not Id
 // Returns SDK_UNDEFINED on error.
 func ParseSdk(s string) Sdk {
 	switch s {
-	case "Go":
+	case "go", "Go":
 		return SDK_GO
-	case "Python":
+	case "python", "Python":
 		return SDK_PYTHON
-	case "Java":
+	case "java", "Java":
 		return SDK_JAVA
-	case "SCIO":
+	case "scio", "SCIO":
 		return SDK_SCIO
 	default:
 		return SDK_UNDEFINED
 	}
 }
 
-func SdksList() [4]string {
-	return [4]string{"Java", "Python", "Go", "SCIO"}
+func MakeSdkList() SdkList {
+	sdks := make([]SdkItem, 0, 4)
+	for _, sdk := range []Sdk{SDK_JAVA, SDK_PYTHON, SDK_GO, SDK_SCIO} {
+		sdks = append(sdks, SdkItem{Id: sdk.String(), Title: sdk.Title()})
+	}
+	return SdkList{Sdks: sdks}
 }

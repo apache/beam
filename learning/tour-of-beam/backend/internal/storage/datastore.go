@@ -47,7 +47,7 @@ func (d *DatastoreDb) collectModules(ctx context.Context, tx *datastore.Transact
 	}
 
 	for _, tbMod := range tbMods {
-		mod := tob.Module{Id: tbMod.Id, Name: tbMod.Name, Complexity: tbMod.Complexity}
+		mod := tob.Module{Id: tbMod.Id, Title: tbMod.Title, Complexity: tbMod.Complexity}
 		mod.Nodes, err = d.collectNodes(ctx, tx, tbMod.Key, 0)
 		if err != nil {
 			return modules, err
@@ -72,7 +72,7 @@ func (d *DatastoreDb) collectNodes(ctx context.Context, tx *datastore.Transactio
 		Namespace(PgNamespace).
 		Ancestor(parentKey).
 		FilterField("level", "=", level).
-		Project("type", "id", "name").
+		Project("type", "id", "title").
 		Order("order").
 		Transaction(tx)
 	if _, err = d.Client.GetAll(ctx, queryNodes, &tbNodes); err != nil {
@@ -189,7 +189,7 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 	}
 
 	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(tree.Sdk), nil)
-	tbLP := TbLearningPath{Name: tree.Sdk.String()}
+	tbLP := TbLearningPath{Title: tree.Sdk.String()}
 	if _, err := tx.Put(rootKey, &tbLP); err != nil {
 		return fmt.Errorf("failed to put learning_path: %w", err)
 	}

@@ -138,10 +138,14 @@ public class PubsubIO {
   private static final int PUBSUB_NAME_MAX_LENGTH = 255;
 
   // See https://cloud.google.com/pubsub/quotas#resource_limits.
-  private static final int PUBSUB_MESSAGE_DATA_MAX_LENGTH = 10 << 20;
+  private static final int PUBSUB_MESSAGE_MAX_TOTAL_SIZE = 10 << 20;
+  private static final int PUBSUB_MESSAGE_DATA_MAX_BYTES = 10 << 20;
   private static final int PUBSUB_MESSAGE_MAX_ATTRIBUTES = 100;
-  private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_LENGTH = 256;
-  private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_LENGTH = 1024;
+  private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_BYTES = 256;
+  private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES = 1024;
+
+  // The amount of bytes that each attribute entry adds up to the request
+  private static final int PUBSUB_MESSAGE_ATTRIBUTE_ENCODE_ADDITIONAL_BYTES = 6;
 
   private static final String SUBSCRIPTION_RANDOM_TEST_PREFIX = "_random/";
   private static final String SUBSCRIPTION_STARTING_SIGNAL = "_starting_signal/";
@@ -178,16 +182,20 @@ public class PubsubIO {
     }
   }
 
-  private static void validatePubsubMessage(PubsubMessage message)
+  @VisibleForTesting
+  static int validateAndGetPubsubMessageSize(PubsubMessage message)
       throws SizeLimitExceededException {
-    if (message.getPayload().length > PUBSUB_MESSAGE_DATA_MAX_LENGTH) {
+    int payloadSize = message.getPayload().length;
+    if (payloadSize > PUBSUB_MESSAGE_DATA_MAX_BYTES) {
       throw new SizeLimitExceededException(
           "Pubsub message data field of length "
-              + message.getPayload().length
+              + payloadSize
               + " exceeds maximum of "
-              + PUBSUB_MESSAGE_DATA_MAX_LENGTH
-              + ". See https://cloud.google.com/pubsub/quotas#resource_limits");
+              + PUBSUB_MESSAGE_DATA_MAX_BYTES
+              + " bytes. See https://cloud.google.com/pubsub/quotas#resource_limits");
     }
+    int totalSize = payloadSize;
+
     @Nullable Map<String, String> attributes = message.getAttributeMap();
     if (attributes != null) {
       if (attributes.size() > PUBSUB_MESSAGE_MAX_ATTRIBUTES) {
@@ -198,26 +206,50 @@ public class PubsubIO {
                 + PUBSUB_MESSAGE_MAX_ATTRIBUTES
                 + ". See https://cloud.google.com/pubsub/quotas#resource_limits");
       }
+
+      // Consider attribute encoding overhead, so it doesn't go over the request limits
+      totalSize += attributes.size() * PUBSUB_MESSAGE_ATTRIBUTE_ENCODE_ADDITIONAL_BYTES;
+
       for (Map.Entry<String, String> attribute : attributes.entrySet()) {
-        if (attribute.getKey().length() > PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_LENGTH) {
+        String key = attribute.getKey();
+        int keySize = key.getBytes(StandardCharsets.UTF_8).length;
+        if (keySize > PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_BYTES) {
           throw new SizeLimitExceededException(
-              "Pubsub message attribute key "
-                  + attribute.getKey()
-                  + " exceeds the maximum of "
-                  + PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_LENGTH
-                  + ". See https://cloud.google.com/pubsub/quotas#resource_limits");
+              "Pubsub message attribute key '"
+                  + key
+                  + "' exceeds the maximum of "
+                  + PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_BYTES
+                  + " bytes. See https://cloud.google.com/pubsub/quotas#resource_limits");
         }
+        totalSize += keySize;
+
         String value = attribute.getValue();
-        if (value.length() > PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_LENGTH) {
+        int valueSize = value.getBytes(StandardCharsets.UTF_8).length;
+        if (valueSize > PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES) {
           throw new SizeLimitExceededException(
-              "Pubsub message attribute value starting with "
+              "Pubsub message attribute value for key '"
+                  + key
+                  + "' starting with '"
                   + value.substring(0, Math.min(256, value.length()))
-                  + " exceeds the maximum of "
-                  + PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_LENGTH
-                  + ". See https://cloud.google.com/pubsub/quotas#resource_limits");
+                  + "' exceeds the maximum of "
+                  + PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES
+                  + " bytes. See https://cloud.google.com/pubsub/quotas#resource_limits");
         }
+        totalSize += valueSize;
       }
     }
+
+    if (totalSize > PUBSUB_MESSAGE_MAX_TOTAL_SIZE) {
+      throw new SizeLimitExceededException(
+          "Pubsub message of length "
+              + totalSize
+              + " exceeds maximum of "
+              + PUBSUB_MESSAGE_MAX_TOTAL_SIZE
+              + " bytes, when considering the payload and attributes. "
+              + "See https://cloud.google.com/pubsub/quotas#resource_limits");
+    }
+
+    return totalSize;
   }
 
   /** Populate common {@link DisplayData} between Pubsub source and sink. */
@@ -752,6 +784,7 @@ public class PubsubIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
+
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topic);
 
       abstract Builder<T> setDeadLetterTopicProvider(ValueProvider<PubsubTopic> deadLetterTopic);
@@ -1065,6 +1098,7 @@ public class PubsubIO {
   /** Implementation of write methods. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+
     /**
      * Max batch byte size. Messages are base64 encoded which encodes each set of three bytes into
      * four bytes.
@@ -1223,7 +1257,7 @@ public class PubsubIO {
                           elem -> {
                             PubsubMessage message = getFormatFn().apply(elem);
                             try {
-                              validatePubsubMessage(message);
+                              validateAndGetPubsubMessageSize(message);
                             } catch (SizeLimitExceededException e) {
                               throw new IllegalArgumentException(e);
                             }
@@ -1288,25 +1322,25 @@ public class PubsubIO {
 
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException, SizeLimitExceededException {
-        byte[] payload;
         PubsubMessage message = getFormatFn().apply(c.element());
-        validatePubsubMessage(message);
-        payload = message.getPayload();
-        Map<String, String> attributes = message.getAttributeMap();
-
-        if (payload.length > maxPublishBatchByteSize) {
+        int messageSize = validateAndGetPubsubMessageSize(message);
+        if (messageSize > maxPublishBatchByteSize) {
           String msg =
               String.format(
                   "Pub/Sub message size (%d) exceeded maximum batch size (%d)",
-                  payload.length, maxPublishBatchByteSize);
+                  messageSize, maxPublishBatchByteSize);
           throw new SizeLimitExceededException(msg);
         }
 
-        // Checking before adding the message stops us from violating the max bytes
-        if (((currentOutputBytes + payload.length) >= maxPublishBatchByteSize)
-            || (output.size() >= maxPublishBatchSize)) {
+        // Checking before adding the message stops us from violating max batch size or bytes
+        if (output.size() >= maxPublishBatchSize
+            || (!output.isEmpty()
+                && (currentOutputBytes + messageSize) >= maxPublishBatchByteSize)) {
           publish();
         }
+
+        byte[] payload = message.getPayload();
+        Map<String, String> attributes = message.getAttributeMap();
 
         // NOTE: The record id is always null.
         output.add(
@@ -1317,7 +1351,7 @@ public class PubsubIO {
                     .build(),
                 c.timestamp().getMillis(),
                 null));
-        currentOutputBytes += payload.length;
+        currentOutputBytes += messageSize;
       }
 
       @FinishBundle

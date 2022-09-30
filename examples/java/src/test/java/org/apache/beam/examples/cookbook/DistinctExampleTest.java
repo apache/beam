@@ -25,6 +25,10 @@ package org.apache.beam.examples.cookbook;
 //   categories:
 //     - Core Transforms
 //     - Filtering
+//   complexity: BASIC
+//   tags:
+//     - distinct
+//     - test
 
 import java.util.Arrays;
 import java.util.List;
