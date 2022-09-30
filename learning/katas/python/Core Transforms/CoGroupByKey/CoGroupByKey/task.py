@@ -21,7 +21,7 @@
 #   multifile: false
 #   context_line: 31
 #   categories:
-#     - Combiners
+#     - Combine
 
 import apache_beam as beam
 
@@ -62,4 +62,3 @@ with beam.Pipeline() as p:
 
   (apply_transforms(fruits, countries)
    | LogElements())
-

@@ -43,4 +43,3 @@ with beam.Pipeline() as p:
 
   results[0] | 'Log numbers > 100' >> LogElements(prefix='Number > 100: ')
   results[1] | 'Log numbers <= 100' >> LogElements(prefix='Number <= 100: ')
-
