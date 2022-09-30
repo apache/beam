@@ -88,5 +88,5 @@ func (e *ExampleDTO) GetSDK() pb.Sdk {
 }
 
 func (e *ExampleDTO) GetComplexity() pb.Complexity {
-	return pb.Complexity(pb.Complexity_value[e.Example.Complexity])
+	return pb.Complexity(pb.Complexity_value[e.Snippet.Complexity])
 }
