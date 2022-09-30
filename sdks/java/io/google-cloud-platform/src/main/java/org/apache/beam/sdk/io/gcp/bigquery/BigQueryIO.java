@@ -670,7 +670,8 @@ public class BigQueryIO {
    * .read((AvroSource.DatumReaderFactory<ClickEvent>) (writer, reader) -> new ReflectDatumReader<>(ReflectData.get().getSchema(ClickEvent.class)));
    * }</pre>
    */
-  public static <T> TypedRead<T> readWithDatumReader(AvroSource.DatumReaderFactory<T> readerFactory) {
+  public static <T> TypedRead<T> readWithDatumReader(
+      AvroSource.DatumReaderFactory<T> readerFactory) {
     return new AutoValue_BigQueryIO_TypedRead.Builder<T>()
         .setValidate(true)
         .setWithTemplateCompatibility(false)
