@@ -24,26 +24,28 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+/*
+ * Opens all base modules in the JDK to jamm (used to accurately measure object sizes)
+ */
 public class OpenModuleAgent {
   public static void premain(String argument, Instrumentation instrumentation) {
-    Set<Module> automaticModules = new HashSet<>();
     Set<Module> modulesToOpen = new HashSet<>();
+    Module jamm = ModuleLayer.boot().findModule("jamm").orElse(null);
     ModuleLayer.boot()
         .modules()
         .forEach(
             module -> {
-              if (module.getDescriptor().isAutomatic()) {
-                automaticModules.add(module);
-              } else if (!module.getDescriptor().isOpen()) {
+              if (!module.getDescriptor().isOpen()) {
                 modulesToOpen.add(module);
               }
             });
 
-    if (!automaticModules.isEmpty()) {
+    if (jamm != null) {
+      Set<Module> openModules = Set.of(jamm);
       for (Module module : modulesToOpen) {
         Map<String, Set<Module>> addOpens = new HashMap<>();
         for (String pkg : module.getPackages()) {
-          addOpens.put(pkg, automaticModules);
+          addOpens.put(pkg, openModules);
         }
         instrumentation.redefineModule(
             module,

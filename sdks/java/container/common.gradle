@@ -48,7 +48,7 @@ task copyDockerfileDependencies(type: Copy) {
     from configurations.dockerDependency
     rename 'slf4j-api.*', 'slf4j-api.jar'
     rename 'slf4j-jdk14.*', 'slf4j-jdk14.jar'
-    if (imageJavaVersion == "17" || imageJavaVersion == "11") {
+    if (imageJavaVersion == "11" || imageJavaVersion == "17") {
         rename 'beam-sdks-java-container-agent.*.jar', 'open-module-agent.jar'
     }
     rename 'beam-sdks-java-harness-.*.jar', 'beam-sdks-java-harness.jar'
@@ -90,7 +90,7 @@ task skipPullLicenses(type: Exec) {
 }
 
 task validateJavaHome {
-    if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) >= 0 && imageJavaVersion == "17" || imageJavaVersion == "11") {
+    if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) >= 0 && imageJavaVersion == "11" || imageJavaVersion == "17") {
         doFirst {
             if (!project.hasProperty('java17Home') && !project.hasProperty('java11Home')) {
                 throw new GradleException('java17Home or java11Home property required. Re-run with -Pjava17Home or -Pjava11Home')

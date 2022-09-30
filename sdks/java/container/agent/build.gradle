@@ -20,8 +20,8 @@ plugins {
     id 'org.apache.beam.module'
 }
 applyJavaNature(
-        exportJavadoc: false,
-        publish: false
+    exportJavadoc: false,
+    publish: false
 )
 
 description = "Apache Beam :: SDKs :: Java :: Container :: Agent"

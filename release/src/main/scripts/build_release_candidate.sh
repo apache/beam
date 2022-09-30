@@ -141,7 +141,7 @@ if [[ -z "$USER_GITHUB_ID" ]] ; then
 fi
 
 if [[ -z "$JAVA11_HOME" ]] ; then
-  echo 'Please provide Java 11 home'
+  echo 'Please provide Java 11 home. Required to build sdks/java/container/agent for Java 11+ containers.'
   usage
   exit 1
 fi

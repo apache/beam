@@ -499,7 +499,8 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 * There are no open pull requests to release branch;
 * Originating branch has the version information updated to the new version;
 * Nightly snapshot is in progress (do revisit it continually);
-* Set `JAVA_HOME` to JDK 8 (Example: `export JAVA_HOME=/example/path/to/java/jdk8`). You'll also need Java 11+ installed.
+* Set `JAVA_HOME` to JDK 8 (Example: `export JAVA_HOME=/example/path/to/java/jdk8`).
+* Have Java 11 installed.
 
 The core of the release process is the build-vote-fix cycle.
 Each cycle produces one release candidate.
