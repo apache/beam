@@ -114,6 +114,7 @@ export class Pipeline {
   context: PipelineContext;
   transformStack: string[] = [];
   defaultEnvironment: string;
+  usedStageNames: Set<string> = new Set();
 
   private proto: runnerApi.Pipeline;
   private globalWindowing: string;
@@ -147,9 +148,17 @@ export class Pipeline {
     } else {
       this.proto.rootTransformIds.push(transformId);
     }
+    const uniqueName =
+      (parent ? parent.uniqueName + "/" : "") + extractName(transform);
+    if (this.usedStageNames.has(uniqueName)) {
+      throw new Error(
+        `Duplicate stage name: "${uniqueName}". ` +
+          "Use beam.withName(...) to give your transform a unique name."
+      );
+    }
+    this.usedStageNames.add(uniqueName);
     const transformProto: runnerApi.PTransform = {
-      uniqueName:
-        (parent ? parent.uniqueName + "/" : "") + extractName(transform),
+      uniqueName,
       subtransforms: [],
       inputs: objectMap(pvalue.flattenPValue(input), (pc) => pc.getId()),
       outputs: {},

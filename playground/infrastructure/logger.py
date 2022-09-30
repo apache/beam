@@ -23,26 +23,26 @@ from logging import INFO, WARNING, ERROR, CRITICAL
 
 
 def setup_logger():
-  """
-  Setup logging.
+    """
+    Setup logging.
 
-  Add 2 handler in root logger:
-      StreamHandler - for logs(INFO and WARNING levels) to the stdout
-      StreamHandler - for logs(ERROR and CRITICAL levels) to the stderr
-  """
-  log = logging.getLogger()
-  log.setLevel(logging.INFO)
-  formatter = logging.Formatter(
-    '[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s'
-  )
+    Add 2 handler in root logger:
+        StreamHandler - for logs(INFO and WARNING levels) to the stdout
+        StreamHandler - for logs(ERROR and CRITICAL levels) to the stderr
+    """
+    log = logging.getLogger()
+    log.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        '[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s'
+    )
 
-  stdout_handler = logging.StreamHandler(sys.stdout)
-  stdout_handler.addFilter(lambda record: record.levelno in (INFO, WARNING))
-  stdout_handler.setFormatter(formatter)
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.addFilter(lambda record: record.levelno in (INFO, WARNING))
+    stdout_handler.setFormatter(formatter)
 
-  stderr_handler = logging.StreamHandler(sys.stderr)
-  stderr_handler.addFilter(lambda record: record.levelno in (ERROR, CRITICAL))
-  stderr_handler.setFormatter(formatter)
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.addFilter(lambda record: record.levelno in (ERROR, CRITICAL))
+    stderr_handler.setFormatter(formatter)
 
-  log.addHandler(stdout_handler)
-  log.addHandler(stderr_handler)
+    log.addHandler(stdout_handler)
+    log.addHandler(stderr_handler)

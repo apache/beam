@@ -40,26 +40,18 @@ dependencies {
   dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
 }
 
-task removeBuild  {
-  group = "verification"
-  description = "remove build artifacts"
-  doLast {
-    exec {
-      executable("rm")
-      args("-r", "build")
-    }
-  }
-}
-
 task analyze  {
-  dependsOn("pubGet")
-  dependsOn("removeBuild")
+  dependsOn("playground_components:generate")
+  dependsOn("generate")
+
   group = "verification"
   description = "Analyze dart code"
+
   doLast {
     exec {
+      // Exact paths instead of '.' so it does not go into playground_components
       executable("dart")
-      args("analyze", ".")
+      args("analyze", "lib", "test")
     }
   }
 }
@@ -80,8 +72,9 @@ task format {
   description = "Idiomatically format Dart source code"
   doLast {
     exec {
+      // Exact paths instead of '.' so it does not go into playground_components
       executable("dart")
-      args("format", ".")
+      args("format", "lib", "test")
     }
   }
 }
@@ -98,9 +91,12 @@ task run {
 }
 
 task test {
-  dependsOn("pubGet")
+  dependsOn("playground_components:generate")
+  dependsOn("generate")
+
   group = "verification"
   description = "flutter test"
+
   doLast {
     exec {
       executable("flutter")
@@ -110,10 +106,37 @@ task test {
 }
 
 task precommit {
-  dependsOn(":playground:frontend:removeBuild")
-  dependsOn(":playground:frontend:pubGet")
-  dependsOn(":playground:frontend:analyze")
-  dependsOn(":playground:frontend:test")
+  dependsOn("playground_components:precommit")
+
+  dependsOn("analyze")
+  dependsOn("test")
+}
+
+task generate {
+  dependsOn("flutterClean")
+  dependsOn("pubGet")
+
+  group = "build"
+  description = "Generate code"
+
+  doLast {
+    exec {
+      executable("flutter")
+      args("pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
+    }
+  }
+}
+
+task flutterClean {
+  group = "build"
+  description = "Remove build artifacts"
+
+  doLast {
+    exec {
+      executable("flutter")
+      args("clean")
+    }
+  }
 }
 
 task copyDockerfileDependencies(type: Copy) {

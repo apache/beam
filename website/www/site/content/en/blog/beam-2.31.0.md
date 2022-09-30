@@ -3,6 +3,7 @@ title:  "Apache Beam 2.31.0"
 date:   2021-07-08 9:00:00 -0700
 categories:
   - blog
+  - release
 authors:
   - apilloud
 ---

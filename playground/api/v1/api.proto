@@ -166,6 +166,7 @@ message PrecompiledObject{
   bool multifile = 7;
   int32 context_line = 8;
   bool default_example = 9;
+  Sdk sdk = 10;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk
@@ -314,10 +315,10 @@ service PlaygroundService {
   // Cancel code processing
   rpc Cancel(CancelRequest) returns (CancelResponse);
 
-  // Get all precompiled objects from the cloud storage.
+  // Get all precompiled objects from the cloud datastore.
   rpc GetPrecompiledObjects(GetPrecompiledObjectsRequest) returns (GetPrecompiledObjectsResponse);
 
-  // Get precompiled object from the cloud storage.
+  // Get precompiled object from the cloud datastore.
   rpc GetPrecompiledObject(GetPrecompiledObjectRequest) returns (GetPrecompiledObjectResponse);
 
   // Get the code of an PrecompiledObject.

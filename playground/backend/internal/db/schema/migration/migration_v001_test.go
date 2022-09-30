@@ -16,18 +16,15 @@
 package migration
 
 import (
-	"beam.apache.org/playground/backend/internal/db/datastore"
-	"beam.apache.org/playground/backend/internal/db/schema"
-	"beam.apache.org/playground/backend/internal/environment"
 	"context"
 	"os"
 	"testing"
-)
 
-const (
-	datastoreEmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
-	datastoreEmulatorHostValue = "127.0.0.1:8888"
-	datastoreEmulatorProjectId = "test"
+	"beam.apache.org/playground/backend/internal/constants"
+	"beam.apache.org/playground/backend/internal/db/datastore"
+	"beam.apache.org/playground/backend/internal/db/mapper"
+	"beam.apache.org/playground/backend/internal/db/schema"
+	"beam.apache.org/playground/backend/internal/environment"
 )
 
 var datastoreDb *datastore.Datastore
@@ -41,15 +38,16 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	datastoreEmulatorHost := os.Getenv(datastoreEmulatorHostKey)
+	datastoreEmulatorHost := os.Getenv(constants.EmulatorHostKey)
 	if datastoreEmulatorHost == "" {
-		if err := os.Setenv(datastoreEmulatorHostKey, datastoreEmulatorHostValue); err != nil {
+		if err := os.Setenv(constants.EmulatorHostKey, constants.EmulatorHostValue); err != nil {
 			panic(err)
 		}
 	}
 	ctx = context.Background()
+	ctx = context.WithValue(ctx, constants.DatastoreNamespaceKey, "migration")
 	var err error
-	datastoreDb, err = datastore.New(ctx, datastoreEmulatorProjectId)
+	datastoreDb, err = datastore.New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	if err != nil {
 		panic(err)
 	}
@@ -62,7 +60,7 @@ func teardown() {
 }
 
 func TestInitialStructure_InitiateData(t *testing.T) {
-	appEnvs := environment.NewApplicationEnvs("/app", "", "", "", "", "../../../../../sdks.yaml", "../../../../.", nil, 0)
+	appEnvs := environment.NewApplicationEnvs("/app", "", "", "", "../../../../../sdks-emulator.yaml", "../../../../.", nil, 0)
 	props, err := environment.NewProperties(appEnvs.PropertyPath())
 	if err != nil {
 		t.Errorf("InitiateData(): error during properties initialization, err: %s", err.Error())

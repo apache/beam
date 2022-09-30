@@ -93,8 +93,8 @@ Download latest Hazelcast Jet version compatible with the Beam you are using fro
 <nav class="version-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="version-jet3">Hazelcast Jet 3.x</li>
-    <li data-type="version-jet4">Hazelcast Jet 4.x</li>
+    <li data-value="jet3">Hazelcast Jet 3.x</li>
+    <li data-value="jet4">Hazelcast Jet 4.x</li>
   </ul>
 </nav>
 
@@ -172,6 +172,7 @@ cluster runs. The word count job won't be able to read the data otherwise.
 
 ## Pipeline Options for the Jet Runner
 
+<div class="table-container-wrapper">
 <table class="table table-bordered">
 <tr>
   <th>Field</th>
@@ -227,3 +228,4 @@ cluster runs. The word count job won't be able to read the data otherwise.
   <td><code>false</code></td>
 </tr>
 </table>
+</div>

@@ -17,10 +17,16 @@
  */
 
 import { KV } from "../values";
-import { PTransform, PTransformClass, withName } from "./transform";
+import {
+  PTransform,
+  PTransformClass,
+  withName,
+  extractName,
+} from "./transform";
 import { flatten } from "./flatten";
 import { PCollection } from "../pvalue";
 import { PValue, P } from "../pvalue";
+import { Coder } from "../coders/coders";
 import * as internal from "./internal";
 import { count } from "./combiners";
 
@@ -36,6 +42,7 @@ export interface CombineFn<I, A, O> {
   addInput: (A, I) => A;
   mergeAccumulators: (accumulators: Iterable<A>) => A;
   extractOutput: (A) => O;
+  accumulatorCoder?(inputCoder: Coder<I>): Coder<A>;
 }
 
 // TODO: (Typescript) When typing this as ((a: I, b: I) => I), types are not inferred well.
@@ -83,10 +90,13 @@ export class GroupBy<T, K> extends PTransformClass<
     combiner: Combiner<I>,
     resultName: string
   ) {
-    return new GroupByAndCombine(this.keyFn, this.keyNames, []).combining(
-      expr,
-      combiner,
-      resultName
+    return withName(
+      extractName(this),
+      new GroupByAndCombine(this.keyFn, this.keyNames, []).combining(
+        expr,
+        combiner,
+        resultName
+      )
     );
   }
 }
@@ -95,7 +105,10 @@ export function groupBy<T, K>(
   key: string | string[] | ((element: T) => K),
   keyName: string | undefined = undefined
 ): GroupBy<T, K> {
-  return new GroupBy<T, K>(key, keyName);
+  return withName(
+    `groupBy(${extractName(key)}`,
+    new GroupBy<T, K>(key, keyName)
+  );
 }
 
 /**
@@ -122,10 +135,13 @@ export class GroupGlobally<T> extends PTransformClass<
     combiner: Combiner<I>,
     resultName: string
   ) {
-    return new GroupByAndCombine((_) => null, undefined, []).combining(
-      expr,
-      combiner,
-      resultName
+    return withName(
+      extractName(this),
+      new GroupByAndCombine((_) => null, undefined, []).combining(
+        expr,
+        combiner,
+        resultName
+      )
     );
   }
 }
@@ -158,16 +174,19 @@ class GroupByAndCombine<T, O> extends PTransformClass<
     combiner: Combiner<I>,
     resultName: string // TODO: (Unique names) Optionally derive from expr and combineFn?
   ) {
-    return new GroupByAndCombine(
-      this.keyFn,
-      this.keyNames,
-      this.combiners.concat([
-        {
-          expr: extractFn(expr),
-          combineFn: toCombineFn(combiner),
-          resultName: resultName,
-        },
-      ])
+    return withName(
+      extractName(this),
+      new GroupByAndCombine(
+        this.keyFn,
+        this.keyNames,
+        this.combiners.concat([
+          {
+            expr: extractFn(expr),
+            combineFn: toCombineFn(combiner),
+            resultName: resultName,
+          },
+        ])
+      )
     );
   }
 
@@ -246,9 +265,7 @@ function binaryCombineFn<I>(
     createAccumulator: () => undefined,
     addInput: (a, b) => (a === undefined ? b : combiner(a, b)),
     mergeAccumulators: (accs) =>
-      [...accs]
-        .filter((a) => a !== null && a !== undefined)
-        .reduce(combiner, undefined),
+      [...accs].filter((a) => a !== null && a !== undefined).reduce(combiner),
     extractOutput: (a) => a,
   };
 }
@@ -307,30 +324,35 @@ export function coGroupBy<T, K>(
   { [key: string]: PCollection<any> },
   PCollection<{ key: K; values: { [key: string]: Iterable<any> } }>
 > {
-  return function coGroupBy(inputs: { [key: string]: PCollection<any> }) {
-    const [keyFn, keyNames] = extractFnAndName(key, keyName || "key");
-    keyName = typeof keyNames === "string" ? keyNames : "key";
-    const tags = [...Object.keys(inputs)];
-    const tagged = [...Object.entries(inputs)].map(([tag, pcoll]) =>
-      pcoll.map((element) => ({
-        key: keyFn(element),
-        tag,
-        element,
-      }))
-    );
-    return P(tagged)
-      .apply(flatten())
-      .apply(groupBy("key"))
-      .map(function groupValues({ key, value }) {
-        const groupedValues: { [key: string]: any[] } = Object.fromEntries(
-          tags.map((tag) => [tag, []])
-        );
-        for (const { tag, element } of value) {
-          groupedValues[tag].push(element);
-        }
-        return { key, values: groupedValues };
-      });
-  };
+  return withName(
+    `coGroupBy(${extractName(key)})`,
+    function coGroupBy(inputs: { [key: string]: PCollection<any> }) {
+      const [keyFn, keyNames] = extractFnAndName(key, keyName || "key");
+      keyName = typeof keyNames === "string" ? keyNames : "key";
+      const tags = [...Object.keys(inputs)];
+      const tagged = [...Object.entries(inputs)].map(([tag, pcoll]) =>
+        pcoll.map(
+          withName(`map[${tag}]`, (element) => ({
+            key: keyFn(element),
+            tag,
+            element,
+          }))
+        )
+      );
+      return P(tagged)
+        .apply(flatten())
+        .apply(groupBy("key"))
+        .map(function groupValues({ key, value }) {
+          const groupedValues: { [key: string]: any[] } = Object.fromEntries(
+            tags.map((tag) => [tag, []])
+          );
+          for (const { tag, element } of value) {
+            groupedValues[tag].push(element);
+          }
+          return { key, values: groupedValues };
+        });
+    }
+  );
 }
 
 // TODO: (Typescript) Can I type T as "something that has this key" and/or,

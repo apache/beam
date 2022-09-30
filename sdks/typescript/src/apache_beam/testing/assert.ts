@@ -31,20 +31,23 @@ function callAssertDeepEqual(a, b) {
 export function assertDeepEqual<T>(
   expected: T[]
 ): beam.PTransform<beam.PCollection<T>, void> {
-  return function assertDeepEqual(pcoll: beam.PCollection<T>) {
-    pcoll.apply(
-      assertContentsSatisfies((actual: T[]) => {
-        const actualArray: T[] = [...actual];
-        expected.sort((a, b) =>
-          JSON.stringify(a) < JSON.stringify(b) ? -1 : 1
-        );
-        actualArray.sort((a, b) =>
-          JSON.stringify(a) < JSON.stringify(b) ? -1 : 1
-        );
-        callAssertDeepEqual(actualArray, expected);
-      })
-    );
-  };
+  return beam.withName(
+    `assertDeepEqual(${JSON.stringify(expected).substring(0, 100)})`,
+    function assertDeepEqual(pcoll: beam.PCollection<T>) {
+      pcoll.apply(
+        assertContentsSatisfies((actual: T[]) => {
+          const actualArray: T[] = [...actual];
+          expected.sort((a, b) =>
+            JSON.stringify(a) < JSON.stringify(b) ? -1 : 1
+          );
+          actualArray.sort((a, b) =>
+            JSON.stringify(a) < JSON.stringify(b) ? -1 : 1
+          );
+          callAssertDeepEqual(actualArray, expected);
+        })
+      );
+    }
+  );
 }
 
 export function assertContentsSatisfies<T>(

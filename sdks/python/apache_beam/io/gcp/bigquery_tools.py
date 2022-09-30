@@ -32,7 +32,6 @@ import decimal
 import io
 import json
 import logging
-import re
 import sys
 import time
 import uuid
@@ -42,6 +41,7 @@ from typing import TypeVar
 from typing import Union
 
 import fastavro
+import regex
 
 import apache_beam
 from apache_beam import coders
@@ -100,6 +100,10 @@ UNKNOWN_MIME_TYPE = 'application/octet-stream'
 
 # Timeout for a BQ streaming insert RPC. Set to a maximum of 2 minutes.
 BQ_STREAMING_INSERT_TIMEOUT_SEC = 120
+
+_PROJECT_PATTERN = r'([a-z0-9.-]+:)?[a-z][a-z0-9-]*[a-z0-9]'
+_DATASET_PATTERN = r'\w{1,1024}'
+_TABLE_PATTERN = r'[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Zs}$]{1,1024}'
 
 
 class FileFormat(object):
@@ -254,11 +258,10 @@ def parse_table_reference(table, dataset=None, project=None):
   # table argument will contain a full table reference instead of just a
   # table name.
   if dataset is None:
-    regex = re.compile(
-        r'''^((?P<project>.+):)?(?P<dataset>\w+)\.
-            (?P<table>[-\w\$]+(\s+\-*\w+)*)$''',
-        re.X)
-    match = regex.match(table)
+    pattern = (
+        f'((?P<project>{_PROJECT_PATTERN})[:\\.])?'
+        f'(?P<dataset>{_DATASET_PATTERN})\\.(?P<table>{_TABLE_PATTERN})')
+    match = regex.fullmatch(pattern, table)
     if not match:
       raise ValueError(
           'Expected a table reference (PROJECT:DATASET.TABLE or '
@@ -759,12 +762,10 @@ class BigQueryWrapper(object):
       schema,
       additional_parameters=None):
 
-    valid_tablename = re.match(r'^[\w]{1,1024}$', table_id, re.ASCII)
+    valid_tablename = regex.fullmatch(_TABLE_PATTERN, table_id, regex.ASCII)
     if not valid_tablename:
       raise ValueError(
           'Invalid BigQuery table name: %s \n'
-          'A table name in BigQuery must contain only letters (a-z, A-Z), '
-          'numbers (0-9), or underscores (_) and be up to 1024 characters:\n'
           'See https://cloud.google.com/bigquery/docs/tables#table_naming' %
           table_id)
 

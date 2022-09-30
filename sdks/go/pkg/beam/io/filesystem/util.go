@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // Read fully reads the given file from the file system.
@@ -30,7 +29,7 @@ func Read(ctx context.Context, fs Interface, filename string) ([]byte, error) {
 	}
 	defer r.Close()
 
-	return ioutil.ReadAll(r)
+	return io.ReadAll(r)
 }
 
 // Write writes the given content to the file system.

@@ -31,6 +31,8 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
+
+	// Import gcs filesystem so that it can be used to upload heap dumps.
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/syscallx"

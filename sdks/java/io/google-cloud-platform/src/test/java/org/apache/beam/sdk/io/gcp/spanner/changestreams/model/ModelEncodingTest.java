@@ -98,6 +98,8 @@ public class ModelEncodingTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             1L,
             1L,
+            "transactionTag",
+            true,
             ChangeStreamRecordMetadata.newBuilder()
                 .withRecordTimestamp(Timestamp.ofTimeMicroseconds(100L))
                 .withPartitionToken("1")
@@ -137,6 +139,8 @@ public class ModelEncodingTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             1L,
             1L,
+            "transactionTag",
+            true,
             null);
 
     assertEquals(dataChangeRecord, encodeAndDecode(dataChangeRecord));

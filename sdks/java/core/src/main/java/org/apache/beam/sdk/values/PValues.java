@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * <b><i>For internal use. No backwards compatibility guarantees.</i></b>
@@ -31,9 +30,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  * <p>A primitive value within Beam.
  */
 @Internal
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class PValues {
 
   // Do not instantiate
@@ -64,14 +60,16 @@ public class PValues {
     for (Map.Entry<TupleTag<?>, PValue> pvalue : partiallyExpanded.entrySet()) {
       if (pvalue.getValue() instanceof PCollection) {
         PCollection<?> previous = result.put(pvalue.getKey(), (PCollection<?>) pvalue.getValue());
-        checkArgument(
-            previous == null,
-            "Found conflicting %ss in flattened expansion of %s: %s maps to %s and %s",
-            partiallyExpanded,
-            TupleTag.class.getSimpleName(),
-            pvalue.getKey(),
-            previous,
-            pvalue.getValue());
+        if (previous != null) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Found conflicting %ss in flattened expansion of %s: %s maps to %s and %s",
+                  partiallyExpanded,
+                  TupleTag.class.getSimpleName(),
+                  pvalue.getKey(),
+                  previous,
+                  pvalue.getValue()));
+        }
       } else {
         if (pvalue.getValue().expand().size() == 1
             && Iterables.getOnlyElement(pvalue.getValue().expand().values())
@@ -99,16 +97,19 @@ public class PValues {
                     PCollection.class.getSimpleName(),
                     valueComponent.getValue()));
           }
+          @Nullable
           PCollection<?> previous =
               result.put(valueComponent.getKey(), (PCollection<?>) valueComponent.getValue());
-          checkArgument(
-              previous == null,
-              "Found conflicting %ss in flattened expansion of %s: %s maps to %s and %s",
-              partiallyExpanded,
-              TupleTag.class.getSimpleName(),
-              valueComponent.getKey(),
-              previous,
-              valueComponent.getValue());
+          if (previous != null) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Found conflicting %ss in flattened expansion of %s: %s maps to %s and %s",
+                    partiallyExpanded,
+                    TupleTag.class.getSimpleName(),
+                    valueComponent.getKey(),
+                    previous,
+                    valueComponent.getValue()));
+          }
         }
       }
     }

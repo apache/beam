@@ -88,18 +88,26 @@ versions denoted `0.x.y`.
 
 ## Releases
 
+### 2.41.0 (2022-08-23)
+Official [source code download](https://www.apache.org/dyn/closer.cgi/beam/2.41.0/apache-beam-2.41.0-source-release.zip).
+[SHA-512](https://downloads.apache.org/beam/2.41.0/apache-beam-2.41.0-source-release.zip.sha512).
+[signature](https://downloads.apache.org/beam/2.41.0/apache-beam-2.41.0-source-release.zip.asc).
+
+[Release notes](https://github.com/apache/beam/releases/tag/v2.41.0)
+[Blog post](/blog/beam-2.41.0).
+
 ### 2.40.0 (2022-06-25)
-Official [source code download](https://www.apache.org/dyn/closer.cgi/beam/2.40.0/apache-beam-2.40.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.40.0/apache-beam-2.40.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.40.0/apache-beam-2.40.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.40.0/apache-beam-2.40.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.40.0/apache-beam-2.40.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.40.0/apache-beam-2.40.0-source-release.zip.asc).
 
 [Release notes](https://github.com/apache/beam/releases/tag/v2.40.0)
 [Blog post](/blog/beam-2.40.0).
 
 ### 2.39.0 (2022-05-25)
-Official [source code download](https://www.apache.org/dyn/closer.cgi/beam/2.39.0/apache-beam-2.39.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.39.0/apache-beam-2.39.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.39.0/apache-beam-2.39.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.39.0/apache-beam-2.39.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.39.0/apache-beam-2.39.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.39.0/apache-beam-2.39.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12351169)
 [Blog post](/blog/beam-2.39.0).

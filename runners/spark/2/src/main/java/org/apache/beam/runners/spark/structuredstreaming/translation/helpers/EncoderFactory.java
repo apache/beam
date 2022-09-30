@@ -17,38 +17,33 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
-import static org.apache.spark.sql.types.DataTypes.BinaryType;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.listOf;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.seqOf;
 
-import java.util.Collections;
-import java.util.List;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.sql.Encoder;
-import org.apache.spark.sql.catalyst.analysis.GetColumnByOrdinal;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
-import org.apache.spark.sql.catalyst.expressions.BoundReference;
-import org.apache.spark.sql.catalyst.expressions.Cast;
 import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.types.ObjectType;
-import scala.collection.JavaConversions;
-import scala.reflect.ClassTag;
+import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke;
+import org.apache.spark.sql.types.DataType;
 import scala.reflect.ClassTag$;
 
 public class EncoderFactory {
 
-  public static <T> Encoder<T> fromBeamCoder(Coder<T> coder) {
-    Class<? super T> clazz = coder.getEncodedTypeDescriptor().getRawType();
-    ClassTag<T> classTag = ClassTag$.MODULE$.apply(clazz);
-    List<Expression> serializers =
-        Collections.singletonList(
-            new EncoderHelpers.EncodeUsingBeamCoder<>(
-                new BoundReference(0, new ObjectType(clazz), true), coder));
-
+  static <T> Encoder<T> create(
+      Expression serializer, Expression deserializer, Class<? super T> clazz) {
     return new ExpressionEncoder<>(
         SchemaHelpers.binarySchema(),
         false,
-        JavaConversions.collectionAsScalaIterable(serializers).toSeq(),
-        new EncoderHelpers.DecodeUsingBeamCoder<>(
-            new Cast(new GetColumnByOrdinal(0, BinaryType), BinaryType), classTag, coder),
-        classTag);
+        listOf(serializer),
+        deserializer,
+        ClassTag$.MODULE$.apply(clazz));
+  }
+
+  /**
+   * Invoke method {@code fun} on Class {@code cls}, immediately propagating {@code null} if any
+   * input arg is {@code null}.
+   */
+  static Expression invokeIfNotNull(Class<?> cls, String fun, DataType type, Expression... args) {
+    return new StaticInvoke(cls, type, fun, seqOf(args), true, true);
   }
 }

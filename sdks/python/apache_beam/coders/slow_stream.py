@@ -72,6 +72,9 @@ class OutputStream(object):
   def write_bigendian_double(self, v):
     self.write(struct.pack('>d', v))
 
+  def write_bigendian_float(self, v):
+    self.write(struct.pack('>f', v))
+
   def get(self):
     # type: () -> bytes
     return b''.join(self.data)
@@ -171,6 +174,9 @@ class InputStream(object):
 
   def read_bigendian_double(self):
     return struct.unpack('>d', self.read(8))[0]
+
+  def read_bigendian_float(self):
+    return struct.unpack('>f', self.read(4))[0]
 
 
 def get_varint_size(v):

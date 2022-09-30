@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.Base64;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 
 /** A Uuid storable in a Pub/Sub Lite attribute. */
 @DefaultCoder(UuidCoder.class)
@@ -42,7 +43,7 @@ public abstract class Uuid {
 
   public static Uuid random() {
     UUID uuid = UUID.randomUUID();
-    ByteString.Output output = ByteString.newOutput(16);
+    ByteStringOutputStream output = new ByteStringOutputStream(16);
     DataOutputStream stream = new DataOutputStream(output);
     try {
       stream.writeLong(uuid.getMostSignificantBits());

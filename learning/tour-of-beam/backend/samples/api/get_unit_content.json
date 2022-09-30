@@ -1,0 +1,9 @@
+{
+    "id": "challenge1",
+    "title": "Challenge Name",
+    "description": "## Challenge description\n\nawesome description\n",
+    "hints" : [
+        "## Hint 1\n\nhint 1",
+        "## Hint 2\n\nhint 2"
+     ]
+}

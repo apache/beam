@@ -163,7 +163,7 @@ describe("Programming Guide Tested Samples", function () {
           );
 
         by_word_length
-          .map(sortValues)
+          .map(beam.withName("sortLenValues", sortValues))
           .apply(
             assertDeepEqual([{ key: 3, value: cats.concat(dogs).sort() }])
           );
@@ -186,8 +186,12 @@ describe("Programming Guide Tested Samples", function () {
           { name: "carl", phone: "444-555-6666" },
         ];
 
-        const emails = root.apply(beam.create(emails_list));
-        const phones = root.apply(beam.create(phones_list));
+        const emails = root.apply(
+          beam.withName("createEmails", beam.create(emails_list))
+        );
+        const phones = root.apply(
+          beam.withName("createPhones", beam.create(phones_list))
+        );
         // [END cogroupbykey_inputs]
 
         // [START cogroupbykey_raw_outputs]
@@ -328,8 +332,12 @@ describe("Programming Guide Tested Samples", function () {
     it("model_multiple_pcollections_flatten", async function () {
       await beam.createRunner().run((root: beam.Root) => {
         // [START model_multiple_pcollections_flatten]
-        const fib = root.apply(beam.create([1, 1, 2, 3, 5, 8]));
-        const pow = root.apply(beam.create([1, 2, 4, 8, 16, 32]));
+        const fib = root.apply(
+          beam.withName("createFib", beam.create([1, 1, 2, 3, 5, 8]))
+        );
+        const pow = root.apply(
+          beam.withName("createPow", beam.create([1, 2, 4, 8, 16, 32]))
+        );
         const result = beam.P([fib, pow]).apply(beam.flatten());
         // [END model_multiple_pcollections_flatten]
         result.apply(assertDeepEqual([1, 1, 1, 2, 2, 3, 4, 5, 8, 8, 16, 32]));
@@ -434,14 +442,15 @@ describe("Programming Guide Tested Samples", function () {
         }
 
         {
-          function processFn(element, context) {}
+          function processWithWindow(element, context) {}
+          function processWithPaneInfo(element, context) {}
 
           // [START window_param]
-          pcoll.map(processFn, { timestamp: pardo.windowParam() });
+          pcoll.map(processWithWindow, { timestamp: pardo.windowParam() });
           // [END window_param]
 
           // [START pane_info_param]
-          pcoll.map(processFn, { timestamp: pardo.paneInfoParam() });
+          pcoll.map(processWithPaneInfo, { timestamp: pardo.paneInfoParam() });
           // [END pane_info_param]
         }
       });

@@ -1327,8 +1327,8 @@ public class FhirIO {
               RESOURCES_IMPORTED_SUCCESS,
               RESOURCES_IMPORTED_ERRORS);
 
-          // Clean up temp files on GCS as they we successfully imported to FHIR store and no longer
-          // needed.
+          // Clean up temp files on GCS as they were successfully imported to FHIR store and no
+          // longer needed.
           FileSystems.delete(tempDestinations);
         } catch (IOException | InterruptedException e) {
           ResourceId deadLetterResourceId =

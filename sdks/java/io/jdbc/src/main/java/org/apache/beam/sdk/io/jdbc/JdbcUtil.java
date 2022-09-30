@@ -39,6 +39,7 @@ import org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.ReadWithPartitions;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
@@ -189,6 +190,18 @@ class JdbcUtil {
           }
 
           String logicalTypeName = fieldType.getLogicalType().getIdentifier();
+
+          if (logicalTypeName.equals(MicrosInstant.IDENTIFIER)) {
+            // Process timestamp of MicrosInstant kind, which should only be passed from other type
+            // systems such as SQL and other Beam SDKs.
+            return (element, ps, i, fieldWithIndex) -> {
+              // MicrosInstant uses native java.time.Instant instead of joda.Instant.
+              java.time.Instant value =
+                  element.getLogicalTypeValue(fieldWithIndex.getIndex(), java.time.Instant.class);
+              ps.setTimestamp(i + 1, value == null ? null : new Timestamp(value.toEpochMilli()));
+            };
+          }
+
           JDBCType jdbcType = JDBCType.valueOf(logicalTypeName);
           switch (jdbcType) {
             case DATE:

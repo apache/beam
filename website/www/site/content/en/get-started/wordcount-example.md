@@ -333,6 +333,10 @@ above section, [MinimalWordCount](#minimalwordcount-example).
 
 **To run this example in Java:**
 
+Set up your development environment and generate the Maven archetype as
+described in the [Java WordCount quickstart](/get-started/quickstart-java/).
+Then run the pipeline with one of the runners:
+
 {{< runner direct >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner

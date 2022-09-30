@@ -35,11 +35,10 @@ _FILENAME = "Committers.groovy"
 _PEOPLE_DN = "ou=people,dc=apache,dc=org"
 _BEAM_DN = "cn=beam,ou=project,ou=groups,dc=apache,dc=org"
 _GITHUB_USERNAME_ATTR = "githubUsername"
-_DEFAULT_LDAP_URIS = "ldaps://ldap-us-ro.apache.org:636 ldaps://ldap-eu-ro.apache.org:636"
-_DEFAULT_CERT_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "cert.pem")
+_DEFAULT_LDAP_URIS = "ldaps://ldap-us.apache.org:636 ldaps://ldap-eu.apache.org:636"
 
 
-def generate_groovy(output_dir, ldap_uris, cert_path):
+def generate_groovy(output_dir, ldap_uris):
     logging.info(f"Generating {_FILENAME}")
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(
@@ -52,17 +51,15 @@ def generate_groovy(output_dir, ldap_uris, cert_path):
             template.render(
                 github_usernames=get_committers_github_usernames(
                     ldap_uris=ldap_uris,
-                    cert_path=cert_path,
                 ),
             )
         )
     logging.info(f"{_FILENAME} saved into {output_dir}")
 
 
-def get_committers_github_usernames(ldap_uris, cert_path):
+def get_committers_github_usernames(ldap_uris):
     connection = None
     try:
-        ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, cert_path)
         ldap.set_option(ldap.OPT_X_TLS_DEMAND, True)
         ldap.set_option(ldap.OPT_REFERRALS, 0)
         connection = ldap.initialize(ldap_uris)
@@ -120,13 +117,6 @@ def _parse_args():
     )
 
     parser.add_argument(
-        "-c", "--cert-path",
-        help="Path to the file containing SSL certificate of the LDAP server",
-        metavar="FILE",
-        default=_DEFAULT_CERT_PATH,
-    )
-
-    parser.add_argument(
         "-u", "--ldap_uris",
         help="Whitespace separated list of LDAP servers URIs",
         default=_DEFAULT_LDAP_URIS,
@@ -139,7 +129,7 @@ if __name__ == "__main__":
     try:
         logging.getLogger().setLevel(logging.INFO)
         args = _parse_args()
-        generate_groovy(args.output_dir, args.ldap_uris, args.cert_path)
+        generate_groovy(args.output_dir, args.ldap_uris)
     except CommittersGeneratorException as e:
-        logging.exception("Couldn't generate the list of committers")
+        logging.exception(f'Couldnt generate the list of committers with args: {args}')
         sys.exit(1)

@@ -16,22 +16,25 @@
 package mapper
 
 import (
+	"context"
+	"os"
+	"testing"
+
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
+	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/utils"
-	"os"
-	"testing"
 )
 
 var testable *DatastoreMapper
+var datastoreMapperCtx = context.Background()
 
 func TestMain(m *testing.M) {
-	appEnv := environment.NewApplicationEnvs("/app", "", "", "", "", "", "../../../.", nil, 0)
+	appEnv := environment.NewApplicationEnvs("/app", "", "", "", "", "../../../.", nil, 0)
 	appEnv.SetSchemaVersion("MOCK_SCHEMA")
 	props, _ := environment.NewProperties(appEnv.PropertyPath())
-	testable = New(appEnv, props)
+	testable = NewDatastoreMapper(datastoreMapperCtx, appEnv, props)
 	exitValue := m.Run()
 	os.Exit(exitValue)
 }
@@ -55,10 +58,10 @@ func TestEntityMapper_ToSnippet(t *testing.T) {
 					IdLength: 11,
 				},
 				Snippet: &entity.SnippetEntity{
-					SchVer:        utils.GetNameKey(datastoreDb.SchemaKind, "MOCK_SCHEMA", datastoreDb.Namespace, nil),
-					Sdk:           utils.GetNameKey(datastoreDb.SdkKind, "SDK_JAVA", datastoreDb.Namespace, nil),
+					SchVer:        utils.GetSchemaVerKey(datastoreMapperCtx, "MOCK_SCHEMA"),
+					Sdk:           utils.GetSdkKey(datastoreMapperCtx, pb.Sdk_SDK_JAVA.String()),
 					PipeOpts:      "MOCK_OPTIONS",
-					Origin:        "PG_USER",
+					Origin:        constants.UserSnippetOrigin,
 					NumberOfFiles: 1,
 				},
 				Files: []*entity.FileEntity{
@@ -80,7 +83,7 @@ func TestEntityMapper_ToSnippet(t *testing.T) {
 				result.Salt != tt.expected.Salt ||
 				result.Snippet.PipeOpts != tt.expected.Snippet.PipeOpts ||
 				result.Snippet.NumberOfFiles != 1 ||
-				result.Snippet.Origin != "PG_USER" {
+				result.Snippet.Origin != constants.UserSnippetOrigin {
 				t.Error("Unexpected result")
 			}
 		})
@@ -93,9 +96,10 @@ func TestEntityMapper_ToFileEntity(t *testing.T) {
 		file *pb.SnippetFile
 	}
 	tests := []struct {
-		name     string
-		args     args
-		expected *entity.FileEntity
+		name        string
+		args        args
+		expected    *entity.FileEntity
+		expectedErr bool
 	}{
 		{
 			name: "File entity mapper in the usual case",
@@ -112,22 +116,44 @@ func TestEntityMapper_ToFileEntity(t *testing.T) {
 				},
 			},
 			expected: &entity.FileEntity{
-				Name:     "main.java",
+				Name:     "MOCK_NAME.java",
 				Content:  "MOCK_CONTENT",
 				CntxLine: 1,
 				IsMain:   true,
 			},
 		},
+		{
+			name: "File entity mapper when file name and sdk are invalid",
+			args: args{
+				info: &pb.SaveSnippetRequest{
+					Files:           []*pb.SnippetFile{{Name: "MOCK_NAME.scio", Content: "MOCK_CONTENT"}},
+					Sdk:             pb.Sdk_SDK_JAVA,
+					PipelineOptions: "MOCK_OPTIONS",
+				},
+				file: &pb.SnippetFile{
+					Name:    "MOCK_NAME.scio",
+					Content: "MOCK_CONTENT",
+					IsMain:  true,
+				},
+			},
+			expectedErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := testable.ToFileEntity(tt.args.info, tt.args.file)
-			if result.IsMain != tt.expected.IsMain ||
-				result.Name != tt.expected.Name ||
-				result.Content != tt.expected.Content ||
-				result.CntxLine != tt.expected.CntxLine {
-				t.Error("Unexpected result")
+			result, err := testable.ToFileEntity(tt.args.info, tt.args.file)
+			if (err != nil) != tt.expectedErr {
+				t.Errorf("Unexpected error")
+				return
+			}
+			if err == nil {
+				if result.IsMain != tt.expected.IsMain ||
+					result.Name != tt.expected.Name ||
+					result.Content != tt.expected.Content ||
+					result.CntxLine != tt.expected.CntxLine {
+					t.Error("Unexpected result")
+				}
 			}
 		})
 	}
