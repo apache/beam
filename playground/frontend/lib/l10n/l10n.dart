@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
+import 'dart:ui';
 
 class L10n {
+  static const en = Locale('en');
+
   static const locales = [
-    Locale('en'),
+    en,
   ];
 }

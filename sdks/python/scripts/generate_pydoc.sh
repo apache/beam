@@ -64,6 +64,7 @@ excluded_patterns=(
     'apache_beam/runners/test/'
     'apache_beam/runners/worker/'
     'apache_beam/testing/benchmarks/chicago_taxi/'
+    'apache_beam/testing/benchmarks/inference/'
     'apache_beam/testing/benchmarks/data/'
     'apache_beam/testing/benchmarks/load_tests/'
     'apache_beam/testing/.*test.py'
@@ -126,6 +127,7 @@ release = version
 autoclass_content = 'both'
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
+autodoc_mock_imports = ["tensorrt", "cuda"]
 
 # Allow a special section for documenting DataFrame API
 napoleon_custom_sections = ['Differences from pandas']

@@ -47,7 +47,7 @@ func (d *DatastoreDb) collectModules(ctx context.Context, tx *datastore.Transact
 	}
 
 	for _, tbMod := range tbMods {
-		mod := tob.Module{Id: tbMod.Id, Name: tbMod.Name, Complexity: tbMod.Complexity}
+		mod := tob.Module{Id: tbMod.Id, Title: tbMod.Title, Complexity: tbMod.Complexity}
 		mod.Nodes, err = d.collectNodes(ctx, tx, tbMod.Key, 0)
 		if err != nil {
 			return modules, err
@@ -72,7 +72,7 @@ func (d *DatastoreDb) collectNodes(ctx context.Context, tx *datastore.Transactio
 		Namespace(PgNamespace).
 		Ancestor(parentKey).
 		FilterField("level", "=", level).
-		Project("type", "id", "name").
+		Project("type", "id", "title").
 		Order("order").
 		Transaction(tx)
 	if _, err = d.Client.GetAll(ctx, queryNodes, &tbNodes); err != nil {
@@ -189,7 +189,7 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 	}
 
 	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(tree.Sdk), nil)
-	tbLP := TbLearningPath{Name: tree.Sdk.String()}
+	tbLP := TbLearningPath{Title: tree.Sdk.String()}
 	if _, err := tx.Put(rootKey, &tbLP); err != nil {
 		return fmt.Errorf("failed to put learning_path: %w", err)
 	}
@@ -225,6 +225,35 @@ func (d *DatastoreDb) SaveContentTrees(ctx context.Context, trees []tob.ContentT
 	}
 
 	return nil
+}
+
+// Get learning unit content by unitId
+func (d *DatastoreDb) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (unit *tob.Unit, err error) {
+	var tbNodes []TbLearningNode
+	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(sdk), nil)
+
+	query := datastore.NewQuery(TbLearningNodeKind).
+		Namespace(PgNamespace).
+		Ancestor(rootKey).
+		FilterField("id", "=", unitId)
+
+	_, err = d.Client.GetAll(ctx, query, &tbNodes)
+	if err != nil {
+		return nil, fmt.Errorf("query unit failed: %w", err)
+	}
+
+	switch {
+	case len(tbNodes) == 0:
+		return nil, nil
+	case len(tbNodes) > 1:
+		return nil, fmt.Errorf("query by unitId returned %v units", len(tbNodes))
+	}
+
+	node := FromDatastoreNode(tbNodes[0])
+	if node.Type != tob.NODE_UNIT {
+		return nil, fmt.Errorf("wrong node type: %v, unit expected", node.Type)
+	}
+	return node.Unit, nil
 }
 
 // check if the interface is implemented.

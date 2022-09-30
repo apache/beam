@@ -34,6 +34,8 @@ def loadTestArgsProperty = "loadTest.args"
 def runnerProperty = "runner"
 def withDataflowWorkerJarProperty = "withDataflowWorkerJar"
 
+def requirementsTxtFileProperty = "loadTest.requirementsTxtFile"
+
 task run(type: Exec, dependsOn: installGcpTest) {
     def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
 
@@ -49,6 +51,16 @@ task run(type: Exec, dependsOn: installGcpTest) {
         loadTestArgs +=" --dataflow_worker_jar=${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}"
     }
 
+    String requirementsTxtFileArg = project.findProperty(requirementsTxtFileProperty) ?: null
+    if (requirementsTxtFileArg != null) {
+    doFirst {
+        exec {
+          setWorkingDir "${project.rootDir}/sdks/python"
+          executable 'sh'
+          args '-c', "${project.ext.envdir}/bin/python -m pip install -r ${requirementsTxtFileArg}"
+        }
+     }
+   }
     setWorkingDir "${project.rootDir}/sdks/python"
     commandLine 'sh', '-c', "${project.ext.envdir}/bin/python -m ${mainClass} --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --ignore-files \'.*py3\\d?\\.py\$\'"
     ignoreExitValue true

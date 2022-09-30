@@ -400,7 +400,7 @@ public static void main(String[] args) {
 {{< code_sample "sdks/go/examples/snippets/01_03intro.go" pipelines_constructing_reading >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight typescript >}}
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" pipelines_constructing_reading >}}
 {{< /highlight >}}
 
@@ -1644,7 +1644,7 @@ pc = ...
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_custom_average >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight typescript >}}
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_custom_average >}}
 {{< /highlight >}}
 
@@ -1683,7 +1683,7 @@ pc = ...
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_global_average >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight typescript >}}
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_global_average >}}
 {{< /highlight >}}
 
@@ -1971,7 +1971,7 @@ as `DoFn`, `CombineFn`, and `WindowFn`, already implement `Serializable`;
 however, your subclass must not add any non-serializable members.</span>
 <span class="language-go">Funcs are serializable as long as
 they are registered with `register.FunctionXxY` (for simple functions) or
-`register.DoFnXxY` (for sturctural DoFns), and are not closures. Structural
+`register.DoFnXxY` (for structural DoFns), and are not closures. Structural
 `DoFn`s will have all exported fields serialized. Unexported fields are unable to
 be serialized, and will be silently ignored.</span>
 <span class="language-typescript">
@@ -7352,9 +7352,15 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
 
 1. Make sure you have any runtime environment dependencies (like the JRE) installed on your local machine. See the expansion service section for more details.
 2. Start up the expansion service for the SDK that is in the language of the transform you're trying to consume, if not available.
+    Python provides several classes for automatically starting expansion java services such as
+    [JavaJarExpansionService](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService)
+    and [BeamJarExpansionService](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService)
+    which can be passed directly as an expansion service to `beam.ExternalTransform`.
+    Make sure the transform you're trying to use is available and can be used by the expansion service.
 
-    Make sure the transform you're trying to use is available and can be used by the expansion service. For Java, make sure the builder and registrar for the transform are available in the classpath of the expansion service.
-3. Include `ExternalTransform` when instantiating your pipeline. Reference the URN, payload, and expansion service. You can use one of the available [`PayloadBuilder`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder) classes to build the payload for `ExternalTransform`.
+    For Java, make sure the builder and registrar for the transform are available in the classpath of the expansion service.
+3. Include `ExternalTransform` when instantiating your pipeline. Reference the URN, payload, and expansion service.
+   You can use one of the available [`PayloadBuilder`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder) classes to build the payload for `ExternalTransform`.
 
     ```py
     with pipeline as p:
@@ -7364,13 +7370,37 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
             | beam.ExternalTransform(
                 TEST_PREFIX_URN,
                 ImplicitSchemaPayloadBuilder({'data': u'0'}),
-                <Address of expansion service>))
+                <expansion service>))
         assert_that(res, equal_to(['0a', '0b']))
     ```
 
     For additional examples, see [addprefix.py](https://github.com/apache/beam/blob/master/examples/multi-language/python/addprefix.py) and [javacount.py](https://github.com/apache/beam/blob/master/examples/multi-language/python/javacount.py).
 
-4. After the job has been submitted to the Beam runner, shut down the expansion service by terminating the expansion service process.
+4. After the job has been submitted to the Beam runner, shut down any manually started expansion services by terminating the expansion service process.
+
+**Using the JavaExternalTransform class**
+
+Python has the ability to invoke Java-defined transforms via [proxy objects](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaExternalTransform)
+as if they were Python transforms.
+These are invoked as follows
+
+    ```py
+    MyJavaTransform = beam.JavaExternalTransform('fully.qualified.ClassName', classpath=[jars])
+
+    with pipeline as p:
+        res = (
+            p
+            | beam.Create(['a', 'b']).with_output_types(unicode)
+            | MyJavaTransform(javaConstructorArg, ...).builderMethod(...)
+        assert_that(res, equal_to(['0a', '0b']))
+    ```
+
+Python's `getattr` method can be used if the method names in java are reserved
+Python keywords such as `from`.
+
+As with other external transforms, either a pre-started expansion service can
+be provided, or jar files that include the transform, its dependencies, and
+Beam's expansion service in which case an expansion service will be auto-started.
 
 #### 13.2.3. Using cross-language transforms in a Go pipeline
 
