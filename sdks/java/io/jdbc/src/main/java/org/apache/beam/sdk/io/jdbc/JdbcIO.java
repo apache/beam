@@ -670,7 +670,7 @@ public class JdbcIO {
       // and that MySQL supports using Integer.MIN_VALUE as a hint to stream the ResultSet instead
       // of loading it into memory. See
       // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-implementation-notes.html for additional details.
-       checkArgument(
+      checkArgument(
           fetchSize >= 0 || fetchSize == Integer.MIN_VALUE,
           "fetch size must be >= 0 or equal to Integer.MIN_VALUE");
       return toBuilder().setFetchSize(fetchSize).build();
@@ -818,7 +818,7 @@ public class JdbcIO {
       // and that MySQL supports using Integer.MIN_VALUE as a hint to stream the ResultSet instead
       // of loading it into memory. See
       // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-implementation-notes.html for additional details.
-       checkArgument(
+      checkArgument(
           fetchSize >= 0 || fetchSize == Integer.MIN_VALUE,
           "fetch size must be >= 0 or equal to Integer.MIN_VALUE");
       return toBuilder().setFetchSize(fetchSize).build();
@@ -977,7 +977,7 @@ public class JdbcIO {
       // and that MySQL supports using Integer.MIN_VALUE as a hint to stream the ResultSet instead
       // of loading it into memory. See
       // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-implementation-notes.html for additional details.
-       checkArgument(
+      checkArgument(
           fetchSize >= 0 || fetchSize == Integer.MIN_VALUE,
           "fetch size must be >= 0 or equal to Integer.MIN_VALUE");
       return toBuilder().setFetchSize(fetchSize).build();
