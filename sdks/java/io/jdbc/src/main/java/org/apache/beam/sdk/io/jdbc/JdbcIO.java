@@ -666,7 +666,9 @@ public class JdbcIO {
      * It should ONLY be used if the default value throws memory errors.
      */
     public ReadRows withFetchSize(int fetchSize) {
-      checkArgument(fetchSize > 0, "fetch size must be > 0");
+      checkArgument(
+          fetchSize > 0 || fetchSize == Integer.MIN_VALUE,
+          "fetch size must be > 0 or equal to Integer.MIN_VALUE");
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
@@ -808,7 +810,9 @@ public class JdbcIO {
      * It should ONLY be used if the default value throws memory errors.
      */
     public Read<T> withFetchSize(int fetchSize) {
-      checkArgument(fetchSize > 0, "fetch size must be > 0");
+      checkArgument(
+          fetchSize > 0 || fetchSize == Integer.MIN_VALUE,
+          "fetch size must be > 0 or equal to Integer.MIN_VALUE");
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
@@ -961,7 +965,9 @@ public class JdbcIO {
      * It should ONLY be used if the default value throws memory errors.
      */
     public ReadAll<ParameterT, OutputT> withFetchSize(int fetchSize) {
-      checkArgument(fetchSize > 0, "fetch size must be >0");
+      checkArgument(
+          fetchSize > 0 || fetchSize == Integer.MIN_VALUE,
+          "fetch size must be > 0 or equal to Integer.MIN_VALUE");
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
