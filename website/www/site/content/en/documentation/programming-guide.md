@@ -4123,7 +4123,7 @@ are grouped together into an `ITERABLE` field. For example
 purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 input_pc = ... # {"user_id": ...,"bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.GroupBy('user_id','bank')
 {{< /highlight >}}
@@ -4203,7 +4203,7 @@ purchases.apply(Group.byFieldNames("userId")
     .aggregateField("costCents", Top.<Long>largestLongsFn(10), "topPurchases"));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 input_pc = ... # {"user_id": ...,"item_Id": ..., "cost_cents": ...}
 output_pc = input_pc | beam.GroupBy("user_id")
 	.aggregate_field("item_id",count,"num_purchases")
