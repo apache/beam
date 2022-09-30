@@ -3749,7 +3749,7 @@ the user ids from a `PCollection` of purchases one would write (using the `Selec
 purchases.apply(Select.fieldNames("userId"));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 input_pc = ... # {"user_id": ...,"bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Select(user_id=lambda item: str(item["user_id"]))
 {{< /highlight >}}
