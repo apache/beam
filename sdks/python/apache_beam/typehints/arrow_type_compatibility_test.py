@@ -44,7 +44,6 @@ class ArrowTypeCompatibilityTest(unittest.TestCase):
 
     self.assertEqual(beam_schema, roundtripped)
 
-
 @parameterized_class([
     {
         'batch_typehint': pa.Table,
@@ -66,8 +65,8 @@ class ArrowTypeCompatibilityTest(unittest.TestCase):
             (
                 'nested',
                 Optional[row_type.RowTypeConstraint.from_fields([
-                    ('bar', Optional[float]),
-                    ('baz', Optional[str]),
+                    ("bar", Optional[float]),  # noqa: F821
+                    ("baz", Optional[str]),  # noqa: F821
                 ])]),
         ]),
         'batch': pa.Table.from_pydict({
