@@ -26,17 +26,17 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 public interface ExecutorOptions extends PipelineOptions {
 
   /**
-   * The ScheduledExecutorService instance to use to create threads, can be overridden to specify a
-   * ScheduledExecutorService that is compatible with the user's environment. If unset, the default
-   * is to create an ScheduledExecutorService with a core number of threads equal to Math.max(4,
-   * Runtime.getRuntime().availableProcessors())
+   * The {@link ScheduledExecutorService} instance to use to create threads, can be overridden to
+   * specify a {@link ScheduledExecutorService} that is compatible with the user's environment. If
+   * unset, the default is to create an {@link ScheduledExecutorService} with a core number of
+   * threads equal to {@code Math.max(4,Runtime.getRuntime().availableProcessors())}.
    */
   @JsonIgnore
   @Description(
       "The ScheduledExecutorService instance to use to create threads, can be overridden to specify "
           + "a ScheduledExecutorService that is compatible with the user's environment. If unset, "
           + "the default is to create a ScheduledExecutorService with a core number of threads "
-          + "equal to {@code Math.max(4, Runtime.getRuntime().availableProcessors()) }.")
+          + "equal to Math.max(4, Runtime.getRuntime().availableProcessors()).")
   @Default.InstanceFactory(ScheduledExecutorServiceFactory.class)
   @Hidden
   ScheduledExecutorService getScheduledExecutorService();
@@ -57,7 +57,7 @@ public interface ExecutorOptions extends PipelineOptions {
        * Also, the MapTaskExecutor launches the steps in reverse order and completes
        * them in forward order thus requiring enough threads so that each step's writers
        * can be active.
-       * The minimum of max(4, processors) was chosen as a default working configuration found in
+       * <p> The minimum of max(4, processors) was chosen as a default working configuration found in
        * the Bigquery client library
        */
       return Executors.newScheduledThreadPool(

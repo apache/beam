@@ -50,9 +50,9 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   /**
    * The ExecutorService instance to use to create threads, can be overridden to specify an
    * ExecutorService that is compatible with the user's environment. If unset, the default is to use
-   * {@link ExecutorOptions} default ScheduledExecutorService.
+   * {@link ExecutorOptions#getScheduledExecutorService()}.
    *
-   * @deprecated use {@link ExecutorOptions#getScheduledExecutorService()} instead instead
+   * @deprecated use {@link ExecutorOptions#getScheduledExecutorService()} instead
    */
   @JsonIgnore
   @Default.InstanceFactory(ExecutorServiceFactory.class)
@@ -61,7 +61,7 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   ExecutorService getExecutorService();
 
   /**
-   * @deprecated use {@link ExecutorOptions#setScheduledExecutorService(ScheduledExecutorService)}
+   * @deprecated use {@link ExecutorOptions#setScheduledExecutorService}
    *     instead
    */
   @Deprecated
