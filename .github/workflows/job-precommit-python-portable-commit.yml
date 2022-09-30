@@ -46,7 +46,7 @@ jobs:
     name: Run Python Portable Commit
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         version: ${{fromJson(needs.set-properties.outputs.properties).PythonTestProperties.ALL_SUPPORTED_VERSIONS}}
         exclude:
@@ -58,7 +58,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
       - name: Run :sdks:python:test-suites:portable:py${{ matrix.version }}:preCommitPy${{ matrix.version }}

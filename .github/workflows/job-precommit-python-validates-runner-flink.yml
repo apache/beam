@@ -53,7 +53,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
       - name: Run :sdks:python:test-suites:portable:flinkValidatesRunnerPrecommit
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
