@@ -44,7 +44,7 @@ jobs:
     name: Run PostCommit Java Nexmark - Spark 
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
-      fail-fast: true
+      fail-fast: false
     timeout-minutes: 240
     steps:
       - name: Checkout code
@@ -52,7 +52,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-
       - name: Run *** RUN NEXMARK IN BATCH MODE USING SPARK 2 RUNNER ***
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
