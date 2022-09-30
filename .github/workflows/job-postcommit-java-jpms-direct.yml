@@ -37,7 +37,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-          submodules: recursive
       ## TODO enable when Java 17 error prone is solved  
       ## https://github.com/apache/beam/issues/23068
       - uses: actions/checkout@v3
