@@ -66,14 +66,13 @@ class Create(DaskBagOp):
 class ParDo(DaskBagOp):
   def apply(self, input_bag: OpInput) -> db.Bag:
     fn = t.cast(apache_beam.ParDo, self.applied.transform).fn
-    assert self.side_inputs is (3,)
+    print(self.side_inputs)
     return input_bag.map(fn.process, *self.side_inputs).flatten()
 
 
 class Map(DaskBagOp):
   def apply(self, input_bag: OpInput) -> db.Bag:
     fn = t.cast(apache_beam.Map, self.applied.transform).fn
-    assert self.side_inputs is (3,)
     return input_bag.map(fn.process, *self.side_inputs)
 
 
