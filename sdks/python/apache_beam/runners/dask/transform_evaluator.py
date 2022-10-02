@@ -72,6 +72,7 @@ class ParDo(DaskBagOp):
 class Map(DaskBagOp):
   def apply(self, input_bag: OpInput) -> db.Bag:
     fn = t.cast(apache_beam.Map, self.applied.transform).fn
+    print(self.side_inputs)
     return input_bag.map(fn.process, *self.side_inputs)
 
 
