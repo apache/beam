@@ -26,6 +26,7 @@ import dataclasses
 import abc
 import dask.bag as db
 import typing as t
+import functools
 
 import apache_beam
 from apache_beam.pipeline import AppliedPTransform
@@ -65,13 +66,13 @@ class Create(DaskBagOp):
 class ParDo(DaskBagOp):
   def apply(self, input_bag: OpInput) -> db.Bag:
     fn = t.cast(apache_beam.ParDo, self.applied.transform).fn
-    return input_bag.map(fn.process).flatten()
+    return input_bag.map(fn.process, *self.side_inputs).flatten()
 
 
 class Map(DaskBagOp):
   def apply(self, input_bag: OpInput) -> db.Bag:
     fn = t.cast(apache_beam.Map, self.applied.transform).fn
-    return input_bag.map(fn.process)
+    return input_bag.map(fn.process, *self.side_inputs)
 
 
 class GroupByKey(DaskBagOp):
