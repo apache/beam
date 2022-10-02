@@ -48,7 +48,7 @@ class DaskBagOp(abc.ABC):
   @functools.cached_property
   def named_inputs(self):
     named_inputs = self.applied.named_inputs()
-    del named_inputs[None]
+    del named_inputs['None']
     return named_inputs
 
   @abc.abstractmethod
