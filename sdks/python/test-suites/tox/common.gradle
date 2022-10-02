@@ -24,6 +24,9 @@ test.dependsOn "testPython${pythonVersionSuffix}"
 toxTask "testPy${pythonVersionSuffix}Cloud", "py${pythonVersionSuffix}-cloud"
 test.dependsOn "testPy${pythonVersionSuffix}Cloud"
 
+toxTask "testPy${pythonVersionSuffix}Dask", "py${pythonVersionSuffix}-dask"
+test.dependsOn "testPy${pythonVersionSuffix}Dask"
+
 toxTask "testPy${pythonVersionSuffix}Cython", "py${pythonVersionSuffix}-cython"
 test.dependsOn "testPy${pythonVersionSuffix}Cython"
 

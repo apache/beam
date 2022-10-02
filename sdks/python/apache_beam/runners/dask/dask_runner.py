@@ -93,9 +93,6 @@ class DaskRunnerResult(PipelineResult):
     except:  # pylint: disable=broad-except
       self._state = PipelineState.FAILED
       raise
-    finally:
-      self.client.close()
-      self.client.cluster.close()
     return self._state
 
   def cancel(self) -> PipelineState:
