@@ -43,13 +43,7 @@ class DaskBagOp(abc.ABC):
 
   @property
   def side_inputs(self):
-    return self.applied.side_inputs
-
-  @functools.cached_property
-  def named_inputs(self):
-    named_inputs = self.applied.named_inputs()
-    del named_inputs['None']
-    return named_inputs
+    return self.applied.transform.args
 
   @abc.abstractmethod
   def apply(self, input_bag: OpInput) -> db.Bag:
@@ -71,16 +65,14 @@ class Create(DaskBagOp):
 
 class ParDo(DaskBagOp):
   def apply(self, input_bag: OpInput) -> db.Bag:
-    fn = t.cast(apache_beam.ParDo, self.applied.transform).fn
-    print(self.side_inputs)
-    print(self.named_inputs)
-    return input_bag.map(fn.process, *self.side_inputs, **self.named_inputs).flatten()
+    transform = t.cast(apache_beam.ParDo, self.applied.transform)
+    return input_bag.map(transform.fn.process, *transform.args, **transform.kwargs).flatten()
 
 
 class Map(DaskBagOp):
   def apply(self, input_bag: OpInput) -> db.Bag:
-    fn = t.cast(apache_beam.Map, self.applied.transform).fn
-    return input_bag.map(fn.process, *self.side_inputs, **self.named_inputs)
+    transform = t.cast(apache_beam.Map, self.applied.transform)
+    return input_bag.map(transform.fn.process, *transform.args, **transform.kwargs)
 
 
 class GroupByKey(DaskBagOp):
