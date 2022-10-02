@@ -58,7 +58,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       ]))
 
   def test_map_with_side_inputs(self):
-    def mult_by(x, y=2):
+    def mult_by(x, y):
       return x * y
 
     with self.pipeline as p:
