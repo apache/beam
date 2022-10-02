@@ -45,9 +45,11 @@ class DaskBagOp(abc.ABC):
   def side_inputs(self):
     return self.applied.side_inputs
 
-  @property
+  @functools.cached_property
   def named_inputs(self):
-    return self.applied.named_inputs()
+    named_inputs = self.applied.named_inputs()
+    del named_inputs[None]
+    return named_inputs
 
   @abc.abstractmethod
   def apply(self, input_bag: OpInput) -> db.Bag:

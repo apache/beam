@@ -62,7 +62,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       return x * y
 
     with self.pipeline as p:
-      pcoll = p | beam.Create([1]) | beam.Map(mult_by, y=3)
+      pcoll = p | beam.Create([1]) | beam.Map(mult_by, 3)
       assert_that(pcoll, equal_to([3]))
 
 
