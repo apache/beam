@@ -17,13 +17,14 @@
 
 import argparse
 import io
+import logging
 import os
-
-import numpy as np
+from typing import Iterator
+from typing import Optional
+from typing import Tuple
 
 import apache_beam as beam
 import tensorflow as tf
-
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import RunInference
@@ -31,9 +32,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 from PIL import Image
-from typing import Iterator
-from typing import Optional
-from typing import Tuple
 from tfx_bsl.public.beam.run_inference import CreateModelHandler
 from tfx_bsl.public.proto import model_spec_pb2
 
@@ -45,16 +43,8 @@ def filter_empty_lines(text: str) -> Iterator[str]:
     yield text
 
 
-def deserialize_tf_example(serialized_example):
-  example = tf.io.parse_example(
-      serialized_example,
-      features={'feature0': tf.io.FixedLenFeature((), tf.string)})
-  image = tf.io.parse_tensor(example['feature0'], out_type=tf.uint8)
-  return image
-
-
 def read_image(image_file_name: str,
-               path_to_dir: Optional[str] = None) -> Tuple[str, np.ndarray]:
+               path_to_dir: Optional[str] = None) -> Tuple[str, Image.Image]:
   if path_to_dir is not None:
     image_file_name = os.path.join(path_to_dir, image_file_name)
   with FileSystems().open(image_file_name, 'r') as file:
@@ -63,23 +53,16 @@ def read_image(image_file_name: str,
 
 
 def preprocess_image(data):
-  # Note: Converts the image dtype from uint8 to int32
+  # Note: Converts the image dtype from uint8 to float32
   # https://www.tensorflow.org/api_docs/python/tf/image/resize
   image = tf.image.resize(data, _IMG_SIZE)
   return image
 
 
 class ExampleProcessor:
-  h = _IMG_SIZE[0]
-  w = _IMG_SIZE[1]
-
   def create_example(self, element):
     feature_of_bytes = self.create_feature_vector(element)
-    features_for_example = {
-        'image': feature_of_bytes,
-        'h': self.create_feature_int(self.h),
-        'w': self.create_feature_int(self.w)
-    }
+    features_for_example = {'image': feature_of_bytes}
     example_proto = tf.train.Example(
         features=tf.train.Features(feature=features_for_example))
     return example_proto.SerializeToString()
@@ -116,6 +99,7 @@ def parse_known_args(argv):
   parser.add_argument(
       '--output',
       dest='output',
+      required=True,
       help='Path where to save output predictions.'
       ' text file.')
   parser.add_argument(
@@ -148,6 +132,7 @@ def run(
   inferece_spec_type = model_spec_pb2.InferenceSpecType(
       saved_model_spec=saved_model_spec)
   model_handler = CreateModelHandler(inferece_spec_type)
+  # create a keyedModelHandler to accommodate image names as keys.
   keyed_model_handler = KeyedModelHandler(model_handler)
 
   pipeline = test_pipeline
@@ -161,26 +146,26 @@ def run(
       | 'ReadImageData' >> beam.Map(
           lambda image_name: read_image(
               image_file_name=image_name, path_to_dir=known_args.images_dir))
-      | 'ReshapeAndNormalizeData' >>
-      beam.Map(lambda x: (x[0], preprocess_image(x[1])))
-      | 'ConvertToTensor' >>
-      beam.Map(lambda x: (x[0], tf.convert_to_tensor(x[1]))))
+      | 'ReshapeImage' >> beam.Map(lambda x: (x[0], preprocess_image(x[1]))))
 
   predictions = (
       filename_value_pair
       | 'ConvertToExampleProto' >>
       beam.Map(lambda x: (x[0], ExampleProcessor().create_example(x[1])))
       | 'TFXRunInference' >> RunInference(keyed_model_handler)
-      | 'PostProcess' >> beam.ParDo(PostProcessor())
-      | beam.Map(print))
+      | 'PostProcess' >> beam.ParDo(PostProcessor()))
   _ = (
       predictions
       | "WriteOutputToGCS" >> beam.io.WriteToText(
           known_args.output,
           shard_name_template='',
           append_trailing_newlines=True))
-  pipeline.run()
+
+  result = pipeline.run()
+  result.wait_until_finish()
+  return result
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   run()
