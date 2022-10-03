@@ -25,7 +25,7 @@ import dataclasses
 import argparse
 import typing as t
 
-from apache_beam import pvalue
+from apache_beam import pvalue, TaggedOutput
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PipelineVisitor
@@ -35,7 +35,9 @@ from apache_beam.runners.dask.transform_evaluator import NoOp
 from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineState
+from apache_beam.transforms.window import WindowFn, TimestampedValue, GlobalWindow
 from apache_beam.utils.interactive_utils import is_in_notebook
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 class DaskOptions(PipelineOptions):

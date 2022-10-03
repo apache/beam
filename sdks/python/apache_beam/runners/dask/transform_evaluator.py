@@ -21,6 +21,7 @@ to Dask Bag functions.
 
 TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
 """
+import contextlib
 import dataclasses
 
 import abc
@@ -29,12 +30,106 @@ import typing as t
 import functools
 
 import apache_beam
+from apache_beam import TaggedOutput, DoFn
+from apache_beam.internal import util
 from apache_beam.pipeline import AppliedPTransform
+from apache_beam.runners.common import DoFnContext, DoFnSignature, Receiver, _OutputHandler, DoFnInvoker
 from apache_beam.runners.dask.overrides import _Create
 from apache_beam.runners.dask.overrides import _Flatten
 from apache_beam.runners.dask.overrides import _GroupByKeyOnly
+from apache_beam.transforms.sideinputs import SideInputMap
+from apache_beam.transforms.window import WindowFn, TimestampedValue, GlobalWindow
+from apache_beam.utils.windowed_value import WindowedValue
 
 OpInput = t.Union[db.Bag, t.Sequence[db.Bag], None]
+
+@dataclasses.dataclass
+class WindowAccessor:
+  window_fn: WindowFn
+
+  def __getitem__(self, item: t.Any):
+    if isinstance(item, TaggedOutput):
+      item = item.value
+
+    if isinstance(item, WindowedValue):
+      windowed_value = item
+    elif isinstance(item, TimestampedValue):
+      assign_context = WindowFn.AssignContext(item.timestamp, item.value)
+      windowed_value = WindowedValue(item.value, item.timestamp,
+                                     self.window_fn.assign(assign_context))
+    else:
+      windowed_value = WindowedValue(item, 0, (GlobalWindow(),))
+
+    return windowed_value
+
+
+@dataclasses.dataclass
+class TaggingReceiver(Receiver):
+  tag: str
+  values: t.List[t.Union[WindowedValue, t.Any]]
+
+  def receive(self, windowed_value: WindowedValue):
+    if self.tag:
+      output = TaggedOutput(self.tag, windowed_value)
+    else:
+      output = windowed_value
+    self.values.append(output)
+
+
+@dataclasses.dataclass
+class OneReceiver(dict):
+  values: t.List[t.Union[WindowedValue, t.Any]]
+
+  def __missing__(self, key):
+    if key not in self:
+      self[key] = TaggingReceiver(key, self.values)
+    return self[key]
+
+
+@dataclasses.dataclass
+class DoFnWorker:
+  label: str
+  map_fn: DoFn
+  window_fn: WindowFn
+  side_inputs: t.List[SideInputMap]
+  args: t.Any
+  kwargs: t.Any
+
+  def __post_init__(self):
+    self._values = []
+
+    tagged_receivers = OneReceiver(self._values)
+    do_fn_signature = DoFnSignature(self.map_fn)
+    output_handler = _OutputHandler(
+      window_fn=self.window_fn,
+      main_receivers=tagged_receivers[None],
+      tagged_receivers=tagged_receivers,
+      per_element_output_counter=None,
+    )
+
+    self._invoker = DoFnInvoker.create_invoker(
+      do_fn_signature,
+      output_handler,
+      DoFnContext(self.label, state=None),
+      self.side_inputs,
+      self.args,
+      self.kwargs,
+      user_state_context=None,
+      bundle_finalizer_param=DoFn.BundleFinalizerParam(),
+    )
+
+  def __del__(self):
+    self._invoker.invoke_teardown()
+
+  def invoke(self, items):
+    try:
+      self._invoker.invoke_setup()
+      self._invoker.invoke_start_bundle()
+
+      self._invoker.invoke_process()
+
+    finally:
+      self._invoker.invoke_finish_bundle()
 
 
 @dataclasses.dataclass
@@ -42,8 +137,8 @@ class DaskBagOp(abc.ABC):
   applied: AppliedPTransform
 
   @property
-  def side_inputs(self):
-    return self.applied.transform.args
+  def transform(self):
+    return self.applied.transform
 
   @abc.abstractmethod
   def apply(self, input_bag: OpInput) -> db.Bag:
@@ -58,21 +153,72 @@ class NoOp(DaskBagOp):
 class Create(DaskBagOp):
   def apply(self, input_bag: OpInput) -> db.Bag:
     assert input_bag is None, 'Create expects no input!'
-    original_transform = t.cast(_Create, self.applied.transform)
+    original_transform = t.cast(_Create, self.transform)
     items = original_transform.values
     return db.from_sequence(items)
 
 
 class ParDo(DaskBagOp):
+
   def apply(self, input_bag: OpInput) -> db.Bag:
-    transform = t.cast(apache_beam.ParDo, self.applied.transform)
-    return input_bag.map(transform.fn.process, *transform.args, **transform.kwargs).flatten()
+    transform = t.cast(apache_beam.ParDo, self.transform)
+
+    label = transform.label
+    map_fn = transform.fn
+    args, kwargs = transform.raw_side_inputs
+    main_input = next(iter(self.applied.main_inputs.values()))
+    window_fn = main_input.windowing.windowfn if hasattr(main_input, "windowing") else None
+
+    context = DoFnContext(label, state=None)
+    bundle_finalizer_param = DoFn.BundleFinalizerParam()
+    do_fn_signature = DoFnSignature(map_fn)
+
+    values = []
+
+    tagged_receivers = OneReceiver(values)
+
+    output_processor = _OutputHandler(
+      window_fn=window_fn,
+      main_receivers=tagged_receivers[None],
+      tagged_receivers=tagged_receivers,
+      per_element_output_counter=None,
+    )
+
+    do_fn_invoker = DoFnInvoker.create_invoker(
+      do_fn_signature,
+      output_processor,
+      context,
+      None,
+      args,
+      kwargs,
+      user_state_context=None,
+      bundle_finalizer_param=bundle_finalizer_param)
+
+    # Invoke setup just in case
+    do_fn_invoker.invoke_setup()
+    do_fn_invoker.invoke_start_bundle()
+
+    for input_item in batch:
+      windowed_value = get_windowed_value(input_item, window_fn)
+      do_fn_invoker.invoke_process(windowed_value)
+
+    do_fn_invoker.invoke_finish_bundle()
+    # Invoke teardown just in case
+    do_fn_invoker.invoke_teardown()
+
+    # This has to happen last as we might receive results
+    # in invoke_finish_bundle() or invoke_teardown()
+    ret = list(values)
+
+    return input_bag.map(transform.fn.process, *args, **kwargs).flatten()
 
 
 class Map(DaskBagOp):
   def apply(self, input_bag: OpInput) -> db.Bag:
-    transform = t.cast(apache_beam.Map, self.applied.transform)
-    return input_bag.map(transform.fn.process, *transform.args, **transform.kwargs)
+    transform = t.cast(apache_beam.Map, self.transform)
+    args, kwargs = util.insert_values_in_args(
+      transform.args, transform.kwargs, transform.side_inputs)
+    return input_bag.map(transform.fn.process, *args, **kwargs)
 
 
 class GroupByKey(DaskBagOp):

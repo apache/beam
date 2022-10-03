@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 import dataclasses
-
 import typing as t
 
 import apache_beam as beam
@@ -74,8 +73,6 @@ class _GroupByKeyOnly(beam.PTransform):
 @typehints.with_input_types(t.Tuple[K, t.Iterable[V]])
 @typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
 class _GroupAlsoByWindow(beam.ParDo):
-  """Not used yet..."""
-
   def __init__(self, windowing):
     super().__init__(_GroupAlsoByWindowDoFn(windowing))
     self.windowing = windowing
@@ -91,7 +88,9 @@ class _GroupByKey(beam.PTransform):
   def expand(self, input_or_inputs):
     return (
         input_or_inputs
+        | "ReifyWindows" >> beam.ParDo(beam.GroupByKey.ReifyWindows())
         | "GroupByKey" >> _GroupByKeyOnly()
+        | "GroupByWindow" >> _GroupAlsoByWindow(input_or_inputs.windowing)
     )
 
 
