@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:playground_components/src/enums/complexity.dart';
 import 'package:playground_components/src/models/example.dart';
 import 'package:playground_components/src/models/example_base.dart';
 import 'package:playground_components/src/models/sdk.dart';
@@ -28,6 +29,7 @@ const exampleMock1 = Example(
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
   pipelineOptions: '',
+  complexity: Complexity.basic,
 );
 
 const exampleMock2 = Example(
@@ -38,6 +40,7 @@ const exampleMock2 = Example(
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
   pipelineOptions: '',
+  complexity: Complexity.basic,
 );
 
 const exampleWithoutSourceMock = ExampleBase(
@@ -47,6 +50,7 @@ const exampleWithoutSourceMock = ExampleBase(
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
   pipelineOptions: '',
+  complexity: Complexity.basic,
 );
 
 const exampleWithAllAdditionsMock = Example(
@@ -60,6 +64,7 @@ const exampleWithAllAdditionsMock = Example(
   logs: 'test outputs',
   graph: 'test outputs',
   pipelineOptions: '',
+  complexity: Complexity.basic,
 );
 
 const exampleMockGo = Example(
@@ -70,4 +75,5 @@ const exampleMockGo = Example(
   description: 'description',
   path: 'SDK_GO/Category/Name',
   pipelineOptions: '',
+  complexity: Complexity.medium,
 );

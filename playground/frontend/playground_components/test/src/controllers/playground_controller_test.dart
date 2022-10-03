@@ -159,8 +159,18 @@ void main() {
       descriptor.toJson(),
       {
         'descriptors': [
-          {'sdk': 'python', 'content': 'ex2', 'name': 'Kata'},
-          {'sdk': 'go', 'content': 'ex1', 'name': 'Example'},
+          {
+            'sdk': 'python',
+            'content': 'ex2',
+            'name': 'Kata',
+            'complexity': 'basic'
+          },
+          {
+            'sdk': 'go',
+            'content': 'ex1',
+            'name': 'Example',
+            'complexity': 'medium'
+          },
         ],
       },
     );

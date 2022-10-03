@@ -20,4 +20,5 @@ enum Complexity {
   basic,
   medium,
   advanced,
+  unspecified
 }

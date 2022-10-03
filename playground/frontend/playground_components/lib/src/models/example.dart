@@ -39,6 +39,7 @@ class Example extends ExampleBase {
     this.outputs,
     this.logs,
     this.graph,
+    required super.complexity,
   });
 
   Example.fromBase(
@@ -57,5 +58,6 @@ class Example extends ExampleBase {
           isMultiFile: example.isMultiFile,
           link: example.link,
           pipelineOptions: example.pipelineOptions,
+          complexity: example.complexity,
         );
 }

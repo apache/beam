@@ -20,6 +20,7 @@ import 'package:grpc/grpc.dart';
 
 import '../../api/iis_workaround_channel.dart';
 import '../../api/v1/api.pbgrpc.dart' as grpc;
+import '../../enums/complexity.dart';
 import '../../models/category_with_examples.dart';
 import '../../models/example_base.dart';
 import '../../models/sdk.dart';
@@ -203,6 +204,7 @@ class GrpcExampleClient implements ExampleClient {
       files: _convertToSharedFileList(response.files),
       sdk: response.sdk.model,
       pipelineOptions: response.pipelineOptions,
+      complexity: _exampleComplexityFromDto(response.complexity),
     );
   }
 
@@ -338,6 +340,7 @@ class GrpcExampleClient implements ExampleClient {
       pipelineOptions: example.pipelineOptions,
       isMultiFile: example.multifile,
       link: example.link,
+      complexity: _exampleComplexityFromDto(example.complexity),
     );
   }
 
@@ -372,5 +375,19 @@ class GrpcExampleClient implements ExampleClient {
     }
 
     return snippetFileList;
+  }
+
+  Complexity _exampleComplexityFromDto(grpc.Complexity complexity) {
+    switch (complexity) {
+      case grpc.Complexity.COMPLEXITY_BASIC:
+        return Complexity.basic;
+      case grpc.Complexity.COMPLEXITY_MEDIUM:
+        return Complexity.medium;
+      case grpc.Complexity.COMPLEXITY_ADVANCED:
+        return Complexity.advanced;
+      case grpc.Complexity.COMPLEXITY_UNSPECIFIED:
+        return Complexity.unspecified;
+    }
+    throw Exception('Unknown complexity: $complexity');
   }
 }
