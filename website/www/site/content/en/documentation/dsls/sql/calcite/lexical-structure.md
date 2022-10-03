@@ -335,6 +335,7 @@ language, and have the following characteristics:
 
 Beam SQL has the following reserved keywords.
 
+<div class="table-container-wrapper">
 <table style="table-layout: fixed; width: 110%">
 <tbody>
 <tr>
@@ -989,6 +990,7 @@ ZONE<br />
 </tr>
 </tbody>
 </table>
+</div>
 
 Terminating Semicolons
 ----------------------

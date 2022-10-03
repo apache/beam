@@ -22,7 +22,7 @@ limitations under the License.
 
 Are you interested in learning more about Apache Beam or giving a talk about Apache Beam? Excellent! The Apache Beam community has created this collection of materials to help you get started. The community periodically reviews these materials to ensure they are accurate and up-to-date.
 
-<div class="panel panel-default">
+<div class="panel panel-default table-container-wrapper">
   <div class="panel-body">
     <iframe src="https://drive.google.com/embeddedfolderview?id=0B-IhJZh9Ab52a3JLVXFWMDltcHM&resourcekey=0-VP9gZcuYGybKzNARikCEnQ#list" width="700" height="300" frameborder="0"></iframe>
   </div>
