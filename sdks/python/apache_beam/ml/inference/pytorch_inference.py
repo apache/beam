@@ -87,8 +87,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
 
-    **Supported Versions:** PyTorch 1.9 and 1.10 are currently supported for 
-      Apache Beam.
+    **Supported Versions:** RunInference APIs in Apache Beam have been tested
+      with PyTorch 1.9 and 1.10.
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU' and torch.cuda.is_available():
@@ -190,8 +190,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
 
-    **Supported Versions:** PyTorch 1.9 and 1.10 are currently supported for 
-      Apache Beam.
+    **Supported Versions:** RunInference APIs in Apache Beam have been tested
+      with PyTorch 1.9 and 1.10.
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU' and torch.cuda.is_available():
