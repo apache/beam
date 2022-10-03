@@ -18,6 +18,7 @@ package components
 import (
 	"context"
 	"fmt"
+	"time"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
@@ -37,73 +38,129 @@ func NewService(cache cache.Cache, db db.Database) *CacheComponent {
 
 // GetSdkCatalogFromCacheOrDatastore returns the sdk catalog from the cache
 // - If there is no sdk catalog in the cache, gets the sdk catalog from the Cloud Datastore and saves it to the cache
-func (cp *CacheComponent) GetSdkCatalogFromCacheOrDatastore(ctx context.Context) ([]*entity.SDKEntity, error) {
-	sdks, err := cp.cache.GetSdkCatalog(ctx)
-	if err != nil {
-		logger.Errorf("error during getting the sdk catalog from the cache, err: %s", err.Error())
-		sdks, err = cp.db.GetSDKs(ctx)
+func (cp *CacheComponent) GetSdkCatalogFromCacheOrDatastore(ctx context.Context, cacheRequestTimeout time.Duration) ([]*entity.SDKEntity, error) {
+	sdksCh := make(chan []*entity.SDKEntity, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		sdks, err := cp.cache.GetSdkCatalog(ctx)
 		if err != nil {
-			logger.Errorf("error during getting the sdk catalog from the cloud datastore, err: %s", err.Error())
-			return nil, err
+			errCh <- err
+		} else {
+			sdksCh <- sdks
 		}
-		if err = cp.cache.SetSdkCatalog(ctx, sdks); err != nil {
-			logger.Errorf("error during setting the sdk catalog to the cache, err: %s", err.Error())
-			return nil, err
-		}
+	}()
+	select {
+	case sdks := <-sdksCh:
+		return sdks, nil
+	case e := <-errCh:
+		logger.Errorf("error during getting the sdk catalog from the cache, err: %s", e.Error())
+		return cp.getSdks(ctx)
+	case <-time.After(cacheRequestTimeout):
+		logger.Errorf("error during getting the sdk catalog from the cache: timeout")
+		return cp.getSdks(ctx)
+	}
+}
+
+func (cp *CacheComponent) getSdks(ctx context.Context) ([]*entity.SDKEntity, error) {
+	sdks, err := cp.db.GetSDKs(ctx)
+	if err != nil {
+		logger.Errorf("error during getting the sdk catalog from the cloud datastore, err: %s", err.Error())
+		return nil, err
+	}
+	if err = cp.cache.SetSdkCatalog(ctx, sdks); err != nil {
+		logger.Errorf("error during setting the sdk catalog to the cache, err: %s", err.Error())
 	}
 	return sdks, nil
 }
 
 // GetCatalogFromCacheOrDatastore returns the example catalog from cache
 // - If there is no catalog in the cache, gets the catalog from the Cloud Datastore and saves it to the cache
-func (cp *CacheComponent) GetCatalogFromCacheOrDatastore(ctx context.Context) ([]*pb.Categories, error) {
-	catalog, err := cp.cache.GetCatalog(ctx)
+func (cp *CacheComponent) GetCatalogFromCacheOrDatastore(ctx context.Context, cacheRequestTimeout time.Duration) ([]*pb.Categories, error) {
+	catCh := make(chan []*pb.Categories, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		catalog, err := cp.cache.GetCatalog(ctx)
+		if err != nil {
+			errCh <- err
+		} else {
+			catCh <- catalog
+		}
+	}()
+	select {
+	case cat := <-catCh:
+		return cat, nil
+	case e := <-errCh:
+		logger.Errorf("error during getting the catalog from the cache, err: %s", e.Error())
+		return cp.getCatalog(ctx, cacheRequestTimeout)
+	case <-time.After(cacheRequestTimeout):
+		logger.Errorf("error during getting the catalog from the cache: timeout")
+		return cp.getCatalog(ctx, cacheRequestTimeout)
+	}
+}
+
+func (cp *CacheComponent) getCatalog(ctx context.Context, cacheRequestTimeout time.Duration) ([]*pb.Categories, error) {
+	sdkCatalog, err := cp.GetSdkCatalogFromCacheOrDatastore(ctx, cacheRequestTimeout)
 	if err != nil {
-		logger.Errorf("error during getting the catalog from the cache, err: %s", err.Error())
-		sdkCatalog, err := cp.GetSdkCatalogFromCacheOrDatastore(ctx)
-		if err != nil {
-			logger.Errorf("error during getting the sdk catalog from the cache or datastore, err: %s", err.Error())
-			return nil, err
-		}
-		catalog, err = cp.db.GetCatalog(ctx, sdkCatalog)
-		if err != nil {
-			return nil, err
-		}
-		if len(catalog) == 0 {
-			logger.Warn("example catalog is empty")
-			return catalog, nil
-		}
-		if err = cp.cache.SetCatalog(ctx, catalog); err != nil {
-			logger.Errorf("SetCatalog(): cache error: %s", err.Error())
-			return nil, err
-		}
+		return nil, err
+	}
+	catalog, err := cp.db.GetCatalog(ctx, sdkCatalog)
+	if err != nil {
+		return nil, err
+	}
+	if len(catalog) == 0 {
+		logger.Warn("example catalog is empty")
+		return catalog, nil
+	}
+	if err = cp.cache.SetCatalog(ctx, catalog); err != nil {
+		logger.Errorf("SetCatalog(): cache error: %s", err.Error())
 	}
 	return catalog, nil
 }
 
 // GetDefaultPrecompiledObjectFromCacheOrDatastore returns the default example from cache by sdk
 // - If there is no a default example in the cache, gets the default example from the Cloud Datastore and saves it to the cache
-func (cp *CacheComponent) GetDefaultPrecompiledObjectFromCacheOrDatastore(ctx context.Context, sdk pb.Sdk) (*pb.PrecompiledObject, error) {
-	defaultExample, err := cp.cache.GetDefaultPrecompiledObject(ctx, sdk)
-	if err != nil {
-		logger.Errorf("error during getting a default precompiled object, err: %s", err.Error())
-		sdks, err := cp.GetSdkCatalogFromCacheOrDatastore(ctx)
+func (cp *CacheComponent) GetDefaultPrecompiledObjectFromCacheOrDatastore(ctx context.Context, sdk pb.Sdk, cacheRequestTimeout time.Duration) (*pb.PrecompiledObject, error) {
+	prObjCh := make(chan *pb.PrecompiledObject, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		defaultExample, err := cp.cache.GetDefaultPrecompiledObject(ctx, sdk)
 		if err != nil {
-			logger.Errorf("error during getting sdk catalog from the cache or the cloud datastore, err: %s", err.Error())
-			return nil, err
+			errCh <- err
+		} else {
+			prObjCh <- defaultExample
 		}
-		defaultExamples, err := cp.db.GetDefaultExamples(ctx, sdks)
-		for sdk, defaultExample := range defaultExamples {
-			if err := cp.cache.SetDefaultPrecompiledObject(ctx, sdk, defaultExample); err != nil {
-				logger.Errorf("error during setting a default example to the cache: %s", err.Error())
-				return nil, err
-			}
+	}()
+	select {
+	case prObj := <-prObjCh:
+		return prObj, nil
+	case e := <-errCh:
+		logger.Errorf("error during getting the default precompiled object from the cache, err: %s", e.Error())
+		return cp.getDefaultExample(ctx, sdk, cacheRequestTimeout)
+	case <-time.After(cacheRequestTimeout):
+		logger.Errorf("error during getting the default precompiled object from the cache: timeout")
+		return cp.getDefaultExample(ctx, sdk, cacheRequestTimeout)
+	}
+}
+
+func (cp *CacheComponent) getDefaultExample(ctx context.Context, sdk pb.Sdk, cacheRequestTimeout time.Duration) (*pb.PrecompiledObject, error) {
+	sdks, err := cp.GetSdkCatalogFromCacheOrDatastore(ctx, cacheRequestTimeout)
+	if err != nil {
+		logger.Errorf("error during getting sdk catalog from the cache or the cloud datastore, err: %s", err.Error())
+		return nil, err
+	}
+	defaultExamples, err := cp.db.GetDefaultExamples(ctx, sdks)
+	if err != nil {
+		logger.Errorf("error during getting default examples from the cloud datastore, err: %s", err.Error())
+		return nil, err
+	}
+	for sdk, defaultExample := range defaultExamples {
+		if err := cp.cache.SetDefaultPrecompiledObject(ctx, sdk, defaultExample); err != nil {
+			logger.Errorf("error during setting a default example to the cache: %s", err.Error())
 		}
-		defaultExample, ok := defaultExamples[sdk]
-		if !ok {
-			return nil, fmt.Errorf("no default example found for this sdk: %s", sdk)
-		}
-		return defaultExample, nil
+	}
+	defaultExample, ok := defaultExamples[sdk]
+	if !ok {
+		return nil, fmt.Errorf("no default example found for this sdk: %s", sdk)
 	}
 	return defaultExample, nil
 }
