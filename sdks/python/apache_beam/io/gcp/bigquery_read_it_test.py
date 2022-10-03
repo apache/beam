@@ -237,7 +237,7 @@ class ReadTests(BigQueryReadIntegrationTests):
     the_table = bigquery_tools.BigQueryWrapper().get_table(
         project_id="apache-beam-testing",
         dataset_id="beam_bigquery_io_test",
-        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
+        table_id="taxi")
     table = the_table.schema
     utype = bigquery_schema_tools.\
         generate_user_type_from_bq_schema(table)
@@ -264,9 +264,9 @@ class ReadTests(BigQueryReadIntegrationTests):
         project_id="apache-beam-testing",
         dataset_id="beam_bigquery_io_test",
         table_id="taxi_small")
-    table = the_table.schema
+    schema = the_table.schema
     utype = bigquery_schema_tools. \
-          generate_user_type_from_bq_schema(table)
+          generate_user_type_from_bq_schema(schema)
     with beam.Pipeline(argv=self.args) as p:
       result = (
           p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
