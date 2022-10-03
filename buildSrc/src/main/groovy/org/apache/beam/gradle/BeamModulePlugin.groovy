@@ -39,6 +39,7 @@ import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
+import org.gradle.api.tasks.compile.CompileOptions
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
@@ -755,6 +756,29 @@ class BeamModulePlugin implements Plugin<Project> {
           + suffix)
     }
 
+    project.ext.setJava17Options = { CompileOptions options ->
+      def java17Home = project.findProperty("java17Home")
+      options.fork = true
+      options.forkOptions.javaHome = java17Home as File
+      options.compilerArgs += ['-Xlint:-path']
+      // Error prone requires some packages to be exported/opened for Java 17
+      // Disabling checks since this property is only used for Jenkins tests
+      // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
+      options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+      options.forkOptions.jvmArgs += [
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+        "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+        "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+      ]
+    }
+
     project.ext.repositories = {
       maven {
         name "testPublicationLocal"
@@ -1240,26 +1264,8 @@ class BeamModulePlugin implements Plugin<Project> {
       if (project.hasProperty("compileAndRunTestsWithJava17")) {
         def java17Home = project.findProperty("java17Home")
         project.tasks.compileTestJava {
-          options.fork = true
-          options.forkOptions.javaHome = java17Home as File
-          options.compilerArgs += ['-Xlint:-path']
           options.compilerArgs.addAll(['--release', '17'])
-          // Error prone requires some packages to be exported/opened for Java 17
-          // Disabling checks since this property is only used for Jenkins tests
-          // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
-          options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
-          options.forkOptions.jvmArgs += [
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-            "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-            "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
-          ]
+          project.ext.setJava17Options(options)
         }
         project.tasks.withType(Test) {
           useJUnit()

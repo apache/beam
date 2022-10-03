@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /*
@@ -30,7 +31,12 @@ import java.util.Set;
 public class OpenModuleAgent {
   public static void premain(String argument, Instrumentation instrumentation) {
     Set<Module> modulesToOpen = new HashSet<>();
-    Module jamm = ModuleLayer.boot().findModule("jamm").orElse(null);
+    Optional<Module> jamm = ModuleLayer.boot().findModule("jamm");
+    if (!jamm.isPresent()) {
+      System.out.println("Jamm module expected, but not found");
+      return;
+    }
+
     ModuleLayer.boot()
         .modules()
         .forEach(
@@ -40,21 +46,19 @@ public class OpenModuleAgent {
               }
             });
 
-    if (jamm != null) {
-      Set<Module> openModules = Set.of(jamm);
-      for (Module module : modulesToOpen) {
-        Map<String, Set<Module>> addOpens = new HashMap<>();
-        for (String pkg : module.getPackages()) {
-          addOpens.put(pkg, openModules);
-        }
-        instrumentation.redefineModule(
-            module,
-            Collections.emptySet(),
-            Collections.emptyMap(),
-            addOpens,
-            Collections.emptySet(),
-            Collections.emptyMap());
+    Set<Module> openModules = Set.of(jamm.get());
+    for (Module module : modulesToOpen) {
+      Map<String, Set<Module>> addOpens = new HashMap<>();
+      for (String pkg : module.getPackages()) {
+        addOpens.put(pkg, openModules);
       }
+      instrumentation.redefineModule(
+          module,
+          Collections.emptySet(),
+          Collections.emptyMap(),
+          addOpens,
+          Collections.emptySet(),
+          Collections.emptyMap());
     }
   }
 }

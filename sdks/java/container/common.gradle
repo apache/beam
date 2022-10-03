@@ -90,7 +90,7 @@ task skipPullLicenses(type: Exec) {
 }
 
 task validateJavaHome {
-    if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) >= 0 && imageJavaVersion == "11" || imageJavaVersion == "17") {
+    if (imageJavaVersion == "11" || imageJavaVersion == "17") {
         doFirst {
             if (!project.hasProperty('java17Home') && !project.hasProperty('java11Home')) {
                 throw new GradleException('java17Home or java11Home property required. Re-run with -Pjava17Home or -Pjava11Home')
