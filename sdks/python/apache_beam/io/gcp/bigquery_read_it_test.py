@@ -185,7 +185,7 @@ class ReadTests(BigQueryReadIntegrationTests):
     the_table = bigquery_tools.BigQueryWrapper().get_table(
         project_id="apache-beam-testing",
         dataset_id="beam_bigquery_io_test",
-        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
+        table_id="table_schema_retrieve")
     table = the_table.schema
     utype = bigquery_schema_tools.\
         generate_user_type_from_bq_schema(table)
@@ -194,16 +194,36 @@ class ReadTests(BigQueryReadIntegrationTests):
           p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
               gcs_location="gs://bqio_schema_test",
               dataset="beam_bigquery_io_test",
-              table="dfsqltable_3c7d6fd5_16e0460dfd0",
+              table="table_schema_retrieve",
               project="apache-beam-testing",
               output_type='BEAM_ROW'))
       assert_that(
           result,
           equal_to([
-              utype(id=3, name='customer1', type='test'),
-              utype(id=1, name='customer1', type='test'),
-              utype(id=2, name='customer2', type='test'),
-              utype(id=4, name='customer2', type='test')
+              utype(
+                  id=1,
+                  name='customer1',
+                  type='test',
+                  times=datetime.datetime(
+                      2021, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+              utype(
+                  id=3,
+                  name='customer1',
+                  type='test',
+                  times=datetime.datetime(
+                      2022, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+              utype(
+                  id=2,
+                  name='customer2',
+                  type='test',
+                  times=datetime.datetime(
+                      2020, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+              utype(
+                  id=4,
+                  name='customer2',
+                  type='test',
+                  times=datetime.datetime(
+                      2019, 10, 3, 12, 0, tzinfo=datetime.timezone.utc))
           ]))
 
   @pytest.mark.it_postcommit
@@ -211,7 +231,7 @@ class ReadTests(BigQueryReadIntegrationTests):
     the_table = bigquery_tools.BigQueryWrapper().get_table(
         project_id="apache-beam-testing",
         dataset_id="beam_bigquery_io_test",
-        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
+        table_id="table_schema_retrieve")
     table = the_table.schema
     utype = bigquery_schema_tools.\
         generate_user_type_from_bq_schema(table)
@@ -221,15 +241,35 @@ class ReadTests(BigQueryReadIntegrationTests):
               gcs_location="gs://bqio_schema_test",
               table="apache-beam-testing:"
               "beam_bigquery_io_test."
-              "dfsqltable_3c7d6fd5_16e0460dfd0",
+              "table_schema_retrieve",
               output_type='BEAM_ROW'))
       assert_that(
           result,
           equal_to([
-              utype(id=3, name='customer1', type='test'),
-              utype(id=1, name='customer1', type='test'),
-              utype(id=2, name='customer2', type='test'),
-              utype(id=4, name='customer2', type='test')
+              utype(
+                  id=1,
+                  name='customer1',
+                  type='test',
+                  times=datetime.datetime(
+                      2021, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+              utype(
+                  id=3,
+                  name='customer1',
+                  type='test',
+                  times=datetime.datetime(
+                      2022, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+              utype(
+                  id=2,
+                  name='customer2',
+                  type='test',
+                  times=datetime.datetime(
+                      2020, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+              utype(
+                  id=4,
+                  name='customer2',
+                  type='test',
+                  times=datetime.datetime(
+                      2019, 10, 3, 12, 0, tzinfo=datetime.timezone.utc))
           ]))
 
   @pytest.mark.it_postcommit
@@ -237,7 +277,7 @@ class ReadTests(BigQueryReadIntegrationTests):
     the_table = bigquery_tools.BigQueryWrapper().get_table(
         project_id="apache-beam-testing",
         dataset_id="beam_bigquery_io_test",
-        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
+        table_id="table_schema_retrieve")
     table = the_table.schema
     utype = bigquery_schema_tools.\
         generate_user_type_from_bq_schema(table)
@@ -247,132 +287,35 @@ class ReadTests(BigQueryReadIntegrationTests):
               method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
               table="apache-beam-testing:"
               "beam_bigquery_io_test."
-              "dfsqltable_3c7d6fd5_16e0460dfd0",
-              output_type='BEAM_ROW'))
-      assert_that(
-          result,
-          equal_to([
-              utype(id=3, name='customer1', type='test'),
-              utype(id=1, name='customer1', type='test'),
-              utype(id=2, name='customer2', type='test'),
-              utype(id=4, name='customer2', type='test')
-          ]))
-
-  @pytest.mark.it_postcommit
-  def test_table_schema_retrieve_with_timestamp(self):
-    the_table = bigquery_tools.BigQueryWrapper().get_table(
-        project_id="apache-beam-testing",
-        dataset_id="beam_bigquery_io_test",
-        table_id="taxi_small")
-    schema = the_table.schema
-    utype = bigquery_schema_tools. \
-          generate_user_type_from_bq_schema(schema)
-    with beam.Pipeline(argv=self.args) as p:
-      result = (
-          p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
-              gcs_location="gs://bqio_schema_test",
-              dataset="beam_bigquery_io_test",
-              table="taxi_small",
-              project="apache-beam-testing",
+              "table_schema_retrieve",
               output_type='BEAM_ROW'))
       assert_that(
           result,
           equal_to([
               utype(
-                  event_timestamp=datetime.datetime(
-                      2021,
-                      11,
-                      5,
-                      20,
-                      57,
-                      43,
-                      612000,
-                      tzinfo=datetime.timezone.utc),
-                  ride_id='0004b5de-8db1-425b-8eec-7a25b04a1ee0',
-                  point_idx=9,
-                  latitude=40.757380000000005,
-                  timestamp='2021-11-05T16:57:43.60906-04:00',
-                  meter_reading=0.37846154,
-                  meter_increment=0.04205128,
-                  ride_status='enroute',
-                  passenger_count=1,
-                  longitude=-73.98969000000001),
+                  id=1,
+                  name='customer1',
+                  type='test',
+                  times=datetime.datetime(
+                      2021, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
               utype(
-                  event_timestamp=datetime.datetime(
-                      2021,
-                      11,
-                      5,
-                      20,
-                      57,
-                      36,
-                      214000,
-                      tzinfo=datetime.timezone.utc),
-                  ride_id='0004b5de-8db1-425b-8eec-7a25b04a1ee0',
-                  point_idx=6,
-                  latitude=40.757130000000004,
-                  timestamp='2021-11-05T16:57:34.92445-04:00',
-                  meter_reading=0.25230768,
-                  meter_increment=0.04205128,
-                  ride_status='enroute',
-                  passenger_count=1,
-                  longitude=-73.98987000000001),
+                  id=3,
+                  name='customer1',
+                  type='test',
+                  times=datetime.datetime(
+                      2022, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
               utype(
-                  event_timestamp=datetime.datetime(
-                      2021,
-                      11,
-                      5,
-                      20,
-                      52,
-                      37,
-                      244000,
-                      tzinfo=datetime.timezone.utc),
-                  ride_id='00101404-c323-4eb6-9f74-f23f3317d905',
-                  point_idx=531,
-                  latitude=40.79684,
-                  timestamp='2021-11-05T16:52:37.23995-04:00',
-                  meter_reading=11.999221,
-                  meter_increment=0.022597402,
-                  ride_status='enroute',
-                  passenger_count=1,
-                  longitude=-73.92925000000001),
+                  id=2,
+                  name='customer2',
+                  type='test',
+                  times=datetime.datetime(
+                      2020, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
               utype(
-                  event_timestamp=datetime.datetime(
-                      2021,
-                      11,
-                      5,
-                      20,
-                      57,
-                      19,
-                      749000,
-                      tzinfo=datetime.timezone.utc),
-                  ride_id='00101404-c323-4eb6-9f74-f23f3317d905',
-                  point_idx=702,
-                  latitude=40.794500000000006,
-                  timestamp='2021-11-05T16:55:52.61301-04:00',
-                  meter_reading=15.863377,
-                  meter_increment=0.022597402,
-                  ride_status='enroute',
-                  passenger_count=1,
-                  longitude=-73.92292),
-              utype(
-                  event_timestamp=datetime.datetime(
-                      2021,
-                      11,
-                      5,
-                      20,
-                      57,
-                      26,
-                      957000,
-                      tzinfo=datetime.timezone.utc),
-                  ride_id='00101404-c323-4eb6-9f74-f23f3317d905',
-                  point_idx=714,
-                  latitude=40.79345,
-                  timestamp='2021-11-05T16:56:06.3234-04:00',
-                  meter_reading=16.134544,
-                  meter_increment=0.022597402,
-                  ride_status='enroute',
-                  passenger_count=1,
-                  longitude=-73.92358)
+                  id=4,
+                  name='customer2',
+                  type='test',
+                  times=datetime.datetime(
+                      2019, 10, 3, 12, 0, tzinfo=datetime.timezone.utc))
           ]))
 
 
