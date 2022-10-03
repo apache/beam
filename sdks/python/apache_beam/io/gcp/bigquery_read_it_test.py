@@ -237,7 +237,7 @@ class ReadTests(BigQueryReadIntegrationTests):
     the_table = bigquery_tools.BigQueryWrapper().get_table(
         project_id="apache-beam-testing",
         dataset_id="beam_bigquery_io_test",
-        table_id="taxi")
+        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
     table = the_table.schema
     utype = bigquery_schema_tools.\
         generate_user_type_from_bq_schema(table)
