@@ -1149,7 +1149,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
       return self._lazy_iterator(state_key, coder)
     # Cache lookup
     cache_state_key = self._convert_to_cache_key(state_key)
-    cached_value = self._state_cache.get(cache_state_key, cache_token)
+    cached_value = self._state_cache.peek((cache_state_key, cache_token))
     if cached_value is None:
       # Cache miss, need to retrieve from the Runner
       # Further size estimation or the use of the continuation token on the
@@ -1158,7 +1158,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
       materialized = cached_value = (
           self._partially_cached_iterable(state_key, coder))
       if isinstance(materialized, (list, self.ContinuationIterable)):
-        self._state_cache.put(cache_state_key, cache_token, materialized)
+        self._state_cache.put((cache_state_key, cache_token), materialized)
       else:
         _LOGGER.error(
             "Uncacheable type %s for key %s. Not caching.",
@@ -1177,7 +1177,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
     if cache_token:
       # Update the cache
       cache_key = self._convert_to_cache_key(state_key)
-      cached_value = self._state_cache.get(cache_key, cache_token)
+      cached_value = self._state_cache.peek((cache_key, cache_token))
       # Keep in mind that the state for this key can be evicted
       # while executing this function. Either read or write to the cache
       # but never do both here!
@@ -1220,7 +1220,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
     cache_token = self._get_cache_token(state_key)
     if cache_token:
       cache_key = self._convert_to_cache_key(state_key)
-      self._state_cache.clear(cache_key, cache_token)
+      self._state_cache.put((cache_key, cache_token), [])
     return self._underlying.clear(state_key)
 
   def done(self):
