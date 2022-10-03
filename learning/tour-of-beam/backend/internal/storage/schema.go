@@ -36,6 +36,8 @@ const (
 
 	PgSnippetsKind = "pg_snippets"
 	PgSdksKind     = "pg_sdks"
+
+	OriginTbExamples = "TB_EXAMPLES"
 )
 
 // tb_learning_path.
