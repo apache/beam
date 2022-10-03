@@ -100,6 +100,9 @@ func (cp *CacheComponent) GetCatalogFromCacheOrDatastore(ctx context.Context, ca
 
 func (cp *CacheComponent) getCatalog(ctx context.Context, cacheRequestTimeout time.Duration) ([]*pb.Categories, error) {
 	sdkCatalog, err := cp.GetSdkCatalogFromCacheOrDatastore(ctx, cacheRequestTimeout)
+	if err != nil {
+		return nil, err
+	}
 	catalog, err := cp.db.GetCatalog(ctx, sdkCatalog)
 	if err != nil {
 		return nil, err
@@ -146,6 +149,10 @@ func (cp *CacheComponent) getDefaultExample(ctx context.Context, sdk pb.Sdk, cac
 		return nil, err
 	}
 	defaultExamples, err := cp.db.GetDefaultExamples(ctx, sdks)
+	if err != nil {
+		logger.Errorf("error during getting default examples from the cloud datastore, err: %s", err.Error())
+		return nil, err
+	}
 	for sdk, defaultExample := range defaultExamples {
 		if err := cp.cache.SetDefaultPrecompiledObject(ctx, sdk, defaultExample); err != nil {
 			logger.Errorf("error during setting a default example to the cache: %s", err.Error())
