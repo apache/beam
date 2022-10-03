@@ -19,10 +19,13 @@ import argparse
 import io
 import os
 
+import numpy as np
+
 import apache_beam as beam
 import tensorflow as tf
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -34,7 +37,7 @@ from typing import Tuple
 from tfx_bsl.public.beam.run_inference import CreateModelHandler
 from tfx_bsl.public.proto import model_spec_pb2
 
-_IMG_SIZE = (224, 224, 3)
+_IMG_SIZE = (224, 224)
 
 
 def filter_empty_lines(text: str) -> Iterator[str]:
@@ -51,7 +54,7 @@ def deserialize_tf_example(serialized_example):
 
 
 def read_image(image_file_name: str,
-               path_to_dir: Optional[str] = None) -> Tuple[str, Image.Image]:
+               path_to_dir: Optional[str] = None) -> Tuple[str, np.ndarray]:
   if path_to_dir is not None:
     image_file_name = os.path.join(path_to_dir, image_file_name)
   with FileSystems().open(image_file_name, 'r') as file:
@@ -59,31 +62,47 @@ def read_image(image_file_name: str,
     return image_file_name, data
 
 
+def preprocess_image(data):
+  # Note: Converts the image dtype from uint8 to int32
+  # https://www.tensorflow.org/api_docs/python/tf/image/resize
+  image = tf.image.resize(data, _IMG_SIZE)
+  return image
+
+
 class ExampleProcessor:
+  h = _IMG_SIZE[0]
+  w = _IMG_SIZE[1]
+
   def create_example(self, element):
-    feature_of_bytes = self.create_feature(element)
-    features_for_example = {'image': feature_of_bytes}
+    feature_of_bytes = self.create_feature_vector(element)
+    features_for_example = {
+        'image': feature_of_bytes,
+        'h': self.create_feature_int(self.h),
+        'w': self.create_feature_int(self.w)
+    }
     example_proto = tf.train.Example(
         features=tf.train.Features(feature=features_for_example))
     return example_proto.SerializeToString()
 
-  def create_feature(self, element):
+  def create_feature_vector(self, element):
     serialized_non_scalar = tf.io.serialize_tensor(element)
     feature_of_bytes = tf.train.Feature(
         bytes_list=tf.train.BytesList(value=[serialized_non_scalar.numpy()]))
     return feature_of_bytes
 
+  def create_feature_int(self, element):
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[element]))
+
 
 class PostProcessor(beam.DoFn):
   def process(self, element):
-    predict_log = element.predict_log
-    # filename, predict_log = element[0], element[1].predict_log
+    filename, predict_log = element[0], element[1].predict_log
     output_value = predict_log.response.outputs
     output_tensor = (
         tf.io.decode_raw(
             output_value['output_0'].tensor_content, out_type=tf.float32))
     max_index_output_tensor = tf.math.argmax(output_tensor, axis=0)
-    yield max_index_output_tensor
+    yield filename, tf.get_static_value(max_index_output_tensor)
 
 
 def parse_known_args(argv):
@@ -97,7 +116,6 @@ def parse_known_args(argv):
   parser.add_argument(
       '--output',
       dest='output',
-      # required=True,
       help='Path where to save output predictions.'
       ' text file.')
   parser.add_argument(
@@ -114,18 +132,10 @@ def parse_known_args(argv):
 
 
 def run(
-    argv=None,
-    model_class=None,
-    model_params=None,
-    save_main_session=True,
-    test_pipeline=None) -> PipelineResult:
+    argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
   """
   Args:
     argv: Command line arguments defined for this example.
-    model_class: Reference to the class definition of the model.
-    model_params: Parameters passed to the constructor of the model_class.
-                  These will be used to instantiate the model object in the
-                  RunInference API.
     save_main_session: Used for internal testing.
     test_pipeline: Used for internal testing.
   """
@@ -138,6 +148,7 @@ def run(
   inferece_spec_type = model_spec_pb2.InferenceSpecType(
       saved_model_spec=saved_model_spec)
   model_handler = CreateModelHandler(inferece_spec_type)
+  keyed_model_handler = KeyedModelHandler(model_handler)
 
   pipeline = test_pipeline
   if not test_pipeline:
@@ -149,16 +160,25 @@ def run(
       | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
       | 'ReadImageData' >> beam.Map(
           lambda image_name: read_image(
-              image_file_name=image_name, path_to_dir=known_args.images_dir)[1])
-      | 'ConvertToTensor' >> beam.Map(tf.convert_to_tensor))
+              image_file_name=image_name, path_to_dir=known_args.images_dir))
+      | 'ReshapeAndNormalizeData' >>
+      beam.Map(lambda x: (x[0], preprocess_image(x[1])))
+      | 'ConvertToTensor' >>
+      beam.Map(lambda x: (x[0], tf.convert_to_tensor(x[1]))))
 
-  _ = (
+  predictions = (
       filename_value_pair
-      | 'ConvertToExampleProto' >> beam.Map(ExampleProcessor().create_example)
-      | 'TFXRunInference' >> RunInference(model_handler)
-      # | 'PostProcess' >> beam.ParDo(PostProcessor())
+      | 'ConvertToExampleProto' >>
+      beam.Map(lambda x: (x[0], ExampleProcessor().create_example(x[1])))
+      | 'TFXRunInference' >> RunInference(keyed_model_handler)
+      | 'PostProcess' >> beam.ParDo(PostProcessor())
       | beam.Map(print))
-
+  _ = (
+      predictions
+      | "WriteOutputToGCS" >> beam.io.WriteToText(
+          known_args.output,
+          shard_name_template='',
+          append_trailing_newlines=True))
   pipeline.run()
 
 
