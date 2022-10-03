@@ -17,40 +17,55 @@
 
 import tensorflow as tf
 
-DATA_SPEC = {
-    'image': tf.io.FixedLenFeature((), tf.string),
-}
-_D_TYPE = tf.int32
 
-base_model = tf.keras.applications.MobileNetV2(weights='imagenet')
+class TFModelWrapperWithSignature(tf.keras.Model):
+  def __init__(
+      self,
+      model,
+      preprocess_input=None,
+      input_dtype=tf.float32,
+      feature_description=None):
+    super().__init__()
+    self.model = model
+    self.preprocess_input = preprocess_input
+    self.input_dtype = input_dtype
+    self.feature_description = feature_description
+    if not feature_description:
+      self.feature_description = {'image': tf.io.FixedLenFeature((), tf.string)}
+
+  @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string)])
+  def call(self, serialized_examples):
+    features = tf.io.parse_example(
+        serialized_examples, features=self.feature_description)
+
+    # using TensorArray as suggested at
+    # https://github.com/tensorflow/tensorflow/issues/39323#issuecomment-627586602
+    batch = len(features['image'])
+    deserialized_vectors = tf.TensorArray(
+        self.input_dtype, size=batch, dynamic_size=True)
+    # issue arise with the indexing at features['image']
+    # Vectorized version of tf.io.parse_tensor is not available
+    # https://github.com/tensorflow/tensorflow/issues/43706
+    for i in range(batch):
+      deserialized_value = tf.io.parse_tensor(
+          features['image'][i], out_type=self.input_dtype)
+
+      # http://github.com/tensorflow/tensorflow/issues/30409#issuecomment-508962873
+      # In Graph mode, return value must get assigned in order to
+      # update the array
+      deserialized_vectors = deserialized_vectors.write(i, deserialized_value)
+
+    # deserialized_value = tf.expand_dims(deserialized_vectors, axis=0)
+    deserialized_tensor = deserialized_vectors.stack()
+    if self.preprocess_input:
+      deserialized_tensor = self.preprocess_input(deserialized_tensor)
+    return self.model(deserialized_tensor, training=False)
 
 
-@tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string)])
-def serve_tf_example(serialized_tf_examples):
-  features = tf.io.parse_example(serialized_tf_examples, features=DATA_SPEC)
-
-  # TODO: Pass the output type as serialized value through tf.train.Example
-  # using TensorArray as suggested at
-  # https://github.com/tensorflow/tensorflow/issues/39323#issuecomment-627586602
-  batch = len(features['image'])
-  deserialized_vectors = tf.TensorArray(_D_TYPE, size=batch, dynamic_size=True)
-  # issue arise with the indexing at features['image']
-  # Vectorized version of tf.io.parse_tensor is not available
-  # https://github.com/tensorflow/tensorflow/issues/43706
-  for i in range(batch):
-    deserialized_value = tf.io.parse_tensor(
-        features['image'][i], out_type=_D_TYPE)
-
-    # http://github.com/tensorflow/tensorflow/issues/30409#issuecomment-508962873
-    # In Graph mode, return value must get assigned in order to update the array
-    deserialized_vectors = deserialized_vectors.write(i, deserialized_value)
-
-  # deserialized_value = tf.expand_dims(deserialized_vectors, axis=0)
-  deserialized_tensor = deserialized_vectors.stack()
-  preprocessed_tensor = tf.keras.applications.mobilenet_v2.preprocess_input(
-      deserialized_tensor)
-  return base_model(preprocessed_tensor, training=False)
-
-
-signature = {'serving_default': serve_tf_example}
-tf.keras.models.save_model(base_model, '/tmp/tf', signatures=signature)
+def save_tf_model(path, model=None, preprocess_input=None):
+  if not model:
+    model = tf.keras.applications.MobileNetV2(weights='imagenet')
+    preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
+  signature_model = TFModelWrapperWithSignature(
+      model=model, preprocess_input=preprocess_input)
+  tf.saved_model.save(signature_model, path)
