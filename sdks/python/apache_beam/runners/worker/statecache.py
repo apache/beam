@@ -30,7 +30,6 @@ import weakref
 from typing import Any
 from typing import Callable
 from typing import List
-from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -263,71 +262,73 @@ class StateCache(object):
 
     self._lock.acquire()
     value = self._cache.get(key, None)
-    if value is None:
-      self._miss_count += 1
-      loading_value = _LoadingValue()
-      self._cache[key] = loading_value
 
-      # Ensure that we unlock the lock while loading to allow for parallel gets
+    # Return the already cached value
+    if value is not None:
+      self._cache.move_to_end(key)
+      self._hit_count += 1
       self._lock.release()
+      return value.value()
 
-      start_time_ns = time.time_ns()
-      loading_value.load(key, loading_fn)
-      elapsed_time_ns = time.time_ns() - start_time_ns
+    # Load the value since it isn't in the cache.
+    self._miss_count += 1
+    loading_value = _LoadingValue()
+    self._cache[key] = loading_value
 
-      try:
-        value = loading_value.value()
-      except Exception as err:
-        # If loading failed then delete the value from the cache allowing for
-        # the next lookup to possibly succeed.
-        with self._lock:
-          self._load_count += 1
-          self._load_time_ns += elapsed_time_ns
-          # Don't remove values that have already been replaced with a different
-          # value by a put/invalidate that occurred concurrently with the load.
-          # The put/invalidate will have been responsible for updating the
-          # cache weight appropriately already.
-          old_value = self._cache.get(key, None)
-          if old_value is not loading_value:
-            raise err
-          self._current_weight -= loading_value.weight()
-          del self._cache[key]
-        raise err
+    # Ensure that we unlock the lock while loading to allow for parallel gets
+    self._lock.release()
 
-      # Replace the value in the cache with a weighted value now that the
-      # loading has completed successfully.
-      weight = objsize.get_deep_size(
-          value, get_referents_func=get_referents_for_cache)
-      if weight <= 0:
-        _LOGGER.warning(
-            'Expected object size to be >= 0 for %s but received %d.',
-            value,
-            weight)
-        weight = 8
-      value = WeightedValue(value, weight)
+    start_time_ns = time.time_ns()
+    loading_value.load(key, loading_fn)
+    elapsed_time_ns = time.time_ns() - start_time_ns
+
+    try:
+      value = loading_value.value()
+    except Exception as err:
+      # If loading failed then delete the value from the cache allowing for
+      # the next lookup to possibly succeed.
       with self._lock:
         self._load_count += 1
         self._load_time_ns += elapsed_time_ns
-        # Don't replace values that have already been replaced with a different
+        # Don't remove values that have already been replaced with a different
         # value by a put/invalidate that occurred concurrently with the load.
         # The put/invalidate will have been responsible for updating the
         # cache weight appropriately already.
         old_value = self._cache.get(key, None)
         if old_value is not loading_value:
-          return value.value()
-
+          raise err
         self._current_weight -= loading_value.weight()
-        self._cache[key] = value
-        self._current_weight += value.weight()
-        while self._current_weight > self._max_weight:
-          (_, weighted_value) = self._cache.popitem(last=False)
-          self._current_weight -= weighted_value.weight()
-          self._evict_count += 1
+        del self._cache[key]
+      raise err
 
-    else:
-      self._cache.move_to_end(key)
-      self._hit_count += 1
-      self._lock.release()
+    # Replace the value in the cache with a weighted value now that the
+    # loading has completed successfully.
+    weight = get_deep_size(value)
+    if weight <= 0:
+      _LOGGER.warning(
+          'Expected object size to be >= 0 for %s but received %d.',
+          value,
+          weight)
+      weight = 8
+    value = WeightedValue(value, weight)
+    with self._lock:
+      self._load_count += 1
+      self._load_time_ns += elapsed_time_ns
+      # Don't replace values that have already been replaced with a different
+      # value by a put/invalidate that occurred concurrently with the load.
+      # The put/invalidate will have been responsible for updating the
+      # cache weight appropriately already.
+      old_value = self._cache.get(key, None)
+      if old_value is not loading_value:
+        return value.value()
+
+      self._current_weight -= loading_value.weight()
+      self._cache[key] = value
+      self._current_weight += value.weight()
+      while self._current_weight > self._max_weight:
+        (_, weighted_value) = self._cache.popitem(last=False)
+        self._current_weight -= weighted_value.weight()
+        self._evict_count += 1
 
     return value.value()
 
@@ -335,8 +336,7 @@ class StateCache(object):
     # type: (Any, Any) -> None
     assert self.is_cache_enabled()
     if not _safe_isinstance(value, WeightedValue):
-      weight = objsize.get_deep_size(
-          value, get_referents_func=get_referents_for_cache)
+      weight = get_deep_size(value)
       if weight <= 0:
         _LOGGER.warning(
             'Expected object size to be >= 0 for %s but received %d.',

@@ -47,10 +47,11 @@ class StateCacheTest(unittest.TestCase):
     o = WeightedValueRef()
     cache.put('deep ref', o)
     # Ensure that the contents of the internal weak ref isn't sized
-    self.assertIsNotNone(cache.get('deep ref'))
+    self.assertIsNotNone(cache.peek('deep ref'))
     self.assertEqual(
         cache.describe_stats(),
-        'used/max 0/5 MB, hit 100.00%, lookups 1, evictions 0')
+        'used/max 0/5 MB, hit 100.00%, lookups 1, avg load time 0 ns, loads 0, '
+        'evictions 0')
     cache.invalidate_all()
 
     # Ensure that putting in a weakref doesn't fail regardless of whether
@@ -73,10 +74,11 @@ class StateCacheTest(unittest.TestCase):
     o = WeightedValueRef()
     cache.put('deep ref', o)
     # Ensure that the contents of the internal weak ref isn't sized
-    self.assertIsNotNone(cache.get('deep ref'))
+    self.assertIsNotNone(cache.peek('deep ref'))
     self.assertEqual(
         cache.describe_stats(),
-        'used/max 0/5 MB, hit 100.00%, lookups 1, evictions 0')
+        'used/max 0/5 MB, hit 100.00%, lookups 1, avg load time 0 ns, loads 0, '
+        'evictions 0')
     cache.invalidate_all()
 
     # Ensure that putting in a weakref doesn't fail regardless of whether
