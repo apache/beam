@@ -76,7 +76,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
 
     See https://pytorch.org/tutorials/beginner/saving_loading_models.html
     for details
-    
+
     Args:
       state_dict_path: path to the saved dictionary of the model state.
       model_class: class of the Pytorch model that defines the model
