@@ -288,53 +288,31 @@ task("pushFront") {
 task("prepareConfig") {
     group = "deploy"
     doLast {
-        var playgroundBackendUrl = ""
-        var playgroundBackendJavaRouteUrl = ""
-        var playgroundBackendGoRouteUrl = ""
-        var playgroundBackendPythonRouteUrl = ""
-        var playgroundBackendScioRouteUrl = ""
+        var extip = ""
         var stdout = ByteArrayOutputStream()
         exec {
-            commandLine = listOf("terraform", "output", "router-server-url")
+            commandLine = listOf("terraform", "output", "playground_static_ip_address")
             standardOutput = stdout
         }
-        playgroundBackendUrl = stdout.toString().trim().replace("\"", "")
+        extip = stdout.toString().trim().replace("\"", "")
         stdout = ByteArrayOutputStream()
-        exec {
-            commandLine = listOf("terraform", "output", "go-server-url")
-            standardOutput = stdout
-        }
-        playgroundBackendGoRouteUrl = stdout.toString().trim().replace("\"", "")
-        stdout = ByteArrayOutputStream()
-        exec {
-            commandLine = listOf("terraform", "output", "java-server-url")
-            standardOutput = stdout
-        }
-        playgroundBackendJavaRouteUrl = stdout.toString().trim().replace("\"", "")
-        stdout = ByteArrayOutputStream()
-        exec {
-            commandLine = listOf("terraform", "output", "python-server-url")
-            standardOutput = stdout
-        }
-        playgroundBackendPythonRouteUrl = stdout.toString().trim().replace("\"", "")
-        stdout = ByteArrayOutputStream()
-        exec {
-            commandLine = listOf("terraform", "output", "scio-server-url")
-            standardOutput = stdout
-        }
-        playgroundBackendScioRouteUrl = stdout.toString().trim().replace("\"", "")
-        val configFileName = "gradle.properties"
+        val configFileName = "config.g.dart"
         val modulePath = project(":playground:frontend").projectDir.absolutePath
-        var file = File(modulePath + "/" + configFileName)
+        var file = File("$modulePath/lib/$configFileName")
 
         file.writeText(
             """${licenseText}
-playgroundBackendUrl=${playgroundBackendUrl}
-analyticsUA=UA-73650088-1
-playgroundBackendJavaRouteUrl=${playgroundBackendJavaRouteUrl}
-playgroundBackendGoRouteUrl=${playgroundBackendGoRouteUrl}
-playgroundBackendPythonRouteUrl=${playgroundBackendPythonRouteUrl}
-playgroundBackendScioRouteUrl=${playgroundBackendScioRouteUrl}
+const String kAnalyticsUA = 'UA-73650088-2';
+const String kApiClientURL =
+      'https://router.${extip}.nip.io';
+const String kApiJavaClientURL =
+      'https://java.${extip}.nip.io';
+const String kApiGoClientURL =
+      'https://go.${extip}.nip.io';
+const String kApiPythonClientURL =
+      'https://python.${extip}.nip.io';
+const String kApiScioClientURL =
+      'https://scio.${extip}.nip.io';
 """
         )
         try {
@@ -365,14 +343,11 @@ task("deployFrontend") {
     group = "deploy"
     description = "deploy Frontend app"
     val read = tasks.getByName("readState")
-    val prepare = tasks.getByName("prepareConfig")
     val push = tasks.getByName("pushFront")
     val deploy = tasks.getByName("terraformApplyAppFront")
     dependsOn(read)
     Thread.sleep(10)
-    prepare.mustRunAfter(read)
-    dependsOn(prepare)
-    push.mustRunAfter(prepare)
+    push.mustRunAfter(read)
     deploy.mustRunAfter(push)
     dependsOn(push)
     dependsOn(deploy)
@@ -468,13 +443,16 @@ task ("gkebackend") {
   val takeConfig = tasks.getByName("takeConfig")
   val push = tasks.getByName("pushBack")
   val helm = tasks.getByName("helmInstallBackend")
+  val prepare = tasks.getByName("prepareConfig")
   dependsOn(init)
   dependsOn(apply)
   dependsOn(takeConfig)
   dependsOn(push)
   dependsOn(helm)
+  dependsOn(prepare)
   apply.mustRunAfter(init)
   takeConfig.mustRunAfter(apply)
   push.mustRunAfter(takeConfig)
   helm.mustRunAfter(push)
+  prepare.mustRunAfter(helm)
 }
