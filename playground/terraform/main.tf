@@ -84,7 +84,7 @@ module "applications" {
   scio_max_instance   = var.scio_max_instance
   scio_min_instance   = var.scio_min_instance
 
-  location               = var.application_location
+ # location               = var.application_location
   create_default_service = var.create_default_service
   state_bucket           = var.state_bucket
   state_prefix           = var.state_prefix
