@@ -66,7 +66,7 @@ const (
 	propertyPathKey               = "PROPERTY_PATH"
 	defaultPropertyPath           = "."
 	cacheRequestTimeoutKey        = "CACHE_REQUEST_TIMEOUT"
-	defaultCacheRequestTimeout    = time.Second * 5
+	defaultCacheRequestTimeout    = time.Second * 30
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
