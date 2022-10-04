@@ -58,8 +58,8 @@ jobs:
       matrix:
         java: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SUPPORTED_VERSIONS}}
         exclude: #Skipping Java 11 and 17 due to issues caused by new access options added in JDK 9 and onwards.
-          - java: "11"
-          - java: "17"
+          - java: "11" #Remove exclude and retest once https://github.com/apache/beam/issues/23068 is resolved
+          - java: "17" #Remove exclude and retest once https://github.com/apache/beam/issues/23066 is resolved
     timeout-minutes: 180
     steps:
       - name: Checkout code
