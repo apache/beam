@@ -17,6 +17,7 @@
  */
 
 import '../../enums/complexity.dart';
+import '../../enums/complexity_factory.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
@@ -71,15 +72,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
   static Complexity _parseComplexity(Map map) {
     final complexityString = map['complexity'];
-    switch (complexityString) {
-      case 'basic':
-        return Complexity.basic;
-      case 'medium':
-        return Complexity.medium;
-      case 'advanced':
-        return Complexity.advanced;
-    }
-    return Complexity.unspecified;
+    return ComplexityFactory.fromString(complexityString);
   }
 
   @override

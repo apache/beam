@@ -20,11 +20,11 @@ import 'package:grpc/grpc.dart';
 
 import '../../api/iis_workaround_channel.dart';
 import '../../api/v1/api.pbgrpc.dart' as grpc;
-import '../../enums/complexity.dart';
 import '../../models/category_with_examples.dart';
 import '../../models/example_base.dart';
 import '../../models/sdk.dart';
 import '../../util/replace_incorrect_symbols.dart';
+import '../complexity_grpc_extension.dart';
 import '../models/get_default_precompiled_object_request.dart';
 import '../models/get_precompiled_object_code_response.dart';
 import '../models/get_precompiled_object_request.dart';
@@ -204,7 +204,7 @@ class GrpcExampleClient implements ExampleClient {
       files: _convertToSharedFileList(response.files),
       sdk: response.sdk.model,
       pipelineOptions: response.pipelineOptions,
-      complexity: _exampleComplexityFromDto(response.complexity),
+      complexity: response.complexity.model,
     );
   }
 
@@ -340,7 +340,7 @@ class GrpcExampleClient implements ExampleClient {
       pipelineOptions: example.pipelineOptions,
       isMultiFile: example.multifile,
       link: example.link,
-      complexity: _exampleComplexityFromDto(example.complexity),
+      complexity: example.complexity.model,
     );
   }
 
@@ -375,19 +375,5 @@ class GrpcExampleClient implements ExampleClient {
     }
 
     return snippetFileList;
-  }
-
-  Complexity _exampleComplexityFromDto(grpc.Complexity complexity) {
-    switch (complexity) {
-      case grpc.Complexity.COMPLEXITY_BASIC:
-        return Complexity.basic;
-      case grpc.Complexity.COMPLEXITY_MEDIUM:
-        return Complexity.medium;
-      case grpc.Complexity.COMPLEXITY_ADVANCED:
-        return Complexity.advanced;
-      case grpc.Complexity.COMPLEXITY_UNSPECIFIED:
-        return Complexity.unspecified;
-    }
-    throw Exception('Unknown complexity: $complexity');
   }
 }
