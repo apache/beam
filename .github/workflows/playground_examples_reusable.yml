@@ -30,6 +30,7 @@ on:
       origin:
         type: string
         required: true
+concurrency: locked_port_8080
 env:
   BEAM_VERSION: 2.40.0
 jobs:
@@ -107,4 +108,3 @@ jobs:
         if: ${{ always() }}
         run: |
           docker image rm -f $IMAGE_TAG
-          docker image ls
