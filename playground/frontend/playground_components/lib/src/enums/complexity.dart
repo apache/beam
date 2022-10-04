@@ -20,7 +20,8 @@ enum Complexity {
   unspecified,
   basic,
   medium,
-  advanced;
+  advanced,
+  ;
 
   static Complexity fromString(String complexity) {
     switch (complexity) {
