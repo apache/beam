@@ -20,5 +20,19 @@ enum Complexity {
   unspecified,
   basic,
   medium,
-  advanced,
+  advanced;
+
+  static Complexity fromString(String complexity) {
+    switch (complexity) {
+      case 'basic':
+        return Complexity.basic;
+      case 'medium':
+        return Complexity.medium;
+      case 'advanced':
+        return Complexity.advanced;
+      case 'unspecified':
+        return Complexity.unspecified;
+    }
+    throw Exception('Unknown complexity: $complexity');
+  }
 }

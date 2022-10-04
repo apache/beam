@@ -16,19 +16,19 @@
  * limitations under the License.
  */
 
-import '../api/v1/api.pbgrpc.dart' as grpc;
+import '../api/v1/api.pbgrpc.dart' as g;
 import '../enums/complexity.dart';
 
-extension GrpcComplecity on grpc.Complexity {
+extension GrpcComplecity on g.Complexity {
   Complexity get model {
     switch (this) {
-      case grpc.Complexity.COMPLEXITY_BASIC:
+      case g.Complexity.COMPLEXITY_BASIC:
         return Complexity.basic;
-      case grpc.Complexity.COMPLEXITY_MEDIUM:
+      case g.Complexity.COMPLEXITY_MEDIUM:
         return Complexity.medium;
-      case grpc.Complexity.COMPLEXITY_ADVANCED:
+      case g.Complexity.COMPLEXITY_ADVANCED:
         return Complexity.advanced;
-      case grpc.Complexity.COMPLEXITY_UNSPECIFIED:
+      case g.Complexity.COMPLEXITY_UNSPECIFIED:
         return Complexity.unspecified;
     }
     throw Exception('Unknown complexity: $this');
