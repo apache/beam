@@ -73,12 +73,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
-      - name: Remove default github maven configuration
-        # This step is a workaround to avoid a decryption issue of Beam's
-        # gradle-command-action plugin and github's provided maven
-        # settings.xml file
-        shell: bash
-        run: rm ~/.m2/settings.xml
       - name: Run sqlPreCommit in Java-${{ matrix.java }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
