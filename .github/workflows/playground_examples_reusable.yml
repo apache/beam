@@ -79,7 +79,7 @@ jobs:
         run: |
           set -uex
           NAME=$(docker run -d --rm -p 8080:8080 -e PROTOCOL_TYPE=TCP $IMAGE_TAG)
-          echo $NAME >> $GITHUB_ENV
+          echo "NAME=$NAME" >> $GITHUB_ENV
 
       - name: Run ci_cd.py
         run: |
@@ -97,14 +97,15 @@ jobs:
 
       - name: Get SDK runner logs
         run: |
-          docker logs $NAME
+          [ -n "$NAME" ] && docker logs $NAME
 
       - name: Stop/remove SDK runner
         if: ${{ always() }}
         run: |
-          docker rm -f $NAME
+          [ -n "$NAME" ] &&  docker rm -f $NAME
 
       - name: Delete Docker image
         if: ${{ always() }}
         run: |
           docker image rm -f $IMAGE_TAG
+          docker image ls
