@@ -88,7 +88,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         Otherwise, it will be CPU.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
-      with PyTorch 1.9 and 1.10.
+    with PyTorch 1.9 and 1.10.
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU' and torch.cuda.is_available():
@@ -191,7 +191,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         Otherwise, it will be CPU.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
-      with PyTorch 1.9 and 1.10.
+    with PyTorch 1.9 and 1.10.
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU' and torch.cuda.is_available():
