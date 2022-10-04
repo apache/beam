@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.BACKLOG_UNK
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -552,6 +554,101 @@ public class JmsIOTest {
     verify(autoScaler, times(1)).getTotalBacklogBytes();
     reader.close();
     verify(autoScaler, times(1)).stop();
+  }
+
+  @Test
+  public void testCloseWithTimeout()
+      throws IOException, NoSuchFieldException, IllegalAccessException {
+
+    int closeTimeout = 2000;
+    JmsIO.Read spec =
+        JmsIO.read()
+            .withConnectionFactory(connectionFactory)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withQueue(QUEUE)
+            .withCloseTimeout(closeTimeout);
+
+    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
+    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+
+    reader.start();
+    reader.close();
+
+    boolean discarded = getDiscardedValue(reader);
+    assertFalse(discarded);
+    try {
+      Thread.sleep(closeTimeout + 1000);
+    } catch (InterruptedException ignored) {
+    }
+    discarded = getDiscardedValue(reader);
+    assertTrue(discarded);
+  }
+
+  @Test
+  public void testDiscardCheckpointMark() throws Exception {
+
+    Connection connection =
+        connectionFactoryWithSyncAcksAndWithoutPrefetch.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
+    for (int i = 0; i < 10; i++) {
+      producer.send(session.createTextMessage("test " + i));
+    }
+    producer.close();
+    session.close();
+    connection.close();
+
+    JmsIO.Read spec =
+        JmsIO.read()
+            .withConnectionFactory(connectionFactoryWithSyncAcksAndWithoutPrefetch)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withQueue(QUEUE);
+    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
+    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+
+    // start the reader and move to the first record
+    assertTrue(reader.start());
+
+    // consume 3 messages (NB: start already consumed the first message)
+    for (int i = 0; i < 3; i++) {
+      assertTrue(reader.advance());
+    }
+
+    // the messages are still pending in the queue (no ACK yet)
+    assertEquals(10, count(QUEUE));
+
+    // we finalize the checkpoint
+    reader.getCheckpointMark().finalizeCheckpoint();
+
+    // the checkpoint finalize ack the messages, and so they are not pending in the queue anymore
+    assertEquals(6, count(QUEUE));
+
+    // we read the 6 pending messages
+    for (int i = 0; i < 6; i++) {
+      assertTrue(reader.advance());
+    }
+
+    // still 6 pending messages as we didn't finalize the checkpoint
+    assertEquals(6, count(QUEUE));
+
+    // But here we discard the checkpoint
+    ((JmsCheckpointMark) reader.getCheckpointMark()).discard();
+    // we finalize the checkpoint: no more message in the queue
+    reader.getCheckpointMark().finalizeCheckpoint();
+
+    assertEquals(6, count(QUEUE));
+  }
+
+  private boolean getDiscardedValue(JmsIO.UnboundedJmsReader reader)
+      throws NoSuchFieldException, IllegalAccessException {
+    JmsCheckpointMark checkpoint = (JmsCheckpointMark) reader.getCheckpointMark();
+    Field privateField = JmsCheckpointMark.class.getDeclaredField("discarded");
+    privateField.setAccessible(true);
+    boolean discarded = (boolean) privateField.get(checkpoint);
+    return discarded;
   }
 
   private int count(String queue) throws Exception {
