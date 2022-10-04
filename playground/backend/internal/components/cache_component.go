@@ -39,23 +39,24 @@ func NewService(cache cache.Cache, db db.Database) *CacheComponent {
 // GetSdkCatalogFromCacheOrDatastore returns the sdk catalog from the cache
 // - If there is no sdk catalog in the cache, gets the sdk catalog from the Cloud Datastore and saves it to the cache
 func (cp *CacheComponent) GetSdkCatalogFromCacheOrDatastore(ctx context.Context, cacheRequestTimeout time.Duration) ([]*entity.SDKEntity, error) {
+	cctx, cancel := context.WithTimeout(ctx, cacheRequestTimeout)
+	defer cancel()
 	sdksCh := make(chan []*entity.SDKEntity, 1)
 	errCh := make(chan error, 1)
-	go func() {
-		sdks, err := cp.cache.GetSdkCatalog(ctx)
-		if err != nil {
-			errCh <- err
-		} else {
-			sdksCh <- sdks
-		}
-	}()
+	sdks, err := cp.cache.GetSdkCatalog(cctx)
+	if err != nil {
+		errCh <- err
+	} else {
+		sdksCh <- sdks
+	}
+
 	select {
 	case sdks := <-sdksCh:
 		return sdks, nil
 	case e := <-errCh:
 		logger.Errorf("error during getting the sdk catalog from the cache, err: %s", e.Error())
 		return cp.getSdks(ctx)
-	case <-time.After(cacheRequestTimeout):
+	case <-cctx.Done():
 		logger.Errorf("error during getting the sdk catalog from the cache: timeout")
 		return cp.getSdks(ctx)
 	}
@@ -76,23 +77,23 @@ func (cp *CacheComponent) getSdks(ctx context.Context) ([]*entity.SDKEntity, err
 // GetCatalogFromCacheOrDatastore returns the example catalog from cache
 // - If there is no catalog in the cache, gets the catalog from the Cloud Datastore and saves it to the cache
 func (cp *CacheComponent) GetCatalogFromCacheOrDatastore(ctx context.Context, cacheRequestTimeout time.Duration) ([]*pb.Categories, error) {
+	cctx, cancel := context.WithTimeout(ctx, cacheRequestTimeout)
+	defer cancel()
 	catCh := make(chan []*pb.Categories, 1)
 	errCh := make(chan error, 1)
-	go func() {
-		catalog, err := cp.cache.GetCatalog(ctx)
-		if err != nil {
-			errCh <- err
-		} else {
-			catCh <- catalog
-		}
-	}()
+	catalog, err := cp.cache.GetCatalog(cctx)
+	if err != nil {
+		errCh <- err
+	} else {
+		catCh <- catalog
+	}
 	select {
 	case cat := <-catCh:
 		return cat, nil
 	case e := <-errCh:
 		logger.Errorf("error during getting the catalog from the cache, err: %s", e.Error())
 		return cp.getCatalog(ctx, cacheRequestTimeout)
-	case <-time.After(cacheRequestTimeout):
+	case <-cctx.Done():
 		logger.Errorf("error during getting the catalog from the cache: timeout")
 		return cp.getCatalog(ctx, cacheRequestTimeout)
 	}
@@ -120,23 +121,23 @@ func (cp *CacheComponent) getCatalog(ctx context.Context, cacheRequestTimeout ti
 // GetDefaultPrecompiledObjectFromCacheOrDatastore returns the default example from cache by sdk
 // - If there is no a default example in the cache, gets the default example from the Cloud Datastore and saves it to the cache
 func (cp *CacheComponent) GetDefaultPrecompiledObjectFromCacheOrDatastore(ctx context.Context, sdk pb.Sdk, cacheRequestTimeout time.Duration) (*pb.PrecompiledObject, error) {
+	cctx, cancel := context.WithTimeout(ctx, cacheRequestTimeout)
+	defer cancel()
 	prObjCh := make(chan *pb.PrecompiledObject, 1)
 	errCh := make(chan error, 1)
-	go func() {
-		defaultExample, err := cp.cache.GetDefaultPrecompiledObject(ctx, sdk)
-		if err != nil {
-			errCh <- err
-		} else {
-			prObjCh <- defaultExample
-		}
-	}()
+	defaultExample, err := cp.cache.GetDefaultPrecompiledObject(cctx, sdk)
+	if err != nil {
+		errCh <- err
+	} else {
+		prObjCh <- defaultExample
+	}
 	select {
 	case prObj := <-prObjCh:
 		return prObj, nil
 	case e := <-errCh:
 		logger.Errorf("error during getting the default precompiled object from the cache, err: %s", e.Error())
 		return cp.getDefaultExample(ctx, sdk, cacheRequestTimeout)
-	case <-time.After(cacheRequestTimeout):
+	case <-cctx.Done():
 		logger.Errorf("error during getting the default precompiled object from the cache: timeout")
 		return cp.getDefaultExample(ctx, sdk, cacheRequestTimeout)
 	}
