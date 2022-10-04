@@ -55,7 +55,8 @@ def read_image(image_file_name: str,
 def preprocess_image(data):
   # Note: Converts the image dtype from uint8 to float32
   # https://www.tensorflow.org/api_docs/python/tf/image/resize
-  image = tf.image.resize(data, _IMG_SIZE)
+  image = tf.keras.preprocessing.image.img_to_array(data)
+  image = tf.image.resize(image, _IMG_SIZE)
   return image
 
 
@@ -85,7 +86,7 @@ class PostProcessor(beam.DoFn):
         tf.io.decode_raw(
             output_value['output_0'].tensor_content, out_type=tf.float32))
     max_index_output_tensor = tf.math.argmax(output_tensor, axis=0)
-    yield filename, tf.get_static_value(max_index_output_tensor)
+    yield filename + ',' + str(tf.get_static_value(max_index_output_tensor))
 
 
 def parse_known_args(argv):
