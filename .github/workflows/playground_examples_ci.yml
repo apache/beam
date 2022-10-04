@@ -28,6 +28,8 @@ jobs:
     strategy:
       matrix:
         sdk: ["python", "go", "java"]
+      # run sequentially
+      max-parallel: 1
     uses: ./.github/workflows/playground_examples_reusable.yml
     with:
       sdk: ${{ matrix.sdk }}
