@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import logging
 import unittest
 import uuid
 
@@ -81,3 +82,8 @@ class TFXInference(unittest.TestCase):
     for prediction in predictions:
       filename, prediction = prediction.split(',')
       self.assertEqual(_EXPECTED_OUTPUTS[filename], prediction)
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.DEBUG)
+  unittest.main()
