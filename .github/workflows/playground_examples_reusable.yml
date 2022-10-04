@@ -68,7 +68,7 @@ jobs:
              set -uex
              opts="-Pdocker-tag=$DOCKERTAG"
              if [ "${{ inputs.sdk }}" == "java" ]; then
-              opts=$opts -Pbase-image="apache/beam_java8_sdk:$BEAM_VERSION"
+              opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
              fi
 
              ./gradlew playground:backend:containers:$SDK:docker $opts
