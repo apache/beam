@@ -34,7 +34,9 @@ env:
   BEAM_VERSION: 2.40.0
 jobs:
   ci_cd:
-    name: Step ${{ inputs.step }} SDK ${{ inputs.sdk }} origin ${{ inputs.origin }}
+    name: Examples ${{ inputs.step }} ${{ inputs.sdk }} ${{ inputs.origin }}
+    concurrency:
+      group: ${{ github.head_ref || github.run_id }}
     runs-on: ubuntu-latest
     env:
       SDK: ${{ inputs.sdk }}
