@@ -1,0 +1,108 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Playground Examples CI/CD for a given SDK and origin
+
+on:
+  workflow_call:
+    inputs:
+      step:
+        type: string
+        required: true
+      sdk:
+        type: string
+        required: true
+      subdirs:
+        type: string
+        required: true
+      origin:
+        type: string
+        required: true
+env:
+  BEAM_VERSION: 2.40.0
+jobs:
+  ci_cd:
+    name: Step ${{ inputs.step }} SDK ${{ inputs.sdk }} origin ${{ inputs.origin }}
+    runs-on: ubuntu-latest
+    env:
+      SDK: ${{ inputs.sdk }}
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - uses: actions/setup-java@v3
+        with:
+            distribution: 'zulu'
+            java-version: '8'
+      - name: install deps
+        run: pip install -r requirements.txt
+        working-directory: playground/infrastructure
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue
+        run: rm ~/.m2/settings.xml
+
+      - name: Set Docker Tag
+        run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
+      - name: Set Docker Tag If Github Tag was trigger
+        run: echo "DOCKERTAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+        if: startsWith(github.ref, 'refs/tags/')
+      - name: Set docker image
+        run: echo "IMAGE=apache/beam_playground-backend-$SDK:$DOCKERTAG" >> $GITHUB_ENV
+
+      - name: Build SDK Backend Docker image
+        run: |
+             set -uex
+             opts="-Pdocker-tag=$DOCKERTAG"
+             if [ "${{ inputs.sdk }}" == "java" ]; then
+              opts=$opts -Pbase-image="apache/beam_java8_sdk:$BEAM_VERSION"
+             fi
+
+             ./gradlew playground:backend:containers:$SDK:docker $opts
+
+      - name: Start SDK runner in background
+        run: |
+          set -uex
+          NAME=$(docker run -d --rm -p 8080:8080 -env PROTOCOL_TYPE=TCP $IMAGE_TAG)
+          echo $NAME >> $GITHUB_ENV
+
+      - name: Run ci_cd.py
+        run: |
+             python3 ci_cd.py \
+              --step ${{ inputs.step }} \
+              --sdk SDK_${SDK^^} \
+              --origin ${{ inputs.origin }} \
+              --subdirs ${{ inputs.subdirs }}
+        working-directory: playground/infrastructure
+        env:
+          BEAM_ROOT_DIR: "../../"
+          SDK_CONFIG: "../../playground/sdks.yaml"
+          BEAM_EXAMPLE_CATEGORIES: "../categories.yaml"
+          SERVER_ADDRESS: localhost:8080
+
+      - name: Get SDK runner logs
+        run: |
+          docker logs $NAME
+
+      - name: Stop/remove SDK runner
+        if: ${{ always() }}
+        run: |
+          docker rm -f $NAME
+
+      - name: Delete Docker image
+        if: ${{ always() }}
+        run: |
+          docker image rm -f $IMAGE_TAG
