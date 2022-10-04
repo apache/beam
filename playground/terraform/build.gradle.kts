@@ -40,6 +40,8 @@ val licenseText = "#############################################################
 
 plugins {
     id("com.pswidersk.terraform-plugin") version "1.0.0"
+    id("org.unbroken-dome.helm") version "1.7.0"
+    id("org.unbroken-dome.helm-releases") version "1.7.0"
 }
 
 terraformPlugin {
@@ -395,3 +397,84 @@ task("deployBackend") {
     dependsOn(deploy)
 }
 
+task("takeConfig") {
+  group = "deploy"
+  doLast {
+   var ipaddr = ""
+   var redis = ""
+   var project = ""
+   var registry = ""
+   var ipaddrname = ""
+   var stdout = ByteArrayOutputStream()
+   exec {
+       commandLine = listOf("terraform", "output", "playground_static_ip_address")
+       standardOutput = stdout
+   }
+   ipaddr = stdout.toString().trim().replace("\"", "")
+   stdout = ByteArrayOutputStream()
+
+   exec {
+       commandLine = listOf("terraform", "output", "playground_redis_ip")
+       standardOutput = stdout
+   }
+   redis = stdout.toString().trim().replace("\"", "")
+   stdout = ByteArrayOutputStream()
+   exec {
+       commandLine = listOf("terraform", "output", "playground_gke_project")
+       standardOutput = stdout
+   }
+   project = stdout.toString().trim().replace("\"", "")
+   stdout = ByteArrayOutputStream()
+   exec {
+       commandLine = listOf("terraform", "output", "docker-repository-root")
+       standardOutput = stdout
+   }
+   registry = stdout.toString().trim().replace("\"", "")
+   stdout = ByteArrayOutputStream()
+   exec {
+       commandLine = listOf("terraform", "output", "playground_static_ip_address_name")
+       standardOutput = stdout
+   }
+   ipaddrname = stdout.toString().trim().replace("\"", "")
+   stdout = ByteArrayOutputStream()
+
+   val configFileName = "values.yaml"
+   val modulePath = project(":playground").projectDir.absolutePath
+   var file = File("$modulePath/infrastructure/helm-backend/$configFileName")
+   file.appendText("""
+static_ip: ${ipaddr}
+redis_ip: ${redis}:6379
+project_id: ${project}
+registry: ${registry}
+static_ip_name: ${ipaddrname}
+    """)
+ }
+}
+helm {
+    val backend by charts.creating {
+        chartName.set("backend")
+        sourceDir.set(file("../infrastructure/helm-backend"))
+    }
+    releases {
+        create("backend") {
+            from(backend)
+        }
+    }
+}
+task ("gkebackend") {
+  group = "deploy"
+  val init = tasks.getByName("terraformInit")
+  val apply = tasks.getByName("terraformApplyInf")
+  val takeConfig = tasks.getByName("takeConfig")
+  val push = tasks.getByName("pushBack")
+  val helm = tasks.getByName("helmInstallBackend")
+  dependsOn(init)
+  dependsOn(apply)
+  dependsOn(takeConfig)
+  dependsOn(push)
+  dependsOn(helm)
+  apply.mustRunAfter(init)
+  takeConfig.mustRunAfter(apply)
+  push.mustRunAfter(takeConfig)
+  helm.mustRunAfter(push)
+}
