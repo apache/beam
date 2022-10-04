@@ -37,12 +37,9 @@ jobs:
       contents: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_BRANCH: "release-${{github.event.inputs.RELEASE_VER}}"
+      WORKING_BRANCH: "v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}_validations"
     steps:
-      - name: Set environment variables
-        run: |
-          echo "RC_TAG=v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}" >>  $GITHUB_ENV
-          echo "RELEASE_BRANCH=release-${{github.event.inputs.RELEASE_VER}}" >>  $GITHUB_ENV
-          echo "WORKING_BRANCH=v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}_validations" >>  $GITHUB_ENV
       - name: Check out code
         uses: actions/checkout@v3
         with:
