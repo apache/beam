@@ -466,7 +466,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
     def gax_version = "2.18.7"
     def google_clients_version = "2.0.0"
-    def google_cloud_bigdataoss_version = "2.2.6"
+    def google_cloud_bigdataoss_version = "2.2.8"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
     def google_cloud_spanner_version = "6.29.0"
     def google_code_gson_version = "2.9.1"
@@ -1447,6 +1447,8 @@ class BeamModulePlugin implements Plugin<Project> {
             // that ends up on the runtime classpath.
             args 'org.apache.beam'
           }
+          // Reduce forks to 3
+          args '-f=3'
           args '-foe=true'
         }
 

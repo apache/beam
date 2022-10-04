@@ -29,6 +29,8 @@ import com.google.firestore.v1.RunQueryRequest;
 import com.google.firestore.v1.StructuredQuery;
 import com.google.firestore.v1.StructuredQuery.CollectionSelector;
 import com.google.firestore.v1.Value;
+import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Timestamps;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -36,6 +38,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.PartitionQuery.PartitionQueryResponseToRunQueryRequest;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.PartitionQueryPair;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -48,6 +51,12 @@ import org.mockito.junit.MockitoJUnitRunner;
 public final class PartitionQueryResponseToRunQueryRequestTest {
 
   @Mock protected DoFn<PartitionQueryPair, RunQueryRequest>.ProcessContext processContext;
+
+  private final StructuredQuery query =
+      StructuredQuery.newBuilder()
+          .addFrom(
+              CollectionSelector.newBuilder().setAllDescendants(true).setCollectionId("c1").build())
+          .build();
 
   @Test
   public void ensureSortingCorrectlyHandlesPathSegments() {
@@ -77,15 +86,6 @@ public final class PartitionQueryResponseToRunQueryRequestTest {
 
   @Test
   public void ensureCursorPairingWorks() {
-    StructuredQuery query =
-        StructuredQuery.newBuilder()
-            .addFrom(
-                CollectionSelector.newBuilder()
-                    .setAllDescendants(true)
-                    .setCollectionId("c1")
-                    .build())
-            .build();
-
     Cursor cursor1 = referenceValueCursor("projects/p1/databases/d1/documents/c1/doc1");
     Cursor cursor2 = referenceValueCursor("projects/p1/databases/d1/documents/c1/doc2");
     Cursor cursor3 = referenceValueCursor("projects/p1/databases/d1/documents/c1/doc2/c2/doc2");
@@ -123,15 +123,6 @@ public final class PartitionQueryResponseToRunQueryRequestTest {
 
   @Test
   public void ensureCursorPairingWorks_emptyCursorsInResponse() {
-    StructuredQuery query =
-        StructuredQuery.newBuilder()
-            .addFrom(
-                CollectionSelector.newBuilder()
-                    .setAllDescendants(true)
-                    .setCollectionId("c1")
-                    .build())
-            .build();
-
     List<StructuredQuery> expectedQueries = newArrayList(query);
 
     PartitionQueryPair partitionQueryPair =
@@ -152,6 +143,62 @@ public final class PartitionQueryResponseToRunQueryRequestTest {
             .collect(Collectors.toList());
 
     assertEquals(expectedQueries, actualQueries);
+  }
+
+  @Test
+  public void withoutReadTime() {
+    Cursor cursor1 = referenceValueCursor("projects/p1/databases/d1/documents/c1/doc1");
+    Cursor cursor2 = referenceValueCursor("projects/p1/databases/d1/documents/c1/doc2");
+    Cursor cursor3 = referenceValueCursor("projects/p1/databases/d1/documents/c1/doc2/c2/doc2");
+
+    PartitionQueryPair partitionQueryPair =
+        new PartitionQueryPair(
+            PartitionQueryRequest.newBuilder().setStructuredQuery(query).build(),
+            PartitionQueryResponse.newBuilder()
+                .addPartitions(cursor3)
+                .addPartitions(cursor1)
+                .addPartitions(cursor2)
+                .build());
+
+    ArgumentCaptor<RunQueryRequest> captor = ArgumentCaptor.forClass(RunQueryRequest.class);
+    when(processContext.element()).thenReturn(partitionQueryPair);
+    doNothing().when(processContext).output(captor.capture());
+
+    PartitionQueryResponseToRunQueryRequest fn = new PartitionQueryResponseToRunQueryRequest();
+    fn.processElement(processContext);
+
+    List<RunQueryRequest> result = captor.getAllValues();
+    assertEquals(4, result.size());
+    result.forEach(r -> assertEquals(Timestamp.getDefaultInstance(), r.getReadTime()));
+  }
+
+  @Test
+  public void withReadTime() {
+    Instant now = Instant.now();
+
+    Cursor cursor1 = referenceValueCursor("projects/p1/databases/d1/documents/c1/doc1");
+    Cursor cursor2 = referenceValueCursor("projects/p1/databases/d1/documents/c1/doc2");
+    Cursor cursor3 = referenceValueCursor("projects/p1/databases/d1/documents/c1/doc2/c2/doc2");
+
+    PartitionQueryPair partitionQueryPair =
+        new PartitionQueryPair(
+            PartitionQueryRequest.newBuilder().setStructuredQuery(query).build(),
+            PartitionQueryResponse.newBuilder()
+                .addPartitions(cursor3)
+                .addPartitions(cursor1)
+                .addPartitions(cursor2)
+                .build());
+
+    ArgumentCaptor<RunQueryRequest> captor = ArgumentCaptor.forClass(RunQueryRequest.class);
+    when(processContext.element()).thenReturn(partitionQueryPair);
+    doNothing().when(processContext).output(captor.capture());
+
+    PartitionQueryResponseToRunQueryRequest fn = new PartitionQueryResponseToRunQueryRequest(now);
+    fn.processElement(processContext);
+
+    List<RunQueryRequest> result = captor.getAllValues();
+    assertEquals(4, result.size());
+    result.forEach(r -> assertEquals(Timestamps.fromMillis(now.getMillis()), r.getReadTime()));
   }
 
   private static Cursor referenceValueCursor(String referenceValue) {

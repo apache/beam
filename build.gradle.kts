@@ -24,7 +24,7 @@ plugins {
   // See https://github.com/ben-manes/gradle-versions-plugin for further details.
   id("com.github.ben-manes.versions") version "0.33.0"
   // Apply one top level rat plugin to perform any required license enforcement analysis
-  id("org.nosphere.apache.rat") version "0.7.0"
+  id("org.nosphere.apache.rat") version "0.8.0"
   // Enable gradle-based release management
   id("net.researchgate.release") version "2.8.1"
   id("org.apache.beam.module")
@@ -242,6 +242,11 @@ tasks.register("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
   dependsOn(":runners:spark:2:hadoopVersionsTest")
   dependsOn(":runners:spark:3:hadoopVersionsTest")
+}
+
+tasks.register("javaJmh"){
+  dependsOn(":sdks:java:harness:jmh:jmh")
+  dependsOn(":sdks:java:core:jmh:jmh")
 }
 
 tasks.register("sqlPostCommit") {

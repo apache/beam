@@ -24,6 +24,10 @@
 #   context_line: 52
 #   categories:
 #   - Metrics
+#   complexity: MEDIUM
+#   tags:
+#     - metrics
+#     - test
 
 import unittest
 

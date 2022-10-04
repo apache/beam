@@ -46,7 +46,6 @@ ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_JAVA"
-ENV BUCKET_NAME="playground-precompiled-objects"
 ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
 
 # Copy build result
