@@ -76,7 +76,7 @@ jobs:
       - name: Start SDK runner in background
         run: |
           set -uex
-          NAME=$(docker run -d --rm -p 8080:8080 -env PROTOCOL_TYPE=TCP $IMAGE_TAG)
+          NAME=$(docker run -d --rm -p 8080:8080 -e PROTOCOL_TYPE=TCP $IMAGE_TAG)
           echo $NAME >> $GITHUB_ENV
 
       - name: Run ci_cd.py
