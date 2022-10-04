@@ -299,7 +299,6 @@ if __name__ == '__main__':
             'google-cloud-core>=0.28.1,<3',
             'google-cloud-bigtable>=0.31.1,<2',
             'google-cloud-spanner>=3.0.0,<4',
-            'grpcio-gcp>=0.2.2,<1',
             # GCP Packages required by ML functionality
             'google-cloud-dlp>=3.0.0,<4',
             'google-cloud-language>=1.3.0,<2',
