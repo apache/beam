@@ -76,6 +76,7 @@ jobs:
       - name: Start SDK runner in background
         run: |
           set -uex
+          docker ps
           NAME=$(docker run -d --rm -p 8089:8080 -e PROTOCOL_TYPE=TCP $IMAGE_TAG)
           echo "NAME=$NAME" >> $GITHUB_ENV
 
