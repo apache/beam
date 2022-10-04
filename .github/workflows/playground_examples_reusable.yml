@@ -30,13 +30,13 @@ on:
       origin:
         type: string
         required: true
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
 env:
   BEAM_VERSION: 2.40.0
 jobs:
   ci_cd:
     name: Examples ${{ inputs.step }} ${{ inputs.sdk }} ${{ inputs.origin }}
-    concurrency:
-      group: ${{ github.head_ref || github.run_id }}
     runs-on: ubuntu-latest
     env:
       SDK: ${{ inputs.sdk }}
