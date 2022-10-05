@@ -36,7 +36,13 @@ CronJobBuilder.cronJob('beam_Java_Jmh', 'H 0 * * 0', this) {
 
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':javaJmh')
+      tasks(':sdks:java:harness:jmh:jmh')
+      commonJobProperties.setGradleSwitches(delegate)
+    }
+
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:java:core:jmh:jmh')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }
