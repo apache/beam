@@ -28,7 +28,7 @@ void main() {
 
   test('YamlSymbolsLoader', () async {
     final loader = YamlSymbolsLoader(
-      path: 'assets/symbols/python.yaml',
+      path: 'assets/symbols/python.g.yaml',
       package: PlaygroundComponents.packageName,
     );
 

@@ -48,6 +48,15 @@ task configure {
   dependsOn("generateCode")
 }
 
+task printPath {
+  doLast {
+    exec {
+      executable("printenv")
+      args("PATH")
+    }
+  }
+}
+
 task analyze  {
   dependsOn("playground_components:generateCode")
   dependsOn("generateCode")

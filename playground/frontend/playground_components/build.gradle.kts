@@ -128,7 +128,7 @@ tasks.register("extractBeamSymbolsPython") {
         "tools/extract_symbols_python/extract_python_symbols.py",
         "../../../sdks/python/apache_beam",
       )
-      standardOutput = FileOutputStream("playground/frontend/playground_components/assets/symbols/python.yaml")
+      standardOutput = FileOutputStream("playground/frontend/playground_components/assets/symbols/python.g.yaml")
     }
   }
 }

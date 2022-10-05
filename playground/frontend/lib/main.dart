@@ -39,7 +39,7 @@ void main() async {
   PlaygroundComponents.symbolsNotifier.addLoader(
     python,
     YamlSymbolsLoader(
-      path: 'assets/symbols/python.yaml',
+      path: 'assets/symbols/python.g.yaml',
       package: PlaygroundComponents.packageName,
     ),
   );

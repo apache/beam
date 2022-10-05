@@ -51,7 +51,7 @@ RUN cd /app/playground_components &&\
 
 # Python:
 RUN cd /app/playground_components &&\
-    python3 tools/extract_symbols_python/extract_python_symbols.py beam/sdks/python/apache_beam > assets/symbols/python.yaml
+    python3 tools/extract_symbols_python/extract_python_symbols.py beam/sdks/python/apache_beam > assets/symbols/python.g.yaml
 
 RUN ls -la /app/playground_components/assets/symbols
 

@@ -31,7 +31,7 @@ Running, debugging, and testing all require this first step that fetches
 dependencies and generates code. Run this in the Beam root:
 
 ```bash
-$ ./gradlew :playground:frontend:configure
+./gradlew :playground:frontend:configure
 ```
 
 ### Run
@@ -40,23 +40,33 @@ See [playground/README.md](../README.md) for details on requirements and setup.
 
 The following command is used to build and serve the frontend app locally:
 
-`$ flutter run`
+```bash
+flutter run -d chome
+```
 
 ### Build
 
 Run the following command to generate a release build:
 
-`$ flutter build web`
+```bash
+flutter build web
+```
 
 This produces `build/web` directory with static files. Deploy them to your web server.
 
 ### Docker
 
+The app is deployed to production as a Docker container.
+You can also run in in Docker locally. This is useful if:
+
+1. You do not have Flutter and do not want to install it.
+2. You want to mimic the release environment in the closest way possible.
+
 To run the frontend app with Docker, run this in the frontend directory:
 
 ```bash
-$ docker build -t playground-frontend .
-$ docker run -p 1234:8080 playground-frontend
+docker build -t playground-frontend .
+docker run -p 1234:8080 playground-frontend
 ```
 
 The container sets up NGINX on port 8080.
@@ -80,7 +90,9 @@ This includes:
 
 Code can be automatically reformatted using:
 
-`$ flutter format ./lib`
+```bash
+flutter format ./lib
+```
 
 ### Localization
 
@@ -99,7 +111,9 @@ To add a new localization, follow next steps:
 
 3. Run the following command to generate a build and localization files:
 
-`$ flutter build web`
+```bash
+flutter build web
+```
 
 #### easy_localization
 
@@ -117,7 +131,7 @@ To add a new localization (using `fr` as an example):
 
 The app could be configured using gradle task (e.g. api url)
 
-```
+```bash
 cd beam
 ./gradlew :playground:frontend:createConfig
 ```
