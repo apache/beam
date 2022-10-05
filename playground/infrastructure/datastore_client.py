@@ -78,37 +78,36 @@ class DatastoreClient:
         examples_ids_before_updating = self._get_all_examples(sdk)
 
         # loop through every example to save them to the Cloud Datastore
-        with self._datastore_client.transaction():
-            for example in tqdm(examples_from_rep):
-                sdk_key = self._get_key(DatastoreProps.SDK_KIND, Sdk.Name(example.sdk))
-                example_id = f"{Sdk.Name(example.sdk)}{config.DatastoreProps.KEY_NAME_DELIMITER}{example.name}"
-                updated_example_ids.append(example_id)
-                self._to_example_entities(example, example_id, sdk_key, actual_schema_version_key, examples)
-                self._to_snippet_entities(example, example_id, sdk_key, now, actual_schema_version_key, snippets)
-                self._to_pc_object_entities(example, example_id, pc_objects)
-                self._to_file_entities(example, example_id, files)
+        for example in tqdm(examples_from_rep):
+            sdk_key = self._get_key(DatastoreProps.SDK_KIND, Sdk.Name(example.sdk))
+            example_id = f"{Sdk.Name(example.sdk)}{config.DatastoreProps.KEY_NAME_DELIMITER}{example.name}"
+            updated_example_ids.append(example_id)
+            self._to_example_entities(example, example_id, sdk_key, actual_schema_version_key, examples)
+            self._to_snippet_entities(example, example_id, sdk_key, now, actual_schema_version_key, snippets)
+            self._to_pc_object_entities(example, example_id, pc_objects)
+            self._to_file_entities(example, example_id, files)
 
-            self._datastore_client.put_multi(examples)
-            self._datastore_client.put_multi(snippets)
-            self._datastore_client.put_multi(pc_objects)
-            self._datastore_client.put_multi(files)
+        self._datastore_client.put_multi(examples)
+        self._datastore_client.put_multi(snippets)
+        self._datastore_client.put_multi(pc_objects)
+        self._datastore_client.put_multi(files)
 
-            # delete examples from the Cloud Datastore that are not in the repository
-            examples_ids_for_removing = list(filter(lambda key: key not in updated_example_ids, examples_ids_before_updating))
-            if len(examples_ids_for_removing) != 0:
-                logging.info("Start of deleting extra playground examples ...")
-                examples_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.EXAMPLE_KIND, ex_id), examples_ids_for_removing))
-                snippets_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.SNIPPET_KIND, ex_id), examples_ids_for_removing))
-                file_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.FILED_KIND, f"{ex_id}{config.DatastoreProps.KEY_NAME_DELIMITER}{0}"), examples_ids_for_removing))
-                pc_objs_keys_for_removing = []
-                for example_id_item in examples_ids_for_removing:
-                    for example_type in [PrecompiledExample.GRAPH_EXTENSION.upper(), PrecompiledExample.OUTPUT_EXTENSION.upper(), PrecompiledExample.LOG_EXTENSION.upper()]:
-                        pc_objs_keys_for_removing.append(self._get_key(DatastoreProps.PRECOMPILED_OBJECT_KIND, f"{example_id_item}{config.DatastoreProps.KEY_NAME_DELIMITER}{example_type}"))
-                self._datastore_client.delete_multi(examples_keys_for_removing)
-                self._datastore_client.delete_multi(snippets_keys_for_removing)
-                self._datastore_client.delete_multi(file_keys_for_removing)
-                self._datastore_client.delete_multi(pc_objs_keys_for_removing)
-                logging.info("Finish of deleting extra playground examples ...")
+        # delete examples from the Cloud Datastore that are not in the repository
+        examples_ids_for_removing = list(filter(lambda key: key not in updated_example_ids, examples_ids_before_updating))
+        if len(examples_ids_for_removing) != 0:
+            logging.info("Start of deleting extra playground examples ...")
+            examples_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.EXAMPLE_KIND, ex_id), examples_ids_for_removing))
+            snippets_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.SNIPPET_KIND, ex_id), examples_ids_for_removing))
+            file_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.FILED_KIND, f"{ex_id}{config.DatastoreProps.KEY_NAME_DELIMITER}{0}"), examples_ids_for_removing))
+            pc_objs_keys_for_removing = []
+            for example_id_item in examples_ids_for_removing:
+                for example_type in [PrecompiledExample.GRAPH_EXTENSION.upper(), PrecompiledExample.OUTPUT_EXTENSION.upper(), PrecompiledExample.LOG_EXTENSION.upper()]:
+                    pc_objs_keys_for_removing.append(self._get_key(DatastoreProps.PRECOMPILED_OBJECT_KIND, f"{example_id_item}{config.DatastoreProps.KEY_NAME_DELIMITER}{example_type}"))
+            self._datastore_client.delete_multi(examples_keys_for_removing)
+            self._datastore_client.delete_multi(snippets_keys_for_removing)
+            self._datastore_client.delete_multi(file_keys_for_removing)
+            self._datastore_client.delete_multi(pc_objs_keys_for_removing)
+            logging.info("Finish of deleting extra playground examples ...")
 
     def save_catalogs(self):
         """
