@@ -54,8 +54,9 @@ bucket_examples_name = "bucket_name-example"  #Input example bucket name
 bucket               = "bucket_name" #input bucket name (will be used for tfstate file)
 
 * Export GOOGLE_APPLICATION_CREDENTIALS using following command:
+```
     export GOOGLE_APPLICATION_CREDENTIALS=`your json key locaton`
-
+```
 * Activate created service account using following command:
     gcloud auth activate-service-account `full principal service account` --key-file=`your json key locaton`
 
