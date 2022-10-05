@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
 import com.google.cloud.Timestamp;
-import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,8 +99,7 @@ public class DataChangeRecordAction {
     // The size of a record is represented by the number of bytes needed for the
     // string representation of the record. Here, we only try to achieve an estimate
     // instead of an accurate throughput.
-    throughputEstimator.update(
-        Timestamp.now(), record.toString().getBytes(StandardCharsets.UTF_8).length);
+    throughputEstimator.update(Timestamp.now(), Utf8.encodedLength(record.toString()));
 
     LOG.debug("[" + token + "] Data record action completed successfully");
     return Optional.empty();
