@@ -37,9 +37,7 @@ type kwargs struct {
 	IncludeIndexes bool                       `beam:"include_indexes"`
 }
 
-type argStruct struct {
-	args []string
-}
+type argStruct struct{}
 
 type config struct {
 	dpl           kwargs
