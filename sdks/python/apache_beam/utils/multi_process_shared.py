@@ -26,7 +26,7 @@ import logging
 import os
 import multiprocessing.managers
 import pickle
-import time
+import tempfile
 import threading
 import uuid
 
@@ -98,7 +98,7 @@ class MultiProcessShared(Generic[T]):
       constructor: Callable[[], T],
       tag: Optional[Any] = None,
       *,
-      path: str = '/tmp',
+      path: str = tempfile.gettempdir(),
       always_proxy: Optional[bool] = None):
     self._constructor = constructor
     self._tag = tag or uuid.uuid4().hex
@@ -137,7 +137,6 @@ class MultiProcessShared(Generic[T]):
                 except ConnectionError:
                   # The server is no longer good, assume it died.
                   os.unlink(address_file)
-                  time.sleep(1)
 
     return self._proxy
 
