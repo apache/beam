@@ -27,10 +27,10 @@ from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 from apache_beam.ml.inference.sklearn_inference import ModelFileType
 from pipeline.options import get_pipeline_options
+from pipeline.transformations import CustomSklearnModelHandlerNumpy
 from pipeline.transformations import Decode
 from pipeline.transformations import DecodePrediction
 from pipeline.transformations import ModelWrapper
-from pipeline.transformations import CustomSklearnModelHandlerNumpy
 from pipeline.transformations import NormalizeEmbedding
 from pipeline.transformations import TriggerEmailAlert
 from pipeline.transformations import tokenize_sentence
@@ -77,7 +77,6 @@ class PytorchNoBatchModelHandler(PytorchModelHandlerKeyedTensor):
     Restricting max_batch_size to 1 means there is only 1 example per `batch`
     in the run_inference() call.
     """
-
   def batch_elements_kwargs(self):
     return {"max_batch_size": 1}
 

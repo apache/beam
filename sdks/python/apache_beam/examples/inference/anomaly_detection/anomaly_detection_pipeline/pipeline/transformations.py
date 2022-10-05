@@ -18,13 +18,14 @@
 """This file contains the transformations and utility functions for
 the anomaly_detection pipeline."""
 import json
+
 import numpy as np
-import hdbscan
-import yagmail
 
 import apache_beam as beam
 import config as cfg
+import hdbscan
 import torch
+import yagmail
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 from apache_beam.ml.inference.sklearn_inference import _validate_inference_args
@@ -59,7 +60,6 @@ def tokenize_sentence(input_dict):
 class ModelWrapper(DistilBertModel):
   """Wrapper to DistilBertModel to get embeddings when calling
     forward function."""
-
   def forward(self, **kwargs):
     output = super().forward(**kwargs)
     sentence_embedding = (
@@ -122,7 +122,6 @@ class CustomSklearnModelHandlerNumpy(SklearnModelHandlerNumpy):
 
 class NormalizeEmbedding(beam.DoFn):
   """A DoFn for normalization of text embedding."""
-
   def process(self, element, *args, **kwargs):
     """
         For each element in the input PCollection, normalize the embedding vector, and
@@ -138,7 +137,6 @@ class NormalizeEmbedding(beam.DoFn):
 
 class Decode(beam.DoFn):
   """A DoFn for decoding PubSub message into a dictionary."""
-
   def process(self, element, *args, **kwargs):
     """
         For each element in the input PCollection, retrieve the id and decode the bytes into string
@@ -154,7 +152,6 @@ class Decode(beam.DoFn):
 
 class DecodePrediction(beam.DoFn):
   """A DoFn for decoding the prediction from RunInference."""
-
   def process(self, element):
     """
     The `process` function takes the output of RunInference and returns a dictionary
@@ -171,7 +168,6 @@ class DecodePrediction(beam.DoFn):
 
 class TriggerEmailAlert(beam.DoFn):
   """A DoFn for sending email using yagmail."""
-
   def setup(self):
     """
     It opens the cred.json file and initialized the yag SMTP client.
