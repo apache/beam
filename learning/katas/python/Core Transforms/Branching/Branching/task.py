@@ -23,6 +23,10 @@
 #   categories:
 #     - Branching
 #     - Multiple Outputs
+#   complexity: BASIC
+#   tags:
+#     - branching
+#     - numbers
 
 import apache_beam as beam
 

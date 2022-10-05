@@ -8,7 +8,7 @@
            {
               "type" : "unit",
               "unit" : {
-                 "title" : "Intro Unit Name",
+                 "title" : "Example Unit Name",
                  "id" : "intro-unit"
               }
            },

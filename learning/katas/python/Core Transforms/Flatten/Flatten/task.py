@@ -21,6 +21,10 @@
 #   context_line: 29
 #   categories:
 #     - Flatten
+#   complexity: BASIC
+#   tags:
+#     - merge
+#     - strings
 
 import apache_beam as beam
 

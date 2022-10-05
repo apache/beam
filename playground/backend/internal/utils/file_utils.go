@@ -154,3 +154,19 @@ func IsFileMain(content string, sdk pb.Sdk) bool {
 		return false
 	}
 }
+
+// ToSDKFromExt returns SDK according to a specified extension.
+func ToSDKFromExt(ext string) pb.Sdk {
+	switch ext {
+	case javaExt:
+		return pb.Sdk_SDK_JAVA
+	case goExt:
+		return pb.Sdk_SDK_GO
+	case scioExt:
+		return pb.Sdk_SDK_SCIO
+	case pythonExt:
+		return pb.Sdk_SDK_PYTHON
+	default:
+		return pb.Sdk_SDK_UNSPECIFIED
+	}
+}

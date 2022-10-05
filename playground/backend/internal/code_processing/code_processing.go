@@ -419,8 +419,7 @@ func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheSer
 		select {
 		// waiting when graph file appears
 		case <-ticker.C:
-			_, err := os.Stat(graphFilePath)
-			if err == nil {
+			if _, err := os.Stat(graphFilePath); err == nil {
 				ticker.Stop()
 				graph, err := utils.ReadFile(pipelineId, graphFilePath)
 				if err != nil {

@@ -21,6 +21,10 @@
 #   context_line: 30
 #   categories:
 #     - Filtering
+#   complexity: BASIC
+#   tags:
+#     - filter
+#     - numbers
 
 import apache_beam as beam
 

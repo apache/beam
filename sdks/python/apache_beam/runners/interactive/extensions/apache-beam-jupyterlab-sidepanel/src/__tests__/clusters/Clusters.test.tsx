@@ -99,7 +99,24 @@ it('renders a data-table', () => {
   const dataTable: Element = dataTableDiv.children[0];
   expect(dataTable.tagName).toBe('TABLE');
   expect(dataTable.getAttribute('class')).toContain('mdc-data-table__table');
-  const dataRow: Element = dataTable.children[0];
-  expect(dataRow.tagName).toBe('TR');
-  expect(dataRow.getAttribute('class')).toContain('mdc-data-table__row');
+  const dataTableHead: Element = dataTable.children[0];
+  expect(dataTableHead.tagName).toBe('THEAD');
+  expect(dataTableHead.getAttribute('class')).toContain(
+    'rmwc-data-table__head'
+  );
+  const dataTableHeaderRow: Element = dataTableHead.children[0];
+  expect(dataTableHeaderRow.tagName).toBe('TR');
+  expect(dataTableHeaderRow.getAttribute('class')).toContain(
+    'mdc-data-table__header-row'
+  );
+  const dataTableBody: Element = dataTable.children[1];
+  expect(dataTableBody.tagName).toBe('TBODY');
+  expect(dataTableBody.getAttribute('class')).toContain(
+    'mdc-data-table__content'
+  );
+  const dataTableBodyRow: Element = dataTableBody.children[0];
+  expect(dataTableBodyRow.tagName).toBe('TR');
+  expect(dataTableBodyRow.getAttribute('class')).toContain(
+    'mdc-data-table__row'
+  );
 });

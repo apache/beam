@@ -160,6 +160,7 @@ Beam Jenkins overview page: [link](https://ci-beam.apache.org/)
 | beam_PerformanceTests_WordCountIT_Py37 | [cron](https://ci-beam.apache.org/job/beam_PerformanceTests_WordCountIT_Py37/) | `Run Python37 WordCountIT Performance Test` | [![Build Status](https://ci-beam.apache.org/job/beam_PerformanceTests_WordCountIT_Py37/badge/icon)](https://ci-beam.apache.org/job/beam_PerformanceTests_WordCountIT_Py37) |
 | beam_PerformanceTests_XmlIOIT | [cron](https://ci-beam.apache.org/job/beam_PerformanceTests_XmlIOIT/), [hdfs_cron](https://ci-beam.apache.org/job/beam_PerformanceTests_XmlIOIT_HDFS/) | `Run Java XmlIO Performance Test` | [![Build Status](https://ci-beam.apache.org/job/beam_PerformanceTests_XmlIOIT/badge/icon)](https://ci-beam.apache.org/job/beam_PerformanceTests_XmlIOIT) [![Build Status](https://ci-beam.apache.org/job/beam_PerformanceTests_XmlIOIT_HDFS/badge/icon)](https://ci-beam.apache.org/job/beam_PerformanceTests_XmlIOIT_HDFS) |
 | beam_SQLBigQueryIO_Batch_Performance_Test_Java | [cron](https://ci-beam.apache.org/job/beam_SQLBigQueryIO_Batch_Performance_Test_Java/) | `Run SQLBigQueryIO Batch Performance Test Java` | [![Build Status](https://ci-beam.apache.org/job/beam_SQLBigQueryIO_Batch_Performance_Test_Java/badge/icon)](https://ci-beam.apache.org/job/beam_SQLBigQueryIO_Batch_Performance_Test_Java/) |
+| beam_Java_JMH | [cron](https://ci-beam.apache.org/job/beam_Java_JMH/) |  | [![Build Status](https://ci-beam.apache.org/job/beam_Java_JMH/badge/icon)](https://ci-beam.apache.org/job/beam_Java_JMH/) |
 
 ### Load test Jobs
 

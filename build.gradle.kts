@@ -244,6 +244,11 @@ tasks.register("javaHadoopVersionsTest") {
   dependsOn(":runners:spark:3:hadoopVersionsTest")
 }
 
+tasks.register("javaJmh"){
+  dependsOn(":sdks:java:harness:jmh:jmh")
+  dependsOn(":sdks:java:core:jmh:jmh")
+}
+
 tasks.register("sqlPostCommit") {
   dependsOn(":sdks:java:extensions:sql:postCommit")
   dependsOn(":sdks:java:extensions:sql:jdbc:postCommit")

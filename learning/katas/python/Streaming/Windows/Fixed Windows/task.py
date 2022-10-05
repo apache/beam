@@ -22,6 +22,12 @@
 #   categories:
 #     - Windowing
 #     - Combiners
+#   complexity: MEDIUM
+#   tags:
+#     - windowing
+#     - combine
+#     - count
+#     - event
 
 from datetime import datetime
 import pytz

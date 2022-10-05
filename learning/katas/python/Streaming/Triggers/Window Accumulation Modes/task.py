@@ -23,6 +23,13 @@
 #   context_line: 51
 #   categories:
 #     - Streaming
+#   complexity: ADVANCED
+#   tags:
+#     - windowing
+#     - triggers
+#     - count
+#     - accumulation
+#     - event
 
 import apache_beam as beam
 from generate_event import GenerateEvent
