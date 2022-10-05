@@ -54,27 +54,27 @@ bucket_examples_name = "bucket_name-example"  #Input example bucket name
 bucket               = "bucket_name" #input bucket name (will be used for tfstate file)
 
 * Export GOOGLE_APPLICATION_CREDENTIALS using following command:
-    export GOOGLE_APPLICATION_CREDENTIALS=`your json key locaton`
+    `export GOOGLE_APPLICATION_CREDENTIALS=`your json key locaton``
 
 * Activate created service account using following command:
-    gcloud auth activate-service-account `full principal service account` --key-file=`your json key locaton`
+    `gcloud auth activate-service-account `full principal service account` --key-file=`your json key locaton``
 
 * Install kubectl:
              `curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" &&\
              chmod +x kubectl &&\
              mv kubectl /usr/local/bin/`
 * Install Helm:
-             curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 &&\
+             `curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 &&\
              chmod 700 get_helm.sh &&\
-             ./get_helm.sh
+             ./get_helm.sh`
 
 # Infrastructure deployment:
 * Run following command for infrastructure deployment (please be sure that you are in the "beam" folder):
-./gradlew playground:terraform:InitInfrastructure -Pproject_environment="beta"
+`./gradlew playground:terraform:InitInfrastructure -Pproject_environment="beta"`
 
 # Backend deployment:
 * Login to Docker registry:
-cat `your json key locaton` | docker login -u _json_key --password-stdin https://`chosen_region`-docker.pkg.dev
+`cat `your json key locaton` | docker login -u _json_key --password-stdin https://`chosen_region`-docker.pkg.dev`
 
 * Login to GKE
 gcloud container clusters get-credentials --region `chosen_pg_location` `gke_name` --project `project_id`
