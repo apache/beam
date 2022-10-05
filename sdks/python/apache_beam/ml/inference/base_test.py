@@ -255,7 +255,7 @@ class RunInferenceBaseTest(unittest.TestCase):
           | 'RunKeyed' >> base.RunInference(model_handler))
       pipeline.run()
 
-  def test_model_handler_constructor_compatibility(self):
+  def test_model_handler_compatibility(self):
     # ** IMPORTANT ** Do not change this test to make your PR pass without
     # first reading below.
     # Be certain that the modification will not break third party
