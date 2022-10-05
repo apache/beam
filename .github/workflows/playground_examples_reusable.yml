@@ -42,7 +42,10 @@ jobs:
     outputs:
       example_has_changed: ${{ steps.check_has_example.outputs.example_has_changed }}
     env:
+      ORIGIN: ${{ inputs.origin }}
       SDK: ${{ inputs.sdk }}
+      STEP: ${{ inputs.step }}
+      SUBDIRS: ${{ inputs.subdirs }}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
