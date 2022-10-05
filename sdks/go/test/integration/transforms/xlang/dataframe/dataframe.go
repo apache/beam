@@ -13,19 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package xlang
+package dataframe
 
 import (
-	"flag"
-	"log"
 	"reflect"
-	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang/python/dataframe"
-	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func init() {
@@ -37,22 +32,7 @@ type TestRow struct {
 	B int32 `beam:"b"`
 }
 
-func TestDataframe(t *testing.T) {
-	flag.Parse()
-	beam.Init()
-
-	services := integration.NewExpansionServices()
-	defer func() { services.Shutdown() }()
-	addr, err := services.GetAddr("python_transform")
-	if err != nil {
-		log.Printf("skipping missing expansion service: %v", err)
-	} else {
-		expansionAddr = addr
-	}
-
-	integration.CheckFilters(t)
-	checkFlags(t)
-
+func DataframeTransform(expansionAddr string) *beam.Pipeline {
 	row0 := TestRow{A: int64(100), B: int32(1)}
 	row1 := TestRow{A: int64(100), B: int32(2)}
 	row2 := TestRow{A: int64(100), B: int32(3)}
@@ -64,5 +44,5 @@ func TestDataframe(t *testing.T) {
 	outCol := dataframe.Transform(s, "lambda df: df.groupby('a').sum()", input, reflect.TypeOf((*TestRow)(nil)).Elem(), dataframe.WithExpansionAddr(expansionAddr), dataframe.WithIndexes())
 
 	passert.Equals(s, outCol, row2, row3)
-	ptest.RunAndValidate(t, p)
+	return p
 }
