@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State.SCHEDULED;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -191,6 +192,8 @@ public class QueryChangeStreamActionTest {
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
+    // This is done in the DataChangeRecordAction, but not here
+    verify(throughputEstimator, never()).update(any(), anyLong());
   }
 
   @Test
@@ -232,6 +235,7 @@ public class QueryChangeStreamActionTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
+    verify(throughputEstimator, never()).update(any(), anyLong());
   }
 
   @Test
@@ -277,6 +281,7 @@ public class QueryChangeStreamActionTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
+    verify(throughputEstimator, never()).update(any(), anyLong());
   }
 
   @Test
@@ -323,6 +328,7 @@ public class QueryChangeStreamActionTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
+    verify(throughputEstimator, never()).update(any(), anyLong());
   }
 
   @Test
@@ -349,6 +355,7 @@ public class QueryChangeStreamActionTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
+    verify(throughputEstimator, never()).update(any(), anyLong());
   }
 
   private static class BundleFinalizerStub implements BundleFinalizer {
