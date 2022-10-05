@@ -36,7 +36,7 @@ export function readFromAvro<T>(
 
 export function writeToAvro<T>(filePath: string, options: { schema: Schema }) {
   return async function writeToAvro(
-    pcoll: beam.PCollection<Object>
+    pcoll: beam.PCollection<T>
   ): Promise<{}> {
     // TODO: Allow schema to be inferred.
     if (options.schema) {
