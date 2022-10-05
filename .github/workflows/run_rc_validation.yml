@@ -82,6 +82,7 @@ jobs:
         with:
           ref: ${{ env.RC_TAG }}
       - name: Setup GitHub CLI
+      - id: setup-gh-cli-linux
         uses: ./.github/actions/setup-gh-cli-linux
       - name: Set git config
         run: |
@@ -93,11 +94,12 @@ jobs:
           touch empty_file.txt
           git add empty_file.txt
           git commit -m "Add empty file in order to create PR" --quiet
-          git push origin ${{env.WORKING_BRANCH}} --quiet
+          git push origin ${{env.WORKING_BRANCH}}  --quiet
           GITHUB_PR_URL=$(gh pr create -B ${{env.RELEASE_BRANCH}} -H ${{env.WORKING_BRANCH}} -t"[DO NOT MERGE] Run Python RC Validation Tests" -b "PR to run Python ReleaseCandidate Jenkins Job.")
       - name: Comment on PR to Trigger Python ReleaseCandidate Test
         run: |
           gh pr comment "$GITHUB_PR_URL" --body "Run Python ReleaseCandidate"
+  
   sql_taxi_with_dataflow:
     runs-on: [self-hosted,ubuntu-20.04]
     if: ${{github.event.inputs.RUN_SQL_TAXI_WITH_DATAFLOW == 'true'}}
@@ -107,18 +109,14 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      with:
-        repository: apache/beam
-        ref: ${{env.RC_TAG}}      
-
-    - name: Install Kubectl 
-      uses: azure/setup-kubectl@v3
+      with: 
+       ref: ${{env.RC_TAG}}      
     
     - name: Install Python
       uses: actions/setup-python@v4
       with:
         python-version: ${{matrix.py_version}}
-        cache: 'pip' # caching pip dependencies
+        
 
     - name: Setup Java JDK
       uses: actions/setup-java@v3.5.1
@@ -126,30 +124,9 @@ jobs:
         distribution: 'temurin'
         java-version: 11
 
-    - name: Downloading Python Staging RC
-      run: |
-        echo ""
-        echo "====================Starting Python Cross-language Validations==============="
-  
-
-        echo "---------------------Downloading Python Staging RC----------------------------"
-        wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-        wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-        if [[ ! -f apache-beam-$RELEASE_VER.zip ]]; then
-          { echo "Fail to download Python Staging RC files." ;exit 1; }
-        fi
-
-        echo "--------------------------Verifying Hashes------------------------------------"
-        sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-
-        `which pip` install --upgrade pip
-        `which pip` install --upgrade setuptools
-        
-    - name: Setting Python Environment
-      run: |
-        echo "--------------------------Installing Python SDK-------------------------------"
-        pip install --upgrade pip setuptools wheel
-        pip install apache-beam-${RELEASE_VER}.zip[gcp]
+    - name: Setting python env
+      uses: ./.github/actions/common-rc-validation
+      
 
     - name: Setting Taxi Variables
       run: |
@@ -194,7 +171,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
       with:
-        repository: apache/beam
         ref: ${{env.RC_TAG}}
     - name: Verify ENV values
       run: |
@@ -215,43 +191,10 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{matrix.py_version}}
-        cache: 'pip' 
-    ########    
-    - name: install-wheel
-      shell: bash
-      run: pip install --upgrade pip setuptools wheel
-    - name: Downloading Python Staging RC
-      shell: bash
-      run: |
-          echo "---------------------Downloading Python Staging RC----------------------------"
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-          if [[ ! -f apache-beam-$RELEASE_VER.zip ]]; then
-            { echo "Fail to download Python Staging RC files." ;exit 1; }
-          fi
+   
 
-          echo "--------------------------Verifying Hashes------------------------------------"
-          sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-
-          `which pip` install --upgrade pip
-          `which pip` install --upgrade setuptools
-    - name: Installing python SDK
-      shell: bash
-      run: pip install apache-beam-${RELEASE_VER}.zip[gcp]
-
-    - name: Donwloading Python RC
-      shell: bash
-      run: |
-        echo "---------------------Downloading Python Staging RC----------------------------"
-        wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-        wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-
-    - name: Verifying Hashes
-      shell: bash
-      run: |
-        echo "--------------------------Verifying Hashes------------------------------------"
-        sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-    ########
+    - name: Setting python env
+      uses: ./.github/actions/common-rc-validation
 
     - name: Installing gcloud-auth-plugin
       run: sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin
@@ -265,23 +208,14 @@ jobs:
         gcloud container clusters create --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --no-enable-ip-alias $KAFKA_CLUSTER_NAME
         kubectl apply -R -f .test-infra/kubernetes/kafka-cluster
     
-    - name: Setting Python Environment
-      run: |
-        echo "--------------------------Installing Python SDK-------------------------------"
-        pip install --upgrade pip setuptools wheel
-        pip install apache-beam-${RELEASE_VER}.zip[gcp]
     - name: Waiting for Kafka cluster to be ready
       run: kubectl wait --for=condition=Ready pod/kafka-0 --timeout=1200s
     - name: Start xlang Kafka Taxi with Dataflow Runner 
       run: |
         echo "BOOTSTRAP_SERVERS=$(kubectl get svc outside-0 -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):32400" >> $GITHUB_ENV
         echo "KAFKA_TAXI_DF_DATASET=${GITHUB_ACTOR}_python_validations_$(date +%m%d)_$RANDOM" >> $GITHUB_ENV
-        echo "KAFKA_EXPANSION_SERVICE_JAR=${APACHE_CONTENTS}/org/apache/beam/beam-sdks-java-io-expansion-service/${RELEASE_VER}/beam-sdks-java-io-expansion-service-${RELEASE_VER}.jar" >> $GITHUB_ENV
-    - name: Checking variables
-      run: |
-        echo $BOOTSTRAP_SERVERS
-        echo $KAFKA_TAXI_DF_DATASET
-        echo $KAFKA_EXPANSION_SERVICE_JAR
+        echo "KAFKA_EXPANSION_SERVICE_JAR=${APACHE_CONTENTS_REPO}/org/apache/beam/beam-sdks-java-io-expansion-service/${RELEASE_VER}/beam-sdks-java-io-expansion-service-${RELEASE_VER}.jar" >> $GITHUB_ENV
+
     - name: Creating BigQuery Dataset
       run: bq mk --project_id=${USER_GCP_PROJECT} ${KAFKA_TAXI_DF_DATASET}
     - name: Running Xlang Kafka Taxi with Dataflow Runner
@@ -340,49 +274,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
       with:
-        repository: apache/beam
         ref: ${{env.RC_TAG}}
     - name: Install Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.8'
-        cache: 'pip' # caching pip dependencies
-    ########    
-    - name: install-wheel
-      shell: bash
-      run: pip install --upgrade pip setuptools wheel
-    - name: Downloading Python Staging RC
-      shell: bash
-      run: |
-          echo "---------------------Downloading Python Staging RC----------------------------"
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-          if [[ ! -f apache-beam-$RELEASE_VER.zip ]]; then
-            { echo "Fail to download Python Staging RC files." ;exit 1; }
-          fi
+    
+    - name: Setting python env
+      uses: ./.github/actions/common-rc-validation
 
-          echo "--------------------------Verifying Hashes------------------------------------"
-          sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-
-          `which pip` install --upgrade pip
-          `which pip` install --upgrade setuptools
-    - name: Installing python SDK
-      shell: bash
-      run: pip install apache-beam-${RELEASE_VER}.zip[gcp]
-
-    - name: Donwloading Python RC
-      shell: bash
-      run: |
-        echo "---------------------Downloading Python Staging RC----------------------------"
-        wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-        wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-
-    - name: Verifying Hashes
-      shell: bash
-      run: |
-        echo "--------------------------Verifying Hashes------------------------------------"
-        sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-    ########
     - name: Setup Maven Action
       uses: s4u/setup-maven-action@v1.2.1
       with:
@@ -432,7 +332,7 @@ jobs:
       run: |
         ls
         cd word-count-beam
-        timeout --preserve-status 55m mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector -Dexec.args="${USER_GCP_PROJECT} ${{needs.generate_shared_pubsub.outputs.name}} none" || true 
+        timeout --preserve-status 50m mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector -Dexec.args="${USER_GCP_PROJECT} ${{needs.generate_shared_pubsub.outputs.name}} none" || true 
   
 
   direct_runner_leaderboard:
@@ -446,50 +346,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          repository: apache/beam
           ref: ${{env.RC_TAG}}
 
       - name: Install Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{matrix.py_version}}
-      ########    
-      - name: install-wheel
-        shell: bash
-        run: pip install --upgrade pip setuptools wheel
-      - name: Downloading Python Staging RC
-        shell: bash
-        run: |
-            echo "---------------------Downloading Python Staging RC----------------------------"
-            wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-            wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-            if [[ ! -f apache-beam-$RELEASE_VER.zip ]]; then
-              { echo "Fail to download Python Staging RC files." ;exit 1; }
-            fi
-
-            echo "--------------------------Verifying Hashes------------------------------------"
-            sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-
-            `which pip` install --upgrade pip
-            `which pip` install --upgrade setuptools
-      - name: Installing python SDK
-        shell: bash
-        run: pip install apache-beam-${RELEASE_VER}.zip[gcp]
-
-      - name: Donwloading Python RC
-        shell: bash
-        run: |
-          echo "---------------------Downloading Python Staging RC----------------------------"
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-
-      - name: Verifying Hashes
-        shell: bash
-        run: |
-          echo "--------------------------Verifying Hashes------------------------------------"
-          sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-    ########
-      - name: Exporting leaderboard Dataset
+      
+      - name: Setting python env
+        uses: ./.github/actions/common-rc-validation
+      
+      - name: Exporting leaderboard Dataset Name
         run: echo "LEADERBOARD_DIRECT_DATASET=${GITHUB_ACTOR}_python_validations_$(date +%m%d)_$RANDOM" >> $GITHUB_ENV
       - name: Creating Dataset
         run: bq mk --project_id=${USER_GCP_PROJECT} ${LEADERBOARD_DIRECT_DATASET}
@@ -512,6 +379,7 @@ jobs:
           bq rm -f ${LEADERBOARD_DIRECT_DATASET}.leader_board_users
           bq rm -f ${LEADERBOARD_DIRECT_DATASET}.leader_board_teams
           bq rm -f $LEADERBOARD_DIRECT_DATASET
+  
   dataflow_runner_leaderboard:
     runs-on: [self-hosted,ubuntu-20.04]
     if: ${{github.event.inputs.RUN_DATAFLOW_RUNNER_TESTS=='true'}}
@@ -523,7 +391,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          repository: apache/beam
           ref: ${{env.RC_TAG}}
 
       - name: Install Python
@@ -531,43 +398,10 @@ jobs:
         with:
           python-version: ${{matrix.py_version}}
       
-      ########    
-      - name: install-wheel
-        shell: bash
-        run: pip install --upgrade pip setuptools wheel
-      - name: Downloading Python Staging RC
-        shell: bash
-        run: |
-            echo "---------------------Downloading Python Staging RC----------------------------"
-            wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-            wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-            if [[ ! -f apache-beam-$RELEASE_VER.zip ]]; then
-              { echo "Fail to download Python Staging RC files." ;exit 1; }
-            fi
-
-            echo "--------------------------Verifying Hashes------------------------------------"
-            sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-
-            `which pip` install --upgrade pip
-            `which pip` install --upgrade setuptools
-      - name: Installing python SDK
-        shell: bash
-        run: pip install apache-beam-${RELEASE_VER}.zip[gcp]
-
-      - name: Donwloading Python RC
-        shell: bash
-        run: |
-          echo "---------------------Downloading Python Staging RC----------------------------"
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-
-      - name: Verifying Hashes
-        shell: bash
-        run: |
-          echo "--------------------------Verifying Hashes------------------------------------"
-          sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-    ########
-      - name: Exporting Dataflow Dataset
+      - name: Setting python env
+        uses: ./.github/actions/common-rc-validation
+      
+      - name: Exporting Dataflow Dataset Name
         run: echo "LEADERBOARD_DF_DATASET=${GITHUB_ACTOR}_python_validations_$(date +%m%d)_$RANDOM" >> $GITHUB_ENV
       - name: Creating Dataset
         run: bq mk --project_id=${USER_GCP_PROJECT} ${LEADERBOARD_DF_DATASET}
@@ -607,50 +441,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          repository: apache/beam
           ref: ${{env.RC_TAG}}
       - name: Install Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{matrix.py_version}}
-          cache: 'pip' # caching pip dependencies
-      ########    
-      - name: install-wheel
-        shell: bash
-        run: pip install --upgrade pip setuptools wheel
-      - name: Downloading Python Staging RC
-        shell: bash
-        run: |
-            echo "---------------------Downloading Python Staging RC----------------------------"
-            wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-            wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-            if [[ ! -f apache-beam-$RELEASE_VER.zip ]]; then
-              { echo "Fail to download Python Staging RC files." ;exit 1; }
-            fi
-
-            echo "--------------------------Verifying Hashes------------------------------------"
-            sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-
-            `which pip` install --upgrade pip
-            `which pip` install --upgrade setuptools
-      - name: Installing python SDK
-        shell: bash
-        run: pip install apache-beam-${RELEASE_VER}.zip[gcp]
-
-      - name: Donwloading Python RC
-        shell: bash
-        run: |
-          echo "---------------------Downloading Python Staging RC----------------------------"
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-
-      - name: Verifying Hashes
-        shell: bash
-        run: |
-          echo "--------------------------Verifying Hashes------------------------------------"
-          sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-    ########
-      - name: Exporting Gamestates Direct Dataset
+   
+      - name: Setting python env
+        uses: ./.github/actions/common-rc-validation
+      
+      - name: Exporting Gamestates Direct Dataset Name
         run: echo "GAMESTATS_DIRECT_DATASET=${GITHUB_ACTOR}_python_validations_$(date +%m%d)_$RANDOM" >> $GITHUB_ENV
       - name: Creating Dataset
         run: bq mk --project_id=${USER_GCP_PROJECT} ${GAMESTATS_DIRECT_DATASET}
@@ -687,49 +487,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          repository: apache/beam
           ref: ${{env.RC_TAG}}
       - name: Install Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{matrix.py_version}}
-      ########    
-      - name: install-wheel
-        shell: bash
-        run: pip install --upgrade pip setuptools wheel
-      - name: Downloading Python Staging RC
-        shell: bash
-        run: |
-            echo "---------------------Downloading Python Staging RC----------------------------"
-            wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-            wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-            if [[ ! -f apache-beam-$RELEASE_VER.zip ]]; then
-              { echo "Fail to download Python Staging RC files." ;exit 1; }
-            fi
-
-            echo "--------------------------Verifying Hashes------------------------------------"
-            sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-
-            `which pip` install --upgrade pip
-            `which pip` install --upgrade setuptools
-      - name: Installing python SDK
-        shell: bash
-        run: pip install apache-beam-${RELEASE_VER}.zip[gcp]
-
-      - name: Donwloading Python RC
-        shell: bash
-        run: |
-          echo "---------------------Downloading Python Staging RC----------------------------"
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-
-      - name: Verifying Hashes
-        shell: bash
-        run: |
-          echo "--------------------------Verifying Hashes------------------------------------"
-          sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-      ########
-      - name: Exporting Gamestates Direct Dataset
+      
+      - name: Setting python env
+        uses: ./.github/actions/common-rc-validation
+      
+      - name: Exporting Gamestates Direct Dataset Name
         run: echo "GAMESTATS_DF_DATASET=${GITHUB_ACTOR}_python_validations_$(date +%m%d)_$RANDOM" >> $GITHUB_ENV
       - name: Creating Dataset
         run: bq mk --project_id=${USER_GCP_PROJECT} ${GAMESTATS_DF_DATASET}
@@ -738,7 +505,7 @@ jobs:
           echo '*****************************************************';
           echo '* Running GameStats with DataflowRunner';
           echo '*****************************************************';
-          timeout --preserve-status 50m python -m apache_beam.examples.complete.game.game_stats \
+          timeout --preserve-status 45m python -m apache_beam.examples.complete.game.game_stats \
           --project=${USER_GCP_PROJECT} \
           --region=${USER_GCP_REGION} \
           --topic projects/${USER_GCP_PROJECT}/topics/${{needs.generate_shared_pubsub.outputs.name}} \
@@ -757,10 +524,11 @@ jobs:
           bq rm -f ${GAMESTATS_DF_DATASET}.game_stats_teams
           bq rm -f ${GAMESTATS_DF_DATASET}.game_stats_sessions 
           bq rm -f $GAMESTATS_DF_DATASET
+  
   remove_shared_pubsub:
     runs-on: [self-hosted,ubuntu-20.04]
-    needs: [java_injector]
-    if: ${{github.event.inputs.RUN_DATAFLOW_RUNNER_TESTS=='true' || github.event.inputs.RUN_DIRECT_RUNNER_TESTS == 'true'}}
+    needs: [java_injector, generate_shared_pubsub]
+    if: always()
     steps:
       - name: Deleting Shared Pub Sub
         run: gcloud pubsub topics delete --project=${USER_GCP_PROJECT}  ${{needs.generate_shared_pubsub.outputs.name}}
