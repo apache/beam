@@ -76,7 +76,7 @@ jobs:
       - name: Start SDK runner in background
         run: |
           set -uex
-          NAME=$(docker run -d --rm -p 8089:8080 -e PROTOCOL_TYPE=TCP $IMAGE_TAG)
+          NAME=$(docker run -d --rm -p 8080:8080 -e PROTOCOL_TYPE=TCP $IMAGE_TAG)
           echo "NAME=$NAME" >> $GITHUB_ENV
 
       - name: Run ci_cd.py
@@ -91,8 +91,8 @@ jobs:
           BEAM_ROOT_DIR: "../../"
           SDK_CONFIG: "../../playground/sdks.yaml"
           BEAM_EXAMPLE_CATEGORIES: "../categories.yaml"
-          SERVER_ADDRESS: localhost:8089
-          BEAM_CONCURRENCY: 2
+          SERVER_ADDRESS: localhost:8080
+          BEAM_CONCURRENCY: 4
 
       - name: Get SDK runner logs
         if: ${{ always() }}
