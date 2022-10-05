@@ -37,7 +37,10 @@ jobs:
     name: Examples ${{ inputs.step }} ${{ inputs.sdk }} ${{ inputs.origin }}
     runs-on: ubuntu-latest
     env:
+      ORIGIN: ${{ inputs.origin }}
       SDK: ${{ inputs.sdk }}
+      STEP: ${{ inputs.step }}
+      SUBDIRS: ${{ inputs.subdirs }}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
@@ -67,7 +70,7 @@ jobs:
         run: |
              set -uex
              opts="-Pdocker-tag=$DOCKERTAG"
-             if [ "${{ inputs.sdk }}" == "java" ]; then
+             if [ "$SDK" == "java" ]; then
               opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
              fi
 
@@ -82,10 +85,10 @@ jobs:
       - name: Run ci_cd.py
         run: |
              python3 ci_cd.py \
-              --step ${{ inputs.step }} \
+              --step $STEP \
               --sdk SDK_${SDK^^} \
-              --origin ${{ inputs.origin }} \
-              --subdirs ${{ inputs.subdirs }}
+              --origin $ORIGIN \
+              --subdirs $SUBDIRS
         working-directory: playground/infrastructure
         env:
           BEAM_ROOT_DIR: "../../"
