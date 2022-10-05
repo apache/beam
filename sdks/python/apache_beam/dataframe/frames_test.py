@@ -1017,7 +1017,6 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.B.astype(categorical_dtype), df)
 
-
   def test_astype_categorical_with_unstack(self):
     df = pd.DataFrame({
         'index1': ['one', 'one', 'two', 'two'],
@@ -1028,11 +1027,13 @@ class DeferredFrameTest(_AbstractFrameTest):
     def with_categorical_index(df):
       df.index1 = df.index1.astype(pd.CategoricalDtype(['one', 'two']))
       df.index2 = df.index2.astype(pd.CategoricalDtype(['a', 'b']))
-      df.set_index(['index1' ,'index2'], drop=True)
+      df.set_index(['index1', 'index2'], drop=True)
       return df
 
-    self._run_test(lambda df: with_categorical_index(df).unstack(level=-1), df,
-                   check_proxy=False)
+    self._run_test(
+        lambda df: with_categorical_index(df).unstack(level=-1),
+        df,
+        check_proxy=False)
 
   def test_dataframe_sum_nonnumeric_raises(self):
     # Attempting a numeric aggregation with the str column present should
@@ -1389,9 +1390,22 @@ class DeferredFrameTest(_AbstractFrameTest):
     return index
 
   def test_unstack_pandas_example1(self):
-    index = self._unstack_get_categorical_index()
-    s = pd.Series(np.arange(1.0, 5.0), index=index)
-    self._run_test(lambda s: s.unstack(level=-1), s)
+    df = pd.DataFrame({
+        'index1': ['one', 'one', 'two', 'two'],
+        'index2': ['a', 'b', 'a', 'b'],
+        'data': np.arange(1.0, 5.0),
+    })
+
+    def with_categorical_index(df):
+      df.index1 = df.index1.astype(pd.CategoricalDtype(['one', 'two']))
+      df.index2 = df.index2.astype(pd.CategoricalDtype(['a', 'b']))
+      df.set_index(['index1', 'index2'], drop=True)
+      return df
+
+    self._run_test(
+        lambda df: with_categorical_index(df).unstack(level=-1),
+        df,
+        check_proxy=False)
 
   def test_unstack_pandas_example2(self):
     index = self._unstack_get_categorical_index()
