@@ -74,7 +74,7 @@ bucket               = "bucket_name" #input bucket name (will be used for tfstat
 
 # Backend deployment:
 * Login to Docker registry:
-- cat `your json key locaton` | docker login -u _json_key --password-stdin https://`chosen_region`-docker.pkg.dev
+-- cat `your json key locaton` | docker login -u _json_key --password-stdin https://`chosen_region`-docker.pkg.dev
 
 * Login to GKE
 gcloud container clusters get-credentials --region `chosen_pg_location` `gke_name` --project `project_id`
