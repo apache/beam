@@ -98,7 +98,7 @@ public abstract class Plugin {
       cdapPluginObj.prepareRun(getContext());
     } catch (Exception e) {
       LOG.error("Error while prepareRun", e);
-      throw new IllegalStateException("Error while prepareRun");
+      throw new IllegalStateException("Error while prepareRun", e);
     }
     if (getPluginType().equals(PluginConstants.PluginType.SOURCE)) {
       for (Map.Entry<String, String> entry :
