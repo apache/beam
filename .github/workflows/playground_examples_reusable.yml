@@ -137,7 +137,6 @@ jobs:
 
       - name: Run ci_cd.py
         run: |
-            sleep 10
              python3 ci_cd.py \
               --step $STEP \
               --sdk SDK_${SDK^^} \
