@@ -18,8 +18,9 @@
 package org.apache.beam.sdk.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -60,8 +61,10 @@ public interface ExecutorOptions extends PipelineOptions {
        * <p> The minimum of max(4, processors) was chosen as a default working configuration found in
        * the Bigquery client library
        */
-      return Executors.newScheduledThreadPool(
-          Math.max(4, Runtime.getRuntime().availableProcessors()), threadFactoryBuilder.build());
+      ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(Integer.MAX_VALUE, threadFactoryBuilder.build());
+      executor.setKeepAliveTime(1, TimeUnit.MINUTES);
+      executor.allowCoreThreadTimeOut(true);
+      return executor;
     }
   }
 }
