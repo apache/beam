@@ -17,73 +17,75 @@
     under the License.
 -->
 
-# Requirements
+# Prerequisit:
 
-The following items need to be setup for the Playground cluster deployment on GCP:
+* GCP project should be created
+* Bucket should be created
+* Service account with the following roles should be created:
+   - App Engine Admin
+   - App Engine Creator
+   - Artifact Registry Administrator
+   - Cloud Memorystore Redis Admin
+   - Compute Admin
+   - Create Service Accounts
+   - Kubernetes Engine Admin
+   - Quota Administrator
+   - Role Administrator
+   - Security Admin
+   - Service Account User
+   - Storage Admin
+   - Cloud Datastore Index Admin
+* Following APIs should be enabled:
+   - Identity and Access Management (IAM)
+   - Compute Engine API
+   - App Engine Admin API
+   - Cloud Resource Manager API
 
-* [GCP account](https://cloud.google.com/)
-* [`gcloud` command-line tool](https://cloud.google.com/sdk/gcloud) and required setup i.e. login
-* [Terraform](https://www.terraform.io/downloads.html) tool
-* [Docker](https://www.docker.com/get-started)
+* Make necessary changes in `playground/terraform/environment/beta/terraform.tfvars` file:
+network_name         = "network_name"         #Choose network name
+project_id           = "project_id"      #Input project ID
+gke_name             = "playground-backend" #Define GKE name
+region               = "us-east1"           #Choose region
+pg_location          = "us-east1-b"         #Choose location (should be in the region)
+state_bucket         = "bucket_name"          #Input bucket name
+bucket_examples_name = "bucket_name-example"  #Input example bucket name
 
-# Deployment steps
+* Make necessary changes in `playground/terraform/environment/beta/state.tfbackend` file:
+bucket               = "bucket_name" #input bucket name (will be used for tfstate file)
 
-## 0. Create GCS bucket for state
+* Export GOOGLE_APPLICATION_CREDENTIALS using following command:
+    export GOOGLE_APPLICATION_CREDENTIALS=`your json key locaton`
 
-```bash
-$ gsutil mb -p ${PROJECT_ID} gs://state-bucket-name
-$ gsutil versioning set on gs://state-bucket-name
-```
+* Activate created service account using following command:
+    gcloud auth activate-service-account `full principal service account` --key-file=`your json key locaton`
 
-## 1. Create new environment
+* Install kubectl:
+             curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" &&\
+             chmod +x kubectl &&\
+             mv kubectl /usr/local/bin/
+* Install Helm:
+             curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 &&\
+             chmod 700 get_helm.sh &&\
+             ./get_helm.sh
 
-To provide information about the terraform backend, run the following commands
+# Infrastructure deployment:
+* Run following command for infrastructure deployment (please be sure that you are in the "beam" folder):
+./gradlew playground:terraform:InitInfrastructure -Pproject_environment="beta"
 
-* New environment folder
+# Backend deployment:
+* Login to Docker registry:
+cat `your json key locaton` | docker login -u _json_key --password-stdin https://`chosen_region`-docker.pkg.dev
 
-```bash
-mkdir /path/to/beam/playground/terraform/environment/{env-name}
-```
+* Login to GKE
+gcloud container clusters get-credentials --region `chosen_pg_location` `gke_name` --project `project_id`
 
-* Backend config
+* Database index creation:
+gcloud app deploy playground/index.yaml --project=`project_id`
 
-```bash
-echo 'bucket = "put your state bucket name here"' > /path/to/beam/playground/terraform/environment/{env-name}/state.tfbackend
-```
+* Please run following command for backend deployment (please be sure that you are in the "beam" folder):
+./gradlew playground:terraform:gkebackend -Pproject_environment="beta" -Pdocker-tag="beta"
 
-* Terraform variables config and provide necessary variables
-
-```bash
-touch /path/to/beam/playground/terraform/environment/{env-name}/terraform.tfvars
-```
-
-Then provide necessary variables.
-
-## 2. Provision infrastructure
-
-To deploy Playground infrastructure run gradle task:
-
-```bash
-./gradlew playground:terraform:InitInfrastructure -Pproject_environment="env-name"
-```
-
-## 3. Deploy application
-
-To deploy application run following steps:
-
-* Authinticate in Artifact registry
-
-```bash
-gcloud auth configure-docker us-central1-docker.pkg.dev
-```
-
-* Вeploy backend services
-
-```bash
-./gradlew playground:terraform:deployBackend -Pproject_environment="env-name" -Pdocker-tag="tag"
-```
-
-* Deploy frontend service
-
-```bash
-./gradlew playground:terraform:deployFrontend -Pproject_environment="env-name" -Pdocker-tag="tag" ```
+# !! Please wait about 20 min before frontend deployment
+# Frontend deployment:
+* Run following command for frontend deployment (please be sure that you are in the "beam" folder):
+./gradlew playground:terraform:deployFrontend -Pdocker-tag="beta" -Pproject_id=pg-fourht -Pproject_environment='beta'
