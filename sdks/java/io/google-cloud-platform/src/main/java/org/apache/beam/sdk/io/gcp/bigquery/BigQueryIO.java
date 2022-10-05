@@ -1804,6 +1804,7 @@ public class BigQueryIO {
         .setUseBeamSchema(false)
         .setAutoSharding(false)
         .setPropagateSuccessful(true)
+        .setAutoSchemaUpdate(false)
         .setDeterministicRecordIdFn(null)
         .build();
   }
@@ -1947,6 +1948,8 @@ public class BigQueryIO {
 
     abstract Boolean getPropagateSuccessful();
 
+    abstract Boolean getAutoSchemaUpdate();
+
     @Experimental
     abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
 
@@ -2037,6 +2040,8 @@ public class BigQueryIO {
       abstract Builder<T> setAutoSharding(Boolean autoSharding);
 
       abstract Builder<T> setPropagateSuccessful(Boolean propagateSuccessful);
+
+      abstract Builder<T> setAutoSchemaUpdate(Boolean autoSchemaUpdate);
 
       @Experimental
       abstract Builder<T> setDeterministicRecordIdFn(
@@ -2555,6 +2560,17 @@ public class BigQueryIO {
     }
 
     /**
+     * If true, enables automatically detecting BigQuery table schema updates. If a message with
+     * unknown fields is processed, the BigQuery table is tabled to see if the schema has been
+     * updated. This is intended for scenarios in which unknown fields are rare, otherwise calls to
+     * BigQuery will throttle the pipeline. only supported when using one of the STORAGE_API insert
+     * methods.
+     */
+    public Write<T> withAutoSchemaUpdate(boolean autoSchemaUpdate) {
+      return toBuilder().setAutoSchemaUpdate(autoSchemaUpdate).build();
+    }
+
+    /*
      * Provides a function which can serve as a source of deterministic unique ids for each record
      * to be written, replacing the unique ids generated with the default scheme. When used with
      * {@link Method#STREAMING_INSERTS} This also elides the re-shuffle from the BigQueryIO Write by
@@ -2748,6 +2764,12 @@ public class BigQueryIO {
                 + " was %s and the method was %s",
             input.isBounded(),
             method);
+      }
+
+      if (method != Method.STORAGE_WRITE_API && method != Method.STORAGE_API_AT_LEAST_ONCE) {
+        checkArgument(
+            !getAutoSchemaUpdate(),
+            "withAutoSchemaUpdate only supported when using storage-api writes.");
       }
 
       if (method != Write.Method.FILE_LOADS) {
@@ -3045,7 +3067,8 @@ public class BigQueryIO {
                   tableRowWriterFactory.getToRowFn(),
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
-                  bqOptions.getSchemaUpdateRetries());
+                  bqOptions.getSchemaUpdateRetries(),
+                  getAutoSchemaUpdate());
         }
 
         StorageApiLoads<DestinationT, T> storageApiLoads =
