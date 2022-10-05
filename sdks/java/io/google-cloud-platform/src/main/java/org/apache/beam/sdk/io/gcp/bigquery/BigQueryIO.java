@@ -2559,12 +2559,12 @@ public class BigQueryIO {
       return toBuilder().setPropagateSuccessful(propagateSuccessful).build();
     }
 
-
     /**
-     * If true, enables automatically detecting BigQuery table schema updates. If a message with unknown fields
-     * is processed, the BigQuery table is tabled to see if the schema has been updated. This is intended for scenarios
-     * in which unknown fields are rare, otherwise calls to BigQuery will throttle the pipeline.
-     * only supported when using one of the STORAGE_API insert methods.
+     * If true, enables automatically detecting BigQuery table schema updates. If a message with
+     * unknown fields is processed, the BigQuery table is tabled to see if the schema has been
+     * updated. This is intended for scenarios in which unknown fields are rare, otherwise calls to
+     * BigQuery will throttle the pipeline. only supported when using one of the STORAGE_API insert
+     * methods.
      */
     public Write<T> withAutoSchemaUpdate(boolean autoSchemaUpdate) {
       return toBuilder().setAutoSchemaUpdate(autoSchemaUpdate).build();
@@ -2767,7 +2767,9 @@ public class BigQueryIO {
       }
 
       if (method != Method.STORAGE_WRITE_API && method != Method.STORAGE_API_AT_LEAST_ONCE) {
-        checkArgument(!getAutoSchemaUpdate(), "withAutoSchemaUpdate only supported when using storage-api writes.");
+        checkArgument(
+            !getAutoSchemaUpdate(),
+            "withAutoSchemaUpdate only supported when using storage-api writes.");
       }
 
       if (method != Write.Method.FILE_LOADS) {
