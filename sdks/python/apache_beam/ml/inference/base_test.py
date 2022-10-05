@@ -255,7 +255,7 @@ class RunInferenceBaseTest(unittest.TestCase):
           | 'RunKeyed' >> base.RunInference(model_handler))
       pipeline.run()
 
-  def test_model_handler_constructor_signature(self):
+  def test_model_handler_constructor_compatibility(self):
     # ** IMPORTANT ** Do not change this test to make your PR pass without
     # first reading below.
     # Be certain that the modification will not break third party
@@ -293,7 +293,8 @@ class RunInferenceBaseTest(unittest.TestCase):
           self, inference_args: Optional[Dict[str, Any]]):
         pass
 
-    # test passes if calling these methods do not cause a runtime exception.
+    # This test passes if calling these methods do not cause
+    # any runtime exceptions.
     third_party_model_handler = ThirdPartyHandler(custom_parameter=0)
     fake_model = third_party_model_handler.load_model()
     third_party_model_handler.run_inference([], fake_model)
