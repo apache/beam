@@ -176,13 +176,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private DescriptorWrapper descriptorWrapper;
       private Instant nextCacheTickle = Instant.MAX;
       private final int clientNumber;
+      private final BigQueryOptions bigQueryOptions;
 
       public DestinationState(
           String tableUrn,
           MessageConverter<ElementT> messageConverter,
           DatasetService datasetService,
           boolean useDefaultStream,
-          int streamAppendClientCount) {
+          int streamAppendClientCount,
+          BigQueryOptions bigQueryOptions) {
         this.tableUrn = tableUrn;
         this.messageConverter = messageConverter;
         this.pendingMessages = Lists.newArrayList();
@@ -190,6 +192,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.useDefaultStream = useDefaultStream;
         this.descriptorWrapper = messageConverter.getSchemaDescriptor();
         this.clientNumber = new Random().nextInt(streamAppendClientCount);
+        this.bigQueryOptions = bigQueryOptions;
       }
 
       void teardown() {
@@ -229,7 +232,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       StreamAppendClient generateClient() throws Exception {
         Preconditions.checkStateNotNull(maybeDatasetService);
-        return maybeDatasetService.getStreamAppendClient(streamName, descriptorWrapper.descriptor);
+        return maybeDatasetService.getStreamAppendClient(
+            streamName,
+            descriptorWrapper.descriptor,
+            bigQueryOptions.getUseStorageApiConnectionPool());
       }
 
       StreamAppendClient getStreamAppendClient(boolean lookupCache) {
@@ -456,7 +462,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     }
 
     DestinationState createDestinationState(
-        ProcessContext c, DestinationT destination, DatasetService datasetService) {
+        ProcessContext c,
+        DestinationT destination,
+        DatasetService datasetService,
+        BigQueryOptions bigQueryOptions) {
       TableDestination tableDestination1 = dynamicDestinations.getTable(destination);
       checkArgument(
           tableDestination1 != null,
@@ -475,7 +484,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           messageConverter,
           datasetService,
           useDefaultStream,
-          streamAppendClientCount);
+          streamAppendClientCount,
+          bigQueryOptions);
     }
 
     @ProcessElement
@@ -489,7 +499,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       Preconditions.checkStateNotNull(destinations);
       DestinationState state =
           destinations.computeIfAbsent(
-              element.getKey(), k -> createDestinationState(c, k, initializedDatasetService));
+              element.getKey(),
+              k ->
+                  createDestinationState(
+                      c, k, initializedDatasetService, pipelineOptions.as(BigQueryOptions.class)));
       flushIfNecessary();
       state.addMessage(element.getValue());
       ++numPendingRecords;
