@@ -134,6 +134,21 @@ public class BigQueryIOReadTest implements Serializable {
           .withDatasetService(fakeDatasetService)
           .withJobService(fakeJobService);
 
+  private SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>
+      datumReaderFactoryFn =
+          (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
+              input -> {
+                try {
+                  String jsonSchema = BigQueryIO.JSON_FACTORY.toString(input);
+                  return (AvroSource.DatumReaderFactory<TableRow>)
+                      (writer, reader) ->
+                          new BigQueryIO.GenericDatumTransformer<>(
+                              BigQueryIO.TableRowParser.INSTANCE, jsonSchema, writer, reader);
+                } catch (IOException e) {
+                  return null;
+                }
+              };
+
   private void checkSetsProject(String projectId) throws Exception {
     fakeDatasetService.createDataset(projectId, "dataset-id", "", "", null);
     String tableId = "sometable";
@@ -234,21 +249,6 @@ public class BigQueryIOReadTest implements Serializable {
     assertEquals(tempDataset, read.getQueryTempDataset());
     assertEquals(validate, read.getValidate());
   }
-
-  private SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>
-      datumReaderFactoryFn =
-          (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
-              input -> {
-                try {
-                  String jsonSchema = BigQueryIO.JSON_FACTORY.toString(input);
-                  return (AvroSource.DatumReaderFactory<TableRow>)
-                      (writer, reader) ->
-                          new BigQueryIO.GenericDatumTransformer<>(
-                              BigQueryIO.TableRowParser.INSTANCE, jsonSchema, writer, reader);
-                } catch (IOException e) {
-                  return null;
-                }
-              };
 
   @Before
   public void setUp() throws ExecutionException, IOException, InterruptedException {
