@@ -293,7 +293,7 @@ class RunInferenceBaseTest(unittest.TestCase):
           self, inference_args: Optional[Dict[str, Any]]):
         pass
 
-    # This test passes if calling these methods do not cause
+    # This test passes if calling these methods does not cause
     # any runtime exceptions.
     third_party_model_handler = ThirdPartyHandler(custom_parameter=0)
     fake_model = third_party_model_handler.load_model()
