@@ -16,9 +16,9 @@
 #    limitations under the License.
 #
 # This script adds comments from a txt file, in the given GitHub Pull Request.
-# mass_comment.txt file has the Trigger Phrases for running Gradle Build and PostCommit/PreCommit tests.
+# test/resources/mass_comment.txt file has the Trigger Phrases for running Gradle Build and PostCommit/PreCommit tests.
 
-file="./mass_comment.txt"
+file="./test/resources/mass_comment.txt"
 GITHUB_PR=$1
 while IFS= read -r trigger_phrase
 do
