@@ -17,12 +17,9 @@ name: Collect And Deploy Playground Examples
 
 on:
   pull_request:
+    types:
+      - closed
     branches: ['master']
-    paths:
-     - playground/infrastructure/**
-     - learning/katas/**
-     - examples/**
-     - sdks/**
 env:
   BEAM_ROOT_DIR: "../../"
   SDK_CONFIG: "../../playground/sdks.yaml"
