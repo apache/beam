@@ -35,6 +35,11 @@ def should_include_function_node(member_node: ast.FunctionDef) -> bool:
     return True
 
 
+def should_include_property_node(name_node: ast.Name) -> bool:
+    if name_node.id[0:1] == '_': return False
+    return True
+
+
 def get_file_symbols(file_name: str) -> Dict[str, Dict[str, List[str]]]:
     classes_dict = {}
 
@@ -56,9 +61,17 @@ def get_file_symbols(file_name: str) -> Dict[str, Dict[str, List[str]]]:
                 if isinstance(member_node, ast.FunctionDef):
                     if not should_include_function_node(member_node): continue
                     class_dict['methods'].append(member_node.name)
+
+                elif isinstance(member_node, ast.Assign):
+                    [target] = member_node.targets
+                    if isinstance(target, ast.Name):
+                        if not should_include_property_node(target): continue
+                        class_dict['properties'].append(target.id)
+
                 elif isinstance(member_node, ast.AnnAssign):
                     target = member_node.target
                     if isinstance(target, ast.Name):
+                        if not should_include_property_node(target): continue
                         class_dict['properties'].append(target.id)
 
             if len(class_dict['methods']) == 0:
@@ -106,5 +119,6 @@ print(
         class_names,
         default_flow_style=False,
         sort_keys=False,
-    )
+    ),
+    end='',
 )

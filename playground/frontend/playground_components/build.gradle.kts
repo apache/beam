@@ -125,7 +125,7 @@ tasks.register("extractBeamSymbolsPython") {
     exec {
       executable("python3")
       args(
-        "tools/extract_symbols_python/extract_python_symbols.py",
+        "tools/extract_symbols_python/extract_symbols_python.py",
         "../../../sdks/python/apache_beam",
       )
       standardOutput = FileOutputStream("playground/frontend/playground_components/assets/symbols/python.g.yaml")
