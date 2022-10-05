@@ -78,27 +78,27 @@ class CDHelper:
         Args:
             examples: beam examples that should be run
         """
-        await get_statuses(
-            examples)  # run examples code and wait until all are executed
-        client = GRPCClient()
-        tasks = [client.get_run_output(example.pipeline_id) for example in examples]
-        outputs = await asyncio.gather(*tasks)
+        async with GRPCClient() as client:
+            await get_statuses(client,
+                examples)  # run examples code and wait until all are executed
+            tasks = [client.get_run_output(example.pipeline_id) for example in examples]
+            outputs = await asyncio.gather(*tasks)
 
-        tasks = [client.get_log(example.pipeline_id) for example in examples]
-        logs = await asyncio.gather(*tasks)
+            tasks = [client.get_log(example.pipeline_id) for example in examples]
+            logs = await asyncio.gather(*tasks)
 
-        if len(examples) > 0 and examples[0].sdk in [SDK_PYTHON, SDK_JAVA]:
-            tasks = [
-                client.get_graph(example.pipeline_id, example.filepath)
-                for example in examples
-            ]
-            graphs = await asyncio.gather(*tasks)
+            if len(examples) > 0 and examples[0].sdk in [SDK_PYTHON, SDK_JAVA]:
+                tasks = [
+                    client.get_graph(example.pipeline_id, example.filepath)
+                    for example in examples
+                ]
+                graphs = await asyncio.gather(*tasks)
 
-            for graph, example in zip(graphs, examples):
-                example.graph = graph
+                for graph, example in zip(graphs, examples):
+                    example.graph = graph
 
-        for output, example in zip(outputs, examples):
-            example.output = output
+            for output, example in zip(outputs, examples):
+                example.output = output
 
-        for log, example in zip(logs, examples):
-            example.logs = log
+            for log, example in zip(logs, examples):
+                example.logs = log
