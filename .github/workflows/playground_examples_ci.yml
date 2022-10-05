@@ -19,6 +19,7 @@ on:
   push:
     paths:
      - .github/workflows/playground*
+     - playground/backend/**
      - playground/infrastructure/**
      - learning/katas/**
      - examples/**

@@ -20,6 +20,7 @@ on:
     paths:
      - ./.github/workflows/playground_examples_reusable.yml
      - ./.github/workflows/tour_of_beam_examples_ci.yml
+     - playground/backend/**
      - playground/infrastructure/**
      - learning/tour-of-beam/learning-content/**
 # This allows a subsequently queued workflow run to interrupt previous runs
