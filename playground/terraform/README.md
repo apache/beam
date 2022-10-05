@@ -97,7 +97,7 @@ gcloud app deploy playground/index.yaml --project=`project_id`
 ```
 ./gradlew playground:terraform:gkebackend -Pproject_environment="beta" -Pdocker-tag="beta"
 ```
-# !! Please wait about 20 min before frontend deployment
+# !! Please wait about 20 min before frontend deployment (GCP certificate should be provisioned)
 # Frontend deployment:
 * Run following command for frontend deployment (please be sure that you are in the "beam" folder):
 ```
