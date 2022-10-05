@@ -77,7 +77,8 @@ class ImpulseSeqGenDoFn(beam.DoFn):
       element,
       restriction_tracker=beam.DoFn.RestrictionParam(
           ImpulseSeqGenRestrictionProvider()),
-      watermark_estimator=beam.DoFn.WatermarkEstimatorParam(ManualWatermarkEstimator.default_provider())):
+      watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
+          ManualWatermarkEstimator.default_provider())):
     '''
     :param element: (start_timestamp, end_timestamp, interval)
     :param restriction_tracker:
@@ -94,7 +95,8 @@ class ImpulseSeqGenDoFn(beam.DoFn):
     current_output_index = restriction_tracker.current_restriction().start
     current_output_timestamp = start + interval * current_output_index
     current_time = time.time()
-    watermark_estimator.set_watermark(timestamp.Timestamp(current_output_timestamp))
+    watermark_estimator.set_watermark(
+        timestamp.Timestamp(current_output_timestamp))
 
     while current_output_timestamp <= current_time:
       if restriction_tracker.try_claim(current_output_index):
@@ -102,7 +104,8 @@ class ImpulseSeqGenDoFn(beam.DoFn):
         current_output_index += 1
         current_output_timestamp = start + interval * current_output_index
         current_time = time.time()
-        watermark_estimator.set_watermark(timestamp.Timestamp(current_output_timestamp))
+        watermark_estimator.set_watermark(
+            timestamp.Timestamp(current_output_timestamp))
       else:
         return
 

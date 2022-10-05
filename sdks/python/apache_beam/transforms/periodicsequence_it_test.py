@@ -51,7 +51,8 @@ class PeriodicSequenceIT(unittest.TestCase):
     end_time = start_time + duration
     interval = 10
 
-    pipeline = TestPipeline(is_integration_test=True, options=PipelineOptions(streaming=True))
+    pipeline = TestPipeline(
+        is_integration_test=True,  options=PipelineOptions(streaming=True))
 
     res = (
         pipeline
@@ -61,8 +62,7 @@ class PeriodicSequenceIT(unittest.TestCase):
             window.FixedWindows(1),
             accumulation_mode=trigger.AccumulationMode.DISCARDING)
         | beam.combiners.Count.PerElement()
-        | beam.ParDo(DoFnWithLongGaps())
-        )
+        | beam.ParDo(DoFnWithLongGaps()))
     assert_that(res, is_empty())
 
     proto_pipeline, _ = pipeline.to_runner_api(return_context=True)
