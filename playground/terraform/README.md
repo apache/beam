@@ -43,17 +43,17 @@
 
 * Make necessary changes in `playground/terraform/environment/beta/terraform.tfvars` file:
 ```
-network_name         = "network_name"         #Choose network name
-project_id           = "project_id"      #Input project ID
-gke_name             = "playground-backend" #Define GKE name
-region               = "us-east1"           #Choose region
-pg_location          = "us-east1-b"         #Choose location (should be in the region)
-state_bucket         = "bucket_name"          #Input bucket name
-bucket_examples_name = "bucket_name-example"  #Input example bucket name
+network_name         = "network_name"        #Choose network name
+project_id           = "project_id"          #Input project ID
+gke_name             = "playground-backend"  #Define GKE name
+region               = "us-east1"            #Choose region
+pg_location          = "us-east1-b"          #Choose location (should be in the region)
+state_bucket         = "bucket_name"         #Input bucket name
+bucket_examples_name = "bucket_name-example" #Input example bucket name
 ```
 * Make necessary changes in `playground/terraform/environment/beta/state.tfbackend` file:
 ```
-bucket               = "bucket_name" #input bucket name (will be used for tfstate file)
+bucket               = "bucket_name"         #input bucket name (will be used for tfstate file)
 ```
 * Export GOOGLE_APPLICATION_CREDENTIALS using following command:
 ```
