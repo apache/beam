@@ -148,10 +148,20 @@ public class QueryChangeStreamActionTest {
     when(changeStreamRecordMapper.toChangeStreamRecords(partition, rowAsStruct, resultSetMetadata))
         .thenReturn(Arrays.asList(record1, record2));
     when(dataChangeRecordAction.run(
-            partition, record1, restrictionTracker, outputReceiver, watermarkEstimator))
+            partition,
+            record1,
+            restrictionTracker,
+            outputReceiver,
+            watermarkEstimator,
+            throughputEstimator))
         .thenReturn(Optional.empty());
     when(dataChangeRecordAction.run(
-            partition, record2, restrictionTracker, outputReceiver, watermarkEstimator))
+            partition,
+            record2,
+            restrictionTracker,
+            outputReceiver,
+            watermarkEstimator,
+            throughputEstimator))
         .thenReturn(Optional.of(ProcessContinuation.stop()));
     when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
 
@@ -161,9 +171,21 @@ public class QueryChangeStreamActionTest {
 
     assertEquals(ProcessContinuation.stop(), result);
     verify(dataChangeRecordAction)
-        .run(partition, record1, restrictionTracker, outputReceiver, watermarkEstimator);
+        .run(
+            partition,
+            record1,
+            restrictionTracker,
+            outputReceiver,
+            watermarkEstimator,
+            throughputEstimator);
     verify(dataChangeRecordAction)
-        .run(partition, record2, restrictionTracker, outputReceiver, watermarkEstimator);
+        .run(
+            partition,
+            record2,
+            restrictionTracker,
+            outputReceiver,
+            watermarkEstimator,
+            throughputEstimator);
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
 
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
@@ -207,7 +229,7 @@ public class QueryChangeStreamActionTest {
     verify(heartbeatRecordAction).run(partition, record2, restrictionTracker, watermarkEstimator);
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
@@ -252,7 +274,7 @@ public class QueryChangeStreamActionTest {
         .run(partition, record2, restrictionTracker, watermarkEstimator);
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
@@ -298,7 +320,7 @@ public class QueryChangeStreamActionTest {
         .run(partition, record2, restrictionTracker, watermarkEstimator);
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
@@ -324,7 +346,7 @@ public class QueryChangeStreamActionTest {
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
     verify(partitionMetadataDao).updateToFinished(PARTITION_TOKEN);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
   }
