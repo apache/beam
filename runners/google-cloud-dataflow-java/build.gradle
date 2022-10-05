@@ -603,6 +603,8 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/SpannerChangeStreamOrderedWithinKeyGloballyIT.class'
   exclude '**/SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.class'
   exclude '**/SpannerChangeStreamTransactionBoundariesIT.class'
+  // TODO Firestore IT test needs to run in a separate project from Datastore.
+  exclude '**/FirestoreV1IT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
@@ -650,6 +652,8 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   exclude '**/FhirIOLROIT.class'
   exclude '**/FhirIOSearchIT.class'
   exclude '**/FhirIOPatientEverythingIT.class'
+  // TODO Firestore IT test needs to run in a separate project from Datastore.
+  exclude '**/FirestoreV1IT.class'
 
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
