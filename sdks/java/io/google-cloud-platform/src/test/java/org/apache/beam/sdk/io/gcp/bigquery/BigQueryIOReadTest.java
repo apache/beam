@@ -235,6 +235,21 @@ public class BigQueryIOReadTest implements Serializable {
     assertEquals(validate, read.getValidate());
   }
 
+  private SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>
+      datumReaderFactoryFn =
+          (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
+              input -> {
+                try {
+                  String jsonSchema = BigQueryIO.JSON_FACTORY.toString(input);
+                  return (AvroSource.DatumReaderFactory<TableRow>)
+                      (writer, reader) ->
+                          new BigQueryIO.GenericDatumTransformer<>(
+                              BigQueryIO.TableRowParser.INSTANCE, jsonSchema, writer, reader);
+                } catch (IOException e) {
+                  return null;
+                }
+              };
+
   @Before
   public void setUp() throws ExecutionException, IOException, InterruptedException {
     FakeDatasetService.setUp();
@@ -663,16 +678,7 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource =
         BigQueryTableSourceDef.create(fakeBqServices, ValueProvider.StaticValueProvider.of(table))
-            .toSource(
-                stepUuid,
-                TableRowJsonCoder.of(),
-                (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
-                    input ->
-                        (AvroSource.DatumReaderFactory<TableRow>)
-                            (writer, reader) ->
-                                new BigQueryIO.GenericDatumTransformer<>(
-                                    BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
-                false);
+            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
@@ -721,16 +727,7 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource =
         BigQueryTableSourceDef.create(fakeBqServices, ValueProvider.StaticValueProvider.of(table))
-            .toSource(
-                stepUuid,
-                TableRowJsonCoder.of(),
-                (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
-                    input ->
-                        (AvroSource.DatumReaderFactory<TableRow>)
-                            (writer, reader) ->
-                                new BigQueryIO.GenericDatumTransformer<>(
-                                    BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
-                false);
+            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -768,16 +765,7 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource =
         BigQueryTableSourceDef.create(fakeBqServices, ValueProvider.StaticValueProvider.of(table))
-            .toSource(
-                stepUuid,
-                TableRowJsonCoder.of(),
-                (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
-                    input ->
-                        (AvroSource.DatumReaderFactory<TableRow>)
-                            (writer, reader) ->
-                                new BigQueryIO.GenericDatumTransformer<>(
-                                    BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
-                false);
+            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -808,16 +796,7 @@ public class BigQueryIOReadTest implements Serializable {
                 null,
                 null,
                 null)
-            .toSource(
-                stepUuid,
-                TableRowJsonCoder.of(),
-                (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
-                    input ->
-                        (AvroSource.DatumReaderFactory<TableRow>)
-                            (writer, reader) ->
-                                new BigQueryIO.GenericDatumTransformer<>(
-                                    BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
-                false);
+            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
 
     fakeJobService.expectDryRunQuery(
         bqOptions.getProject(),
@@ -893,16 +872,7 @@ public class BigQueryIOReadTest implements Serializable {
                 null,
                 null,
                 null)
-            .toSource(
-                stepUuid,
-                TableRowJsonCoder.of(),
-                (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
-                    input ->
-                        (AvroSource.DatumReaderFactory<TableRow>)
-                            (writer, reader) ->
-                                new BigQueryIO.GenericDatumTransformer<>(
-                                    BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
-                false);
+            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 
@@ -968,16 +938,7 @@ public class BigQueryIOReadTest implements Serializable {
                 null,
                 null,
                 null)
-            .toSource(
-                stepUuid,
-                TableRowJsonCoder.of(),
-                (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
-                    input ->
-                        (AvroSource.DatumReaderFactory<TableRow>)
-                            (writer, reader) ->
-                                new BigQueryIO.GenericDatumTransformer<>(
-                                    BigQueryIO.TableRowParser.INSTANCE, input, writer, reader),
-                false);
+            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 
