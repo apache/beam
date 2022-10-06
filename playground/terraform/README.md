@@ -105,7 +105,7 @@ You may find the instruction "How to enable Google Cloud Platform API" above
 
 ***Operation System preparation steps:***
 
-During the Operation system preparation steps, you will need to install Java, HELM, GIT, Docker, Kubernetes command line interface
+During the Operation system preparation steps, you will need to install Java, HELM, GIT, Docker, GCloud, Kubernetes command line interface
 
 1. How to install Java:
 * [This link](https://adoptopenjdk.net/) will provide you will all necessary instructions for Windows and Linux operation systems
@@ -123,6 +123,9 @@ During the Operation system preparation steps, you will need to install Java, HE
 
 5. How to install Docker
 * [Docker link](https://docs.docker.com/engine/install/) instructions for Windows and Linux operation systems
+
+6. How to install GCloud
+* [Gcloud link](https://cloud.google.com/sdk/docs/install#linux) instructions for Windows and Linux operation systems
 
 After installations of the required packages will be completed, you will need to download ***BEAM Playground*** from the repository. Please open the terminal and execute the following command:
 
