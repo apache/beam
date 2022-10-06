@@ -59,12 +59,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: 11
-      - name: Remove default github maven configuration
-        # This step is a workaround to avoid a decryption issue of Beam's
-        # gradle-command-action plugin and github's provided maven
-        # settings.xml file
-        shell: bash
-        run: rm ~/.m2/settings.xml
       - name: Run :runners:spark:3:validatesRunner
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
