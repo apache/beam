@@ -61,7 +61,7 @@ with pipeline as p:
    model_b_predictions = model_a_predictions | beam.ParDo(post_processing()) | RunInference(<model_handler_B>)
 ```
 
-In this [notebook](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml/run-inference-multi-model.ipynb), we show an end-to-end example of an ensemble model pipeline used for generating and ranking image captions. The solution consists of two open-source models:
+In this [notebook](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml/run_inference_multi_model.ipynb), we show an end-to-end example of an ensemble model pipeline used for generating and ranking image captions. The solution consists of two open-source models:
 
 1. **A caption generation model ([BLIP](https://github.com/salesforce/BLIP))** that generates candidate image captions from an input image.
 2. **A caption ranking model ([CLIP](https://github.com/openai/CLIP))** that uses the image and candidate captions to rank the captions in the order in which they best describe the image. 
