@@ -13,7 +13,7 @@ limitations under the License.
 # Max
 
 Max provides a variety of different transforms for computing the maximum values in a collection, either globally or for each key.
-    
+
 ### Maximum element in a PCollection
 
 You can use ```CombineGlobally(lambda elements: max(elements or [None]))``` to get the maximum element from the entire ```PCollection```.

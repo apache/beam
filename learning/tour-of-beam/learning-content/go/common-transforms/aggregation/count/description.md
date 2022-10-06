@@ -42,6 +42,6 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
-### Description for example 
+### Description for example
 
 Given a list of integers `PCollection`. The `applyTransform()` function return count of numbers from `PCollection`.

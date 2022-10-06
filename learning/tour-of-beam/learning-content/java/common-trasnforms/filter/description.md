@@ -73,6 +73,6 @@ PCollection<Integer> lessThanEqNumbers = pipeline.apply(Filter.lessThanEq(7));
 PCollection<Integer> equalNumbers = pipeline.apply(Filter.equal(9));
 ```
 
-### Description for example 
+### Description for example
 
 Given a list of integers , printing even numbers using ```Filter```. The ```applyTransform()``` method implements a filter in which the logic determines the numbers are even.

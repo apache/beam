@@ -48,6 +48,6 @@ KV{🥕, 3}
 KV{🍆, 1}
 ```
 
-### Description for example 
+### Description for example
 
 Given a list of integers ```PCollection```. The ```applyTransform()``` function return maximum number from ```PCollection```.
