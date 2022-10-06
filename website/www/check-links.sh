@@ -37,7 +37,7 @@ function redraw_progress_bar { # int barsize, int base, int current, int top
 if ! command -v lynx; then
     echo "This script requires lynx to work properly."
     echo
-    echo "For more information, look at: http://lynx.browser.org/"
+    echo "For more information, look at: https://lynx.browser.org/"
     exit 1
 fi
 
