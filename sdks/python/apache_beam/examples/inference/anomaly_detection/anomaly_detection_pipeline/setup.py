@@ -27,7 +27,7 @@ import setuptools
 from setuptools import find_packages
 
 REQUIREMENTS = [
-    "apache-beam[gcp]==2.40.0",
+    "apache-beam[gcp]==2.41.0",
     "hdbscan==0.8.28",
     "scikit-learn==1.0.2",
     "transformers==4.21.1",

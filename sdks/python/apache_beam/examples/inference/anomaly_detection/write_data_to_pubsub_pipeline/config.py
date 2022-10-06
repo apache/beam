@@ -17,6 +17,7 @@
 
 """The file defines global variables."""
 PROJECT_ID = "apache-beam-testing"
+REGION = "us-central1"
 # PubSub Topic ID
 TOPIC_ID = f"projects/{PROJECT_ID}/topics/newsgroup-dataset"
 JOB_NAME = "write-to-pub-sub"

@@ -21,7 +21,7 @@ The AnomalyDetection example demonstrates how to setup an anomaly detection pipe
 
 
 ### Dataset for Anomaly Detection
-For the example, we use a dataset called [emotion](https://huggingface.co/datasets/emotion). It comprises of 20000 English Twitter messages with 6 basic emotions: anger, fear, joy, love, sadness, and surprise. The dataset has three splits: train (for training), validation and test (for performance evaluation). It is a supervised dataset as it contains the text and the category(class) of the dataset. This dataset can easily be accessed using [HuggingFace Datasets](https://huggingface.co/docs/datasets/index).
+For the example, we use a dataset called [emotion](https://huggingface.co/datasets/emotion). It comprises of 20,000 English Twitter messages with 6 basic emotions: anger, fear, joy, love, sadness, and surprise. The dataset has three splits: train (for training), validation and test (for performance evaluation). It is a supervised dataset as it contains the text and the category (class) of the dataset. This dataset can easily be accessed using [HuggingFace Datasets](https://huggingface.co/docs/datasets/index).
 
 To have a better understanding of the dataset, here are some examples from the train split of the dataset:
 
@@ -36,13 +36,13 @@ To have a better understanding of the dataset, here are some examples from the t
 | i began having them several times a week feeling tortured by the hallucinations moving people and figures sounds and vibrations | Fear |
 
 ### Anomaly Detection Algorithm
-[HDBSCAN](https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html) is a clustering algorithm which extends DBSCAN by converting it into a hierarchical clustering algorithm, and then using a technique to extract a flat clustering based in the stability of clusters. Once trained, when predicting the cluster for a new data point if outlier will output -1 else will predict one of the existing clusters.
+[HDBSCAN](https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html) is a clustering algorithm which extends DBSCAN by converting it into a hierarchical clustering algorithm, and then using a technique to extract a flat clustering based in the stability of clusters. Once trained, the model will predict -1 if a new data point is an outlier, otherwise it will predict one of the existing clusters.
 
 
 ## Ingestion to PubSub
 We first ingest the data into [PubSub](https://cloud.google.com/pubsub/docs/overview) so that while clustering we can read the tweets from PubSub. PubSub is a messaging service for exchanging event data among applications and services. It is used for streaming analytics and data integration pipelines to ingest and distribute data.
 
-The full example code for ingesting data to PubSub can be found [here](sdks/python/apache_beam/examples/inference/anomaly_detection/write_data_to_pubsub_pipeline/)
+The full example code for ingesting data to PubSub can be found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/anomaly_detection/write_data_to_pubsub_pipeline/)
 
 The file structure for ingestion pipeline is:
 
@@ -57,9 +57,13 @@ The file structure for ingestion pipeline is:
     └── setup.py
 
 `pipeline/utils.py` contains the code for loading the emotion dataset and two `beam.DoFn` that are used for data transformation
+
 `pipeline/options.py` contains the pipeline options to configure the Dataflow pipeline
+
 `config.py` defines some variables like GCP PROJECT_ID, NUM_WORKERS that are used multiple times
+
 `setup.py` defines the packages/requirements for the pipeline to run
+
 `main.py` contains the pipeline code and some additional function used for running the pipeline
 
 ### How to Run the Pipeline ?
@@ -70,7 +74,7 @@ First, make sure you have installed the required packages.
 
 
 The `write_data_to_pubsub_pipeline` contains four different transforms:
-1. Load emotion dataset using HuggingFace Datasets (We take samples from 3 classes instead of 6 for simplicity)
+1. Load emotion dataset using HuggingFace Datasets (we take samples from 3 classes instead of 6 for simplicity)
 2. Associate each text with a unique identifier (UID)
 3. Convert the text into a format PubSub is expecting
 4. Write the formatted message to PubSub
@@ -78,9 +82,9 @@ The `write_data_to_pubsub_pipeline` contains four different transforms:
 
 ## Anomaly Detection on Streaming Data
 
-After having the data ingested to PubSub, we explain the anomaly detection pipeline, where we read the streaming message from PubSub, convert the text to a embedding using a language model and feed the embedding to an already trained clustering model to predict if the message is anomaly or not. One prerequisite for this pipeline is to have a HDBSCAN clustering model trained on the training split of the dataset.
+After having the data ingested to PubSub, we can run the anomaly detection pipeline. This pipeline reads the streaming message from PubSub, converts the text to an embedding using a language model, and feeds the embedding to an already trained clustering model to predict if the message is anomaly or not. One prerequisite for this pipeline is to have a HDBSCAN clustering model trained on the training split of the dataset.
 
-The full example code for anomaly detection can be found [here](sdks/python/apache_beam/examples/inference/anomaly_detection/anomaly_detection_pipeline/)
+The full example code for anomaly detection can be found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/anomaly_detection/anomaly_detection_pipeline/)
 
 The file structure for anomaly_detection pipeline is:
 
@@ -94,11 +98,15 @@ The file structure for anomaly_detection pipeline is:
     ├── main.py
     └── setup.py
 
-`pipeline/utils.py` contains the code for loading the emotion dataset and two `beam.DoFn` that are used for data transformation
+`pipeline/transformations.py` contains the code for different `beam.DoFn` and additional functions that are used in pipeline
+
 `pipeline/options.py` contains the pipeline options to configure the Dataflow pipeline
+
 `config.py` defines some variables like GCP PROJECT_ID, NUM_WORKERS that are used multiple times
+
 `setup.py` defines the packages/requirements for the pipeline to run
-`main.py` contains the pipeline code and some additional function used for running the pipeline
+
+`main.py` contains the pipeline code and some additional functions used for running the pipeline
 
 ### How to Run the Pipeline ?
 First, make sure you have installed the required packages and you have pushed data to PubSub.
@@ -109,7 +117,7 @@ First, make sure you have installed the required packages and you have pushed da
 The pipeline can be broken down into few simple steps:
 
 1. Reading the message from PubSub
-2. Converting the PubSub message into a PCollection of dictionary where the key is the UID and the value is the twitter text
+2. Converting the PubSub message into a PCollection of dictionaries where the key is the UID and the value is the twitter text
 3. Encoding the text into transformer-readable token ID integers using a tokenizer
 4. Using RunInference to get the vector embedding from a Transformer based Language Model
 5. Normalizing the embedding
@@ -129,13 +137,13 @@ The code snippet for the first two steps of the pipeline:
     )
 {{< /highlight >}}
 
-We focus on important steps of pipeline: tokenizing the text, getting embedding using RunInference and finally getting prediction from HDBSCAN model.
+We will now focus on important steps of pipeline: tokenizing the text, getting embedding using RunInference and finally getting prediction from HDBSCAN model.
 
 ### Getting Embedding from a Language Model
 
 In order to do clustering with text data, we first need to map the text into vectors of numerical values suitable for statistical analysis. We use a transformer based language model called [sentence-transformers/stsb-distilbert-base/stsb-distilbert-base](https://huggingface.co/sentence-transformers/stsb-distilbert-base). It maps sentences & paragraphs to a 768 dimensional dense vector space and can be used for tasks like clustering or semantic search. But, we first need to tokenize the text as the language model is expecting a tokenized input instead of raw text.
 
-Tokenization can be seen as a preprocessing task as it transforms text in a way that it can be fed into the model for getting predictions.
+Tokenization is a preprocessing task that transforms text in a way that it can be fed into the model for getting predictions.
 
 {{< highlight >}}
     normalized_embedding = (
@@ -213,7 +221,7 @@ We defined `CustomSklearnModelHandlerNumpy` as a wrapper to `SklearnModelHandler
 {{< code_sample "sdks/python/apache_beam/examples/inference/anomaly_detection/anomaly_detection_pipeline/pipeline/transformations.py" CustomSklearnModelHandlerNumpy >}}
 {{< /highlight >}}
 
-After getting the model predictions, we first the decode the output from `RunInference` into a dictionary. Afterwards, take two different actions: i) store the prediction in a BigQuery table for analysis and updating HDBSCAN model and ii) send email alert if prediction is an anomaly.
+After getting the model predictions, we first the decode the output from `RunInference` into a dictionary. Afterwards, we take two different actions: i) store the prediction in a BigQuery table for analysis and updating HDBSCAN model and ii) send email alert if prediction is an anomaly.
 
 {{< highlight >}}
     _ = (

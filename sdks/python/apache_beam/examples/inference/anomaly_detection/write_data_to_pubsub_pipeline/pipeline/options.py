@@ -48,7 +48,7 @@ def get_pipeline_options(
       "runner": "DirectRunner" if mode == "local" else "DataflowRunner",
       "job_name": job_name,
       "project": project,
-      "region": "us-central1",
+      "region": cfg.REGION,
       "staging_location": f"{staging_bucket}/dflow-staging",
       "temp_location": f"{staging_bucket}/dflow-temp",
       "setup_file": "./setup.py",
