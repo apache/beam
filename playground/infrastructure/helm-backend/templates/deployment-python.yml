@@ -31,7 +31,7 @@ spec:
     spec:
      containers:
      - name: playground-backend-python
-       image: {{ .Values.registry}}/{{ .Values.image.python_image }}:{{ .Values.image.tag }}
+       image: {{ .Values.registry}}/{{ .Values.image.python_image }}:{{ .Values.tag }}
        imagePullPolicy: {{ .Values.image.pullPolicy }}
        env:
         - name: CACHE_TYPE
