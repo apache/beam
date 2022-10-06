@@ -31,31 +31,31 @@ https://cloud.google.com/resource-manager/docs/creating-managing-projects
 ```
 https://cloud.google.com/iam/docs/creating-managing-service-accounts
 ```
-**Description:** * *You will find the instruction "How to create Service account" for your new project
+**Description:** * *You will find the instruction "How to create Service account" for your new project* *
 
 3. How to create a JSON key for Google Service account:
 ```
 https://cloud.google.com/iam/docs/creating-managing-service-account-keys
 ```
-**Description:** * *In this instruction will be explaned how to create JSON key for your service account. it will be required for the authentication.
+**Description:** * *In this instruction will be explaned how to create JSON key for your service account. it will be required for the authentication.* *
 
 4. How to create a new bucket:
 ```
 https://cloud.google.com/storage/docs/creating-buckets
 ```
-**Description:** * *Short instruction for bucket creation. You will need at least one bucket for file keeping
+**Description:** * *Short instruction for bucket creation. You will need at least one bucket for file keeping* *
 
 5. How to assign new role for service account:
 ```
 https://cloud.google.com/iam/docs/granting-changing-revoking-access
 ```
-**Description:** * *It will explain how to assign required roles for your service account
+**Description:** * *It will explain how to assign required roles for your service account* *
 
 6. How to install GCloud to your Operation system
 ```
 https://cloud.google.com/sdk/docs/install?hl=en
 ```
-**Description:** * *GCloud - Google command line interface, which will allow you to interact with Google cloud platform thry the command line (https://en.wikipedia.org/wiki/Command-line_interface)
+**Description:** * *GCloud - Google command line interface, which will allow you to interact with Google cloud platform thry the command line (https://en.wikipedia.org/wiki/Command-line_interface)* *
 
 
 The following to be done:
