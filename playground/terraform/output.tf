@@ -54,29 +54,29 @@ output "docker-repository-root" {
   value = module.infrastructure.docker-repository-root
 }
 
-output "go-server-url" {
-  value = module.applications.go-server-url
-}
+#output "go-server-url" {
+#  value = module.applications.go-server-url
+#}
 
-output "java-server-url" {
-  value = module.applications.java-server-url
-}
+#output "java-server-url" {
+#  value = module.applications.java-server-url
+#}
 
-output "python-server-url" {
-  value = module.applications.python-server-url
-}
+# output "python-server-url" {
+#  value = module.applications.python-server-url
+#}
 
-output "router-server-url" {
-  value = module.applications.router-server-url
-}
+# output "router-server-url" {
+#  value = module.applications.router-server-url
+#}
 
-output "scio-server-url" {
-  value = module.applications.scio-server-url
-}
+# output "scio-server-url" {
+#  value = module.applications.scio-server-url
+#}
 
-output "front-server-url" {
-  value = module.applications.front-server-url
-}
+# output "front-server-url" {
+#  value = module.applications.front-server-url
+#}
 
 output "playground_static_ip_address" {
   value = module.infrastructure.playground_static_ip_address
