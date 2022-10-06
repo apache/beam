@@ -1,4 +1,4 @@
-!--
+<!--
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -94,10 +94,25 @@ You may find the instruction "How to enable Google Cloud Platform API" above
 
 ***Operation System preparation steps:***
 
-During the Operation system preparation steps you will need to install Java, HELM, Kubernetes command line interface
+During the Operation system preparation steps you will need to install Java, HELM, GIT, Kubernetes command line interface
 
 1. How to install Java:
-* [This link](https://adoptopenjdk.net/)* will provide you will all necessary instructions for Windows and Linux operation systems
+* [This link](https://adoptopenjdk.net/) will provide you will all necessary instructions for Windows and Linux operation systems
+
+2. How to install Kubernetes Command Line Interface
+* [Linux link](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/) instructions for Linux operation systems
+* [Windows link](https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/) instructions for Windows operation systems
+
+3. How to install HELM
+* [HELM link](https://helm.sh/docs/intro/install/) instructions for Windows and Linux operation systems
+
+4. How to install GIT
+* [Git link](https://git-scm.com/download/win) instructions for Windows operation systems
+* [Git Link](https://git-scm.com/download/linux) instructions for Linux operation systems
+
+After installations of required packages will be completed, you will need to download ***BEAM Playground*** from repository. Please open terminal and execute the following command:
+
+`git clone https://github.com/akvelon/beam.git`
 * Modify the following file, `playground/terraform/environment/${env_folder}/terraform.tfvars`, as necessary:
 ```
 network_name         = "network_name"        #Enter the network name
