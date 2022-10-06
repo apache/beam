@@ -171,6 +171,37 @@ class RunInferenceBaseTest(unittest.TestCase):
             FakeModelHandlerFailsOnInferenceArgs(),
             inference_args=inference_args)
 
+  def test_increment_num_failed_inferences(self):
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10]
+    pcoll = pipeline | 'start' >> beam.Create(examples)
+    inference_args = {'key': True}
+    _ = pcoll | base.RunInference(FakeModelHandlerFailsOnInferenceArgs(),
+            inference_args=inference_args)
+    run_result = pipeline.run()
+    run_result.wait_until_finish()
+
+    metric_results = (
+        run_result.metrics().query(MetricsFilter().with_name('num_failed_inferences')))
+    num_failed_inferences_counter = metric_results['counters'][0]
+    self.assertEqual(num_failed_inferences_counter.committed, 1)
+
+  def test_num_failed_inferences_no_failures(self):
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10]
+    pcoll = pipeline | 'start' >> beam.Create(examples)
+    inference_args = {'key': True}
+    _ = pcoll | base.RunInference(FakeModelHandlerExpectedInferenceArgs(),
+            inference_args=inference_args)
+    run_result = pipeline.run()
+    run_result.wait_until_finish()
+
+    metric_results = (
+        run_result.metrics().query(MetricsFilter().with_name('num_failed_inferences')))
+    num_failed_inferences_counter = metric_results['counters'][0]
+    self.assertEqual(num_failed_inferences_counter.committed, 0)
+
+
   def test_counted_metrics(self):
     pipeline = TestPipeline()
     examples = [1, 5, 3, 10]
