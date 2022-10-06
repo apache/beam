@@ -69,6 +69,12 @@ https://cloud.google.com/endpoints/docs/openapi/enable-api
 ```
 **Description:** * *Steps to enable APIs in Google Cloud Platform* *
 
+9. Google Cloud Platform naming policy
+```
+https://cloud.google.com/compute/docs/naming-resources
+```
+**Description:** * *Describes the naming convention for Compute Engine resources.* *
+
 ***Google Cloud preparation steps:***
 When you create a new project, you must add a service account with a JSON key and a bucket according instructions above. Also, according to the instructions, configure the roles for the service account:
    - App Engine Admin
@@ -113,19 +119,23 @@ During the Operation system preparation steps you will need to install Java, HEL
 After installations of required packages will be completed, you will need to download ***BEAM Playground*** from repository. Please open terminal and execute the following command:
 
 `git clone https://github.com/akvelon/beam.git`
-* Modify the following file, `playground/terraform/environment/${env_folder}/terraform.tfvars`, as necessary:
+
+Once downloading will be completed you will find "beam" folder on your disk (you can execute `ls -la` command for Linux, or `dir` command for Windows). Open that folder
+
+It is possible to configure BEAM to work with the different version of environment (like staging, production etc.), you will need to create special folder in `playground/terraform/environment` and put all configuration files inside:
+* File name - `terraform.tfvars`, items inside:
 ```
-network_name         = "network_name"        #Enter the network name
-project_id           = "project_id"          #Enter the project ID
-gke_name             = "playground-backend"  #Set the GKE name
-region               = "us-east1"            #Set the region
-pg_location          = "us-east1-b"          #Select the location (it should be in the chosen region)
-state_bucket         = "bucket_name"         #Name of bucket
-bucket_examples_name = "bucket_name-example" #Enter an example bucket name
+network_name         = "network_name"        #Enter the network name - you can choose any name for network according naming policy above
+project_id           = "project_id"          #Enter the project ID - ID of created proect
+gke_name             = "playground-backend"  #Set the GKE name - you can choose any name for Google Kubernetes Engine according naming policy above
+region               = "us-east1"            #Set the region - preferred region according to your needs
+pg_location          = "us-east1-b"          #Select the location - location should be in region you set before
+state_bucket         = "bucket_name"         #Name of bucket - Google Cloud bucket where BEAM Playground will put temp files, [terraform state file] (https://spacelift.io/blog/terraform-state)
+bucket_examples_name = "bucket_name-example" #Enter an example bucket name - bucket for some build-in examples for BEAM Playground
 ```
-* Make the following modifications to the file `playground/terraform/environment/${env_folder}/state.tfbackend` file:
+* File name - `state.tfbackend`, item inside:
 ```
-bucket               = "bucket_name"         #input bucket name (will be used for terraform tfstate file)
+bucket               = "bucket_name"         #input bucket name - will be used for terraform tfstate file
 ```
 * Use the following command to export Google application credentials (allow service account authentication):
 ```
