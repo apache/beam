@@ -122,7 +122,7 @@ During the Operation system preparation steps you will need to install Java, HEL
 * [Git Link](https://git-scm.com/download/linux) instructions for Linux operation systems
 
 5. How to install Docker
-* [Docker link] (https://docs.docker.com/engine/install/) instructions for Windows and Linux operation systems
+* [Docker link](https://docs.docker.com/engine/install/) instructions for Windows and Linux operation systems
 
 After installations of required packages will be completed, you will need to download ***BEAM Playground*** from repository. Please open terminal and execute the following command:
 
