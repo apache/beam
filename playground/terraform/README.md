@@ -1,4 +1,4 @@
-<!--
+!--
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -23,7 +23,7 @@
 ### Before you will start with installation steps, please read this carefully:
 1. How to create new project in Google Cloud Platform:
 ```
-(https://cloud.google.com/resource-manager/docs/creating-managing-projects)
+https://cloud.google.com/resource-manager/docs/creating-managing-projects
 ```
 **Description:** * *How to create new project in Google Cloud Platform. It's strongly recommended to use new Google Cloud Project for your new projects* *
 
@@ -57,12 +57,20 @@ https://cloud.google.com/sdk/docs/install?hl=en
 ```
 **Description:** * *GCloud - Google command line interface, which will allow you to interact with Google cloud platform thry the command line (https://en.wikipedia.org/wiki/Command-line_interface)* *
 
+7. What is Google Cloud Platform APIs
+```
+https://cloud.google.com/apis
+```
+**Description:** * *Short description of all Google Platform APIs* *
 
-The following to be done:
+8. How to Enable Google Cloud Platform API
+```
+https://cloud.google.com/endpoints/docs/openapi/enable-api
+```
+**Description:** * *Steps to enable APIs in Google Cloud Platform* *
 
-* GCP project should be created
-* Bucket should be created
-* It is necessary to create a service account with the required roles:
+***Google Cloud preparation steps:***
+When you create a new project, you must add a service account with a JSON key and a bucket according instructions above. Also, according to the instructions, configure the roles for the service account:
    - App Engine Admin
    - App Engine Creator
    - Artifact Registry Administrator
@@ -77,12 +85,19 @@ The following to be done:
    - Storage Admin
    - Cloud Datastore Index Admin
 
-* The following APIs ought to be activated:
-   - Identity and Access Management (IAM)
-   - Compute Engine API
-   - App Engine Admin API
-   - Cloud Resource Manager API
+These Google APIs will be needed for the BEAM Playground
+   - **Identity and Access Management (IAM)** - Manages identity and access control for Google Cloud Platform resources, including the creation of service accounts, which you can use to authenticate to Google and make API calls
+   - **Compute Engine API** - Creates and runs Virtual Machines on Google Cloud
+   - **App Engine Admin API** - Provisions and manages App Engine applications
+   - **Cloud Resource Manager API** - Creates, reads, and updates metadata for Google Cloud Platform resource containers
+You may find the instruction "How to enable Google Cloud Platform API" above
 
+***Operation System preparation steps:***
+
+During the Operation system preparation steps you will need to install Java, HELM, Kubernetes command line interface
+
+1. How to install Java:
+* *[This link](https://adoptopenjdk.net/)* * will provide you will all necessary instructions for Windows and Linux operation systems
 * Modify the following file, `playground/terraform/environment/${env_folder}/terraform.tfvars`, as necessary:
 ```
 network_name         = "network_name"        #Enter the network name
