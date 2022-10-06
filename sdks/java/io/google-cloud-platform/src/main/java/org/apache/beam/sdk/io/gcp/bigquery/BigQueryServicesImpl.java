@@ -1494,7 +1494,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   /**
    * OptionsExecutionProvider is a utility class used to wrap the Pipeline-wide {@link
-   * ScheduledExecutorService} into a supplier for the {@link BigQueryWriteClient}
+   * ScheduledExecutorService} into a supplier for the {@link BigQueryWriteClient}.
    */
   private static class OptionsExecutionProvider implements ExecutorProvider {
 

@@ -285,7 +285,8 @@ def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaCont
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaImageName}"
     }
     exec {
-      commandLine "gcloud", "docker", "--", "push", "${dockerJavaImageName}"
+//      commandLine "gcloud", "docker", "--", "push", "${dockerJavaImageName}"
+      commandLine "docker", "push", "${dockerJavaImageName}"
     }
   }
 }
