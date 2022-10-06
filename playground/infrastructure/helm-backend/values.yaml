@@ -22,7 +22,6 @@ image:
    scio_image: beam_playground-backend-scio
    python_image: beam_playground-backend-python
    pullPolicy: Always
-   tag: "beta"
 
 service:
    type: NodePort
