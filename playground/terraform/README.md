@@ -74,6 +74,11 @@ https://cloud.google.com/endpoints/docs/openapi/enable-api
 https://cloud.google.com/compute/docs/naming-resources
 ```
 **Description:** * *Describes the naming convention for Compute Engine resources.* *
+10. What is Docker
+```
+https://docs.docker.com/get-started/overview/
+```
+**Description:** * *What is Docker and how to use it* *
 
 ***Google Cloud preparation steps:***
 When you create a new project, you must add a service account with a JSON key and a bucket according instructions above. Also, according to the instructions, configure the roles for the service account:
@@ -100,7 +105,7 @@ You may find the instruction "How to enable Google Cloud Platform API" above
 
 ***Operation System preparation steps:***
 
-During the Operation system preparation steps you will need to install Java, HELM, GIT, Kubernetes command line interface
+During the Operation system preparation steps you will need to install Java, HELM, GIT, Docker, Kubernetes command line interface
 
 1. How to install Java:
 * [This link](https://adoptopenjdk.net/) will provide you will all necessary instructions for Windows and Linux operation systems
@@ -115,6 +120,9 @@ During the Operation system preparation steps you will need to install Java, HEL
 4. How to install GIT
 * [Git link](https://git-scm.com/download/win) instructions for Windows operation systems
 * [Git Link](https://git-scm.com/download/linux) instructions for Linux operation systems
+
+5. How to install Docker
+* [Docker link] (https://docs.docker.com/engine/install/) instructions for Windows and Linux operation systems
 
 After installations of required packages will be completed, you will need to download ***BEAM Playground*** from repository. Please open terminal and execute the following command:
 
@@ -151,27 +159,28 @@ Then, let's configure authentication for Google Cloud Platform:
 # Infrastructure deployment:
 * To deploy the Infrastructure, use the following command (please be sure that you are in the "beam" folder):
 ```
-./gradlew playground:terraform:InitInfrastructure -Pproject_environment="${env}"
+./gradlew playground:terraform:InitInfrastructure -Pproject_environment="`env`" (env - folder name which you created for configuration files)
 ```
 # Backend deployment:
-* Sign in to the Docker registry:
+Once script was executed sucessfully, you will need to authenticate on Docker and Google Kubernetes Engine
+Following command will authenticate us in Docker registry
 ```
- cat `your json key locaton` | docker login -u _json_key --password-stdin https://`chosen_region`-docker.pkg.dev
+ cat `your service account json key locaton` | docker login -u _json_key --password-stdin https://`chosen_region`-docker.pkg.dev
 ```
-* Sign in to the to GKE
+* Following command will authenticate us in GKE
 ```
 gcloud container clusters get-credentials --region `chosen_pg_location` `gke_name` --project `project_id`
 ```
-* Creation of database indexes :
+* We need to create database indexes for BEAM playground examples by following command:
 ```
 gcloud app deploy playground/index.yaml --project=`project_id`
 ```
-* To deploy the backend, use the following command (Ensure you are in the "beam" folder):
+That's all, configuration of environment has been completed. for deploying backend part to Google cloud kubernetes engine, please execute following command (Ensure you are in the "beam" folder):
 ```
-./gradlew playground:terraform:gkebackend -Pproject_environment="${env}" -Pdocker-tag="${env}"
+./gradlew playground:terraform:gkebackend -Pproject_environment="${env}" -Pdocker-tag="`tag`" (env - folder name which you created for configuration files, tag - image tag for backend)
 ```
-# !! The creation of certificates for backend websites will take about 20 minutes
-# Frontend deployment:
+During script execution google managed certificate will be created. Provisioning process could take up to 20 minutes
+
 * To deploy the frontend, use the following command (Ensure you are in the "beam" folder):
 ```
 ./gradlew playground:terraform:deployFrontend -Pdocker-tag="${env}" -Pproject_id=`project_id` -Pproject_environment='${env}'
