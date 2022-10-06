@@ -19,14 +19,14 @@
 
 # pytype: skip-file
 
+import time
 import unittest
 
-import time
 import pytest
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam import Pipeline
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import is_empty
@@ -52,7 +52,7 @@ class PeriodicSequenceIT(unittest.TestCase):
     interval = 10
 
     pipeline = TestPipeline(
-        is_integration_test=True,  options=PipelineOptions(streaming=True))
+        is_integration_test=True, options=PipelineOptions(streaming=True))
 
     res = (
         pipeline
