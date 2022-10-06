@@ -274,7 +274,7 @@ class RunInferenceBaseTest(unittest.TestCase):
           self,
           batch: Sequence[int],
           model: FakeModel,
-          inference_args=None) -> Iterable[int]:
+          inference_args: Optional[Dict[str, Any]] =None) -> Iterable[int]:
         yield 0
 
       def get_num_bytes(self, batch: Sequence[int]) -> int:
