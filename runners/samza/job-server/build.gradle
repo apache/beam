@@ -74,8 +74,8 @@ def portableValidatesRunnerTask(String name, boolean docker) {
               includeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
               return
            }
-
-            includeCategories 'org.apache.beam.sdk.testing.NeedsRunner'
+            // TODO(https://github.com/apache/beam/issues/22657)
+            // includeCategories 'org.apache.beam.sdk.testing.NeedsRunner'
             includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
             // Should be run only in a properly configured SDK harness environment
             excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
@@ -178,6 +178,8 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testRelativeTimerWithOutputTimestamp'
             // TODO(BEAM-13498)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'
+            // TODO(https://github.com/apache/beam/issues/22650)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState'
         }
   )
 }

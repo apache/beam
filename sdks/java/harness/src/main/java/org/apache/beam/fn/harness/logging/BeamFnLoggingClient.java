@@ -41,23 +41,21 @@ import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
+import org.apache.beam.fn.harness.control.ProcessBundleHandler;
+import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
-import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.ClientCallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.ClientResponseObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -107,6 +105,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
   private final LogRecordHandler logRecordHandler;
   private final CompletableFuture<Object> inboundObserverCompletion;
   private final Phaser phaser;
+  private @Nullable ProcessBundleHandler processBundleHandler;
 
   public BeamFnLoggingClient(
       PipelineOptions options,
@@ -149,6 +148,10 @@ public class BeamFnLoggingClient implements AutoCloseable {
     logRecordHandler.executeOn(options.as(GcsOptions.class).getExecutorService());
     outboundObserver = (CallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
     rootLogger.addHandler(logRecordHandler);
+  }
+
+  public void setProcessBundleHandler(ProcessBundleHandler processBundleHandler) {
+    this.processBundleHandler = processBundleHandler;
   }
 
   @Override
@@ -227,14 +230,14 @@ public class BeamFnLoggingClient implements AutoCloseable {
       if (loggerName != null) {
         builder.setLogLocation(loggerName);
       }
-      ExecutionState state = ExecutionStateTracker.getCurrentExecutionState(record.getThreadID());
-      if (state instanceof SimpleExecutionState) {
-        String transformId =
-            ((SimpleExecutionState) state)
-                .getLabels()
-                .get(MonitoringInfoConstants.Labels.PTRANSFORM);
-        if (transformId != null) {
-          builder.setTransformId(transformId);
+      if (instructionId != null && processBundleHandler != null) {
+        BundleProcessor bundleProcessor =
+            processBundleHandler.getBundleProcessorCache().find(instructionId);
+        if (bundleProcessor != null) {
+          String transformId = bundleProcessor.getStateTracker().getCurrentThreadsPTransformId();
+          if (transformId != null) {
+            builder.setTransformId(transformId);
+          }
         }
       }
 

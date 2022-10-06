@@ -26,6 +26,11 @@ package org.apache.beam.learning.katas.coretransforms.combine.combinefn;
 //   categories:
 //     - Combiners
 //     - Core Transforms
+//   complexity: BASIC
+//   tags:
+//     - count
+//     - transforms
+//     - numbers
 
 import java.io.Serializable;
 import java.util.Objects;

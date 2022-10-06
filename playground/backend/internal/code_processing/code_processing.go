@@ -16,6 +16,18 @@
 package code_processing
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"reflect"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/environment"
@@ -27,16 +39,6 @@ import (
 	"beam.apache.org/playground/backend/internal/streaming"
 	"beam.apache.org/playground/backend/internal/utils"
 	"beam.apache.org/playground/backend/internal/validators"
-	"bytes"
-	"context"
-	"fmt"
-	"github.com/google/uuid"
-	"io"
-	"os"
-	"os/exec"
-	"reflect"
-	"sync"
-	"time"
 )
 
 const (

@@ -18,11 +18,12 @@ package harness
 import (
 	"context"
 	"fmt"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"log"
 	"net"
 	"strings"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"google.golang.org/grpc"
@@ -55,7 +56,6 @@ func setup(t *testing.T, srv *BeamFnWorkerStatusServicer) {
 	go func() {
 		if err := server.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
-			panic(err)
 		}
 	}()
 	t.Cleanup(func() {

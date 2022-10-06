@@ -40,14 +40,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * the appropriate fields from the POJO.
  */
 @Experimental(Kind.SCHEMAS)
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
 public class RowWithGetters extends Row {
   private final Object getterTarget;
   private final List<FieldValueGetter> getters;
-  private Map<Integer, Object> cache;
+  private @Nullable Map<Integer, Object> cache = null;
 
   RowWithGetters(
       Schema schema, Factory<List<FieldValueGetter>> getterFactory, Object getterTarget) {
@@ -66,10 +62,15 @@ public class RowWithGetters extends Row {
       cache = new TreeMap<>();
     }
 
-    Object fieldValue =
-        cacheField
-            ? cache.computeIfAbsent(fieldIdx, idx -> getters.get(idx).get(getterTarget))
-            : getters.get(fieldIdx).get(getterTarget);
+    Object fieldValue;
+    if (cacheField) {
+      if (cache == null) {
+        cache = new TreeMap<>();
+      }
+      fieldValue = cache.computeIfAbsent(fieldIdx, idx -> getters.get(idx).get(getterTarget));
+    } else {
+      fieldValue = getters.get(fieldIdx).get(getterTarget);
+    }
 
     if (fieldValue == null && !field.getType().getNullable()) {
       throw new RuntimeException("Null value set on non-nullable field " + field);
@@ -92,8 +93,8 @@ public class RowWithGetters extends Row {
   /** Return the list of raw unmodified data values to enable 0-copy code. */
   @Internal
   @Override
-  public List<Object> getValues() {
-    List<Object> rawValues = new ArrayList<>(getters.size());
+  public List<@Nullable Object> getValues() {
+    List<@Nullable Object> rawValues = new ArrayList<>(getters.size());
     for (FieldValueGetter getter : getters) {
       rawValues.add(getter.getRaw(getterTarget));
     }

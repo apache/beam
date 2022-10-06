@@ -76,8 +76,37 @@ val test by tasks.registering {
     }
 }
 
+val testWithoutCache by tasks.registering {
+    group = "verification"
+    description = "Test the backend"
+    doFirst {
+        exec {
+            executable("go")
+            args("clean", "-testcache")
+        }
+    }
+    doLast {
+        exec {
+            executable("go")
+            args("test", "./...")
+        }
+    }
+}
+
 test { dependsOn(startDatastoreEmulator) }
 test { finalizedBy(stopDatastoreEmulator) }
+
+testWithoutCache { dependsOn(startDatastoreEmulator) }
+testWithoutCache { finalizedBy(stopDatastoreEmulator) }
+
+task("removeUnusedSnippet") {
+    doLast {
+      exec {
+         executable("go")
+         args("run", "cmd/remove_unused_snippets.go", System.getProperty("dayDiff"), System.getProperty("projectId"))
+      }
+    }
+}
 
 task("benchmarkPrecompiledObjects") {
   group = "verification"
@@ -102,7 +131,6 @@ task("benchmarkCodeProcessing") {
 }
 
 task("benchmark") {
-  dependsOn(":playground:backend:benchmarkPrecompiledObjects")
   dependsOn(":playground:backend:benchmarkCodeProcessing")
 }
 
@@ -121,7 +149,7 @@ task("runLint") {
   doLast {
     exec {
       executable("golangci-lint")
-      args("run", "cmd/server/...")      
+      args("run", "cmd/server/...")
     }
   }
 }

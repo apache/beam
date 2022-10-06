@@ -25,6 +25,10 @@ package org.apache.beam.learning.katas.commontransforms.withkeys;
 //   context_line: 40
 //   categories:
 //     - Combiners
+//   complexity: BASIC
+//   tags:
+//     - transform
+//     - strings
 
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
@@ -44,8 +48,7 @@ public class Task {
     Pipeline pipeline = Pipeline.create(options);
 
     PCollection<String> words =
-        pipeline.apply(
-            Create.of("apple", "banana", "cherry", "durian", "guava", "melon"));
+        pipeline.apply(Create.of("apple", "banana", "cherry", "durian", "guava", "melon"));
 
     PCollection<KV<String, String>> output = applyTransform(words);
 

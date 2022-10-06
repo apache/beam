@@ -32,50 +32,6 @@
   <suppress checks=".*" files=".+[\\\/]generated-sources[\\\/].+\.java" />
   <suppress checks=".*" files=".+[\\\/]generated-test-sources[\\\/].+\.java" />
 
-  <!-- Suppression on JavadocMethod violations.
-
-       The goal is to remove all the following suppressions, once they are addressed.
-
-       Tracking JIRA:BEAM-6446
-  -->
-
-  <!-- sdk -->
-  <suppress checks="JavadocMethod" files=".*sdk.*Experimental\.java" lines="48,112"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*DefaultCoder\.java" lines="54"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*OffsetRangeTracker\.java" lines="83"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*Default\.java" lines="40"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*Description\.java" lines="34"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*TransformHierarchy\.java" lines="144"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*Cast\.java" lines="332,391"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*DoFn\.java" lines="444"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*CoGbkResult\.java" lines="72"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*extensions.*Audience\.java" lines="32"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*sql.*BeamSetOperatorsTransforms\.java" lines="59"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*nexmark.*GeneratorConfig\.java" lines="89"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*gcp.*BigQueryUtils\.java" lines="212"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*transforms.*DoFn\.java" lines="443"/>
-
-  <!--  runner/core  -->
-  <suppress checks="JavadocMethod" files=".*runners.*core.*PipelineTranslation\.java" lines="54"/>
-  <suppress checks="JavadocMethod" files=".*runners.*core.*TriggerTranslation\.java" lines="238"/>
-  <suppress checks="JavadocMethod" files=".*runners.*core.*WindowingStrategyTranslation\.java" lines="357"/>
-  <suppress checks="JavadocMethod" files=".*runners.*core.*ReduceFnRunner\.java" lines="206,677"/>
-  <suppress checks="JavadocMethod" files=".*runners.*core.*MetricsTranslation\.java" lines="39,76"/>
-  <suppress checks="JavadocMethod" files=".*runners.*core.*TriggerStateMachines\.java" lines="32"/>
-  <suppress checks="JavadocMethod" files=".*runners.*core.*SplittableParDoViaKeyedWorkItems\.java" lines="329"/>
-
-  <!-- Fn harness -->
-  <suppress checks="JavadocMethod" files=".*harness.*FnHarness\.java" lines="126"/>
-  <suppress checks="JavadocMethod" files=".*harness.*BeamFnLoggingClient\.java" lines="104"/>
-  <suppress checks="JavadocMethod" files=".*harness.*FnApiStateAccessor\.java" lines="76"/>
-
-  <!-- Misc -->
-  <suppress checks="JavadocMethod" files=".*io.*JmsIO\.java" lines="117"/>
-  <suppress checks="JavadocMethod" files=".*runners.*nexmark.*GeneratorConfig\.java" lines="89"/>
-  <suppress checks="JavadocMethod" files=".*runners.*spark.*SparkUnboundedSource\.java" lines="82"/>
-  <suppress checks="JavadocMethod" files=".*runners.*dataflow.*CustomSources\.java" lines="62"/>
-  <!-- End of Suppression on JavadocMethod violations. -->
-
   <!-- Guava use exceptions -->
   <!-- Non-vendored guava imports are allowed for files that depend on libraries that expose guava in its public API -->
   <suppress id="ForbidNonVendoredGuava" files=".*kinesis.*KinesisIO\.java" />
@@ -139,5 +95,8 @@
   <suppress files="org.apache.beam.sdk.io.thrift.TestThriftInnerStruct.java" checks="[a-zA-Z0-9]*"/>
   <suppress files="org.apache.beam.sdk.io.thrift.TestThriftUnion.java" checks="[a-zA-Z0-9]*"/>
   <suppress files="org.apache.beam.sdk.io.thrift.payloads.*" checks="[a-zA-Z0-9]*"/>
+
+  <!-- Test deliberately uses the default package. -->
+  <suppress checks="PackageDeclaration" files="org.apache.beam.sdk.transforms.reflect.DefaultPackageTest.java"/>
 
 </suppressions>

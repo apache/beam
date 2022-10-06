@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
@@ -42,13 +43,12 @@ var (
 )
 
 func init() {
-	beam.RegisterFunction(extractEventDataFn)
-	beam.RegisterFunction(extractCountryInfoFn)
-	beam.RegisterFunction(formatFn)
-	beam.RegisterFunction(processFn)
-	beam.RegisterType(reflect.TypeOf((*Code)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*CountryInfoRow)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*EventDataRow)(nil)).Elem())
+	register.Function1x2(extractEventDataFn)
+	register.Function1x2(extractCountryInfoFn)
+	register.Function2x1(formatFn)
+	register.Function4x0(processFn)
+	register.Iter1[string]()
+	register.Emitter2[Code, string]()
 }
 
 type Code string

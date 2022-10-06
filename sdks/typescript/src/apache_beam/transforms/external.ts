@@ -43,8 +43,19 @@ import * as coders from "../coders/standard_coders";
 import * as internal from "./internal";
 import * as transform from "./transform";
 import { RowCoder } from "../coders/row_coder";
+import { Coder } from "../coders/coders";
 import * as artifacts from "../runners/artifacts";
 import * as service from "../utils/service";
+
+export interface RawExternalTransformOptions {
+  inferPValueType?: boolean;
+  requestedOutputCoders?: { [key: string]: Coder<unknown> };
+}
+
+const defaultRawExternalTransformOptions: RawExternalTransformOptions = {
+  inferPValueType: true,
+  requestedOutputCoders: {},
+};
 
 // TODO: (API) (Types) This class expects PCollections to already have the
 // correct Coders. It would be great if we could infer coders, or at least have
@@ -56,13 +67,13 @@ export function rawExternalTransform<
   urn: string,
   payload: Uint8Array | { [key: string]: any },
   serviceProviderOrAddress: string | (() => Promise<service.Service>),
-  inferPValueType: boolean = true
+  options: RawExternalTransformOptions = {}
 ): transform.AsyncPTransform<InputT, OutputT> {
   return new RawExternalTransform(
     urn,
     payload,
     serviceProviderOrAddress,
-    inferPValueType
+    options
   );
 }
 
@@ -77,14 +88,16 @@ class RawExternalTransform<
 
   private payload?: Uint8Array;
   private serviceProvider: () => Promise<service.Service>;
+  private options: RawExternalTransformOptions;
 
   constructor(
     private urn: string,
     payload: Uint8Array | { [key: string]: any },
     serviceProviderOrAddress: string | (() => Promise<service.Service>),
-    private inferPValueType: boolean = true
+    options: RawExternalTransformOptions
   ) {
     super("External(" + urn + ")");
+    this.options = { ...defaultRawExternalTransformOptions, ...options };
     if (payload === null || payload === undefined) {
       this.payload = undefined;
     } else if (payload instanceof Uint8Array) {
@@ -130,6 +143,12 @@ class RawExternalTransform<
           spec: { urn: internal.impulse.urn, payload: new Uint8Array() },
           outputs: { main: pcId },
         });
+    }
+
+    for (const [output, coder] of Object.entries(
+      this.options.requestedOutputCoders!
+    )) {
+      request.outputCoderRequests[output] = pipeline.getCoderId(coder);
     }
 
     // Copy all the rest, as there may be opaque references.
@@ -325,7 +344,7 @@ class RawExternalTransform<
     // TypeScript types are not available at runtime. If I understand correctly, there is no plan to change that at the moment.
     // See: https://github.com/microsoft/TypeScript/issues/47658
     // See: https://github.com/microsoft/TypeScript/issues/3628
-    if (this.inferPValueType) {
+    if (this.options.inferPValueType) {
       const outputKeys = [...Object.keys(response.transform!.outputs)];
       if (outputKeys.length === 0) {
         return null!;
@@ -353,6 +372,7 @@ function encodeSchemaPayload(
   if (!schema) {
     schema = RowCoder.inferSchemaOfJSON(payload);
   }
+
   new RowCoder(schema!).encode(payload, encoded, null!);
   return ExternalConfigurationPayload.toBinary({
     schema: schema,

@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import org.apache.beam.sdk.util.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -34,15 +35,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * }
  * }</pre>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class TypeParameter<T> {
   final TypeVariable<?> typeVariable;
 
   public TypeParameter() {
     Type superclass = getClass().getGenericSuperclass();
     checkArgument(superclass instanceof ParameterizedType, "%s isn't parameterized", superclass);
+    Preconditions.checkArgumentNotNull(superclass);
     typeVariable = (TypeVariable<?>) ((ParameterizedType) superclass).getActualTypeArguments()[0];
   }
 

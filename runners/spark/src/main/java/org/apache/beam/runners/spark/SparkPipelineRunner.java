@@ -53,7 +53,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -121,7 +121,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
         translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
-    LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
+    LOG.info("Running job {} on Spark master {}", jobInfo.jobId(), jsc.master());
 
     if (isStreaming) {
       final JavaStreamingContext jssc =
@@ -157,9 +157,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
               () -> {
                 translator.translate(fusedPipeline, context);
                 LOG.info(
-                    String.format(
-                        "Job %s: Pipeline translated successfully. Computing outputs",
-                        jobInfo.jobId()));
+                    "Job {}: Pipeline translated successfully. Computing outputs", jobInfo.jobId());
                 context.computeOutputs();
 
                 jssc.start();
@@ -169,7 +167,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
                   LOG.warn("Streaming context interrupted, shutting down.", e);
                 }
                 jssc.stop();
-                LOG.info(String.format("Job %s finished.", jobInfo.jobId()));
+                LOG.info("Job {} finished.", jobInfo.jobId());
               });
       result = new SparkPipelineResult.PortableStreamingMode(submissionFuture, jssc);
     } else {
@@ -178,11 +176,9 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
               () -> {
                 translator.translate(fusedPipeline, context);
                 LOG.info(
-                    String.format(
-                        "Job %s: Pipeline translated successfully. Computing outputs",
-                        jobInfo.jobId()));
+                    "Job {}: Pipeline translated successfully. Computing outputs", jobInfo.jobId());
                 context.computeOutputs();
-                LOG.info(String.format("Job %s finished.", jobInfo.jobId()));
+                LOG.info("Job {} finished.", jobInfo.jobId());
               });
       result = new SparkPipelineResult.PortableBatchMode(submissionFuture, jsc);
     }

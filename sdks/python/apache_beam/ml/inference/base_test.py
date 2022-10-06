@@ -79,11 +79,21 @@ class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
     return {'min_batch_size': 9999}
 
 
-class FakeModelHandlerExtraInferenceArgs(FakeModelHandler):
+class FakeModelHandlerFailsOnInferenceArgs(FakeModelHandler):
+  def run_inference(self, batch, unused_model, inference_args=None):
+    raise ValueError(
+        'run_inference should not be called because error should already be '
+        'thrown from the validate_inference_args check.')
+
+
+class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
   def run_inference(self, batch, unused_model, inference_args=None):
     if not inference_args:
       raise ValueError('inference_args should exist')
     return batch
+
+  def validate_inference_args(self, inference_args):
+    pass
 
 
 class RunInferenceBaseTest(unittest.TestCase):
@@ -128,8 +138,38 @@ class RunInferenceBaseTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(examples)
       inference_args = {'key': True}
       actual = pcoll | base.RunInference(
-          FakeModelHandlerExtraInferenceArgs(), inference_args=inference_args)
+          FakeModelHandlerExpectedInferenceArgs(),
+          inference_args=inference_args)
       assert_that(actual, equal_to(examples), label='assert:inferences')
+
+  def test_run_inference_metrics_with_custom_namespace(self):
+    metrics_namespace = 'my_custom_namespace'
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10]
+    pcoll = pipeline | 'start' >> beam.Create(examples)
+    _ = pcoll | base.RunInference(
+        FakeModelHandler(), metrics_namespace=metrics_namespace)
+    result = pipeline.run()
+    result.wait_until_finish()
+
+    metrics_filter = MetricsFilter().with_namespace(namespace=metrics_namespace)
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) != 0
+    assert len(metrics['distributions']) != 0
+
+    metrics_filter = MetricsFilter().with_namespace(namespace='fake_namespace')
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) == len(metrics['distributions']) == 0
+
+  def test_unexpected_inference_args_passed(self):
+    with self.assertRaisesRegex(ValueError, r'inference_args were provided'):
+      with TestPipeline() as pipeline:
+        examples = [1, 5, 3, 10]
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        inference_args = {'key': True}
+        _ = pcoll | base.RunInference(
+            FakeModelHandlerFailsOnInferenceArgs(),
+            inference_args=inference_args)
 
   def test_counted_metrics(self):
     pipeline = TestPipeline()
