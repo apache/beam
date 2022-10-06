@@ -19,9 +19,11 @@
 
 # Prerequisit:
 
+The following to be done:
+
 * GCP project should be created
 * Bucket should be created
-* Service account with the following roles should be created:
+* It is necessary to create a service account with the required roles:
    - App Engine Admin
    - App Engine Creator
    - Artifact Registry Administrator
@@ -35,33 +37,34 @@
    - Service Account User
    - Storage Admin
    - Cloud Datastore Index Admin
-* Following APIs should be enabled:
+
+* The following APIs ought to be activated:
    - Identity and Access Management (IAM)
    - Compute Engine API
    - App Engine Admin API
    - Cloud Resource Manager API
 
-* Make necessary changes in `playground/terraform/environment/${env_folder}/terraform.tfvars` file:
+* Modify the following file, `playground/terraform/environment/${env_folder}/terraform.tfvars`, as necessary:
 ```
-network_name         = "network_name"        #Choose network name
-project_id           = "project_id"          #Input project ID
-gke_name             = "playground-backend"  #Define GKE name
-region               = "us-east1"            #Choose region
-pg_location          = "us-east1-b"          #Choose location (should be in the region)
-state_bucket         = "bucket_name"         #Input bucket name
-bucket_examples_name = "bucket_name-example" #Input example bucket name
+network_name         = "network_name"        #Enter the network name
+project_id           = "project_id"          #Enter the project ID
+gke_name             = "playground-backend"  #Set the GKE name
+region               = "us-east1"            #Set the region
+pg_location          = "us-east1-b"          #Select the location (it should be in the chosen region)
+state_bucket         = "bucket_name"         #Name of bucket
+bucket_examples_name = "bucket_name-example" #Enter an example bucket name
 ```
-* Make necessary changes in `playground/terraform/environment/${env_folder}/state.tfbackend` file:
+* Make the following modifications to the file `playground/terraform/environment/${env_folder}/state.tfbackend` file:
 ```
-bucket               = "bucket_name"         #input bucket name (will be used for tfstate file)
+bucket               = "bucket_name"         #input bucket name (will be used for terraform tfstate file)
 ```
-* Export GOOGLE_APPLICATION_CREDENTIALS using following command:
+* Use the following command to export Google application credentials (allow service account authentication):
 ```
-    export GOOGLE_APPLICATION_CREDENTIALS=`your json key locaton`
+    export GOOGLE_APPLICATION_CREDENTIALS=`your service account json key locaton` (absolute path)
 ```
-* Activate created service account using following command:
+* Using the following command, activate the newly created service account:
 ```
-    gcloud auth activate-service-account `full principal service account` --key-file=`your json key locaton`
+    gcloud auth activate-service-account `full principal service account` --key-file=`your service account json key locaton` (absolute path)
 ```
 * Install kubectl:
 ```
@@ -81,25 +84,25 @@ bucket               = "bucket_name"         #input bucket name (will be used fo
 ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="${env}"
 ```
 # Backend deployment:
-* Login to Docker registry:
+* Sign in to the Docker registry:
 ```
  cat `your json key locaton` | docker login -u _json_key --password-stdin https://`chosen_region`-docker.pkg.dev
 ```
-* Login to GKE
+* Sign in to the to GKE
 ```
 gcloud container clusters get-credentials --region `chosen_pg_location` `gke_name` --project `project_id`
 ```
-* Database index creation:
+* Creation of database indexes :
 ```
 gcloud app deploy playground/index.yaml --project=`project_id`
 ```
-* Run following command for backend deployment (please be sure that you are in the "beam" folder):
+* To deploy the backend, use the following command (Ensure you are in the "beam" folder):
 ```
 ./gradlew playground:terraform:gkebackend -Pproject_environment="${env}" -Pdocker-tag="${env}"
 ```
-# !! Please wait about 20 min before frontend deployment (GCP certificate should be provisioned)
+# !! The creation of certificates for backend websites will take about 20 minutes
 # Frontend deployment:
-* Run following command for frontend deployment (please be sure that you are in the "beam" folder):
+* To deploy the frontend, use the following command (Ensure you are in the "beam" folder):
 ```
 ./gradlew playground:terraform:deployFrontend -Pdocker-tag="${env}" -Pproject_id=`project_id` -Pproject_environment='${env}'
 ```
