@@ -79,7 +79,7 @@ bucket               = "bucket_name"         #input bucket name (will be used fo
              ./get_helm.sh
 ```
 # Infrastructure deployment:
-* Run following command for infrastructure deployment (please be sure that you are in the "beam" folder):
+* To deploy the Infrastructure, use the following command (please be sure that you are in the "beam" folder):
 ```
 ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="${env}"
 ```
