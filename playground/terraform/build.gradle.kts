@@ -382,8 +382,8 @@ task("takeConfig") {
    var ipaddrname = ""
    var d_tag = ""
    var stdout = ByteArrayOutputStream()
-   if (project.hasProperty("project_environment")) {
-        d_tag = project.property("project_environment") as String
+   if (project.hasProperty("docker-tag")) {
+        d_tag = project.property("docker-tag") as String
    }
    exec {
        commandLine = listOf("terraform", "output", "playground_static_ip_address")
