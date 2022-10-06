@@ -41,7 +41,7 @@
    - App Engine Admin API
    - Cloud Resource Manager API
 
-* Make necessary changes in `playground/terraform/environment/beta/terraform.tfvars` file:
+* Make necessary changes in `playground/terraform/environment/`env_folder`/terraform.tfvars` file:
 ```
 network_name         = "network_name"        #Choose network name
 project_id           = "project_id"          #Input project ID
@@ -51,7 +51,7 @@ pg_location          = "us-east1-b"          #Choose location (should be in the 
 state_bucket         = "bucket_name"         #Input bucket name
 bucket_examples_name = "bucket_name-example" #Input example bucket name
 ```
-* Make necessary changes in `playground/terraform/environment/beta/state.tfbackend` file:
+* Make necessary changes in `playground/terraform/environment/`env_folder`/state.tfbackend` file:
 ```
 bucket               = "bucket_name"         #input bucket name (will be used for tfstate file)
 ```
