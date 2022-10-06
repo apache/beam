@@ -27,10 +27,6 @@ on:
       origin:
         type: string
         required: true
-env:
-  GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
-  GOOGLE_CLOUD_PROJECT: ${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}
-  SA_KEY_CONTENT: ${{ secrets.EA_GCP_PLAYGROUND_SA_KEY }}
 jobs:
   cd:
     name: CD ${{ inputs.sdk }} ${{ inputs.origin }}
@@ -40,6 +36,10 @@ jobs:
       SDK: ${{ inputs.sdk }}
       STEP: CD
       SUBDIRS: ${{ inputs.subdirs }}
+
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}
+      SA_KEY_CONTENT: ${{ secrets.EA_GCP_PLAYGROUND_SA_KEY }}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
