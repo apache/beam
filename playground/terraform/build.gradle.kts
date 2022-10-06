@@ -421,7 +421,26 @@ task("takeConfig") {
 
    val configFileName = "values.yaml"
    val modulePath = project(":playground").projectDir.absolutePath
-   var file = File("$modulePath/infrastructure/helm-backend/$configFileName")
+   val file = File("$modulePath/infrastructure/helm-backend/$configFileName")
+       val lines = file.readLines()
+    val endOfSlice = lines.indexOfFirst { it.contains("static_ip") }
+    if (endOfSlice != -1) {
+        val oldContent = lines.slice(0 until endOfSlice)
+        val flagDelete = file.delete()
+        if (!flagDelete) {
+            throw kotlin.RuntimeException("Deleting file failed")
+        }
+        val sb = kotlin.text.StringBuilder()
+        val lastLine = oldContent[oldContent.size - 1]
+        oldContent.forEach {
+            if (it == lastLine) {
+                sb.append(it)
+            } else {
+                sb.appendLine(it)
+            }
+        }
+        file.writeText(sb.toString())
+    }
    file.appendText("""
 static_ip: ${ipaddr}
 redis_ip: ${redis}:6379
