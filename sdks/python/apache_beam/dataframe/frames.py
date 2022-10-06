@@ -993,7 +993,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     if self._expr.proxy().index.nlevels == 1:
       if PD_VERSION < (1, 2):
         raise frame_base.WontImplementError(
-            "unstack() is not supported when using pandas < 1.2.0"
+            "unstack() is not supported when using pandas < 1.2.0\n"
             "Please upgrade to pandas 1.2.0 or higher to use this operation.")
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
