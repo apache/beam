@@ -137,26 +137,17 @@ bucket_examples_name = "bucket_name-example" #Enter an example bucket name - buc
 ```
 bucket               = "bucket_name"         #input bucket name - will be used for terraform tfstate file
 ```
-* Use the following command to export Google application credentials (allow service account authentication):
+Then, let's configure authentication for Google Cloud Platform:
+
+* Following command allow us to authenticate using JSON key file
 ```
     export GOOGLE_APPLICATION_CREDENTIALS=`your service account json key locaton` (absolute path)
 ```
-* Using the following command, activate the newly created service account:
+* Using the following command, we will activate the newly created service account:
 ```
     gcloud auth activate-service-account `full principal service account` --key-file=`your service account json key locaton` (absolute path)
 ```
-* Install kubectl:
-```
-             curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" &&\
-             chmod +x kubectl &&\
-             mv kubectl /usr/local/bin/
-```
-* Install Helm:
-```
-             curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 &&\
-             chmod 700 get_helm.sh &&\
-             ./get_helm.sh
-```
+
 # Infrastructure deployment:
 * To deploy the Infrastructure, use the following command (please be sure that you are in the "beam" folder):
 ```
