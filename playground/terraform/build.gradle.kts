@@ -377,15 +377,13 @@ task("takeConfig") {
   doLast {
    var ipaddr = ""
    var redis = ""
-   var project = ""
+   var proj = ""
    var registry = ""
    var ipaddrname = ""
+   var d_tag = ""
    var stdout = ByteArrayOutputStream()
-   var environment = "unknown"
-   var docker_tag = if (project.hasProperty("docker-tag")) {
-       project.property("docker-tag") as String
-   }   else {
-         environment
+   if (project.hasProperty("project_environment")) {
+        d_tag = project.property("project_environment") as String
    }
    exec {
        commandLine = listOf("terraform", "output", "playground_static_ip_address")
@@ -404,7 +402,7 @@ task("takeConfig") {
        commandLine = listOf("terraform", "output", "playground_gke_project")
        standardOutput = stdout
    }
-   project = stdout.toString().trim().replace("\"", "")
+   proj = stdout.toString().trim().replace("\"", "")
    stdout = ByteArrayOutputStream()
    exec {
        commandLine = listOf("terraform", "output", "docker-repository-root")
@@ -444,10 +442,10 @@ task("takeConfig") {
    file.appendText("""
 static_ip: ${ipaddr}
 redis_ip: ${redis}:6379
-project_id: ${project}
+project_id: ${proj}
 registry: ${registry}
 static_ip_name: ${ipaddrname}
-tag: ${docker_tag}
+tag: $d_tag
     """)
  }
 }
