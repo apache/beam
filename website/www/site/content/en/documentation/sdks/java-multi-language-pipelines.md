@@ -42,10 +42,17 @@ can clone or download the Beam repository and build the example from the source
 code.
 
 To build and run the example, you need a Java environment with the Beam Java SDK
-version 2.40.0 or later installed, and a Python environment. If you don’t
+version 2.41.0 or later installed, and a Python environment. If you don’t
 already have these environments set up, first complete the
 [Apache Beam Java SDK Quickstart](/get-started/quickstart-java/) and the
 [Apache Beam Python SDK Quickstart](/get-started/quickstart-py/).
+
+For running with portable DirectRunner, you need to have Docker installed
+locally and the Docker daemon should be running. This is not needed for Dataflow.
+
+This example relies on Python pandas package 1.4.0 or later which is unavailable
+for Python versions earlier than 3.8. Hence please make sure that the default Python
+version installed in your system is 3.8 or later.
 
 ## Specify a cross-language transform
 
@@ -131,8 +138,11 @@ default Beam SDK, you might need to run your own expansion service. In such
 cases, [start the expansion service](#advanced-start-an-expansion-service)
 before running your pipeline.
 
-For this example, you can simply run your multi-language pipeline using
-Gradle, as shown below.
+Here we've provided commands for running the example pipeline using
+Gradle on a [Beam HEAD Git clone](https://github.com/apache/beam).
+If you need a more stable environment, please
+[setup a Java project](/get-started/quickstart-java/) that uses the latest
+releaesed Beam version and include the necessary dependencies.
 
 ### Run with Dataflow runner
 
@@ -154,6 +164,50 @@ export PYTHON_VERSION=<version>
 
 The pipeline outputs a file with the results to
 **gs://$OUTPUT_BUCKET/count-00000-of-00001**.
+
+### Run with DirectRunner
+
+> **Note:** Multi-language Pipelines need to use [portable](/roadmap/portability/)
+> runners. Portable DirectRunner is still experimental and does not support all
+> Beam features.
+
+1. Create a Python virtual environment with the latest version of Beam Python SDK installed.
+   Please see [here](/get-started/quickstart-py/) for instructions.
+2. Run the job server for portable DirectRunner (implemented in Python).
+
+```
+export JOB_SERVER_PORT=<port>
+
+python -m apache_beam.runners.portability.local_job_service_main -p $JOB_SERVER_PORT
+```
+
+3. In a different shell, go to a [Beam HEAD Git clone](https://github.com/apache/beam).
+
+4. Build the Beam Java SDK container for a local pipeline execution
+   (this guide requires that your JAVA_HOME is set to Java 11).
+
+```
+./gradlew :sdks:java:container:java11:docker
+```
+
+5. Run the pipeline.
+
+```
+export JOB_SERVER_PORT=<port>  # Same port as before
+export OUTPUT_FILE=<local relative path>
+export PYTHON_VERSION=<version>
+
+./gradlew :examples:multi-language:pythonDataframeWordCount --args=" \
+--runner=PortableRunner \
+--jobEndpoint=localhost:$JOB_SERVER_PORT \
+--output=$OUTPUT_FILE"
+```
+
+> **Note** This output gets written to the local file system of a Python Docker
+> container. To verify the output by writing to GCS, you need to specify a
+> publicly acessible
+> GCS path for the `output` option since portable DirectRunner is currently
+> unable to correctly forward local credentials for accessing GCS.
 
 ## Advanced: Start an expansion service
 

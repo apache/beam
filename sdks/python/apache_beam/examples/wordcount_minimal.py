@@ -59,6 +59,11 @@ pipeline. You can see the results in your output bucket in the GCS browser.
 #     - Options
 #     - Combiners
 #     - Quickstart
+#   complexity: MEDIUM
+#   tags:
+#     - count
+#     - strings
+#     - hellobeam
 
 import argparse
 import logging
@@ -83,30 +88,30 @@ def main(argv=None, save_main_session=True):
   parser.add_argument(
       '--output',
       dest='output',
-      # CHANGE 1/6: The Google Cloud Storage path is required
+      # CHANGE 1/6: (OPTIONAL) The Google Cloud Storage path is required
       # for outputting the results.
       default='gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX',
       help='Output file to write results to.')
+
+  # If you use DataflowRunner, below options can be passed:
+  #   CHANGE 2/6: (OPTIONAL) Change this to DataflowRunner to
+  #   run your pipeline on the Google Cloud Dataflow Service.
+  #   '--runner=DirectRunner',
+  #   CHANGE 3/6: (OPTIONAL) Your project ID is required in order to
+  #   run your pipeline on the Google Cloud Dataflow Service.
+  #   '--project=SET_YOUR_PROJECT_ID_HERE',
+  #   CHANGE 4/6: (OPTIONAL) The Google Cloud region (e.g. us-central1)
+  #   is required in order to run your pipeline on the Google Cloud
+  #   Dataflow Service.
+  #   '--region=SET_REGION_HERE',
+  #   CHANGE 5/6: Your Google Cloud Storage path is required for staging local
+  #   files.
+  #   '--staging_location=gs://YOUR_BUCKET_NAME/AND_STAGING_DIRECTORY',
+  #   CHANGE 6/6: Your Google Cloud Storage path is required for temporary
+  #   files.
+  #   '--temp_location=gs://YOUR_BUCKET_NAME/AND_TEMP_DIRECTORY',
+  #   '--job_name=your-wordcount-job',
   known_args, pipeline_args = parser.parse_known_args(argv)
-  pipeline_args.extend([
-      # CHANGE 2/6: (OPTIONAL) Change this to DataflowRunner to
-      # run your pipeline on the Google Cloud Dataflow Service.
-      '--runner=DirectRunner',
-      # CHANGE 3/6: (OPTIONAL) Your project ID is required in order to
-      # run your pipeline on the Google Cloud Dataflow Service.
-      '--project=SET_YOUR_PROJECT_ID_HERE',
-      # CHANGE 4/6: (OPTIONAL) The Google Cloud region (e.g. us-central1)
-      # is required in order to run your pipeline on the Google Cloud
-      # Dataflow Service.
-      '--region=SET_REGION_HERE',
-      # CHANGE 5/6: Your Google Cloud Storage path is required for staging local
-      # files.
-      '--staging_location=gs://YOUR_BUCKET_NAME/AND_STAGING_DIRECTORY',
-      # CHANGE 6/6: Your Google Cloud Storage path is required for temporary
-      # files.
-      '--temp_location=gs://YOUR_BUCKET_NAME/AND_TEMP_DIRECTORY',
-      '--job_name=your-wordcount-job',
-  ])
 
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).

@@ -153,7 +153,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     MetricsEnvironment.setMetricsSupported(true);
 
     // visit the pipeline to determine the translation mode
-    detectTranslationMode(pipeline);
+    detectTranslationMode(pipeline, pipelineOptions);
 
     // Default to using the primitive versions of Read.Bounded and Read.Unbounded.
     // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default when we address
@@ -188,7 +188,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // register user-defined listeners.
       for (JavaStreamingListener listener :
           pipelineOptions.as(SparkContextOptions.class).getListeners()) {
-        LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
+        LOG.info("Registered listener {}.", listener.getClass().getSimpleName());
         jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
       }
 
@@ -273,12 +273,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   }
 
   /** Visit the pipeline to determine the translation mode (batch/streaming). */
-  private void detectTranslationMode(Pipeline pipeline) {
+  static void detectTranslationMode(Pipeline pipeline, SparkPipelineOptions pipelineOptions) {
     TranslationModeDetector detector = new TranslationModeDetector();
     pipeline.traverseTopologically(detector);
     if (detector.getTranslationMode().equals(TranslationMode.STREAMING)) {
       // set streaming mode if it's a streaming pipeline
-      this.pipelineOptions.setStreaming(true);
+      pipelineOptions.setStreaming(true);
     }
   }
 

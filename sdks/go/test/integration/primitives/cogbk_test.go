@@ -38,3 +38,8 @@ func TestReshuffleKV(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.RunAndValidate(t, ReshuffleKV())
 }
+
+func TestGBKShortRead(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, GBKShortRead())
+}

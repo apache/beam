@@ -170,5 +170,4 @@ func main() {
 	}
 
 	log.Fatalf("User program exited: %v", execx.Execute("npx", args...))
-	log.Printf("SDK exited cleanly.")
 }

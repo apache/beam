@@ -36,7 +36,7 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoEncodings;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils.MillisProvider;
@@ -178,9 +178,10 @@ public class ExecutionStateSampler {
     // Read by the ExecutionStateSampler, written by the bundle processing thread lazily and
     // frequently.
     private final AtomicLong numTransitionsLazy;
-
-    // Read by multiple threads, read and written by the bundle processing thread lazily.
-    private final AtomicReference<@Nullable ExecutionStateImpl> currentState;
+    // Read and written by the bundle processing thread frequently.
+    private @Nullable ExecutionStateImpl currentState;
+    // Read by multiple threads, written by the bundle processing thread lazily.
+    private final AtomicReference<@Nullable ExecutionStateImpl> currentStateLazy;
     // Read and written by the ExecutionStateSampler thread
     private long transitionsAtLastSample;
 
@@ -189,7 +190,7 @@ public class ExecutionStateSampler {
       this.trackedThread = new AtomicReference<>();
       this.lastTransitionTime = new AtomicLong();
       this.numTransitionsLazy = new AtomicLong();
-      this.currentState = new AtomicReference<>();
+      this.currentStateLazy = new AtomicReference<>();
       this.processBundleId = new AtomicReference<>();
     }
 
@@ -213,7 +214,7 @@ public class ExecutionStateSampler {
      *     approximation, all of that time should be associated with this state.
      */
     private void takeSample(long currentTimeMillis, long millisSinceLastSample) {
-      ExecutionStateImpl currentExecutionState = currentState.get();
+      ExecutionStateImpl currentExecutionState = currentStateLazy.get();
       if (currentExecutionState != null) {
         currentExecutionState.takeSample(millisSinceLastSample);
       }
@@ -263,13 +264,21 @@ public class ExecutionStateSampler {
       }
       long lastTransitionTimeMs = lastTransitionTime.get();
       // We are actively processing a bundle but may have not yet entered into a state.
-      ExecutionStateImpl current = currentState.get();
+      ExecutionStateImpl current = currentStateLazy.get();
       if (current != null) {
         return ExecutionStateTrackerStatus.create(
             current.ptransformId, current.ptransformUniqueName, thread, lastTransitionTimeMs);
       } else {
         return ExecutionStateTrackerStatus.create(null, null, thread, lastTransitionTimeMs);
       }
+    }
+
+    /** Returns the ptransform id of the currently executing thread. */
+    public @Nullable String getCurrentThreadsPTransformId() {
+      if (currentState == null) {
+        return null;
+      }
+      return currentState.ptransformId;
     }
 
     /** {@link ExecutionState} represents the current state of an execution thread. */
@@ -331,15 +340,17 @@ public class ExecutionStateSampler {
 
       @Override
       public void activate() {
-        previousState = currentState.get();
-        currentState.lazySet(this);
+        previousState = currentState;
+        currentState = this;
+        currentStateLazy.lazySet(this);
         numTransitions += 1;
         numTransitionsLazy.lazySet(numTransitions);
       }
 
       @Override
       public void deactivate() {
-        currentState.lazySet(previousState);
+        currentState = previousState;
+        currentStateLazy.lazySet(previousState);
         previousState = null;
 
         numTransitions += 1;

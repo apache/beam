@@ -16,7 +16,6 @@
 package utils
 
 import (
-	"beam.apache.org/playground/backend/internal/logger"
 	"errors"
 	"fmt"
 	"io"
@@ -25,6 +24,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"beam.apache.org/playground/backend/internal/logger"
 )
 
 const (

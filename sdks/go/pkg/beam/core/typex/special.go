@@ -36,6 +36,7 @@ var (
 
 	EventTimeType = reflect.TypeOf((*EventTime)(nil)).Elem()
 	WindowType    = reflect.TypeOf((*Window)(nil)).Elem()
+	TimersType    = reflect.TypeOf((*Timers)(nil)).Elem()
 	PaneInfoType  = reflect.TypeOf((*PaneInfo)(nil)).Elem()
 
 	KVType                 = reflect.TypeOf((*KV)(nil)).Elem()
@@ -86,6 +87,25 @@ type PaneInfo struct {
 	Timing                     PaneTiming
 	IsFirst, IsLast            bool
 	Index, NonSpeculativeIndex int64
+}
+
+// Timers is the actual type used for standard timer coder.
+type Timers struct {
+	Key                          []byte // elm type.
+	Tag                          string
+	Windows                      []byte // []typex.Window
+	Clear                        bool
+	FireTimestamp, HoldTimestamp mtime.Time
+	Pane                         PaneInfo
+}
+
+// TimerMap is a placeholder for timer details used in encoding/decoding.
+type TimerMap struct {
+	Key, Tag                     string
+	Windows                      []Window // []typex.Window
+	Clear                        bool
+	FireTimestamp, HoldTimestamp mtime.Time
+	Pane                         PaneInfo
 }
 
 // KV, Nullable, CoGBK, WindowedValue represent composite generic types. They are not used

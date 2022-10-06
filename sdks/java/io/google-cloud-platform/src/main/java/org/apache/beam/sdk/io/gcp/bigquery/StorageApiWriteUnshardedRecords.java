@@ -372,15 +372,14 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       String retrieveErrorDetails(Iterable<Context<AppendRowsResponse>> contexts) {
         return StreamSupport.stream(contexts.spliterator(), false)
-            .map(ctx -> Preconditions.checkStateNotNull(ctx.getError()))
+            .<@Nullable Throwable>map(ctx -> ctx.getError())
             .map(
                 err ->
-                    String.format(
-                        "message: %s, stacktrace: %s",
-                        err,
-                        Lists.newArrayList(err.getStackTrace()).stream()
+                    (err == null)
+                        ? "no error"
+                        : Lists.newArrayList(err.getStackTrace()).stream()
                             .map(se -> se.toString())
-                            .collect(Collectors.joining("\n"))))
+                            .collect(Collectors.joining("\n")))
             .collect(Collectors.joining(","));
       }
     }

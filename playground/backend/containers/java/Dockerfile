@@ -16,14 +16,14 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE=apache/beam_java8_sdk:latest
-FROM golang:1.17-bullseye AS build
+FROM golang:1.18-bullseye AS build
 
 # Setup Go Environment
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:$PATH
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1 &&\
-    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 
 # Prepare Application
 COPY src /go/src/playground/backend
@@ -37,15 +37,16 @@ RUN go mod download &&\
     go build -o /go/bin/server_java_backend
 
 FROM $BASE_IMAGE
-ARG BEAM_VERSION=2.33.0
+ARG BEAM_VERSION=2.40.0
 ARG HAMCREST_VERSION=1.3
-ARG JUNIT_VERSION=4.13
+ARG JUNIT_VERSION=4.13.2
+ARG BEAM_VENDOR_GRPC_VERSION=0.1
 #ENV BEAM_VERSION=${BEAM_VERSION_ARG}
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_JAVA"
-ENV BUCKET_NAME="playground-precompiled-objects"
+ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
 
 # Copy build result
 COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
@@ -70,6 +71,9 @@ RUN wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/$HAMCREST_VERS
 # Install JUnit
 RUN wget https://repo1.maven.org/maven2/junit/junit/$JUNIT_VERSION/junit-$JUNIT_VERSION.jar &&\
     mv junit-$JUNIT_VERSION.jar /opt/apache/beam/jars/junit.jar
+# Install Beam Vendor gRPC
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-1_26_0/$BEAM_VENDOR_GRPC_VERSION/beam-vendor-grpc-1_26_0-$BEAM_VENDOR_GRPC_VERSION.jar &&\
+    mv beam-vendor-grpc-1_26_0-$BEAM_VENDOR_GRPC_VERSION.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\
@@ -87,6 +91,7 @@ COPY allow_list.py /opt/mitmproxy/
 ENV HTTP_PROXY="http://127.0.0.1:8081"
 ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
+COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
 
 # Create a user group `appgroup` and a user `appuser`

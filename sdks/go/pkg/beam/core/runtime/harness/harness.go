@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"cloud.google.com/go/profiler"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
@@ -70,6 +71,19 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	ctx, err := hooks.RunInitHooks(ctx)
 	if err != nil {
 		return err
+	}
+
+	// Check for environment variables for cloud profiling.
+	// If both present, start running profiler.
+	if name, id := os.Getenv("CLOUD_PROF_JOB_NAME"), os.Getenv("CLOUD_PROF_JOB_ID"); name != "" && id != "" {
+		log.Debugf(ctx, "enabling cloud profiling for job name: %v, job id: %v", name, id)
+		cfg := profiler.Config{
+			Service:        name,
+			ServiceVersion: id,
+		}
+		if err := profiler.Start(cfg); err != nil {
+			log.Errorf(ctx, "failed to start cloud profiler, got %v", err)
+		}
 	}
 
 	if tempLocation := beam.PipelineOptions.Get("temp_location"); tempLocation != "" && samplingFrequencySeconds > 0 {

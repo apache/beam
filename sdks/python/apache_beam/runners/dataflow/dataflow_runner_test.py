@@ -257,7 +257,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
   def test_streaming_create_translation(self):
     remote_runner = DataflowRunner()
     self.default_properties.append("--streaming")
-    self.default_properties.append("--experiments=disable_runner_v2")
+    self.default_properties.append("--experiments=disable_runner_v2_until_2023")
     with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
       p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     job_dict = json.loads(str(remote_runner.job))
@@ -835,7 +835,10 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'GroupIntoBatches for jobs not using Runner V2'):
       _ = self._run_group_into_batches_and_get_step_properties(
           True,
-          ['--enable_streaming_engine', '--experiments=disable_runner_v2'])
+          [
+              '--enable_streaming_engine',
+              '--experiments=disable_runner_v2_until_2023'
+          ])
 
     # JRH
     with self.assertRaisesRegex(

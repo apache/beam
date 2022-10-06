@@ -18,8 +18,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/components/logo/logo_component.dart';
-import 'package:playground/components/summit_banner/summit_banner_button.dart';
-import 'package:playground/components/toggle_theme_button/toggle_theme_button.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/actions/components/new_example_action.dart';
 import 'package:playground/modules/actions/components/reset_action.dart';
@@ -34,8 +32,7 @@ import 'package:playground/pages/playground/components/close_listener_nonweb.dar
 import 'package:playground/pages/playground/components/more_actions.dart';
 import 'package:playground/pages/playground/components/playground_page_body.dart';
 import 'package:playground/pages/playground/components/playground_page_footer.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 class PlaygroundPage extends StatelessWidget {
@@ -44,58 +41,65 @@ class PlaygroundPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CloseListener(
-      child: ShortcutsManager(
-        shortcuts: globalShortcuts,
-        child: Scaffold(
-          appBar: AppBar(
-            automaticallyImplyLeading: false,
-            title: Consumer<PlaygroundState>(
-              builder: (context, state, child) {
-                return Wrap(
+      child: Consumer<PlaygroundController>(
+        builder: (context, controller, child) {
+          final snippetController = controller.snippetEditingController;
+
+          return ShortcutsManager(
+            shortcuts: [
+              ...controller.shortcuts,
+              ...globalShortcuts,
+            ],
+            child: Scaffold(
+              appBar: AppBar(
+                automaticallyImplyLeading: false,
+                title: Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: kXlSpacing,
                   children: [
                     const Logo(),
-                    Consumer<ExampleState>(
-                      builder: (context, state, child) {
-                        return ExampleSelector(
-                          changeSelectorVisibility:
-                              state.changeSelectorVisibility,
-                          isSelectorOpened: state.isSelectorOpened,
-                        );
-                      },
+                    ExampleSelector(
+                      changeSelectorVisibility:
+                          controller.exampleCache.changeSelectorVisibility,
+                      isSelectorOpened:
+                          controller.exampleCache.isSelectorOpened,
                     ),
                     SDKSelector(
-                      sdk: state.sdk,
-                      setSdk: (newSdk) {
+                      value: controller.sdk,
+                      onChanged: (newSdk) {
                         AnalyticsService.get(context)
-                            .trackSelectSdk(state.sdk, newSdk);
-                        state.setSdk(newSdk);
+                            .trackSelectSdk(controller.sdk, newSdk);
+                        controller.setSdk(newSdk);
                       },
-                      setExample: state.setExample,
                     ),
-                    PipelineOptionsDropdown(
-                      pipelineOptions: state.pipelineOptions,
-                      setPipelineOptions: state.setPipelineOptions,
-                    ),
+                    if (snippetController != null)
+                      PipelineOptionsDropdown(
+                        pipelineOptions: snippetController.pipelineOptions,
+                        setPipelineOptions: controller.setPipelineOptions,
+                      ),
                     const NewExampleAction(),
-                    ResetAction(reset: state.reset),
+                    const ResetAction(),
                   ],
-                );
-              },
-            ),
-            actions: const [SummitBanner(), ToggleThemeButton(), MoreActions()],
-          ),
-          body: Column(
-            children: [
-              const Expanded(child: PlaygroundPageBody()),
-              Semantics(
-                container: true,
-                child: const PlaygroundPageFooter(),
+                ),
+                actions: [
+                  const ToggleThemeButton(),
+                  MoreActions(
+                    playgroundController: controller,
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+              body: Column(
+                children: [
+                  const Expanded(child: PlaygroundPageBody()),
+                  Semantics(
+                    container: true,
+                    child: const PlaygroundPageFooter(),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

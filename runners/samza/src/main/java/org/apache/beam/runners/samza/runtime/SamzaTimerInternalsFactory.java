@@ -374,7 +374,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         default:
           throw new UnsupportedOperationException(
               String.format(
-                  "%s currently only supports event time or processing time", SamzaRunner.class));
+                  "%s currently only supports event time or processing time but get %s",
+                  SamzaRunner.class, timerData.getDomain()));
       }
     }
 
@@ -460,7 +461,9 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
         default:
           throw new UnsupportedOperationException(
-              String.format("%s currently only supports event time", SamzaRunner.class));
+              String.format(
+                  "%s currently only supports event time or processing time but get %s",
+                  SamzaRunner.class, domain));
       }
     }
 
@@ -490,7 +493,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         default:
           throw new UnsupportedOperationException(
               String.format(
-                  "%s currently only supports event time or processing time", SamzaRunner.class));
+                  "%s currently only supports event time or processing time but get %s",
+                  SamzaRunner.class, keyedTimerData.getTimerData().getDomain()));
       }
     }
 
@@ -509,7 +513,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         default:
           throw new UnsupportedOperationException(
               String.format(
-                  "%s currently only supports event time or processing time", SamzaRunner.class));
+                  "%s currently only supports event time or processing time but get %s",
+                  SamzaRunner.class, keyedTimerData.getTimerData().getDomain()));
       }
     }
 

@@ -75,7 +75,7 @@ public class AggregatorsAccumulator {
           instance = accumulator;
         }
       }
-      LOG.info("Instantiated aggregators accumulator: " + instance.value());
+      LOG.info("Instantiated aggregators accumulator: {}", instance.value());
     }
   }
 

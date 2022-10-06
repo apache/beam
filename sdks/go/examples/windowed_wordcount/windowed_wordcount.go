@@ -45,6 +45,13 @@ package main
 //     - Options
 //     - Combiners
 //     - Quickstart
+//   complexity: ADVANCED
+//   tags:
+//     - count
+//     - stream
+//     - windowing
+//     - io
+//     - strings
 
 import (
 	"context"
@@ -73,7 +80,13 @@ var (
 )
 
 func init() {
+	// register.DoFnXxY registers a struct DoFn so that it can be correctly serialized and does some optimization
+	// to avoid runtime reflection. Since addTimestampFn has 1 inputs and 2 outputs, we use register.DoFn1x2 and provide
+	// its input/output types as its constraints.
+	// Struct DoFns must be registered for a pipeline to run.
 	register.DoFn1x2[beam.X, beam.EventTime, beam.X](&addTimestampFn{})
+	// For simple functional (non-struct) DoFns we can use register.FunctionXxY to perform the same registration without
+	// providing type constraints.
 	register.Function4x1(formatFn)
 }
 
