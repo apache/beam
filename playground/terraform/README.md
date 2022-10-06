@@ -25,7 +25,7 @@ Before you will start with installation steps, please read this carefully:
 ```
 https://cloud.google.com/resource-manager/docs/creating-managing-projects
 ```
-**Description:** * *How to create new project in Google Cloud Platform. It's strongly recommended to use new Google Cloud Project for your new projects
+**Description:** * *How to create new project in Google Cloud Platform. It's strongly recommended to use new Google Cloud Project for your new projects* *
 
 2. How to create new service account
 ```
