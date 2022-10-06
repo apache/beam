@@ -23,7 +23,7 @@
 ### Before you will start with installation steps, please read this carefully:
 1. How to create new project in Google Cloud Platform:
 ```
-https://cloud.google.com/resource-manager/docs/creating-managing-projects
+(https://cloud.google.com/resource-manager/docs/creating-managing-projects)
 ```
 **Description:** * *How to create new project in Google Cloud Platform. It's strongly recommended to use new Google Cloud Project for your new projects* *
 
