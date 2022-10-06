@@ -2835,7 +2835,6 @@ class BeamSpecificTest(unittest.TestCase):
 
   def test_astype_categorical_rejected(self):
     df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
-    categorical_dtype = pd.CategoricalDtype(df.B.unique())
 
     with self.assertRaisesRegex(frame_base.WontImplementError,
                                 r"astype\(dtype='category'\)"):
