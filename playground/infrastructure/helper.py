@@ -70,6 +70,7 @@ class Example:
     type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
     pipeline_id: str = ""
     output: str = ""
+    compile_output: str = ""
     graph: str = ""
 
 
