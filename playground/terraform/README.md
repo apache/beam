@@ -97,7 +97,7 @@ You may find the instruction "How to enable Google Cloud Platform API" above
 During the Operation system preparation steps you will need to install Java, HELM, Kubernetes command line interface
 
 1. How to install Java:
-* *[This link](https://adoptopenjdk.net/)* * will provide you will all necessary instructions for Windows and Linux operation systems
+*[This link](https://adoptopenjdk.net/)* will provide you will all necessary instructions for Windows and Linux operation systems
 * Modify the following file, `playground/terraform/environment/${env_folder}/terraform.tfvars`, as necessary:
 ```
 network_name         = "network_name"        #Enter the network name
