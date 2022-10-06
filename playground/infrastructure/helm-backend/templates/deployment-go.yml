@@ -30,7 +30,7 @@ spec:
     spec:
      containers:
      - name: playground-backend-go
-       image: {{ .Values.registry}}/{{ .Values.image.go_image }}:{{ .Values.image.tag }}
+       image: {{ .Values.registry}}/{{ .Values.image.go_image }}:{{ .Values.tag }}
        imagePullPolicy: {{ .Values.image.pullPolicy }}
        ports:
         - containerPort: 8080
