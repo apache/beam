@@ -16,15 +16,13 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import '../repositories/models/unit.dart';
+import 'abstract_node.dart';
 
-import 'cache/content_tree.dart';
-import 'cache/sdk_cache.dart';
-import 'repositories/client/cloud_functions_client.dart';
+class UnitModel extends NodeModel {
+  final String id;
 
-Future<void> initializeServiceLocator() async {
-  final client = CloudFunctionsTobClient();
-
-  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
-  GetIt.instance.registerSingleton(SdkCache(client: client));
+  UnitModel.fromResponse(UnitResponseModel unit)
+      : id = unit.id,
+        super(title: unit.title);
 }

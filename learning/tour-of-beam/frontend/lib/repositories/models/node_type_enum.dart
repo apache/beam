@@ -16,15 +16,7 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
-
-import 'cache/content_tree.dart';
-import 'cache/sdk_cache.dart';
-import 'repositories/client/cloud_functions_client.dart';
-
-Future<void> initializeServiceLocator() async {
-  final client = CloudFunctionsTobClient();
-
-  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
-  GetIt.instance.registerSingleton(SdkCache(client: client));
+enum NodeType {
+  group,
+  unit,
 }

@@ -16,15 +16,38 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import 'dart:async';
 
-import 'cache/content_tree.dart';
-import 'cache/sdk_cache.dart';
-import 'repositories/client/cloud_functions_client.dart';
+import 'package:flutter/widgets.dart';
 
-Future<void> initializeServiceLocator() async {
-  final client = CloudFunctionsTobClient();
+import '../models/sdk.dart';
+import '../repositories/client/client.dart';
+import '../repositories/models/get_sdks_response.dart';
 
-  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
-  GetIt.instance.registerSingleton(SdkCache(client: client));
+class SdkCache extends ChangeNotifier {
+  final TobClient client;
+
+  final _sdks = <SdkModel>[];
+  Future<GetSdksResponse>? _future;
+
+  SdkCache({
+    required this.client,
+  });
+
+  List<SdkModel> getSdks() {
+    if (_future == null) {
+      unawaited(_loadSdks());
+    }
+
+    return _sdks;
+  }
+
+  Future<List<SdkModel>> _loadSdks() async {
+    _future = client.getSdks();
+    final result = await _future!;
+
+    _sdks.addAll(result.sdks);
+    notifyListeners();
+    return _sdks;
+  }
 }

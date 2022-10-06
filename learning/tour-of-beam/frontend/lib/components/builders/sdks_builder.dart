@@ -16,15 +16,26 @@
  * limitations under the License.
  */
 
+import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 
-import 'cache/content_tree.dart';
-import 'cache/sdk_cache.dart';
-import 'repositories/client/cloud_functions_client.dart';
+import '../../cache/sdk_cache.dart';
+import '../../models/sdk.dart';
 
-Future<void> initializeServiceLocator() async {
-  final client = CloudFunctionsTobClient();
+class SdksBuilder extends StatelessWidget {
+  final ValueWidgetBuilder<List<SdkModel>> builder;
 
-  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
-  GetIt.instance.registerSingleton(SdkCache(client: client));
+  const SdksBuilder({
+    required this.builder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cache = GetIt.instance.get<SdkCache>();
+
+    return AnimatedBuilder(
+      animation: cache,
+      builder: (context, child) => builder(context, cache.getSdks(), child),
+    );
+  }
 }

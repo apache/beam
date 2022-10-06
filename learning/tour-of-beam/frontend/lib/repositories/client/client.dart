@@ -16,15 +16,11 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import '../../models/content_tree.dart';
+import '../models/get_sdks_response.dart';
 
-import 'cache/content_tree.dart';
-import 'cache/sdk_cache.dart';
-import 'repositories/client/cloud_functions_client.dart';
+abstract class TobClient {
+  Future<ContentTreeModel> getContentTree();
 
-Future<void> initializeServiceLocator() async {
-  final client = CloudFunctionsTobClient();
-
-  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
-  GetIt.instance.registerSingleton(SdkCache(client: client));
+  Future<GetSdksResponse> getSdks();
 }

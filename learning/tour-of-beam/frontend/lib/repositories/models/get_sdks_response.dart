@@ -16,15 +16,18 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-import 'cache/content_tree.dart';
-import 'cache/sdk_cache.dart';
-import 'repositories/client/cloud_functions_client.dart';
+import '../../models/sdk.dart';
 
-Future<void> initializeServiceLocator() async {
-  final client = CloudFunctionsTobClient();
+part 'get_sdks_response.g.dart';
 
-  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
-  GetIt.instance.registerSingleton(SdkCache(client: client));
+@JsonSerializable(createToJson: false)
+class GetSdksResponse {
+  final List<SdkModel> sdks;
+
+  const GetSdksResponse({required this.sdks});
+
+  factory GetSdksResponse.fromJson(Map<String, dynamic> json) =>
+      _$GetSdksResponseFromJson(json);
 }

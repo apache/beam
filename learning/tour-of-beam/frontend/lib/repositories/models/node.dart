@@ -16,15 +16,26 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-import 'cache/content_tree.dart';
-import 'cache/sdk_cache.dart';
-import 'repositories/client/cloud_functions_client.dart';
+import 'group.dart';
+import 'node_type_enum.dart';
+import 'unit.dart';
 
-Future<void> initializeServiceLocator() async {
-  final client = CloudFunctionsTobClient();
+part 'node.g.dart';
 
-  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
-  GetIt.instance.registerSingleton(SdkCache(client: client));
+@JsonSerializable(createToJson: false)
+class NodeResponseModel {
+  final NodeType type;
+  final UnitResponseModel? unit;
+  final GroupResponseModel? group;
+
+  const NodeResponseModel({
+    required this.type,
+    required this.unit,
+    required this.group,
+  });
+
+  factory NodeResponseModel.fromJson(Map<String, dynamic> json) =>
+      _$NodeResponseModelFromJson(json);
 }
