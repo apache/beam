@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 -->
-Here you will find the steps for deploying BEAM Playground on your project
+## Here you will find the steps for deploying BEAM Playground on your project
 
 # Prerequisit:
 
