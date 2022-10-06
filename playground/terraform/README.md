@@ -18,26 +18,26 @@
 -->
 # Here you will find the steps for deploying BEAM Playground on your project
 
-## Prerequisit:
+## Prerequisite:
 
-### Before you will start with installation steps, please read this carefully:
-1. How to create new project in Google Cloud Platform:
+### Before you will start with the installation steps, please read this carefully:
+1. How to create a new project in Google Cloud Platform:
 ```
 https://cloud.google.com/resource-manager/docs/creating-managing-projects
 ```
-**Description:** * *How to create new project in Google Cloud Platform. It's strongly recommended to use new Google Cloud Project for your new projects* *
+**Description:** * *How to create a new project in Google Cloud Platform. It's strongly recommended to use the new Google Cloud Project for your new projects* *
 
-2. How to create new service account
+2. How to create a new service account
 ```
 https://cloud.google.com/iam/docs/creating-managing-service-accounts
 ```
 **Description:** * *You will find the instruction "How to create Service account" for your new project* *
 
-3. How to create a JSON key for Google Service account:
+3. How to create a JSON key for a Google Service account:
 ```
 https://cloud.google.com/iam/docs/creating-managing-service-account-keys
 ```
-**Description:** * *In this instruction will be explaned how to create JSON key for your service account. it will be required for the authentication.* *
+**Description:** * *In this instruction will be explained how to create a JSON key for your service account. it will be required for authentication.* *
 
 4. How to create a new bucket:
 ```
@@ -45,7 +45,7 @@ https://cloud.google.com/storage/docs/creating-buckets
 ```
 **Description:** * *Short instruction for bucket creation. You will need at least one bucket for file keeping* *
 
-5. How to assign new role for service account:
+5. How to assign a new role for the service account:
 ```
 https://cloud.google.com/iam/docs/granting-changing-revoking-access
 ```
@@ -55,9 +55,9 @@ https://cloud.google.com/iam/docs/granting-changing-revoking-access
 ```
 https://cloud.google.com/sdk/docs/install?hl=en
 ```
-**Description:** * *GCloud - Google command line interface, which will allow you to interact with Google cloud platform thry the command line (https://en.wikipedia.org/wiki/Command-line_interface)* *
+**Description:** * *GCloud - Google command line interface, which will allow you to interact with the Google cloud platform thru the command line (https://en.wikipedia.org/wiki/Command-line_interface)* *
 
-7. What is Google Cloud Platform APIs
+7. What are Google Cloud Platform APIs
 ```
 https://cloud.google.com/apis
 ```
@@ -81,7 +81,7 @@ https://docs.docker.com/get-started/overview/
 **Description:** * *What is Docker and how to use it* *
 
 ***Google Cloud preparation steps:***
-When you create a new project, you must add a service account with a JSON key and a bucket according instructions above. Also, according to the instructions, configure the roles for the service account:
+When you create a new project, you must add a service account with a JSON key and a bucket according to the instructions above. Also, according to the instructions, configure the roles for the service account:
    - App Engine Admin
    - App Engine Creator
    - Artifact Registry Administrator
@@ -105,7 +105,7 @@ You may find the instruction "How to enable Google Cloud Platform API" above
 
 ***Operation System preparation steps:***
 
-During the Operation system preparation steps you will need to install Java, HELM, GIT, Docker, Kubernetes command line interface
+During the Operation system preparation steps, you will need to install Java, HELM, GIT, Docker, Kubernetes command line interface
 
 1. How to install Java:
 * [This link](https://adoptopenjdk.net/) will provide you will all necessary instructions for Windows and Linux operation systems
@@ -124,18 +124,18 @@ During the Operation system preparation steps you will need to install Java, HEL
 5. How to install Docker
 * [Docker link](https://docs.docker.com/engine/install/) instructions for Windows and Linux operation systems
 
-After installations of required packages will be completed, you will need to download ***BEAM Playground*** from repository. Please open terminal and execute the following command:
+After installations of the required packages will be completed, you will need to download ***BEAM Playground*** from the repository. Please open the terminal and execute the following command:
 
 `git clone https://github.com/akvelon/beam.git`
 
-Once downloading will be completed you will find "beam" folder on your disk (you can execute `ls -la` command for Linux, or `dir` command for Windows). Open that folder
+Once downloading is completed you will find the "beam" folder on your disk (you can execute the `ls -la` command for Linux, or the `dir` command for Windows). Open that folder
 
-It is possible to configure BEAM to work with the different version of environment (like staging, production etc.), you will need to create special folder in `playground/terraform/environment` and put all configuration files inside:
+It is possible to configure BEAM to work with the different versions of the environment (like staging, production, etc.), you will need to create a special folder in `playground/terraform/environment` and put all configuration files inside:
 * File name - `terraform.tfvars`, items inside:
 ```
-network_name         = "network_name"        #Enter the network name - you can choose any name for network according naming policy above
-project_id           = "project_id"          #Enter the project ID - ID of created proect
-gke_name             = "playground-backend"  #Set the GKE name - you can choose any name for Google Kubernetes Engine according naming policy above
+network_name         = "network_name"        #Enter the network name - you can choose any name for the network according to the naming policy above
+project_id           = "project_id"          #Enter the project ID - ID of created project
+gke_name             = "playground-backend"  #Set the GKE name - you can choose any name for Google Kubernetes Engine according to the naming policy above
 region               = "us-east1"            #Set the region - preferred region according to your needs
 pg_location          = "us-east1-b"          #Select the location - location should be in region you set before
 state_bucket         = "bucket_name"         #Name of bucket - Google Cloud bucket where BEAM Playground will put temp files, [terraform state file] (https://spacelift.io/blog/terraform-state)
@@ -145,15 +145,15 @@ bucket_examples_name = "bucket_name-example" #Enter an example bucket name - buc
 ```
 bucket               = "bucket_name"         #input bucket name - will be used for terraform tfstate file
 ```
-Then, let's configure authentication for Google Cloud Platform:
+Then, let's configure authentication for the Google Cloud Platform:
 
-* Following command allow us to authenticate using JSON key file
+* The following command allows us to authenticate using JSON key file
 ```
-    export GOOGLE_APPLICATION_CREDENTIALS=`your service account json key locaton` (absolute path)
+    export GOOGLE_APPLICATION_CREDENTIALS=`your service account JSON key location` (absolute path)
 ```
 * Using the following command, we will activate the newly created service account:
 ```
-    gcloud auth activate-service-account `full principal service account` --key-file=`your service account json key locaton` (absolute path)
+    gcloud auth activate-service-account `full principal service account` --key-file=`your service account JSON key location` (absolute path)
 ```
 
 # Infrastructure deployment:
@@ -162,26 +162,27 @@ Then, let's configure authentication for Google Cloud Platform:
 ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="`env`" (env - folder name which you created for configuration files)
 ```
 # Backend deployment:
-Once script was executed sucessfully, you will need to authenticate on Docker and Google Kubernetes Engine
-Following command will authenticate us in Docker registry
+Once the script was executed successfully, you will need to authenticate on Docker and Google Kubernetes Engine
+The following command will authorize us in the Docker registry
 ```
  cat `your service account json key locaton` | docker login -u _json_key --password-stdin https://`chosen_region`-docker.pkg.dev
 ```
-* Following command will authenticate us in GKE
+* The following command will authenticate us in GKE
 ```
 gcloud container clusters get-credentials --region `chosen_pg_location` `gke_name` --project `project_id`
 ```
-* We need to create database indexes for BEAM playground examples by following command:
+* We need to create database indexes for BEAM playground examples by the following command:
 ```
 gcloud app deploy playground/index.yaml --project=`project_id`
 ```
-That's all, configuration of environment has been completed. for deploying backend part to Google cloud kubernetes engine, please execute following command (Ensure you are in the "beam" folder):
+That's all, the configuration of the environment has been completed. For deploying the backend part to the Google cloud Kubernetes engine, please execute the following command (Ensure you are in the "beam" folder):
 ```
-./gradlew playground:terraform:gkebackend -Pproject_environment="${env}" -Pdocker-tag="`tag`" (env - folder name which you created for configuration files, tag - image tag for backend)
+./gradlew playground:terraform:gkebackend -Pproject_environment="`env`" -Pdocker-tag="`tag`" (env - folder name which you created for configuration files, tag - image tag for backend)
 ```
-During script execution google managed certificate will be created. Provisioning process could take up to 20 minutes
+During script execution, a google managed certificate will be created. The provisioning process could take up to 20 minutes
 
+# Frontend deployment:
 * To deploy the frontend, use the following command (Ensure you are in the "beam" folder):
 ```
-./gradlew playground:terraform:deployFrontend -Pdocker-tag="${env}" -Pproject_id=`project_id` -Pproject_environment='${env}'
+./gradlew playground:terraform:deployFrontend -Pdocker-tag="`env`" -Pproject_id=`project_id` -Pproject_environment='`tag`'
 ```
