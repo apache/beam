@@ -18,6 +18,7 @@
 """The file defines global variables."""
 
 PROJECT_ID = "apache-beam-testing"
+REGION = "us-central1"
 JOB_NAME = "benchmarking-runinference"
 NUM_WORKERS = 1
 TOKENIZER_NAME = "distilbert-base-uncased-finetuned-sst-2-english"
