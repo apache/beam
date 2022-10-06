@@ -78,7 +78,7 @@ bucket               = "bucket_name"         #input bucket name (will be used fo
 # Infrastructure deployment:
 * Run following command for infrastructure deployment (please be sure that you are in the "beam" folder):
 ```
-./gradlew playground:terraform:InitInfrastructure -Pproject_environment="beta"
+./gradlew playground:terraform:InitInfrastructure -Pproject_environment="${env}"
 ```
 # Backend deployment:
 * Login to Docker registry:
@@ -95,11 +95,11 @@ gcloud app deploy playground/index.yaml --project=`project_id`
 ```
 * Run following command for backend deployment (please be sure that you are in the "beam" folder):
 ```
-./gradlew playground:terraform:gkebackend -Pproject_environment="beta" -Pdocker-tag="beta"
+./gradlew playground:terraform:gkebackend -Pproject_environment="${env}" -Pdocker-tag="${env}"
 ```
 # !! Please wait about 20 min before frontend deployment (GCP certificate should be provisioned)
 # Frontend deployment:
 * Run following command for frontend deployment (please be sure that you are in the "beam" folder):
 ```
-./gradlew playground:terraform:deployFrontend -Pdocker-tag="beta" -Pproject_id=pg-fourht -Pproject_environment='beta'
+./gradlew playground:terraform:deployFrontend -Pdocker-tag="${env}" -Pproject_id=`project_id` -Pproject_environment='${env}'
 ```
