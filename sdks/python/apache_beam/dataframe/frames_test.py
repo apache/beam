@@ -1017,6 +1017,9 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.B.astype(categorical_dtype), df)
 
+  @unittest.skipIf(
+      PD_VERSION < (1, 2),
+      "DataFrame.unstack not supported in pandas <1.2.x")
   def test_astype_categorical_with_unstack(self):
     df = pd.DataFrame({
         'index1': ['one', 'one', 'two', 'two'],
