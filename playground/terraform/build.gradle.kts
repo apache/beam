@@ -301,7 +301,7 @@ task("prepareConfig") {
         var file = File("$modulePath/lib/$configFileName")
 
         file.writeText(
-            """${licenseText}
+            """
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
       'https://router.${extip}.nip.io';
