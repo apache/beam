@@ -129,7 +129,7 @@ During the Operation system preparation steps, you will need to install Java, HE
 
 After installations of the required packages will be completed, you will need to download ***BEAM Playground*** from the repository. Please open the terminal and execute the following command:
 
-`git clone `url_to_github_project_with_beam_playground``
+`git clone 'url_to_github_project_with_beam_playground'`
 
 Once downloading is completed you will find the "beam" folder on your disk (you can execute the `ls -la` command for Linux, or the `dir` command for Windows). Open that folder
 
