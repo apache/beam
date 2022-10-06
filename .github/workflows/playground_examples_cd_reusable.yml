@@ -29,8 +29,8 @@ on:
         required: true
 env:
   GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
-  GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
-  SA_KEY_CONTENT: ${{ secrets.GCP_PLAYGROUND_SA_KEY }}
+  GOOGLE_CLOUD_PROJECT: ${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}
+  SA_KEY_CONTENT: ${{ secrets.EA_GCP_PLAYGROUND_SA_KEY }}
 jobs:
   cd:
     name: CD ${{ inputs.sdk }} ${{ inputs.origin }}
