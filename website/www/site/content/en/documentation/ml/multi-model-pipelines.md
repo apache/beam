@@ -91,7 +91,7 @@ with pipeline as p:
 
 In
 this [notebook](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml/run-inference-multi-model.ipynb)
-, we show an end-to-end example of an ensemble model pipeline used for generating and ranking image
+, we show an end-to-end example of a cascade pipeline used for generating and ranking image
 captions. The solution consists of two open-source models:
 
 1. **A caption generation model ([BLIP](https://github.com/salesforce/BLIP))** that generates
