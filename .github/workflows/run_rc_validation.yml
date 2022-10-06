@@ -17,7 +17,7 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.m
 
-name: Run RC Validation
+name: Run RC Validation 
 on:
   workflow_dispatch:
     inputs:
@@ -82,7 +82,6 @@ jobs:
         with:
           ref: ${{ env.RC_TAG }}
       - name: Setup GitHub CLI
-      - id: setup-gh-cli-linux
         uses: ./.github/actions/setup-gh-cli-linux
       - name: Set git config
         run: |
