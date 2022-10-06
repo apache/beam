@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.gcp.options;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
@@ -60,10 +59,7 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   @Deprecated
   ExecutorService getExecutorService();
 
-  /**
-   * @deprecated use {@link ExecutorOptions#setScheduledExecutorService}
-   *     instead
-   */
+  /** @deprecated use {@link ExecutorOptions#setScheduledExecutorService} instead */
   @Deprecated
   void setExecutorService(ExecutorService value);
 

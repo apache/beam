@@ -61,7 +61,8 @@ public interface ExecutorOptions extends PipelineOptions {
        * <p> The minimum of max(4, processors) was chosen as a default working configuration found in
        * the Bigquery client library
        */
-      ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(Integer.MAX_VALUE, threadFactoryBuilder.build());
+      ScheduledThreadPoolExecutor executor =
+          new ScheduledThreadPoolExecutor(Integer.MAX_VALUE, threadFactoryBuilder.build());
       executor.setKeepAliveTime(1, TimeUnit.MINUTES);
       executor.allowCoreThreadTimeOut(true);
       return executor;
