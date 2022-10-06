@@ -162,7 +162,7 @@ Then, let's configure authentication for the Google Cloud Platform:
 # Infrastructure deployment:
 * To deploy the Infrastructure, use the following command (please be sure that you are in the "beam" folder):
 ```
-./gradlew playground:terraform:InitInfrastructure -Pproject_environment="`env`" (env - folder name which you created for configuration files)
+./gradlew playground:terraform:InitInfrastructure -Pproject_environment="env" (env - folder name which you created for configuration files)
 ```
 # Backend deployment:
 Once the script was executed successfully, you will need to authenticate on Docker and Google Kubernetes Engine
@@ -180,12 +180,12 @@ gcloud app deploy playground/index.yaml --project=`project_id`
 ```
 That's all, the configuration of the environment has been completed. For deploying the backend part to the Google cloud Kubernetes engine, please execute the following command (Ensure you are in the "beam" folder):
 ```
-./gradlew playground:terraform:gkebackend -Pproject_environment="`env`" -Pdocker-tag="`tag`" (env - folder name which you created for configuration files, tag - image tag for backend)
+./gradlew playground:terraform:gkebackend -Pproject_environment="env" -Pdocker-tag="tag" (env - folder name which you created for configuration files, tag - image tag for backend)
 ```
 During script execution, a google managed certificate will be created. The provisioning process could take up to 20 minutes
 
 # Frontend deployment:
 * To deploy the frontend, use the following command (Ensure you are in the "beam" folder):
 ```
-./gradlew playground:terraform:deployFrontend -Pdocker-tag="`env`" -Pproject_id=`project_id` -Pproject_environment='`tag`'
+./gradlew playground:terraform:deployFrontend -Pdocker-tag="env" -Pproject_id=`project_id` -Pproject_environment='tag'
 ```
