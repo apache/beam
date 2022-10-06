@@ -1393,22 +1393,9 @@ class DeferredFrameTest(_AbstractFrameTest):
     return index
 
   def test_unstack_pandas_example1(self):
-    df = pd.DataFrame({
-        'index1': ['one', 'one', 'two', 'two'],
-        'index2': ['a', 'b', 'a', 'b'],
-        'data': np.arange(1.0, 5.0),
-    })
-
-    def with_categorical_index(df):
-      df.index1 = df.index1.astype(pd.CategoricalDtype(['one', 'two']))
-      df.index2 = df.index2.astype(pd.CategoricalDtype(['a', 'b']))
-      df.set_index(['index1', 'index2'], drop=True)
-      return df
-
-    self._run_test(
-        lambda df: with_categorical_index(df).unstack(level=-1),
-        df,
-        check_proxy=False)
+    index = self._unstack_get_categorical_index()
+    s = pd.Series(np.arange(1.0, 5.0), index=index)
+    self._run_test(lambda s: s.unstack(level=-1), s)
 
   def test_unstack_pandas_example2(self):
     index = self._unstack_get_categorical_index()
