@@ -14,7 +14,7 @@
 # limitations under the License.
 name: kuber-bkend
 on:
-  push:
+  workflow_dispatch:
   
 env:
   BEAM_ROOT_DIR: ../../
