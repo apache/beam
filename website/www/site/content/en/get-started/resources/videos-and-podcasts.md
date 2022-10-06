@@ -63,7 +63,7 @@ Presented by Dan Halperin, *Apache Beam PPMC member*
 
 Presented by Frances Perry, *Apache Beam PPMC member*
 
-<a href="http://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">![alt text](/images/resources/se-radio-podcast.png)</a>
+<a href="https://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">![alt text](/images/resources/se-radio-podcast.png)</a>
 <br>
 
 ## Beam & Friends
