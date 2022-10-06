@@ -298,7 +298,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     third_party_model_handler = ThirdPartyHandler(custom_parameter=0)
     fake_model = third_party_model_handler.load_model()
     third_party_model_handler.run_inference([], fake_model)
-    fake_inference_args = {some_arg: 1}
+    fake_inference_args = {'some_arg': 1}
     third_party_model_handler.run_inference([],
                                             fake_model,
                                             inference_args=fake_inference_args)
