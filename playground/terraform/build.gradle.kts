@@ -381,6 +381,12 @@ task("takeConfig") {
    var registry = ""
    var ipaddrname = ""
    var stdout = ByteArrayOutputStream()
+   var environment = "unknown"
+   var docker_tag = if (project.hasProperty("docker-tag")) {
+       project.property("docker-tag") as String
+   }   else {
+         environment
+   }
    exec {
        commandLine = listOf("terraform", "output", "playground_static_ip_address")
        standardOutput = stdout
@@ -422,6 +428,7 @@ redis_ip: ${redis}:6379
 project_id: ${project}
 registry: ${registry}
 static_ip_name: ${ipaddrname}
+tag: ${docker_tag}
     """)
  }
 }
