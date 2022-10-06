@@ -1,0 +1,66 @@
+### Using Filter
+
+PCollection datasets can be filtered using the Filter transform. You can create a filter by supplying a predicate and, when applied, filtering out all the elements of PCollection that don’t satisfy the predicate.
+
+```
+PCollection<String> allStrings = pipeline
+        .apply(Create.of(List.of("Hello","world","Hi")));
+
+PCollection<String> filteredStrings = allStrings
+        .apply(Filter.by(new SerializableFunction<String, Boolean>() {
+            @Override
+            public Boolean apply(String input) {
+                return input.length() > 3;
+            }
+        }));
+```
+
+Output
+
+```
+Hello
+world
+```
+
+### Built-in filters
+
+The Java SDK has several filter methods built-in, like Filter.greaterThan and Filter.lessThen.  With Filter.greaterThan, the input PCollection can be filtered so that only the elements whose values are greater than the specified amount remain. Similarly, you can use Filter.lessThen to filter out elements of the input PCollection whose values are greater than the specified amount.
+
+Other built-in filters are:
+
+* Filter.greaterThanEq
+* Filter.greaterThan
+* Filter.lessThan
+* Filter.lessThanEq
+* Filter.equal
+
+
+## Example 2: Filtering with a built-in methods
+
+```
+// List of integers
+PCollection<Integer> numbers = pipeline.apply(Create.of(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)));
+
+// PCollection will contain [3, 4, 5, 6, 7, 8, 9, 10] at this point
+PCollection<Integer> greaterThanEqNumbers = pipeline.apply(Filter.greaterThanEq(3));
+
+
+// PCollection will contain [5, 6, 7, 8, 9, 10] at this point
+PCollection<Integer> greaterThanNumbers = pipeline.apply(Filter.greaterThan(4));
+
+
+// PCollection will contain [1, 2, 3, 4, 5, 6, 7, 8, 9] at this point
+PCollection<Integer> lessThanNumbers = pipeline.apply(Filter.lessThan(10));
+
+
+// PCollection will contain [1, 2, 3, 4 5, 6, 7] at this point
+PCollection<Integer> lessThanEqNumbers = pipeline.apply(Filter.lessThanEq(7));
+
+
+// PCollection will contain [9] at this point
+PCollection<Integer> equalNumbers = pipeline.apply(Filter.equal(9));
+```
+
+### Description for example 
+
+Given a list of integers , printing even numbers using ```Filter```. The ```applyTransform()``` method implements a filter in which the logic determines the numbers are even.
