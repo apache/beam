@@ -15,6 +15,17 @@
 # limitations under the License.
 #
 
+"""
+A pipeline tha uses TFX RunInference API to perform Image classification.
+Please look at https://github.com/tensorflow/tfx-bsl/tree/master/tfx_bsl/beam.
+
+Note: For the Tensorflow Model, it needs to be updated with a @tf.function
+      Signature to accept bytes as inputs and should have logic to decode
+      bytes to data which should be acceptable by the tensorflow model.
+      Please take a look at build_tensorflow_model.py on how to modify
+      TF Model's signature.
+"""
+
 import argparse
 import io
 import logging
