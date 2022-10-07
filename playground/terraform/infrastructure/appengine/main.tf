@@ -15,7 +15,7 @@
 
 resource "google_app_engine_application" "app_playground" {
   project     = var.project_id
-  location_id = var.region == "us-central1" ? location_id = "us-central" : location_id = var.region
+  location_id = var.region == "us-central1" ? var.location_id_us : var.region
   database_type = "CLOUD_DATASTORE_COMPATIBILITY"
 }
 
