@@ -15,14 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis;
+package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.helpers;
 
-import software.amazon.awssdk.core.exception.SdkException;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
-/** A transient exception thrown by Kinesis. */
-public class TransientKinesisException extends Exception {
+import java.time.Instant;
+import software.amazon.awssdk.core.SdkBytes;
 
-  public TransientKinesisException(String s, SdkException e) {
-    super(s, e);
+public class RecordsGenerators {
+  static software.amazon.awssdk.services.kinesis.model.Record createRecord(Integer sequenceNumber) {
+    return software.amazon.awssdk.services.kinesis.model.Record.builder()
+        .partitionKey("foo")
+        .approximateArrivalTimestamp(Instant.now())
+        .sequenceNumber(String.valueOf(sequenceNumber))
+        .data(SdkBytes.fromByteArray(sequenceNumber.toString().getBytes(UTF_8)))
+        .build();
   }
 }

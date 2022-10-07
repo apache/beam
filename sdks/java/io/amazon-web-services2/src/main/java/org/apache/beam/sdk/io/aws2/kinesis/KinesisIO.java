@@ -52,6 +52,7 @@ import org.apache.beam.sdk.io.aws2.common.ObjectPool;
 import org.apache.beam.sdk.io.aws2.common.ObjectPool.ClientPool;
 import org.apache.beam.sdk.io.aws2.common.RetryConfiguration;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisPartitioner.ExplicitPartitioner;
+import org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.KinesisEnhancedFanOutSource;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -280,11 +281,13 @@ public final class KinesisIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<KinesisRecord>> {
     private static final long serialVersionUID = 1L;
 
-    abstract @Nullable String getStreamName();
+    public abstract @Nullable String getStreamName();
 
-    abstract @Nullable StartingPoint getInitialPosition();
+    public abstract @Nullable String getConsumerArn();
 
-    abstract @Nullable ClientConfiguration getClientConfiguration();
+    public abstract @Nullable StartingPoint getInitialPosition();
+
+    public abstract @Nullable ClientConfiguration getClientConfiguration();
 
     abstract @Nullable AWSClientsProvider getAWSClientsProvider();
 
@@ -308,6 +311,8 @@ public final class KinesisIO {
     abstract static class Builder {
 
       abstract Builder setStreamName(String streamName);
+
+      abstract Builder setConsumerArn(String consumerArn);
 
       abstract Builder setInitialPosition(StartingPoint startingPoint);
 
@@ -335,6 +340,11 @@ public final class KinesisIO {
     /** Specify reading from streamName. */
     public Read withStreamName(String streamName) {
       return toBuilder().setStreamName(streamName).build();
+    }
+
+    /** Specify reading with Enhanced Fan-Out via registered consumer ARN. */
+    public Read withConsumerArn(String consumerArn) {
+      return toBuilder().setConsumerArn(consumerArn).build();
     }
 
     /** Specify reading from some initial position in stream. */
@@ -537,8 +547,16 @@ public final class KinesisIO {
         ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
       }
 
-      Unbounded<KinesisRecord> unbounded =
-          org.apache.beam.sdk.io.Read.from(new KinesisSource(this));
+      Unbounded<KinesisRecord> unbounded;
+
+      if (getConsumerArn() == null) {
+        unbounded = org.apache.beam.sdk.io.Read.from(new KinesisSource(this));
+      } else {
+        AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
+        ClientBuilderFactory builderFactory = ClientBuilderFactory.getFactory(awsOptions);
+        unbounded =
+            org.apache.beam.sdk.io.Read.from(new KinesisEnhancedFanOutSource(this, builderFactory));
+      }
 
       PTransform<PBegin, PCollection<KinesisRecord>> transform = unbounded;
 

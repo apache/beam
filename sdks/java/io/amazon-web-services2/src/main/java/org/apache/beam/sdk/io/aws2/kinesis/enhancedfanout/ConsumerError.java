@@ -15,14 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis;
+package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
-import software.amazon.awssdk.core.exception.SdkException;
+import io.netty.handler.timeout.ReadTimeoutException;
 
-/** A transient exception thrown by Kinesis. */
-public class TransientKinesisException extends Exception {
+public class ConsumerError extends Exception {
+  public ConsumerError(Throwable cause) {
+    super(cause);
+  }
 
-  public TransientKinesisException(String s, SdkException e) {
-    super(s, e);
+  public static ConsumerError toConsumerError(Throwable e) {
+    if (e instanceof ReadTimeoutException) {
+      return new RecoverableConsumerError(e);
+    } else {
+      return new CriticalConsumerError(e);
+    }
   }
 }

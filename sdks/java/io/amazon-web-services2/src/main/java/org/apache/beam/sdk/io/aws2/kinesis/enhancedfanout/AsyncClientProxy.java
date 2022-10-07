@@ -15,14 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis;
+package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
-import software.amazon.awssdk.core.exception.SdkException;
+import java.util.concurrent.CompletableFuture;
+import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
+import software.amazon.awssdk.services.kinesis.model.ListShardsResponse;
+import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
+import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
 
-/** A transient exception thrown by Kinesis. */
-public class TransientKinesisException extends Exception {
+public interface AsyncClientProxy extends AutoCloseable {
+  CompletableFuture<ListShardsResponse> listShards(ListShardsRequest listShardsRequest);
 
-  public TransientKinesisException(String s, SdkException e) {
-    super(s, e);
-  }
+  CompletableFuture<Void> subscribeToShard(
+      SubscribeToShardRequest request, SubscribeToShardResponseHandler responseHandler);
 }

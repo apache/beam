@@ -15,14 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis;
+package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
-import software.amazon.awssdk.core.exception.SdkException;
+import java.io.IOException;
+import java.util.UUID;
+import org.apache.beam.sdk.io.aws2.kinesis.CustomOptional;
+import org.apache.beam.sdk.io.aws2.kinesis.KinesisRecord;
+import org.joda.time.Instant;
 
-/** A transient exception thrown by Kinesis. */
-public class TransientKinesisException extends Exception {
+public interface ShardSubscribersPool {
+  UUID getPoolId();
 
-  public TransientKinesisException(String s, SdkException e) {
-    super(s, e);
-  }
+  boolean start();
+
+  boolean stop();
+
+  CustomOptional<KinesisRecord> nextRecord() throws IOException;
+
+  Instant getWatermark();
+
+  KinesisReaderCheckpoint getCheckpointMark();
 }

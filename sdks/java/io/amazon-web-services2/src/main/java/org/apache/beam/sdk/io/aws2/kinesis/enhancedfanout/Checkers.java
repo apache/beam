@@ -15,14 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis;
+package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
-import software.amazon.awssdk.core.exception.SdkException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** A transient exception thrown by Kinesis. */
-public class TransientKinesisException extends Exception {
-
-  public TransientKinesisException(String s, SdkException e) {
-    super(s, e);
+// TODO: this should be replaced with more standard checkers
+class Checkers {
+  static <T> T checkNotNull(@Nullable T reference, String objName) {
+    if (reference == null) {
+      throw new RuntimeException(objName + " is null");
+    } else {
+      return reference;
+    }
   }
 }

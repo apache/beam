@@ -15,14 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis;
+package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
-import software.amazon.awssdk.core.exception.SdkException;
+import org.joda.time.Instant;
 
-/** A transient exception thrown by Kinesis. */
-public class TransientKinesisException extends Exception {
+public interface ShardSubscriberState {
+  void requestRecords(long n);
 
-  public TransientKinesisException(String s, SdkException e) {
-    super(s, e);
-  }
+  void ackRecord(ExtendedKinesisRecord record) throws IllegalStateException;
+
+  ShardCheckpoint getCheckpoint();
+
+  void cancel();
+
+  void markClosed();
+
+  Instant getShardWatermark();
+
+  void setErr(Throwable e);
 }

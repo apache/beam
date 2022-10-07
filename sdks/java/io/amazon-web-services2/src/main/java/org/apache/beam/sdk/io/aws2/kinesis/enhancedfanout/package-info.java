@@ -15,14 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis;
 
-import software.amazon.awssdk.core.exception.SdkException;
+/** Transforms for reading from Amazon Kinesis via Enhanced Fan-Out feature. */
+@Experimental(Kind.SOURCE_SINK)
+package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
-/** A transient exception thrown by Kinesis. */
-public class TransientKinesisException extends Exception {
-
-  public TransientKinesisException(String s, SdkException e) {
-    super(s, e);
-  }
-}
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

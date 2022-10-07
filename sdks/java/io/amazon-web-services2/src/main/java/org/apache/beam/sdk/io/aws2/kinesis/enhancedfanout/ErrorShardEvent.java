@@ -15,14 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis;
+package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
-import software.amazon.awssdk.core.exception.SdkException;
+public class ErrorShardEvent extends ShardEventAbs {
+  private final Throwable err;
 
-/** A transient exception thrown by Kinesis. */
-public class TransientKinesisException extends Exception {
+  private ErrorShardEvent(String shardId, Throwable err) {
+    super(shardId, ShardEventType.ERROR);
+    this.err = err;
+  }
 
-  public TransientKinesisException(String s, SdkException e) {
-    super(s, e);
+  public static ErrorShardEvent fromErr(String shardId, Throwable err) {
+    return new ErrorShardEvent(shardId, err);
+  }
+
+  public Throwable getErr() {
+    return err;
   }
 }

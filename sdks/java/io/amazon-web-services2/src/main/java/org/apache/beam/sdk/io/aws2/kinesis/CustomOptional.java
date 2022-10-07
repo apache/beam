@@ -24,7 +24,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Similar to Guava {@code Optional}, but throws {@link NoSuchElementException} for missing element.
  */
-abstract class CustomOptional<T> {
+public abstract class CustomOptional<T> {
 
   @SuppressWarnings("unchecked")
   public static <T> CustomOptional<T> absent() {
