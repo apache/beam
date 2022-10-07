@@ -19,45 +19,44 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.commons.lang3.StringUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** A LogicalType representing a fixed-length byte array. */
-public class FixedBytes extends PassThroughLogicalType<byte[]> {
+/** A LogicalType representing a fixed-length string. */
+public class FixedString extends PassThroughLogicalType<String> {
   public static final String IDENTIFIER =
-      SchemaApi.LogicalTypes.Enum.FIXED_BYTES
+      SchemaApi.LogicalTypes.Enum.FIXED_CHAR
           .getValueDescriptor()
           .getOptions()
           .getExtension(RunnerApi.beamUrn);
-
   private final @Nullable String name;
-  private final int byteArrayLength;
+  private final int stringLength;
 
   /**
-   * Return an instance of FixedBytes with specified byte array length.
+   * Return an instance of FixedString with specified string length.
    *
-   * <p>The name, if set, refers to the TYPE name in the underlying database, for example, BINARY.
+   * <p>The name, if set, refers to the TYPE name in the underlying database, for example, CHAR.
    */
-  public static FixedBytes of(@Nullable String name, int byteArrayLength) {
-    return new FixedBytes(name, byteArrayLength);
+  public static FixedString of(@Nullable String name, int stringLength) {
+    return new FixedString(name, stringLength);
   }
 
-  /** Return an instance of FixedBytes with specified byte array length. */
-  public static FixedBytes of(int byteArrayLength) {
-    return of(null, byteArrayLength);
+  /** Return an instance of FixedString with specified string length. */
+  public static FixedString of(int stringLength) {
+    return new FixedString(null, stringLength);
   }
 
-  private FixedBytes(@Nullable String name, int byteArrayLength) {
-    super(IDENTIFIER, FieldType.INT32, byteArrayLength, FieldType.BYTES);
+  private FixedString(@Nullable String name, int stringLength) {
+    super(IDENTIFIER, FieldType.INT32, stringLength, FieldType.STRING);
     this.name = name;
-    this.byteArrayLength = byteArrayLength;
+    this.stringLength = stringLength;
   }
 
   public int getLength() {
-    return byteArrayLength;
+    return stringLength;
   }
 
   public @Nullable String getName() {
@@ -65,23 +64,14 @@ public class FixedBytes extends PassThroughLogicalType<byte[]> {
   }
 
   @Override
-  public byte[] toBaseType(byte[] input) {
-    checkArgument(input.length == byteArrayLength);
-    return input;
-  }
+  public String toInputType(String base) {
+    checkArgument(base.length() <= stringLength);
 
-  @Override
-  public byte[] toInputType(byte[] base) {
-    checkArgument(base.length <= byteArrayLength);
-    if (base.length == byteArrayLength) {
-      return base;
-    } else {
-      return Arrays.copyOf(base, byteArrayLength);
-    }
+    return StringUtils.rightPad(base, stringLength);
   }
 
   @Override
   public String toString() {
-    return "FixedBytes: " + byteArrayLength;
+    return "FixedString: " + stringLength;
   }
 }

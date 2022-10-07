@@ -74,7 +74,10 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
@@ -899,48 +902,44 @@ public class AvroUtils {
         break;
 
       case LOGICAL_TYPE:
-        switch (fieldType.getLogicalType().getIdentifier()) {
-          case FixedBytes.IDENTIFIER:
-            FixedBytesField fixedBytesField =
-                checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
-            baseType = fixedBytesField.toAvroType("fixed", namespace + "." + fieldName);
-            break;
-          case EnumerationType.IDENTIFIER:
-            EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
-            baseType =
-                org.apache.avro.Schema.createEnum(fieldName, "", "", enumerationType.getValues());
-            break;
-          case OneOfType.IDENTIFIER:
-            OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
-            baseType =
-                org.apache.avro.Schema.createUnion(
-                    oneOfType.getOneOfSchema().getFields().stream()
-                        .map(x -> getFieldSchema(x.getType(), x.getName(), namespace))
-                        .collect(Collectors.toList()));
-            break;
-          case "CHAR":
-          case "NCHAR":
-            baseType =
-                buildHiveLogicalTypeSchema("char", (int) fieldType.getLogicalType().getArgument());
-            break;
-          case "NVARCHAR":
-          case "VARCHAR":
-          case "LONGNVARCHAR":
-          case "LONGVARCHAR":
-            baseType =
-                buildHiveLogicalTypeSchema(
-                    "varchar", (int) fieldType.getLogicalType().getArgument());
-            break;
-          case "DATE":
-            baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
-            break;
-          case "TIME":
-            baseType =
-                LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
-            break;
-          default:
-            throw new RuntimeException(
-                "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
+        String identifier = fieldType.getLogicalType().getIdentifier();
+        if (FixedBytes.IDENTIFIER.equals(identifier)) {
+          FixedBytesField fixedBytesField =
+              checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
+          baseType = fixedBytesField.toAvroType("fixed", namespace + "." + fieldName);
+        } else if (VariableBytes.IDENTIFIER.equals(identifier)) {
+          // treat VARBINARY as bytes as that is what avro supports
+          baseType = org.apache.avro.Schema.create(Type.BYTES);
+        } else if (FixedString.IDENTIFIER.equals(identifier)
+            || "CHAR".equals(identifier)
+            || "NCHAR".equals(identifier)) {
+          baseType =
+              buildHiveLogicalTypeSchema("char", (int) fieldType.getLogicalType().getArgument());
+        } else if (VariableString.IDENTIFIER.equals(identifier)
+            || "NVARCHAR".equals(identifier)
+            || "VARCHAR".equals(identifier)
+            || "LONGNVARCHAR".equals(identifier)
+            || "LONGVARCHAR".equals(identifier)) {
+          baseType =
+              buildHiveLogicalTypeSchema("varchar", (int) fieldType.getLogicalType().getArgument());
+        } else if (EnumerationType.IDENTIFIER.equals(identifier)) {
+          EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
+          baseType =
+              org.apache.avro.Schema.createEnum(fieldName, "", "", enumerationType.getValues());
+        } else if (OneOfType.IDENTIFIER.equals(identifier)) {
+          OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
+          baseType =
+              org.apache.avro.Schema.createUnion(
+                  oneOfType.getOneOfSchema().getFields().stream()
+                      .map(x -> getFieldSchema(x.getType(), x.getName(), namespace))
+                      .collect(Collectors.toList()));
+        } else if ("DATE".equals(identifier)) {
+          baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
+        } else if ("TIME".equals(identifier)) {
+          baseType = LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
+        } else {
+          throw new RuntimeException(
+              "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
         }
         break;
 
@@ -1022,45 +1021,51 @@ public class AvroUtils {
         return ByteBuffer.wrap((byte[]) value);
 
       case LOGICAL_TYPE:
-        switch (fieldType.getLogicalType().getIdentifier()) {
-          case FixedBytes.IDENTIFIER:
-            FixedBytesField fixedBytesField =
-                checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
-            byte[] byteArray = (byte[]) value;
-            if (byteArray.length != fixedBytesField.getSize()) {
-              throw new IllegalArgumentException("Incorrectly sized byte array.");
-            }
-            return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
-          case EnumerationType.IDENTIFIER:
-            EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
-            return GenericData.get()
-                .createEnum(
-                    enumerationType.toString((EnumerationType.Value) value),
-                    typeWithNullability.type);
-          case OneOfType.IDENTIFIER:
-            OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
-            OneOfType.Value oneOfValue = (OneOfType.Value) value;
-            FieldType innerFieldType = oneOfType.getFieldType(oneOfValue);
-            if (typeWithNullability.nullable && oneOfValue.getValue() == null) {
-              return null;
-            } else {
-              return genericFromBeamField(
-                  innerFieldType.withNullable(false),
-                  typeWithNullability.type.getTypes().get(oneOfValue.getCaseType().getValue()),
-                  oneOfValue.getValue());
-            }
-          case "NVARCHAR":
-          case "VARCHAR":
-          case "LONGNVARCHAR":
-          case "LONGVARCHAR":
-            return new Utf8((String) value);
-          case "DATE":
-            return Days.daysBetween(Instant.EPOCH, (Instant) value).getDays();
-          case "TIME":
-            return (int) ((Instant) value).getMillis();
-          default:
-            throw new RuntimeException(
-                "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
+        String identifier = fieldType.getLogicalType().getIdentifier();
+        if (FixedBytes.IDENTIFIER.equals(identifier)) {
+          FixedBytesField fixedBytesField =
+              checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
+          byte[] byteArray = (byte[]) value;
+          if (byteArray.length != fixedBytesField.getSize()) {
+            throw new IllegalArgumentException("Incorrectly sized byte array.");
+          }
+          return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
+        } else if (VariableBytes.IDENTIFIER.equals(identifier)) {
+          return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
+        } else if (FixedString.IDENTIFIER.equals(identifier)
+            || "CHAR".equals(identifier)
+            || "NCHAR".equals(identifier)) {
+          return new Utf8((String) value);
+        } else if (VariableString.IDENTIFIER.equals(identifier)
+            || "NVARCHAR".equals(identifier)
+            || "VARCHAR".equals(identifier)
+            || "LONGNVARCHAR".equals(identifier)
+            || "LONGVARCHAR".equals(identifier)) {
+          return new Utf8((String) value);
+        } else if (EnumerationType.IDENTIFIER.equals(identifier)) {
+          EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
+          return GenericData.get()
+              .createEnum(
+                  enumerationType.toString((EnumerationType.Value) value),
+                  typeWithNullability.type);
+        } else if (OneOfType.IDENTIFIER.equals(identifier)) {
+          OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
+          OneOfType.Value oneOfValue = (OneOfType.Value) value;
+          FieldType innerFieldType = oneOfType.getFieldType(oneOfValue);
+          if (typeWithNullability.nullable && oneOfValue.getValue() == null) {
+            return null;
+          } else {
+            return genericFromBeamField(
+                innerFieldType.withNullable(false),
+                typeWithNullability.type.getTypes().get(oneOfValue.getCaseType().getValue()),
+                oneOfValue.getValue());
+          }
+        } else if ("DATE".equals(identifier)) {
+          return Days.daysBetween(Instant.EPOCH, (Instant) value).getDays();
+        } else if ("TIME".equals(identifier)) {
+          return (int) ((Instant) value).getMillis();
+        } else {
+          throw new RuntimeException("Unhandled logical type " + identifier);
         }
 
       case ARRAY:

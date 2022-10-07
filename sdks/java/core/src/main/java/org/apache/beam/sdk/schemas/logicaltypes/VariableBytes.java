@@ -19,45 +19,44 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** A LogicalType representing a fixed-length byte array. */
-public class FixedBytes extends PassThroughLogicalType<byte[]> {
+/** A LogicalType representing a variable-length byte array with specified maximum length. */
+public class VariableBytes extends PassThroughLogicalType<byte[]> {
   public static final String IDENTIFIER =
-      SchemaApi.LogicalTypes.Enum.FIXED_BYTES
+      SchemaApi.LogicalTypes.Enum.VAR_BYTES
           .getValueDescriptor()
           .getOptions()
           .getExtension(RunnerApi.beamUrn);
-
   private final @Nullable String name;
-  private final int byteArrayLength;
+  private final int maxByteArrayLength;
 
   /**
-   * Return an instance of FixedBytes with specified byte array length.
+   * Return an instance of VariableBytes with specified max byte array length.
    *
-   * <p>The name, if set, refers to the TYPE name in the underlying database, for example, BINARY.
+   * <p>The name, if set, refers to the TYPE name in the underlying database, for example, VARBINARY
+   * and LONGVARBINARY.
    */
-  public static FixedBytes of(@Nullable String name, int byteArrayLength) {
-    return new FixedBytes(name, byteArrayLength);
+  public static VariableBytes of(@Nullable String name, int maxByteArrayLength) {
+    return new VariableBytes(name, maxByteArrayLength);
   }
 
-  /** Return an instance of FixedBytes with specified byte array length. */
-  public static FixedBytes of(int byteArrayLength) {
-    return of(null, byteArrayLength);
+  /** Return an instance of VariableBytes with specified max byte array length. */
+  public static VariableBytes of(int maxByteArrayLength) {
+    return of(null, maxByteArrayLength);
   }
 
-  private FixedBytes(@Nullable String name, int byteArrayLength) {
-    super(IDENTIFIER, FieldType.INT32, byteArrayLength, FieldType.BYTES);
+  private VariableBytes(@Nullable String name, int maxByteArrayLength) {
+    super(IDENTIFIER, FieldType.INT32, maxByteArrayLength, FieldType.BYTES);
     this.name = name;
-    this.byteArrayLength = byteArrayLength;
+    this.maxByteArrayLength = maxByteArrayLength;
   }
 
-  public int getLength() {
-    return byteArrayLength;
+  public int getMaxLength() {
+    return maxByteArrayLength;
   }
 
   public @Nullable String getName() {
@@ -65,23 +64,13 @@ public class FixedBytes extends PassThroughLogicalType<byte[]> {
   }
 
   @Override
-  public byte[] toBaseType(byte[] input) {
-    checkArgument(input.length == byteArrayLength);
-    return input;
-  }
-
-  @Override
   public byte[] toInputType(byte[] base) {
-    checkArgument(base.length <= byteArrayLength);
-    if (base.length == byteArrayLength) {
-      return base;
-    } else {
-      return Arrays.copyOf(base, byteArrayLength);
-    }
+    checkArgument(base.length <= maxByteArrayLength);
+    return base;
   }
 
   @Override
   public String toString() {
-    return "FixedBytes: " + byteArrayLength;
+    return "VariableBytes: " + maxByteArrayLength;
   }
 }
