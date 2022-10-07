@@ -37,6 +37,8 @@ class ContentExampleLoader extends ExampleLoader {
     name: descriptor.name ?? 'Embedded_Example',
     path: '',
     description: '',
+    // TODO(nausharipov): should tags be empty?
+    tags: [],
     type: ExampleType.example,
     source: descriptor.content,
     pipelineOptions: '',

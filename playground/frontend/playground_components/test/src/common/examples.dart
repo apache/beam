@@ -23,7 +23,8 @@ import 'package:playground_components/src/models/sdk.dart';
 const exampleMock1 = Example(
   sdk: Sdk.python,
   source: 'ex1',
-  name: 'Example',
+  name: 'Example X1',
+  tags: ['tag1'],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
@@ -34,6 +35,7 @@ const exampleMock2 = Example(
   sdk: Sdk.python,
   source: 'ex2',
   name: 'Kata',
+  tags: ['tag2'],
   type: ExampleType.kata,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
@@ -43,6 +45,7 @@ const exampleMock2 = Example(
 const exampleWithoutSourceMock = ExampleBase(
   sdk: Sdk.python,
   name: 'Test example',
+  tags: [],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
@@ -52,6 +55,7 @@ const exampleWithoutSourceMock = ExampleBase(
 const exampleWithAllAdditionsMock = Example(
   sdk: Sdk.python,
   name: 'Test example',
+  tags: [],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
@@ -66,6 +70,7 @@ const exampleMockGo = Example(
   sdk: Sdk.go,
   source: 'ex1',
   name: 'Example',
+  tags: [],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_GO/Category/Name',

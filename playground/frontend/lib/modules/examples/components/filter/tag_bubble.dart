@@ -16,35 +16,38 @@
  * limitations under the License.
  */
 
-import 'dart:collection';
-
+import 'package:flutter/material.dart';
+import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:provider/provider.dart';
 
-import 'examples.dart';
+class TagBubble extends StatelessWidget {
+  final String name;
 
-final categoriesMock = [
-  CategoryWithExamples(title: 'Sorted', examples: [exampleMock1]),
-  CategoryWithExamples(
-    title: 'Unsorted',
-    examples: [exampleMock1, exampleMock2, exampleMock2, exampleMock2],
-  ),
-];
+  const TagBubble({
+    Key? key,
+    required this.name,
+  }) : super(key: key);
 
-final sortedCategories = [
-  CategoryWithExamples(title: 'Sorted', examples: [exampleMock1]),
-];
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ExampleSelectorState>(
+      builder: (context, state, child) {
+        final isSelected = state.selectedTags.contains(name);
 
-const unsortedExamples = [exampleMock1, exampleMock2];
-
-const examplesSortedByTypeMock = [exampleMock2];
-
-const examplesSortedByTagsMock = [exampleMock2];
-
-const examplesSortedByNameMock = [exampleMock1];
-
-final sdkCategoriesFromServerMock = UnmodifiableMapView({
-  Sdk.java: categoriesMock,
-  Sdk.python: categoriesMock,
-  Sdk.go: categoriesMock,
-  Sdk.scio: categoriesMock,
-});
+        return BubbleWidget(
+          isSelected: isSelected,
+          title: name,
+          onTap: () {
+            if (isSelected) {
+              state.removeSelectedTag(name);
+            } else {
+              state.addSelectedTag(name);
+            }
+            state.filterCategoriesWithExamples();
+          },
+        );
+      },
+    );
+  }
+}

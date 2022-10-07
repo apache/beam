@@ -48,6 +48,7 @@ extension ExampleTypeToString on ExampleType {
 /// These objects are fetched as lists from [ExampleRepository].
 class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final Sdk sdk;
+  final List<String> tags;
   final ExampleType type;
   final String name;
   final String path;
@@ -62,6 +63,7 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
     required this.name,
     required this.path,
     required this.description,
+    required this.tags,
     required this.type,
     this.contextLine = 1,
     this.isMultiFile = false,

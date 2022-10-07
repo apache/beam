@@ -21,11 +21,11 @@ import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
-class CategoryBubble extends StatelessWidget {
+class TypeBubble extends StatelessWidget {
   final ExampleType type;
   final String name;
 
-  const CategoryBubble({
+  const TypeBubble({
     Key? key,
     required this.type,
     required this.name,
@@ -43,7 +43,7 @@ class CategoryBubble extends StatelessWidget {
           onTap: () {
             if (!isSelected) {
               state.setSelectedFilterType(type);
-              state.sortCategories();
+              state.filterCategoriesWithExamples();
             }
           },
         );

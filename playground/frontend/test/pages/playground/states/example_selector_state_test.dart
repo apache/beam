@@ -58,7 +58,7 @@ void main() {
   test(
     'ExampleSelector state filterText should be empty string by default',
     () {
-      expect(state.filterText, '');
+      expect(state.searchText, '');
     },
   );
 
@@ -76,9 +76,9 @@ void main() {
     'ExampleSelector state should notify all listeners about filterText change',
     () {
       state.addListener(() {
-        expect(state.filterText, 'test');
+        expect(state.searchText, 'test');
       });
-      state.setFilterText('test');
+      state.setSearchText('test');
     },
   );
 
@@ -101,7 +101,7 @@ void main() {
       expect(state.categories, []);
       expect(exampleCache.categoryListsBySdk, exampleCache.categoryListsBySdk);
     });
-    state.sortCategories();
+    state.filterCategoriesWithExamples();
   });
 
   test(
@@ -118,12 +118,30 @@ void main() {
       expect(state.categories, examplesSortedByTypeMock);
       expect(exampleCache.categoryListsBySdk, exampleCache.categoryListsBySdk);
     });
-    state.sortExamplesByType(unsortedExamples, ExampleType.kata);
+    state.filterExamplesByType(unsortedExamples, ExampleType.kata);
+  });
+
+  // TODO(nausharipov): replace all 'sort' with 'filter' if ok
+  test(
+      'ExampleSelector state sortExamplesByTags should:'
+      '- return examples which contain all selected tags'
+      '- notify all listeners,'
+      'but should NOT:'
+      '- affect Example state categories', () {
+    final state = ExampleSelectorState(
+      playgroundController,
+      categoriesMock,
+    );
+    state.addSelectedTag('tag2');
+    expect(
+      state.filterExamplesByTags(unsortedExamples),
+      examplesSortedByTagsMock,
+    );
   });
 
   test(
       'ExampleSelector state sortExamplesByName should:'
-      '- update categories'
+      '- return examples with matching names'
       '- notify all listeners,'
       'but should NOT:'
       '- wait for full name of example,'
@@ -133,10 +151,19 @@ void main() {
       playgroundController,
       categoriesMock,
     );
-    state.addListener(() {
-      expect(state.categories, examplesSortedByNameMock);
-      expect(exampleCache.categoryListsBySdk, exampleCache.categoryListsBySdk);
-    });
-    state.sortExamplesByName(unsortedExamples, 'X1');
+    state.setSearchText('Example X1');
+    expect(
+      state.filterExamplesByName(unsortedExamples),
+      examplesSortedByNameMock,
+    );
+  });
+
+  test('ExampleSelectorState sorts tags by popularity', () {
+    final state = ExampleSelectorState(
+      playgroundController,
+      categoriesMock,
+    );
+    const popularTag = 'tag2';
+    expect(state.tags.first == popularTag, true);
   });
 }
