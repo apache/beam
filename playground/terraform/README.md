@@ -81,7 +81,7 @@ https://docs.docker.com/get-started/overview/
 **Description:** * *What is Docker and how to use it* *
 
 ***Google Cloud preparation steps:***
-When you create a new project, you must add a service account with a JSON key and a bucket according to the instructions above. Also, according to the instructions, configure the roles for the service account:
+After you created or identified an existing project for deployment, add or select a service account with a JSON key, and add or select state_bucket for storing the Terraform state data according to the instructions above:
    - App Engine Admin
    - App Engine Creator
    - Artifact Registry Administrator
