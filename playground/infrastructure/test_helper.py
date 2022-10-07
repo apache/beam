@@ -25,9 +25,15 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, \
     PRECOMPILED_OBJECT_TYPE_UNIT_TEST
 from grpc_client import GRPCClient
 from helper import find_examples, Example, _get_example, _get_name, get_tag, \
-    _validate, Tag, get_statuses, \
+    _validate, Tag, get_statuses, _sort_check_for_nested, \
     _update_example_status, get_supported_categories, _check_file, \
     _get_object_type, ExampleTag, validate_examples_for_duplicates_by_name, ValidationException, validate_example_fields
+
+
+def test_check_for_nested():
+    _sort_check_for_nested(["sub1", "sub2"])
+    with pytest.raises(ValueError, match="sub1/sub2 is a subdirectory of sub1"):
+        _sort_check_for_nested(["sub1", "sub1/sub2"])
 
 
 @pytest.mark.parametrize(

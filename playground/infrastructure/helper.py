@@ -80,6 +80,11 @@ class ExampleTag:
     tag_as_dict: Dict[str, str]
     tag_as_string: str
 
+def _sort_check_for_nested(subdirs: List[str]):
+    subdirs.sort()
+    for dir1, dir2 in zip(subdirs[:], subdirs[1:]):
+        if dir2.startswith(dir1):
+            raise ValueError(f"{dir2} is a subdirectory of {dir1}")
 
 def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[str],
                   sdk: Sdk) -> List[Example]:
@@ -113,6 +118,7 @@ def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[
     """
     has_error = False
     examples = []
+    _sort_check_for_nested(subdirs)
     for subdir in subdirs:
         subdir = os.path.join(root_dir, subdir)
         logging.info("subdir: %s", subdir)
