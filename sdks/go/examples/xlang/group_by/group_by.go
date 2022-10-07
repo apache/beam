@@ -27,11 +27,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"reflect"
 	"sort"
 
 	"github.com/apache/beam/sdks/v2/go/examples/xlang"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 
@@ -71,10 +71,12 @@ func collectValues(key string, iter func(*int64) bool) (string, []int) {
 }
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*KV)(nil)).Elem())
-	beam.RegisterFunction(formatFn)
-	beam.RegisterFunction(getKV)
-	beam.RegisterFunction(collectValues)
+	register.Function2x1(formatFn)
+	register.Function2x0(getKV)
+	register.Function2x2(collectValues)
+
+	register.Emitter2[string, int64]()
+	register.Iter1[int64]()
 }
 
 func main() {

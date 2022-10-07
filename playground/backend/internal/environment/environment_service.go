@@ -16,8 +16,6 @@
 package environment
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/logger"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +26,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/logger"
 )
 
 const (
@@ -60,8 +61,10 @@ const (
 	jsonExt                       = ".json"
 	configFolderName              = "configs"
 	defaultNumOfParallelJobs      = 20
-	bucketNameKey                 = "BUCKET_NAME"
-	defaultBucketName             = "playground-precompiled-objects"
+	SDKConfigPathKey              = "SDK_CONFIG"
+	defaultSDKConfigPath          = "../sdks.yaml"
+	propertyPathKey               = "PROPERTY_PATH"
+	defaultPropertyPath           = "."
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
@@ -103,7 +106,8 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	launchSite := getEnv(launchSiteKey, defaultLaunchSite)
 	projectId := os.Getenv(projectIdKey)
 	pipelinesFolder := getEnv(pipelinesFolderKey, defaultPipelinesFolder)
-	bucketName := getEnv(bucketNameKey, defaultBucketName)
+	sdkConfigPath := getEnv(SDKConfigPathKey, defaultSDKConfigPath)
+	propertyPath := getEnv(propertyPathKey, defaultPropertyPath)
 
 	if value, present := os.LookupEnv(cacheKeyExpirationTimeKey); present {
 		if converted, err := time.ParseDuration(value); err == nil {
@@ -121,7 +125,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	}
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout, bucketName), nil
+		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }
@@ -152,20 +156,7 @@ func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	sdk := pb.Sdk_SDK_UNSPECIFIED
 	preparedModDir, modDirExist := os.LookupEnv(preparedModDirKey)
-
-	numOfParallelJobs := defaultNumOfParallelJobs
-	if value, present := os.LookupEnv(numOfParallelJobsKey); present {
-		convertedValue, err := strconv.Atoi(value)
-		if err != nil {
-			logger.Errorf("Incorrect value for %s. Should be integer. Will be used default value: %d", numOfParallelJobsKey, defaultNumOfParallelJobs)
-		} else {
-			if convertedValue <= 0 {
-				logger.Errorf("Incorrect value for %s. Should be a positive integer value but it is %d. Will be used default value: %d", numOfParallelJobsKey, convertedValue, defaultNumOfParallelJobs)
-			} else {
-				numOfParallelJobs = convertedValue
-			}
-		}
-	}
+	numOfParallelJobs := getEnvAsInt(numOfParallelJobsKey, defaultNumOfParallelJobs)
 
 	if value, present := os.LookupEnv(beamSdkKey); present {
 
@@ -247,6 +238,25 @@ func getConfigFromJson(configPath string) (*ExecutorConfig, error) {
 func getEnv(key, defaultValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsInt returns an environment variable or default value as integer
+func getEnvAsInt(key string, defaultValue int) int {
+	if value, present := os.LookupEnv(key); present {
+		convertedValue, err := strconv.Atoi(value)
+		if err != nil {
+			logger.Errorf("Incorrect value for %s. Should be integer. Will be used default value: %d", key, defaultValue)
+			return defaultValue
+		} else {
+			if convertedValue <= 0 {
+				logger.Errorf("Incorrect value for %s. Should be a positive integer value but it is %d. Will be used default value: %d", key, convertedValue, defaultValue)
+				return defaultValue
+			} else {
+				return convertedValue
+			}
+		}
 	}
 	return defaultValue
 }

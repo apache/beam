@@ -17,11 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/shortcuts/models/shortcut.dart';
+import 'package:playground_components/playground_components.dart';
 
 class ShortcutsManager extends StatelessWidget {
   final Widget child;
-  final List<Shortcut> shortcuts;
+  final List<BeamShortcut> shortcuts;
 
   const ShortcutsManager({
     Key? key,

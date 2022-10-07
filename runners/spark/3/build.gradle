@@ -28,3 +28,37 @@ project.ext {
 
 // Load the main build script which contains all build logic.
 apply from: "$basePath/spark_runner.gradle"
+
+
+def sparkVersions = [
+    "330": "3.3.0",
+    "321": "3.2.1"
+]
+
+sparkVersions.each { kv ->
+  configurations.create("sparkVersion$kv.key")
+  configurations."sparkVersion$kv.key" {
+    resolutionStrategy {
+      spark.components.each { component -> force "$component:$kv.value" }
+    }
+  }
+
+  dependencies {
+    spark.components.each { component -> "sparkVersion$kv.key" "$component:$kv.value" }
+  }
+
+  tasks.register("sparkVersion${kv.key}Test", Test) {
+    group = "Verification"
+    description = "Verifies code compatibility with Spark $kv.value"
+    classpath = configurations."sparkVersion$kv.key" + sourceSets.test.runtimeClasspath
+    systemProperties test.systemProperties
+
+    include "**/*.class"
+    maxParallelForks 4
+  }
+}
+
+tasks.register("sparkVersionsTest") {
+  group = "Verification"
+  dependsOn sparkVersions.collect{k,v -> "sparkVersion${k}Test"}
+}

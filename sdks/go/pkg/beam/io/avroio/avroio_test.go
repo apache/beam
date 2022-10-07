@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -94,7 +93,7 @@ func TestWrite(t *testing.T) {
 		t.Fatalf("Failed to write file %v", avroFile)
 	}
 
-	avroBytes, err := ioutil.ReadFile(avroFile)
+	avroBytes, err := os.ReadFile(avroFile)
 	if err != nil {
 		t.Fatalf("Failed to read avro file: %v", err)
 	}

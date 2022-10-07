@@ -48,6 +48,8 @@ RUN \
     rm -rf /root/.cache/pip && \
     rm -rf /tmp/base_image_requirements.txt
 
+RUN pip install --upgrade pip setuptools
+
 # Install Google Cloud SDK.
 ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin

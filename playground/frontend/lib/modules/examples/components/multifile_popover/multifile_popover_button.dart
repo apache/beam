@@ -23,11 +23,11 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/multifile_popover/multifile_popover.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground_components/playground_components.dart';
 
 class MultifilePopoverButton extends StatelessWidget {
   final BuildContext? parentContext;
-  final ExampleModel example;
+  final ExampleBase example;
   final Alignment followerAnchor;
   final Alignment targetAnchor;
   final void Function()? onOpen;
@@ -67,7 +67,7 @@ class MultifilePopoverButton extends StatelessWidget {
 
   void _showMultifilePopover(
     BuildContext context,
-    ExampleModel example,
+    ExampleBase example,
     Alignment followerAnchor,
     Alignment targetAnchor,
   ) async {

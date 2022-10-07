@@ -19,6 +19,8 @@ on:
 
 jobs:
   assign:
+    permissions:
+      issues: write
     name: Take or close an issue
     if: ${{ !github.event.issue.pull_request }}
     runs-on: ubuntu-latest
@@ -26,7 +28,8 @@ jobs:
     - uses: actions/github-script@v6
       with:
         script: |
-          const body = context.payload.comment.body.split(' ');
+          const body = context.payload.comment.body.replace( /\r\n/g, " " ).replace( /\n/g, " " ).split(' ');
+          console.log(body);
           for (let i = 0; i < body.length; i++) {
             const bodyString = body[i].toLowerCase();
             if (bodyString == '.take-issue') {

@@ -37,7 +37,7 @@ async function main() {
     const filtered = await lines
       .map((w) => ({ word: w }))
       .apply(beam.withRowCoder({ word: "str" }))
-      .asyncApply(
+      .applyAsync(
         sqlTransform(
           "SELECT word, count(*) as c from PCOLLECTION group by word"
         )

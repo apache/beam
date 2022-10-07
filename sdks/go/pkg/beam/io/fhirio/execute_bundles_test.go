@@ -54,7 +54,7 @@ func TestExecuteBundles(t *testing.T) {
 		},
 	}
 
-	testBundles := [][]byte{[]byte("foo"), []byte("bar")}
+	testBundles := []string{"foo", "bar"}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			p, s, bundles := ptest.CreateList(testBundles)
@@ -65,10 +65,8 @@ func TestExecuteBundles(t *testing.T) {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
-			err := validateCounter(pipelineResult, errorCounterName, len(testBundles))
-			if err != nil {
-				t.Fatalf("validateCounter returned error [%v]", err.Error())
-			}
+			validateCounter(t, pipelineResult, errorCounterName, len(testBundles))
+			validateCounter(t, pipelineResult, successCounterName, 0)
 		})
 	}
 }

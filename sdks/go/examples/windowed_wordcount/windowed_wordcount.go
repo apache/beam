@@ -45,13 +45,19 @@ package main
 //     - Options
 //     - Combiners
 //     - Quickstart
+//   complexity: ADVANCED
+//   tags:
+//     - count
+//     - stream
+//     - windowing
+//     - io
+//     - strings
 
 import (
 	"context"
 	"flag"
 	"fmt"
 	"math/rand"
-	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -59,6 +65,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/test/integration/wordcount"
 )
@@ -73,8 +80,14 @@ var (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*addTimestampFn)(nil)).Elem())
-	beam.RegisterFunction(formatFn)
+	// register.DoFnXxY registers a struct DoFn so that it can be correctly serialized and does some optimization
+	// to avoid runtime reflection. Since addTimestampFn has 1 inputs and 2 outputs, we use register.DoFn1x2 and provide
+	// its input/output types as its constraints.
+	// Struct DoFns must be registered for a pipeline to run.
+	register.DoFn1x2[beam.X, beam.EventTime, beam.X](&addTimestampFn{})
+	// For simple functional (non-struct) DoFns we can use register.FunctionXxY to perform the same registration without
+	// providing type constraints.
+	register.Function4x1(formatFn)
 }
 
 // Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for

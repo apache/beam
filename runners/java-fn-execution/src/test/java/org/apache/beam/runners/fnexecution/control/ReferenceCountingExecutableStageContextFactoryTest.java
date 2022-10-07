@@ -17,18 +17,16 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
 import org.apache.beam.runners.fnexecution.control.ReferenceCountingExecutableStageContextFactory.Creator;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,6 +34,10 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link ReferenceCountingExecutableStageContextFactory}. */
 @RunWith(JUnit4.class)
 public class ReferenceCountingExecutableStageContextFactoryTest {
+
+  @Rule
+  public ExpectedLogs expectedLogs =
+      ExpectedLogs.none(ReferenceCountingExecutableStageContextFactory.class);
 
   @Test
   public void testCreateReuseReleaseCreate() throws Exception {
@@ -85,30 +87,17 @@ public class ReferenceCountingExecutableStageContextFactoryTest {
 
   @Test
   public void testCatchThrowablesAndLogThem() throws Exception {
-    PrintStream oldErr = System.err;
-    oldErr.flush();
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    PrintStream newErr = new PrintStream(baos);
-    try {
-      System.setErr(newErr);
-      Creator creator = mock(Creator.class);
-      ExecutableStageContext c1 = mock(ExecutableStageContext.class);
-      when(creator.apply(any(JobInfo.class))).thenReturn(c1);
-      // throw an Throwable and ensure that it is caught and logged.
-      doThrow(new NoClassDefFoundError()).when(c1).close();
-      ReferenceCountingExecutableStageContextFactory factory =
-          ReferenceCountingExecutableStageContextFactory.create(creator, (x) -> true);
-      JobInfo jobA = mock(JobInfo.class);
-      when(jobA.jobId()).thenReturn("jobA");
-      ExecutableStageContext ac1A = factory.get(jobA);
-      factory.release(ac1A);
-      newErr.flush();
-      String output = new String(baos.toByteArray(), Charsets.UTF_8);
-      // Ensure that the error is logged
-      assertTrue(output.contains("Unable to close ExecutableStageContext"));
-    } finally {
-      newErr.flush();
-      System.setErr(oldErr);
-    }
+    Creator creator = mock(Creator.class);
+    ExecutableStageContext c1 = mock(ExecutableStageContext.class);
+    when(creator.apply(any(JobInfo.class))).thenReturn(c1);
+    // throw an Throwable and ensure that it is caught and logged.
+    doThrow(new NoClassDefFoundError()).when(c1).close();
+    ReferenceCountingExecutableStageContextFactory factory =
+        ReferenceCountingExecutableStageContextFactory.create(creator, (x) -> true);
+    JobInfo jobA = mock(JobInfo.class);
+    when(jobA.jobId()).thenReturn("jobA");
+    ExecutableStageContext ac1A = factory.get(jobA);
+    factory.release(ac1A);
+    expectedLogs.verifyError("Unable to close ExecutableStageContext");
   }
 }

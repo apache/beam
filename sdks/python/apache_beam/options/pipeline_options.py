@@ -320,6 +320,9 @@ class PipelineOptions(HasDisplayData):
       while i < len(unknown_args):
         # Treat all unary flags as booleans, and all binary argument values as
         # strings.
+        if not unknown_args[i].startswith('-'):
+          i += 1
+          continue
         if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
           split = unknown_args[i].split('=', 1)
           if len(split) == 1:
@@ -330,7 +333,7 @@ class PipelineOptions(HasDisplayData):
         else:
           parser.add_argument(unknown_args[i], type=str)
           i += 2
-      parsed_args = parser.parse_args(self._flags)
+      parsed_args, _ = parser.parse_known_args(self._flags)
     else:
       if unknown_args:
         _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
@@ -1418,6 +1421,20 @@ class FlinkRunnerOptions(PipelineOptions):
         ' directly, rather than starting up a job server.'
         ' Only applies when flink_master is set to a'
         ' cluster address.  Requires Python 3.6+.')
+    parser.add_argument(
+        '--parallelism',
+        type=int,
+        default=-1,
+        help='The degree of parallelism to be used when distributing'
+        ' operations onto workers. If the parallelism is not set, the'
+        ' configured Flink default is used, or 1 if none can be found.')
+    parser.add_argument(
+        '--max_parallelism',
+        type=int,
+        default=-1,
+        help='The pipeline wide maximum degree of parallelism to be used. The'
+        ' maximum parallelism specifies the upper limit for dynamic scaling'
+        ' and the number of key groups used for partitioned state.')
 
 
 class SparkRunnerOptions(PipelineOptions):

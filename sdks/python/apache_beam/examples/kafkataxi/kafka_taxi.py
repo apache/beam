@@ -49,8 +49,7 @@ def run(
   #                  '--runner', 'DataflowRunner',
   #                  '--temp_location', 'my-temp-location',
   #                  '--region', 'my-region',
-  #                  '--num_workers', 'my-num-workers',
-  #                  '--experiments', 'use_runner_v2']
+  #                  '--num_workers', 'my-num-workers']
 
   window_size = 15  # size of the Window in seconds.
 

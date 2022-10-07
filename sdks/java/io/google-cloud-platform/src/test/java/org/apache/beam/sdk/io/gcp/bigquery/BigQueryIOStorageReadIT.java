@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -32,6 +34,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -121,6 +124,39 @@ public class BigQueryIOStorageReadIT {
   public void testBigQueryStorageRead1GArrow() throws Exception {
     setUpTestEnvironment("1G", DataFormat.ARROW);
     runBigQueryIOStorageReadPipeline();
+  }
+
+  @Test
+  public void testBigQueryStorageReadWithAvro() throws Exception {
+    storageReadWithSchema(DataFormat.AVRO);
+  }
+
+  @Test
+  public void testBigQueryStorageReadWithArrow() throws Exception {
+    storageReadWithSchema(DataFormat.ARROW);
+  }
+
+  private void storageReadWithSchema(DataFormat format) {
+    setUpTestEnvironment("multi_field", format);
+
+    Schema multiFieldSchema =
+        Schema.builder()
+            .addNullableField("string_field", FieldType.STRING)
+            .addNullableField("int_field", FieldType.INT64)
+            .build();
+
+    Pipeline p = Pipeline.create(options);
+    PCollection<Row> tableContents =
+        p.apply(
+                "Read",
+                BigQueryIO.readTableRowsWithSchema()
+                    .from(options.getInputTable())
+                    .withMethod(Method.DIRECT_READ)
+                    .withFormat(options.getDataFormat()))
+            .apply(Convert.toRows());
+    PAssert.thatSingleton(tableContents.apply(Count.globally())).isEqualTo(options.getNumRecords());
+    assertEquals(tableContents.getSchema(), multiFieldSchema);
+    p.run().waitUntilFinish();
   }
 
   /**

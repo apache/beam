@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.cdap.context;
 
 import io.cdap.cdap.api.data.DatasetInstantiationException;
 import io.cdap.cdap.api.data.batch.InputFormatProvider;
+import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.Dataset;
 import io.cdap.cdap.api.dataset.DatasetManagementException;
@@ -53,10 +54,20 @@ public abstract class BatchContextImpl implements BatchContext {
    */
   protected InputFormatProvider inputFormatProvider;
 
+  /**
+   * This should be set after {@link SubmitterLifecycle#prepareRun(Object)} call with passing this
+   * context object as a param.
+   */
+  protected OutputFormatProvider outputFormatProvider;
+
   private final Timestamp startTime = new Timestamp(System.currentTimeMillis());
 
   public InputFormatProvider getInputFormatProvider() {
     return inputFormatProvider;
+  }
+
+  public OutputFormatProvider getOutputFormatProvider() {
+    return outputFormatProvider;
   }
 
   @Override

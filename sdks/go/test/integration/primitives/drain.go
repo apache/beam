@@ -16,22 +16,21 @@
 package primitives
 
 import (
+	"context"
+	"math"
+	"time"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
-	"math"
-	"reflect"
-)
-
-import (
-	"context"
-	"time"
-
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*TruncateFn)(nil)).Elem())
+	register.DoFn3x1[*sdf.LockRTracker, []byte, func(int64), sdf.ProcessContinuation](&TruncateFn{})
+
+	register.Emitter1[int64]()
 }
 
 // RangeEstimator implements the offsetrange.RangeEndEstimator interface.

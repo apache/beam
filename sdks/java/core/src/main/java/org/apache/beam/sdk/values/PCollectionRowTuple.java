@@ -57,9 +57,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Map<String, PCollection<Row>> allPcs = pcs.getAll();
  * }</pre>
  */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
-})
 public class PCollectionRowTuple implements PInput, POutput {
   /**
    * Returns an empty {@link PCollectionRowTuple} that is part of the given {@link Pipeline}.

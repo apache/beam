@@ -16,11 +16,34 @@
  * limitations under the License.
  */
 
+import Long from "long";
+
 import * as beam from "../../src/apache_beam";
 import { PCollection } from "../../src/apache_beam";
+import {
+  VarIntCoder,
+  StrUtf8Coder,
+} from "../../src/apache_beam/coders/standard_coders";
+import { KVCoder } from "../../src/apache_beam/coders/required_coders";
+import { withCoderInternal } from "../../src/apache_beam/transforms/internal";
 import * as combiners from "../../src/apache_beam/transforms/combiners";
 import * as pardo from "../../src/apache_beam/transforms/pardo";
+import * as windowings from "../../src/apache_beam/transforms/windowings";
+import * as row_coder from "../../src/apache_beam/coders/row_coder";
+import { requireForSerialization } from "../../src/apache_beam/serialization";
+import {
+  pythonTransform,
+  pythonCallable,
+} from "../../src/apache_beam/transforms/python";
+import * as service from "../../src/apache_beam/utils/service";
 import { assertDeepEqual } from "../../src/apache_beam/testing/assert";
+
+let subprocessCache;
+before(() => {
+  subprocessCache = service.SubprocessService.createCache();
+});
+
+after(() => subprocessCache.stopAll());
 
 describe("Programming Guide Tested Samples", function () {
   describe("Pipelines", function () {
@@ -60,7 +83,7 @@ describe("Programming Guide Tested Samples", function () {
       // [START pipelines_constructing_reading]
       async function pipeline(root: beam.Root) {
         // Note that textio.ReadFromText is an AsyncPTransform.
-        const pcoll: PCollection<string> = await root.asyncApply(
+        const pcoll: PCollection<string> = await root.applyAsync(
           textio.ReadFromText("path/to/text_pattern")
         );
       }
@@ -163,7 +186,7 @@ describe("Programming Guide Tested Samples", function () {
           );
 
         by_word_length
-          .map(sortValues)
+          .map(beam.withName("sortLenValues", sortValues))
           .apply(
             assertDeepEqual([{ key: 3, value: cats.concat(dogs).sort() }])
           );
@@ -186,8 +209,12 @@ describe("Programming Guide Tested Samples", function () {
           { name: "carl", phone: "444-555-6666" },
         ];
 
-        const emails = root.apply(beam.create(emails_list));
-        const phones = root.apply(beam.create(phones_list));
+        const emails = root.apply(
+          beam.withName("createEmails", beam.create(emails_list))
+        );
+        const phones = root.apply(
+          beam.withName("createPhones", beam.create(phones_list))
+        );
         // [END cogroupbykey_inputs]
 
         // [START cogroupbykey_raw_outputs]
@@ -298,6 +325,29 @@ describe("Programming Guide Tested Samples", function () {
       });
     });
 
+    it("combine_globally", async function () {
+      await beam.createRunner().run((root: beam.Root) => {
+        // [START combine_globally]
+        const pcoll = root.apply(
+          beam.create([
+            { player: "alice", accuracy: 1.0 },
+            { player: "bob", accuracy: 0.99 },
+            { player: "eve", accuracy: 0.5 },
+            { player: "eve", accuracy: 0.25 },
+          ])
+        );
+        const result = pcoll.apply(
+          beam
+            .groupGlobally()
+            .combining("accuracy", combiners.mean, "mean")
+            .combining("accuracy", combiners.max, "max")
+        );
+        const expected = [{ max: 1.0, mean: 0.685 }];
+        // [END combine_globally]
+        result.apply(assertDeepEqual(expected));
+      });
+    });
+
     it("combine_per_key", async function () {
       await beam.createRunner().run((root: beam.Root) => {
         // [START combine_per_key]
@@ -328,8 +378,12 @@ describe("Programming Guide Tested Samples", function () {
     it("model_multiple_pcollections_flatten", async function () {
       await beam.createRunner().run((root: beam.Root) => {
         // [START model_multiple_pcollections_flatten]
-        const fib = root.apply(beam.create([1, 1, 2, 3, 5, 8]));
-        const pow = root.apply(beam.create([1, 2, 4, 8, 16, 32]));
+        const fib = root.apply(
+          beam.withName("createFib", beam.create([1, 1, 2, 3, 5, 8]))
+        );
+        const pow = root.apply(
+          beam.withName("createPow", beam.create([1, 2, 4, 8, 16, 32]))
+        );
         const result = beam.P([fib, pow]).apply(beam.flatten());
         // [END model_multiple_pcollections_flatten]
         result.apply(assertDeepEqual([1, 1, 1, 2, 2, 3, 4, 5, 8, 8, 16, 32]));
@@ -434,14 +488,15 @@ describe("Programming Guide Tested Samples", function () {
         }
 
         {
-          function processFn(element, context) {}
+          function processWithWindow(element, context) {}
+          function processWithPaneInfo(element, context) {}
 
           // [START window_param]
-          pcoll.map(processFn, { timestamp: pardo.windowParam() });
+          pcoll.map(processWithWindow, { timestamp: pardo.windowParam() });
           // [END window_param]
 
           // [START pane_info_param]
-          pcoll.map(processFn, { timestamp: pardo.paneInfoParam() });
+          pcoll.map(processWithPaneInfo, { timestamp: pardo.paneInfoParam() });
           // [END pane_info_param]
         }
       });
@@ -471,6 +526,264 @@ describe("Programming Guide Tested Samples", function () {
         );
       });
     });
-    //
+  });
+
+  describe("Coders", function () {
+    it("with_row_coder", async function () {
+      await beam.createRunner().run((root: beam.Root) => {
+        const elements = [
+          { intFieldName: 1, stringFieldName: "foo" },
+          { intFieldName: 2, stringFieldName: "bar" },
+        ];
+        const pcoll = root.apply(beam.create(elements));
+        // [START with_row_coder]
+        const result = pcoll.apply(
+          beam.withRowCoder({ intFieldName: 0, stringFieldName: "" })
+        );
+        // [END with_row_coder]
+        result.apply(assertDeepEqual(elements));
+      });
+    });
+  });
+
+  describe("Windowing", function () {
+    it("fixed_windows", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        const pcoll = root
+          .apply(beam.create([1, 2, 3, 4, 5, 60, 61, 62]))
+          .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)));
+
+        // [START setting_fixed_windows]
+        pcoll
+          .apply(beam.windowInto(windowings.fixedWindows(60)))
+          // [END setting_fixed_windows]
+          .apply(beam.groupBy((e: number) => ""))
+          .apply(
+            assertDeepEqual([
+              { key: "", value: [1, 2, 3, 4, 5] },
+              { key: "", value: [60, 61, 62] },
+            ])
+          );
+      });
+    });
+
+    it("sliding_windows", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        const pcoll = root
+          .apply(beam.create([1, 2, 3, 4, 5, 12]))
+          .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)));
+
+        // [START setting_sliding_windows]
+        pcoll
+          .apply(beam.windowInto(windowings.slidingWindows(30, 5)))
+          // [END setting_sliding_windows]
+          .apply(beam.groupBy((e: number) => ""))
+          .apply(
+            assertDeepEqual([
+              { key: "", value: [1, 2, 3, 4, 5, 12] },
+              { key: "", value: [1, 2, 3, 4, 5, 12] },
+              { key: "", value: [1, 2, 3, 4, 5, 12] },
+              { key: "", value: [1, 2, 3, 4, 5, 12] },
+              { key: "", value: [1, 2, 3, 4, 5] },
+              { key: "", value: [1, 2, 3, 4] },
+              { key: "", value: [5, 12] },
+              { key: "", value: [12] },
+            ])
+          );
+      });
+    });
+
+    // TODO: Enable cross-language after next release or set up dev virtual env.
+    xit("session_windows", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        const pcoll = root
+          .apply(beam.create([1, 2, 600, 1800, 1900]))
+          .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)));
+
+        // [START setting_session_windows]
+        pcoll
+          .apply(beam.windowInto(windowings.sessions(10 * 60)))
+          // [END setting_session_windows]
+          .apply(beam.groupBy((e: number) => ""))
+          .apply(
+            assertDeepEqual([
+              { key: "", value: [1, 2, 600] },
+              { key: "", value: [1800, 1900] },
+            ])
+          );
+      });
+    }).timeout(10000);
+
+    it("global_windows", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        const pcoll = root
+          .apply(beam.create([1, 2, 3, 4, 5, 60, 61, 62]))
+          .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)))
+          // So setting global windows is non-trivial.
+          .apply(beam.windowInto(windowings.fixedWindows(60)));
+        // [START setting_global_window]
+        pcoll
+          .apply(beam.windowInto(windowings.globalWindows()))
+          // [END setting_global_window]
+          .apply(beam.groupBy((e: number) => ""))
+          .apply(
+            assertDeepEqual([{ key: "", value: [1, 2, 3, 4, 5, 60, 61, 62] }])
+          );
+      });
+    });
+  });
+
+  describe("Schemas and Coders", function () {
+    it("schema_def", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        // [START schema_def]
+        const pcoll = root
+          .apply(
+            beam.create([
+              { intField: 1, stringField: "a" },
+              { intField: 2, stringField: "b" },
+            ])
+          )
+          // Let beam know the type of the elements by providing an exemplar.
+          .apply(beam.withRowCoder({ intField: 0, stringField: "" }));
+        // [END schema_def]
+      });
+    });
+
+    it("logical_types", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        // [START schema_logical_register]
+        class Foo {
+          constructor(public value: string) {}
+        }
+        requireForSerialization("apache-beam", { Foo });
+        row_coder.registerLogicalType({
+          urn: "beam:logical_type:typescript_foo:v1",
+          reprType: row_coder.RowCoder.inferTypeFromJSON("string", false),
+          toRepr: (foo) => foo.value,
+          fromRepr: (value) => new Foo(value),
+        });
+        // [END schema_logical_register]
+
+        // [START schema_logical_use]
+        const pcoll = root
+          .apply(beam.create([new Foo("a"), new Foo("b")]))
+          // Use beamLogicalType in the exemplar to indicate its use.
+          .apply(
+            beam.withRowCoder({
+              beamLogicalType: "beam:logical_type:typescript_foo:v1",
+            } as any)
+          );
+        // [END schema_logical_use]
+      });
+    });
+  });
+
+  // TODO: Enable cross-language after next release or set up dev virtual env.
+  xdescribe("MultiLangauge", function () {
+    it("python_map", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        const pcoll = root.apply(
+          beam.create([
+            { a: 1, b: 10 },
+            { a: 2, b: 20 },
+          ])
+        );
+        // [START python_map]
+        const result: PCollection<number> = await pcoll
+          .apply(
+            beam.withName("UpdateCoder1", beam.withRowCoder({ a: 0, b: 0 }))
+          )
+          .applyAsync(
+            pythonTransform(
+              // Fully qualified name
+              "apache_beam.transforms.Map",
+              // Positional arguments
+              [pythonCallable("lambda x: x.a + x.b")],
+              // Keyword arguments
+              {},
+              // Output type if it cannot be inferred
+              { requestedOutputCoders: { output: new VarIntCoder() } }
+            )
+          );
+        // [END python_map]
+        result.apply(assertDeepEqual([11, 22]));
+      });
+    }).timeout(10000);
+
+    it("stateful_dofn", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        // [START stateful_dofn]
+        const pcoll = root.apply(
+          beam.create([
+            { key: "a", value: 1 },
+            { key: "b", value: 10 },
+            { key: "a", value: 100 },
+          ])
+        );
+        const result: PCollection<number> = await pcoll
+          .apply(
+            withCoderInternal(
+              new KVCoder(new StrUtf8Coder(), new VarIntCoder())
+            )
+          )
+          .applyAsync(
+            pythonTransform(
+              // Construct a new Transform from source.
+              "__constructor__",
+              [
+                pythonCallable(`
+                # Define a DoFn to be used below.
+                class ReadModifyWriteStateDoFn(beam.DoFn):
+                  STATE_SPEC = beam.transforms.userstate.ReadModifyWriteStateSpec(
+                      'num_elements', beam.coders.VarIntCoder())
+
+                  def process(self, element, state=beam.DoFn.StateParam(STATE_SPEC)):
+                    current_value = state.read() or 0
+                    state.write(current_value + 1)
+                    yield current_value + 1
+
+                class MyPythonTransform(beam.PTransform):
+                  def expand(self, pcoll):
+                    return pcoll | beam.ParDo(ReadModifyWriteStateDoFn())
+              `),
+              ],
+              // Keyword arguments to pass to the transform, if any.
+              {},
+              // Output type if it cannot be inferred
+              { requestedOutputCoders: { output: new VarIntCoder() } }
+            )
+          );
+        // [END stateful_dofn]
+        result.apply(assertDeepEqual([1, 1, 2]));
+      });
+    }).timeout(10000);
+
+    it("cross_lang_transform", async function () {
+      await beam.createRunner().run(async (root: beam.Root) => {
+        const pcoll = root.apply(beam.create(["a", "bb"]));
+        // [START cross_lang_transform]
+        const result: PCollection<string> = await pcoll
+          .apply(withCoderInternal(new StrUtf8Coder()))
+          .applyAsync(
+            pythonTransform(
+              // Define an arbitrary transform from a callable.
+              "__callable__",
+              [
+                pythonCallable(`
+              def apply(pcoll, prefix, postfix):
+                return pcoll | beam.Map(lambda s: prefix + s + postfix)
+              `),
+              ],
+              // Keyword arguments to pass above, if any.
+              { prefix: "x", postfix: "y" },
+              // Output type if it cannot be inferred
+              { requestedOutputCoders: { output: new StrUtf8Coder() } }
+            )
+          );
+        // [END cross_lang_transform]
+        result.apply(assertDeepEqual(["xay", "xbby"]));
+      });
+    }).timeout(10000);
   });
 });

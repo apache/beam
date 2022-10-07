@@ -29,8 +29,10 @@ import * as urns from "../internal/urns";
 import { PipelineContext } from "../internal/pipeline";
 import { deserializeFn } from "../internal/serialize";
 import { Coder, Context as CoderContext } from "../coders/coders";
-import { Window, Instant, WindowedValue } from "../values";
+import { PaneInfo, Window, Instant, WindowedValue } from "../values";
+import { PaneInfoCoder } from "../coders/standard_coders";
 import { parDo, DoFn, SplitOptions } from "../transforms/pardo";
+import { CombineFn } from "../transforms/group_and_combine";
 import { WindowFn } from "../transforms/window";
 
 import {
@@ -304,6 +306,255 @@ class FlattenOperator implements IOperator {
 }
 
 registerOperator("beam:transform:flatten:v1", FlattenOperator);
+
+// CombinePerKey operators.
+
+abstract class CombineOperator<I, A, O> {
+  receiver: Receiver;
+  combineFn: CombineFn<I, A, O>;
+
+  constructor(
+    transformId: string,
+    transform: PTransform,
+    context: OperatorContext
+  ) {
+    this.receiver = context.getReceiver(
+      onlyElement(Object.values(transform.outputs))
+    );
+    const spec = runnerApi.CombinePayload.fromBinary(transform.spec!.payload);
+    this.combineFn = deserializeFn(spec.combineFn!.payload).combineFn;
+  }
+}
+
+export class CombinePerKeyPrecombineOperator<I, A, O>
+  extends CombineOperator<I, A, O>
+  implements IOperator
+{
+  keyCoder: Coder<unknown>;
+  windowCoder: Coder<Window>;
+
+  groups: Map<string, A>;
+  maxKeys: number = 10000;
+
+  static checkSupportsWindowing(
+    windowingStrategy: runnerApi.WindowingStrategy
+  ) {
+    if (
+      windowingStrategy.mergeStatus !== runnerApi.MergeStatus_Enum.NON_MERGING
+    ) {
+      throw new Error("Unsupported non-merging WindowFn: " + windowingStrategy);
+    }
+    if (
+      windowingStrategy.outputTime !== runnerApi.OutputTime_Enum.END_OF_WINDOW
+    ) {
+      throw new Error(
+        "Unsupported windowing output time: " + windowingStrategy
+      );
+    }
+  }
+
+  constructor(
+    transformId: string,
+    transform: PTransform,
+    context: OperatorContext
+  ) {
+    super(transformId, transform, context);
+    const inputPc =
+      context.descriptor.pcollections[
+        onlyElement(Object.values(transform.inputs))
+      ];
+    this.keyCoder = context.pipelineContext.getCoder(
+      context.descriptor.coders[inputPc.coderId].componentCoderIds[0]
+    );
+    const windowingStrategy =
+      context.descriptor.windowingStrategies[inputPc.windowingStrategyId];
+    CombinePerKeyPrecombineOperator.checkSupportsWindowing(windowingStrategy);
+    this.windowCoder = context.pipelineContext.getCoder(
+      windowingStrategy.windowCoderId
+    );
+  }
+
+  process(wvalue: WindowedValue<any>) {
+    for (const window of wvalue.windows) {
+      const wkey =
+        encodeToBase64(window, this.windowCoder) +
+        " " +
+        encodeToBase64(wvalue.value.key, this.keyCoder);
+      if (!this.groups.has(wkey)) {
+        this.groups.set(wkey, this.combineFn.createAccumulator());
+      }
+      this.groups.set(
+        wkey,
+        this.combineFn.addInput(this.groups.get(wkey), wvalue.value.value)
+      );
+    }
+    if (this.groups.size > this.maxKeys) {
+      // Flush a random 10% of the map to make more room.
+      // TODO: Tune this, or better use LRU or ARC for this cache.
+      return this.flush(this.maxKeys * 0.9);
+    } else {
+      return NonPromise;
+    }
+  }
+
+  async startBundle() {
+    this.groups = new Map();
+  }
+
+  flush(target: number): ProcessResult {
+    const result = new ProcessResultBuilder();
+    const toDelete: string[] = [];
+    for (const [wkey, values] of this.groups) {
+      const parts = wkey.split(" ");
+      const encodedWindow = parts[0];
+      const encodedKey = parts[1];
+      const window = decodeFromBase64(encodedWindow, this.windowCoder);
+      result.add(
+        this.receiver.receive({
+          value: {
+            key: decodeFromBase64(encodedKey, this.keyCoder),
+            value: values,
+          },
+          windows: [window],
+          timestamp: window.maxTimestamp(),
+          pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
+        })
+      );
+      toDelete.push(wkey);
+      if (this.groups.size - toDelete.length <= target) {
+        break;
+      }
+    }
+    for (const wkey of toDelete) {
+      this.groups.delete(wkey);
+    }
+    return result.build();
+  }
+
+  async finishBundle() {
+    const maybePromise = this.flush(0);
+    if (maybePromise !== NonPromise) {
+      await maybePromise;
+    }
+    this.groups = null!;
+  }
+}
+
+registerOperator(
+  "beam:transform:combine_per_key_precombine:v1",
+  CombinePerKeyPrecombineOperator
+);
+
+class CombinePerKeyMergeAccumulatorsOperator<I, A, O>
+  extends CombineOperator<I, A, O>
+  implements IOperator
+{
+  async startBundle() {}
+
+  process(wvalue: WindowedValue<any>) {
+    const { key, value } = wvalue.value as { key: any; value: Iterable<A> };
+    return this.receiver.receive({
+      value: { key, value: this.combineFn.mergeAccumulators(value) },
+      windows: wvalue.windows,
+      timestamp: wvalue.timestamp,
+      pane: wvalue.pane,
+    });
+  }
+
+  async finishBundle() {}
+}
+
+registerOperator(
+  "beam:transform:combine_per_key_merge_accumulators:v1",
+  CombinePerKeyMergeAccumulatorsOperator
+);
+
+class CombinePerKeyExtractOutputsOperator<I, A, O>
+  extends CombineOperator<I, A, O>
+  implements IOperator
+{
+  async startBundle() {}
+
+  process(wvalue: WindowedValue<any>) {
+    const { key, value } = wvalue.value as { key: any; value: A };
+    return this.receiver.receive({
+      value: { key, value: this.combineFn.extractOutput(value) },
+      windows: wvalue.windows,
+      timestamp: wvalue.timestamp,
+      pane: wvalue.pane,
+    });
+  }
+
+  async finishBundle() {}
+}
+
+registerOperator(
+  "beam:transform:combine_per_key_extract_outputs:v1",
+  CombinePerKeyExtractOutputsOperator
+);
+
+class CombinePerKeyConvertToAccumulatorsOperator<I, A, O>
+  extends CombineOperator<I, A, O>
+  implements IOperator
+{
+  async startBundle() {}
+
+  process(wvalue: WindowedValue<any>) {
+    const { key, value } = wvalue.value as { key: any; value: I };
+    return this.receiver.receive({
+      value: {
+        key,
+        value: this.combineFn.addInput(
+          this.combineFn.createAccumulator(),
+          value
+        ),
+      },
+      windows: wvalue.windows,
+      timestamp: wvalue.timestamp,
+      pane: wvalue.pane,
+    });
+  }
+
+  async finishBundle() {}
+}
+
+registerOperator(
+  "beam:transform:combine_per_key_convert_to_accumulators:v1",
+  CombinePerKeyConvertToAccumulatorsOperator
+);
+
+class CombinePerKeyCombineGroupedValuesOperator<I, A, O>
+  extends CombineOperator<I, A, O>
+  implements IOperator
+{
+  async startBundle() {}
+
+  process(wvalue: WindowedValue<any>) {
+    const { key, value } = wvalue.value as { key: any; value: Iterable<I> };
+    let accumulator = this.combineFn.createAccumulator();
+    for (const input of value) {
+      accumulator = this.combineFn.addInput(accumulator, input);
+    }
+    return this.receiver.receive({
+      value: {
+        key,
+        value: this.combineFn.extractOutput(accumulator),
+      },
+      windows: wvalue.windows,
+      timestamp: wvalue.timestamp,
+      pane: wvalue.pane,
+    });
+  }
+
+  async finishBundle() {}
+}
+
+registerOperator(
+  "beam:transform:combine_grouped_values:v1",
+  CombinePerKeyCombineGroupedValuesOperator
+);
+
+// ParDo operators.
 
 class GenericParDoOperator implements IOperator {
   private doFn: DoFn<unknown, unknown, unknown>;
@@ -588,6 +839,21 @@ registerOperatorConstructor(
     }
   }
 );
+
+///
+
+export function encodeToBase64<T>(element: T, coder: Coder<T>): string {
+  const writer = new protobufjs.Writer();
+  coder.encode(element, writer, CoderContext.wholeStream);
+  return Buffer.from(writer.finish()).toString("base64");
+}
+
+export function decodeFromBase64<T>(s: string, coder: Coder<T>): T {
+  return coder.decode(
+    new protobufjs.Reader(Buffer.from(s, "base64")),
+    CoderContext.wholeStream
+  );
+}
 
 function onlyElement<Type>(arg: Type[]): Type {
   if (arg.length > 1) {

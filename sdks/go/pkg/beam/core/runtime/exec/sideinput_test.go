@@ -131,6 +131,48 @@ func (t *testStateReader) OpenIterable(ctx context.Context, id StreamID, key []b
 	return nil, nil
 }
 
+func (t *testStateReader) OpenBagUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error) {
+	tbr := testBagReader{
+		userStateID: userStateID,
+		key:         key,
+		w:           w,
+	}
+	return &tbr, nil
+}
+
+func (t *testStateReader) OpenBagUserStateAppender(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+	return nil, nil
+}
+
+func (t *testStateReader) OpenBagUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+	return nil, nil
+}
+
+// OpenMultimapUserStateReader opens a byte stream for reading user multimap state.
+func (t *testStateReader) OpenMultimapUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+// OpenMultimapUserStateAppender opens a byte stream for appending user multimap state.
+func (t *testStateReader) OpenMultimapUserStateAppender(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error) {
+	return nil, nil
+}
+
+// OpenMultimapUserStateClearer opens a byte stream for clearing user multimap state by key.
+func (t *testStateReader) OpenMultimapUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error) {
+	return nil, nil
+}
+
+// OpenMultimapKeysUserStateReader opens a byte stream for reading the keys of user multimap state.
+func (t *testStateReader) OpenMultimapKeysUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+// OpenMultimapKeysUserStateClearer opens a byte stream for clearing all keys of user multimap state.
+func (t *testStateReader) OpenMultimapKeysUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+	return nil, nil
+}
+
 func (t *testStateReader) GetSideInputCache() SideCache {
 	return &testSideCache{}
 }

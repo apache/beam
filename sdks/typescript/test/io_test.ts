@@ -59,84 +59,88 @@ before(() => {
 
 after(() => subprocessCache.stopAll());
 
+function xlang_it(name, fn) {
+  return (process.env.BEAM_SERVICE_OVERRIDES ? it : it.skip)(name + ' @xlang', fn);
+}
+
 // These depends on fixes that will be released in 2.40.
 // They can be run manually by setting an environment variable
-// expor tBEAM_SERVICE_OVERRIDES = '{python:*": "/path/to/dev/venv/bin/python"}'
+// export BEAM_SERVICE_OVERRIDES = '{python:*": "/path/to/dev/venv/bin/python"}'
 // TODO: Automatically set up/depend on such a venv in dev environments and/or
 // testing infra.
-xdescribe("IO Tests", function () {
-  it("textio file test", async function () {
+describe("IO Tests", function () {
+  xlang_it("textio file test", async function () {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "apache-beam-test"));
 
     await createRunner().run(async (root) => {
       await root //
         .apply(beam.create(lines))
-        .asyncApply(textio.writeToText(path.join(tempDir, "out.txt")));
+        .applyAsync(textio.writeToText(path.join(tempDir, "out.txt")));
     });
 
     await createRunner().run(async (root) => {
       (
-        await root.asyncApply(
+        await root.applyAsync(
           textio.readFromText(path.join(tempDir, "out.txt*"))
         )
       ).apply(testing.assertDeepEqual(lines));
     });
   }).timeout(15000);
 
-  it("textio csv file test", async function () {
+  xlang_it("textio csv file test", async function () {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "apache-beam-test"));
 
     await createRunner().run(async (root) => {
       await root //
         .apply(beam.create(elements))
         .apply(internal.withCoderInternal(RowCoder.fromJSON(elements[0])))
-        .asyncApply(textio.writeToCsv(path.join(tempDir, "out.csv")));
+        .applyAsync(textio.writeToCsv(path.join(tempDir, "out.csv")));
     });
     console.log(tempDir);
 
     await createRunner().run(async (root) => {
       (
-        await root.asyncApply(
+        await root.applyAsync(
           textio.readFromCsv(path.join(tempDir, "out.csv*"))
         )
       ).apply(testing.assertDeepEqual(elements));
     });
   }).timeout(15000);
 
-  it("textio json file test", async function () {
+  xlang_it("textio json file test", async function () {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "apache-beam-test"));
 
     await createRunner().run(async (root) => {
       await root //
         .apply(beam.create(elements))
         .apply(internal.withCoderInternal(RowCoder.fromJSON(elements[0])))
-        .asyncApply(textio.writeToJson(path.join(tempDir, "out.json")));
+        .applyAsync(textio.writeToJson(path.join(tempDir, "out.json")));
     });
 
     await createRunner().run(async (root) => {
       (
-        await root.asyncApply(
+        await root.applyAsync(
           textio.readFromJson(path.join(tempDir, "out.json*"))
         )
       ).apply(testing.assertDeepEqual(elements));
     });
   }).timeout(15000);
 
-  it("parquetio file test", async function () {
+  xlang_it("parquetio file test", async function () {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "apache-beam-test"));
 
     await createRunner().run(async (root) => {
       await root //
         .apply(beam.create(elements))
         .apply(internal.withCoderInternal(RowCoder.fromJSON(elements[0])))
-        .asyncApply(
+        .applyAsync(
           parquetio.writeToParquet(path.join(tempDir, "out.parquet"))
         );
     });
 
     await createRunner().run(async (root) => {
       (
-        await root.asyncApply(
+        await root.applyAsync(
           parquetio.readFromParquet(path.join(tempDir, "out.parquet*"))
         )
       ).apply(testing.assertDeepEqual(elements));
@@ -144,7 +148,7 @@ xdescribe("IO Tests", function () {
 
     await createRunner().run(async (root) => {
       (
-        await root.asyncApply(
+        await root.applyAsync(
           parquetio.readFromParquet(path.join(tempDir, "out.parquet*"), {
             columns: ["label", "rank"],
           })
@@ -153,7 +157,7 @@ xdescribe("IO Tests", function () {
     });
   }).timeout(15000);
 
-  it("avroio file test", async function () {
+  it.skip("avroio file test", async function () {
     // Requires access to a distributed filesystem.
     const options = {
       //      runner: "dataflow",
@@ -176,21 +180,21 @@ xdescribe("IO Tests", function () {
     await createRunner(options).run(async (root) => {
       await root //
         .apply(beam.create(elements))
-        .asyncApply(
+        .applyAsync(
           avroio.writeToAvro(path_join(tempDir, "out.avro"), { schema })
         );
     });
 
     await createRunner(options).run(async (root) => {
       (
-        await root.asyncApply(
+        await root.applyAsync(
           avroio.readFromAvro(path_join(tempDir, "out.avro*"), { schema })
         )
       ).apply(testing.assertDeepEqual(elements));
     });
   }).timeout(60000);
 
-  it("bigqueryio test", async function () {
+  it.skip("bigqueryio test", async function () {
     // This only passes when it is run on its own.
     // TODO: Figure out what is going on here.
     // The error is a java.lang.NullPointerException at
@@ -239,19 +243,19 @@ xdescribe("IO Tests", function () {
         await root //
           .apply(beam.create(elements))
           .apply(internal.withCoderInternal(RowCoder.fromJSON(elements[0])))
-          .asyncApply(
+          .applyAsync(
             bigqueryio.writeToBigQuery(table, { createDisposition: "IfNeeded" })
           );
       });
 
       await createRunner(options).run(async (root) => {
-        (await root.asyncApply(bigqueryio.readFromBigQuery({ table }))) //
+        (await root.applyAsync(bigqueryio.readFromBigQuery({ table }))) //
           .apply(testing.assertDeepEqual(elements));
       });
 
       await createRunner(options).run(async (root) => {
         (
-          await root.asyncApply(
+          await root.applyAsync(
             bigqueryio.readFromBigQuery({
               query: `SELECT label, rank FROM ${table}`,
             })
@@ -264,7 +268,7 @@ xdescribe("IO Tests", function () {
     }
   }).timeout(300000);
 
-  it("pubsub test", async function () {
+  it.skip("pubsub test", async function () {
     const options = {
       runner: "dataflow",
       project: "apache-beam-testing",
@@ -286,7 +290,7 @@ xdescribe("IO Tests", function () {
     try {
       pipelineHandle = await createRunner(options).runAsync(async (root) => {
         await (
-          await root.asyncApply(
+          await root.applyAsync(
             pubsub.readFromPubSub({
               subscription: readSubscription.name,
             })
@@ -296,7 +300,7 @@ xdescribe("IO Tests", function () {
           .map((msg) => msg.toUpperCase())
           .map((msg) => new TextEncoder().encode(msg))
           .apply(internal.withCoderInternal(new BytesCoder()))
-          .asyncApply(pubsub.writeToPubSub(writeTopic.name));
+          .applyAsync(pubsub.writeToPubSub(writeTopic.name));
       });
       console.log("Pipeline started", pipelineHandle.jobId);
 

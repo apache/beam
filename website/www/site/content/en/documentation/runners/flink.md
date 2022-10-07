@@ -66,9 +66,9 @@ Please use the switcher below to select the appropriate mode for the Runner:
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="language-java">Classic (Java)</li>
-    <li data-type="language-py">Portable (Python)</li>
-    <li data-type="language-portable">Portable (Java/Python/Go)</li>
+    <li data-value="java">Classic (Java)</li>
+    <li data-value="py">Portable (Python)</li>
+    <li data-value="portable">Portable (Java/Python/Go)</li>
   </ul>
 </nav>
 

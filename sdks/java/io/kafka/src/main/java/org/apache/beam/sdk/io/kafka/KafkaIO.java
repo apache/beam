@@ -413,9 +413,8 @@ import org.slf4j.LoggerFactory;
  * to processing records.
  *
  * <p>{@link ReadSourceDescriptors#commitOffsets()} enables committing offset after processing the
- * record. Note that if the {@code isolation.level} is set to "read_committed" or {@link
- * ConsumerConfig#ENABLE_AUTO_COMMIT_CONFIG} is set in the consumer config, the {@link
- * ReadSourceDescriptors#commitOffsets()} will be ignored.
+ * record. Note that if {@link ConsumerConfig#ENABLE_AUTO_COMMIT_CONFIG} is set in the consumer
+ * config, the {@link ReadSourceDescriptors#commitOffsets()} will be ignored.
  *
  * <p>{@link ReadSourceDescriptors#withExtractOutputTimestampFn(SerializableFunction)} is used to
  * compute the {@code output timestamp} for a given {@link KafkaRecord} and controls the watermark
@@ -1339,11 +1338,19 @@ public class KafkaIO {
       final KafkaIOReadImplementationCompatibilityResult compatibility =
           KafkaIOReadImplementationCompatibility.getCompatibility(this);
 
-      // For read from unbounded in a bounded manner, we actually are not going through Read or SDF.
+      // For a number of cases, we prefer using the UnboundedSource Kafka over the new SDF-based
+      // Kafka source, for example,
+      // * Experiments 'beam_fn_api_use_deprecated_read' and use_deprecated_read will result in
+      // legacy UnboundeSource being used.
+      // * Experiment 'use_unbounded_sdf_wrapper' will result in legacy UnboundeSource being used
+      // but will be wrapped by an SDF.
+      // * Some runners or selected features may not be compatible with SDF-based Kafka.
       if (ExperimentalOptions.hasExperiment(
               input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
           || ExperimentalOptions.hasExperiment(
               input.getPipeline().getOptions(), "use_deprecated_read")
+          || ExperimentalOptions.hasExperiment(
+              input.getPipeline().getOptions(), "use_unbounded_sdf_wrapper")
           || compatibility.supportsOnly(KafkaIOReadImplementation.LEGACY)
           || (compatibility.supports(KafkaIOReadImplementation.LEGACY)
               && runnerPrefersLegacyRead(input.getPipeline().getOptions()))) {
@@ -2157,9 +2164,8 @@ public class KafkaIO {
     }
 
     /**
-     * Enable committing record offset. If {@link #withReadCommitted()} or {@link
-     * ConsumerConfig#ENABLE_AUTO_COMMIT_CONFIG} is set together with {@link #commitOffsets()},
-     * {@link #commitOffsets()} will be ignored.
+     * Enable committing record offset. If {@link ConsumerConfig#ENABLE_AUTO_COMMIT_CONFIG} is set
+     * together with {@link #commitOffsets()}, {@link #commitOffsets()} will be ignored.
      */
     public ReadSourceDescriptors<K, V> commitOffsets() {
       return toBuilder().setCommitOffsetEnabled(true).build();
@@ -2284,8 +2290,8 @@ public class KafkaIO {
       if (isCommitOffsetEnabled()) {
         if (configuredKafkaCommit()) {
           LOG.info(
-              "Either read_committed or auto_commit is set together with commitOffsetEnabled but you "
-                  + "only need one of them. The commitOffsetEnabled is going to be ignored");
+              "auto_commit is set together with commitOffsetEnabled but you only need one of them. "
+                  + "The commitOffsetEnabled is going to be ignored");
         }
       }
 
@@ -2349,8 +2355,7 @@ public class KafkaIO {
     }
 
     private boolean configuredKafkaCommit() {
-      return getConsumerConfig().get("isolation.level") == "read_committed"
-          || Boolean.TRUE.equals(getConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG));
+      return Boolean.TRUE.equals(getConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG));
     }
 
     static class ExtractOutputTimestampFns<K, V> {

@@ -47,7 +47,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -82,7 +81,6 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     databaseClient = ENV.getDatabaseClient();
   }
 
-  @Ignore
   @Test
   public void testOrderedWithinKey() {
     LOG.info("Test pipeline: " + pipeline.toString());
@@ -126,28 +124,28 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
         .containsInAnyOrder(
             "{\"SingerId\":\"0\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 0\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
+                + "{};",
             "{\"SingerId\":\"1\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
                 + "{\"FirstName\":\"Updating mutation 1\"};"
-                + "Deleted record;"
+                + "{};"
                 + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
+                + "{};",
             "{\"SingerId\":\"2\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 2\",\"LastName\":null,\"SingerInfo\":null};"
                 + "{\"FirstName\":\"Updating mutation 2\"};"
-                + "Deleted record;",
+                + "{};",
             "{\"SingerId\":\"3\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 3\",\"LastName\":null,\"SingerInfo\":null};"
                 + "{\"FirstName\":\"Updating mutation 3\"};"
-                + "Deleted record;",
+                + "{};",
             "{\"SingerId\":\"4\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 4\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
+                + "{};",
             "{\"SingerId\":\"5\"}\n"
                 + "{\"FirstName\":\"Updating mutation 5\",\"LastName\":null,\"SingerInfo\":null};"
                 + "{\"FirstName\":\"Updating mutation 5\"};"
-                + "Deleted record;");
+                + "{};");
     pipeline.run().waitUntilFinish();
   }
 
@@ -189,6 +187,8 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
                       record.getValueCaptureType(),
                       record.getNumberOfRecordsInTransaction(),
                       record.getNumberOfPartitionsInTransaction(),
+                      record.getTransactionTag(),
+                      record.isSystemTransaction(),
                       fakeChangeStreamMetadata))
           .forEach(outputReceiver::output);
     }
@@ -241,10 +241,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
       builder.append(recordsByKey.getKey());
       builder.append("\n");
       for (KV<SortKey, DataChangeRecord> record : sortedRecords) {
-        builder.append(
-            record.getValue().getMods().get(0).getNewValuesJson().isEmpty()
-                ? "Deleted record;"
-                : record.getValue().getMods().get(0).getNewValuesJson() + ";");
+        builder.append(record.getValue().getMods().get(0).getNewValuesJson() + ";");
       }
 
       outputReceiver.output(builder.toString());

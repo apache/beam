@@ -29,7 +29,7 @@ $(document).ready(function() {
     }
     let code = document.querySelectorAll('pre'),
     copyIcon = document.createElement('span');
-    copyIcon.innerHTML = '<a class="just-copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard"><img src="/images/copy-icon.svg"/></a>';
+    copyIcon.innerHTML = '<a class="just-copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard"><img src="{{ "images/copy-icon.svg" | absURL }}"/></a>';
 
     code.forEach((hl) => {
         if( !hl.parentElement.classList.contains('code-snippet') && !hl.parentElement.classList.contains('highlight')) {

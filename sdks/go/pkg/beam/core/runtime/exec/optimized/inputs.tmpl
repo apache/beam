@@ -30,10 +30,8 @@ import (
 func init() {
 {{- range $x := .X}}
     exec.RegisterInput(reflect.TypeOf((*func (*{{$x.Type}})bool)(nil)).Elem(), iterMaker{{$x.Name}})
-    exec.RegisterInput(reflect.TypeOf((*func (*typex.EventTime, *{{$x.Type}})bool)(nil)).Elem(), iterMakerET{{$x.Name}})
 {{- range $y := .Y}}
     exec.RegisterInput(reflect.TypeOf((*func (*{{$x.Type}}, *{{$y.Type}})bool)(nil)).Elem(), iterMaker{{$x.Name}}{{$y.Name}})
-    exec.RegisterInput(reflect.TypeOf((*func (*typex.EventTime, *{{$x.Type}}, *{{$y.Type}})bool)(nil)).Elem(), iterMakerET{{$x.Name}}{{$y.Name}})
 {{- end}}
 {{- end}}
 }
@@ -86,26 +84,6 @@ func iterMaker{{$x.Name}}(s exec.ReStream) exec.ReusableInput {
 	return ret
 }
 
-func (v *iterNative) readET{{$x.Name}}(et *typex.EventTime, val *{{$x.Type}}) bool {
-	elm, err := v.cur.Read()
-	if err != nil {
-		if err == io.EOF {
-			return false
-		}
-		panic(fmt.Sprintf("broken stream: %v", err))
-	}
-
-    *et = elm.Timestamp
-    *val = elm.Elm.({{$x.Type}})
-    return true
-}
-
-func iterMakerET{{$x.Name}}(s exec.ReStream) exec.ReusableInput {
-	ret := &iterNative{s: s}
-	ret.fn = ret.readET{{$x.Name}}
-	return ret
-}
-
 {{range $y := .Y}}
 func (v *iterNative) read{{$x.Name}}{{$y.Name}}(key *{{$x.Type}}, value *{{$y.Type}}) bool {
 	elm, err := v.cur.Read()
@@ -123,27 +101,6 @@ func (v *iterNative) read{{$x.Name}}{{$y.Name}}(key *{{$x.Type}}, value *{{$y.Ty
 func iterMaker{{$x.Name}}{{$y.Name}}(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = ret.read{{$x.Name}}{{$y.Name}}
-	return ret
-}
-
-func (v *iterNative) readET{{$x.Name}}{{$y.Name}}(et *typex.EventTime, key *{{$x.Type}}, value *{{$y.Type}}) bool {
-	elm, err := v.cur.Read()
-	if err != nil {
-		if err == io.EOF {
-			return false
-		}
-		panic(fmt.Sprintf("broken stream: %v", err))
-	}
-
-    *et = elm.Timestamp
-    *key = elm.Elm.({{$x.Type}})
-    *value = elm.Elm2.({{$y.Type}})
-    return true
-}
-
-func iterMakerET{{$x.Name}}{{$y.Name}}(s exec.ReStream) exec.ReusableInput {
-	ret := &iterNative{s: s}
-	ret.fn = ret.readET{{$x.Name}}{{$y.Name}}
 	return ret
 }
 {{end}}

@@ -23,6 +23,7 @@ This module is experimental. No backwards-compatibility guarantees.
 # pytype: skip-file
 
 import logging
+from typing import Optional
 
 import apache_beam as beam
 from apache_beam import runners
@@ -233,12 +234,13 @@ class InteractiveRunner(runners.PipelineRunner):
     if clusters.pipelines.get(user_pipeline, None):
       # Noop for a known pipeline using a known Dataproc cluster.
       return
-    flink_master = options.view_as(FlinkRunnerOptions).flink_master
+    flink_master = self._strip_protocol_if_any(
+        options.view_as(FlinkRunnerOptions).flink_master)
     cluster_metadata = clusters.default_cluster_metadata
     if flink_master == '[auto]':
       # Try to create/reuse a cluster when no flink_master is given.
       project_id = options.view_as(GoogleCloudOptions).project
-      region = options.view_as(GoogleCloudOptions).region
+      region = options.view_as(GoogleCloudOptions).region or 'us-central1'
       if project_id:
         if clusters.default_cluster_metadata:
           # Reuse the cluster name from default in case of a known cluster.
@@ -267,6 +269,13 @@ class InteractiveRunner(runners.PipelineRunner):
         options,
         clusters.DATAPROC_FLINK_VERSION,
         dcm.cluster_metadata.master_url)
+
+  def _strip_protocol_if_any(self, flink_master: Optional[str]):
+    if flink_master:
+      parts = flink_master.split('://')
+      if len(parts) > 1:
+        return parts[1]
+    return flink_master
 
   def _worker_options_to_cluster_metadata(
       self, options: PipelineOptions, cluster_metadata: ClusterMetadata):

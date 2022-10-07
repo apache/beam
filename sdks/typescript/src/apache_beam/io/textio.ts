@@ -30,7 +30,7 @@ export function readFromText(
   filePattern: string
 ): beam.AsyncPTransform<beam.Root, beam.PCollection<string>> {
   return async function readFromText(root: beam.Root) {
-    return root.asyncApply(
+    return root.applyAsync(
       pythonTransform<beam.Root, beam.PCollection<string>>(
         "apache_beam.io.ReadFromText",
         {
@@ -59,7 +59,7 @@ export function writeToText(
       filesWritten: await pcoll
         .map((e) => (typeof e == "string" ? e : "" + e))
         .apply(withCoderInternal(new StrUtf8Coder()))
-        .asyncApply(
+        .applyAsync(
           pythonTransform("apache_beam.io.WriteToText", {
             file_path_prefix: filePathPrefix,
             ...camelToSnakeOptions(options),
@@ -74,7 +74,7 @@ export function readFromCsv(
   options: {} = {}
 ): (root: beam.Root) => Promise<beam.PCollection<any>> {
   return async function readFromCsv(root: beam.Root) {
-    return root.asyncApply(
+    return root.applyAsync(
       pythonTransform("apache_beam.dataframe.io.ReadViaPandas", {
         path: filePattern,
         format: "csv",
@@ -96,7 +96,7 @@ export function writeToCsv(
       toWrite = toWrite.apply(withCoderInternal(RowCoder.fromSchema(schema)));
     }
     return {
-      filesWritten: await toWrite.asyncApply(
+      filesWritten: await toWrite.applyAsync(
         pythonTransform("apache_beam.dataframe.io.WriteViaPandas", {
           path: filePathPrefix,
           format: "csv",
@@ -113,7 +113,7 @@ export function readFromJson(
   options: {} = {}
 ): (root: beam.Root) => Promise<beam.PCollection<any>> {
   return async function readFromJson(root: beam.Root) {
-    return root.asyncApply(
+    return root.applyAsync(
       pythonTransform("apache_beam.dataframe.io.ReadViaPandas", {
         path: filePattern,
         format: "json",
@@ -137,7 +137,7 @@ export function writeToJson(
       toWrite = toWrite.apply(withCoderInternal(RowCoder.fromSchema(schema)));
     }
     return {
-      filesWritten: await toWrite.asyncApply(
+      filesWritten: await toWrite.applyAsync(
         pythonTransform("apache_beam.dataframe.io.WriteViaPandas", {
           path: filePathPrefix,
           format: "json",

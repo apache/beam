@@ -17,6 +17,8 @@
  */
 
 import { CombineFn } from "./group_and_combine";
+import { Coder } from "../coders/coders";
+import { VarIntCoder } from "../coders/standard_coders";
 
 // TODO(cleanup): These reductions only work on Arrays, not Iterables.
 
@@ -26,6 +28,7 @@ export const count: CombineFn<any, number, number> = {
   mergeAccumulators: (accumulators: number[]) =>
     accumulators.reduce((prev, current) => prev + current),
   extractOutput: (acc) => acc,
+  accumulatorCoder: () => new VarIntCoder(),
 };
 
 export const sum: CombineFn<number, number, number> = {
@@ -34,6 +37,7 @@ export const sum: CombineFn<number, number, number> = {
   mergeAccumulators: (accumulators: number[]) =>
     accumulators.reduce((prev, current) => prev + current),
   extractOutput: (acc: number) => acc,
+  accumulatorCoder: (inputCoder: Coder<number>) => inputCoder,
 };
 
 export const max: CombineFn<any, any, any> = {
