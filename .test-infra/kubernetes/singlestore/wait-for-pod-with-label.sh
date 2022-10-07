@@ -26,7 +26,7 @@ set -euxo pipefail
 
 KUBECONFIG="${KUBECONFIG:=$HOME/.kube/config}"
 KUBERNETES_NAMESPACE="${KUBERNETES_NAMESPACE:=default}"
-KUBECTL="/var/jenkins_home/google-cloud-sdk/bin/kubectl --kubeconfig=$KUBECONFIG --namespace=$KUBERNETES_NAMESPACE"
+KUBECTL="kubectl --kubeconfig=$KUBECONFIG --namespace=$KUBERNETES_NAMESPACE"
 
 podName=$1
 timeout=$2

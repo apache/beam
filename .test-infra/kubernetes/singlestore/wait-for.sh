@@ -26,23 +26,23 @@ set -euxo pipefail
 
 KUBECONFIG="${KUBECONFIG:=$HOME/.kube/config}"
 KUBERNETES_NAMESPACE="${KUBERNETES_NAMESPACE:=default}"
-KUBECTL="/var/jenkins_home/google-cloud-sdk/bin/kubectl --kubeconfig=$KUBECONFIG --namespace=$KUBERNETES_NAMESPACE"
+KUBECTL="kubectl --kubeconfig=$KUBECONFIG --namespace=$KUBERNETES_NAMESPACE"
 
 resource=$1
 timeout=$2
 
-echo "Waiting for the $(podName) ..."
+echo "Waiting for the $(resource) ..."
 
 SECONDS=0
 until [ "$(${KUBECTL} get "${resource}" -o=jsonpath="{.items[*]['status.phase']}")" == "Running" ]
 do
   if (( SECONDS > timeout ))
   then
-   echo "Timed out waiting for the $(podName)"
+   echo "Timed out waiting for the $(resource)"
    return 1
   fi
 
   sleep 1
 done
 
-echo "$(podName) is running"
+echo "$(resource) is running"

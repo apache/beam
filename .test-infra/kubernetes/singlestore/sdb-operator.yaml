@@ -27,8 +27,6 @@ spec:
             "--cluster-id", "sdb-cluster",
 
             # Args below are for local dev
-            "--dev-endpoint", "172.42.0.2",
-            "--dev-disable-scheduling-details",
             "--cores-per-unit", "0",
             "--memory-per-unit", "0"
           ]
