@@ -6742,7 +6742,7 @@ based on how the amount of work is represented:
 * Bounded DoFns are those where the work represented by an element is well-known beforehand and has
 an end. Examples of bounded elements include a file or group of files.
 * Unbounded DoFns are those where the amount of work does not have a specific end or the
-amount of work is not known befrehand. Examples of unbounded elements include a Kafka or a PubSub
+amount of work is not known beforehand. Examples of unbounded elements include a Kafka or a PubSub
 topic.
 
 In Java, you can use [@UnboundedPerElement](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/DoFn.UnboundedPerElement.html)
