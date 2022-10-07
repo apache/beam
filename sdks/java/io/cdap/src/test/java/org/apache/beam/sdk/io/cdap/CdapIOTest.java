@@ -141,7 +141,7 @@ public class CdapIOTest {
   public void testReadExpandingFailsMissingCdapPluginClass() {
     PBegin testPBegin = PBegin.in(TestPipeline.create());
     CdapIO.Read<String, String> read = CdapIO.read();
-    assertThrows(IllegalArgumentException.class, () -> read.expand(testPBegin));
+    assertThrows(IllegalStateException.class, () -> read.expand(testPBegin));
   }
 
   @Test
@@ -278,7 +278,7 @@ public class CdapIOTest {
     PCollection<KV<String, String>> testPCollection =
         Create.empty(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())).expand(testPBegin);
     CdapIO.Write<String, String> write = CdapIO.write();
-    assertThrows(IllegalArgumentException.class, () -> write.expand(testPCollection));
+    assertThrows(IllegalStateException.class, () -> write.expand(testPCollection));
   }
 
   @Test
