@@ -337,11 +337,11 @@ class BigQueryWrapper(object):
         credentials=auth.get_service_credentials(None),
         response_encoding='utf8',
         additional_http_headers={
-            "user-agent": "apache-beam-%s" % apache_beam.__version__
+            "user-agent": "apache-beam-%s-%s" % (apache_beam.__version__, datetime.date.today())
         })
     self.gcp_bq_client = client or gcp_bigquery.Client(
         client_info=ClientInfo(
-            user_agent="apache-beam-%s" % apache_beam.__version__))
+            user_agent="apache-beam-%s-%s" % (apache_beam.__version__, datetime.date.today())))
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
