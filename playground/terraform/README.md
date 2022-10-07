@@ -18,7 +18,7 @@
 -->
 # Here you will find the steps for deploying BEAM Playground on your project
 
-## Prerequisite:
+## Prerequisites:
 
 ### Before you will start with the installation steps, please read this carefully:
 1. How to create a new project in Google Cloud Platform:
