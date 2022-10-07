@@ -34,8 +34,8 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 from PIL import Image
 from tfx_bsl.public.beam.run_inference import CreateModelHandler
-from tfx_bsl.public.proto import model_spec_pb2
 from tfx_bsl.public.beam.run_inference import prediction_log_pb2
+from tfx_bsl.public.proto import model_spec_pb2
 
 _IMG_SIZE = (224, 224)
 
