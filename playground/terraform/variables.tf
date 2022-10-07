@@ -51,6 +51,7 @@ variable "pg_location" {
 
 variable "gke_name" {
   description = "Name of GKE cluster"
+  default = "playground-backend"
 }
 
 #  variable "gke_location" {
