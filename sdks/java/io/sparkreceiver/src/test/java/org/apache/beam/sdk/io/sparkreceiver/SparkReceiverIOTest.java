@@ -20,14 +20,14 @@ package org.apache.beam.sdk.io.sparkreceiver;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -110,11 +110,13 @@ public class SparkReceiverIOTest {
             .withTimestampFn(Instant::parse)
             .withSparkReceiverBuilder(receiverBuilder);
 
+    List<String> expected = new ArrayList<>();
     for (int i = 0; i < CustomReceiverWithOffset.RECORDS_COUNT; i++) {
-      TestOutputDoFn.EXPECTED_RECORDS.add(String.valueOf(i));
+      expected.add(String.valueOf(i));
     }
-    pipeline.apply(reader).setCoder(StringUtf8Coder.of()).apply(ParDo.of(new TestOutputDoFn()));
+    PCollection<String> actual = pipeline.apply(reader).setCoder(StringUtf8Coder.of());
 
+    PAssert.that(actual).containsInAnyOrder(expected);
     pipeline.run().waitUntilFinish(Duration.standardSeconds(15));
   }
 
@@ -129,28 +131,73 @@ public class SparkReceiverIOTest {
             .withTimestampFn(Instant::parse)
             .withSparkReceiverBuilder(receiverBuilder);
 
+    List<String> expected = new ArrayList<>();
     for (int i = 0; i < CustomReceiverWithOffset.RECORDS_COUNT; i++) {
-      TestOutputDoFn.EXPECTED_RECORDS.add(String.valueOf(i));
+      expected.add(String.valueOf(i));
     }
-    pipeline.apply(reader).setCoder(StringUtf8Coder.of()).apply(ParDo.of(new TestOutputDoFn()));
+    PCollection<String> actual = pipeline.apply(reader).setCoder(StringUtf8Coder.of());
 
+    PAssert.that(actual).containsInAnyOrder(expected);
     pipeline.run().waitUntilFinish(Duration.standardSeconds(15));
-
-    assertEquals(0, TestOutputDoFn.EXPECTED_RECORDS.size());
   }
 
-  /** {@link DoFn} that throws {@code RuntimeException} if receives unexpected element. */
-  private static class TestOutputDoFn extends DoFn<String, String> {
-    private static final Set<String> EXPECTED_RECORDS = new HashSet<>();
+  @Test
+  public void testReadFromReceiverArrayBufferData() {
+    ReceiverBuilder<String, ArrayBufferDataReceiver> receiverBuilder =
+        new ReceiverBuilder<>(ArrayBufferDataReceiver.class).withConstructorArgs();
+    SparkReceiverIO.Read<String> reader =
+        SparkReceiverIO.<String>read()
+            .withGetOffsetFn(Long::valueOf)
+            .withTimestampFn(Instant::parse)
+            .withSparkReceiverBuilder(receiverBuilder);
 
-    @ProcessElement
-    public void processElement(@Element String element, OutputReceiver<String> outputReceiver) {
-      if (!EXPECTED_RECORDS.contains(element)) {
-        throw new RuntimeException("Received unexpected element: " + element);
-      } else {
-        EXPECTED_RECORDS.remove(element);
-        outputReceiver.output(element);
-      }
+    List<String> expected = new ArrayList<>();
+    for (int i = 0; i < ArrayBufferDataReceiver.RECORDS_COUNT; i++) {
+      expected.add(String.valueOf(i));
     }
+    PCollection<String> actual = pipeline.apply(reader).setCoder(StringUtf8Coder.of());
+
+    PAssert.that(actual).containsInAnyOrder(expected);
+    pipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+  }
+
+  @Test
+  public void testReadFromReceiverByteBufferData() {
+    ReceiverBuilder<String, ByteBufferDataReceiver> receiverBuilder =
+        new ReceiverBuilder<>(ByteBufferDataReceiver.class).withConstructorArgs();
+    SparkReceiverIO.Read<String> reader =
+        SparkReceiverIO.<String>read()
+            .withGetOffsetFn(Long::valueOf)
+            .withTimestampFn(Instant::parse)
+            .withSparkReceiverBuilder(receiverBuilder);
+
+    List<String> expected = new ArrayList<>();
+    for (int i = 0; i < ByteBufferDataReceiver.RECORDS_COUNT; i++) {
+      expected.add(String.valueOf(i));
+    }
+    PCollection<String> actual = pipeline.apply(reader).setCoder(StringUtf8Coder.of());
+
+    PAssert.that(actual).containsInAnyOrder(expected);
+    pipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+  }
+
+  @Test
+  public void testReadFromReceiverIteratorData() {
+    ReceiverBuilder<String, IteratorDataReceiver> receiverBuilder =
+        new ReceiverBuilder<>(IteratorDataReceiver.class).withConstructorArgs();
+    SparkReceiverIO.Read<String> reader =
+        SparkReceiverIO.<String>read()
+            .withGetOffsetFn(Long::valueOf)
+            .withTimestampFn(Instant::parse)
+            .withSparkReceiverBuilder(receiverBuilder);
+
+    List<String> expected = new ArrayList<>();
+    for (int i = 0; i < IteratorDataReceiver.RECORDS_COUNT; i++) {
+      expected.add(String.valueOf(i));
+    }
+    PCollection<String> actual = pipeline.apply(reader).setCoder(StringUtf8Coder.of());
+
+    PAssert.that(actual).containsInAnyOrder(expected);
+    pipeline.run().waitUntilFinish(Duration.standardSeconds(15));
   }
 }

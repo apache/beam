@@ -48,7 +48,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -153,7 +152,7 @@ public class CdapIOTest {
   }
 
   @Test
-  public void testReadingDataBatch() {
+  public void testReadFromCdapBatchPlugin() {
     EmployeeConfig pluginConfig =
         new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();
     CdapIO.Read<String, String> read =
@@ -177,7 +176,7 @@ public class CdapIOTest {
   }
 
   @Test
-  public void testReadingDataStreaming() {
+  public void testReadFromCdapStreamingPlugin() {
     DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
     options.setBlockOnRun(false);
     options.setRunner(DirectRunner.class);
@@ -198,16 +197,14 @@ public class CdapIOTest {
             .withValueClass(String.class);
 
     List<String> storedRecords = EmployeeReceiver.getStoredRecords();
-    List<String> outputRecords = TestOutputDoFn.getRecords();
-    outputRecords.clear();
 
-    p.apply("ReadStreamingTest", read)
-        .setCoder(KvCoder.of(NullableCoder.of(StringUtf8Coder.of()), StringUtf8Coder.of()))
-        .apply(Values.create())
-        .apply(ParDo.of(new TestOutputDoFn()));
+    PCollection<String> actual =
+        p.apply("ReadStreamingTest", read)
+            .setCoder(KvCoder.of(NullableCoder.of(StringUtf8Coder.of()), StringUtf8Coder.of()))
+            .apply(Values.create());
 
+    PAssert.that(actual).containsInAnyOrder(storedRecords);
     p.run().waitUntilFinish(Duration.standardSeconds(15));
-    assertEquals(storedRecords, outputRecords);
   }
 
   @Test
@@ -292,7 +289,7 @@ public class CdapIOTest {
   }
 
   @Test
-  public void testWritingDataBatch() throws IOException {
+  public void testWriteWithCdapBatchSinkPlugin() throws IOException {
     List<KV<String, String>> data = new ArrayList<>();
     for (int i = 0; i < EmployeeInputFormat.NUM_OF_TEST_EMPLOYEE_RECORDS; i++) {
       data.add(KV.of(String.valueOf(i), EmployeeInputFormat.EMPLOYEE_NAME_PREFIX + i));

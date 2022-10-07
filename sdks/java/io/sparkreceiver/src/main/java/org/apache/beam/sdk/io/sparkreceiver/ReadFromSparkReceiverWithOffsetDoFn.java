@@ -151,31 +151,35 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
             if (input == null) {
               return null;
             }
+            /*
+            Use only [0] element - data.
+            The other elements are not needed because they are related to Spark environment options.
+             */
+            Object data = input[0];
 
-            if (input[0] instanceof ByteBuffer) {
-              final ByteBuffer byteBuffer = ((ByteBuffer) input[0]).asReadOnlyBuffer();
+            if (data instanceof ByteBuffer) {
+              final ByteBuffer byteBuffer = ((ByteBuffer) data).asReadOnlyBuffer();
               final byte[] bytes = new byte[byteBuffer.limit()];
               byteBuffer.get(bytes);
               final V record = SerializationUtils.deserialize(bytes);
               recordsQueue.offer(record);
-            } else if (input[0] instanceof Iterator) {
-              final Iterator<V> iterator = (Iterator<V>) input[0];
+            } else if (data instanceof Iterator) {
+              final Iterator<V> iterator = (Iterator<V>) data;
               while (iterator.hasNext()) {
-                V record = (V) iterator.next();
+                V record = iterator.next();
                 recordsQueue.offer(record);
               }
-            } else if (input[0] instanceof ArrayBuffer) {
-              final ArrayBuffer<V> arrayBuffer = (ArrayBuffer<V>) input[0];
+            } else if (data instanceof ArrayBuffer) {
+              final ArrayBuffer<V> arrayBuffer = (ArrayBuffer<V>) data;
               final Iterator<V> iterator = arrayBuffer.iterator();
               while (iterator.hasNext()) {
-                V record = (V) iterator.next();
+                V record = iterator.next();
                 recordsQueue.offer(record);
               }
             } else {
-              V record = (V) input[0];
+              V record = (V) data;
               recordsQueue.offer(record);
             }
-
             return null;
           };
 
@@ -233,6 +237,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
         }
         Instant currentTimeStamp = getTimestampFn.apply(record);
         ((ManualWatermarkEstimator<Instant>) watermarkEstimator).setWatermark(currentTimeStamp);
+        System.err.println(record);
         receiver.outputWithTimestamp(record, currentTimeStamp);
       }
     }
