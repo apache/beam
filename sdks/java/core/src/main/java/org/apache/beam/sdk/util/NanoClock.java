@@ -15,33 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.gcp.util;
-
-import com.google.api.client.util.NanoClock;
-import com.google.api.client.util.Sleeper;
-import org.junit.rules.ExternalResource;
-import org.junit.rules.TestRule;
+package org.apache.beam.sdk.util;
 
 /**
- * This object quickly moves time forward based upon how much it has been asked to sleep, without
- * actually sleeping, to simulate the backoff.
+ * Nano clock which can be used to measure elapsed time in nanoseconds.
+ *
+ * <p>The default system implementation can be accessed at {@link #SYSTEM}. Alternative
+ * implementations may be used for testing.
  */
-public class FastNanoClockAndSleeper extends ExternalResource
-    implements NanoClock, Sleeper, TestRule {
-  private long fastNanoTime;
+@FunctionalInterface
+interface NanoClock {
 
-  @Override
-  public long nanoTime() {
-    return fastNanoTime;
-  }
+  /**
+   * Returns the current value of the most precise available system timer, in nanoseconds for use to
+   * measure elapsed time, to match the behavior of {@link System#nanoTime()}.
+   */
+  long nanoTime();
 
-  @Override
-  protected void before() throws Throwable {
-    fastNanoTime = SYSTEM.nanoTime();
-  }
-
-  @Override
-  public void sleep(long millis) throws InterruptedException {
-    fastNanoTime += millis * 1000000L;
-  }
+  /**
+   * Provides the default System implementation of a nano clock by using {@link System#nanoTime()}.
+   */
+  NanoClock SYSTEM = System::nanoTime;
 }
