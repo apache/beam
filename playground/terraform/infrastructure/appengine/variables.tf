@@ -23,6 +23,7 @@ variable "project_id" {
 
 variable "region" {
   description = "Location of App"
+  default = "us-central"
 }
 
 variable "create_default_service" {
