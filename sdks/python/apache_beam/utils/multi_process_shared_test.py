@@ -44,7 +44,7 @@ class MultiProcessSharedTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     cls.shared = multi_process_shared.MultiProcessShared(
-        Counter, always_proxy=True)
+        Counter, always_proxy=True).acquire()
 
   def test_call(self):
     self.assertEqual(self.shared.get(), 0)
@@ -54,20 +54,18 @@ class MultiProcessSharedTest(unittest.TestCase):
     self.assertEqual(self.shared.get(), 21)
 
   def test_error(self):
-    with self.assertRaises(Exception) as context:
+    with self.assertRaisesRegex(Exception, 'something bad') as context:
       self.shared.error('something bad')
 
-    self.assertTrue('something bad' in str(context.exception))
-
   def test_no_method(self):
-    with self.assertRaises(Exception) as context:
+    with self.assertRaisesRegex(Exception, 'no_such_method') as context:
       self.shared.no_such_method()
 
-    self.assertTrue('no_such_method' in str(context.exception))
-
   def test_connect(self):
-    first = multi_process_shared.MultiProcessShared(Counter, tag='counter')
-    second = multi_process_shared.MultiProcessShared(Counter, tag='counter')
+    first = multi_process_shared.MultiProcessShared(
+        Counter, tag='counter').acquire()
+    second = multi_process_shared.MultiProcessShared(
+        Counter, tag='counter').acquire()
     self.assertEqual(first.get(), 0)
     self.assertEqual(first.increment(), 1)
 
@@ -76,6 +74,38 @@ class MultiProcessSharedTest(unittest.TestCase):
 
     self.assertEqual(first.get(), 2)
     self.assertEqual(first.increment(), 3)
+
+  def test_release(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_release')
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_release')
+
+    counter1 = shared1.acquire()
+    counter2 = shared2.acquire()
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
+
+    counter1again = shared1.acquire()
+    self.assertEqual(counter1again.increment(), 3)
+
+    shared1.release(counter1)
+    shared2.release(counter2)
+
+    with self.assertRaisesRegex(Exception, 'released'):
+      counter1.get()
+    with self.assertRaisesRegex(Exception, 'released'):
+      counter2.get()
+
+    self.assertEqual(counter1again.get(), 3)
+
+    shared1.release(counter1again)
+
+    counter1New = shared1.acquire()
+    self.assertEqual(counter1New.get(), 0)
+
+    with self.assertRaisesRegex(Exception, 'released'):
+      counter1.get()
 
 
 if __name__ == '__main__':
