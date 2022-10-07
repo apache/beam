@@ -50,7 +50,6 @@ variable "pg_location" {
 
 variable "gke_name" {
   description = "Name of GKE cluster"
-  default = "playground-backend"
 }
 
 #  variable "gke_location" {
@@ -120,7 +119,7 @@ variable "redis_memory_size_gb" {
 #VPC
 variable "network_name" {
   description = "Name of VPC to be created"
-  default     = "playground-vpc"
+  default     = "default"
 }
 
 # Applications
