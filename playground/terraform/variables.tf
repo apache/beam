@@ -46,7 +46,6 @@ variable "gke_node_count" {
 }
 
 variable "pg_location" {
-  default = "us-central1-a"
 }
 
 variable "gke_name" {
