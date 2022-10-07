@@ -65,9 +65,6 @@ EXPECTED_MAPPING = {
 
 
 class DistribOptimizationTest(unittest.TestCase):
-  def test_assert_almost_equal(self):
-    self.assertAlmostEqual(454.07219866107573, 454.39597, places=5)
-
   @pytest.mark.examples_postcommit
   def test_basics(self):
     test_pipeline = TestPipeline(is_integration_test=True)
