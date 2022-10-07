@@ -169,5 +169,4 @@ variable "gke_location" {
 
 variable "pg_location" {
   description = "Location of GKE cluster"
-  default = "us-central1-a"
 }
