@@ -31,3 +31,8 @@ variable "create_default_service" {
   type        = bool
   default     = true
 }
+
+variable "location_id_us" {
+  description = "Location of App"
+  default = "us-central"
+}
