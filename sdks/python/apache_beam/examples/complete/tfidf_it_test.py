@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Test for the multiple_output_pardo example."""
+"""End-to-end test for  TF-IDF example."""
 
 # pytype: skip-file
 
@@ -26,7 +26,7 @@ import uuid
 
 import pytest
 
-from apache_beam.examples.cookbook import multiple_output_pardo
+from apache_beam.examples.complete import tfidf
 from apache_beam.testing.test_pipeline import TestPipeline
 
 # Protect against environments where gcsio library is not available.
@@ -50,50 +50,45 @@ def create_content_input_file(path, contents):
   gcs = gcsio.GcsIO()
   with gcs.open(path, 'w') as f:
     f.write(str.encode(contents, 'utf-8'))
-  return path
 
 
-class MultipleOutputParDo(unittest.TestCase):
+EXPECTED_RESULTS = set([
+    ('ghi', '1.txt', 0.3662040962227032), ('abc', '1.txt', 0.0),
+    ('abc', '3.txt', 0.0), ('abc', '2.txt', 0.0),
+    ('def', '1.txt', 0.13515503603605478), ('def', '2.txt', 0.2027325540540822)
+])
 
-  SAMPLE_TEXT = 'A whole new world\nA new fantastic point of view'
-  EXPECTED_SHORT_WORDS = [('A', 2), ('new', 2), ('of', 1)]
-  EXPECTED_WORDS = [('whole', 1), ('world', 1), ('fantastic', 1), ('point', 1),
-                    ('view', 1)]
+EXPECTED_LINE_RE = r'\(u?\'([a-z]*)\', \(\'.*([0-9]\.txt)\', (.*)\)\)'
 
-  def get_wordcount_results(self, result_path):
-    results = []
-    lines = read_gcs_output_file(result_path).splitlines()
-    for line in lines:
-      match = re.search(r'([A-Za-z]+): ([0-9]+)', line)
-      if match is not None:
-        results.append((match.group(1), int(match.group(2))))
-    return results
 
+class TfIdfIT(unittest.TestCase):
   @pytest.mark.examples_postcommit
-  def test_multiple_output_pardo(self):
+  def test_basics(self):
     test_pipeline = TestPipeline(is_integration_test=True)
 
     # Setup the files with expected content.
     temp_location = test_pipeline.get_option('temp_location')
     input_folder = '/'.join([temp_location, str(uuid.uuid4())])
-    input = create_content_input_file(
-        '/'.join([input_folder, 'input.txt']), self.SAMPLE_TEXT)
-    result_prefix = '/'.join([temp_location, str(uuid.uuid4()), 'result'])
+    create_content_input_file('/'.join([input_folder, '1.txt']), 'abc def ghi')
+    create_content_input_file('/'.join([input_folder, '2.txt']), 'abc def')
+    create_content_input_file('/'.join([input_folder, '3.txt']), 'abc')
+    output = '/'.join([temp_location, str(uuid.uuid4()), 'result'])
 
-    extra_opts = {'input': input, 'output': result_prefix}
-    multiple_output_pardo.run(
+    extra_opts = {'uris': input_folder, 'output': output}
+    tfidf.run(
         test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
 
-    expected_char_count = len(''.join(self.SAMPLE_TEXT.split('\n')))
-    contents = read_gcs_output_file(result_prefix + '-chars-')
-    self.assertEqual(expected_char_count, int(contents))
-
-    short_words = self.get_wordcount_results(result_prefix + '-short-words-')
-    self.assertEqual(sorted(short_words), sorted(self.EXPECTED_SHORT_WORDS))
-
-    words = self.get_wordcount_results(result_prefix + '-words-')
-    self.assertEqual(sorted(words), sorted(self.EXPECTED_WORDS))
+    # Parse result file and compare.
+    results = []
+    lines = read_gcs_output_file(output).splitlines()
+    for line in lines:
+      match = re.search(EXPECTED_LINE_RE, line)
+      logging.info('Result line: %s', line)
+      if match is not None:
+        results.append((match.group(1), match.group(2), float(match.group(3))))
+    logging.info('Computed results: %s', set(results))
+    self.assertEqual(set(results), EXPECTED_RESULTS)
 
 
 if __name__ == '__main__':

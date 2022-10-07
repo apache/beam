@@ -23,13 +23,36 @@
 import collections
 import logging
 import re
-import tempfile
 import unittest
+import uuid
 
 import pytest
 
 from apache_beam.examples.dataframe import wordcount
-from apache_beam.testing.util import open_shards
+from apache_beam.testing.test_pipeline import TestPipeline
+
+# Protect against environments where gcsio library is not available.
+try:
+  from apache_beam.io.gcp import gcsio
+except ImportError:
+  gcsio = None
+
+
+def read_gcs_output_file(file_pattern):
+  gcs = gcsio.GcsIO()
+  file_names = gcs.list_prefix(file_pattern).keys()
+  output = []
+  for file_name in file_names:
+    output.append(gcs.open(file_name).read().decode('utf-8').strip())
+  return '\n'.join(output)
+
+
+def create_content_input_file(path, contents):
+  logging.info('Creating file: %s', path)
+  gcs = gcsio.GcsIO()
+  with gcs.open(path, 'w') as f:
+    f.write(str.encode(contents, 'utf-8'))
+  return path
 
 
 class WordCountTest(unittest.TestCase):
@@ -41,27 +64,28 @@ class WordCountTest(unittest.TestCase):
   loooooonger words
   """
 
-  def create_temp_file(self, contents):
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents.encode('utf-8'))
-      return f.name
-
   @pytest.mark.examples_postcommit
   def test_basics(self):
-    temp_path = self.create_temp_file(self.SAMPLE_TEXT)
+    test_pipeline = TestPipeline(is_integration_test=True)
+    # Setup the files with expected content.
+    temp_location = test_pipeline.get_option('temp_location')
+    temp_path = '/'.join([temp_location, str(uuid.uuid4())])
+    input = create_content_input_file(
+        '/'.join([temp_path, 'input.txt']), self.SAMPLE_TEXT)
     expected_words = collections.defaultdict(int)
     for word in re.findall(r'[\w]+', self.SAMPLE_TEXT):
       expected_words[word] += 1
-    wordcount.run(['--input=%s*' % temp_path, '--output=%s.result' % temp_path])
+    extra_opts = {'input': input, 'output': '%s.result' % temp_path}
+    wordcount.run(test_pipeline.get_full_options_as_args(**extra_opts))
     # Parse result file and compare.
     results = []
-    with open_shards(temp_path + '.result-*') as result_file:
-      for line in result_file:
-        match = re.search(r'(\S+),([0-9]+)', line)
-        if match is not None:
-          results.append((match.group(1), int(match.group(2))))
-        elif line.strip():
-          self.assertEqual(line.strip(), 'word,count')
+    lines = read_gcs_output_file(temp_path + '.result-').splitlines()
+    for line in lines:
+      match = re.search(r'(\S+),([0-9]+)', line)
+      if match is not None:
+        results.append((match.group(1), int(match.group(2))))
+      elif line.strip():
+        self.assertEqual(line.strip(), 'word,count')
     self.assertEqual(sorted(results), sorted(expected_words.items()))
 
 

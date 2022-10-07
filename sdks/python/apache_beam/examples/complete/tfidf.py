@@ -24,7 +24,6 @@ http://en.wikipedia.org/wiki/Tf-idf
 # pytype: skip-file
 
 import argparse
-import glob
 import math
 import re
 
@@ -34,6 +33,12 @@ from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.pvalue import AsSingleton
+
+# Protect against environments where gcsio library is not available.
+try:
+  from apache_beam.io.gcp import gcsio
+except ImportError:
+  gcsio = None
 
 
 def read_documents(pipeline, uris):
@@ -197,10 +202,11 @@ def run(argv=None, save_main_session=True):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
+  gcs = gcsio.GcsIO()
   with beam.Pipeline(options=pipeline_options) as p:
 
     # Read documents specified by the uris command line option.
-    pcoll = read_documents(p, glob.glob(known_args.uris))
+    pcoll = read_documents(p, gcs.list_prefix(known_args.uris).keys())
     # Compute TF-IDF information for each word.
     output = pcoll | TfIdf()
     # Write the output using a "Write" transform that has side effects.

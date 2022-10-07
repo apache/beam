@@ -15,18 +15,16 @@
 # limitations under the License.
 #
 
-"""Test for the multiple_output_pardo example."""
-
+"""End-to-end test for Custom PTransform example."""
 # pytype: skip-file
 
 import logging
-import re
 import unittest
 import uuid
 
 import pytest
 
-from apache_beam.examples.cookbook import multiple_output_pardo
+from apache_beam.examples.cookbook import custom_ptransform
 from apache_beam.testing.test_pipeline import TestPipeline
 
 # Protect against environments where gcsio library is not available.
@@ -42,7 +40,7 @@ def read_gcs_output_file(file_pattern):
   output = []
   for file_name in file_names:
     output.append(gcs.open(file_name).read().decode('utf-8').strip())
-  return '\n'.join(output)
+  return ''.join(output)
 
 
 def create_content_input_file(path, contents):
@@ -50,50 +48,41 @@ def create_content_input_file(path, contents):
   gcs = gcsio.GcsIO()
   with gcs.open(path, 'w') as f:
     f.write(str.encode(contents, 'utf-8'))
-  return path
 
 
-class MultipleOutputParDo(unittest.TestCase):
+def format_result(result_string):
+  def format_tuple(result_elem_list):
+    [country, counter] = result_elem_list
+    return country, int(counter.strip())
 
-  SAMPLE_TEXT = 'A whole new world\nA new fantastic point of view'
-  EXPECTED_SHORT_WORDS = [('A', 2), ('new', 2), ('of', 1)]
-  EXPECTED_WORDS = [('whole', 1), ('world', 1), ('fantastic', 1), ('point', 1),
-                    ('view', 1)]
+  result_list = list(
+      map(
+          lambda result_elem: format_tuple(result_elem.split(',')),
+          result_string.replace('\'', '').replace('[',
+                                                  '').replace(']', '').replace(
+                                                      '\"', '').split('\n')))
+  return result_list
 
-  def get_wordcount_results(self, result_path):
-    results = []
-    lines = read_gcs_output_file(result_path).splitlines()
-    for line in lines:
-      match = re.search(r'([A-Za-z]+): ([0-9]+)', line)
-      if match is not None:
-        results.append((match.group(1), int(match.group(2))))
-    return results
+
+class CustomPTransformIT(unittest.TestCase):
+  WORDS = ['CAT', 'DOG', 'CAT', 'CAT', 'DOG']
+  EXPECTED_RESULT = "('CAT DOG CAT CAT DOG', 2)"
 
   @pytest.mark.examples_postcommit
-  def test_multiple_output_pardo(self):
+  def test_custom_ptransform_output_files_on_small_input(self):
     test_pipeline = TestPipeline(is_integration_test=True)
 
     # Setup the files with expected content.
     temp_location = test_pipeline.get_option('temp_location')
-    input_folder = '/'.join([temp_location, str(uuid.uuid4())])
-    input = create_content_input_file(
-        '/'.join([input_folder, 'input.txt']), self.SAMPLE_TEXT)
-    result_prefix = '/'.join([temp_location, str(uuid.uuid4()), 'result'])
+    input = '/'.join([temp_location, str(uuid.uuid4()), 'input.txt'])
+    output = '/'.join([temp_location, str(uuid.uuid4()), 'result'])
+    create_content_input_file(input, ' '.join(self.WORDS))
+    extra_opts = {'input': input, 'output': output}
+    custom_ptransform.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
-    extra_opts = {'input': input, 'output': result_prefix}
-    multiple_output_pardo.run(
-        test_pipeline.get_full_options_as_args(**extra_opts),
-        save_main_session=False)
-
-    expected_char_count = len(''.join(self.SAMPLE_TEXT.split('\n')))
-    contents = read_gcs_output_file(result_prefix + '-chars-')
-    self.assertEqual(expected_char_count, int(contents))
-
-    short_words = self.get_wordcount_results(result_prefix + '-short-words-')
-    self.assertEqual(sorted(short_words), sorted(self.EXPECTED_SHORT_WORDS))
-
-    words = self.get_wordcount_results(result_prefix + '-words-')
-    self.assertEqual(sorted(words), sorted(self.EXPECTED_WORDS))
+    # Load result file and compare.
+    result = read_gcs_output_file(output).strip()
+    self.assertEqual(result, self.EXPECTED_RESULT)
 
 
 if __name__ == '__main__':
