@@ -30,43 +30,49 @@ from helper import find_examples, Example, _get_example, _get_name, get_tag, \
     _get_object_type, ExampleTag, validate_examples_for_duplicates_by_name, ValidationException, validate_example_fields
 
 
+@pytest.mark.parametrize(
+    "is_valid", [True, False]
+)
 @mock.patch("helper._check_file")
 @mock.patch("helper.os.walk")
-def test_find_examples_with_valid_tag(mock_os_walk, mock_check_file):
-    mock_os_walk.return_value = [("/root/sub1", (), ("file.java",))]
-    mock_check_file.return_value = False
+def test_find_examples(mock_os_walk, mock_check_file, is_valid):
+    mock_os_walk.return_value = [
+        ("/root/sub1", (), ("file.java",)),
+        ("/root/sub2", (), ("file2.java",)),
+    ]
+    mock_check_file.return_value = not is_valid
     sdk = SDK_UNSPECIFIED
-    result = find_examples(root_dir="/root", subdirs=["sub1"], supported_categories=[], sdk=sdk)
+    if is_valid:
+        result = find_examples(root_dir="/root", subdirs=["sub1", "sub2"],
+            supported_categories=[], sdk=sdk)
+        assert not result
+    else:
+        with pytest.raises(
+            ValueError,
+            match="Some of the beam examples contain beam playground tag with "
+                    "an incorrect format"):
+            find_examples("/root", ["sub1", "sub2"], [], sdk=sdk)
 
-    assert not result
-    mock_os_walk.assert_called_once_with("/root/sub1")
-    mock_check_file.assert_called_once_with(
-        examples=[],
-        filename="file.java",
-        filepath="/root/sub1/file.java",
-        supported_categories=[],
-        sdk=sdk)
-
-
-@mock.patch("helper._check_file")
-@mock.patch("helper.os.walk")
-def test_find_examples_with_invalid_tag(mock_os_walk, mock_check_file):
-    mock_os_walk.return_value = [("/root/sub1", (), ("file.java",))]
-    mock_check_file.return_value = True
-    sdk = SDK_UNSPECIFIED
-    with pytest.raises(
-          ValueError,
-          match="Some of the beam examples contain beam playground tag with "
-                "an incorrect format"):
-        find_examples("/root", ["sub1"], [], sdk=sdk)
-
-    mock_os_walk.assert_called_once_with("/root/sub1")
-    mock_check_file.assert_called_once_with(
-        examples=[],
-        filename="file.java",
-        filepath="/root/sub1/file.java",
-        supported_categories=[],
-        sdk=sdk)
+    mock_os_walk.assert_has_calls([
+        mock.call("/root/sub1"),
+        mock.call("/root/sub2"),
+    ])
+    mock_check_file.assert_has_calls([
+        mock.call(
+            examples=[],
+            filename="file.java",
+            filepath="/root/sub1/file.java",
+            supported_categories=[],
+            sdk=sdk
+        ),
+        mock.call(
+            examples=[],
+            filename="file2.java",
+            filepath="/root/sub2/file2.java",
+            supported_categories=[],
+            sdk=sdk
+        ),
+    ])
 
 
 @pytest.mark.asyncio
