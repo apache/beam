@@ -52,9 +52,7 @@ jobs:
           set -xeu
           # define the base ref
           BASE_REF=$GITHUB_BASE_REF
-          if [ -z "$BASE_REF" ]; then
-            BASE_REF=origin/master
-          elif [ "$BASE_REF" == "master" ]; then
+          if [ -z "$BASE_REF" ] || [ "$BASE_REF" == "master" ]; then
             BASE_REF=origin/master
           fi
           DIFF=$(git diff --name-only $BASE_REF $GITHUB_SHA -- $SUBDIRS)
