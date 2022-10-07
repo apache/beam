@@ -121,7 +121,7 @@ variable "redis_memory_size_gb" {
 #VPC
 variable "network_name" {
   description = "Name of VPC to be created"
-  default     = "default"
+  default     = "playground-vpc"
 }
 
 # Applications
