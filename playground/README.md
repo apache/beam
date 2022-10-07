@@ -81,6 +81,13 @@ cd beam
 ./gradlew playground:backend:removeUnusedSnippet -DdayDiff={int} -DprojectId={string}
 ```
 
+## Run playground tests without cache
+
+```
+cd beam
+ ./gradlew playground:backend:testWithoutCache
+```
+
 # Deployment
 
 See [terraform](./terraform/README.md) for details on how to build and deploy

@@ -33,8 +33,6 @@ type Unit struct {
 	Hints             []string `json:"hints,omitempty"`
 	TaskSnippetId     string   `json:"taskSnippetId,omitempty"`
 	SolutionSnippetId string   `json:"solutionSnippetId,omitempty"`
-	TaskName          string   `json:"-"`
-	SolutionName      string   `json:"-"`
 
 	// optional, user-specific
 	UserSnippetId string `json:"userSnippetId,omitempty"`
@@ -50,6 +48,7 @@ const (
 )
 
 type Group struct {
+	Id    string `json:"id"`
 	Title string `json:"title"`
 	Nodes []Node `json:"nodes"`
 }

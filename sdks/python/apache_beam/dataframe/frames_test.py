@@ -1011,6 +1011,32 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.groupby(level=0).sum(), df, nonparallel=True)
     self._run_test(lambda df: df.groupby(level=0).mean(), df, nonparallel=True)
 
+  def test_astype_categorical(self):
+    df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
+    categorical_dtype = pd.CategoricalDtype(df.B.unique())
+
+    self._run_test(lambda df: df.B.astype(categorical_dtype), df)
+
+  @unittest.skipIf(
+      PD_VERSION < (1, 2), "DataFrame.unstack not supported in pandas <1.2.x")
+  def test_astype_categorical_with_unstack(self):
+    df = pd.DataFrame({
+        'index1': ['one', 'one', 'two', 'two'],
+        'index2': ['a', 'b', 'a', 'b'],
+        'data': np.arange(1.0, 5.0),
+    })
+
+    def with_categorical_index(df):
+      df.index1 = df.index1.astype(pd.CategoricalDtype(['one', 'two']))
+      df.index2 = df.index2.astype(pd.CategoricalDtype(['a', 'b']))
+      df.set_index(['index1', 'index2'], drop=True)
+      return df
+
+    self._run_test(
+        lambda df: with_categorical_index(df).unstack(level=-1),
+        df,
+        check_proxy=False)
+
   def test_dataframe_sum_nonnumeric_raises(self):
     # Attempting a numeric aggregation with the str column present should
     # raise, and suggest the numeric_only argument
@@ -2795,6 +2821,13 @@ class BeamSpecificTest(unittest.TestCase):
         lambda s: s.str.split(r"\.jpg", regex=True, expand=False), s)
     self.assert_frame_data_equivalent(
         result, s.str.split(r"\.jpg", regex=True, expand=False))
+
+  def test_astype_categorical_rejected(self):
+    df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
+
+    with self.assertRaisesRegex(frame_base.WontImplementError,
+                                r"astype\(dtype='category'\)"):
+      self._evaluate(lambda df: df.B.astype('category'), df)
 
 
 class AllowNonParallelTest(unittest.TestCase):

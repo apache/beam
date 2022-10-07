@@ -1538,7 +1538,10 @@ class RowAsDictJsonCoder(coders.Coder):
     # to the programmer that they have used NAN/INF values.
     try:
       return json.dumps(
-          table_row, allow_nan=False, default=default_encoder).encode('utf-8')
+          table_row,
+          allow_nan=False,
+          ensure_ascii=False,
+          default=default_encoder).encode('utf-8')
     except ValueError as e:
       raise ValueError(
           '%s. %s. Row: %r' % (e, JSON_COMPLIANCE_ERROR, table_row))
