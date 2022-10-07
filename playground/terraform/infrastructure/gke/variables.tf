@@ -37,7 +37,7 @@ variable "service_account_email" {
 
 variable "name" {
   description = "Name of GKE cluster"
-  default     = "playground-examples"
+  default     = "playground-backend"
 }
 
 variable "location" {
