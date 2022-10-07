@@ -19,6 +19,7 @@ import argparse
 import io
 import logging
 import os
+from typing import Iterable
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
@@ -34,6 +35,7 @@ from apache_beam.runners.runner import PipelineResult
 from PIL import Image
 from tfx_bsl.public.beam.run_inference import CreateModelHandler
 from tfx_bsl.public.proto import model_spec_pb2
+from tfx_bsl.public.beam.run_inference import prediction_log_pb2
 
 _IMG_SIZE = (224, 224)
 
@@ -43,43 +45,54 @@ def filter_empty_lines(text: str) -> Iterator[str]:
     yield text
 
 
-def read_image(image_file_name: str,
-               path_to_dir: Optional[str] = None) -> Tuple[str, Image.Image]:
+def read_and_process_image(
+    image_file_name: str,
+    path_to_dir: Optional[str] = None) -> Tuple[str, tf.Tensor]:
   if path_to_dir is not None:
     image_file_name = os.path.join(path_to_dir, image_file_name)
   with FileSystems().open(image_file_name, 'r') as file:
     data = Image.open(io.BytesIO(file.read())).convert('RGB')
-    return image_file_name, data
-
-
-def preprocess_image(data):
   # Note: Converts the image dtype from uint8 to float32
   # https://www.tensorflow.org/api_docs/python/tf/image/resize
   image = tf.keras.preprocessing.image.img_to_array(data)
   image = tf.image.resize(image, _IMG_SIZE)
-  return image
+  return image_file_name, image
 
 
-class ExampleProcessor:
-  def create_example(self, element):
-    feature_of_bytes = self.create_feature_vector(element)
-    features_for_example = {'image': feature_of_bytes}
-    example_proto = tf.train.Example(
-        features=tf.train.Features(feature=features_for_example))
-    return example_proto.SerializeToString()
+def convert_image_to_example_proto(tensor):
+  """
+  This method performs the following:
+  1. Accepts the tensor as input
+  2. Serializes the tensor into bytes and pass it through
+        tf.train.Feature
+  3. Pass the serialized tensor feature using tf.train.Example
+      Proto to the RunInference transform.
 
-  def create_feature_vector(self, element):
-    serialized_non_scalar = tf.io.serialize_tensor(element)
-    feature_of_bytes = tf.train.Feature(
-        bytes_list=tf.train.BytesList(value=[serialized_non_scalar.numpy()]))
-    return feature_of_bytes
+  Args:
+    tensor: A TF tensor.
+  Returns:
+    example_proto: A tf.train.Example containing serialized tensor.
+  """
+  serialized_non_scalar = tf.io.serialize_tensor(tensor)
+  feature_of_bytes = tf.train.Feature(
+      bytes_list=tf.train.BytesList(value=[serialized_non_scalar.numpy()]))
+  features_for_example = {'image': feature_of_bytes}
+  example_proto = tf.train.Example(
+      features=tf.train.Features(feature=features_for_example))
+  return example_proto
 
-  def create_feature_int(self, element):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=[element]))
 
-
-class PostProcessor(beam.DoFn):
-  def process(self, element):
+class ProcessInferenceToString(beam.DoFn):
+  def process(
+      self, element: Tuple[str,
+                           prediction_log_pb2.PredictionLog]) -> Iterable[str]:
+    """
+    Args:
+      element: Tuple of str, and PredictionLog. Inference can be parsed
+        from prediction_log
+    returns:
+      str of filename and inference.
+    """
     filename, predict_log = element[0], element[1].predict_log
     output_value = predict_log.response.outputs
     output_tensor = (
@@ -144,17 +157,16 @@ def run(
       pipeline
       | 'ReadImageNames' >> beam.io.ReadFromText(known_args.input)
       | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
-      | 'ReadImageData' >> beam.Map(
-          lambda image_name: read_image(
-              image_file_name=image_name, path_to_dir=known_args.images_dir))
-      | 'ReshapeImage' >> beam.Map(lambda x: (x[0], preprocess_image(x[1]))))
+      | 'ProcessImageData' >> beam.Map(
+          lambda image_name: read_and_process_image(
+              image_file_name=image_name, path_to_dir=known_args.images_dir)))
 
   predictions = (
       filename_value_pair
       | 'ConvertToExampleProto' >>
-      beam.Map(lambda x: (x[0], ExampleProcessor().create_example(x[1])))
+      beam.Map(lambda x: (x[0], convert_image_to_example_proto(x[1])))
       | 'TFXRunInference' >> RunInference(keyed_model_handler)
-      | 'PostProcess' >> beam.ParDo(PostProcessor()))
+      | 'PostProcess' >> beam.ParDo(ProcessInferenceToString()))
   _ = (
       predictions
       | "WriteOutputToGCS" >> beam.io.WriteToText(
