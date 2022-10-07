@@ -51,7 +51,7 @@ https://cloud.google.com/iam/docs/granting-changing-revoking-access
 ```
 **Description:** * *It will explain how to assign required roles for your service account* *
 
-6. How to install GCloud to your Operation system
+6. How to install gcloud CLI to your local environment
 ```
 https://cloud.google.com/sdk/docs/install?hl=en
 ```
