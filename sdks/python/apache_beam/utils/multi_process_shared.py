@@ -214,6 +214,11 @@ class MultiProcessShared(Generic[T]):
     return self._manager
 
   def acquire(self):
+    # TODO: Allow passing/parameterizing the callable here, in case they are
+    # not available at MultiProcessShared construction time (e.g. from side
+    # inputs)
+    # Caveat: They must always agree, as they will be ignored if the object
+    # is already constructed.
     return self._get_manager().acquire_singleton(self._tag)
 
   def release(self, obj):
