@@ -29,7 +29,7 @@ Learn about the Beam model, the currently available Beam SDKs and Runners, and B
 
 #### Quickstarts for Java, Python, and Go
 
-Learn how to set up a Beam project and run a simple example Beam pipeline on your local machine. 
+Learn how to set up a Beam project and run a simple example Beam pipeline on your local machine.
 
 * [Java quickstart](/get-started/quickstart-java)
 * [Python quickstart](/get-started/quickstart-py)
