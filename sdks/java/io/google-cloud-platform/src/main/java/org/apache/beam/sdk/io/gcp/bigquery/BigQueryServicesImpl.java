@@ -1682,12 +1682,12 @@ class BigQueryServicesImpl implements BigQueryServices {
     BoundedExecutorService(ListeningExecutorService taskExecutor, int parallelism) {
       this.taskExecutor = taskExecutor;
       this.taskSubmitExecutor =
-          MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor(
-              new ThreadFactoryBuilder()
-                  .setDaemon(true)
-                  .setNameFormat("BoundedBigQueryService-thread")
-                  .build()
-          ));
+          MoreExecutors.listeningDecorator(
+              Executors.newSingleThreadExecutor(
+                  new ThreadFactoryBuilder()
+                      .setDaemon(true)
+                      .setNameFormat("BoundedBigQueryService-thread")
+                      .build()));
       this.semaphore = new Semaphore(parallelism);
     }
 

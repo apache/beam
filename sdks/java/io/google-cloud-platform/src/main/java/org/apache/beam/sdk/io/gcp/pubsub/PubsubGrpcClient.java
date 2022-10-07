@@ -167,12 +167,13 @@ public class PubsubGrpcClient extends PubsubClient {
   private Channel newChannel() throws IOException {
     checkState(publisherChannel != null, "PubsubGrpcClient has been closed");
     ClientAuthInterceptor interceptor =
-        new ClientAuthInterceptor(credentials, Executors.newSingleThreadExecutor(
-            new ThreadFactoryBuilder()
-                .setDaemon(true)
-                .setNameFormat("PubsubGrpcClient-thread")
-                .build()
-        ));
+        new ClientAuthInterceptor(
+            credentials,
+            Executors.newSingleThreadExecutor(
+                new ThreadFactoryBuilder()
+                    .setDaemon(true)
+                    .setNameFormat("PubsubGrpcClient-thread")
+                    .build()));
     return ClientInterceptors.intercept(publisherChannel, interceptor);
   }
 

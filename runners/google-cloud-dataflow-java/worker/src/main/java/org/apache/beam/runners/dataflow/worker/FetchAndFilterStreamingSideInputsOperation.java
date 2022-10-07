@@ -97,11 +97,12 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
             (StreamingModeExecutionContext.StreamingModeStepContext)
                 stepContext.namespacedToUser());
     this.elementsToProcess = new LinkedBlockingQueue<>();
-    this.singleThreadExecutor = Executors.newSingleThreadExecutor(
-        new ThreadFactoryBuilder()
-        .setDaemon(true)
-        .setNameFormat("FetchAndFilterStreamingSideInput-thread")
-        .build());
+    this.singleThreadExecutor =
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("FetchAndFilterStreamingSideInput-thread")
+                .build());
   }
 
   /** A {@link PCollectionView} which forwards all calls to its delegate. */

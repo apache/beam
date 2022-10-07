@@ -202,11 +202,12 @@ public class DataflowRunnerHarness {
       }
       worker.startStatusPages();
       worker.start();
-      ExecutorService executor = Executors.newSingleThreadExecutor(
-          new ThreadFactoryBuilder()
-          .setDaemon(true)
-          .setNameFormat("ControlClient-thread")
-          .build());
+      ExecutorService executor =
+          Executors.newSingleThreadExecutor(
+              new ThreadFactoryBuilder()
+                  .setDaemon(true)
+                  .setNameFormat("ControlClient-thread")
+                  .build());
       executor.execute(
           () -> { // Task to get new client connections
             while (true) {

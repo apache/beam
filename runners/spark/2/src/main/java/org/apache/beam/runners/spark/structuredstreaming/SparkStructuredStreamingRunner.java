@@ -142,11 +142,9 @@ public final class SparkStructuredStreamingRunner
 
     final AbstractTranslationContext translationContext = translatePipeline(pipeline);
 
-    final ExecutorService executorService = Executors.newSingleThreadExecutor(
-        new ThreadFactoryBuilder()
-            .setDaemon(true)
-            .setNameFormat("LocalSpark-thread")
-            .build());
+    final ExecutorService executorService =
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalSpark-thread").build());
     final Future<?> submissionFuture =
         executorService.submit(
             () -> {

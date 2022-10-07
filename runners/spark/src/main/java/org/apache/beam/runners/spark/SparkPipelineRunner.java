@@ -120,11 +120,12 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
     final SparkTranslationContext context =
         translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
-    final ExecutorService executorService = Executors.newSingleThreadExecutor(
-        new ThreadFactoryBuilder()
-            .setDaemon(true)
-            .setNameFormat("DefaultSparkRunner-thread")
-            .build());
+    final ExecutorService executorService =
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("DefaultSparkRunner-thread")
+                .build());
 
     LOG.info("Running job {} on Spark master {}", jobInfo.jobId(), jsc.master());
 
