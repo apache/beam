@@ -407,7 +407,7 @@ class SchemaTranslation(object):
 
     type_proto = self.typing_to_runner_api(type(value))
     value_proto = self.value_to_runner_api(type_proto, value)
-    return schema_pb2.Option(name=name, type=value_proto, value=value_proto)
+    return schema_pb2.Option(name=name, type=type_proto, value=value_proto)
 
   def typing_from_runner_api(
       self, fieldtype_proto: schema_pb2.FieldType) -> type:

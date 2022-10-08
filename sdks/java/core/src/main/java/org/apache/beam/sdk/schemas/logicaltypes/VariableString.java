@@ -24,7 +24,7 @@ import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** A LogicalType representing a variable-length byte array with specified maximum length. */
+/** A LogicalType representing a variable-length string with specified maximum length. */
 public class VariableString extends PassThroughLogicalType<String> {
   public static final String IDENTIFIER =
       SchemaApi.LogicalTypes.Enum.VAR_CHAR
