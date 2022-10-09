@@ -3319,6 +3319,56 @@ public class StreamingDataflowWorkerTest {
             .equals(Duration.millis(1000)));
   }
 
+  // A DoFn that triggers a GetData request.
+  static class ReadingDoFn extends DoFn<String, String> {
+    @StateId("int")
+    private final StateSpec<ValueState<Integer>> counter = StateSpecs.value(VarIntCoder.of());
+
+    @ProcessElement
+    public void processElement(ProcessContext c, @StateId("int") ValueState<Integer> state) {
+      state.read();
+      c.output(c.element());
+    }
+  }
+
+  @Test
+  public void testLatencyAttributionToReadingState() throws Exception {
+    final int workToken = 5454; // A unique id makes it easier to find logs.
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(new ReadingDoFn(), 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setActiveWorkRefreshPeriodMillis(100);
+    StreamingDataflowWorker worker =
+        makeWorker(instructions, options, false /* publishCounters */, FakeClock.DEFAULT);
+    worker.start();
+
+    // Inject latency on the fake clock when the server receives a GetData call that isn't
+    // only for refreshing active work.
+    ActiveWorkRefreshSink awrSink =
+        new ActiveWorkRefreshSink(
+            (request) -> {
+              FakeClock.DEFAULT.sleep(Duration.millis(1000));
+              Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+              return EMPTY_DATA_RESPONDER.apply(request);
+            });
+    server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
+    server.whenGetWorkCalled().thenReturn(makeInput(workToken, 0 /* timestamp */));
+    server.waitForAndGetCommits(1);
+
+    worker.stop();
+
+    assertTrue(
+        awrSink
+            .getLatencyAttributionDuration(workToken, LatencyAttribution.State.READING)
+            .equals(Duration.millis(1000)));
+  }
+
   /** For each input element, emits a large string. */
   private static class InflateDoFn extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
 
