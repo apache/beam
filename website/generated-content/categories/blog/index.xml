@@ -3008,7 +3008,7 @@ In particular, it would be really helpful to know if there&amp;rsquo;s an operat
 haven&amp;rsquo;t implemented yet that you&amp;rsquo;d find useful, so that we can prioritize it.&lt;/p>
 &lt;p>If you&amp;rsquo;d like to learn more about how the DataFrame API works under the hood and
 get involved with the development we recommend you take a look at the
-&lt;a href="http://s.apache.org/beam-dataframes">design doc&lt;/a>
+&lt;a href="https://s.apache.org/beam-dataframes">design doc&lt;/a>
 and our &lt;a href="https://2020.beamsummit.org/sessions/simpler-python-pipelines/">Beam summit
 presentation&lt;/a>.
 From there the best way to help is to knock out some of those not implemented
@@ -5071,7 +5071,7 @@ SQL in your pipelines. This is done using Beam&amp;rsquo;s
 in Java pipelines.&lt;/p>
 &lt;p>Beam also has a fancy new SQL command line that you can use to query your
 data interactively, be it Batch or Streaming. If you haven&amp;rsquo;t tried it, check out
-&lt;a href="https://bit.ly/ExploreBeamSQL">http://bit.ly/ExploreBeamSQL&lt;/a>.&lt;/p>
+&lt;a href="https://bit.ly/ExploreBeamSQL">https://bit.ly/ExploreBeamSQL&lt;/a>.&lt;/p>
 &lt;p>A nice feature of the SQL CLI is that you can use &lt;code>CREATE EXTERNAL TABLE&lt;/code>
 commands to &lt;em>add&lt;/em> data sources to be accessed in the CLI. Currently, the CLI
 supports creating tables from BigQuery, PubSub, Kafka, and text files. In this

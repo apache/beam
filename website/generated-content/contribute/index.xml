@@ -117,7 +117,7 @@ spotted, even after the merge happens.&lt;/p>
 &lt;p>If you are merging a larger contribution, please make sure that the contributor
 has an ICLA on file with the Apache Secretary. You can view the list of
 committers &lt;a href="https://home.apache.org/phonebook.html?unix=committers">here&lt;/a>, as
-well as &lt;a href="http://home.apache.org/unlistedclas.html">ICLA-signers who aren’t yet
+well as &lt;a href="https://home.apache.org/unlistedclas.html">ICLA-signers who aren’t yet
 committers&lt;/a>.&lt;/p>
 &lt;p>For smaller contributions, however, this is not required. In this case, we rely
 on &lt;a href="https://www.apache.org/licenses/LICENSE-2.0#contributions">clause five&lt;/a> of
@@ -741,7 +741,7 @@ They are a public face of the project and most users interact with the project o
 This document describes the process that the Release Manager follows to perform a release.
 Any changes to this process should be discussed and adopted on the &lt;a href="/get-started/support/">dev@ mailing list&lt;/a>.&lt;/p>
 &lt;p>Please remember that publishing software has legal consequences.
-This guide complements the foundation-wide &lt;a href="http://www.apache.org/dev/release.html">Product Release Policy&lt;/a> and &lt;a href="http://www.apache.org/dev/release-distribution">Release Distribution Policy&lt;/a>.&lt;/p>
+This guide complements the foundation-wide &lt;a href="https://www.apache.org/dev/release.html">Product Release Policy&lt;/a> and &lt;a href="https://www.apache.org/dev/release-distribution">Release Distribution Policy&lt;/a>.&lt;/p>
 &lt;h3 id="overview">Overview&lt;/h3>
 &lt;img src="/images/release-guide-1.png" alt="Alt text" width="100%">
 &lt;p>The release process consists of several steps:&lt;/p>
@@ -1428,7 +1428,7 @@ docker pull apache/beam_python3.7_sdk:2.39.0_rc1
 &lt;/code>&lt;/pre>&lt;hr>
 &lt;h2 id="10-vote-and-validate-release-candidate">10. Vote and validate release candidate&lt;/h2>
 &lt;p>Once you have built and individually reviewed the release candidate, please share it for the community-wide review.
-Please review foundation-wide &lt;a href="http://www.apache.org/foundation/voting.html">voting guidelines&lt;/a> for more information.&lt;/p>
+Please review foundation-wide &lt;a href="https://www.apache.org/foundation/voting.html">voting guidelines&lt;/a> for more information.&lt;/p>
 &lt;p>Start the review-and-vote thread on the dev@ mailing list.
 Here’s an email template; please adjust as you see fit.&lt;/p>
 &lt;pre>&lt;code>From: Release Manager

@@ -2845,7 +2845,7 @@ Then:
 &lt;p>&lt;strong>Note&lt;/strong>:
 SnowflakeIO uses &lt;code>COPY&lt;/code> statements behind the scenes to read (using &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html">COPY to location&lt;/a>) files staged in cloud storage.StagingBucketName will be used as a temporary location for storing CSV files. Those temporary directories will be named &lt;code>sf_copy_csv_DATE_TIME_RANDOMSUFFIX&lt;/code> and they will be removed automatically once Read operation finishes.&lt;/p>
 &lt;h3 id="csvmapper">CSVMapper&lt;/h3>
-&lt;p>SnowflakeIO uses a &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html">COPY INTO &lt;location>&lt;/a> statement to move data from a Snowflake table to GCS/S3 as CSV files. These files are then downloaded via &lt;a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> and processed line by line. Each line is split into an array of Strings using the &lt;a href="http://opencsv.sourceforge.net/">OpenCSV&lt;/a> library.&lt;/p>
+&lt;p>SnowflakeIO uses a &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html">COPY INTO &lt;location>&lt;/a> statement to move data from a Snowflake table to GCS/S3 as CSV files. These files are then downloaded via &lt;a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> and processed line by line. Each line is split into an array of Strings using the &lt;a href="https://opencsv.sourceforge.net/">OpenCSV&lt;/a> library.&lt;/p>
 &lt;p>The CSVMapper’s job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom POJO.&lt;/p>
 &lt;p>Example implementation of CsvMapper for GenericRecord:
 &lt;div class="snippet">
@@ -2960,7 +2960,7 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
 &lt;p>&lt;code>storage_integration_name&lt;/code> Is the name of a Snowflake storage integration object created according to &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/create-storage-integration.html">Snowflake documentation&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>&lt;code>csv_mapper&lt;/code> Specifies a function which must translate user-defined object to array of strings. SnowflakeIO uses a &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html">COPY INTO &lt;location>&lt;/a> statement to move data from a Snowflake table to GCS/S3 as CSV files. These files are then downloaded via &lt;a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> and processed line by line. Each line is split into an array of Strings using the &lt;a href="http://opencsv.sourceforge.net/">OpenCSV&lt;/a> library. The csv_mapper function job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom objects.
+&lt;p>&lt;code>csv_mapper&lt;/code> Specifies a function which must translate user-defined object to array of strings. SnowflakeIO uses a &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html">COPY INTO &lt;location>&lt;/a> statement to move data from a Snowflake table to GCS/S3 as CSV files. These files are then downloaded via &lt;a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> and processed line by line. Each line is split into an array of Strings using the &lt;a href="https://opencsv.sourceforge.net/">OpenCSV&lt;/a> library. The csv_mapper function job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom objects.
 Example:
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
@@ -6184,21 +6184,6 @@ and finally a name for the combined value in the output object.
 &lt;span class="n">large_sum&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pc&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombineGlobally&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">bounded_sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bound&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">5000&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># [1111]&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p class="language-go">&lt;p>All Combiners should be registered using a generic &lt;code>register.CombinerX[...]&lt;/code>
-function. This allows the Go SDK to infer an encoding from any inputs/outputs,
-registers the Combiner for execution on remote runners, and optimizes the runtime
-execution of the Combiner via reflection.&lt;/p>
-&lt;p>Combiner1 should be used when your accumulator, input, and output are all of the
-same type. It can be called with &lt;code>register.Combiner1[T](&amp;amp;CustomCombiner{})&lt;/code> where &lt;code>T&lt;/code>
-is the type of the input/accumulator/output.&lt;/p>
-&lt;p>Combiner2 should be used when your accumulator, input, and output are 2 distinct
-types. It can be called with &lt;code>register.Combiner2[T1, T2](&amp;amp;CustomCombiner{})&lt;/code> where
-&lt;code>T1&lt;/code> is the type of the accumulator and &lt;code>T2&lt;/code> is the other type.&lt;/p>
-&lt;p>Combiner3 should be used when your accumulator, input, and output are 3 distinct
-types. It can be called with &lt;code>register.Combiner3[T1, T2, T3](&amp;amp;CustomCombiner{})&lt;/code>
-where &lt;code>T1&lt;/code> is the type of the accumulator, &lt;code>T2&lt;/code> is the type of the input, and &lt;code>T3&lt;/code> is
-the type of the output.&lt;/p>
-&lt;/p>
 &lt;div class='language-go snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6247,6 +6232,21 @@ the type of the output.&lt;/p>
 &lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;p class="language-go">&lt;p>All Combiners should be registered using a generic &lt;code>register.CombinerX[...]&lt;/code>
+function. This allows the Go SDK to infer an encoding from any inputs/outputs,
+registers the Combiner for execution on remote runners, and optimizes the runtime
+execution of the Combiner via reflection.&lt;/p>
+&lt;p>Combiner1 should be used when your accumulator, input, and output are all of the
+same type. It can be called with &lt;code>register.Combiner1[T](&amp;amp;CustomCombiner{})&lt;/code> where &lt;code>T&lt;/code>
+is the type of the input/accumulator/output.&lt;/p>
+&lt;p>Combiner2 should be used when your accumulator, input, and output are 2 distinct
+types. It can be called with &lt;code>register.Combiner2[T1, T2](&amp;amp;CustomCombiner{})&lt;/code> where
+&lt;code>T1&lt;/code> is the type of the accumulator and &lt;code>T2&lt;/code> is the other type.&lt;/p>
+&lt;p>Combiner3 should be used when your accumulator, input, and output are 3 distinct
+types. It can be called with &lt;code>register.Combiner3[T1, T2, T3](&amp;amp;CustomCombiner{})&lt;/code>
+where &lt;code>T1&lt;/code> is the type of the accumulator, &lt;code>T2&lt;/code> is the type of the input, and &lt;code>T3&lt;/code> is
+the type of the output.&lt;/p>
+&lt;/p>
 &lt;h5 id="advanced-combines">4.2.4.2. Advanced combinations using CombineFn&lt;/h5>
 &lt;p>For more complex combine functions, you can define a
 &lt;span class="language-java language-py">subclass of&lt;/span>&lt;code>CombineFn&lt;/code>.
@@ -6493,6 +6493,29 @@ following code example:&lt;/p>
 &lt;span class="c1">// Otherwise, return the default
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="nx">d&lt;/span>
 &lt;span class="p">},&lt;/span> &lt;span class="nx">defaultValue&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">SideInput&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="nx">Input&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">average&lt;/span>&lt;span class="p">})&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">([&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">player&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;alice&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">accuracy&lt;/span>: &lt;span class="kt">1.0&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">player&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;bob&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">accuracy&lt;/span>: &lt;span class="kt">0.99&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">player&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;eve&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">accuracy&lt;/span>: &lt;span class="kt">0.5&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">player&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;eve&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">accuracy&lt;/span>: &lt;span class="kt">0.25&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">])&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">pcoll&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">groupGlobally&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">combining&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;accuracy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">combiners&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">mean&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;mean&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">combining&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;accuracy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">combiners&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">max&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;max&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">expected&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[{&lt;/span> &lt;span class="nx">max&lt;/span>: &lt;span class="kt">1.0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">mean&lt;/span>: &lt;span class="kt">0.685&lt;/span> &lt;span class="p">}];&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h5 id="combine-non-global-windowing">4.2.4.5. Combine and non-global windowing&lt;/h5>
@@ -7547,8 +7570,10 @@ Timers and States are explained in more detail in the
 &lt;p class="language-go">&lt;strong>Timer and State:&lt;/strong>
 This feature isn&amp;rsquo;t implemented in the Go SDK; see more at &lt;a href="https://github.com/apache/beam/issues/20510">Issue 20510&lt;/a>. Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.&lt;/p>
 &lt;p class="language-typescript">&lt;strong>Timer and State:&lt;/strong>
-This feature isn&amp;rsquo;t implemented in the Typescript SDK yet,
-but can be used from a cross-language transform.&lt;/p>
+This feature isn&amp;rsquo;t yet implemented in the Typescript SDK,
+but we welcome &lt;a href="https://beam.apache.org/contribute/">contributions&lt;/a>.
+In the meantime, Typescript pipelines wishing to use state and timers can do so
+using &lt;a href="#use-x-lang-transforms">cross-language transforms&lt;/a>.&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -7607,6 +7632,15 @@ but can be used from a cross-language transform.&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// State and Timers are yet implemented in the Go SDK.
 &lt;/span>&lt;span class="c1">// See https://github.com/apache/beam/issues/20510 for info
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="o">//&lt;/span> &lt;span class="nx">on&lt;/span> &lt;span class="nx">contributing&lt;/span> &lt;span class="nx">State&lt;/span> &lt;span class="nx">and&lt;/span> &lt;span class="nx">Timers&lt;/span>&lt;span class="p">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="c1">// Not yet implemented.
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="composite-transforms">4.6. Composite transforms&lt;/h3>
@@ -8124,6 +8158,9 @@ infer the correct schema based on the members of the class.&lt;/p>
 &lt;p class="language-py">In Python you can use the following set of classes to represent the purchase schema. Beam will automatically infer the correct schema based on the members of the class.&lt;/p>
 &lt;p class="language-go">In Go, schema encoding is used by default for struct types, with Exported fields becoming part of the schema.
 Beam will automatically infer the schema based on the fields and field tags of the struct, and their order.&lt;/p>
+&lt;p class="language-typescript">In Typescript, JSON objects are used to represent schema&amp;rsquo;d data.
+Unfortunately type information in Typescript is not propagated to the runtime layer,
+so it needs to be manually specified in some places (e.g. when using cross-langauge pipelines).&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -8220,6 +8257,23 @@ Beam will automatically infer the schema based on the fields and field tags of t
 &lt;span class="nx">Bank&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="s">`beam:&amp;#34;bank&amp;#34;`&lt;/span>
 &lt;span class="nx">PurchaseAmount&lt;/span> &lt;span class="kt">float64&lt;/span> &lt;span class="s">`beam:&amp;#34;purchaseAmount&amp;#34;`&lt;/span>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">([&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">intField&lt;/span>: &lt;span class="kt">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">stringField&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;a&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">intField&lt;/span>: &lt;span class="kt">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">stringField&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;b&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">])&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// Let beam know the type of the elements by providing an exemplar.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">withRowCoder&lt;/span>&lt;span class="p">({&lt;/span> &lt;span class="nx">intField&lt;/span>: &lt;span class="kt">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">stringField&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;&amp;#34;&lt;/span> &lt;span class="p">}));&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="language-java">Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
@@ -8371,6 +8425,9 @@ The argument is represented by a schema type, so can itself be a complex type.&l
 &lt;p class="language-go">In Go, a logical type is specified with a custom implementation of the &lt;code>beam.SchemaProvider&lt;/code> interface.
 For example, the logical type provider representing nanosecond timestamps
 might be implemented as follows&lt;/p>
+&lt;p class="language-typescript">In Typescript, a logical type defined by the &lt;a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/coders/row_coder.ts">LogicalTypeInfo&lt;/a>
+interface which associates a logical type&amp;rsquo;s URN with its representation
+and its conversion to and from this representation.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -8468,6 +8525,36 @@ might be implemented as follows&lt;/p>
 &lt;span class="c1">// Register it like so:
 &lt;/span>&lt;span class="c1">&lt;/span>
 &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterSchemaProvider&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">tnType&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">TimestampNanosProvider&lt;/span>&lt;span class="p">{})&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="c1">// Register a logical type:
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="kr">class&lt;/span> &lt;span class="nx">Foo&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="kr">constructor&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kr">public&lt;/span> &lt;span class="nx">value&lt;/span>: &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{}&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="nx">requireForSerialization&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;apache-beam&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">Foo&lt;/span> &lt;span class="p">});&lt;/span>
+&lt;span class="nx">row_coder&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">registerLogicalType&lt;/span>&lt;span class="p">({&lt;/span>
+&lt;span class="nx">urn&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;beam:logical_type:typescript_foo:v1&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">reprType&lt;/span>: &lt;span class="kt">row_coder.RowCoder.inferTypeFromJSON&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;string&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">false&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="nx">toRepr&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">foo&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">foo&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">value&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">fromRepr&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">value&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="nx">Foo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">value&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">});&lt;/span>
+&lt;span class="c1">// And use it as follows:
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="nx">Foo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;a&amp;#34;&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="nx">Foo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;b&amp;#34;&lt;/span>&lt;span class="p">)]))&lt;/span>
+&lt;span class="c1">// Use beamLogicalType in the exemplar to indicate its use.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">withRowCoder&lt;/span>&lt;span class="p">({&lt;/span>
+&lt;span class="nx">beamLogicalType&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;beam:logical_type:typescript_foo:v1&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">}&lt;/span> &lt;span class="kr">as&lt;/span> &lt;span class="nx">any&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="built-in-logical-types">6.4.2. Useful logical types&lt;/h4>
@@ -8571,8 +8658,13 @@ In addition, often Beam pipelines have intermediate stages and types, and those 
 &lt;li data-value="java" class="active">Java SDK&lt;/li>
 &lt;li data-value="py">Python SDK&lt;/li>
 &lt;li data-value="go">Go SDK&lt;/li>
+&lt;li data-value="typescript">TypeScript SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
+&lt;p class="language-typescript">Unfortunately, Beam is unable to access Typescript&amp;rsquo;s type information at runtime.
+Schemas must be manually declared with &lt;code>beam.withRowCoder&lt;/code>.
+On the other hand, schema-aware operations such as &lt;code>GroupBy&lt;/code> can be used
+without an explicit schema declared.&lt;/p>
 &lt;p class="language-java">Beam is able to infer schemas from a variety of common Java types.
 The &lt;code>@DefaultSchema&lt;/code> annotation can be used to tell Beam to infer schemas from a specific type.
 The annotation takes a &lt;code>SchemaProvider&lt;/code> as an argument, and &lt;code>SchemaProvider&lt;/code> classes are already built in for common Java types.
@@ -9395,6 +9487,7 @@ automatically convert to any matching schema type, just like when reading the en
 &lt;li data-value="java" class="active">Java SDK&lt;/li>
 &lt;li data-value="py">Python SDK&lt;/li>
 &lt;li data-value="go">Go SDK&lt;/li>
+&lt;li data-value="typescript">TypeScript SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;p>When Beam runners execute your pipeline, they often need to materialize the
@@ -9425,6 +9518,11 @@ However, users can build and register custom coders with &lt;code>beam.RegisterC
 You can find available Coder functions in the
 &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder">coder&lt;/a>
 package.&lt;/p>
+&lt;p class="language-typescript">Standard Typescript types like &lt;code>number&lt;/code>, &lt;code>UInt8Array&lt;/code> and &lt;code>string&lt;/code> and more are coded using builtin coders.
+Json objects and arrays are encoded via a BSON encoding.
+For these types, coders need not be specified unless interacting with cross-language transforms.
+Users can build custom coders by extending &lt;code>beam.coders.Coder&lt;/code>
+for use with &lt;code>withCoderInternal&lt;/code>, but generally logical types are preferred for this case.&lt;/p>
 &lt;blockquote>
 &lt;p>Note that coders do not necessarily have a 1:1 relationship with types. For
 example, the Integer type can have multiple valid coders, and input and output
@@ -9908,6 +10006,16 @@ into fixed windows, each 60 seconds in length:&lt;/p>
 &lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="nx">pcoll&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">windowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">windowings&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">fixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="p">)))&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="using-sliding-time-windows">8.3.2. Sliding time windows&lt;/h4>
 &lt;p>The following example code shows how to apply &lt;code>Window&lt;/code> to divide a &lt;code>PCollection&lt;/code>
 into sliding time windows. Each window is 30 seconds in length, and a new window
@@ -9940,6 +10048,16 @@ begins every five seconds:&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">slidingWindowedItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewSlidingWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">5&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Second&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">30&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Second&lt;/span>&lt;span class="p">),&lt;/span>
 &lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="nx">pcoll&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">windowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">windowings&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">slidingWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">30&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">5&lt;/span>&lt;span class="p">)))&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="using-session-windows">8.3.3. Session windows&lt;/h4>
@@ -9976,6 +10094,16 @@ least 10 minutes (600 seconds):&lt;/p>
 &lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="nx">pcoll&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">windowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">windowings&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">sessions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">10&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">60&lt;/span>&lt;span class="p">)))&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>Note that the sessions are per-key — each key in the collection will have its
 own session groupings depending on the data distribution.&lt;/p>
 &lt;h4 id="using-single-global-window">8.3.4. Single global window&lt;/h4>
@@ -10010,6 +10138,16 @@ a single global window for a &lt;code>PCollection&lt;/code>:&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">globalWindowedItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewGlobalWindows&lt;/span>&lt;span class="p">(),&lt;/span>
 &lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="nx">pcoll&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">windowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">windowings&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">globalWindows&lt;/span>&lt;span class="p">()))&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="watermarks-and-late-data">8.4. Watermarks and late data&lt;/h3>
@@ -10860,6 +10998,12 @@ to other nodes in the graph. A &lt;code>DoFn&lt;/code> can declare multiple stat
 &lt;p>&lt;strong>Note:&lt;/strong> The Beam SDK for Go does not yet support a State and Timer API. See &lt;a href="https://github.com/apache/beam/issues/20510">Issue 20510&lt;/a> to contribute.&lt;/p>
 &lt;/blockquote>
 &lt;/span>
+&lt;span class="language-typescript">
+&lt;blockquote>
+&lt;p>&lt;strong>Note:&lt;/strong> The Beam SDK for Typescript does not yet support a State and Timer API,
+but it is possible to use these features from cross-langauge pipelines (see below).&lt;/p>
+&lt;/blockquote>
+&lt;/span>
 &lt;h3 id="types-of-state">11.1. Types of state&lt;/h3>
 &lt;p>Beam provides several types of state:&lt;/p>
 &lt;h4 id="valuestate">ValueState&lt;/h4>
@@ -10921,6 +11065,51 @@ accumulates the number of elements seen.&lt;/p>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-typscript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code class="language-typscript" data-lang="typscript">const pcoll = root.apply(
+beam.create([
+{ key: &amp;#34;a&amp;#34;, value: 1 },
+{ key: &amp;#34;b&amp;#34;, value: 10 },
+{ key: &amp;#34;a&amp;#34;, value: 100 },
+])
+);
+const result: PCollection&amp;lt;number&amp;gt; = await pcoll
+.apply(
+withCoderInternal(
+new KVCoder(new StrUtf8Coder(), new VarIntCoder())
+)
+)
+.applyAsync(
+pythonTransform(
+// Construct a new Transform from source.
+&amp;#34;__constructor__&amp;#34;,
+[
+pythonCallable(`
+# Define a DoFn to be used below.
+class ReadModifyWriteStateDoFn(beam.DoFn):
+STATE_SPEC = beam.transforms.userstate.ReadModifyWriteStateSpec(
+&amp;#39;num_elements&amp;#39;, beam.coders.VarIntCoder())
+def process(self, element, state=beam.DoFn.StateParam(STATE_SPEC)):
+current_value = state.read() or 0
+state.write(current_value + 1)
+yield current_value + 1
+class MyPythonTransform(beam.PTransform):
+def expand(self, pcoll):
+return pcoll | beam.ParDo(ReadModifyWriteStateDoFn())
+`),
+],
+// Keyword arguments to pass to the transform, if any.
+{},
+// Output type if it cannot be inferred
+{ requestedOutputCoders: { output: new VarIntCoder() } }
+)
+);&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="combiningstate">CombiningState&lt;/h4>
@@ -11808,7 +11997,7 @@ based on how the amount of work is represented:&lt;/p>
 &lt;li>Bounded DoFns are those where the work represented by an element is well-known beforehand and has
 an end. Examples of bounded elements include a file or group of files.&lt;/li>
 &lt;li>Unbounded DoFns are those where the amount of work does not have a specific end or the
-amount of work is not known befrehand. Examples of unbounded elements include a Kafka or a PubSub
+amount of work is not known beforehand. Examples of unbounded elements include a Kafka or a PubSub
 topic.&lt;/li>
 &lt;/ul>
 &lt;p>In Java, you can use &lt;a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/DoFn.UnboundedPerElement.html">@UnboundedPerElement&lt;/a>
@@ -12980,7 +13169,75 @@ functions as shortcuts for single, unnamed inputs/outputs or define a map for na
 terminating the expansion service process.&lt;/p>
 &lt;/li>
 &lt;/ol>
-&lt;h3 id="x-lang-transform-runner-support">13.3. Runner Support&lt;/h3>
+&lt;h4 id="1324-using-cross-language-transforms-in-a-typescript-pipeline">13.2.4. Using cross-language transforms in a Typescript pipeline&lt;/h4>
+&lt;p>Using a Typescript wrapper for a cross-language pipeline is similar to using any
+other transform, provided the dependencies (e.g. a recent Python interpreter or
+a Java JRE) is available. For example, most of the Typescript IOs are simply
+wrappers around Beam transforms from other languages.&lt;/p>
+&lt;p>If a wrapper is not already available, one can use it explicitly using
+&lt;a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/external.ts">apache_beam.transforms.external.rawExternalTransform&lt;/a>.
+which takes a &lt;code>urn&lt;/code> (a string identifying the transform),
+a &lt;code>payload&lt;/code> (a binary or json object parameterizing the transform),
+and a &lt;code>expansionService&lt;/code> which can either be an address of a pre-started service
+or a callable returning an auto-started expansion service object.&lt;/p>
+&lt;p>For example, one could write&lt;/p>
+&lt;pre>&lt;code>pcoll.applyAsync(
+rawExternalTransform(
+&amp;quot;beam:registered:urn&amp;quot;,
+{arg: value},
+&amp;quot;localhost:expansion_service_port&amp;quot;
+)
+);
+&lt;/code>&lt;/pre>&lt;p>Note that &lt;code>pcoll&lt;/code> must have a cross-language compatible coder coder such as &lt;code>SchemaCoder&lt;/code>.
+This can be ensured with the &lt;a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/internal.ts">withCoderInternal&lt;/a>
+or &lt;a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/internal.ts">withRowCoder&lt;/a>
+transforms, e.g.&lt;/p>
+&lt;pre>&lt;code>
+const result = pcoll.apply(
+beam.withRowCoder({ intFieldName: 0, stringFieldName: &amp;#34;&amp;#34; })
+);
+&lt;/code>&lt;/pre>&lt;p>Coder can also be specified on the output if it cannot be inferred, e.g.&lt;/p>
+&lt;p>In addition, there are several utilities such as &lt;a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/python.ts">pythonTransform&lt;/a>
+that make it easier to invoke transforms from specific languages:&lt;/p>
+&lt;pre>&lt;code>
+const result: PCollection&amp;lt;number&amp;gt; = await pcoll
+.apply(
+beam.withName(&amp;#34;UpdateCoder1&amp;#34;, beam.withRowCoder({ a: 0, b: 0 }))
+)
+.applyAsync(
+pythonTransform(
+// Fully qualified name
+&amp;#34;apache_beam.transforms.Map&amp;#34;,
+// Positional arguments
+[pythonCallable(&amp;#34;lambda x: x.a &amp;#43; x.b&amp;#34;)],
+// Keyword arguments
+{},
+// Output type if it cannot be inferred
+{ requestedOutputCoders: { output: new VarIntCoder() } }
+)
+);
+&lt;/code>&lt;/pre>&lt;p>Cross-langauge transforms can also be defined in line, which can be useful
+for accessing features or libraries not available in the calling SDK&lt;/p>
+&lt;pre>&lt;code>
+const result: PCollection&amp;lt;string&amp;gt; = await pcoll
+.apply(withCoderInternal(new StrUtf8Coder()))
+.applyAsync(
+pythonTransform(
+// Define an arbitrary transform from a callable.
+&amp;#34;__callable__&amp;#34;,
+[
+pythonCallable(`
+def apply(pcoll, prefix, postfix):
+return pcoll | beam.Map(lambda s: prefix &amp;#43; s &amp;#43; postfix)
+`),
+],
+// Keyword arguments to pass above, if any.
+{ prefix: &amp;#34;x&amp;#34;, postfix: &amp;#34;y&amp;#34; },
+// Output type if it cannot be inferred
+{ requestedOutputCoders: { output: new StrUtf8Coder() } }
+)
+);
+&lt;/code>&lt;/pre>&lt;h3 id="x-lang-transform-runner-support">13.3. Runner Support&lt;/h3>
 &lt;p>Currently, portable runners such as Flink, Spark, and the direct runner can be used with multi-language pipelines.&lt;/p>
 &lt;p>Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.&lt;/p>
 &lt;h3 id="x-lang-transform-tips-troubleshooting">13.4 Tips and Troubleshooting&lt;/h3>
@@ -13196,6 +13453,7 @@ limitations under the License.
 &lt;li data-value="java" class="active">Java SDK&lt;/li>
 &lt;li data-value="py">Python SDK&lt;/li>
 &lt;li data-value="go">Go SDK&lt;/li>
+&lt;li data-value="typescript">TypeScript SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;h3>File-based&lt;/h3>
@@ -13514,7 +13772,7 @@ KafkaIO
 &lt;/td>
 &lt;td>Read and Write PTransforms for &lt;a href="https://kafka.apache.org/">Apache Kafka&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.external.kafka.html">apache_beam.io.external.kafka&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.kafka.html">apache_beam.io.kafka&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
