@@ -3288,6 +3288,37 @@ public class StreamingDataflowWorkerTest {
             .equals(Duration.ZERO));
   }
 
+  @Test
+  public void testLatencyAttributionToActiveState() throws Exception {
+    final int workToken = 4242; // A unique id makes it easier to search logs.
+
+    // Inject processing latency on the fake clock in the worker via FakeSlowDoFn.
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(new SlowDoFn(Duration.millis(1000)), 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setActiveWorkRefreshPeriodMillis(100);
+    StreamingDataflowWorker worker =
+        makeWorker(instructions, options, false /* publishCounters */, FakeClock.DEFAULT);
+    worker.start();
+
+    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
+    server.whenGetWorkCalled().thenReturn(makeInput(workToken, 0 /* timestamp */));
+    server.waitForAndGetCommits(1);
+
+    worker.stop();
+
+    assertTrue(
+        awrSink
+            .getLatencyAttributionDuration(workToken, LatencyAttribution.State.ACTIVE)
+            .equals(Duration.millis(1000)));
+  }
+
   /** For each input element, emits a large string. */
   private static class InflateDoFn extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
 
