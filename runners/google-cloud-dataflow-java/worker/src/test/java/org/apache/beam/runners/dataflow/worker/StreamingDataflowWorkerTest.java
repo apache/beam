@@ -61,6 +61,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -99,6 +100,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.InputMessageBun
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedMessageBundle;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
@@ -3090,6 +3092,61 @@ public class StreamingDataflowWorkerTest {
     // This graph will not normally produce any GetData calls, so all such calls are from active
     // work refreshes.
     assertThat(server.numGetDataRequests(), greaterThan(0));
+  }
+
+  static class FakeClock implements Supplier<Instant> {
+    private static final FakeClock DEFAULT = new FakeClock();
+
+    private Instant now = Instant.now();
+
+    @Override
+    public synchronized Instant get() {
+      return now;
+    }
+
+    synchronized void sleep(Duration duration) {
+      this.now = this.now.plus(duration);
+    }
+  }
+
+  @Test
+  public void testLatencyAttributionProtobufsPopulated() throws Exception {
+    StreamingDataflowWorker.Work work =
+        new StreamingDataflowWorker.Work(null, FakeClock.DEFAULT) {
+          @Override
+          public void run() {}
+        };
+
+    FakeClock.DEFAULT.sleep(Duration.millis(10));
+    work.setState(StreamingDataflowWorker.Work.State.PROCESSING);
+    FakeClock.DEFAULT.sleep(Duration.millis(20));
+    work.setState(StreamingDataflowWorker.Work.State.READING);
+    FakeClock.DEFAULT.sleep(Duration.millis(30));
+    work.setState(StreamingDataflowWorker.Work.State.PROCESSING);
+    FakeClock.DEFAULT.sleep(Duration.millis(40));
+    work.setState(StreamingDataflowWorker.Work.State.COMMIT_QUEUED);
+    FakeClock.DEFAULT.sleep(Duration.millis(50));
+    work.setState(StreamingDataflowWorker.Work.State.COMMITTING);
+    FakeClock.DEFAULT.sleep(Duration.millis(60));
+
+    Iterator<LatencyAttribution> it = work.getLatencyAttributionList().iterator();
+    assertTrue(it.hasNext());
+    LatencyAttribution lat = it.next();
+    assertTrue(lat.getState() == LatencyAttribution.State.QUEUED);
+    assertTrue(lat.getTotalDurationMillis() == 10);
+    assertTrue(it.hasNext());
+    lat = it.next();
+    assertTrue(lat.getState() == LatencyAttribution.State.ACTIVE);
+    assertTrue(lat.getTotalDurationMillis() == 60);
+    assertTrue(it.hasNext());
+    lat = it.next();
+    assertTrue(lat.getState() == LatencyAttribution.State.READING);
+    assertTrue(lat.getTotalDurationMillis() == 30);
+    assertTrue(it.hasNext());
+    lat = it.next();
+    assertTrue(lat.getState() == LatencyAttribution.State.COMMITTING);
+    assertTrue(lat.getTotalDurationMillis() == 110);
+    assertTrue(!it.hasNext());
   }
 
   /** For each input element, emits a large string. */

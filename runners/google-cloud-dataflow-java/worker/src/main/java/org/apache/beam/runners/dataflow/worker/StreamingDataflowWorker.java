@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -1174,11 +1175,21 @@ public class StreamingDataflowWorker {
   abstract static class Work implements Runnable {
 
     enum State {
-      QUEUED,
-      PROCESSING,
-      READING,
-      COMMIT_QUEUED,
-      COMMITTING
+      QUEUED(Windmill.LatencyAttribution.State.QUEUED),
+      PROCESSING(Windmill.LatencyAttribution.State.ACTIVE),
+      READING(Windmill.LatencyAttribution.State.READING),
+      COMMIT_QUEUED(Windmill.LatencyAttribution.State.COMMITTING),
+      COMMITTING(Windmill.LatencyAttribution.State.COMMITTING);
+
+      private final Windmill.LatencyAttribution.State latencyAttributionState;
+
+      private State(Windmill.LatencyAttribution.State latencyAttributionState) {
+        this.latencyAttributionState = latencyAttributionState;
+      }
+
+      Windmill.LatencyAttribution.State toLatencyAttributionState() {
+        return latencyAttributionState;
+      }
     }
 
     private final Windmill.WorkItem workItem;
@@ -1186,12 +1197,14 @@ public class StreamingDataflowWorker {
     private final Instant startTime;
     private Instant stateStartTime;
     private State state;
+    private Map<Windmill.LatencyAttribution.State, Duration> totalDurationPerState;
 
     public Work(Windmill.WorkItem workItem, Supplier<Instant> clock) {
       this.workItem = workItem;
       this.clock = clock;
       this.startTime = this.stateStartTime = clock.get();
       this.state = State.QUEUED;
+      this.totalDurationPerState = new EnumMap<>(Windmill.LatencyAttribution.State.class);
     }
 
     public Windmill.WorkItem getWorkItem() {
@@ -1207,12 +1220,35 @@ public class StreamingDataflowWorker {
     }
 
     public void setState(State state) {
+      Instant now = clock.get();
+      totalDurationPerState.compute(
+          this.state.toLatencyAttributionState(),
+          (s, d) -> new Duration(this.stateStartTime, now).plus(d == null ? Duration.ZERO : d));
       this.state = state;
-      this.stateStartTime = clock.get();
+      this.stateStartTime = now;
     }
 
     public Instant getStateStartTime() {
       return stateStartTime;
+    }
+
+    public Iterable<Windmill.LatencyAttribution> getLatencyAttributionList() {
+      List<Windmill.LatencyAttribution> list = new ArrayList<>();
+      for (Windmill.LatencyAttribution.State state : Windmill.LatencyAttribution.State.values()) {
+        Duration duration = totalDurationPerState.getOrDefault(state, Duration.ZERO);
+        if (state == this.state.toLatencyAttributionState()) {
+          duration = duration.plus(new Duration(this.stateStartTime, clock.get()));
+        }
+        if (duration.equals(Duration.ZERO)) {
+          continue;
+        }
+        list.add(
+            Windmill.LatencyAttribution.newBuilder()
+                .setState(state)
+                .setTotalDurationMillis(duration.getMillis())
+                .build());
+      }
+      return list;
     }
   }
 
@@ -2401,6 +2437,7 @@ public class StreamingDataflowWorker {
                       .setKey(shardedKey.key())
                       .setShardingKey(shardedKey.shardingKey())
                       .setWorkToken(work.getWorkItem().getWorkToken())
+                      .addAllLatencyAttribution(work.getLatencyAttributionList())
                       .build());
             }
           }
