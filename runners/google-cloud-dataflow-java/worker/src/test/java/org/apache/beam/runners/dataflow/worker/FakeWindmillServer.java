@@ -280,7 +280,16 @@ class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active) {}
+      public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active) {
+        Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
+        for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
+          builder.addRequests(
+              ComputationGetDataRequest.newBuilder()
+                  .setComputationId(entry.getKey())
+                  .addAllRequests(entry.getValue()));
+        }
+        getData(builder.build());
+      }
 
       @Override
       public void close() {}

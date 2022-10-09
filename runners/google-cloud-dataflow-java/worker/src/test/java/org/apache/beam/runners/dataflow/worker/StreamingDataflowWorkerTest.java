@@ -3068,10 +3068,6 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testActiveWorkRefresh() throws Exception {
-    if (streamingEngine) {
-      // TODO: This test needs to be adapted to work with streamingEngine=true.
-      return;
-    }
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
