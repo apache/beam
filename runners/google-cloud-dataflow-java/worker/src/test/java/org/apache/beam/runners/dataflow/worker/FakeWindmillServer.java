@@ -100,9 +100,20 @@ class FakeWindmillServer extends WindmillServerStub {
       Uninterruptibles.sleepUninterruptibly(sleep.getMillis(), TimeUnit.MILLISECONDS);
       return response;
     }
+
+    private U get(T request) {
+      Function<T, U> mapFun = responses.poll();
+      U response = mapFun == null ? null : mapFun.apply(request);
+      Uninterruptibles.sleepUninterruptibly(sleep.getMillis(), TimeUnit.MILLISECONDS);
+      return response;
+    }
+
+    private boolean isEmpty() {
+      return responses.isEmpty();
+    }
   }
 
-  private final Queue<Windmill.GetWorkResponse> workToOffer;
+  private final ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse> workToOffer;
   private final ResponseQueue<GetDataRequest, GetDataResponse> dataToOffer;
   // Keys are work tokens.
   private final Map<Long, WorkItemCommitRequest> commitsReceived;
@@ -117,7 +128,9 @@ class FakeWindmillServer extends WindmillServerStub {
   private final ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> droppedStreamingCommits;
 
   public FakeWindmillServer(ErrorCollector errorCollector) {
-    workToOffer = new ConcurrentLinkedQueue<>();
+    workToOffer =
+        new ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse>()
+            .returnByDefault(Windmill.GetWorkResponse.getDefaultInstance());
     dataToOffer =
         new ResponseQueue<GetDataRequest, GetDataResponse>()
             .returnByDefault(GetDataResponse.getDefaultInstance())
@@ -135,8 +148,8 @@ class FakeWindmillServer extends WindmillServerStub {
     this.dropStreamingCommits = dropStreamingCommits;
   }
 
-  public void addWorkToOffer(Windmill.GetWorkResponse work) {
-    workToOffer.add(work);
+  public ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse> whenGetWorkCalled() {
+    return workToOffer;
   }
 
   public ResponseQueue<GetDataRequest, GetDataResponse> whenGetDataCalled() {
@@ -146,10 +159,7 @@ class FakeWindmillServer extends WindmillServerStub {
   @Override
   public Windmill.GetWorkResponse getWork(Windmill.GetWorkRequest request) {
     LOG.debug("getWorkRequest: {}", request.toString());
-    Windmill.GetWorkResponse response = workToOffer.poll();
-    if (response == null) {
-      return Windmill.GetWorkResponse.newBuilder().build();
-    }
+    Windmill.GetWorkResponse response = workToOffer.getOrDefault(request);
     LOG.debug("getWorkResponse: {}", response.toString());
     return response;
   }
@@ -238,7 +248,7 @@ class FakeWindmillServer extends WindmillServerStub {
       @Override
       public boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException {
         while (done.getCount() > 0) {
-          Windmill.GetWorkResponse response = workToOffer.poll();
+          Windmill.GetWorkResponse response = workToOffer.get(null);
           if (response == null) {
             try {
               sleepMillis(500);

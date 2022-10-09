@@ -730,7 +730,7 @@ public class StreamingDataflowWorkerTest {
 
     final int numIters = 2000;
     for (int i = 0; i < numIters; ++i) {
-      server.addWorkToOffer(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
+      server.whenGetWorkCalled().thenReturn(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
     }
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
@@ -769,7 +769,7 @@ public class StreamingDataflowWorkerTest {
 
     final int numIters = 2000;
     for (int i = 0; i < numIters; ++i) {
-      server.addWorkToOffer(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
+      server.whenGetWorkCalled().thenReturn(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
     }
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
@@ -810,8 +810,9 @@ public class StreamingDataflowWorkerTest {
 
     final int numIters = 2000;
     for (int i = 0; i < numIters; ++i) {
-      server.addWorkToOffer(
-          makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
+      server
+          .whenGetWorkCalled()
+          .thenReturn(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
     }
 
     server.waitForAndGetCommits(numIters);
@@ -846,8 +847,9 @@ public class StreamingDataflowWorkerTest {
 
     final int numIters = 2000;
     for (int i = 0; i < numIters; ++i) {
-      server.addWorkToOffer(
-          makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
+      server
+          .whenGetWorkCalled()
+          .thenReturn(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
     }
 
     server.waitForAndGetCommits(numIters);
@@ -900,16 +902,18 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     for (int i = 0; i < numIters; ++i) {
-      server.addWorkToOffer(
-          makeInput(
-              i, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), DEFAULT_SHARDING_KEY));
-      // Also add work for a different shard of the same key.
-      server.addWorkToOffer(
-          makeInput(
-              i + 1000,
-              TimeUnit.MILLISECONDS.toMicros(i),
-              keyStringForIndex(i),
-              DEFAULT_SHARDING_KEY + 1));
+      server
+          .whenGetWorkCalled()
+          .thenReturn(
+              makeInput(
+                  i, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), DEFAULT_SHARDING_KEY))
+          // Also add work for a different shard of the same key.
+          .thenReturn(
+              makeInput(
+                  i + 1000,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY + 1));
     }
 
     // Wait for keys to schedule.  They will be blocked.
@@ -918,13 +922,15 @@ public class StreamingDataflowWorkerTest {
     // Re-add the work, it should be ignored due to the keys being active.
     for (int i = 0; i < numIters; ++i) {
       // Same work token.
-      server.addWorkToOffer(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
-      server.addWorkToOffer(
-          makeInput(
-              i + 1000,
-              TimeUnit.MILLISECONDS.toMicros(i),
-              keyStringForIndex(i),
-              DEFAULT_SHARDING_KEY + 1));
+      server
+          .whenGetWorkCalled()
+          .thenReturn(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)))
+          .thenReturn(
+              makeInput(
+                  i + 1000,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY + 1));
     }
 
     // Give all added calls a chance to run.
@@ -932,12 +938,14 @@ public class StreamingDataflowWorkerTest {
 
     for (int i = 0; i < numIters; ++i) {
       // Different work token same keys.
-      server.addWorkToOffer(
-          makeInput(
-              i + numIters,
-              TimeUnit.MILLISECONDS.toMicros(i),
-              keyStringForIndex(i),
-              DEFAULT_SHARDING_KEY));
+      server
+          .whenGetWorkCalled()
+          .thenReturn(
+              makeInput(
+                  i + numIters,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY));
     }
 
     // Give all added calls a chance to run.
@@ -976,12 +984,14 @@ public class StreamingDataflowWorkerTest {
 
     // Re-add the work, it should process due to the keys no longer being active.
     for (int i = 0; i < numIters; ++i) {
-      server.addWorkToOffer(
-          makeInput(
-              i + numIters * 2,
-              TimeUnit.MILLISECONDS.toMicros(i),
-              keyStringForIndex(i),
-              DEFAULT_SHARDING_KEY));
+      server
+          .whenGetWorkCalled()
+          .thenReturn(
+              makeInput(
+                  i + numIters * 2,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY));
     }
     result = server.waitForAndGetCommits(numIters);
     worker.stop();
@@ -1016,7 +1026,7 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     for (int i = 0; i < expectedNumberOfThreads * 2; ++i) {
-      server.addWorkToOffer(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
+      server.whenGetWorkCalled().thenReturn(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
     }
 
     // This will fail to complete if the number of threads is less than the amount of work.
@@ -1068,7 +1078,9 @@ public class StreamingDataflowWorkerTest {
             makeSinkInstruction(kvCoder, 1));
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
-    server.addWorkToOffer(makeInput(0, 0, DEFAULT_KEY_STRING, DEFAULT_SHARDING_KEY));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(makeInput(0, 0, DEFAULT_KEY_STRING, DEFAULT_SHARDING_KEY));
 
     StreamingDataflowWorker worker =
         makeWorker(instructions, createTestingPipelineOptions(server), true /* publishCounters */);
@@ -1076,7 +1088,9 @@ public class StreamingDataflowWorkerTest {
 
     server.waitForEmptyWorkQueue();
 
-    server.addWorkToOffer(makeInput(1, 0, DEFAULT_KEY_STRING, DEFAULT_SHARDING_KEY));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(makeInput(1, 0, DEFAULT_KEY_STRING, DEFAULT_SHARDING_KEY));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
@@ -1121,8 +1135,10 @@ public class StreamingDataflowWorkerTest {
     worker.setMaxWorkItemCommitBytes(1000);
     worker.start();
 
-    server.addWorkToOffer(makeInput(1, 0, "large_key", DEFAULT_SHARDING_KEY));
-    server.addWorkToOffer(makeInput(2, 0, "key", DEFAULT_SHARDING_KEY));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(makeInput(1, 0, "large_key", DEFAULT_SHARDING_KEY))
+        .thenReturn(makeInput(2, 0, "key", DEFAULT_SHARDING_KEY));
     server.waitForEmptyWorkQueue();
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
@@ -1189,15 +1205,17 @@ public class StreamingDataflowWorkerTest {
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     for (int i = 0; i < 2; i++) {
-      server.addWorkToOffer(
-          makeInput(
-              i, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), DEFAULT_SHARDING_KEY));
-      server.addWorkToOffer(
-          makeInput(
-              i + 1000,
-              TimeUnit.MILLISECONDS.toMicros(i),
-              keyStringForIndex(i),
-              DEFAULT_SHARDING_KEY + i));
+      server
+          .whenGetWorkCalled()
+          .thenReturn(
+              makeInput(
+                  i, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), DEFAULT_SHARDING_KEY))
+          .thenReturn(
+              makeInput(
+                  i + 1000,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY + i));
     }
 
     StreamingDataflowWorker worker =
@@ -1262,33 +1280,35 @@ public class StreamingDataflowWorkerTest {
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     server.setExpectedExceptionCount(1);
     String keyString = keyStringForIndex(0);
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \""
-                + DEFAULT_COMPUTATION_ID
-                + "\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \""
-                + keyString
-                + "\""
-                + "    sharding_key: 1"
-                + "    work_token: 0"
-                + "    cache_token: 1"
-                + "    message_bundles {"
-                + "      source_computation_id: \""
-                + DEFAULT_SOURCE_COMPUTATION_ID
-                + "\""
-                + "      messages {"
-                + "        timestamp: 0"
-                + "        data: \"0\""
-                + "      }"
-                + "    }"
-                + "  }"
-                + "}",
-            CoderUtils.encodeToByteArray(
-                CollectionCoder.of(IntervalWindow.getCoder()), Arrays.asList(DEFAULT_WINDOW))));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \""
+                    + DEFAULT_COMPUTATION_ID
+                    + "\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \""
+                    + keyString
+                    + "\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 0"
+                    + "    cache_token: 1"
+                    + "    message_bundles {"
+                    + "      source_computation_id: \""
+                    + DEFAULT_SOURCE_COMPUTATION_ID
+                    + "\""
+                    + "      messages {"
+                    + "        timestamp: 0"
+                    + "        data: \"0\""
+                    + "      }"
+                    + "    }"
+                    + "  }"
+                    + "}",
+                CoderUtils.encodeToByteArray(
+                    CollectionCoder.of(IntervalWindow.getCoder()), Arrays.asList(DEFAULT_WINDOW))));
 
     StreamingDataflowWorker worker =
         makeWorker(instructions, createTestingPipelineOptions(server), true /* publishCounters */);
@@ -1392,8 +1412,10 @@ public class StreamingDataflowWorkerTest {
     int timestamp1 = 0;
     int timestamp2 = 1000000;
 
-    server.addWorkToOffer(makeInput(timestamp1, timestamp1));
-    server.addWorkToOffer(makeInput(timestamp2, timestamp2));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(makeInput(timestamp1, timestamp1))
+        .thenReturn(makeInput(timestamp2, timestamp2));
 
     StreamingDataflowWorker worker =
         makeWorker(instructions, createTestingPipelineOptions(server), false /* publishCounters */);
@@ -1522,35 +1544,37 @@ public class StreamingDataflowWorkerTest {
     worker.addStateNameMappings(nameMap);
     worker.start();
 
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \""
-                + DEFAULT_COMPUTATION_ID
-                + "\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \""
-                + DEFAULT_KEY_STRING
-                + "\""
-                + "    sharding_key: "
-                + DEFAULT_SHARDING_KEY
-                + "    cache_token: 1"
-                + "    work_token: 1"
-                + "    message_bundles {"
-                + "      source_computation_id: \""
-                + DEFAULT_SOURCE_COMPUTATION_ID
-                + "\""
-                + "      messages {"
-                + "        timestamp: 0"
-                + "        data: \""
-                + dataStringForIndex(0)
-                + "\""
-                + "      }"
-                + "    }"
-                + "  }"
-                + "}",
-            intervalWindowBytes(WINDOW_AT_ZERO)));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \""
+                    + DEFAULT_COMPUTATION_ID
+                    + "\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \""
+                    + DEFAULT_KEY_STRING
+                    + "\""
+                    + "    sharding_key: "
+                    + DEFAULT_SHARDING_KEY
+                    + "    cache_token: 1"
+                    + "    work_token: 1"
+                    + "    message_bundles {"
+                    + "      source_computation_id: \""
+                    + DEFAULT_SOURCE_COMPUTATION_ID
+                    + "\""
+                    + "      messages {"
+                    + "        timestamp: 0"
+                    + "        data: \""
+                    + dataStringForIndex(0)
+                    + "\""
+                    + "      }"
+                    + "    }"
+                    + "  }"
+                    + "}",
+                intervalWindowBytes(WINDOW_AT_ZERO)));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
     Iterable<CounterUpdate> counters = worker.buildCounters();
@@ -1634,7 +1658,7 @@ public class StreamingDataflowWorkerTest {
         .setCacheToken(1)
         .getTimersBuilder()
         .addTimers(buildWatermarkTimer(timerTagPrefix, timerTimestamp));
-    server.addWorkToOffer(getWorkResponse.build());
+    server.whenGetWorkCalled().thenReturn(getWorkResponse.build());
 
     long expectedBytesRead = 0L;
 
@@ -1817,36 +1841,38 @@ public class StreamingDataflowWorkerTest {
     worker.addStateNameMappings(nameMap);
     worker.start();
 
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \""
-                + DEFAULT_COMPUTATION_ID
-                + "\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \""
-                + DEFAULT_KEY_STRING
-                + "\""
-                + "    sharding_key: "
-                + DEFAULT_SHARDING_KEY
-                + "    cache_token: 1"
-                + "    work_token: 1"
-                + "    is_new_key: 1"
-                + "    message_bundles {"
-                + "      source_computation_id: \""
-                + DEFAULT_SOURCE_COMPUTATION_ID
-                + "\""
-                + "      messages {"
-                + "        timestamp: 0"
-                + "        data: \""
-                + dataStringForIndex(0)
-                + "\""
-                + "      }"
-                + "    }"
-                + "  }"
-                + "}",
-            intervalWindowBytes(WINDOW_AT_ZERO)));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \""
+                    + DEFAULT_COMPUTATION_ID
+                    + "\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \""
+                    + DEFAULT_KEY_STRING
+                    + "\""
+                    + "    sharding_key: "
+                    + DEFAULT_SHARDING_KEY
+                    + "    cache_token: 1"
+                    + "    work_token: 1"
+                    + "    is_new_key: 1"
+                    + "    message_bundles {"
+                    + "      source_computation_id: \""
+                    + DEFAULT_SOURCE_COMPUTATION_ID
+                    + "\""
+                    + "      messages {"
+                    + "        timestamp: 0"
+                    + "        data: \""
+                    + dataStringForIndex(0)
+                    + "\""
+                    + "      }"
+                    + "    }"
+                    + "  }"
+                    + "}",
+                intervalWindowBytes(WINDOW_AT_ZERO)));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
     Iterable<CounterUpdate> counters = worker.buildCounters();
@@ -1930,7 +1956,7 @@ public class StreamingDataflowWorkerTest {
         .setCacheToken(1)
         .getTimersBuilder()
         .addTimers(buildWatermarkTimer(timerTagPrefix, timerTimestamp));
-    server.addWorkToOffer(getWorkResponse.build());
+    server.whenGetWorkCalled().thenReturn(getWorkResponse.build());
 
     long expectedBytesRead = 0L;
 
@@ -2139,7 +2165,7 @@ public class StreamingDataflowWorkerTest {
 
     for (int i = 0; i < actions.size(); ++i) {
       Action action = actions.get(i);
-      server.addWorkToOffer(action.response);
+      server.whenGetWorkCalled().thenReturn(action.response);
       Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
       WorkItemCommitRequest actualOutput = result.get(i + 1L);
       assertThat(actualOutput, Matchers.not(Matchers.nullValue()));
@@ -2294,19 +2320,21 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     // Test new key.
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \"computation\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \"0000000000000001\""
-                + "    sharding_key: 1"
-                + "    work_token: 1"
-                + "    cache_token: 1"
-                + "  }"
-                + "}",
-            null));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 1"
+                    + "    cache_token: 1"
+                    + "  }"
+                    + "}",
+                null));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
     Iterable<CounterUpdate> counters = worker.buildCounters();
@@ -2351,24 +2379,26 @@ public class StreamingDataflowWorkerTest {
         18L, splitIntToLong(getCounter(counters, "dataflow_input_size-computation").getInteger()));
 
     // Test same key continuing. The counter is done.
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \"computation\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \"0000000000000001\""
-                + "    sharding_key: 1"
-                + "    work_token: 2"
-                + "    cache_token: 1"
-                + "    source_state {"
-                + "      state: \"\001\""
-                + "      finalize_ids: "
-                + finalizeId
-                + "    } "
-                + "  }"
-                + "}",
-            null));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 2"
+                    + "    cache_token: 1"
+                    + "    source_state {"
+                    + "      state: \"\001\""
+                    + "      finalize_ids: "
+                    + finalizeId
+                    + "    } "
+                    + "  }"
+                    + "}",
+                null));
 
     result = server.waitForAndGetCommits(1);
     counters = worker.buildCounters();
@@ -2398,22 +2428,24 @@ public class StreamingDataflowWorkerTest {
     assertEquals(null, getCounter(counters, "dataflow_input_size-computation"));
 
     // Test recovery (on a new key so fresh reader state). Counter is done.
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \"computation\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \"0000000000000002\""
-                + "    sharding_key: 2"
-                + "    work_token: 3"
-                + "    cache_token: 2"
-                + "    source_state {"
-                + "      state: \"\000\""
-                + "    } "
-                + "  }"
-                + "}",
-            null));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000002\""
+                    + "    sharding_key: 2"
+                    + "    work_token: 3"
+                    + "    cache_token: 2"
+                    + "    source_state {"
+                    + "      state: \"\000\""
+                    + "    } "
+                    + "  }"
+                    + "}",
+                null));
 
     result = server.waitForAndGetCommits(1);
     counters = worker.buildCounters();
@@ -2455,19 +2487,21 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     // Test new key.
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \"computation\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \"0000000000000001\""
-                + "    sharding_key: 1"
-                + "    work_token: 2"
-                + "    cache_token: 3"
-                + "  }"
-                + "}",
-            null));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 2"
+                    + "    cache_token: 3"
+                    + "  }"
+                    + "}",
+                null));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
@@ -2509,24 +2543,26 @@ public class StreamingDataflowWorkerTest {
                 .build()));
 
     // Test drain work item.
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \"computation\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \"0000000000000001\""
-                + "    sharding_key: 1"
-                + "    work_token: 3"
-                + "    cache_token: 3"
-                + "    source_state {"
-                + "      only_finalize: true"
-                + "      finalize_ids: "
-                + finalizeId
-                + "    }"
-                + "  }"
-                + "}",
-            null));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 3"
+                    + "    cache_token: 3"
+                    + "    source_state {"
+                    + "      only_finalize: true"
+                    + "      finalize_ids: "
+                    + finalizeId
+                    + "    }"
+                    + "  }"
+                    + "}",
+                null));
 
     result = server.waitForAndGetCommits(1);
 
@@ -2576,7 +2612,7 @@ public class StreamingDataflowWorkerTest {
                 + "  }"
                 + "}",
             null);
-    server.addWorkToOffer(work);
+    server.whenGetWorkCalled().thenReturn(work);
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
     Iterable<CounterUpdate> counters = worker.buildCounters();
@@ -2622,7 +2658,7 @@ public class StreamingDataflowWorkerTest {
     // Test retry of work item, it should return the same result and not start the reader from the
     // position it was left at.
     server.clearCommitsReceived();
-    server.addWorkToOffer(work);
+    server.whenGetWorkCalled().thenReturn(work);
     result = server.waitForAndGetCommits(1);
     commit = result.get(1L);
     finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
@@ -2634,24 +2670,26 @@ public class StreamingDataflowWorkerTest {
     assertThat(commit, equalTo(expectedCommit));
 
     // Continue with processing.
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \"computation\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \"0000000000000001\""
-                + "    sharding_key: 1"
-                + "    work_token: 2"
-                + "    cache_token: 1"
-                + "    source_state {"
-                + "      state: \"\001\""
-                + "      finalize_ids: "
-                + finalizeId
-                + "    } "
-                + "  }"
-                + "}",
-            null));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 2"
+                    + "    cache_token: 1"
+                    + "    source_state {"
+                    + "      state: \"\001\""
+                    + "      finalize_ids: "
+                    + finalizeId
+                    + "    } "
+                    + "  }"
+                    + "}",
+                null));
 
     result = server.waitForAndGetCommits(1);
 
@@ -2947,7 +2985,7 @@ public class StreamingDataflowWorkerTest {
       sb.append("  }\n");
       sb.append("}\n");
 
-      server.addWorkToOffer(buildInput(sb.toString(), null));
+      server.whenGetWorkCalled().thenReturn(buildInput(sb.toString(), null));
 
       Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
@@ -3049,7 +3087,7 @@ public class StreamingDataflowWorkerTest {
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
-    server.addWorkToOffer(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
 
     server.waitForAndGetCommits(0);
     worker.stop();
@@ -3078,7 +3116,7 @@ public class StreamingDataflowWorkerTest {
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
-    server.addWorkToOffer(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
     server.waitForAndGetCommits(1);
 
     worker.stop();
@@ -3181,19 +3219,21 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     // Test new key.
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \"computation\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \"0000000000000001\""
-                + "    sharding_key: 1"
-                + "    work_token: 1"
-                + "    cache_token: 1"
-                + "  }"
-                + "}",
-            null));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 1"
+                    + "    cache_token: 1"
+                    + "  }"
+                    + "}",
+                null));
 
     // Matcher to ensure that commit size is within 10% of max bundle size.
     Matcher<Integer> isWithinBundleSizeLimits =
@@ -3206,19 +3246,21 @@ public class StreamingDataflowWorkerTest {
     assertThat(commit.getSerializedSize(), isWithinBundleSizeLimits);
 
     // Try another bundle
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \"computation\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \"0000000000000001\""
-                + "    sharding_key: 1"
-                + "    work_token: 2"
-                + "    cache_token: 1"
-                + "  }"
-                + "}",
-            null));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 2"
+                    + "    cache_token: 1"
+                    + "  }"
+                    + "}",
+                null));
 
     result = server.waitForAndGetCommits(1);
     commit = result.get(2L);
@@ -3260,19 +3302,21 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     // Test new key.
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \"computation\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \"0000000000000001\""
-                + "    sharding_key: 1"
-                + "    work_token: 1"
-                + "    cache_token: 1"
-                + "  }"
-                + "}",
-            null));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 1"
+                    + "    cache_token: 1"
+                    + "  }"
+                    + "}",
+                null));
 
     // Matcher to ensure that commit size is within 10% of max bundle size.
     Matcher<Integer> isWithinBundleSizeLimits =
@@ -3285,19 +3329,21 @@ public class StreamingDataflowWorkerTest {
     assertThat(commit.getSerializedSize(), isWithinBundleSizeLimits);
 
     // Try another bundle
-    server.addWorkToOffer(
-        buildInput(
-            "work {"
-                + "  computation_id: \"computation\""
-                + "  input_data_watermark: 0"
-                + "  work {"
-                + "    key: \"0000000000000001\""
-                + "    sharding_key: 1"
-                + "    work_token: 2"
-                + "    cache_token: 1"
-                + "  }"
-                + "}",
-            null));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 2"
+                    + "    cache_token: 1"
+                    + "  }"
+                    + "}",
+                null));
 
     result = server.waitForAndGetCommits(1);
     commit = result.get(2L);
@@ -3327,13 +3373,17 @@ public class StreamingDataflowWorkerTest {
     server.setDropStreamingCommits(true);
 
     // Add some work for key 1.
-    server.addWorkToOffer(makeInput(10, TimeUnit.MILLISECONDS.toMicros(2), DEFAULT_KEY_STRING, 1));
-    server.addWorkToOffer(makeInput(15, TimeUnit.MILLISECONDS.toMicros(3), DEFAULT_KEY_STRING, 5));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(makeInput(10, TimeUnit.MILLISECONDS.toMicros(2), DEFAULT_KEY_STRING, 1))
+        .thenReturn(makeInput(15, TimeUnit.MILLISECONDS.toMicros(3), DEFAULT_KEY_STRING, 5));
     ConcurrentHashMap<Long, Consumer<CommitStatus>> droppedCommits =
         server.waitForDroppedCommits(2);
     server.setDropStreamingCommits(false);
     // Enqueue another work item for key 1.
-    server.addWorkToOffer(makeInput(1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1));
+    server
+        .whenGetWorkCalled()
+        .thenReturn(makeInput(1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1));
     // Ensure that the this work item processes.
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
     // Now ensure that nothing happens if a dropped commit actually completes.
