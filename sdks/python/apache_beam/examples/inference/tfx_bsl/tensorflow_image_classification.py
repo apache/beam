@@ -16,12 +16,12 @@
 #
 
 """
-A pipeline tha uses TFX RunInference API to perform Image classification.
+A pipeline that uses TFX RunInference API to perform image classification.
 Please look at https://github.com/tensorflow/tfx-bsl/tree/master/tfx_bsl/beam.
 
-Note: For the Tensorflow Model, it needs to be updated with a @tf.function
-      Signature to accept bytes as inputs and should have logic to decode
-      bytes to data which should be acceptable by the tensorflow model.
+Note: A Tensorflow Model needs to be updated with a @tf.function
+      Signature in order to accept bytes as inputs, and should have logic to decode
+      bytes to data that is acceptable by the TensorFlow model.
       Please take a look at build_tensorflow_model.py on how to modify
       TF Model's signature.
 """
@@ -157,7 +157,7 @@ def run(
   inferece_spec_type = model_spec_pb2.InferenceSpecType(
       saved_model_spec=saved_model_spec)
   model_handler = CreateModelHandler(inferece_spec_type)
-  # create a keyedModelHandler to accommodate image names as keys.
+  # create a KeyedModelHandler to accommodate image names as keys.
   keyed_model_handler = KeyedModelHandler(model_handler)
 
   pipeline = test_pipeline

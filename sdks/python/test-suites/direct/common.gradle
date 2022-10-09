@@ -236,7 +236,7 @@ task sklearnInferenceTest {
     }
 }
 
-// Scikit-learn RunInference IT tests
+// TensorFlow Extended (TFX) RunInference IT tests
 task tfxInferenceTest {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
