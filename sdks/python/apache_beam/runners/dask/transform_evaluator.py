@@ -64,21 +64,21 @@ class Create(DaskBagOp):
 
 
 class ParDo(DaskBagOp):
-  def apply(self, input_bag: OpInput) -> db.Bag:
+  def apply(self, input_bag: db.Bag) -> db.Bag:
     transform = t.cast(apache_beam.ParDo, self.applied.transform)
     return input_bag.map(
         transform.fn.process, *transform.args, **transform.kwargs).flatten()
 
 
 class Map(DaskBagOp):
-  def apply(self, input_bag: OpInput) -> db.Bag:
+  def apply(self, input_bag: db.Bag) -> db.Bag:
     transform = t.cast(apache_beam.Map, self.applied.transform)
     return input_bag.map(
         transform.fn.process, *transform.args, **transform.kwargs)
 
 
 class GroupByKey(DaskBagOp):
-  def apply(self, input_bag: OpInput) -> db.Bag:
+  def apply(self, input_bag: db.Bag) -> db.Bag:
     def key(item):
       return item[0]
 
