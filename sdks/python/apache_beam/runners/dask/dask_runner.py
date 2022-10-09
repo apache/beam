@@ -94,7 +94,7 @@ class DaskRunnerResult(PipelineResult):
   def __post_init__(self):
     super().__init__(PipelineState.RUNNING)
 
-  def wait_until_finish(self, duration=None) -> PipelineState:
+  def wait_until_finish(self, duration=None) -> str:
     try:
       if duration is not None:
         # Convert milliseconds to seconds
@@ -107,7 +107,7 @@ class DaskRunnerResult(PipelineResult):
       raise
     return self._state
 
-  def cancel(self) -> PipelineState:
+  def cancel(self) -> str:
     self._state = PipelineState.CANCELLING
     self.client.cancel(self.futures)
     self._state = PipelineState.CANCELLED
