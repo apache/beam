@@ -30,8 +30,9 @@ import dask.bag as db
 
 import apache_beam
 from apache_beam.pipeline import AppliedPTransform
-from apache_beam.runners.dask.overrides import (_Create, _Flatten,
-                                                _GroupByKeyOnly)
+from apache_beam.runners.dask.overrides import (
+    _Create, _Flatten, _GroupByKeyOnly
+)
 
 OpInput = t.Union[db.Bag, t.Sequence[db.Bag], None]
 
@@ -50,11 +51,13 @@ class DaskBagOp(abc.ABC):
 
 
 class NoOp(DaskBagOp):
+
   def apply(self, input_bag: OpInput) -> db.Bag:
     return input_bag
 
 
 class Create(DaskBagOp):
+
   def apply(self, input_bag: OpInput) -> db.Bag:
     assert input_bag is None, 'Create expects no input!'
     original_transform = t.cast(_Create, self.applied.transform)
@@ -63,6 +66,7 @@ class Create(DaskBagOp):
 
 
 class ParDo(DaskBagOp):
+
   def apply(self, input_bag: db.Bag) -> db.Bag:
     transform = t.cast(apache_beam.ParDo, self.applied.transform)
     return input_bag.map(
@@ -70,6 +74,7 @@ class ParDo(DaskBagOp):
 
 
 class Map(DaskBagOp):
+
   def apply(self, input_bag: db.Bag) -> db.Bag:
     transform = t.cast(apache_beam.Map, self.applied.transform)
     return input_bag.map(
@@ -77,7 +82,9 @@ class Map(DaskBagOp):
 
 
 class GroupByKey(DaskBagOp):
+
   def apply(self, input_bag: db.Bag) -> db.Bag:
+
     def key(item):
       return item[0]
 
@@ -89,6 +96,7 @@ class GroupByKey(DaskBagOp):
 
 
 class Flatten(DaskBagOp):
+
   def apply(self, input_bag: OpInput) -> db.Bag:
     assert type(input_bag) is list, 'Must take a sequence of bags!'
     return db.concat(input_bag)
