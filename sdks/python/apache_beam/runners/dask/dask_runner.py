@@ -73,8 +73,8 @@ class DaskOptions(PipelineOptions):
         dest='name',
         type=str,
         default=None,
-        help='Gives the client a name that will be included in logs generated on '
-        'the scheduler for matters relating to this client.')
+        help='Gives the client a name that will be included in logs generated '
+        'on the scheduler for matters relating to this client.')
     parser.add_argument(
         '--dask_connection_limit',
         dest='connection_limit',
