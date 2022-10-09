@@ -50,26 +50,36 @@ class DaskOptions(PipelineOptions):
 
   @classmethod
   def _add_argparse_args(cls, parser: argparse.ArgumentParser) -> None:
-    parser.add_argument('--dask_client_address', dest='address', type=str, default=None,
-                        help='Address of a dask Scheduler server. Will '
-                             'default to a `dask.LocalCluster()`.')
-    parser.add_argument('--dask_connection_timeout', dest='timeout',
-                        type=DaskOptions._parse_timeout,
-                        help='Timeout duration for initial connection to the '
-                             'scheduler.')
-    parser.add_argument('--dask_scheduler_file', type=str, default=None,
-                        help='Path to a file with scheduler information if '
-                             'available.')
+    parser.add_argument(
+      '--dask_client_address',
+      dest='address',
+      type=str,
+      default=None,
+      help='Address of a dask Scheduler server. Will default to a `dask.LocalCluster()`.')
+    parser.add_argument(
+      '--dask_connection_timeout',
+      dest='timeout',
+      type=DaskOptions._parse_timeout,
+      help='Timeout duration for initial connection to the scheduler.')
+    parser.add_argument(
+      '--dask_scheduler_file',
+      type=str,
+      default=None,
+      help='Path to a file with scheduler information if available.')
     # TODO(alxr): Add options for security.
-    parser.add_argument('--dask_client_name', dest='name', type=str,
-                        default=None,
-                        help='Gives the client a name that will be included '
-                             'in logs generated on the scheduler for matters '
-                             'relating to this client.')
-    parser.add_argument('--dask_connection_limit', dest='connection_limit',
-                        type=int, default=512,
-                        help='The number of open comms to maintain at once in '
-                             'the connection pool.')
+    parser.add_argument(
+      '--dask_client_name',
+      dest='name',
+      type=str,
+      default=None,
+      help='Gives the client a name that will be included in logs generated on the scheduler for matters relating to '
+           'this client.')
+    parser.add_argument(
+      '--dask_connection_limit',
+      dest='connection_limit',
+      type=int,
+      default=512,
+      help='The number of open comms to maintain at once in the connection pool.')
 
 
 @dataclasses.dataclass
@@ -115,8 +125,8 @@ class DaskRunner(BundleBasedDirectRunner):
 
     @dataclasses.dataclass
     class DaskBagVisitor(PipelineVisitor):
-      bags: t.Dict[AppliedPTransform, db.Bag] = dataclasses.field(
-        default_factory=dict)
+      bags: t.Dict[AppliedPTransform,
+                   db.Bag] = dataclasses.field(default_factory=dict)
 
       def visit_transform(self, transform_node: AppliedPTransform) -> None:
         op_class = TRANSLATIONS.get(transform_node.transform.__class__, NoOp)
@@ -159,7 +169,7 @@ class DaskRunner(BundleBasedDirectRunner):
         'DaskRunner is not available. Please install apache_beam[dask].')
 
     dask_options = options.view_as(DaskOptions).get_all_options(
-      drop_default=True)
+        drop_default=True)
     client = ddist.Client(**dask_options)
 
     pipeline.replace_all(dask_overrides())

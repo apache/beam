@@ -40,6 +40,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([1]))
 
   def test_create_and_map(self):
+
     def double(x):
       return x * 2
 
@@ -48,6 +49,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([2]))
 
   def test_create_map_and_groupby(self):
+
     def double(x):
       return x * 2, x
 
@@ -58,6 +60,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       ]))
 
   def test_map_with_side_inputs(self):
+
     def mult_by(x, y):
       return x * y
 
