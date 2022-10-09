@@ -1176,6 +1176,7 @@ public class StreamingDataflowWorker {
     enum State {
       QUEUED,
       PROCESSING,
+      READING,
       COMMIT_QUEUED,
       COMMITTING
     }
@@ -1415,7 +1416,16 @@ public class StreamingDataflowWorker {
               computationId,
               key,
               workItem.getShardingKey(),
-              workItem.getWorkToken());
+              workItem.getWorkToken(),
+              () -> {
+                work.setState(State.READING);
+                return new AutoCloseable() {
+                  @Override
+                  public void close() {
+                    work.setState(State.PROCESSING);
+                  }
+                };
+              });
       StateFetcher localStateFetcher = stateFetcher.byteTrackingView();
 
       // If the read output KVs, then we can decode Windmill's byte key into a userland

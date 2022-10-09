@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.WindmillStateReader.StateTag.Kind;
@@ -196,6 +197,10 @@ class WindmillStateReader {
   private final long shardingKey;
   private final long workToken;
 
+  // WindmillStateReader should only perform blocking i/o in a try-with-resources block that
+  // declares an AutoCloseable vended by readWrapperSupplier.
+  private final Supplier<AutoCloseable> readWrapperSupplier;
+
   private final MetricTrackingWindmillServerStub server;
 
   private long bytesRead = 0L;
@@ -205,12 +210,23 @@ class WindmillStateReader {
       String computation,
       ByteString key,
       long shardingKey,
-      long workToken) {
+      long workToken,
+      Supplier<AutoCloseable> readWrapperSupplier) {
     this.server = server;
     this.computation = computation;
     this.key = key;
     this.shardingKey = shardingKey;
     this.workToken = workToken;
+    this.readWrapperSupplier = readWrapperSupplier;
+  }
+
+  public WindmillStateReader(
+      MetricTrackingWindmillServerStub server,
+      String computation,
+      ByteString key,
+      long shardingKey,
+      long workToken) {
+    this(server, computation, key, shardingKey, workToken, () -> null);
   }
 
   private static final class CoderAndFuture<FutureT> {
@@ -472,7 +488,10 @@ class WindmillStateReader {
       }
 
       Windmill.KeyedGetDataRequest request = createRequest(toFetch);
-      Windmill.KeyedGetDataResponse response = server.getStateData(computation, request);
+      Windmill.KeyedGetDataResponse response;
+      try (AutoCloseable readWrapper = readWrapperSupplier.get()) {
+        response = server.getStateData(computation, request);
+      }
       if (response == null) {
         throw new RuntimeException("Windmill unexpectedly returned null for request " + request);
       }
@@ -485,7 +504,7 @@ class WindmillStateReader {
       for (StateTag<?> stateTag : toFetch) {
         waiting.get(stateTag).future.setException(e);
       }
-      throw e;
+      throw new RuntimeException(e);
     }
   }
 
