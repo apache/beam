@@ -687,7 +687,8 @@ public class StreamingDataflowWorkerTest {
   private StreamingDataflowWorker makeWorker(
       List<ParallelInstruction> instructions,
       StreamingDataflowWorkerOptions options,
-      boolean publishCounters)
+      boolean publishCounters,
+      Supplier<Instant> clock)
       throws Exception {
     StreamingDataflowWorker worker =
         new StreamingDataflowWorker(
@@ -698,10 +699,19 @@ public class StreamingDataflowWorkerTest {
             null /* pipeline */,
             SdkHarnessRegistries.emptySdkHarnessRegistry(),
             publishCounters,
-            hotKeyLogger);
+            hotKeyLogger,
+            clock);
     worker.addStateNameMappings(
         ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
     return worker;
+  }
+
+  private StreamingDataflowWorker makeWorker(
+      List<ParallelInstruction> instructions,
+      StreamingDataflowWorkerOptions options,
+      boolean publishCounters)
+      throws Exception {
+    return makeWorker(instructions, options, publishCounters, Instant::now);
   }
 
   @Test
@@ -2672,7 +2682,8 @@ public class StreamingDataflowWorkerTest {
 
     public MockWork(long workToken) {
       super(
-          Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build());
+          Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build(),
+          Instant::now);
     }
 
     @Override

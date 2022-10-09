@@ -62,6 +62,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
@@ -495,6 +496,8 @@ public class StreamingDataflowWorker {
 
   private HotKeyLogger hotKeyLogger;
 
+  private final Supplier<Instant> clock;
+
   /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
   private static class StageInfo {
 
@@ -575,7 +578,8 @@ public class StreamingDataflowWorker {
         pipeline,
         sdkHarnessRegistry,
         true,
-        new HotKeyLogger());
+        new HotKeyLogger(),
+        Instant::now);
   }
 
   public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
@@ -590,7 +594,8 @@ public class StreamingDataflowWorker {
         null,
         sdkHarnessRegistry,
         true,
-        new HotKeyLogger());
+        new HotKeyLogger(),
+        Instant::now);
   }
 
   @VisibleForTesting
@@ -602,7 +607,8 @@ public class StreamingDataflowWorker {
       RunnerApi.@Nullable Pipeline pipeline,
       SdkHarnessRegistry sdkHarnessRegistry,
       boolean publishCounters,
-      HotKeyLogger hotKeyLogger)
+      HotKeyLogger hotKeyLogger,
+      Supplier<Instant> clock)
       throws IOException {
     this.stateCache = new WindmillStateCache(options.getWorkerCacheMb());
     this.readerCache =
@@ -614,6 +620,7 @@ public class StreamingDataflowWorker {
     this.options = options;
     this.sdkHarnessRegistry = sdkHarnessRegistry;
     this.hotKeyLogger = hotKeyLogger;
+    this.clock = clock;
     this.windmillServiceEnabled = options.isEnableStreamingEngine();
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
     this.statusPages =
@@ -882,7 +889,7 @@ public class StreamingDataflowWorker {
               if (pages.isEmpty()) {
                 LOG.warn("No captured status pages.");
               }
-              Long timestamp = Instant.now().getMillis();
+              Long timestamp = clock.get().getMillis();
               for (Capturable page : pages) {
                 PrintWriter writer = null;
                 try {
@@ -1118,7 +1125,7 @@ public class StreamingDataflowWorker {
     SdkWorkerHarness worker = sdkHarnessRegistry.getAvailableWorkerAndAssignWork();
 
     Work work =
-        new Work(workItem) {
+        new Work(workItem, clock) {
           @Override
           public void run() {
             try {
@@ -1174,13 +1181,15 @@ public class StreamingDataflowWorker {
     }
 
     private final Windmill.WorkItem workItem;
+    private final Supplier<Instant> clock;
     private final Instant startTime;
     private Instant stateStartTime;
     private State state;
 
-    public Work(Windmill.WorkItem workItem) {
+    public Work(Windmill.WorkItem workItem, Supplier<Instant> clock) {
       this.workItem = workItem;
-      this.startTime = this.stateStartTime = Instant.now();
+      this.clock = clock;
+      this.startTime = this.stateStartTime = clock.get();
       this.state = State.QUEUED;
     }
 
@@ -1198,7 +1207,7 @@ public class StreamingDataflowWorker {
 
     public void setState(State state) {
       this.state = state;
-      this.stateStartTime = Instant.now();
+      this.stateStartTime = clock.get();
     }
 
     public Instant getStateStartTime() {
@@ -1521,7 +1530,7 @@ public class StreamingDataflowWorker {
       } else {
         LastExceptionDataProvider.reportException(t);
         LOG.debug("Failed work: {}", work);
-        Duration elapsedTimeSinceStart = new Duration(Instant.now(), work.getStartTime());
+        Duration elapsedTimeSinceStart = new Duration(clock.get(), work.getStartTime());
         if (!reportFailure(computationId, workItem, t)) {
           LOG.error(
               "Execution of work for computation '{}' on key '{}' failed with uncaught exception, "
@@ -2204,7 +2213,7 @@ public class StreamingDataflowWorker {
   private void refreshActiveWork() {
     Map<String, List<Windmill.KeyedGetDataRequest>> active = new HashMap<>();
     Instant refreshDeadline =
-        Instant.now().minus(Duration.millis(options.getActiveWorkRefreshPeriodMillis()));
+        clock.get().minus(Duration.millis(options.getActiveWorkRefreshPeriodMillis()));
 
     for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
       active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline));
@@ -2215,7 +2224,7 @@ public class StreamingDataflowWorker {
 
   private void invalidateStuckCommits() {
     Instant stuckCommitDeadline =
-        Instant.now().minus(Duration.millis(options.getStuckCommitDurationMillis()));
+        clock.get().minus(Duration.millis(options.getStuckCommitDurationMillis()));
     for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
       entry.getValue().invalidateStuckCommits(stuckCommitDeadline);
     }
