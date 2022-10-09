@@ -1052,6 +1052,13 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
   def test_invalid_json_neg_inf(self):
     self.json_compliance_exception(float('-inf'))
 
+  def test_ensure_ascii(self):
+    coder = RowAsDictJsonCoder()
+    test_value = {'s': '🎉'}
+    output_value = b'{"s": "\xf0\x9f\x8e\x89"}'
+
+    self.assertEqual(output_value, coder.encode(test_value))
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestJsonRowWriter(unittest.TestCase):

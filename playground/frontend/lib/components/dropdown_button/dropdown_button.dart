@@ -17,9 +17,9 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/utils/dropdown_utils.dart';
+import 'package:playground_components/playground_components.dart';
 
 const int kAnimationDurationInMilliseconds = 80;
 const Offset kAnimationBeginOffset = Offset(0.0, -0.02);
@@ -87,10 +87,12 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
+
     return Container(
       height: kContainerHeight,
       decoration: BoxDecoration(
-        color: ThemeColors.of(context).dropdownButton,
+        color: ext.fieldBackgroundColor,
         borderRadius: BorderRadius.circular(kSmBorderRadius),
       ),
       child: TextButton(
@@ -149,7 +151,7 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
                     height: widget.height,
                     width: widget.width,
                     decoration: BoxDecoration(
-                      color: ThemeColors.of(context).background,
+                      color: Theme.of(context).backgroundColor,
                       borderRadius: BorderRadius.circular(kMdBorderRadius),
                     ),
                     child: widget.createDropdown(_close),

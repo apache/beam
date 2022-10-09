@@ -18,9 +18,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/pages/playground/states/example_selector_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 const double kContainerWidth = 376.0;
@@ -34,8 +34,11 @@ class SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final borderColor =
+        Theme.of(context).extension<BeamThemeExtension>()!.borderColor;
+
     final OutlineInputBorder border = OutlineInputBorder(
-      borderSide: BorderSide(color: ThemeColors.of(context).lightGreyColor),
+      borderSide: BorderSide(color: borderColor),
       borderRadius: BorderRadius.circular(kMdBorderRadius),
     );
 
@@ -61,7 +64,7 @@ class SearchField extends StatelessWidget {
                 ),
                 child: Icon(
                   Icons.search,
-                  color: ThemeColors.of(context).lightGreyColor,
+                  color: borderColor,
                   size: kIconSizeMd,
                 ),
               ),
@@ -72,7 +75,7 @@ class SearchField extends StatelessWidget {
               hintText: AppLocalizations.of(context)!.search,
               contentPadding: const EdgeInsets.only(left: kLgSpacing),
             ),
-            cursorColor: ThemeColors.of(context).lightGreyColor,
+            cursorColor: borderColor,
             cursorWidth: kCursorSize,
             textAlignVertical: TextAlignVertical.center,
             onFieldSubmitted: (String filterText) =>

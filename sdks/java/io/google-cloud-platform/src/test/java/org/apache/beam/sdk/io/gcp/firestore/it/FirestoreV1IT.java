@@ -107,7 +107,8 @@ public final class FirestoreV1IT extends BaseFirestoreIT {
 
     List<Write> writes = newArrayList(validWrite, conditionalUpdate);
 
-    RpcQosOptions options = BaseFirestoreIT.rpcQosOptions.toBuilder().withBatchMaxCount(2).build();
+    RpcQosOptions options =
+        BaseFirestoreIT.RPC_QOS_OPTIONS.toBuilder().withBatchMaxCount(2).build();
     PCollection<WriteFailure> writeFailurePCollection =
         testPipeline
             .apply(Create.of(writes))

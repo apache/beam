@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground_components/playground_components.dart';
 
 enum ExampleTokenType {
   standard,
@@ -24,7 +24,7 @@ enum ExampleTokenType {
   ;
 
   static ExampleTokenType fromToken(String token) {
-    final sdk = SDK.tryParseExamplePath(token);
+    final sdk = Sdk.tryParseExamplePath(token);
     if (sdk != null) {
       return standard;
     }

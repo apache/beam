@@ -241,8 +241,8 @@ def dup_topx(state, arg):
   state.stack += state[-arg:]
 
 
-store_attr = pop_top
-delete_attr = nop
+store_attr = pop_two
+delete_attr = pop_top
 store_global = pop_top
 delete_global = nop
 
