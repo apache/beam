@@ -60,6 +60,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -3094,10 +3095,20 @@ public class StreamingDataflowWorkerTest {
   }
 
   private static class SlowDoFn extends DoFn<String, String> {
+    private final Duration sleep;
+
+    SlowDoFn(Duration sleep) {
+      this.sleep = sleep;
+    }
+
+    SlowDoFn() {
+      this(Duration.millis(1000));
+    }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      Thread.sleep(1000);
+      FakeClock.DEFAULT.sleep(sleep);
+      Uninterruptibles.sleepUninterruptibly(sleep.getMillis(), TimeUnit.MILLISECONDS);
       c.output(c.element());
     }
   }
@@ -3179,6 +3190,102 @@ public class StreamingDataflowWorkerTest {
     assertTrue(lat.getState() == LatencyAttribution.State.COMMITTING);
     assertTrue(lat.getTotalDurationMillis() == 110);
     assertTrue(!it.hasNext());
+  }
+
+  // Aggregates LatencyAttribution data from active work refresh requests.
+  static class ActiveWorkRefreshSink {
+    private final Function<GetDataRequest, GetDataResponse> responder;
+    private final Map<Long, EnumMap<LatencyAttribution.State, Duration>> totalDurations =
+        new HashMap<>();
+
+    ActiveWorkRefreshSink(Function<GetDataRequest, GetDataResponse> responder) {
+      this.responder = responder;
+    }
+
+    Duration getLatencyAttributionDuration(long workToken, LatencyAttribution.State state) {
+      EnumMap<LatencyAttribution.State, Duration> durations = totalDurations.get(workToken);
+      return durations == null ? Duration.ZERO : durations.getOrDefault(state, Duration.ZERO);
+    }
+
+    boolean isActiveWorkRefresh(GetDataRequest request) {
+      for (ComputationGetDataRequest computationRequest : request.getRequestsList()) {
+        if (!computationRequest.getComputationId().equals(DEFAULT_COMPUTATION_ID)) {
+          return false;
+        }
+        for (KeyedGetDataRequest keyedRequest : computationRequest.getRequestsList()) {
+          if (keyedRequest.getWorkToken() == 0
+              || keyedRequest.getShardingKey() != DEFAULT_SHARDING_KEY
+              || keyedRequest.getValuesToFetchCount() != 0
+              || keyedRequest.getBagsToFetchCount() != 0
+              || keyedRequest.getTagValuePrefixesToFetchCount() != 0
+              || keyedRequest.getWatermarkHoldsToFetchCount() != 0) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    GetDataResponse getData(GetDataRequest request) {
+      if (!isActiveWorkRefresh(request)) {
+        return responder.apply(request);
+      }
+      for (ComputationGetDataRequest computationRequest : request.getRequestsList()) {
+        for (KeyedGetDataRequest keyedRequest : computationRequest.getRequestsList()) {
+          for (LatencyAttribution la : keyedRequest.getLatencyAttributionList()) {
+            EnumMap<LatencyAttribution.State, Duration> durations =
+                totalDurations.computeIfAbsent(
+                    keyedRequest.getWorkToken(),
+                    (Long workToken) ->
+                        new EnumMap<LatencyAttribution.State, Duration>(
+                            LatencyAttribution.State.class));
+            Duration cur = Duration.millis(la.getTotalDurationMillis());
+            durations.compute(la.getState(), (s, d) -> d == null || d.isShorterThan(cur) ? cur : d);
+          }
+        }
+      }
+      return EMPTY_DATA_RESPONDER.apply(request);
+    }
+  }
+
+  @Test
+  public void testLatencyAttributionToQueuedState() throws Exception {
+    final int workToken = 3232; // A unique id makes it easier to search logs.
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(new SlowDoFn(Duration.millis(1000)), 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setActiveWorkRefreshPeriodMillis(100);
+    // A single-threaded worker processes work sequentially, leaving a second work item in state
+    // QUEUED until the first work item is committed.
+    options.setNumberOfWorkerHarnessThreads(1);
+    StreamingDataflowWorker worker =
+        makeWorker(instructions, options, false /* publishCounters */, FakeClock.DEFAULT);
+    worker.start();
+
+    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
+    server
+        .whenGetWorkCalled()
+        .thenReturn(makeInput(workToken + 1, 0 /* timestamp */))
+        .thenReturn(makeInput(workToken, 1 /* timestamp */));
+    server.waitForAndGetCommits(2);
+
+    worker.stop();
+
+    assertTrue(
+        awrSink
+            .getLatencyAttributionDuration(workToken, LatencyAttribution.State.QUEUED)
+            .equals(Duration.millis(1000)));
+    assertTrue(
+        awrSink
+            .getLatencyAttributionDuration(workToken + 1, LatencyAttribution.State.QUEUED)
+            .equals(Duration.ZERO));
   }
 
   /** For each input element, emits a large string. */
