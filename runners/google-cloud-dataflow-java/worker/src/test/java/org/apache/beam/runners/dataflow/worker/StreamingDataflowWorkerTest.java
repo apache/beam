@@ -1668,7 +1668,7 @@ public class StreamingDataflowWorkerTest {
         .getValueBuilder()
         .setTimestamp(0)
         .setData(ByteString.EMPTY);
-    server.addDataToOffer(dataResponse.build());
+    server.whenGetDataCalled().thenReturn(dataResponse.build());
 
     expectedBytesRead += dataBuilder.build().getSerializedSize();
 
@@ -1965,7 +1965,7 @@ public class StreamingDataflowWorkerTest {
         .getValueBuilder()
         .setTimestamp(0)
         .setData(ByteString.EMPTY);
-    server.addDataToOffer(dataResponse.build());
+    server.whenGetDataCalled().thenReturn(dataResponse.build());
 
     expectedBytesRead += dataBuilder.build().getSerializedSize();
 
@@ -2135,9 +2135,7 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     // Respond to any GetData requests with empty state.
-    for (int i = 0; i < 1000; ++i) {
-      server.addDataFnToOffer(EMPTY_DATA_RESPONDER);
-    }
+    server.whenGetDataCalled().answerByDefault(EMPTY_DATA_RESPONDER);
 
     for (int i = 0; i < actions.size(); ++i) {
       Action action = actions.get(i);
@@ -2920,7 +2918,7 @@ public class StreamingDataflowWorkerTest {
           .getValueBuilder()
           .setTimestamp(0)
           .setData(state);
-      server.addDataToOffer(dataResponse.build());
+      server.whenGetDataCalled().thenReturn(dataResponse.build());
     }
 
     // Three GetWork requests and commits

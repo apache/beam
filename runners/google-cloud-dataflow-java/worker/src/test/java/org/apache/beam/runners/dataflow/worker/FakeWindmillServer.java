@@ -52,6 +52,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.rules.ErrorCollector;
 import org.slf4j.Logger;
@@ -61,8 +62,48 @@ import org.slf4j.LoggerFactory;
 class FakeWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(FakeWindmillServer.class);
 
+  static class ResponseQueue<T, U> {
+    private final Queue<Function<T, U>> responses = new ConcurrentLinkedQueue<>();
+    private Function<T, U> defaultResponse;
+    Duration sleep = Duration.ZERO;
+
+    // (Fluent) interface for response producers, accessible from tests.
+
+    ResponseQueue<T, U> thenAnswer(Function<T, U> mapFun) {
+      responses.add(mapFun);
+      return this;
+    }
+
+    ResponseQueue<T, U> thenReturn(U response) {
+      return thenAnswer((request) -> response);
+    }
+
+    ResponseQueue<T, U> answerByDefault(Function<T, U> mapFun) {
+      defaultResponse = mapFun;
+      return this;
+    }
+
+    ResponseQueue<T, U> returnByDefault(U response) {
+      return answerByDefault((request) -> response);
+    }
+
+    ResponseQueue<T, U> delayEachResponseBy(Duration sleep) {
+      this.sleep = sleep;
+      return this;
+    }
+
+    // Interface for response consumers, accessible from the enclosing class.
+
+    private U getOrDefault(T request) {
+      Function<T, U> mapFun = responses.poll();
+      U response = mapFun == null ? defaultResponse.apply(request) : mapFun.apply(request);
+      Uninterruptibles.sleepUninterruptibly(sleep.getMillis(), TimeUnit.MILLISECONDS);
+      return response;
+    }
+  }
+
   private final Queue<Windmill.GetWorkResponse> workToOffer;
-  private final Queue<Function<GetDataRequest, GetDataResponse>> dataToOffer;
+  private final ResponseQueue<GetDataRequest, GetDataResponse> dataToOffer;
   // Keys are work tokens.
   private final Map<Long, WorkItemCommitRequest> commitsReceived;
   private final ArrayList<Windmill.ReportStatsRequest> statsReceived;
@@ -77,7 +118,11 @@ class FakeWindmillServer extends WindmillServerStub {
 
   public FakeWindmillServer(ErrorCollector errorCollector) {
     workToOffer = new ConcurrentLinkedQueue<>();
-    dataToOffer = new ConcurrentLinkedQueue<>();
+    dataToOffer =
+        new ResponseQueue<GetDataRequest, GetDataResponse>()
+            .returnByDefault(GetDataResponse.getDefaultInstance())
+            // Sleep for a little bit to ensure that *-windmill-read state-sampled counters show up.
+            .delayEachResponseBy(Duration.millis(500));
     commitsReceived = new ConcurrentHashMap<>();
     exceptions = new LinkedBlockingQueue<>();
     expectedExceptionCount = new AtomicInteger();
@@ -94,12 +139,8 @@ class FakeWindmillServer extends WindmillServerStub {
     workToOffer.add(work);
   }
 
-  public void addDataToOffer(Windmill.GetDataResponse data) {
-    dataToOffer.add((GetDataRequest request) -> data);
-  }
-
-  public void addDataFnToOffer(Function<GetDataRequest, GetDataResponse> f) {
-    dataToOffer.add(f);
+  public ResponseQueue<GetDataRequest, GetDataResponse> whenGetDataCalled() {
+    return dataToOffer;
   }
 
   @Override
@@ -129,20 +170,7 @@ class FakeWindmillServer extends WindmillServerStub {
     LOG.info("getDataRequest: {}", request.toString());
     validateGetDataRequest(request);
     ++numGetDataRequests;
-    GetDataResponse response;
-    Function<GetDataRequest, GetDataResponse> responseFn = dataToOffer.poll();
-    if (responseFn == null) {
-      response = Windmill.GetDataResponse.newBuilder().build();
-    } else {
-      response = responseFn.apply(request);
-      try {
-        // Sleep for a little bit to ensure that *-windmill-read state-sampled counters
-        // show up.
-        sleepMillis(500);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    }
+    GetDataResponse response = dataToOffer.getOrDefault(request);
     LOG.debug("getDataResponse: {}", response.toString());
     return response;
   }
