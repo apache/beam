@@ -25,7 +25,7 @@ import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 class ExamplesFilter extends StatelessWidget {
-  const ExamplesFilter({Key? key}) : super(key: key);
+  const ExamplesFilter({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +46,7 @@ class ExamplesFilter extends StatelessWidget {
 }
 
 class _Types extends StatelessWidget {
-  const _Types({Key? key}) : super(key: key);
+  const _Types();
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +76,7 @@ class _Types extends StatelessWidget {
 }
 
 class _Tags extends StatelessWidget {
-  const _Tags({Key? key}) : super(key: key);
+  const _Tags();
 
   @override
   Widget build(BuildContext context) {

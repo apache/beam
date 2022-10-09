@@ -33,7 +33,7 @@ class ExampleSelectorState with ChangeNotifier {
     this._selectedFilterType = ExampleType.all,
     this._searchText = '',
   ]) {
-    tags = _getTagsSortedByPopularity(categories);
+    tags = _getTagsSortedByExampleCount(categories);
   }
 
   ExampleType get selectedFilterType => _selectedFilterType;
@@ -55,22 +55,18 @@ class ExampleSelectorState with ChangeNotifier {
     notifyListeners();
   }
 
-  List<String> _getTagsSortedByPopularity(
+  List<String> _getTagsSortedByExampleCount(
     List<CategoryWithExamples> categories,
   ) {
-    Map<String, int> tagsPopularity = {};
-    for (var category in categories) {
-      for (var example in category.examples) {
-        for (var tag in example.tags) {
-          if (tagsPopularity[tag] != null) {
-            tagsPopularity[tag] = tagsPopularity[tag]! + 1;
-          } else {
-            tagsPopularity[tag] = 1;
-          }
+    Map<String, int> exampleCountByTag = {};
+    for (final category in categories) {
+      for (final example in category.examples) {
+        for (final tag in example.tags) {
+          exampleCountByTag[tag] = (exampleCountByTag[tag] ?? 0) + 1;
         }
       }
     }
-    final tagEntries = tagsPopularity.entries.toList()
+    final tagEntries = exampleCountByTag.entries.toList()
       ..sort((entry1, entry2) => entry2.value.compareTo(entry1.value));
     return tagEntries.map((entry) => entry.key).toList();
   }
@@ -105,6 +101,7 @@ class ExampleSelectorState with ChangeNotifier {
     return byName;
   }
 
+  @visibleForTesting
   List<ExampleBase> filterExamplesByTags(List<ExampleBase> examples) {
     if (selectedTags.isEmpty) {
       return examples;
@@ -118,6 +115,7 @@ class ExampleSelectorState with ChangeNotifier {
     return sorted;
   }
 
+  @visibleForTesting
   List<ExampleBase> filterExamplesByType(
     List<ExampleBase> examples,
     ExampleType type,
@@ -128,13 +126,14 @@ class ExampleSelectorState with ChangeNotifier {
     return examples.where((element) => element.type == type).toList();
   }
 
+  @visibleForTesting
   List<ExampleBase> filterExamplesByName(List<ExampleBase> examples) {
-    if (searchText.isEmpty) {
+    if (_searchText.isEmpty) {
       return examples;
     }
     return examples
         .where((example) =>
-            example.name.toLowerCase().contains(searchText.toLowerCase()))
+            example.name.toLowerCase().contains(_searchText.toLowerCase()))
         .toList();
   }
 }

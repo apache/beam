@@ -114,7 +114,6 @@ class ExampleCache extends ChangeNotifier {
       name: result.files.first.name,
       path: id,
       description: '',
-      // TODO(nausharipov): should tags be empty?
       tags: [],
       type: ExampleType.example,
       source: result.files.first.code,

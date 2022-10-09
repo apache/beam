@@ -93,7 +93,7 @@ void main() {
   );
 
   test(
-      'ExampleSelector state sortCategories should:'
+      'ExampleSelector state filterCategories should:'
       '- update categories and notify all listeners,'
       'but should NOT:'
       '- affect Example state categories', () {
@@ -105,7 +105,7 @@ void main() {
   });
 
   test(
-      'ExampleSelector state sortExamplesByType should:'
+      'ExampleSelector state filterExamplesByType should:'
       '- update categories,'
       '- notify all listeners,'
       'but should NOT:'
@@ -115,15 +115,14 @@ void main() {
       categoriesMock,
     );
     state.addListener(() {
-      expect(state.categories, examplesSortedByTypeMock);
+      expect(state.categories, examplesFilteredByTypeMock);
       expect(exampleCache.categoryListsBySdk, exampleCache.categoryListsBySdk);
     });
-    state.filterExamplesByType(unsortedExamples, ExampleType.kata);
+    state.filterExamplesByType(filteredExamples, ExampleType.kata);
   });
 
-  // TODO(nausharipov): replace all 'sort' with 'filter' if ok
   test(
-      'ExampleSelector state sortExamplesByTags should:'
+      'ExampleSelector state filterExamplesByTags should:'
       '- return examples which contain all selected tags'
       '- notify all listeners,'
       'but should NOT:'
@@ -134,13 +133,13 @@ void main() {
     );
     state.addSelectedTag('tag2');
     expect(
-      state.filterExamplesByTags(unsortedExamples),
-      examplesSortedByTagsMock,
+      state.filterExamplesByTags(filteredExamples),
+      examplesFilteredByTagsMock,
     );
   });
 
   test(
-      'ExampleSelector state sortExamplesByName should:'
+      'ExampleSelector state filterExamplesByName should:'
       '- return examples with matching names'
       '- notify all listeners,'
       'but should NOT:'
@@ -153,12 +152,12 @@ void main() {
     );
     state.setSearchText('Example X1');
     expect(
-      state.filterExamplesByName(unsortedExamples),
-      examplesSortedByNameMock,
+      state.filterExamplesByName(filteredExamples),
+      examplesFilteredByNameMock,
     );
   });
 
-  test('ExampleSelectorState sorts tags by popularity', () {
+  test('ExampleSelectorState sorts tags by example count', () {
     final state = ExampleSelectorState(
       playgroundController,
       categoriesMock,
