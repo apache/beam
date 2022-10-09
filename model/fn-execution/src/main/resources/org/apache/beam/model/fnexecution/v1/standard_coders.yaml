@@ -488,6 +488,17 @@ examples:
 ---
 
 coder:
+  urn: "beam:coder:row:v1"
+  # f_char: logical(fixed_char(5)), f_varchar: logical(var_char(5)), f_bytes: logical(fixed_bytes(5)), f_varbytes: logical(var_bytes(5))
+  payload: "\n=\n\x06f_char\x1a3\x08\x01:/\n\x1fbeam:logical_type:fixed_char:v1\x1a\x02\x10\x07\"\x02\x10\x03*\x04\n\x02\x18\x05\nB\n\tf_varchar\x1a1\x08\x01:-\n\x1dbeam:logical_type:var_char:v1\x1a\x02\x10\x07\"\x02\x10\x03*\x04\n\x02\x18\n \x01(\x01\nC\n\x07f_bytes\x1a4\x08\x01:0\n beam:logical_type:fixed_bytes:v1\x1a\x02\x10\t\"\x02\x10\x03*\x04\n\x02\x18\x05 \x02(\x02\nD\n\nf_varbytes\x1a2\x08\x01:.\n\x1ebeam:logical_type:var_bytes:v1\x1a\x02\x10\t\"\x02\x10\x03*\x04\n\x02\x18\n \x03(\x03\x12$f0ffb3a4-f46f-41ca-a942-85e3e939452a"
+examples:
+  "\x04\x00\x05ABCDE\x05ABCDE\x05ABCDE\x05ABCDE": {f_char: "ABCDE", f_varchar: "ABCDE", f_bytes: "ABCDE", f_varbytes: "ABCDE"}
+  "\x04\x00\x05A\n   \x02A\n\x05A\n\x00\x00\x00\x02A\n": {f_char: "A\n   ", f_varchar: "A\n", f_bytes: "A\n\x00\x00\x00", f_varbytes: "A\n"}
+  "\x04\x01\x06\x05null?\x04null": {f_char: "null?", f_varchar: null, f_bytes: null, f_varbytes: "null"}
+
+---
+
+coder:
   urn: "beam:coder:sharded_key:v1"
   components: [{urn: "beam:coder:string_utf8:v1"}]
 

@@ -369,6 +369,7 @@ class SchemaTranslation(object):
       type_proto: schema_pb2.FieldType,
       value_proto: schema_pb2.FieldValue):
     if type_proto.WhichOneof("type_info") != "atomic_type":
+      # TODO: Allow other value types
       raise ValueError(
           "Encounterd option with unsupported type. Only "
           f"atomic_type options are supported: {type_proto}")
@@ -930,6 +931,7 @@ LogicalType.register_logical_type(DecimalLogicalType)
 
 @LogicalType.register_logical_type
 class FixedBytes(PassThroughLogicalType[bytes, np.int32]):
+  """A logical type for fixed-length bytes."""
   @classmethod
   def urn(cls):
     return common_urns.fixed_bytes.urn
@@ -962,6 +964,7 @@ class FixedBytes(PassThroughLogicalType[bytes, np.int32]):
 
 @LogicalType.register_logical_type
 class VariableBytes(PassThroughLogicalType[bytes, np.int32]):
+  """A logical type for variable-length bytes with specified maximum length."""
   @classmethod
   def urn(cls):
     return common_urns.var_bytes.urn
@@ -991,6 +994,7 @@ class VariableBytes(PassThroughLogicalType[bytes, np.int32]):
 
 @LogicalType.register_logical_type
 class FixedString(PassThroughLogicalType[str, np.int32]):
+  """A logical type for fixed-length string."""
   @classmethod
   def urn(cls):
     return common_urns.fixed_char.urn
@@ -1023,6 +1027,7 @@ class FixedString(PassThroughLogicalType[str, np.int32]):
 
 @LogicalType.register_logical_type
 class VariableString(PassThroughLogicalType[str, np.int32]):
+  """A logical type for variable-length string with specified maximum length."""
   @classmethod
   def urn(cls):
     return common_urns.var_char.urn
