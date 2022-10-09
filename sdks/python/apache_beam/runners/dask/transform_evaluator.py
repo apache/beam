@@ -22,12 +22,11 @@ to Dask Bag functions.
 
 TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
 """
-import dataclasses
-
 import abc
-import dask.bag as db
+import dataclasses
 import typing as t
-import functools
+
+import dask.bag as db
 
 import apache_beam
 from apache_beam.pipeline import AppliedPTransform
@@ -70,14 +69,22 @@ class ParDo(DaskBagOp):
 
   def apply(self, input_bag: OpInput) -> db.Bag:
     transform = t.cast(apache_beam.ParDo, self.applied.transform)
-    return input_bag.map(transform.fn.process, *transform.args, **transform.kwargs).flatten()
+    return input_bag.map(
+      transform.fn.process,
+      *transform.args,
+      **transform.kwargs
+    ).flatten()
 
 
 class Map(DaskBagOp):
 
   def apply(self, input_bag: OpInput) -> db.Bag:
     transform = t.cast(apache_beam.Map, self.applied.transform)
-    return input_bag.map(transform.fn.process, *transform.args, **transform.kwargs)
+    return input_bag.map(
+      transform.fn.process,
+      *transform.args,
+      **transform.kwargs
+    )
 
 
 class GroupByKey(DaskBagOp):

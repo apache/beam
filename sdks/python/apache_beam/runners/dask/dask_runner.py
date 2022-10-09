@@ -55,7 +55,8 @@ class DaskOptions(PipelineOptions):
       dest='address',
       type=str,
       default=None,
-      help='Address of a dask Scheduler server. Will default to a `dask.LocalCluster()`.')
+      help='Address of a dask Scheduler server. Will default to a '
+           '`dask.LocalCluster()`.')
     parser.add_argument(
       '--dask_connection_timeout',
       dest='timeout',
@@ -72,14 +73,15 @@ class DaskOptions(PipelineOptions):
       dest='name',
       type=str,
       default=None,
-      help='Gives the client a name that will be included in logs generated on the scheduler for matters relating to '
-           'this client.')
+      help='Gives the client a name that will be included in logs generated on '
+           'the scheduler for matters relating to this client.')
     parser.add_argument(
       '--dask_connection_limit',
       dest='connection_limit',
       type=int,
       default=512,
-      help='The number of open comms to maintain at once in the connection pool.')
+      help='The number of open comms to maintain at once in the connection '
+           'pool.')
 
 
 @dataclasses.dataclass
