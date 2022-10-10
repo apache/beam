@@ -1410,7 +1410,7 @@ class _ReadReadRowsResponsesWithFastAvro():
 
 
 @deprecated(since='2.11.0', current="WriteToBigQuery")
-class BigQuerySink(*args, **kwargs):
+def BigQuerySink(*args, **kwargs):
   """A deprecated alias for WriteToBigQuery."""
   warnings.warn(
       "Native sinks no longer implemented; "
