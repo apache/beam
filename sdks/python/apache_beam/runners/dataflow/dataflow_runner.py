@@ -449,7 +449,7 @@ class DataflowRunner(PipelineRunner):
       # contain any added PTransforms.
       pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
-      if 'use_legacy_bq_sink' in self.options.view_as(DebugOptions).experiments:
+      if 'use_legacy_bq_sink' in debug_options.experiments:
         warnings.warn(
             "Native sinks no longer implemented; "
             "ignoring use_legacy_bq_sink.")
