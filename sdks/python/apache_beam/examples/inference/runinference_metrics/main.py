@@ -35,7 +35,7 @@ from pipeline.transformations import Tokenize
 
 def parse_arguments(argv):
   """
-    It parses the arguments passed to the command line and returns them as an object
+    Parses the arguments passed to the command line and returns them as an object
     Args:
       argv: The arguments passed to the command line.
     Returns:
@@ -70,7 +70,7 @@ def parse_arguments(argv):
 
 def run():
   """
-    It runs the pipeline that loads a transformer based text classification model and does inference on a list of sentences.
+    Runs the pipeline that loads a transformer based text classification model and does inference on a list of sentences.
     At the end of pipeline, different metrics like latency, throughput and others are printed.
     """
   args = parse_arguments(sys.argv)

@@ -46,6 +46,8 @@ The file structure for entire pipeline is:
 
 
 ### How to Run the Pipeline ?
+First, make sure you have installed the required packages. One should have access to a Google Cloud Project and then correctly configure the GCP variables like `PROJECT_ID`, `REGION`, and others in `config.py`. For using Dataflow with GPU, all the necessary setup instructions are mentioned here: https://github.com/GoogleCloudPlatform/python-docs-samples/tree/main/dataflow/gpu-examples/pytorch-minimal.
+
 
 1. Dataflow with CPU: `python main.py --mode cloud --device CPU`
 2. Dataflow with GPU: `python main.py --mode cloud --device GPU`
@@ -78,16 +80,9 @@ metrics = pipeline.result.metrics().query(beam.metrics.MetricsFilter())
 {{< /highlight >}}
 
 
-A snapshot of different metrics when using Dataflow on CPU from GCP UI can be found below:
+A snapshot of different metrics from GCP UI when using Dataflow on GPU:
 
-
-
-
-
-
-A snapshot of different metrics when using Dataflow on GPU from GCP UI can be found below:
-
-
+  ![runinference-GPU-metrics.png](https://drive.google.com/uc?id=1YIwrFXa3XNxzQWAgm_MiEXaSFymcACmV)
 
 Some metrics commonly used for benchmarking are:
 
