@@ -1,0 +1,13 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "python": "AnandInguva",
+    "java": "apilloud",
+    "go": "jrmccluskey",
+    "io": "chamikaramj"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false
+}
