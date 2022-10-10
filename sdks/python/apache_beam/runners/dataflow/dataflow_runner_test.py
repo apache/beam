@@ -29,7 +29,6 @@ from parameterized import parameterized
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
-from apache_beam.coders import BytesCoder
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform

@@ -53,7 +53,6 @@ from apache_beam.internal.metrics.metric import Metrics
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import bigquery_avro_tools
 from apache_beam.io.gcp import resource_identifiers
-from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.options import value_provider

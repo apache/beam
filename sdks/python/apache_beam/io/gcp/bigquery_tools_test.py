@@ -24,7 +24,6 @@ import json
 import logging
 import math
 import re
-import time
 import unittest
 
 import fastavro
@@ -33,9 +32,7 @@ import pytz
 from parameterized import parameterized
 
 import apache_beam as beam
-from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp import resource_identifiers
-from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
 from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
