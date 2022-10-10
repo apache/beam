@@ -26,9 +26,8 @@ import abc
 import dataclasses
 import typing as t
 
-import dask.bag as db
-
 import apache_beam
+import dask.bag as db
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.runners.dask.overrides import _Create
 from apache_beam.runners.dask.overrides import _Flatten
