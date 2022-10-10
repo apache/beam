@@ -95,4 +95,4 @@ Output
 
 ### Description for example
 
-Created a list of integers ```PCollection```. The ```beam.combiners.Mean.Globally()``` to return the mean of numbers from `PCollection`.
+Created a list of integers ```PCollection```. The ```beam.combiners.Mean.Globally()``` to returns the mean of numbers from `PCollection`.

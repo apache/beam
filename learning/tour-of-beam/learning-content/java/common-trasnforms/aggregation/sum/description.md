@@ -50,4 +50,4 @@ KV{🥕, 5}
 
 ### Description for example
 
-Given a list of integers ```PCollection```. The ```applyTransform()``` function return sum of numbers from ```PCollection```.
+Given a list of integers ```PCollection```. The ```applyTransform()``` function returns the sum of numbers from ```PCollection```.

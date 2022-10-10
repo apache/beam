@@ -50,4 +50,4 @@ KV{🍆, 1}
 
 ### Description for example
 
-Given a list of integers ```PCollection```. The ```applyTransform()``` function return maximum number from ```PCollection```.
+Given a list of integers ```PCollection```. The ```applyTransform()``` function returns the maximum number from ```PCollection```.

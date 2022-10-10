@@ -68,4 +68,4 @@ Output
 
 ### Description for example
 
-Created a list of integers ```PCollection```. The ```beam.combiners.Top.Largest(5)``` to return the larger than [5] from `PCollection`.
+Created a list of integers ```PCollection```. The ```beam.combiners.Top.Largest(5)``` to returns the larger than [5] from `PCollection`.

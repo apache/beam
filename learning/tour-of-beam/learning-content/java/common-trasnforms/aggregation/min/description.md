@@ -50,4 +50,4 @@ KV{🍅, 3}
 
 ### Description for example
 
-Given a list of integers ```PCollection```. The ```applyTransform()``` function return minimum number from ```PCollection```.
+Given a list of integers ```PCollection```. The ```applyTransform()``` function returns the minimum number from ```PCollection```.

@@ -42,4 +42,4 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 
 ### Description for example
 
-Given a list of integers ```PCollection```. The ```applyTransform()``` function return mean of number from ```PCollection```.
+Given a list of integers ```PCollection```. The ```applyTransform()``` function returns the mean of the number from ```PCollection```.

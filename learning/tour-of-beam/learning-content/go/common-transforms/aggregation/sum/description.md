@@ -42,4 +42,4 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 
 ### Description for example
 
-Given a list of integers ```PCollection```. The ```applyTransform()``` function return sum of numbers from ```PCollection```.
+Given a list of integers ```PCollection```. The ```applyTransform()``` function returns the sum of numbers from ```PCollection```.

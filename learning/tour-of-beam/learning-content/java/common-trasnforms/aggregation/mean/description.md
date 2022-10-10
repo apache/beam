@@ -51,4 +51,4 @@ KV{🍅, 4.0}
 
 ### Description for example
 
-Given a list of integers ```PCollection```. The ```applyTransform()``` function return mean of number from ```PCollection```.
+Given a list of integers ```PCollection```. The ```applyTransform()``` function returns the mean of number from ```PCollection```.
