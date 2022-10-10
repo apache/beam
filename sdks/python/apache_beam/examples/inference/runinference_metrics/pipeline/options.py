@@ -65,7 +65,7 @@ def get_pipeline_options(
         "--experiment=use_runner_v2",
     ]
     dataflow_options.update({
-        "sdk_container_image":cfg.DOCKER_IMG,
+        "sdk_container_image": cfg.DOCKER_IMG,
         "machine_type": "n1-standard-4",
     })
 

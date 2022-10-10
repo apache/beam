@@ -97,7 +97,6 @@ def run():
       mode=args.mode,
       device=args.device,
   )
-  raise
   model_handler_class = (
       PytorchModelHandlerKeyedTensor
       if args.device == "GPU" else CustomPytorchModelHandlerKeyedTensor)
