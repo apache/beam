@@ -30,9 +30,9 @@ import dask.bag as db
 
 import apache_beam
 from apache_beam.pipeline import AppliedPTransform
-from apache_beam.runners.dask.overrides import (
-    _Create, _Flatten, _GroupByKeyOnly
-)
+from apache_beam.runners.dask.overrides import _Create
+from apache_beam.runners.dask.overrides import _Flatten
+from apache_beam.runners.dask.overrides import _GroupByKeyOnly
 
 OpInput = t.Union[db.Bag, t.Sequence[db.Bag], None]
 

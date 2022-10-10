@@ -20,7 +20,8 @@ import typing as t
 import apache_beam as beam
 from apache_beam import typehints
 from apache_beam.io.iobase import SourceBase
-from apache_beam.pipeline import AppliedPTransform, PTransformOverride
+from apache_beam.pipeline import AppliedPTransform
+from apache_beam.pipeline import PTransformOverride
 from apache_beam.runners.direct.direct_runner import _GroupAlsoByWindowDoFn
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.window import GlobalWindows
