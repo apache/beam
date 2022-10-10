@@ -202,42 +202,6 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
   @pytest.mark.it_postcommit
-  def test_big_query_standard_sql_kms_key_native(self):
-    if isinstance(self.test_pipeline.runner, TestDirectRunner):
-      self.skipTest("This test doesn't work on DirectRunner.")
-    verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
-    expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
-    pipeline_verifiers = [
-        PipelineStateMatcher(),
-        BigqueryMatcher(
-            project=self.project,
-            query=verify_query,
-            checksum=expected_checksum)
-    ]
-    kms_key = self.test_pipeline.get_option('kms_key_name')
-    self.assertTrue(kms_key)
-    extra_opts = {
-        'query': STANDARD_QUERY,
-        'output': self.output_table,
-        'output_schema': DIALECT_OUTPUT_SCHEMA,
-        'use_standard_sql': True,
-        'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
-        'on_success_matcher': all_of(*pipeline_verifiers),
-        'kms_key': kms_key,
-        'native': True,
-        'experiments': 'use_legacy_bq_sink',
-    }
-    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
-    big_query_query_to_table_pipeline.run_bq_pipeline(options)
-
-    table = self.bigquery_client.get_table(
-        self.project, self.dataset_id, 'output_table')
-    self.assertIsNotNone(
-        table.encryptionConfiguration,
-        'No encryption configuration found: %s' % table)
-    self.assertEqual(kms_key, table.encryptionConfiguration.kmsKeyName)
-
-  @pytest.mark.it_postcommit
   def test_big_query_new_types(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
     verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
@@ -280,34 +244,6 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'use_standard_sql': False,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
         'on_success_matcher': all_of(*pipeline_verifiers),
-    }
-    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
-    big_query_query_to_table_pipeline.run_bq_pipeline(options)
-
-  @pytest.mark.it_postcommit
-  def test_big_query_new_types_native(self):
-    expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
-    verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
-    pipeline_verifiers = [
-        PipelineStateMatcher(),
-        BigqueryMatcher(
-            project=self.project,
-            query=verify_query,
-            checksum=expected_checksum,
-            timeout_secs=30,
-        )
-    ]
-    self._setup_new_types_env()
-    extra_opts = {
-        'query': NEW_TYPES_QUERY % (self.dataset_id, NEW_TYPES_INPUT_TABLE),
-        'output': self.output_table,
-        'output_schema': NEW_TYPES_OUTPUT_SCHEMA,
-        'use_standard_sql': False,
-        'native': True,
-        'use_json_exports': True,
-        'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
-        'on_success_matcher': all_of(*pipeline_verifiers),
-        'experiments': 'use_legacy_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
