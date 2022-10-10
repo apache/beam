@@ -83,7 +83,7 @@ abstract class BaseFirestoreIT {
   public final FirestoreTestingHelper helper = new FirestoreTestingHelper(CleanupMode.ALWAYS);
 
   @Rule(order = 3)
-  public final Timeout timeout = new Timeout(5, TimeUnit.MINUTES);
+  public final Timeout timeout = new Timeout(10, TimeUnit.MINUTES);
 
   @Rule(order = 4)
   public final TestPipeline testPipeline = TestPipeline.create();
