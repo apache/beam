@@ -30,7 +30,7 @@ from pipeline.utils import get_dataset
 
 def parse_arguments(argv):
   """
-    It parses the arguments passed to the command line and returns them as an object
+    Parses the arguments passed to the command line and returns them as an object
 
     Args:
       argv: The arguments passed to the command line.
@@ -60,9 +60,9 @@ def parse_arguments(argv):
 
 def run():
   """
-    It runs the pipeline. It load the training data,
-    assign a unique ID to each document, convert it to a PubSub message, and
-    write it to PubSub
+    Runs the pipeline. It loads the training data,
+    assigns an unique ID to each document, converts it to a PubSub message, and
+    writes it to PubSub
     """
   args = parse_arguments(sys.argv)
   pipeline_options = get_pipeline_options(

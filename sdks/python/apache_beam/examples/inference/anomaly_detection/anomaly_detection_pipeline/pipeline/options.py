@@ -51,7 +51,6 @@ def get_pipeline_options(
       "region": cfg.REGION,
       "staging_location": f"{staging_bucket}/dflow-staging",
       "temp_location": f"{staging_bucket}/dflow-temp",
-      # "save_main_session": False,
       "setup_file": "./setup.py",
       "streaming": streaming,
   }

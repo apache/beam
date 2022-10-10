@@ -28,7 +28,7 @@ from datasets import load_dataset
 
 def get_dataset(categories: list, split: str = "train"):
   """
-    It takes a list of categories and a split (train/test/dev) and returns the
+    Takes a list of categories and a split (train/test/dev) and returns the
     corresponding subset of the dataset
 
     Args:

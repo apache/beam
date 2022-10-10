@@ -64,10 +64,10 @@ The file structure for ingestion pipeline is:
 
 `setup.py` defines the packages/requirements for the pipeline to run
 
-`main.py` contains the pipeline code and some additional function used for running the pipeline
+`main.py` contains the pipeline code and some additional functions used for running the pipeline
 
 ### How to Run the Pipeline ?
-First, make sure you have installed the required packages.
+First, make sure you have installed the required packages. One should have access to a Google Cloud Project and then correctly configure the GCP variables like `PROJECT_ID`, `REGION`, `PubSub TOPIC_ID` and others in `config.py`.
 
 1. Locally on your machine: `python main.py`
 2. On GCP for Dataflow: `python main.py --mode cloud`
@@ -109,7 +109,7 @@ The file structure for anomaly_detection pipeline is:
 `main.py` contains the pipeline code and some additional functions used for running the pipeline
 
 ### How to Run the Pipeline ?
-First, make sure you have installed the required packages and you have pushed data to PubSub.
+First, make sure you have installed the required packages and you have pushed data to PubSub. One should have access to a Google Cloud Project and then correctly configure the GCP variables like `PROJECT_ID`, `REGION`, `PubSub SUBSCRIPTION_ID` and others in `config.py`.
 
 1. Locally on your machine: `python main.py`
 2. On GCP for Dataflow: `python main.py --mode cloud`
@@ -143,7 +143,7 @@ We will now focus on important steps of pipeline: tokenizing the text, getting e
 
 In order to do clustering with text data, we first need to map the text into vectors of numerical values suitable for statistical analysis. We use a transformer based language model called [sentence-transformers/stsb-distilbert-base/stsb-distilbert-base](https://huggingface.co/sentence-transformers/stsb-distilbert-base). It maps sentences & paragraphs to a 768 dimensional dense vector space and can be used for tasks like clustering or semantic search. But, we first need to tokenize the text as the language model is expecting a tokenized input instead of raw text.
 
-Tokenization is a preprocessing task that transforms text in a way that it can be fed into the model for getting predictions.
+Tokenization is a preprocessing task that transforms text so that it can be fed into the model for getting predictions.
 
 {{< highlight >}}
     normalized_embedding = (

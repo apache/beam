@@ -38,7 +38,7 @@ Tokenizer = AutoTokenizer.from_pretrained(cfg.TOKENIZER_NAME)
 
 def tokenize_sentence(input_dict):
   """
-    It takes a dictionary with a text and an id, tokenizes the text, and
+    Takes a dictionary with a text and an id, tokenizes the text, and
     returns a tuple of the text and id and the tokenized text
 
     Args:
@@ -70,7 +70,7 @@ class ModelWrapper(DistilBertModel):
   # Mean Pooling - Take attention mask into account for correct averaging
   def mean_pooling(self, model_output, attention_mask):
     """
-        The function calculates the mean of token embeddings
+        Calculates the mean of token embeddings
 
         Args:
           model_output: The output of the model.
@@ -97,7 +97,7 @@ class CustomSklearnModelHandlerNumpy(SklearnModelHandlerNumpy):
   def batch_elements_kwargs(self):
     """Limit batch size to 1 for inference"""
     return {"max_batch_size": 1}
-
+  # Can be removed once: https://github.com/apache/beam/issues/22572 is fixed
   def run_inference(self, batch, model, inference_args=None):
     """Runs inferences on a batch of numpy arrays.
 
@@ -126,6 +126,7 @@ class NormalizeEmbedding(beam.DoFn):
     """
         For each element in the input PCollection, normalize the embedding vector, and
         yield a new element with the normalized embedding added
+
         Args:
           element: The element to be processed.
         """
@@ -170,7 +171,7 @@ class TriggerEmailAlert(beam.DoFn):
   """A DoFn for sending email using yagmail."""
   def setup(self):
     """
-    It opens the cred.json file and initialized the yag SMTP client.
+    Opens the cred.json file and initializes the yag SMTP client.
     """
     with open("./cred.json") as json_file:
       cred = json.load(json_file)
@@ -178,7 +179,7 @@ class TriggerEmailAlert(beam.DoFn):
 
   def process(self, element):
     """
-        It takes a tuple of (text, id) and a prediction, and if the prediction is -1, it sends an email to
+        Takes a tuple of (text, id) and a prediction, and if the prediction is -1, it sends an email to
         the specified address
 
         Args:

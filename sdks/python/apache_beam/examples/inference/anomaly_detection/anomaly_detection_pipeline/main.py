@@ -39,7 +39,7 @@ from transformers import AutoConfig
 
 def parse_arguments(argv):
   """
-    It parses the arguments passed to the command line and returns them as an object
+    Parses the arguments passed to the command line and returns them as an object
 
     Args:
       argv: The arguments passed to the command line.
@@ -86,10 +86,10 @@ class PytorchNoBatchModelHandler(PytorchModelHandlerKeyedTensor):
 
 def run():
   """
-    It runs the pipeline.  It read from PubSub, decode the message,
-    tokenize the text, get the embedding, normalize the embedding,
+    Runs the pipeline.  The pipeline reads from PubSub, decodes the message,
+    tokenizes the text, gets the embedding, normalizes the embedding,
     does anomaly dectection using HDBSCAN trained model, and then
-    writes to BQ, and sends an email alert if anomaly detected.
+    writes to BQ, and sending an email alert if anomaly detected.
     """
   args = parse_arguments(sys.argv)
   pipeline_options = get_pipeline_options(
