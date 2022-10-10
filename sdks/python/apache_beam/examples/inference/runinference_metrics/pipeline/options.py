@@ -24,6 +24,7 @@ from typing import Any
 import config as cfg
 from apache_beam.options.pipeline_options import PipelineOptions
 
+
 def get_pipeline_options(
     project: str,
     job_name: str,

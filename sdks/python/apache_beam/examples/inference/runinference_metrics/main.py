@@ -32,6 +32,7 @@ from pipeline.transformations import PostProcessor
 from pipeline.transformations import Tokenize
 from transformers import DistilBertConfig
 
+
 def parse_arguments(argv):
   """
     Parses the arguments passed to the command line and
