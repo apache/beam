@@ -39,7 +39,6 @@ from apache_beam.utils.interactive_utils import is_in_notebook
 
 
 class DaskOptions(PipelineOptions):
-
   @staticmethod
   def _parse_timeout(candidate):
     try:
@@ -120,7 +119,6 @@ class DaskRunnerResult(PipelineResult):
 
 class DaskRunner(BundleBasedDirectRunner):
   """Executes a pipeline on a Dask distributed client."""
-
   @staticmethod
   def to_dask_bag_visitor() -> PipelineVisitor:
     from dask import bag as db
