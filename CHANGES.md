@@ -67,6 +67,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Dask support for the Python SDK (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
 
 ## Breaking Changes
 
