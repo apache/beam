@@ -4738,7 +4738,7 @@ limitations under the License.
 &lt;h1 id="videos-and-podcasts">Videos and Podcasts&lt;/h1>
 &lt;p>This page provides links to some of our favorite videos and podcasts that will help you get started and learn more about Apache Beam.&lt;/p>
 &lt;ul>&lt;li>&lt;a href="">Introduction&lt;/a>&lt;/li>&lt;/ul>
-&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt" frameborder="0" allowfullscreen>&lt;/iframe>
 &lt;br>
 &lt;nav id="TableOfContents">
 &lt;ul>
@@ -4773,17 +4773,17 @@ limitations under the License.
 &lt;h3 id="fundamentals-of-stream-processing-with-apache-beam">Fundamentals of Stream Processing with Apache Beam&lt;/h3>
 &lt;p>Data Science Summit, Jerusalem, 2016&lt;/p>
 &lt;p>Presented by Tyler Akidau, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
-&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/V35MwYcXEX0" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/V35MwYcXEX0" frameborder="0" allowfullscreen>&lt;/iframe>
 &lt;br>
 &lt;h3 id="apache-beam-a-unified-model-for-batch-and-streaming-data-processing">Apache Beam: A Unified Model for Batch and Streaming Data Processing&lt;/h3>
 &lt;p>Hadoop Summit, San Jose, CA, 2016&lt;/p>
 &lt;p>Presented by Davor Bonaci, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
-&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/7DZ8ONmeP5A" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/7DZ8ONmeP5A" frameborder="0" allowfullscreen>&lt;/iframe>
 &lt;br>
 &lt;h3 id="fundamentals-of-stream-processing-with-apache-beam-1">Fundamentals of Stream Processing with Apache Beam&lt;/h3>
 &lt;p>@Scale Conference, San Jose, CA, 2016&lt;/p>
 &lt;p>Presented by Dan Halperin, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
-&lt;iframe src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fatscaleevents%2Fvideos%2F1775945569345206%2F&amp;show_text=0&amp;width=560" width="560" height="315" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowTransparency="true" allowFullScreen="true">&lt;/iframe>
+&lt;iframe class="video video--medium-size" src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fatscaleevents%2Fvideos%2F1775945569345206%2F&amp;show_text=0&amp;width=560" width="560" height="315" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowTransparency="true" allowFullScreen="true">&lt;/iframe>
 &lt;br>
 &lt;h3 id="software-engineering-radio-podcast-episode-272-apache-beam">Software Engineering Radio Podcast Episode 272: Apache Beam&lt;/h3>
 &lt;p>Presented by Frances Perry, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
@@ -4794,34 +4794,34 @@ limitations under the License.
 &lt;h3 id="distributed-processing-for-machine-learning-production-pipelines">Distributed Processing for Machine Learning Production Pipelines&lt;/h3>
 &lt;p>Flink Forward, 2020&lt;/p>
 &lt;p>Presented by Ahmet Altay, Robert Crowe, Reza Rokni&lt;/p>
-&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/jV1WFTmm4qg" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/jV1WFTmm4qg" frameborder="0" allowfullscreen>&lt;/iframe>
 &lt;br>
 &lt;h3 id="tensorflow-extended-an-end-to-end-machine-learning-platform-for-tensorflow">TensorFlow Extended: An End-to-End Machine Learning Platform for TensorFlow&lt;/h3>
 &lt;p>Spark+AI, San Francisco, 2019&lt;/p>
 &lt;p>Presented by Konstantinos Katsiapis, Ahmet Altay&lt;/p>
-&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/GTibgKo7WaI" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/GTibgKo7WaI" frameborder="0" allowfullscreen>&lt;/iframe>
 &lt;br>
 &lt;h3 id="flink-and-beam-current-state--roadmap">Flink and Beam: Current State &amp;amp; Roadmap&lt;/h3>
 &lt;p>Flink Forward, Berlin, 2016&lt;/p>
 &lt;p>Presented by Maximilian Michels, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
-&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/msdjh6KRXC8" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/msdjh6KRXC8" frameborder="0" allowfullscreen>&lt;/iframe>
 &lt;br>
 &lt;h3 id="lessons-learned-from-developing-a-stream-processing-platform-at-scale">Lessons learned from developing a stream processing platform at scale&lt;/h3>
 &lt;p>Big Things Meetup, Tel Aviv, 2016&lt;/p>
 &lt;p>By Amit Sela, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
-&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/fc-YigLn_gs" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/fc-YigLn_gs" frameborder="0" allowfullscreen>&lt;/iframe>
 &lt;br>
 &lt;h2 id="technical-details">Technical Details&lt;/h2>
 &lt;p>The following resources provide detailed explanations about technical concepts in Apache Beam.&lt;/p>
 &lt;h3 id="watermarks-time-and-progress-in-apache-beam-and-beyond">Watermarks: Time and Progress in Apache Beam and Beyond&lt;/h3>
 &lt;p>Strata+Hadoop World, New York, 2016&lt;/p>
 &lt;p>Presented by Slava Chernyak, &lt;em>Software Engineer at Google&lt;/em>&lt;/p>
-&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/TWxSLmkWPm4" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/TWxSLmkWPm4" frameborder="0" allowfullscreen>&lt;/iframe>
 &lt;br>
 &lt;h3 id="triggers-in-apache-beam">Triggers in Apache Beam&lt;/h3>
 &lt;p>Strata+Hadoop World, New York, 2016&lt;/p>
 &lt;p>Presented by Kenneth Knowles, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
-&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/E1k0B9LN46M" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/E1k0B9LN46M" frameborder="0" allowfullscreen>&lt;/iframe>
 &lt;h3 id="nexmark-evaluating-big-data-systems-with-apache-beam">Nexmark Evaluating Big Data systems with Apache Beam&lt;/h3>
 &lt;p>ApacheCon, Miami, 2017&lt;/p>
 &lt;p>Presented by Etienne Chauchot and Ismaël Mejia, &lt;em>Apache Beam PMC members&lt;/em>&lt;/p>

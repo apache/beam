@@ -363,7 +363,7 @@ limitations under the License.
 This can range from very tech-focused talks, to more business- and use case-focused talks; talks delivered at meet ups, conferences or on a webcast.&lt;/p>
 &lt;p>People who have a recording related to Apache Beam can share this on the channel. The process is documented below.&lt;/p>
 &lt;p>The YouTube channel found here is owned by the Apache Beam PMC.&lt;/p>
-&lt;iframe width="560" height="340" src="https://www.youtube.com/embed/bhj4Bjczb8I" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;iframe class="video video--medium-size" width="560" height="340" src="https://www.youtube.com/embed/bhj4Bjczb8I" frameborder="0" allowfullscreen>&lt;/iframe>
 &lt;h2 id="process-to-add-videos-to-the-apache-beam-youtube-channel">Process to add videos to the Apache Beam YouTube channel&lt;/h2>
 &lt;p>When recording a session, make sure you have the following:&lt;/p>
 &lt;ul>
