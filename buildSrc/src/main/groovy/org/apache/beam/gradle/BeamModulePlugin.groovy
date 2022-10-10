@@ -546,6 +546,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_http_client_spi               : "software.amazon.awssdk:http-client-spi:$aws_java_sdk2_version",
         aws_java_sdk2_regions                       : "software.amazon.awssdk:regions:$aws_java_sdk2_version",
         aws_java_sdk2_utils                         : "software.amazon.awssdk:utils:$aws_java_sdk2_version",
+        aws_java_sdk2_profiles                      : "software.amazon.awssdk:profiles:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         byte_buddy                                  : "net.bytebuddy:byte-buddy:1.12.14",
