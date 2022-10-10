@@ -42,7 +42,7 @@ The file structure for entire pipeline is:
 
 `setup.py` defines the packages/requirements for the pipeline to run
 
-`main.py` contains the pipeline code and some additional function used for running the pipeline
+`main.py` contains the pipeline code and some additional functions used for running the pipeline
 
 
 ### How to Run the Pipeline ?
