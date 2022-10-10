@@ -113,7 +113,7 @@ task precommit {
 }
 
 task generate {
-  dependsOn("flutterClean")
+  dependsOn("cleanFlutter")
   dependsOn("pubGet")
 
   group = "build"
@@ -127,7 +127,7 @@ task generate {
   }
 }
 
-task flutterClean {
+task cleanFlutter {
   group = "build"
   description = "Remove build artifacts"
 

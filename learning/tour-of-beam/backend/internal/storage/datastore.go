@@ -47,7 +47,7 @@ func (d *DatastoreDb) collectModules(ctx context.Context, tx *datastore.Transact
 	}
 
 	for _, tbMod := range tbMods {
-		mod := tob.Module{Id: tbMod.Id, Name: tbMod.Name, Complexity: tbMod.Complexity}
+		mod := tob.Module{Id: tbMod.Id, Title: tbMod.Title, Complexity: tbMod.Complexity}
 		mod.Nodes, err = d.collectNodes(ctx, tx, tbMod.Key, 0)
 		if err != nil {
 			return modules, err
@@ -72,7 +72,7 @@ func (d *DatastoreDb) collectNodes(ctx context.Context, tx *datastore.Transactio
 		Namespace(PgNamespace).
 		Ancestor(parentKey).
 		FilterField("level", "=", level).
-		Project("type", "id", "name").
+		Project("type", "id", "title").
 		Order("order").
 		Transaction(tx)
 	if _, err = d.Client.GetAll(ctx, queryNodes, &tbNodes); err != nil {
@@ -101,7 +101,7 @@ func (d *DatastoreDb) GetContentTree(ctx context.Context, sdk tob.Sdk) (tree tob
 	tree.Sdk = sdk
 
 	_, err = d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
-		rootKey := pgNameKey(TbLearningPathKind, sdkToKey(sdk), nil)
+		rootKey := pgNameKey(TbLearningPathKind, sdk.StorageID(), nil)
 		if err := d.Client.Get(ctx, rootKey, &tbLP); err != nil {
 			return fmt.Errorf("error querying learning_path: %w", err)
 		}
@@ -118,7 +118,7 @@ func (d *DatastoreDb) GetContentTree(ctx context.Context, sdk tob.Sdk) (tree tob
 // Helper to clear all ToB Datastore entities related to a particular SDK
 // They have one common ancestor key in tb_learning_path.
 func (d *DatastoreDb) clearContentTree(ctx context.Context, tx *datastore.Transaction, sdk tob.Sdk) error {
-	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(sdk), nil)
+	rootKey := pgNameKey(TbLearningPathKind, sdk.StorageID(), nil)
 	q := datastore.NewQuery("").
 		Namespace(PgNamespace).
 		Ancestor(rootKey).
@@ -188,8 +188,8 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 		return fmt.Errorf("unknown datastore node type: %v", node.Type)
 	}
 
-	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(tree.Sdk), nil)
-	tbLP := TbLearningPath{Name: tree.Sdk.String()}
+	rootKey := pgNameKey(TbLearningPathKind, tree.Sdk.StorageID(), nil)
+	tbLP := TbLearningPath{Title: tree.Sdk.String()}
 	if _, err := tx.Put(rootKey, &tbLP); err != nil {
 		return fmt.Errorf("failed to put learning_path: %w", err)
 	}
@@ -230,7 +230,7 @@ func (d *DatastoreDb) SaveContentTrees(ctx context.Context, trees []tob.ContentT
 // Get learning unit content by unitId
 func (d *DatastoreDb) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (unit *tob.Unit, err error) {
 	var tbNodes []TbLearningNode
-	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(sdk), nil)
+	rootKey := pgNameKey(TbLearningPathKind, sdk.StorageID(), nil)
 
 	query := datastore.NewQuery(TbLearningNodeKind).
 		Namespace(PgNamespace).

@@ -211,7 +211,7 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_harness_monitoring_infos_and_metadata(self):
     # Clear the process wide metric container.
-    MetricsEnvironment.process_wide_container().reset()
+    MetricsEnvironment.process_wide_container().metrics = {}
     # Create a process_wide metric.
     urn = 'my.custom.urn'
     labels = {'key': 'value'}

@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.schemas.logicaltypes;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -129,5 +131,51 @@ public class LogicalTypesTest {
     assertEquals(
         schemaValue,
         new SchemaLogicalType().toInputType(new SchemaLogicalType().toBaseType(schemaValue)));
+  }
+
+  @Test
+  public void testFixedPrecisionNumeric() {
+    final int precision = 10;
+    final int scale = 2;
+
+    Schema argumentSchema =
+        Schema.builder().addInt32Field("precision").addInt32Field("scale").build();
+
+    // invalid schema
+    final Schema invalidArgumentSchema =
+        Schema.builder().addInt32Field("invalid").addInt32Field("schema").build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            FixedPrecisionNumeric.of(
+                Row.withSchema(invalidArgumentSchema).addValues(precision, scale).build()));
+
+    // FixedPrecisionNumeric specified precision and scale
+    FixedPrecisionNumeric numeric =
+        FixedPrecisionNumeric.of(
+            Row.withSchema(argumentSchema).addValues(precision, scale).build());
+    Schema schema = Schema.builder().addLogicalTypeField("decimal", numeric).build();
+
+    // check argument valid case
+    BigDecimal decimal = BigDecimal.valueOf(1_000_000_001, scale);
+    Row row = Row.withSchema(schema).addValues(decimal).build();
+    assertEquals(decimal, row.getLogicalTypeValue(0, BigDecimal.class));
+
+    // check argument invalid case (value out of precision limit)
+    decimal = BigDecimal.valueOf(100_000_000_001L, scale);
+    assertThrows(IllegalArgumentException.class, Row.withSchema(schema).addValues(decimal)::build);
+
+    // FixedPrecisionNumeric without specifying precision
+    numeric = FixedPrecisionNumeric.of(scale);
+    schema = Schema.builder().addLogicalTypeField("decimal", numeric).build();
+
+    // check argument always valid  (precision limit unspecified)
+    decimal = BigDecimal.valueOf(1_000_000_001, scale);
+    row = Row.withSchema(schema).addValues(decimal).build();
+    assertEquals(decimal, row.getLogicalTypeValue(0, BigDecimal.class));
+
+    decimal = BigDecimal.valueOf(100_000_000_001L, scale);
+    row = Row.withSchema(schema).addValues(decimal).build();
+    assertEquals(decimal, row.getLogicalTypeValue(0, BigDecimal.class));
   }
 }

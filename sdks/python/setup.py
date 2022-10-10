@@ -95,15 +95,20 @@ execution engines and providing extensibility points for connecting to
 different technologies and user communities.
 '''
 
-REQUIRED_PIP_VERSION = '7.0.0'
-_PIP_VERSION = get_distribution('pip').version
-if parse_version(_PIP_VERSION) < parse_version(REQUIRED_PIP_VERSION):
-  warnings.warn(
-      "You are using version {0} of pip. " \
-      "However, version {1} is recommended.".format(
-          _PIP_VERSION, REQUIRED_PIP_VERSION
-      )
-  )
+RECOMMENDED_MIN_PIP_VERSION = '7.0.0'
+try:
+  _PIP_VERSION = get_distribution('pip').version
+  if parse_version(_PIP_VERSION) < parse_version(RECOMMENDED_MIN_PIP_VERSION):
+    warnings.warn(
+        "You are using version {0} of pip. " \
+        "However, the recommended min version is {1}.".format(
+            _PIP_VERSION, RECOMMENDED_MIN_PIP_VERSION
+        )
+    )
+except DistributionNotFound:
+  # Do nothing if pip is not found. This can happen when using `Poetry` or
+  # `pipenv` package managers.
+  pass
 
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
@@ -121,7 +126,13 @@ except DistributionNotFound:
 
 try:
   # pylint: disable=wrong-import-position
-  from Cython.Build import cythonize
+  from Cython.Build import cythonize as cythonize0
+  def cythonize(*args, **kwargs):
+    import numpy
+    extensions = cythonize0(*args, **kwargs)
+    for e in extensions:
+      e.include_dirs.append(numpy.get_include())
+    return extensions
 except ImportError:
   cythonize = lambda *args, **kwargs: []
 
@@ -227,7 +238,8 @@ if __name__ == '__main__':
         'hdfs>=2.1.0,<3.0.0',
         'httplib2>=0.8,<0.21.0',
         'numpy>=1.14.3,<1.23.0',
-        'objsize>=0.5.2,<1',
+        # Tight bound since minor version releases caused breakages.
+        'objsize>=0.5.2,<0.6.0',
         'pymongo>=3.8.0,<4.0.0',
         'protobuf>=3.12.2,<4',
         'proto-plus>=1.7.1,<2',
@@ -273,9 +285,6 @@ if __name__ == '__main__':
           'gcp': [
             'cachetools>=3.1.0,<5',
             'google-apitools>=0.5.31,<0.5.32',
-            # Transitive dep. Required for google-cloud-spanner v1.
-            # See: https://github.com/apache/beam/issues/22454
-            'google-api-core!=2.8.2,<3',
             # NOTE: Maintainers, please do not require google-auth>=2.x.x
             # Until this issue is closed
             # https://github.com/googleapis/google-cloud-python/issues/10566
@@ -289,8 +298,7 @@ if __name__ == '__main__':
             'google-cloud-bigquery-storage>=2.6.3,<2.14',
             'google-cloud-core>=0.28.1,<3',
             'google-cloud-bigtable>=0.31.1,<2',
-            'google-cloud-spanner>=1.13.0,<2',
-            'grpcio-gcp>=0.2.2,<1',
+            'google-cloud-spanner>=3.0.0,<4',
             # GCP Packages required by ML functionality
             'google-cloud-dlp>=3.0.0,<4',
             'google-cloud-language>=1.3.0,<2',
