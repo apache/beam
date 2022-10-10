@@ -313,20 +313,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                      }]
     self.assertUnhashableCountEqual(disp_data, expected_data)
 
-  def test_no_group_by_key_directly_after_bigquery(self):
-    remote_runner = DataflowRunner()
-    with self.assertRaises(ValueError,
-                           msg=('Coder for the GroupByKey operation'
-                                '"GroupByKey" is not a key-value coder: '
-                                'RowAsDictJsonCoder')):
-      with beam.Pipeline(runner=remote_runner,
-                         options=PipelineOptions(self.default_properties)) as p:
-        # pylint: disable=expression-not-assigned
-        p | beam.io.Read(
-            beam.io.BigQuerySource(
-                'dataset.faketable',
-                use_dataflow_native_source=True)) | beam.GroupByKey()
-
   def test_group_by_key_input_visitor_with_valid_inputs(self):
     p = TestPipeline()
     pcoll1 = PCollection(p)

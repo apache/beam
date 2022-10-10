@@ -568,22 +568,6 @@ class TestBigQueryWrapper(unittest.TestCase):
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
-class TestBigQueryReader(unittest.TestCase):
-  def test_using_both_query_and_table_fails(self):
-    with self.assertRaisesRegex(
-        ValueError,
-        r'Both a BigQuery table and a query were specified\. Please specify '
-        r'only one of these'):
-      beam.io.BigQuerySource(
-          table='dataset.table', query='query', use_dataflow_native_source=True)
-
-  def test_using_neither_query_nor_table_fails(self):
-    with self.assertRaisesRegex(
-        ValueError, r'A BigQuery table or a query must be specified'):
-      beam.io.BigQuerySource(use_dataflow_native_source=True)
-
-
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryWriter(unittest.TestCase):
   @mock.patch('time.sleep', return_value=None)
   def test_no_table_and_create_never(self, patched_time_sleep):
