@@ -31,6 +31,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +42,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
   private final boolean ignoreUnknownValues;
   private final int schemaUpdateRetries;
   private final boolean autoSchemaUpdates;
+  private final Duration refreshSchemaEvery;
   private static final TableSchemaCache SCHEMA_CACHE =
       new TableSchemaCache(Duration.standardSeconds(1));
   private static final Logger LOG =
@@ -56,13 +58,15 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       CreateDisposition createDisposition,
       boolean ignoreUnknownValues,
       int schemaUpdateRetries,
-      boolean autoSchemaUpdates) {
+      boolean autoSchemaUpdates,
+      Duration refreshSchemaEvery) {
     super(inner);
     this.formatFunction = formatFunction;
     this.createDisposition = createDisposition;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.schemaUpdateRetries = schemaUpdateRetries;
     this.autoSchemaUpdates = autoSchemaUpdates;
+    this.refreshSchemaEvery = refreshSchemaEvery;
   }
 
   static void clearSchemaCache() throws ExecutionException, InterruptedException {
@@ -74,6 +78,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       DestinationT destination, DatasetService datasetService) throws Exception {
     return new MessageConverter<T>() {
       @Nullable TableSchema tableSchema;
+      @Nullable Instant lastSchemaUpdateTime;
       TableRowToStorageApiProto.SchemaInformation schemaInformation;
       Descriptor descriptor;
       long descriptorHash;
@@ -108,6 +113,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
               MoreObjects.firstNonNull(
                   SCHEMA_CACHE.putSchemaIfAbsent(tableReference, tableSchema), tableSchema);
         }
+        lastSchemaUpdateTime = Instant.now();
         schemaInformation =
             TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
         descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
@@ -136,10 +142,26 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
 
       public void refreshSchemaInternal() throws Exception {
         TableReference tableReference = getTable(destination).getTableReference();
-        SCHEMA_CACHE.refreshSchema(tableReference, datasetService);
-        TableSchema newSchema = SCHEMA_CACHE.getSchema(tableReference, datasetService);
-        if (newSchema == null) {
-          throw new RuntimeException("BigQuery table " + tableReference + " not found");
+        TableSchema newSchema;
+        if (refreshSchemaEvery.isLongerThan(Duration.ZERO)) {
+          if (lastSchemaUpdateTime.plus(refreshSchemaEvery).isBefore(Instant.now())) {
+            // No need to update the schema.
+            return;
+          }
+          // In this case, getSchema delegates to a slowly-updating side input that updates the
+          // schema based on the
+          // BigQuery table schema.
+          newSchema = getSchema(destination);
+          if (newSchema == null) {
+            return;
+          }
+          lastSchemaUpdateTime = Instant.now();
+        } else {
+          SCHEMA_CACHE.refreshSchema(tableReference, datasetService);
+          newSchema = SCHEMA_CACHE.getSchema(tableReference, datasetService);
+          if (newSchema == null) {
+            throw new RuntimeException("BigQuery table " + tableReference + " not found");
+          }
         }
         synchronized (this) {
           tableSchema = newSchema;
@@ -175,15 +197,19 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
             localDescriptorHash = descriptorHash;
           }
           try {
+            boolean ignoreUnknown =
+                ignoreUnknownValues
+                    && (refreshSchemaEvery.equals(Duration.ZERO) || attempt <= schemaUpdateRetries);
             Message msg =
                 TableRowToStorageApiProto.messageFromTableRow(
                     localSchemaInformation,
                     localDescriptor,
                     formatFunction.apply(element),
-                    ignoreUnknownValues);
+                    ignoreUnknown);
             return new AutoValue_StorageApiWritePayload(msg.toByteArray(), localDescriptorHash);
           } catch (SchemaTooNarrowException e) {
-            if (!autoSchemaUpdates || attempt > schemaUpdateRetries) {
+            if ((!autoSchemaUpdates && refreshSchemaEvery.equals(Duration.ZERO))
+                || attempt > schemaUpdateRetries) {
               throw e;
             }
             // The input record has fields not found in the schema, and ignoreUnknownValues=false.

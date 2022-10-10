@@ -216,7 +216,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     private final Distribution appendSplitDistribution =
         Metrics.distribution(WriteRecordsDoFn.class, "appendSplitDistribution");
 
-    private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
+    private TwoLevelMessageConverterCache<DestinationT> messageConverters;
 
     private Map<DestinationT, TableDestination> destinations = Maps.newHashMap();
 
@@ -315,7 +315,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               });
       final String tableId = tableDestination.getTableUrn();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
-      MessageConverter<ElementT> messageConverter =
+      MessageConverter<?> messageConverter =
           messageConverters.get(element.getKey().getKey(), dynamicDestinations, datasetService);
       AtomicReference<DescriptorWrapper> descriptor =
           new AtomicReference<>(messageConverter.getSchemaDescriptor());

@@ -121,6 +121,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -1912,7 +1913,9 @@ public class BigQueryIO {
         .setUseBeamSchema(false)
         .setAutoSharding(false)
         .setPropagateSuccessful(true)
-        .setAutoSchemaUpdate(false)
+        .setPropagateSuccessful(true)
+        .setAutoSchemaRefresh(false)
+        .setSchemaRefreshFrequency(Duration.ZERO)
         .setDeterministicRecordIdFn(null)
         .build();
   }
@@ -2056,7 +2059,9 @@ public class BigQueryIO {
 
     abstract Boolean getPropagateSuccessful();
 
-    abstract Boolean getAutoSchemaUpdate();
+    abstract Boolean getAutoSchemaRefresh();
+
+    abstract Duration getSchemaRefreshFrequency();
 
     @Experimental
     abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
@@ -2149,7 +2154,9 @@ public class BigQueryIO {
 
       abstract Builder<T> setPropagateSuccessful(Boolean propagateSuccessful);
 
-      abstract Builder<T> setAutoSchemaUpdate(Boolean autoSchemaUpdate);
+      abstract Builder<T> setAutoSchemaRefresh(Boolean autoSchemaRefresh);
+
+      abstract Builder<T> setSchemaRefreshFrequency(Duration schemaRefreshFrequency);
 
       @Experimental
       abstract Builder<T> setDeterministicRecordIdFn(
@@ -2673,9 +2680,36 @@ public class BigQueryIO {
      * updated. This is intended for scenarios in which unknown fields are rare, otherwise calls to
      * BigQuery will throttle the pipeline. only supported when using one of the STORAGE_API insert
      * methods.
+     *
+     * <p>By default, this method checks the BigQuery schema whenever unknown fields are seen in a
+     * record. This assumes that unknown fields are relatively rare. If unknown fields are a common
+     * occurrence, use {@link #withSchemaRefreshFrequency} to specify a refresh frequency to use
+     * instead of triggering on unknown fields.
+     *
+     * <p>Not compatible with {@link #ignoreUnknownValues} unless {@link
+     * #withSchemaRefreshFrequency} is also set to a positive value.
+     *
+     * <p>Only compatible with storage-api write. {@link #withMethod} set to either
+     * STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE.
      */
-    public Write<T> withAutoSchemaUpdate(boolean autoSchemaUpdate) {
-      return toBuilder().setAutoSchemaUpdate(autoSchemaUpdate).build();
+    public Write<T> withAutoSchemaRefresh(boolean autoSchemaRefresh) {
+      return toBuilder().setAutoSchemaRefresh(autoSchemaRefresh).build();
+    }
+
+    /**
+     * When set to a positive value, table schemas will be reloaded at the specified frequency. This
+     * method is compatible with {@link #ignoreUnknownValues}. If ignoreUnknownValues is set, then
+     * new fields will be ignored until the next schema refresh.
+     *
+     * <p>This function uses BigQuery quota calling getTable for each destination table, so be
+     * careful not to set the updateEvery to too-small of a value. A minimum value of several
+     * minutes is recommended.
+     *
+     * <p>Only compatible with storage-api write. {@link #withMethod} set to either
+     * STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE.
+     */
+    public Write<T> withSchemaRefreshFrequency(Duration updateEvery) {
+      return toBuilder().setSchemaRefreshFrequency(updateEvery).build();
     }
 
     /*
@@ -2876,8 +2910,14 @@ public class BigQueryIO {
 
       if (method != Method.STORAGE_WRITE_API && method != Method.STORAGE_API_AT_LEAST_ONCE) {
         checkArgument(
-            !getAutoSchemaUpdate(),
-            "withAutoSchemaUpdate only supported when using storage-api writes.");
+            !getAutoSchemaRefresh() && !getSchemaRefreshFrequency().equals(Duration.ZERO),
+            "withAutoSchemaRefresh only supported when using storage-api writes.");
+      }
+      if (getAutoSchemaRefresh() && getSchemaRefreshFrequency().equals(Duration.ZERO)) {
+        checkArgument(
+            getIgnoreUnknownValues(),
+            "Schema refresh is only compatible with ignoreUnknownValues if a positive refresh "
+                + "frequency is set.");
       }
 
       if (method != Write.Method.FILE_LOADS) {
@@ -3041,6 +3081,21 @@ public class BigQueryIO {
                   new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
               .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
 
+      if (getSchemaRefreshFrequency().isLongerThan(Duration.ZERO)) {
+        // Create a slowly-updating side input to periodically update the schema and inject that
+        // into the
+        // DynamicDestinations object.
+        PCollectionView<List<TimestampedValue<Map<String, String>>>> tableSchemasView =
+            rowsWithDestination
+                .apply(
+                    new PeriodicallyRefreshTableSchema<>(
+                        getSchemaRefreshFrequency(), dynamicDestinations, getBigQueryServices()))
+                .apply(View.asList());
+        dynamicDestinations =
+            new DynamicDestinationsHelpers.SchemaFromViewDestinationsListOfMaps<>(
+                dynamicDestinations, tableSchemasView);
+      }
+
       return continueExpandTyped(
           rowsWithDestination,
           input.getCoder(),
@@ -3176,7 +3231,8 @@ public class BigQueryIO {
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
                   bqOptions.getSchemaUpdateRetries(),
-                  getAutoSchemaUpdate());
+                  getAutoSchemaRefresh() && getSchemaRefreshFrequency().equals(Duration.ZERO),
+                  getSchemaRefreshFrequency());
         }
 
         StorageApiLoads<DestinationT, T> storageApiLoads =

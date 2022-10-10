@@ -32,8 +32,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  * name. However since this object is stored in DoFns and many DoFns share the same
  * MessageConverters, we also store a static cache keyed by operation name.
  */
-class TwoLevelMessageConverterCache<DestinationT extends @NonNull Object, ElementT>
-    implements Serializable {
+class TwoLevelMessageConverterCache<DestinationT extends @NonNull Object> implements Serializable {
   final String operationName;
 
   TwoLevelMessageConverterCache(String operationName) {
@@ -50,25 +49,24 @@ class TwoLevelMessageConverterCache<DestinationT extends @NonNull Object, Elemen
   // on every element. Since there will be multiple DoFn instances (and they may periodically be
   // recreated), we
   // still need the static cache to allow reuse.
-  private final Cache<DestinationT, MessageConverter<ElementT>> localMessageConverters =
+  private final Cache<DestinationT, MessageConverter<?>> localMessageConverters =
       CacheBuilder.newBuilder().expireAfterAccess(java.time.Duration.ofMinutes(15)).build();
 
   static void clear() {
     CACHED_MESSAGE_CONVERTERS.invalidateAll();
   }
 
-  public MessageConverter<ElementT> get(
+  public MessageConverter<?> get(
       DestinationT destination,
-      StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
+      StorageApiDynamicDestinations<?, DestinationT> dynamicDestinations,
       DatasetService datasetService)
       throws Exception {
     // Lookup first in the local cache, and fall back to the static cache if necessary.
     return localMessageConverters.get(
         destination,
         () ->
-            (MessageConverter<ElementT>)
-                CACHED_MESSAGE_CONVERTERS.get(
-                    KV.of(operationName, destination),
-                    () -> dynamicDestinations.getMessageConverter(destination, datasetService)));
+            CACHED_MESSAGE_CONVERTERS.get(
+                KV.of(operationName, destination),
+                () -> dynamicDestinations.getMessageConverter(destination, datasetService)));
   }
 }

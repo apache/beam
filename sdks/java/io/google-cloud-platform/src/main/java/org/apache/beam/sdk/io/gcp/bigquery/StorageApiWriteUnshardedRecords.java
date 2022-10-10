@@ -74,11 +74,11 @@ import org.slf4j.LoggerFactory;
  * a finalize/commit operation at the end.
  */
 @SuppressWarnings({"FutureReturnValueIgnored"})
-public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
+public class StorageApiWriteUnshardedRecords<DestinationT>
     extends PTransform<PCollection<KV<DestinationT, StorageApiWritePayload>>, PCollection<Void>> {
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiWriteUnshardedRecords.class);
 
-  private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
+  private final StorageApiDynamicDestinations<?, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
 
@@ -121,7 +121,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   }
 
   public StorageApiWriteUnshardedRecords(
-      StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
+      StorageApiDynamicDestinations<?, DestinationT> dynamicDestinations,
       BigQueryServices bqServices) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
@@ -155,13 +155,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         .apply("Finalize writes", ParDo.of(new StorageApiFinalizeWritesDoFn(bqServices)));
   }
 
-  static class WriteRecordsDoFn<DestinationT extends @NonNull Object, ElementT>
+  static class WriteRecordsDoFn<DestinationT extends @NonNull Object>
       extends DoFn<KV<DestinationT, StorageApiWritePayload>, KV<String, String>> {
     private final Counter forcedFlushes = Metrics.counter(WriteRecordsDoFn.class, "forcedFlushes");
 
-    class DestinationState {
+    static class DestinationState {
       private final String tableUrn;
-      private final MessageConverter<ElementT> messageConverter;
+      private final MessageConverter<?> messageConverter;
       private String streamName = "";
       private @Nullable StreamAppendClient streamAppendClient = null;
       private long currentOffset = 0;
@@ -183,7 +183,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       public DestinationState(
           String tableUrn,
-          MessageConverter<ElementT> messageConverter,
+          MessageConverter<?> messageConverter,
           DatasetService datasetService,
           boolean useDefaultStream,
           int streamAppendClientCount,
@@ -394,20 +394,20 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     }
 
     private @Nullable Map<DestinationT, DestinationState> destinations = Maps.newHashMap();
-    private final TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
+    private final TwoLevelMessageConverterCache<DestinationT> messageConverters;
     private transient @Nullable DatasetService maybeDatasetService;
     private int numPendingRecords = 0;
     private int numPendingRecordBytes = 0;
     private final int flushThresholdBytes;
     private final int flushThresholdCount;
-    private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
+    private final StorageApiDynamicDestinations<?, DestinationT> dynamicDestinations;
     private final BigQueryServices bqServices;
     private final boolean useDefaultStream;
     private int streamAppendClientCount;
 
     WriteRecordsDoFn(
         String operationName,
-        StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
+        StorageApiDynamicDestinations<?, DestinationT> dynamicDestinations,
         BigQueryServices bqServices,
         boolean useDefaultStream,
         int flushThresholdBytes,
@@ -476,7 +476,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               + "but %s returned null for destination %s",
           dynamicDestinations,
           destination);
-      MessageConverter<ElementT> messageConverter;
+      MessageConverter<?> messageConverter;
       try {
         messageConverter = messageConverters.get(destination, dynamicDestinations, datasetService);
       } catch (Exception e) {

@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -297,16 +299,63 @@ class DynamicDestinationsHelpers {
     }
   }
 
+  static class SchemaFromViewDestinationsListOfMaps<T, DestinationT>
+      extends DelegatingDynamicDestinations<T, DestinationT> {
+    PCollectionView<List<TimestampedValue<Map<String, String>>>> schemaView;
+
+    SchemaFromViewDestinationsListOfMaps(
+        DynamicDestinations<T, DestinationT> inner,
+        PCollectionView<List<TimestampedValue<Map<String, String>>>> schemaView) {
+      super(inner);
+      checkArgument(schemaView != null, "schemaView can not be null");
+      this.schemaView = schemaView;
+    }
+
+    @Override
+    public List<PCollectionView<?>> getSideInputs() {
+      return ImmutableList.<PCollectionView<?>>builder().add(schemaView).build();
+    }
+
+    @Override
+    public TableSchema getSchema(DestinationT destination) {
+      List<TimestampedValue<Map<String, String>>> mapValues = sideInput(schemaView);
+      Optional<Map<String, String>> mapValue =
+          mapValues.stream()
+              .max(Comparator.comparing(TimestampedValue::getTimestamp))
+              .map(TimestampedValue::getValue);
+
+      TableDestination tableDestination = inner.getTable(destination);
+      @Nullable
+      String schema = mapValue.map(m -> m.get(tableDestination.getTableSpec())).orElse(null);
+      if (schema == null) {
+        // If the schema wasn't in the view, try using the underlying destinations object.
+        @Nullable TableSchema tableSchema = inner.getSchema(destination);
+        if (tableSchema != null) {
+          return tableSchema;
+        }
+      }
+      return schema != null ? BigQueryHelpers.fromJsonString(schema, TableSchema.class) : null;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("inner", inner)
+          .add("schemaView", schemaView)
+          .toString();
+    }
+  }
+
   /**
    * Takes in a side input mapping tablespec to json table schema, and always returns the matching
    * schema from the side input.
    */
-  static class SchemaFromViewDestinations<T>
-      extends DelegatingDynamicDestinations<T, TableDestination> {
+  static class SchemaFromViewDestinations<T, DestinationT>
+      extends DelegatingDynamicDestinations<T, DestinationT> {
     PCollectionView<Map<String, String>> schemaView;
 
     SchemaFromViewDestinations(
-        DynamicDestinations<T, TableDestination> inner,
+        DynamicDestinations<T, DestinationT> inner,
         PCollectionView<Map<String, String>> schemaView) {
       super(inner);
       checkArgument(schemaView != null, "schemaView can not be null");
@@ -319,18 +368,18 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public TableSchema getSchema(TableDestination destination) {
+    public TableSchema getSchema(DestinationT destination) {
       Map<String, String> mapValue = sideInput(schemaView);
-      String schema = mapValue.get(destination.getTableSpec());
-      Preconditions.checkArgumentNotNull(
-          schema,
-          "Schema view must contain data for every destination used, "
-              + "but view %s does not contain data for table destination %s "
-              + "produced by %s",
-          schemaView,
-          destination.getTableSpec(),
-          inner);
-      return BigQueryHelpers.fromJsonString(schema, TableSchema.class);
+      TableDestination tableDestination = inner.getTable(destination);
+      @Nullable String schema = mapValue.get(tableDestination.getTableSpec());
+      if (schema == null) {
+        // If the schema wasn't in the view, try using the underlying destinations object.
+        @Nullable TableSchema tableSchema = inner.getSchema(destination);
+        if (tableSchema != null) {
+          return tableSchema;
+        }
+      }
+      return schema != null ? BigQueryHelpers.fromJsonString(schema, TableSchema.class) : null;
     }
 
     @Override

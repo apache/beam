@@ -150,4 +150,12 @@ public interface BigQueryOptions
   Integer getStorageApiAppendThresholdRecordCount();
 
   void setStorageApiAppendThresholdRecordCount(Integer value);
+
+  @Description(
+      "Disable use of the storage API failed row collection; any failing rows will retry indefinitely if set."
+          + "For internal testing only.")
+  @Default.Boolean(false)
+  Boolean getDisableStorageApiFailedRowsCollection();
+
+  void setDisableStorageApiFailedRowsCollection(Boolean value);
 }

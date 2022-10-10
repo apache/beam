@@ -85,7 +85,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
   public static class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
       extends DoFn<KV<DestinationT, ElementT>, KV<DestinationT, StorageApiWritePayload>> {
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
-    private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
+    private TwoLevelMessageConverterCache<DestinationT> messageConverters;
     private final BigQueryServices bqServices;
     private final TupleTag<BigQueryStorageApiInsertError> failedWritesTag;
     private final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag;
@@ -133,12 +133,17 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
         throws Exception {
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       MessageConverter<ElementT> messageConverter =
-          messageConverters.get(
-              element.getKey(), dynamicDestinations, getDatasetService(pipelineOptions));
+          (MessageConverter<ElementT>)
+              messageConverters.get(
+                  element.getKey(), dynamicDestinations, getDatasetService(pipelineOptions));
       try {
         StorageApiWritePayload payload = messageConverter.toMessage(element.getValue());
         o.get(successfulWritesTag).output(KV.of(element.getKey(), payload));
       } catch (TableRowToStorageApiProto.SchemaConversionException e) {
+        // This path is currently used by unit tests only.
+        if (pipelineOptions.as(BigQueryOptions.class).getDisableStorageApiFailedRowsCollection()) {
+          throw e;
+        }
         TableRow tableRow = messageConverter.toTableRow(element.getValue());
         o.get(failedWritesTag).output(new BigQueryStorageApiInsertError(tableRow, e.toString()));
       }

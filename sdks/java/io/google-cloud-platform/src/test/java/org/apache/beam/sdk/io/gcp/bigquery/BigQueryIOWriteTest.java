@@ -64,11 +64,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
 import java.util.function.LongFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -77,10 +79,12 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -106,6 +110,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -1896,7 +1901,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .to(tableRef)
             .withMethod(method)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
-            .withAutoSchemaUpdate(true)
+            .withAutoSchemaRefresh(true)
             .withTestServices(fakeBqServices)
             .withoutValidation());
 
@@ -1930,6 +1935,141 @@ public class BigQueryIOWriteTest implements Serializable {
             Iterables.toArray(
                 LongStream.range(0, numRows).mapToObj(getRowSet).collect(Collectors.toList()),
                 TableRow.class)));
+  }
+
+  @Test
+  public void testUpdateTableSchemaPeriodicRefresh() throws Exception {
+    if (!useStreaming || !useStorageApi) {
+      return;
+    }
+    // Side inputs only update in between bundles. So we set schemaUpdateRetries to 1, to ensure
+    // that the conversion
+    // step gives up when the side input is disabled. We then have to disable the failed-rows
+    // collection (dead letter)
+    // to ensure that the bundle actually fails and is retried.
+    BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
+    bqOptions.setSchemaUpdateRetries(1);
+    bqOptions.setDisableStorageApiFailedRowsCollection(true);
+
+    BigQueryIO.Write.Method method =
+        useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    p.enableAbandonedNodeEnforcement(false);
+
+    final String tableSpec1 = "project-id:dataset-id.table1";
+    final String tableSpec2 = "project-id:dataset-id.table2";
+    final String tableSpec3 = "project-id:dataset-id.table3";
+    final TableReference tableRef1 = BigQueryHelpers.parseTableSpec(tableSpec1);
+    final TableReference tableRef2 = BigQueryHelpers.parseTableSpec(tableSpec2);
+    final TableReference tableRef3 = BigQueryHelpers.parseTableSpec(tableSpec3);
+
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("tablespec").setType("STRING")));
+    fakeDatasetService.createTable(new Table().setTableReference(tableRef1).setSchema(tableSchema));
+    fakeDatasetService.createTable(new Table().setTableReference(tableRef2).setSchema(tableSchema));
+    fakeDatasetService.createTable(new Table().setTableReference(tableRef3).setSchema(tableSchema));
+
+    LongFunction<Iterable<TableRow>> getRow =
+        (LongFunction<Iterable<TableRow>> & Serializable)
+            (long i) -> {
+              TableRow tableRow;
+              if (i < 5) {
+                tableRow = new TableRow().set("name", "name" + i).set("number", Long.toString(i));
+              } else {
+                tableRow =
+                    new TableRow()
+                        .set("name", "name" + i)
+                        .set("number", Long.toString(i))
+                        .set("double_number", Long.toString(i * 2));
+              }
+              return ImmutableList.of(
+                  tableRow.clone().set("tablespec", tableSpec1),
+                  tableRow.clone().set("tablespec", tableSpec2),
+                  tableRow.clone().set("tablespec", tableSpec3));
+            };
+
+    SerializableFunction<ValueInSingleWindow<TableRow>, TableDestination> tableFunction =
+        value -> new TableDestination((String) value.getValue().get("tablespec"), "");
+
+    final int numRowsPerTable = 1;
+    TestStream.Builder<Long> testStream =
+        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(new Instant(0));
+    for (long i = 0; i < numRowsPerTable; ++i) {
+      testStream = testStream.addElements(i);
+    }
+    testStream = testStream.advanceProcessingTime(Duration.standardSeconds(5));
+
+    PCollection<TableRow> tableRows =
+        p.apply(testStream.advanceWatermarkToInfinity())
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<Long, Iterable<TableRow>>() {
+                      @Override
+                      public Iterable<TableRow> apply(Long input) {
+                        return getRow.apply(input);
+                      }
+                    }))
+            .setCoder(IterableCoder.of(TableRowJsonCoder.of()))
+            .apply(Flatten.iterables());
+    tableRows.apply(
+        BigQueryIO.writeTableRows()
+            .to(tableFunction)
+            .withMethod(method)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withSchemaRefreshFrequency(Duration.standardSeconds(2))
+            .withTestServices(fakeBqServices)
+            .withoutValidation());
+
+    Thread thread =
+        new Thread(
+            () -> {
+              try {
+                Thread.sleep(5000);
+                TableSchema tableSchemaUpdated =
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("name").setType("STRING"),
+                                new TableFieldSchema().setName("number").setType("INTEGER"),
+                                new TableFieldSchema().setName("tablespec").setType("STRING"),
+                                new TableFieldSchema()
+                                    .setName("double_number")
+                                    .setType("INTEGER")));
+                fakeDatasetService.updateTableSchema(tableRef1, tableSchemaUpdated);
+                fakeDatasetService.updateTableSchema(tableRef2, tableSchemaUpdated);
+                fakeDatasetService.updateTableSchema(tableRef3, tableSchemaUpdated);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
+    thread.start();
+    p.run();
+    thread.join();
+
+    List<TableRow> resultRows =
+        Stream.of(tableRef1, tableRef2, tableRef3)
+            .flatMap(
+                tableRef -> {
+                  try {
+                    return fakeDatasetService
+                        .getAllRows(
+                            tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId())
+                        .stream();
+                  } catch (IOException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                  }
+                })
+            .collect(Collectors.toList());
+    List<TableRow> expectedRows =
+        LongStream.range(0, numRowsPerTable)
+            .mapToObj(l -> StreamSupport.stream(getRow.apply(l).spliterator(), false))
+            .flatMap(Function.identity())
+            .collect(Collectors.toList());
+    assertThat(resultRows, containsInAnyOrder(Iterables.toArray(expectedRows, TableRow.class)));
   }
 
   @Test

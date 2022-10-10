@@ -230,8 +230,7 @@ public class StorageApiLoads<DestinationT, ElementT>
       PCollection<KV<DestinationT, ElementT>> input,
       Coder<KV<DestinationT, StorageApiWritePayload>> successCoder) {
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
-        input.apply(
-            "rewindowIntoGlobal", Window.<KV<DestinationT, ElementT>>into(new GlobalWindows()));
+        input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
     PCollectionTuple convertedRecords =
         inputInGlobalWindow
             .apply(
