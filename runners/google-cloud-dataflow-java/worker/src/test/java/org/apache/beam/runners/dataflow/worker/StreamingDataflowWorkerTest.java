@@ -67,6 +67,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -691,7 +693,8 @@ public class StreamingDataflowWorkerTest {
       List<ParallelInstruction> instructions,
       StreamingDataflowWorkerOptions options,
       boolean publishCounters,
-      Supplier<Instant> clock)
+      Supplier<Instant> clock,
+      Function<String, ScheduledExecutorService> executorSupplier)
       throws Exception {
     StreamingDataflowWorker worker =
         new StreamingDataflowWorker(
@@ -703,7 +706,8 @@ public class StreamingDataflowWorkerTest {
             SdkHarnessRegistries.emptySdkHarnessRegistry(),
             publishCounters,
             hotKeyLogger,
-            clock);
+            clock,
+            executorSupplier);
     worker.addStateNameMappings(
         ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
     return worker;
@@ -714,7 +718,12 @@ public class StreamingDataflowWorkerTest {
       StreamingDataflowWorkerOptions options,
       boolean publishCounters)
       throws Exception {
-    return makeWorker(instructions, options, publishCounters, Instant::now);
+    return makeWorker(
+        instructions,
+        options,
+        publishCounters,
+        Instant::now,
+        (threadName) -> Executors.newSingleThreadScheduledExecutor());
   }
 
   @Test
@@ -3265,7 +3274,12 @@ public class StreamingDataflowWorkerTest {
     // QUEUED until the first work item is committed.
     options.setNumberOfWorkerHarnessThreads(1);
     StreamingDataflowWorker worker =
-        makeWorker(instructions, options, false /* publishCounters */, FakeClock.DEFAULT);
+        makeWorker(
+            instructions,
+            options,
+            false /* publishCounters */,
+            FakeClock.DEFAULT,
+            Executors::newSingleThreadScheduledExecutor);
     worker.start();
 
     ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
@@ -3303,7 +3317,12 @@ public class StreamingDataflowWorkerTest {
     StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
     options.setActiveWorkRefreshPeriodMillis(100);
     StreamingDataflowWorker worker =
-        makeWorker(instructions, options, false /* publishCounters */, FakeClock.DEFAULT);
+        makeWorker(
+            instructions,
+            options,
+            false /* publishCounters */,
+            FakeClock.DEFAULT,
+            Executors::newSingleThreadScheduledExecutor);
     worker.start();
 
     ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
@@ -3345,7 +3364,12 @@ public class StreamingDataflowWorkerTest {
     StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
     options.setActiveWorkRefreshPeriodMillis(100);
     StreamingDataflowWorker worker =
-        makeWorker(instructions, options, false /* publishCounters */, FakeClock.DEFAULT);
+        makeWorker(
+            instructions,
+            options,
+            false /* publishCounters */,
+            FakeClock.DEFAULT,
+            Executors::newSingleThreadScheduledExecutor);
     worker.start();
 
     // Inject latency on the fake clock when the server receives a GetData call that isn't
@@ -3391,7 +3415,12 @@ public class StreamingDataflowWorkerTest {
     StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
     options.setActiveWorkRefreshPeriodMillis(100);
     StreamingDataflowWorker worker =
-        makeWorker(instructions, options, false /* publishCounters */, FakeClock.DEFAULT);
+        makeWorker(
+            instructions,
+            options,
+            false /* publishCounters */,
+            FakeClock.DEFAULT,
+            Executors::newSingleThreadScheduledExecutor);
     worker.start();
 
     ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);

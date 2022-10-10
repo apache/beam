@@ -48,8 +48,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -57,6 +55,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -152,6 +151,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMult
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.MultimapBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -451,16 +451,16 @@ public class StreamingDataflowWorker {
   private final Counter<Long, Long> javaHarnessMaxMemory;
   private final Counter<Integer, Integer> windmillMaxObservedWorkItemCommitBytes;
   private final Counter<Integer, Integer> memoryThrashing;
-  private Timer refreshWorkTimer;
-  private Timer statusPageTimer;
+  private ScheduledExecutorService refreshWorkTimer;
+  private ScheduledExecutorService statusPageTimer;
 
   private final boolean publishCounters;
-  private Timer globalWorkerUpdatesTimer;
+  private ScheduledExecutorService globalWorkerUpdatesTimer;
   private int retryLocallyDelayMs = 10000;
 
   // Periodically fires a global config request to dataflow service. Only used when windmill service
   // is enabled.
-  private Timer globalConfigRefreshTimer;
+  private ScheduledExecutorService globalConfigRefreshTimer;
 
   private final MemoryMonitor memoryMonitor;
   private final Thread memoryMonitorThread;
@@ -498,6 +498,7 @@ public class StreamingDataflowWorker {
   private HotKeyLogger hotKeyLogger;
 
   private final Supplier<Instant> clock;
+  private final Function<String, ScheduledExecutorService> executorSupplier;
 
   /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
   private static class StageInfo {
@@ -580,7 +581,10 @@ public class StreamingDataflowWorker {
         sdkHarnessRegistry,
         true,
         new HotKeyLogger(),
-        Instant::now);
+        Instant::now,
+        (threadName) ->
+            Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat(threadName).build()));
   }
 
   public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
@@ -596,7 +600,10 @@ public class StreamingDataflowWorker {
         sdkHarnessRegistry,
         true,
         new HotKeyLogger(),
-        Instant::now);
+        Instant::now,
+        (threadName) ->
+            Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat(threadName).build()));
   }
 
   @VisibleForTesting
@@ -609,7 +616,8 @@ public class StreamingDataflowWorker {
       SdkHarnessRegistry sdkHarnessRegistry,
       boolean publishCounters,
       HotKeyLogger hotKeyLogger,
-      Supplier<Instant> clock)
+      Supplier<Instant> clock,
+      Function<String, ScheduledExecutorService> executorSupplier)
       throws IOException {
     this.stateCache = new WindmillStateCache(options.getWorkerCacheMb());
     this.readerCache =
@@ -622,6 +630,7 @@ public class StreamingDataflowWorker {
     this.sdkHarnessRegistry = sdkHarnessRegistry;
     this.hotKeyLogger = hotKeyLogger;
     this.clock = clock;
+    this.executorSupplier = executorSupplier;
     this.windmillServiceEnabled = options.isEnableStreamingEngine();
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
     this.statusPages =
@@ -826,6 +835,7 @@ public class StreamingDataflowWorker {
     return workUnitExecutor.executorQueueIsEmpty();
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
     running.set(true);
 
@@ -840,21 +850,17 @@ public class StreamingDataflowWorker {
     ExecutionStateSampler.instance().start();
 
     // Periodically report workers counters and other updates.
-    globalWorkerUpdatesTimer = new Timer("GlobalWorkerUpdatesTimer");
-    globalWorkerUpdatesTimer.schedule(
-        new TimerTask() {
-          @Override
-          public void run() {
-            reportPeriodicWorkerUpdates();
-          }
-        },
+    globalWorkerUpdatesTimer = executorSupplier.apply("GlobalWorkerUpdatesTimer");
+    globalWorkerUpdatesTimer.scheduleWithFixedDelay(
+        this::reportPeriodicWorkerUpdates,
         0,
-        options.getWindmillHarnessUpdateReportingPeriod().getMillis());
+        options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+        TimeUnit.MILLISECONDS);
 
-    refreshWorkTimer = new Timer("RefreshWork");
+    refreshWorkTimer = executorSupplier.apply("RefreshWork");
     if (options.getActiveWorkRefreshPeriodMillis() > 0) {
-      refreshWorkTimer.schedule(
-          new TimerTask() {
+      refreshWorkTimer.scheduleWithFixedDelay(
+          new Runnable() {
             @Override
             public void run() {
               try {
@@ -865,58 +871,50 @@ public class StreamingDataflowWorker {
             }
           },
           options.getActiveWorkRefreshPeriodMillis(),
-          options.getActiveWorkRefreshPeriodMillis());
+          options.getActiveWorkRefreshPeriodMillis(),
+          TimeUnit.MILLISECONDS);
     }
     if (windmillServiceEnabled && options.getStuckCommitDurationMillis() > 0) {
       int periodMillis = Math.max(options.getStuckCommitDurationMillis() / 10, 100);
-      refreshWorkTimer.schedule(
-          new TimerTask() {
-            @Override
-            public void run() {
-              invalidateStuckCommits();
-            }
-          },
-          periodMillis,
-          periodMillis);
+      refreshWorkTimer.scheduleWithFixedDelay(
+          this::invalidateStuckCommits, periodMillis, periodMillis, TimeUnit.MILLISECONDS);
     }
 
     if (options.getPeriodicStatusPageOutputDirectory() != null) {
-      statusPageTimer = new Timer("DumpStatusPages");
-      statusPageTimer.schedule(
-          new TimerTask() {
-            @Override
-            public void run() {
-              Collection<Capturable> pages = statusPages.getDebugCapturePages();
-              if (pages.isEmpty()) {
-                LOG.warn("No captured status pages.");
-              }
-              Long timestamp = clock.get().getMillis();
-              for (Capturable page : pages) {
-                PrintWriter writer = null;
-                try {
-                  File outputFile =
-                      new File(
-                          options.getPeriodicStatusPageOutputDirectory(),
-                          ("StreamingDataflowWorker"
-                                  + options.getWorkerId()
-                                  + "_"
-                                  + page.pageName()
-                                  + timestamp.toString())
-                              .replaceAll("/", "_"));
-                  writer = new PrintWriter(outputFile, UTF_8.name());
-                  page.captureData(writer);
-                } catch (IOException e) {
-                  LOG.warn("Error dumping status page.", e);
-                } finally {
-                  if (writer != null) {
-                    writer.close();
-                  }
+      statusPageTimer = executorSupplier.apply("DumpStatusPages");
+      statusPageTimer.scheduleWithFixedDelay(
+          () -> {
+            Collection<Capturable> pages = statusPages.getDebugCapturePages();
+            if (pages.isEmpty()) {
+              LOG.warn("No captured status pages.");
+            }
+            Long timestamp = clock.get().getMillis();
+            for (Capturable page : pages) {
+              PrintWriter writer = null;
+              try {
+                File outputFile =
+                    new File(
+                        options.getPeriodicStatusPageOutputDirectory(),
+                        ("StreamingDataflowWorker"
+                                + options.getWorkerId()
+                                + "_"
+                                + page.pageName()
+                                + timestamp.toString())
+                            .replaceAll("/", "_"));
+                writer = new PrintWriter(outputFile, UTF_8.name());
+                page.captureData(writer);
+              } catch (IOException e) {
+                LOG.warn("Error dumping status page.", e);
+              } finally {
+                if (writer != null) {
+                  writer.close();
                 }
               }
             }
           },
-          60 * 1000,
-          60 * 1000);
+          60,
+          60,
+          TimeUnit.SECONDS);
     }
 
     reportHarnessStartup();
@@ -949,14 +947,24 @@ public class StreamingDataflowWorker {
   public void stop() {
     try {
       if (globalConfigRefreshTimer != null) {
-        globalConfigRefreshTimer.cancel();
+        globalConfigRefreshTimer.shutdown();
       }
-      globalWorkerUpdatesTimer.cancel();
+      globalWorkerUpdatesTimer.shutdown();
       if (refreshWorkTimer != null) {
-        refreshWorkTimer.cancel();
+        refreshWorkTimer.shutdown();
       }
       if (statusPageTimer != null) {
-        statusPageTimer.cancel();
+        statusPageTimer.shutdown();
+      }
+      if (globalConfigRefreshTimer != null) {
+        globalConfigRefreshTimer.awaitTermination(300, TimeUnit.SECONDS);
+      }
+      globalWorkerUpdatesTimer.awaitTermination(300, TimeUnit.SECONDS);
+      if (refreshWorkTimer != null) {
+        refreshWorkTimer.awaitTermination(300, TimeUnit.SECONDS);
+      }
+      if (statusPageTimer != null) {
+        statusPageTimer.awaitTermination(300, TimeUnit.SECONDS);
       }
       statusPages.stop();
       if (debugCaptureManager != null) {
@@ -1908,6 +1916,7 @@ public class StreamingDataflowWorker {
    * Schedules a background thread that periodically sends getConfig requests to Dataflow Service to
    * obtain the windmill service endpoint. Blocks until the windmillServer is ready.
    */
+  @SuppressWarnings("FutureReturnValueIgnored")
   private void schedulePeriodicGlobalConfigRequests() {
     Preconditions.checkState(windmillServiceEnabled);
 
@@ -1926,16 +1935,12 @@ public class StreamingDataflowWorker {
     LOG.info("windmillServerStub is now ready");
 
     // Now start a thread that periodically refreshes the windmill service endpoint.
-    globalConfigRefreshTimer = new Timer("GlobalConfigRefreshTimer");
-    globalConfigRefreshTimer.schedule(
-        new TimerTask() {
-          @Override
-          public void run() {
-            getGlobalConfig();
-          }
-        },
+    globalConfigRefreshTimer = executorSupplier.apply("GlobalConfigRefreshTimer");
+    globalConfigRefreshTimer.scheduleWithFixedDelay(
+        this::getGlobalConfig,
         0,
-        options.getGlobalConfigRefreshPeriod().getMillis());
+        options.getGlobalConfigRefreshPeriod().getMillis(),
+        TimeUnit.MILLISECONDS);
   }
 
   private void getGlobalConfig() {
