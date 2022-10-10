@@ -25,3 +25,6 @@ TOKENIZER_NAME = "distilbert-base-uncased-finetuned-sst-2-english"
 MODEL_STATE_DICT_PATH = (
     f"gs://{PROJECT_ID}-ml-examples/{TOKENIZER_NAME}/pytorch_model.bin")
 MODEL_CONFIG_PATH = TOKENIZER_NAME
+IMG_NAME = "kfp-components-preprocessing/pytorch-gpu"
+TAG = "latest"
+DOCKER_IMG = f"{REGION}-docker.pkg.dev/{PROJECT_ID}/{IMG_NAME}:{TAG}"

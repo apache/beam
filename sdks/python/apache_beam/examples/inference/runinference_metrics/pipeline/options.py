@@ -58,18 +58,19 @@ def get_pipeline_options(
       "setup_file": "./setup.py",
   }
   flags = []
-  if device == "gpu":
+  if device == "GPU":
     flags = [
-        "--experiment=worker_accelerator=type:nvidia-tesla-p4;count:1;install-nvidia-driver",
+        "--experiment=worker_accelerator=type:nvidia-tesla-p4;count:1;"\
+          "install-nvidia-driver",
         "--experiment=use_runner_v2",
     ]
     dataflow_options.update({
-        "sdk_container_image": "us-central1-docker.pkg.dev/apache-beam-testing/kfp-components-preprocessing/pytorch-gpu:latest",
+        "sdk_container_image":cfg.DOCKER_IMG,
         "machine_type": "n1-standard-4",
     })
 
   # Optional parameters
   if num_workers:
     dataflow_options.update({"num_workers": num_workers})
-
+  print(dataflow_options)
   return PipelineOptions(flags=flags, **dataflow_options)

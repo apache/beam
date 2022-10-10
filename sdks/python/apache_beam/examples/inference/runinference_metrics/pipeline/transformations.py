@@ -38,8 +38,8 @@ class CustomPytorchModelHandlerKeyedTensor(PytorchModelHandlerKeyedTensor):
 
 class HuggingFaceStripBatchingWrapper(DistilBertForSequenceClassification):
   """Wrapper around HuggingFace model because RunInference requires a batch
-    as a list of dicts instead of a dict of lists. Another workaround can be found
-    here where they disable batching instead.
+    as a list of dicts instead of a dict of lists. Another workaround
+    can be found here where they disable batching instead.
     https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py"""
   def forward(self, **kwargs):
     output = super().forward(**kwargs)
@@ -58,9 +58,11 @@ class Tokenize(beam.DoFn):
 
   def process(self, text_input: str):
     """Prepocesses the text using the tokenizer"""
-    # We need to pad the tokens tensors to max length to make sure that all the tensors
-    # are of the same length and hence stack-able by the RunInference API, normally you would batch first
-    # and tokenize the batch after and pad each tensor the the max length in the batch.
+    # We need to pad the tokens tensors to max length to make sure
+    # that all the tensors are of the same length and hence
+    # stack-able by the RunInference API, normally you would batch first
+    # and tokenize the batch after and pad each tensor
+    # the the max length in the batch.
     tokens = self._tokenizer(
         text_input, return_tensors="pt", padding="max_length", max_length=512)
     # squeeze because tokenization add an extra dimension, which is empty
@@ -73,14 +75,15 @@ class PostProcessor(beam.DoFn):
   """Postprocess the RunInference output"""
   def process(self, tuple_):
     """
-        Takes the input text and the prediction result, and returns a dictionary with the input text and
-        the softmax probabilities
+        Takes the input text and the prediction result, and returns a dictionary
+        with the input text and the softmax probabilities
 
         Args:
           tuple_: The tuple that is passed to the function.
 
         Returns:
-          A list of dictionaries, each containing the input text and the softmax output.
+          A list of dictionaries, each containing the input text
+          and the softmax output.
         """
     text_input, prediction_result = tuple_
     softmax = (

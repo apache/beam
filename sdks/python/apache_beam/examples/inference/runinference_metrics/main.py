@@ -81,10 +81,13 @@ def run():
   inputs = [
       "This is the worst food I have ever eaten",
       "In my soul and in my heart, I’m convinced I’m wrong!",
-      "Be with me always—take any form—drive me mad! only do not leave me in this abyss, where I cannot find you!",
+      "Be with me always—take any form—drive me mad!"\
+      "only do not leave me in this abyss, where I cannot find you!",
       "Do I want to live? Would you like to live with your soul in the grave?",
       "Honest people don’t hide their deeds.",
-      "Nelly, I am Heathcliff!  He’s always, always in my mind: not as a pleasure, any more than I am always a pleasure to myself, but as my own being.",
+      "Nelly, I am Heathcliff!  He’s always,"\
+      "always in my mind: not as a pleasure,"\
+      "any more than I am always a pleasure to myself, but as my own being.",
   ] * 1000
 
   pipeline_options = get_pipeline_options(
@@ -94,6 +97,7 @@ def run():
       mode=args.mode,
       device=args.device,
   )
+  raise
   model_handler_class = (
       PytorchModelHandlerKeyedTensor
       if args.device == "GPU" else CustomPytorchModelHandlerKeyedTensor)
