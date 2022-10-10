@@ -15,27 +15,28 @@
 # limitations under the License.
 #
 
-"""This file contains the pipeline for loading a ML model, and exploring the different RunInference metrics."""
+"""This file contains the pipeline for loading a ML model, and exploring
+the different RunInference metrics."""
 import argparse
-import sys
-
-import apache_beam as beam
-from apache_beam.ml.inference import RunInference
-from apache_beam.ml.inference.base import KeyedModelHandler
-from transformers import DistilBertConfig
-
 import config as cfg
+import sys
 from pipeline.options import get_pipeline_options
-from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 from pipeline.transformations import CustomPytorchModelHandlerKeyedTensor
 from pipeline.transformations import HuggingFaceStripBatchingWrapper
 from pipeline.transformations import PostProcessor
 from pipeline.transformations import Tokenize
+from transformers import DistilBertConfig
+
+import apache_beam as beam
+from apache_beam.ml.inference import RunInference
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 
 
 def parse_arguments(argv):
   """
-    Parses the arguments passed to the command line and returns them as an object
+    Parses the arguments passed to the command line and
+    returns them as an object
     Args:
       argv: The arguments passed to the command line.
     Returns:
@@ -70,8 +71,10 @@ def parse_arguments(argv):
 
 def run():
   """
-    Runs the pipeline that loads a transformer based text classification model and does inference on a list of sentences.
-    At the end of pipeline, different metrics like latency, throughput and others are printed.
+    Runs the pipeline that loads a transformer based text classification model
+    and does inference on a list of sentences.
+    At the end of pipeline, different metrics like latency,
+    throughput and others are printed.
     """
   args = parse_arguments(sys.argv)
 
@@ -89,8 +92,11 @@ def run():
       num_workers=cfg.NUM_WORKERS,
       project=args.project,
       mode=args.mode,
-      device=args.device)
-  model_handler_class = PytorchModelHandlerKeyedTensor if args.device == "GPU" else CustomPytorchModelHandlerKeyedTensor
+      device=args.device,
+  )
+  model_handler_class = (
+      PytorchModelHandlerKeyedTensor
+      if args.device == "GPU" else CustomPytorchModelHandlerKeyedTensor)
   device = "cuda:0" if args.device == "GPU" else args.device
   model_handler = model_handler_class(
       state_dict_path=cfg.MODEL_STATE_DICT_PATH,

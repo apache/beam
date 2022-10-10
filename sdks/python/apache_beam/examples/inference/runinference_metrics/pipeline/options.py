@@ -15,7 +15,8 @@
 # limitations under the License.
 #
 
-"""This file contains the pipeline options to configure the Dataflow pipeline."""
+"""This file contains the pipeline options to configure
+the Dataflow pipeline."""
 
 from datetime import datetime
 from typing import Any
