@@ -23,15 +23,14 @@ on it via rpc.
 # pytype: skip-file
 
 import logging
-import os
 import multiprocessing.managers
-import pickle
+import os
 import tempfile
 import threading
 import uuid
-
 from typing import Any
 from typing import Callable
+from typing import Dict
 from typing import Generic
 from typing import Optional
 from typing import TypeVar
@@ -94,7 +93,7 @@ class _SingletonEntry:
 
 
 class _SingletonManager:
-  entries = {}
+  entries: Dict[Any, Any] = {}
 
   def register_singleton(self, constructor, tag, initialize_eagerly=True):
     assert tag not in self.entries, tag

@@ -54,11 +54,11 @@ class MultiProcessSharedTest(unittest.TestCase):
     self.assertEqual(self.shared.get(), 21)
 
   def test_error(self):
-    with self.assertRaisesRegex(Exception, 'something bad') as context:
+    with self.assertRaisesRegex(Exception, 'something bad'):
       self.shared.error('something bad')
 
   def test_no_method(self):
-    with self.assertRaisesRegex(Exception, 'no_such_method') as context:
+    with self.assertRaisesRegex(Exception, 'no_such_method'):
       self.shared.no_such_method()
 
   def test_connect(self):
