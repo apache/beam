@@ -27,7 +27,7 @@ import sys
 import unittest
 
 import mock
-import pytest
+# import pytest
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.metrics.cells import DistributionData
@@ -570,16 +570,10 @@ class UtilTest(unittest.TestCase):
                                 FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.workerPools[0].numThreadsPerWorker, 2)
 
-  # TODO: Support Python 3.10 for Dataflow Runner v1
-  # https://github.com/apache/beam/issues/21971
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
-  @pytest.mark.skipif(
-      sys.version_info >= (3, 10),
-      reason="Runner v1 is not"
-      "supported in Python 3.10")
   def test_harness_override_default_in_released_sdks(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
@@ -615,16 +609,6 @@ class UtilTest(unittest.TestCase):
       for experiment in env.proto.experiments:
         self.assertNotIn('runner_harness_container_image=', experiment)
 
-  # TODO: Support Python 3.10 for Dataflow Runner v1
-  # https://github.com/apache/beam/issues/21971
-  @mock.patch(
-      'apache_beam.runners.dataflow.internal.apiclient.'
-      'beam_version.__version__',
-      '2.2.0')
-  @pytest.mark.skipif(
-      sys.version_info >= (3, 10),
-      reason="Runner v1 is not"
-      "supported in Python 3.10")
   def test_harness_override_custom_in_released_sdks(self):
     pipeline_options = PipelineOptions([
         '--temp_location',
@@ -672,16 +656,10 @@ class UtilTest(unittest.TestCase):
     self.assertIn(
         'runner_harness_container_image=fake_image', env.proto.experiments)
 
-  # TODO: Support Python 3.10 for Dataflow Runner v1
-  # https://github.com/apache/beam/issues/21971
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0.rc1')
-  @pytest.mark.skipif(
-      sys.version_info >= (3, 10),
-      reason="Runner v1 is not"
-      "supported in Python 3.10")
   def test_harness_override_uses_base_version_in_rc_releases(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
@@ -751,16 +729,10 @@ class UtilTest(unittest.TestCase):
                 sys.version_info[1],
                 names.BEAM_CONTAINER_VERSION)))
 
-  # TODO: Support Python 3.10 for Dataflow Runner v1
-  # https://github.com/apache/beam/issues/21971
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
-  @pytest.mark.skipif(
-      sys.version_info >= (3, 10),
-      reason="Runner v1 is not"
-      "supported in Python 3.10")
   def test_worker_harness_image_tag_matches_released_sdk_version(self):
     # streaming, fnapi pipeline.
     pipeline_options = PipelineOptions(
@@ -791,16 +763,10 @@ class UtilTest(unittest.TestCase):
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
-  # TODO: Support Python 3.10 for Dataflow Runner v1
-  # https://github.com/apache/beam/issues/21971
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0.rc1')
-  @pytest.mark.skipif(
-      sys.version_info >= (3, 10),
-      reason="Runner v1 is not"
-      "supported in Python 3.10")
   def test_worker_harness_image_tag_matches_base_sdk_version_of_an_rc(self):
     # streaming, fnapi pipeline.
     pipeline_options = PipelineOptions(
