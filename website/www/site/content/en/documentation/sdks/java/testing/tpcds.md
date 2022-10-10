@@ -26,7 +26,7 @@ From TPC-DS [specification document](https://www.tpc.org/tpc_documents_current_v
 
 In general, TPC-DS is:
 - Industry standard benchmark (OLAP/Data Warehouse);
-  - http://www.tpc.org/tpcds/
+  - https://www.tpc.org/tpcds/
 - Implemented for many analytical processing systems - RDBMS, Apache Spark, Apache Flink, etc;
 - It provides a wide range of different queries (SQL);
 - It incorporates the tools to generate input data of different sizes.

@@ -22,10 +22,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../components/builders/content_tree.dart';
+import '../../components/builders/sdks_builder.dart';
 import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
+import '../../models/module.dart';
+import '../../models/sdk.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen();
@@ -106,10 +110,18 @@ class _SdkSelection extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(50, 60, 50, 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                _IntroText(),
-                SizedBox(height: BeamSizes.size32),
-                _Buttons(),
+              children: [
+                const _IntroText(),
+                const SizedBox(height: BeamSizes.size32),
+                SdksBuilder(
+                  builder: (context, sdks, child) {
+                    if (sdks.isEmpty) {
+                      return Container();
+                    }
+
+                    return _Buttons(sdks: sdks);
+                  },
+                ),
               ],
             ),
           ),
@@ -129,26 +141,26 @@ class _TourSummary extends StatelessWidget {
         vertical: BeamSizes.size20,
         horizontal: 27,
       ),
-      child: Column(
-        children: _modules
-            .map(
-              (module) => _Module(
-                title: module,
-                isLast: module == _modules.last,
-              ),
-            )
-            .toList(growable: false),
+      child: ContentTreeBuilder(
+        builder: (context, contentTree, child) {
+          if (contentTree == null) {
+            return Container();
+          }
+
+          return Column(
+            children: contentTree.modules
+                .map(
+                  (module) => _Module(
+                    module: module,
+                    isLast: module == contentTree.modules.last,
+                  ),
+                )
+                .toList(growable: false),
+          );
+        },
       ),
     );
   }
-
-  static const List<String> _modules = [
-    'Core Transforms',
-    'Common Transforms',
-    'IO',
-    'Windowing',
-    'Triggers',
-  ];
 }
 
 class _IntroText extends StatelessWidget {
@@ -199,7 +211,8 @@ class _IntroText extends StatelessWidget {
 }
 
 class _Buttons extends StatelessWidget {
-  const _Buttons();
+  final List<SdkModel> sdks;
+  const _Buttons({required this.sdks});
 
   void _onSdkChanged(String value) {
     // TODO(nausharipov): change sdk
@@ -210,10 +223,11 @@ class _Buttons extends StatelessWidget {
     return Wrap(
       children: [
         Wrap(
-          children: ['Java', 'Python', 'Go']
+          children: sdks
               .map(
-                (e) => _SdkButton(
-                  value: e,
+                (sdk) => _SdkButton(
+                  title: sdk.title,
+                  value: sdk.id,
                   groupValue: _sdk,
                   onChanged: _onSdkChanged,
                 ),
@@ -230,15 +244,17 @@ class _Buttons extends StatelessWidget {
     );
   }
 
-  static const String _sdk = 'Java';
+  static const String _sdk = 'java';
 }
 
 class _SdkButton extends StatelessWidget {
+  final String title;
   final String value;
   final String groupValue;
   final ValueChanged<String> onChanged;
 
   const _SdkButton({
+    required this.title,
     required this.value,
     required this.groupValue,
     required this.onChanged,
@@ -258,18 +274,18 @@ class _SdkButton extends StatelessWidget {
         onPressed: () {
           onChanged(value);
         },
-        child: Text(value),
+        child: Text(title),
       ),
     );
   }
 }
 
 class _Module extends StatelessWidget {
-  final String title;
+  final ModuleModel module;
   final bool isLast;
 
   const _Module({
-    required this.title,
+    required this.module,
     required this.isLast,
   });
 
@@ -277,7 +293,7 @@ class _Module extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ModuleHeader(title: title),
+        _ModuleHeader(title: module.title),
         if (isLast) const _LastModuleBody() else const _ModuleBody(),
       ],
     );

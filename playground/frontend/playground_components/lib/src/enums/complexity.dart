@@ -16,10 +16,16 @@
  * limitations under the License.
  */
 
+import 'package:json_annotation/json_annotation.dart';
+
 enum Complexity {
+  @JsonValue('UNSPECIFIED')
   unspecified,
+  @JsonValue('BASIC')
   basic,
+  @JsonValue('MEDIUM')
   medium,
+  @JsonValue('ADVANCED')
   advanced,
   ;
 

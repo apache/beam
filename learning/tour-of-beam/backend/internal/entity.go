@@ -48,6 +48,7 @@ const (
 )
 
 type Group struct {
+	Id    string `json:"id"`
 	Title string `json:"title"`
 	Nodes []Node `json:"nodes"`
 }
