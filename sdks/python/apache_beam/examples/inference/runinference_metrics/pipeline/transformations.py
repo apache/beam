@@ -21,7 +21,8 @@ import apache_beam as beam
 import torch
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
-from transformers import DistilBertForSequenceClassification, DistilBertTokenizer
+from transformers import DistilBertForSequenceClassification
+from transformers import DistilBertTokenizer
 
 
 class CustomPytorchModelHandlerKeyedTensor(PytorchModelHandlerKeyedTensor):

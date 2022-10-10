@@ -18,20 +18,19 @@
 """This file contains the pipeline for loading a ML model, and exploring
 the different RunInference metrics."""
 import argparse
-import config as cfg
 import sys
+
+import apache_beam as beam
+import config as cfg
+from apache_beam.ml.inference import RunInference
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 from pipeline.options import get_pipeline_options
 from pipeline.transformations import CustomPytorchModelHandlerKeyedTensor
 from pipeline.transformations import HuggingFaceStripBatchingWrapper
 from pipeline.transformations import PostProcessor
 from pipeline.transformations import Tokenize
 from transformers import DistilBertConfig
-
-import apache_beam as beam
-from apache_beam.ml.inference import RunInference
-from apache_beam.ml.inference.base import KeyedModelHandler
-from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
-
 
 def parse_arguments(argv):
   """
