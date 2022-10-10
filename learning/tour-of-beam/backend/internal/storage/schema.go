@@ -36,6 +36,8 @@ const (
 
 	PgSnippetsKind = "pg_snippets"
 	PgSdksKind     = "pg_sdks"
+
+	OriginTbExamples = "TB_EXAMPLES"
 )
 
 // tb_learning_path.
@@ -57,6 +59,7 @@ type TbLearningModule struct {
 
 // tb_learning_node.group.
 type TbLearningGroup struct {
+	Id    string `datastore:"id"`
 	Title string `datastore:"title"`
 }
 

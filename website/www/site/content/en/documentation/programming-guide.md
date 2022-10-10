@@ -1537,6 +1537,14 @@ public static class SumInts implements SerializableFunction<Iterable<Integer>, I
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_bounded_sum >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_simple_sum >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_simple_sum >}}
+{{< /highlight >}}
+
 {{< paragraph class="language-go" >}}
 All Combiners should be registered using a generic `register.CombinerX[...]`
 function. This allows the Go SDK to infer an encoding from any inputs/outputs,
@@ -1556,14 +1564,6 @@ types. It can be called with `register.Combiner3[T1, T2, T3](&CustomCombiner{})`
 where `T1` is the type of the accumulator, `T2` is the type of the input, and `T3` is
 the type of the output.
 {{< /paragraph >}}
-
-{{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_simple_sum >}}
-{{< /highlight >}}
-
-{{< highlight typescript >}}
-{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_simple_sum >}}
-{{< /highlight >}}
 
 ##### 4.2.4.2. Advanced combinations using CombineFn {#advanced-combines}
 
@@ -1713,6 +1713,10 @@ sum = pc | beam.CombineGlobally(sum).without_defaults()
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_global_with_default >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_globally >}}
 {{< /highlight >}}
 
 ##### 4.2.4.5. Combine and non-global windowing {#combine-non-global-windowing}
@@ -2556,8 +2560,10 @@ This feature isn't implemented in the Go SDK; see more at [Issue 20510](https://
 
 {{< paragraph class="language-typescript" >}}
 **Timer and State:**
-This feature isn't implemented in the Typescript SDK yet,
-but can be used from a cross-language transform.
+This feature isn't yet implemented in the Typescript SDK,
+but we welcome [contributions](https://beam.apache.org/contribute/).
+In the meantime, Typescript pipelines wishing to use state and timers can do so
+using [cross-language transforms](#use-x-lang-transforms).
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -2622,6 +2628,10 @@ class StatefulDoFn(beam.DoFn):
 // State and Timers are yet implemented in the Go SDK.
 // See https://github.com/apache/beam/issues/20510 for info
 // on contributing State and Timers.
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+// Not yet implemented.
 {{< /highlight >}}
 
 ### 4.6. Composite transforms {#composite-transforms}
@@ -3075,6 +3085,12 @@ In Go, schema encoding is used by default for struct types, with Exported fields
 Beam will automatically infer the schema based on the fields and field tags of the struct, and their order.
 {{< /paragraph >}}
 
+{{< paragraph class="language-typescript" >}}
+In Typescript, JSON objects are used to represent schema'd data.
+Unfortunately type information in Typescript is not propagated to the runtime layer,
+so it needs to be manually specified in some places (e.g. when using cross-langauge pipelines).
+{{< /paragraph >}}
+
 {{< highlight java >}}
 @DefaultSchema(JavaBeanSchema.class)
 public class Purchase {
@@ -3142,6 +3158,10 @@ class Transaction(typing.NamedTuple):
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/06schemas.go" schema_define >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" schema_def >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -3307,6 +3327,12 @@ For example, the logical type provider representing nanosecond timestamps
 might be implemented as follows
 {{< /paragraph >}}
 
+{{< paragraph class="language-typescript" >}}
+In Typescript, a logical type defined by the [LogicalTypeInfo](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/coders/row_coder.ts)
+interface which associates a logical type's URN with its representation
+and its conversion to and from this representation.
+{{< /paragraph >}}
+
 {{< highlight java >}}
 // A Logical type using java.time.Instant to represent the logical type.
 public class TimestampNanos implements LogicalType<Instant, Row> {
@@ -3335,6 +3361,14 @@ public class TimestampNanos implements LogicalType<Instant, Row> {
 
 // Register it like so:
 {{< code_sample "sdks/go/examples/snippets/06schemas.go" schema_logical_register >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+// Register a logical type:
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" schema_logical_register >}}
+
+// And use it as follows:
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" schema_logical_use >}}
 {{< /highlight >}}
 
 #### 6.4.2. Useful logical types {#built-in-logical-types}
@@ -3459,7 +3493,14 @@ In addition, often Beam pipelines have intermediate stages and types, and those 
 
 #### 6.5.1. Inferring schemas {#inferring-schemas}
 
-{{< language-switcher java py go >}}
+{{< language-switcher java py go typescript >}}
+
+{{< paragraph class="language-typescript" >}}
+Unfortunately, Beam is unable to access Typescript's type information at runtime.
+Schemas must be manually declared with `beam.withRowCoder`.
+On the other hand, schema-aware operations such as `GroupBy` can be used
+without an explicit schema declared.
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 Beam is able to infer schemas from a variety of common Java types.
@@ -4321,7 +4362,7 @@ automatically convert to any matching schema type, just like when reading the en
 
 ## 7. Data encoding and type safety {#data-encoding-and-type-safety}
 
-{{< language-switcher java py go >}}
+{{< language-switcher java py go typescript >}}
 
 When Beam runners execute your pipeline, they often need to materialize the
 intermediate data in your `PCollection`s, which requires converting elements to
@@ -4358,6 +4399,14 @@ However, users can build and register custom coders with `beam.RegisterCoder`.
 You can find available Coder functions in the
 [coder](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder)
 package.
+{{< /paragraph >}}
+
+{{< paragraph class="language-typescript" >}}
+Standard Typescript types like `number`, `UInt8Array` and `string` and more are coded using builtin coders.
+Json objects and arrays are encoded via a BSON encoding.
+For these types, coders need not be specified unless interacting with cross-language transforms.
+Users can build custom coders by extending `beam.coders.Coder`
+for use with `withCoderInternal`, but generally logical types are preferred for this case.
 {{< /paragraph >}}
 
 > Note that coders do not necessarily have a 1:1 relationship with types. For
@@ -4929,6 +4978,10 @@ into fixed windows, each 60 seconds in length:
 {{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_fixed_windows >}}
 {{< /highlight >}}
 
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" setting_fixed_windows >}}
+{{< /highlight >}}
+
 #### 8.3.2. Sliding time windows {#using-sliding-time-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
@@ -4949,6 +5002,10 @@ begins every five seconds:
 {{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_sliding_windows >}}
 {{< /highlight >}}
 
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" setting_sliding_windows >}}
+{{< /highlight >}}
+
 #### 8.3.3. Session windows {#using-session-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
@@ -4967,6 +5024,10 @@ least 10 minutes (600 seconds):
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_session_windows >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" setting_session_windows >}}
 {{< /highlight >}}
 
 Note that the sessions are per-key — each key in the collection will have its
@@ -4990,6 +5051,10 @@ a single global window for a `PCollection`:
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_global_window >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" setting_global_window >}}
 {{< /highlight >}}
 
 ### 8.4. Watermarks and late data {#watermarks-and-late-data}
@@ -5755,6 +5820,13 @@ to other nodes in the graph. A `DoFn` can declare multiple state variables.
 
 </span>
 
+<span class="language-typescript">
+
+> **Note:** The Beam SDK for Typescript does not yet support a State and Timer API,
+but it is possible to use these features from cross-langauge pipelines (see below).
+
+</span>
+
 ### 11.1. Types of state {#types-of-state}
 
 Beam provides several types of state:
@@ -5810,6 +5882,10 @@ _ = (p | 'Read per user' >> ReadPerUser()
 
 {{< highlight go >}}
 This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< /highlight >}}
+
+{{< highlight typscript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" stateful_dofn >}}
 {{< /highlight >}}
 
 #### CombiningState
@@ -6666,7 +6742,7 @@ based on how the amount of work is represented:
 * Bounded DoFns are those where the work represented by an element is well-known beforehand and has
 an end. Examples of bounded elements include a file or group of files.
 * Unbounded DoFns are those where the amount of work does not have a specific end or the
-amount of work is not known befrehand. Examples of unbounded elements include a Kafka or a PubSub
+amount of work is not known beforehand. Examples of unbounded elements include a Kafka or a PubSub
 topic.
 
 In Java, you can use [@UnboundedPerElement](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/DoFn.UnboundedPerElement.html)
@@ -7463,6 +7539,58 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
 
 4. After the job has been submitted to the Beam runner, shutdown the expansion service by
    terminating the expansion service process.
+
+#### 13.2.4. Using cross-language transforms in a Typescript pipeline
+
+Using a Typescript wrapper for a cross-language pipeline is similar to using any
+other transform, provided the dependencies (e.g. a recent Python interpreter or
+a Java JRE) is available.  For example, most of the Typescript IOs are simply
+wrappers around Beam transforms from other languages.
+
+If a wrapper is not already available, one can use it explicitly using
+[apache_beam.transforms.external.rawExternalTransform](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/external.ts).
+which takes a `urn` (a string identifying the transform),
+a `payload` (a binary or json object parameterizing the transform),
+and a `expansionService` which can either be an address of a pre-started service
+or a callable returning an auto-started expansion service object.
+
+For example, one could write
+
+```
+pcoll.applyAsync(
+    rawExternalTransform(
+        "beam:registered:urn",
+        {arg: value},
+        "localhost:expansion_service_port"
+    )
+);
+```
+
+Note that `pcoll` must have a cross-language compatible coder coder such as `SchemaCoder`.
+This can be ensured with the [withCoderInternal](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/internal.ts)
+or [withRowCoder](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/internal.ts)
+transforms, e.g.
+
+```
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" with_row_coder >}}
+```
+
+Coder can also be specified on the output if it cannot be inferred, e.g.
+
+In addition, there are several utilities such as [pythonTransform](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/python.ts)
+that make it easier to invoke transforms from specific languages:
+
+```
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" python_map >}}
+```
+
+Cross-langauge transforms can also be defined in line, which can be useful
+for accessing features or libraries not available in the calling SDK
+
+```
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" cross_lang_transform >}}
+```
+
 
 ### 13.3. Runner Support {#x-lang-transform-runner-support}
 
