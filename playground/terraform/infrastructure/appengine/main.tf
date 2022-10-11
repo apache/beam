@@ -44,13 +44,13 @@ resource "google_app_engine_flexible_app_version" "default_app" {
   #  }
   # }
 
-  # liveness_check {
-  #   path = "/"
-  # }
+  liveness_check {
+    path = "/"
+  }
 
-  # readiness_check {
-  #   path = "/"
-  # }
+  readiness_check {
+    path = "/"
+  }
 
   # automatic_scaling {
   #   cool_down_period    = "120s"
