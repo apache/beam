@@ -50,6 +50,7 @@ CLIENT_SCOPES = [
     'https://www.googleapis.com/auth/devstorage.full_control',
     'https://www.googleapis.com/auth/userinfo.email',
     'https://www.googleapis.com/auth/datastore',
+    'https://www.googleapis.com/auth/drive',
     'https://www.googleapis.com/auth/spanner.admin',
     'https://www.googleapis.com/auth/spanner.data'
 ]
