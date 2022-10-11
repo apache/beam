@@ -2869,7 +2869,7 @@ return new GenericRecordBuilder(PARQUET_SCHEMA)
 &lt;h2 id="using-snowflakeio-with-aws-s3">Using SnowflakeIO with AWS S3&lt;/h2>
 &lt;p>To be able to use AWS S3 bucket as &lt;code>stagingBucketName&lt;/code> is required to:&lt;/p>
 &lt;ol>
-&lt;li>Create &lt;code>PipelineOptions&lt;/code> interface which is &lt;a href="https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options">extending&lt;/a> &lt;code>SnowflakePipelineOptions&lt;/code> and &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/options/S3Options.html">S3Options&lt;/a>
+&lt;li>Create &lt;code>PipelineOptions&lt;/code> interface which is &lt;a href="https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options">extending&lt;/a> &lt;code>SnowflakePipelineOptions&lt;/code> and &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/options/S3Options.html">S3Options&lt;/a>
 with &lt;code>AwsAccessKey&lt;/code> and &lt;code>AwsSecretKey&lt;/code> options. Example:&lt;/li>
 &lt;/ol>
 &lt;p>
@@ -2913,7 +2913,7 @@ new BasicAWSCredentials(options.getAwsAccessKey(), options.getAwsSecretKey())
 &lt;pre>&lt;code>Pipeline p = Pipeline.create(options);&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;p>&lt;strong>Note&lt;/strong>: Remember to set &lt;code>awsRegion&lt;/code> from &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/options/S3Options.html">S3Options&lt;/a>.&lt;/p>
+&lt;p>&lt;strong>Note&lt;/strong>: Remember to set &lt;code>awsRegion&lt;/code> from &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/options/S3Options.html">S3Options&lt;/a>.&lt;/p>
 &lt;h2 id="using-snowflakeio-in-python-sdk">Using SnowflakeIO in Python SDK&lt;/h2>
 &lt;h3 id="intro">Intro&lt;/h3>
 &lt;p>Snowflake cross-language implementation is supporting both reading and writing operations for Python programming language, thanks to
