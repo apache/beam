@@ -60,6 +60,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A helper class for talking to Pubsub via grpc. */
@@ -178,7 +179,13 @@ public class PubsubGrpcClient extends PubsubClient {
   private Channel newChannel() throws IOException {
     checkState(publisherChannel != null, "PubsubGrpcClient has been closed");
     ClientAuthInterceptor interceptor =
-        new ClientAuthInterceptor(credentials, Executors.newSingleThreadExecutor());
+        new ClientAuthInterceptor(
+            credentials,
+            Executors.newSingleThreadExecutor(
+                new ThreadFactoryBuilder()
+                    .setDaemon(true)
+                    .setNameFormat("PubsubGrpcClient-thread")
+                    .build()));
     return ClientInterceptors.intercept(publisherChannel, interceptor);
   }
 
