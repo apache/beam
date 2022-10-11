@@ -25,7 +25,7 @@ module "setup" {
 }
 
 module "network" {
-  depends_on      = [module.setup]
+  depends_on      = [module.setup, module.api_enable]
   source          = "./network"
   project_id      = var.project_id
   region          = var.network_region
@@ -34,7 +34,7 @@ module "network" {
 }
 
 module "buckets" {
-  depends_on    = [module.setup]
+  depends_on    = [module.setup, module.api_enable]
   source        = "./buckets"
   project_id    = var.project_id
   #  terraform_bucket_name     = var.bucket_terraform_state_name
@@ -46,7 +46,7 @@ module "buckets" {
 }
 
 module "artifact_registry" {
-  depends_on = [module.setup, module.buckets]
+  depends_on = [module.setup, module.buckets, module.api_enable]
   source     = "./artifact_registry"
   project_id = var.project_id
   id         = var.repository_id
@@ -54,7 +54,7 @@ module "artifact_registry" {
 }
 
 module "memorystore" {
-  depends_on     = [module.setup, module.network]
+  depends_on     = [module.setup, module.network, module.api_enable]
   source         = "./memorystore"
   project_id     = var.project_id
   redis_version  = var.redis_version
@@ -69,7 +69,7 @@ module "memorystore" {
 }
 
 module "gke" {
-  depends_on            = [module.setup, module.artifact_registry, module.memorystore, module.network]
+  depends_on            = [module.setup, module.artifact_registry, module.memorystore, module.network, module.api_enable]
   source                = "./gke"
   project_id            = var.project_id
   service_account_email = module.setup.service_account_email
@@ -86,7 +86,7 @@ module "ip_address" {
 }
 
 module "appengine" {
- depends_on         = [module.setup]
+ depends_on         = [module.setup, module.api_enable]
  source             = "./appengine"
  project_id         = var.project_id
  region             = var.region
