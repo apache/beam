@@ -36,6 +36,8 @@ This guide consists of:
   - [Others](#others)
 - [What to be replaced in Jekyll](#what-to-be-replaced-in-jekyll)
 - [Translation guide](#translation-guide)
+- [How to add new case study](#how-to-add-new-case-study)
+- [How to add new logo](#how-to-add-new-logo)
 
 ## Project structure
 
@@ -45,10 +47,13 @@ www/
 ├── site
 │   ├── archetypes                        # frontmatter template
 │   ├── assets
-│   │   └── scss                          # styles
+│   │         ├── icons                         # svg icons         
+│   │         ├── js                            # scripts
+│   │         ├── scss                          # styles
 │   ├── content                           # pages
 │   │   └── en
 │   │       ├── blog
+│   │       ├── case-studies
 │   │       ├── community
 │   │       ├── contribute
 │   │       ├── documentation
@@ -63,7 +68,6 @@ www/
 │   │   ├── downloads                     # downloaded files
 │   │   └── fonts
 │   │   └── images
-│   │   └── js
 │   └── themes
 │       └── docsy
 ├── build_code_samples.sh
@@ -420,3 +424,9 @@ Now from your template:
 Similar to markdown content translation, there are two separated section menus `/www/site/layouts/partials/section-menu` corresponding to your languages. Your job is to take the section menus in `en` directory, translate and place them inside your `pl` directory.
 
 **Note**: if you get stuck at adding translation, please refer to [our example](https://github.com/PolideaInternal/beam/tree/example/i18n/).
+
+## How to add new case study
+See [case study md template](https://github.com/apache/beam/tree/master/website/ADD_CASE_STUDY.md) for guidelines
+
+## How to add new logo
+See [logo md template](https://github.com/apache/beam/tree/master/website/ADD_LOGO.md) for guidelines

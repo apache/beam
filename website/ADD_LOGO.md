@@ -31,6 +31,8 @@
 | Field           | Name                                             |
 |-----------------|--------------------------------------------------|
 | title           | Project/Company name                             |
+| hasLink         | Link to the project/company                      |
+| hasNav          | If logo page has space for left & right nav menu |
 | icon            | Path to the logo e.g. "/images/company_name.png" |
 | cardDescription | Description of the project                       |
 
@@ -38,6 +40,8 @@
 ---
 title: "Cloud Dataflow"
 icon: /images/company_name.png
+hasNav: true
+hasLink: false
 cardDescription: "Project/Company description"
 ---
 <!--

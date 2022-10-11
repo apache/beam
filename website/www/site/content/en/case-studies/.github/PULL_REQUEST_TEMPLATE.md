@@ -2,16 +2,13 @@
 
 ------------------------
 
-Thank you for your contribution! Follow this checklist to help us incorporate your contribution quickly and easily:
+Thank you for your contribution! Follow this checklist to help us incorporate your case study contribution quickly and easily:
 
+- [ ] Copy a [**case study draft template**](https://docs.google.com/document/d/1qRpXW-WM4jtlcy5VaqDaXgYap9KI1ii27Uwp641UOBM/edit#heading=h.l6lphj20eacs) that provides some helpful tips, questions and ideas to organize your case study.
+- [ ] Copy [**case study md template**](https://github.com/apache/beam/tree/master/website/CASE_STUDY_TEMPLATE.md) create a case study md template file with correct structure and edit your case study md file for publishing on the Apache Beam website. Please add relevant image files to the case study PR
 - [ ] [**Choose reviewer(s)**](https://beam.apache.org/contribute/#make-your-change) and mention them in a comment (`R: @username`).
-- [ ] Mention the appropriate issue in your description (for example: `addresses #123`), if applicable. This will automatically add a link to the pull request in the issue. If you would like the issue to automatically close on merging the pull request, comment `fixes #<ISSUE NUMBER>` instead.
-- [ ] Update `CHANGES.md` with noteworthy changes.
-- [ ] If this contribution is large, please file an Apache [Individual Contributor License Agreement](https://www.apache.org/licenses/icla.pdf).
 
-See the [Contributor Guide](https://beam.apache.org/contribute) for more tips on [how to make review process smoother](https://beam.apache.org/contribute/get-started-contributing/#make-the-reviewers-job-easier).
-
-To check the build health, please visit [https://github.com/apache/beam/blob/master/.test-infra/BUILD_STATUS.md](https://github.com/apache/beam/blob/master/.test-infra/BUILD_STATUS.md)
+See the [Contributor Guide](https://beam.apache.org/contribute) for more tips on [how to make review process smoother](https://beam.apache.org/contribute/#make-reviewers-job-easier).
 
 GitHub Actions Tests Status (on master branch)
 ------------------------------------------------------------------------------------------------
