@@ -841,6 +841,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
   @pytest.mark.it_postcommit
+  @pytest.mark.it_df_secondary
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
@@ -960,6 +961,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     hamcrest_assert(p, bq_matcher)
 
   @pytest.mark.it_postcommit
+  @pytest.mark.it_df_secondary
   def test_bqfl_streaming_with_copy_jobs(self):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
       self.skipTest("TestStream is not supported on TestDataflowRunner")
@@ -1005,6 +1007,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     hamcrest_assert(p, bq_matcher)
 
   @pytest.mark.it_postcommit
+  @pytest.mark.it_df_secondary
   def test_bqfl_streaming_with_dynamic_destinations(self):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
       self.skipTest("TestStream is not supported on TestDataflowRunner")
@@ -1054,6 +1057,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     hamcrest_assert(p, all_of(*pipeline_verifiers))
 
   @pytest.mark.it_postcommit
+  @pytest.mark.it_df_secondary
   def test_one_job_fails_all_jobs_fail(self):
 
     # If one of the import jobs fails, then other jobs must not be performed.

@@ -176,6 +176,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   @pytest.mark.it_postcommit
+  @pytest.mark.it_df_secondary
   def test_big_query_write_schema_autodetect(self):
     if self.runner_name == 'TestDataflowRunner':
       self.skipTest('DataflowRunner does not support schema autodetection')
@@ -221,6 +222,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               temp_file_format=FileFormat.JSON))
 
   @pytest.mark.it_postcommit
+  @pytest.mark.it_df_secondary
   def test_big_query_write_new_types(self):
     table_name = 'python_new_types_table'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
@@ -302,6 +304,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   @pytest.mark.it_postcommit
+  @pytest.mark.it_df_secondary
   def test_big_query_write_without_schema(self):
     table_name = 'python_no_schema_table'
     self.create_table(table_name)
@@ -378,6 +381,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               temp_file_format=FileFormat.JSON))
 
   @pytest.mark.it_postcommit
+  @pytest.mark.it_df_secondary
   def test_big_query_write_insert_errors_reporting(self):
     """
     Test that errors returned by beam.io.WriteToBigQuery
@@ -457,6 +461,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
           equal_to(bq_result_errors))
 
   @pytest.mark.it_postcommit
+  @pytest.mark.it_df_secondary
   @parameterized.expand([
       param(file_format=FileFormat.AVRO),
       param(file_format=FileFormat.JSON),

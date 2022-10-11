@@ -22,6 +22,9 @@ enablePythonPerformanceTest()
 String pythonVersionSuffix = project.ext.pythonVersion
         ? "-py${project.ext.pythonVersion.replace('.', '')}"
         : ''
+// Python versions to run secondary integration tests.
+// Should set to each minimum supported minor version.
+def runItDfSecondaryVersions = ['3.7']
 
 dependencies {
   distTarBall project(path: ":sdks:python", configuration: "distTarBall")
@@ -115,7 +118,10 @@ task postCommitIT {
         "sdk_location": files(configurations.distTarBall.files).singleFile,
         "worker_jar": dataflowWorkerJar,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
-        "collect": "it_postcommit"
+        // Run Secondary integration tests on Dataflow with lowest supported py verison
+        "collect": runItDfSecondaryVersions.contains(project.ext.pythonVersion)
+                  ? "it_postcommit"
+                  : "it_postcommit and not it_df_secondary"
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {

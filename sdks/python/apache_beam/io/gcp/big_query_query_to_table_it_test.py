@@ -225,6 +225,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
   @pytest.mark.it_postcommit
+  @pytest.mark.it_df_secondary
   def test_big_query_new_types_avro(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
     verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table

@@ -1911,6 +1911,7 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
         'Created dataset %s in project %s', self.dataset_id, self.project)
 
   @pytest.mark.it_postcommit
+  @pytest.mark.it_df_secondary
   def test_avro_file_load(self):
     # Construct elements such that they can be written via Avro but not via
     # JSON. See BEAM-8841.
