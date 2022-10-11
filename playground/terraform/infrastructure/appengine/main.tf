@@ -38,11 +38,11 @@ resource "google_app_engine_flexible_app_version" "default_app" {
   runtime    = "custom"
   project    = var.project_id
 
-  # deployment {
-  #  container {
-  #    image = "gcr.io/cloudrun/hello"
-  #  }
-  # }
+  deployment {
+   container {
+     image = "gcr.io/cloudrun/hello"
+   }
+  }
 
   liveness_check {
     path = "/"
