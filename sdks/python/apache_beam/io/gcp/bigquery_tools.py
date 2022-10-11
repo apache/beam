@@ -56,8 +56,6 @@ from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.options import value_provider
-from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
 from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
