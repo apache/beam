@@ -17,31 +17,33 @@
  */
 
 import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
+import 'package:playground_components/playground_components.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
+import '../../../models/node.dart';
 
-class ContentTreeBuilder extends StatelessWidget {
-  final String sdkId;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
+class ContentTreeController extends ChangeNotifier {
+  String _sdkId;
+  List<String> _treeIds;
+  NodeModel? _currentNode;
 
-  const ContentTreeBuilder({
-    required this.sdkId,
-    required this.builder,
-  });
+  ContentTreeController({
+    required String initialSdkId,
+    List<String> initialTreeIds = const [],
+  })  : _sdkId = initialSdkId,
+        _treeIds = initialTreeIds;
 
-  @override
-  Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
+  Sdk get sdk => Sdk.parseOrCreate(_sdkId);
+  String get sdkId => _sdkId;
+  List<String> get treeIds => _treeIds;
+  NodeModel? get currentNode => _currentNode;
 
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) => builder(
-        context,
-        cache.getContentTree(sdkId),
-        child,
-      ),
-    );
+  void onNodeTap(NodeModel node) {
+    if (node == _currentNode) {
+      return;
+    }
+
+    _currentNode = node;
+    // TODO(alexeyinkin): Set _treeIds from node.
+    notifyListeners();
   }
 }

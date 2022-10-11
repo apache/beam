@@ -20,34 +20,40 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
-import '../models/content_tree.dart';
+import '../models/unit_content.dart';
 import '../repositories/client/client.dart';
 
-class ContentTreeCache extends ChangeNotifier {
+class UnitContentCache extends ChangeNotifier {
   final TobClient client;
 
-  final _treesBySdkId = <String, ContentTreeModel>{};
-  final _futuresBySdkId = <String, Future<ContentTreeModel>>{};
+  final _unitContents = <String, Map<String, UnitContentModel>>{};
+  final _futures = <String, Map<String, Future<UnitContentModel>>>{};
 
-  ContentTreeCache({
+  UnitContentCache({
     required this.client,
   });
 
-  ContentTreeModel? getContentTree(String sdkId) {
-    final future = _futuresBySdkId[sdkId];
+  UnitContentModel? getUnitContent(String sdkId, String unitId) {
+    final future = _futures[sdkId]?[unitId];
     if (future == null) {
-      unawaited(_loadContentTree(sdkId));
+      unawaited(_loadUnitContent(sdkId, unitId));
     }
 
-    return _treesBySdkId[sdkId];
+    return _unitContents[sdkId]?[unitId];
   }
 
-  Future<ContentTreeModel> _loadContentTree(String sdkId) async {
-    final future = client.getContentTree(sdkId);
-    _futuresBySdkId[sdkId] = future;
+  Future<UnitContentModel> _loadUnitContent(String sdkId, String unitId) async {
+    final future = client.getUnitContent(sdkId, unitId);
+    if (!_futures.containsKey(sdkId)) {
+      _futures[sdkId] = {};
+    }
+    _futures[sdkId]![unitId] = future;
 
     final result = await future;
-    _treesBySdkId[sdkId] = result;
+    if (!_unitContents.containsKey(sdkId)) {
+      _unitContents[sdkId] = {};
+    }
+    _unitContents[sdkId]![unitId] = result;
 
     notifyListeners();
     return result;

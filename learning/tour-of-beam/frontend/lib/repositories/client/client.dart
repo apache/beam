@@ -17,10 +17,13 @@
  */
 
 import '../../models/content_tree.dart';
+import '../../models/unit_content.dart';
 import '../models/get_sdks_response.dart';
 
 abstract class TobClient {
-  Future<ContentTreeModel> getContentTree();
+  Future<ContentTreeModel> getContentTree(String sdkId);
 
   Future<GetSdksResponse> getSdks();
+
+  Future<UnitContentModel> getUnitContent(String sdkId, String unitId);
 }

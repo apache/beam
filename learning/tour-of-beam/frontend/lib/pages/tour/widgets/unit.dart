@@ -16,31 +16,35 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
+import 'package:flutter/material.dart';
+import 'package:playground_components/playground_components.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
+import '../../../generated/assets.gen.dart';
+import '../../../models/unit.dart';
+import '../controllers/content_tree.dart';
+import 'tour_progress_indicator.dart';
 
-class ContentTreeBuilder extends StatelessWidget {
-  final String sdkId;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
+class UnitWidget extends StatelessWidget {
+  final UnitModel unit;
+  final ContentTreeController contentTreeController;
 
-  const ContentTreeBuilder({
-    required this.sdkId,
-    required this.builder,
+  const UnitWidget({
+    required this.unit,
+    required this.contentTreeController,
   });
 
   @override
   Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
-
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) => builder(
-        context,
-        cache.getContentTree(sdkId),
-        child,
+    return ClickableWidget(
+      onTap: () => contentTreeController.onNodeTap(unit),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
+        child: Row(
+          children: [
+            TourProgressIndicator(assetPath: Assets.svg.unitProgress0),
+            Expanded(child: Text(unit.title)),
+          ],
+        ),
       ),
     );
   }

@@ -16,32 +16,24 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
+import 'package:app_state/app_state.dart';
+import 'package:flutter/foundation.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
+import 'screen.dart';
+import 'state.dart';
 
-class ContentTreeBuilder extends StatelessWidget {
-  final String sdkId;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
+class WelcomePage extends StatefulMaterialPage<void, WelcomeNotifier> {
+  static const classFactoryKey = 'Welcome';
 
-  const ContentTreeBuilder({
-    required this.sdkId,
-    required this.builder,
-  });
+  /// Called when navigating to the page programmatically.
+  WelcomePage()
+      : super(
+          key: const ValueKey(classFactoryKey),
+          state: WelcomeNotifier(),
+          createScreen: WelcomeScreen.new,
+        );
 
-  @override
-  Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
-
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) => builder(
-        context,
-        cache.getContentTree(sdkId),
-        child,
-      ),
-    );
-  }
+  /// Called when re-creating the page at a navigation intent.
+  // ignore: avoid_unused_constructor_parameters
+  WelcomePage.fromStateMap(Map map) : this();
 }

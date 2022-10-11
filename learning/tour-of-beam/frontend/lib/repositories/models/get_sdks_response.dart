@@ -17,14 +17,13 @@
  */
 
 import 'package:json_annotation/json_annotation.dart';
-
-import '../../models/sdk.dart';
+import 'package:playground_components/playground_components.dart';
 
 part 'get_sdks_response.g.dart';
 
 @JsonSerializable(createToJson: false)
 class GetSdksResponse {
-  final List<SdkModel> sdks;
+  final List<Sdk> sdks;
 
   const GetSdksResponse({required this.sdks});
 

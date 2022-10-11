@@ -16,17 +16,20 @@
  * limitations under the License.
  */
 
-import 'package:json_annotation/json_annotation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
-part 'sdk.g.dart';
+import '../../../models/unit_content.dart';
 
-@JsonSerializable(createToJson: false)
-class SdkModel {
-  final String id;
-  final String title;
+class UnitContentWidget extends StatelessWidget {
+  final UnitContentModel unitContent;
 
-  const SdkModel({required this.id, required this.title});
+  const UnitContentWidget({
+    required this.unitContent,
+  });
 
-  factory SdkModel.fromJson(Map<String, dynamic> json) =>
-      _$SdkModelFromJson(json);
+  @override
+  Widget build(BuildContext context) {
+    return MarkdownBody(data: unitContent.description);
+  }
 }

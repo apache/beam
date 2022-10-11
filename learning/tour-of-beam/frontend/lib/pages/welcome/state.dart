@@ -16,32 +16,34 @@
  * limitations under the License.
  */
 
+import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
+import '../tour/page.dart';
+import 'path.dart';
 
-class ContentTreeBuilder extends StatelessWidget {
-  final String sdkId;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
-
-  const ContentTreeBuilder({
-    required this.sdkId,
-    required this.builder,
-  });
+class WelcomeNotifier extends ChangeNotifier with PageStateMixin<void> {
+  String? _sdkId;
 
   @override
-  Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
+  PagePath get path => const WelcomePath();
 
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) => builder(
-        context,
-        cache.getContentTree(sdkId),
-        child,
-      ),
-    );
+  String? get sdkId => _sdkId;
+
+  set sdkId(String? newValue) {
+    _sdkId = newValue;
+    notifyListeners();
+  }
+
+  void startTour() {
+    final sdkId = _sdkId;
+    if (sdkId == null) {
+      return;
+    }
+
+    GetIt.instance.get<PageStack>().push(
+          TourPage(sdkId: sdkId),
+        );
   }
 }

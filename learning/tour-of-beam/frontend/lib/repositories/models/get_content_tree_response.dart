@@ -16,32 +16,22 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
+import 'module.dart';
 
-class ContentTreeBuilder extends StatelessWidget {
+part 'get_content_tree_response.g.dart';
+
+@JsonSerializable(createToJson: false)
+class GetContentTreeResponse {
   final String sdkId;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
+  final List<ModuleResponseModel> modules;
 
-  const ContentTreeBuilder({
+  const GetContentTreeResponse({
     required this.sdkId,
-    required this.builder,
+    required this.modules,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
-
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) => builder(
-        context,
-        cache.getContentTree(sdkId),
-        child,
-      ),
-    );
-  }
+  factory GetContentTreeResponse.fromJson(Map<String, dynamic> json) =>
+      _$GetContentTreeResponseFromJson(json);
 }

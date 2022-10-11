@@ -16,31 +16,25 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
+import 'package:playground_components/playground_components.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
-
-class ContentTreeBuilder extends StatelessWidget {
-  final String sdkId;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
-
-  const ContentTreeBuilder({
-    required this.sdkId,
-    required this.builder,
-  });
+class ContentTreeTitleWidget extends StatelessWidget {
+  const ContentTreeTitleWidget();
 
   @override
   Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
-
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) => builder(
-        context,
-        cache.getContentTree(sdkId),
-        child,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: BeamSizes.size12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'pages.tour.summaryTitle',
+            style: Theme.of(context).textTheme.headlineLarge,
+          ).tr(),
+        ],
       ),
     );
   }

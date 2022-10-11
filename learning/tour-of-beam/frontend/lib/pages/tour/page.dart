@@ -16,32 +16,35 @@
  * limitations under the License.
  */
 
+import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
+import 'screen.dart';
+import 'state.dart';
 
-class ContentTreeBuilder extends StatelessWidget {
-  final String sdkId;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
+class TourPage extends StatefulMaterialPage<void, TourNotifier> {
+  static const classFactoryKey = 'Tour';
 
-  const ContentTreeBuilder({
-    required this.sdkId,
-    required this.builder,
-  });
+  /// Called when navigating to the page programmatically.
+  TourPage({
+    required String sdkId,
+    List<String> treeIds = const [],
+  }) : super(
+          key: const ValueKey(classFactoryKey),
+          state: TourNotifier(
+            initialSdkId: sdkId,
+            initialTreeIds: treeIds,
+          ),
+          createScreen: TourScreen.new,
+        );
 
-  @override
-  Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
+  /// Called when re-creating the page at a navigation intent.
+  factory TourPage.fromStateMap(Map state) {
+    final treeIds = state['treeIds'];
 
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) => builder(
-        context,
-        cache.getContentTree(sdkId),
-        child,
-      ),
+    return TourPage(
+      sdkId: state['sdkId'],
+      treeIds: treeIds is List ? treeIds.cast<String>() : const [],
     );
   }
 }
