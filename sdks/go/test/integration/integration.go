@@ -100,8 +100,6 @@ var directFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
-	// The test uses core.SdkVersion but needs a released version.
-	"TestStartAutomated",
 }
 
 var portableFilters = []string{
@@ -133,8 +131,6 @@ var portableFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
-	// The test uses core.SdkVersion but needs a released version.
-	"TestStartAutomated",
 }
 
 var flinkFilters = []string{
@@ -158,8 +154,6 @@ var flinkFilters = []string{
 	"TestMapStateClear",
 	"TestSetStateClear",
 	"TestSetState",
-	// The test uses core.SdkVersion but needs a released version.
-	"TestStartAutomated",
 }
 
 var samzaFilters = []string{
@@ -194,8 +188,6 @@ var samzaFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
-	// The test uses core.SdkVersion but needs a released version.
-	"TestStartAutomated",
 }
 
 var sparkFilters = []string{
@@ -225,8 +217,6 @@ var sparkFilters = []string{
 	"TestMapStateClear",
 	"TestSetStateClear",
 	"TestSetState",
-	// The test uses core.SdkVersion but needs a released version.
-	"TestStartAutomated",
 }
 
 var dataflowFilters = []string{
@@ -253,8 +243,6 @@ var dataflowFilters = []string{
 	"TestBigQueryIO_BasicWriteQueryRead",
 	// Dataflow does not drain jobs by itself.
 	"TestDrain",
-	// The test uses core.SdkVersion but needs a released version.
-	"TestStartAutomated",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
