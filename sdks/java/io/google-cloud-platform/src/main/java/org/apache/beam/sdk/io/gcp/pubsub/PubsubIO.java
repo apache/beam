@@ -557,6 +557,19 @@ public class PubsubIO {
   }
 
   /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
+   * messages will contain a {@link PubsubMessage#getPayload() payload}, {@link
+   * PubsubMessage#getAttributeMap() attributes}, along with the {@link PubsubMessage#getMessageId()
+   * messageId} and {PubsubMessage#getOrderingKey() orderingKey} from PubSub.
+   */
+  public static Read<PubsubMessage> readMessagesWithAttributesAndMessageIdAndOrderingKey() {
+    return Read.newBuilder()
+        .setCoder(PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder.of())
+        .setNeedsOrderingKey(true)
+        .build();
+  }
+
+  /**
    * Returns A {@link PTransform} that continuously reads UTF-8 encoded strings from a Google Cloud
    * Pub/Sub stream.
    */
@@ -767,6 +780,8 @@ public class PubsubIO {
 
     abstract boolean getNeedsMessageId();
 
+    abstract boolean getNeedsOrderingKey();
+
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(SerializableFunction<PubsubMessage, T> parseFn) {
@@ -775,6 +790,7 @@ public class PubsubIO {
       builder.setPubsubClientFactory(FACTORY);
       builder.setNeedsAttributes(false);
       builder.setNeedsMessageId(false);
+      builder.setNeedsOrderingKey(false);
       return builder;
     }
 
@@ -813,6 +829,8 @@ public class PubsubIO {
       abstract Builder<T> setNeedsAttributes(boolean needsAttributes);
 
       abstract Builder<T> setNeedsMessageId(boolean needsMessageId);
+
+      abstract Builder<T> setNeedsOrderingKey(boolean needsOrderingKey);
 
       abstract Builder<T> setClock(Clock clock);
 
@@ -1021,7 +1039,8 @@ public class PubsubIO {
               getTimestampAttribute(),
               getIdAttribute(),
               getNeedsAttributes(),
-              getNeedsMessageId());
+              getNeedsMessageId(),
+              getNeedsOrderingKey());
 
       PCollection<T> read;
       PCollection<PubsubMessage> preParse = input.apply(source);
@@ -1126,6 +1145,8 @@ public class PubsubIO {
     /** The format function for input PubsubMessage objects. */
     abstract SerializableFunction<T, PubsubMessage> getFormatFn();
 
+    abstract @Nullable String getPubsubRootUrl();
+
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(SerializableFunction<T, PubsubMessage> formatFn) {
@@ -1154,6 +1175,8 @@ public class PubsubIO {
       abstract Builder<T> setIdAttribute(String idAttribute);
 
       abstract Builder<T> setFormatFn(SerializableFunction<T, PubsubMessage> formatFn);
+
+      abstract Builder<T> setPubsubRootUrl(String pubsubRootUrl);
 
       abstract Write<T> build();
     }
@@ -1234,6 +1257,10 @@ public class PubsubIO {
       return toBuilder().setIdAttribute(idAttribute).build();
     }
 
+    public Write<T> withPubsubRootUrl(String pubsubRootUrl) {
+      return toBuilder().setPubsubRootUrl(pubsubRootUrl).build();
+    }
+
     @Override
     public PDone expand(PCollection<T> input) {
       if (getTopicProvider() == null) {
@@ -1273,8 +1300,8 @@ public class PubsubIO {
                       MoreObjects.firstNonNull(
                           getMaxBatchSize(), PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_SIZE),
                       MoreObjects.firstNonNull(
-                          getMaxBatchBytesSize(),
-                          PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_BYTES)));
+                          getMaxBatchBytesSize(), PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_BYTES),
+                      getPubsubRootUrl()));
       }
       throw new RuntimeException(); // cases are exhaustive.
     }
@@ -1341,16 +1368,19 @@ public class PubsubIO {
 
         byte[] payload = message.getPayload();
         Map<String, String> attributes = message.getAttributeMap();
+        String orderingKey = message.getOrderingKey();
+
+        com.google.pubsub.v1.PubsubMessage.Builder msgBuilder =
+            com.google.pubsub.v1.PubsubMessage.newBuilder()
+                .setData(ByteString.copyFrom(payload))
+                .putAllAttributes(attributes);
+
+        if (orderingKey != null) {
+          msgBuilder.setOrderingKey(orderingKey);
+        }
 
         // NOTE: The record id is always null.
-        output.add(
-            OutgoingMessage.of(
-                com.google.pubsub.v1.PubsubMessage.newBuilder()
-                    .setData(ByteString.copyFrom(payload))
-                    .putAllAttributes(attributes)
-                    .build(),
-                c.timestamp().getMillis(),
-                null));
+        output.add(OutgoingMessage.of(msgBuilder.build(), c.timestamp().getMillis(), null));
         currentOutputBytes += messageSize;
       }
 

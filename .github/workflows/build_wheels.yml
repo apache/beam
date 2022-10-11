@@ -353,6 +353,8 @@ jobs:
       run: gsutil ls "${{ env.GCP_PATH }}*"
 
   branch_repo_nightly:
+    permissions:
+      contents: write
     name: Branch repo nightly
     needs:
       - build_source

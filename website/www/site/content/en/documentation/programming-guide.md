@@ -5657,7 +5657,7 @@ var distribution = beam.NewDistribution("namespace", "distribution1")
 
 func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
     // create a distribution (histogram) of the values
-	distribution.Inc(ctx, v)
+	distribution.Update(ctx, v)
 	...
 }
 {{< /highlight >}}

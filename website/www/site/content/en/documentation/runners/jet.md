@@ -108,31 +108,31 @@ members using the `jet-start` script that comes with the downloaded Jet distribu
 </span>
 to form a cluster. Let's start up a cluster formed by two members:
 
-{{< highlight class="version-jet3" >}}
+{{< version jet3 >}}
 $ cd hazelcast-jet
 $ bin/jet-start.sh &
 $ bin/jet-start.sh &
-{{< /highlight >}}
+{{< /version >}}
 
-{{< highlight class="version-jet4" >}}
+{{< version jet4 >}}
 $ cd hazelcast-jet
 $ bin/jet-start &
 $ bin/jet-start &
-{{< /highlight >}}
+{{< /version >}}
 
 Check the cluster is up and running:
 
-{{< highlight class="version-jet3" >}}
+{{< version jet3 >}}
 $ bin/jet.sh cluster
-{{< /highlight >}}
+{{< /version >}}
 
-{{< highlight class="version-jet4" >}}
+{{< version jet4 >}}
 $ bin/jet cluster
-{{< /highlight >}}
+{{< /version >}}
 
 You should see something like:
 
-{{< highlight class="version-jet3" >}}
+{{< version jet3 >}}
 State: ACTIVE
 Version: 3.0
 Size: 2
@@ -140,9 +140,9 @@ Size: 2
 ADDRESS                  UUID
 [192.168.0.117]:5701     76bea7ba-f032-4c25-ad04-bdef6782f481
 [192.168.0.117]:5702     03ecfaa2-be16-41b6-b5cf-eea584d7fb86
-{{< /highlight >}}
+{{< /version >}}
 
-{{< highlight class="version-jet4" >}}
+{{< version jet4 >}}
 State: ACTIVE
 Version: 4.0
 Size: 2
@@ -150,7 +150,7 @@ Size: 2
 ADDRESS                  UUID
 [192.168.0.117]:5701     b9937bba-32aa-48ba-8e32-423aafed763b
 [192.168.0.117]:5702     dfeadfb2-3ba5-4d1c-95e7-71a1a3ca4937
-{{< /highlight >}}
+{{< /version >}}
 
 Change directory to the Beam Examples project and issue following command to submit and execute your
 Pipeline on the remote Jet cluster.

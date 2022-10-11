@@ -350,6 +350,7 @@ import logging
 import random
 import time
 import uuid
+import warnings
 from dataclasses import dataclass
 from typing import Dict
 from typing import List
@@ -482,11 +483,6 @@ def RowAsDictJsonCoder(*args, **kwargs):
   return bigquery_tools.RowAsDictJsonCoder(*args, **kwargs)
 
 
-@deprecated(since='2.11.0', current="bigquery_tools.BigQueryReader")
-def BigQueryReader(*args, **kwargs):
-  return bigquery_tools.BigQueryReader(*args, **kwargs)
-
-
 @deprecated(since='2.11.0', current="bigquery_tools.BigQueryWriter")
 def BigQueryWriter(*args, **kwargs):
   return bigquery_tools.BigQueryWriter(*args, **kwargs)
@@ -591,158 +587,29 @@ def BigQuerySource(
     kms_key=None,
     use_dataflow_native_source=False):
   if use_dataflow_native_source:
-    return _BigQuerySource(
-        table,
-        dataset,
-        project,
-        query,
-        validate,
-        coder,
-        use_standard_sql,
-        flatten_results,
-        kms_key)
-  else:
-    return ReadFromBigQuery(
-        table=table,
-        dataset=dataset,
-        project=project,
-        query=query,
-        validate=validate,
-        coder=coder,
-        use_standard_sql=use_standard_sql,
-        flatten_results=flatten_results,
-        use_json_exports=True,
-        kms_key=kms_key)
+    warnings.warn(
+        "Native sources no longer implemented; "
+        "falling back to standard Beam source.")
+  return ReadFromBigQuery(
+      table=table,
+      dataset=dataset,
+      project=project,
+      query=query,
+      validate=validate,
+      coder=coder,
+      use_standard_sql=use_standard_sql,
+      flatten_results=flatten_results,
+      use_json_exports=True,
+      kms_key=kms_key)
 
 
 @deprecated(since='2.25.0', current="ReadFromBigQuery")
-class _BigQuerySource(dataflow_io.NativeSource):
+def _BigQuerySource(*args, **kwargs):
   """A source based on a BigQuery table."""
-  def __init__(
-      self,
-      table=None,
-      dataset=None,
-      project=None,
-      query=None,
-      validate=False,
-      coder=None,
-      use_standard_sql=False,
-      flatten_results=True,
-      kms_key=None,
-      temp_dataset=None):
-    """Initialize a :class:`BigQuerySource`.
-
-    Args:
-      table (str): The ID of a BigQuery table. If specified all data of the
-        table will be used as input of the current source. The ID must contain
-        only letters ``a-z``, ``A-Z``, numbers ``0-9``, or underscores
-        ``_``. If dataset and query arguments are :data:`None` then the table
-        argument must contain the entire table reference specified as:
-        ``'DATASET.TABLE'`` or ``'PROJECT:DATASET.TABLE'``.
-      dataset (str): The ID of the dataset containing this table or
-        :data:`None` if the table reference is specified entirely by the table
-        argument or a query is specified.
-      project (str): The ID of the project containing this table or
-        :data:`None` if the table reference is specified entirely by the table
-        argument or a query is specified.
-      query (str): A query to be used instead of arguments table, dataset, and
-        project.
-      validate (bool): If :data:`True`, various checks will be done when source
-        gets initialized (e.g., is table present?). This should be
-        :data:`True` for most scenarios in order to catch errors as early as
-        possible (pipeline construction instead of pipeline execution). It
-        should be :data:`False` if the table is created during pipeline
-        execution by a previous step.
-      coder (~apache_beam.coders.coders.Coder): The coder for the table
-        rows if serialized to disk. If :data:`None`, then the default coder is
-        :class:`~apache_beam.io.gcp.bigquery_tools.RowAsDictJsonCoder`,
-        which will interpret every line in a file as a JSON serialized
-        dictionary. This argument needs a value only in special cases when
-        returning table rows as dictionaries is not desirable.
-      use_standard_sql (bool): Specifies whether to use BigQuery's standard SQL
-        dialect for this query. The default value is :data:`False`.
-        If set to :data:`True`, the query will use BigQuery's updated SQL
-        dialect with improved standards compliance.
-        This parameter is ignored for table inputs.
-      flatten_results (bool): Flattens all nested and repeated fields in the
-        query results. The default value is :data:`True`.
-      kms_key (str): Optional Cloud KMS key name for use when creating new
-        tables.
-      temp_dataset (``google.cloud.bigquery.dataset.DatasetReference``):
-        The dataset in which to create temporary tables when performing file
-        loads. By default, a new dataset is created in the execution project for
-        temporary tables.
-
-    Raises:
-      ValueError: if any of the following is true:
-
-        1) the table reference as a string does not match the expected format
-        2) neither a table nor a query is specified
-        3) both a table and a query is specified.
-    """
-
-    # Import here to avoid adding the dependency for local running scenarios.
-    try:
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apitools.base import py  # pylint: disable=unused-import
-    except ImportError:
-      raise ImportError(
-          'Google Cloud IO not available, '
-          'please install apache_beam[gcp]')
-
-    if table is not None and query is not None:
-      raise ValueError(
-          'Both a BigQuery table and a query were specified.'
-          ' Please specify only one of these.')
-    elif table is None and query is None:
-      raise ValueError('A BigQuery table or a query must be specified')
-    elif table is not None:
-      self.table_reference = bigquery_tools.parse_table_reference(
-          table, dataset, project)
-      self.query = None
-      self.use_legacy_sql = True
-    else:
-      self.query = query
-      # TODO(BEAM-1082): Change the internal flag to be standard_sql
-      self.use_legacy_sql = not use_standard_sql
-      self.table_reference = None
-
-    self.validate = validate
-    self.flatten_results = flatten_results
-    self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
-    self.kms_key = kms_key
-    self.temp_dataset = temp_dataset
-
-  def display_data(self):
-    if self.query is not None:
-      res = {'query': DisplayDataItem(self.query, label='Query')}
-    else:
-      if self.table_reference.projectId is not None:
-        tableSpec = '{}:{}.{}'.format(
-            self.table_reference.projectId,
-            self.table_reference.datasetId,
-            self.table_reference.tableId)
-      else:
-        tableSpec = '{}.{}'.format(
-            self.table_reference.datasetId, self.table_reference.tableId)
-      res = {'table': DisplayDataItem(tableSpec, label='Table')}
-
-    res['validation'] = DisplayDataItem(
-        self.validate, label='Validation Enabled')
-    return res
-
-  @property
-  def format(self):
-    """Source format name required for remote execution."""
-    return 'bigquery'
-
-  def reader(self, test_bigquery_client=None):
-    return bigquery_tools.BigQueryReader(
-        source=self,
-        test_bigquery_client=test_bigquery_client,
-        use_legacy_sql=self.use_legacy_sql,
-        flatten_results=self.flatten_results,
-        kms_key=self.kms_key)
+  warnings.warn(
+      "Native sources no longer implemented; "
+      "falling back to standard Beam source.")
+  return ReadFromBigQuery(*args, **kwargs)
 
 
 # TODO(https://github.com/apache/beam/issues/21622): remove the serialization

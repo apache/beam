@@ -53,7 +53,6 @@ from apache_beam.internal.metrics.metric import Metrics
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import bigquery_avro_tools
 from apache_beam.io.gcp import resource_identifiers
-from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.options import value_provider
@@ -1342,126 +1341,7 @@ class BigQueryWrapper(object):
 
 
 # -----------------------------------------------------------------------------
-# BigQueryReader, BigQueryWriter.
-
-
-class BigQueryReader(dataflow_io.NativeSourceReader):
-  """A reader for a BigQuery source."""
-  def __init__(
-      self,
-      source,
-      test_bigquery_client=None,
-      use_legacy_sql=True,
-      flatten_results=True,
-      kms_key=None,
-      query_priority=None):
-    self.source = source
-    self.test_bigquery_client = test_bigquery_client
-    if auth.is_running_in_gce:
-      self.executing_project = auth.executing_project
-    elif hasattr(source, 'pipeline_options'):
-      self.executing_project = (
-          source.pipeline_options.view_as(GoogleCloudOptions).project)
-    else:
-      self.executing_project = None
-
-    # TODO(silviuc): Try to automatically get it from gcloud config info.
-    if not self.executing_project and test_bigquery_client is None:
-      raise RuntimeError(
-          'Missing executing project information. Please use the --project '
-          'command line option to specify it.')
-    self.row_as_dict = isinstance(self.source.coder, RowAsDictJsonCoder)
-    # Schema for the rows being read by the reader. It is initialized the
-    # first time something gets read from the table. It is not required
-    # for reading the field values in each row but could be useful for
-    # getting additional details.
-    self.schema = None
-    self.use_legacy_sql = use_legacy_sql
-    self.flatten_results = flatten_results
-    self.kms_key = kms_key
-    self.bigquery_job_labels = {}
-    self.bq_io_metadata = None
-
-    from apache_beam.io.gcp.bigquery import BigQueryQueryPriority
-    self.query_priority = query_priority or BigQueryQueryPriority.BATCH
-
-    if self.source.table_reference is not None:
-      # If table schema did not define a project we default to executing
-      # project.
-      project_id = self.source.table_reference.projectId
-      if not project_id:
-        project_id = self.executing_project
-      self.query = 'SELECT * FROM [%s:%s.%s];' % (
-          project_id,
-          self.source.table_reference.datasetId,
-          self.source.table_reference.tableId)
-    elif self.source.query is not None:
-      self.query = self.source.query
-    else:
-      # Enforce the "modes" enforced by BigQuerySource.__init__.
-      # If this exception has been raised, the BigQuerySource "modes" have
-      # changed and this method will need to be updated as well.
-      raise ValueError("BigQuerySource must have either a table or query")
-
-  def _get_source_location(self):
-    """
-    Get the source location (e.g. ``"EU"`` or ``"US"``) from either
-
-    - :data:`source.table_reference`
-      or
-    - The first referenced table in :data:`source.query`
-
-    See Also:
-      - :meth:`BigQueryWrapper.get_query_location`
-      - :meth:`BigQueryWrapper.get_table_location`
-
-    Returns:
-      Optional[str]: The source location, if any.
-    """
-    if self.source.table_reference is not None:
-      tr = self.source.table_reference
-      return self.client.get_table_location(
-          tr.projectId if tr.projectId is not None else self.executing_project,
-          tr.datasetId,
-          tr.tableId)
-    else:  # It's a query source
-      return self.client.get_query_location(
-          self.executing_project, self.source.query, self.source.use_legacy_sql)
-
-  def __enter__(self):
-    self.client = BigQueryWrapper(client=self.test_bigquery_client)
-    if not self.client.is_user_configured_dataset():
-      # Temp dataset was provided by the user so we do not have to create one.
-      self.client.create_temporary_dataset(
-          self.executing_project, location=self._get_source_location())
-    return self
-
-  def __exit__(self, exception_type, exception_value, traceback):
-    self.client.clean_up_temporary_dataset(self.executing_project)
-
-  def __iter__(self):
-    if not self.bq_io_metadata:
-      self.bq_io_metadata = create_bigquery_io_metadata()
-    for rows, schema in self.client.run_query(
-        project_id=self.executing_project, query=self.query,
-        use_legacy_sql=self.use_legacy_sql,
-        flatten_results=self.flatten_results,
-        priority=self.query_priority,
-        job_labels=self.bq_io_metadata.add_additional_bq_job_labels(
-            self.bigquery_job_labels)):
-      if self.schema is None:
-        self.schema = schema
-      for row in rows:
-        # return base64 encoded bytes as byte type on python 3
-        # which matches the behavior of Beam Java SDK
-        for i in range(len(row.f)):
-          if self.schema.fields[i].type == 'BYTES' and row.f[i].v:
-            row.f[i].v.string_value = row.f[i].v.string_value.encode('utf-8')
-
-        if self.row_as_dict:
-          yield self.client.convert_row_to_dict(row, schema)
-        else:
-          yield row
+# BigQueryWriter.
 
 
 class BigQueryWriter(dataflow_io.NativeSinkWriter):

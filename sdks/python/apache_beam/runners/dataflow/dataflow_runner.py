@@ -1202,47 +1202,6 @@ class DataflowRunner(PipelineRunner):
       step.add_property(PropertyNames.SOURCE_STEP_INPUT, source_dict)
     elif transform.source.format == 'text':
       step.add_property(PropertyNames.FILE_PATTERN, transform.source.path)
-    elif transform.source.format == 'bigquery':
-      if standard_options.streaming:
-        raise ValueError(
-            'BigQuery source is not currently available for use '
-            'in streaming pipelines.')
-      debug_options = options.view_as(DebugOptions)
-      use_fn_api = (
-          debug_options.experiments and
-          'beam_fn_api' in debug_options.experiments)
-      if use_fn_api:
-        raise ValueError(BQ_SOURCE_UW_ERROR)
-      step.add_property(PropertyNames.BIGQUERY_EXPORT_FORMAT, 'FORMAT_AVRO')
-      # TODO(silviuc): Add table validation if transform.source.validate.
-      if transform.source.table_reference is not None:
-        step.add_property(
-            PropertyNames.BIGQUERY_DATASET,
-            transform.source.table_reference.datasetId)
-        step.add_property(
-            PropertyNames.BIGQUERY_TABLE,
-            transform.source.table_reference.tableId)
-        # If project owning the table was not specified then the project owning
-        # the workflow (current project) will be used.
-        if transform.source.table_reference.projectId is not None:
-          step.add_property(
-              PropertyNames.BIGQUERY_PROJECT,
-              transform.source.table_reference.projectId)
-      elif transform.source.query is not None:
-        step.add_property(PropertyNames.BIGQUERY_QUERY, transform.source.query)
-        step.add_property(
-            PropertyNames.BIGQUERY_USE_LEGACY_SQL,
-            transform.source.use_legacy_sql)
-        step.add_property(
-            PropertyNames.BIGQUERY_FLATTEN_RESULTS,
-            transform.source.flatten_results)
-      else:
-        raise ValueError(
-            'BigQuery source %r must specify either a table or'
-            ' a query' % transform.source)
-      if transform.source.kms_key is not None:
-        step.add_property(
-            PropertyNames.BIGQUERY_KMS_KEY, transform.source.kms_key)
     elif transform.source.format == 'pubsub':
       if not standard_options.streaming:
         raise ValueError(
