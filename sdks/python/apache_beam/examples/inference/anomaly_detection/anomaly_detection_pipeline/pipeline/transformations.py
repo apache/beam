@@ -97,6 +97,7 @@ class CustomSklearnModelHandlerNumpy(SklearnModelHandlerNumpy):
   def batch_elements_kwargs(self):
     """Limit batch size to 1 for inference"""
     return {"max_batch_size": 1}
+
   # Can be removed once: https://github.com/apache/beam/issues/22572 is fixed
   def run_inference(self, batch, model, inference_args=None):
     """Runs inferences on a batch of numpy arrays.
