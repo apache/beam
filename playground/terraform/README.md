@@ -124,10 +124,7 @@ During the Operation system preparation steps, you will need to install Java, HE
 5. How to install Docker
 * [Docker link](https://docs.docker.com/engine/install/) instructions for Windows and Linux operation systems
 
-6. How to install GCloud
-* [Gcloud link](https://cloud.google.com/sdk/docs/install#linux) instructions for Windows and Linux operation systems
-
-7. How to install Terraform
+6. How to install Terraform
 * [Terraform link](https://www.terraform.io/downloads)
 
 After installations of the required packages will be completed, you will need to download ***BEAM Playground*** from the repository. Please open the terminal and execute the following command:
