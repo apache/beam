@@ -62,7 +62,7 @@
 * Decreased TextSource CPU utilization by 2.3x (Java) ([#23193](https://github.com/apache/beam/issues/23193)).
 * Fixed bug when using SpannerIO with RuntimeValueProvider options (Java) ([#22146](https://github.com/apache/beam/issues/22146)).
 * Fixed issue for unicode rendering on WriteToBigQuery ([#10785](https://github.com/apache/beam/issues/10785))
-* Remove obsolete variant of BigQuery Write ([#23564](https://github.com/apache/beam/issues/23564)).
+* Remove obsolete variant of BigQuery Write, falling back to Beam variant ([#23564](https://github.com/apache/beam/issues/23564)).
 * Bumped google-cloud-spanner dependency version to 3.x for Python SDK ([#21198](https://github.com/apache/beam/issues/21198)).
 
 ## New Features / Improvements
