@@ -236,6 +236,8 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 		// Leave expansionAddr unmodified so the autoNamespace keyword sticks.
 		// We strip it manually in the HandlerFunc.
 		return QueryAutomatedExpansionService, expansionAddr
+	} else if ns == autoPythonNamespace {
+		return QueryPythonExpansionService, expansionAddr
 	}
 
 	// Now that overrides have been handled, we can look up if there's a handler, and return that.
@@ -254,6 +256,7 @@ const (
 	ClasspathSeparator    = ";"
 	hardOverrideNamespace = "hardoverride"
 	autoJavaNamespace     = "autojava"
+	autoPythonNamespace   = "autopython"
 )
 
 // Require takes an expansionAddr and requires cross language expansion
@@ -292,6 +295,18 @@ func UseAutomatedJavaExpansionService(gradleTarget string, opts ...ExpansionServ
 	for _, opt := range opts {
 		opt(&expansionAddress)
 	}
+	return expansionAddress
+}
+
+// UseAutomatedPythonExpansionService takes a expansion service module name and creates a
+// tagged string to indicate that it should be used to start up an
+// automated expansion service for a cross-language expansion.
+//
+// Intended for use by cross language wrappers to permit spinning
+// up an expansion service for a user if no expansion service address
+// is provided.
+func UseAutomatedPythonExpansionService(service string) string {
+	expansionAddress := autoPythonNamespace + Separator + service
 	return expansionAddress
 }
 
