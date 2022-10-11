@@ -25,8 +25,7 @@ mypy-protobuf==1.18
 
 # Avoid https://github.com/pypa/virtualenv/issues/2006
 distlib==0.3.1
-
-grpcio==1.48.1
+protobuf==3.20.2
 
 # Numpy headers
 numpy>=1.14.3,<1.23.0
