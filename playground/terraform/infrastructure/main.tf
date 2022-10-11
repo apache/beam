@@ -47,7 +47,7 @@ module "buckets" {
 }
 
 module "artifact_registry" {
-  depends_on = [module.setup, module.buckets, module.api_enable]
+  depends_on = [module.setup, module.buckets, module.api_enable, module.ip_address]
   source     = "./artifact_registry"
   project_id = var.project_id
   id         = var.repository_id
@@ -55,7 +55,7 @@ module "artifact_registry" {
 }
 
 module "memorystore" {
-  depends_on     = [module.setup, module.network, module.api_enable]
+  depends_on     = [module.setup, module.network, module.api_enable, module.ip_address]
   source         = "./memorystore"
   project_id     = var.project_id
   redis_version  = var.redis_version
@@ -70,7 +70,7 @@ module "memorystore" {
 }
 
 module "gke" {
-  depends_on            = [module.setup, module.artifact_registry, module.memorystore, module.network, module.api_enable]
+  depends_on            = [module.setup, module.artifact_registry, module.memorystore, module.network, module.api_enable, module.ip_address]
   source                = "./gke"
   project_id            = var.project_id
   service_account_email = module.setup.service_account_email
@@ -84,10 +84,11 @@ module "gke" {
 
 module "ip_address" {
   source          = "./ip_address"
+  depends_on      = [module.setup, module.api_enable]
 }
 
 module "appengine" {
- depends_on         = [module.setup, module.api_enable]
+ depends_on         = [module.setup, module.api_enable, module.ip_address]
  source             = "./appengine"
  project_id         = var.project_id
  region             = var.region
