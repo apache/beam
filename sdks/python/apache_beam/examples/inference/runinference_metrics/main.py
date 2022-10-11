@@ -18,8 +18,8 @@
 """This file contains the pipeline for loading a ML model, and exploring
 the different RunInference metrics."""
 import argparse
-import sys
 import logging
+import sys
 
 import apache_beam as beam
 import config as cfg

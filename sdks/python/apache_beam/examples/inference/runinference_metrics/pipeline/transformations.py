@@ -36,6 +36,7 @@ class CustomPytorchModelHandlerKeyedTensor(PytorchModelHandlerKeyedTensor):
     model.eval()
     return model
 
+
 # Can be removed once https://github.com/apache/beam/issues/21863 is fixed
 class HuggingFaceStripBatchingWrapper(DistilBertForSequenceClassification):
   """Wrapper around HuggingFace model because RunInference requires a batch
