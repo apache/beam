@@ -19,6 +19,7 @@
 the different RunInference metrics."""
 import argparse
 import sys
+import logging
 
 import apache_beam as beam
 import config as cfg
@@ -120,7 +121,7 @@ def run():
         | "Decode Predictions" >> beam.ParDo(PostProcessor()))
   metrics = pipeline.result.metrics().query(beam.metrics.MetricsFilter())
   print("\n\n\n\n")
-  print(metrics)
+  logging.info(metrics)
 
 
 if __name__ == "__main__":

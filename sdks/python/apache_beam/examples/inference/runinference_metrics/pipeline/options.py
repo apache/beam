@@ -71,5 +71,4 @@ def get_pipeline_options(
   # Optional parameters
   if num_workers:
     dataflow_options.update({"num_workers": num_workers})
-  print(dataflow_options)
   return PipelineOptions(flags=flags, **dataflow_options)
