@@ -16,20 +16,21 @@
  * limitations under the License.
  */
 
-import '../../enums/complexity.dart';
-import '../../models/sdk.dart';
-import 'shared_file.dart';
+import '../api/v1/api.pbgrpc.dart' as g;
+import '../enums/complexity.dart';
 
-class GetSnippetResponse {
-  final List<SharedFile> files;
-  final Sdk sdk;
-  final String pipelineOptions;
-  final Complexity complexity;
-
-  const GetSnippetResponse({
-    required this.files,
-    required this.sdk,
-    required this.pipelineOptions,
-    required this.complexity,
-  });
+extension GrpcComplecity on g.Complexity {
+  Complexity get model {
+    switch (this) {
+      case g.Complexity.COMPLEXITY_BASIC:
+        return Complexity.basic;
+      case g.Complexity.COMPLEXITY_MEDIUM:
+        return Complexity.medium;
+      case g.Complexity.COMPLEXITY_ADVANCED:
+        return Complexity.advanced;
+      case g.Complexity.COMPLEXITY_UNSPECIFIED:
+        return Complexity.unspecified;
+    }
+    throw Exception('Unknown complexity: $this');
+  }
 }
