@@ -1276,12 +1276,12 @@ class _ReadReadRowsResponsesWithFastAvro():
 
 
 @deprecated(since='2.11.0', current="WriteToBigQuery")
-def BigQuerySink(*args, **kwargs):
+def BigQuerySink(*args, validate=False, **kwargs):
   """A deprecated alias for WriteToBigQuery."""
   warnings.warn(
       "Native sinks no longer implemented; "
       "falling back to standard Beam sink.")
-  return WriteToBigQuery(*args, **kwargs)
+  return WriteToBigQuery(*args, validate=validate, **kwargs)
 
 
 _KNOWN_TABLES = set()
@@ -2105,6 +2105,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       if self.table_reference.projectId is not None:
         tableSpec = '{}:{}'.format(self.table_reference.projectId, tableSpec)
       res['table'] = DisplayDataItem(tableSpec, label='Table')
+
+    res['validation'] = DisplayDataItem(
+        self._validate, label="Validation Enabled")
     return res
 
   def to_runner_api_parameter(self, context):

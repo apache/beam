@@ -1340,10 +1340,6 @@ class BigQueryWrapper(object):
     return result
 
 
-# -----------------------------------------------------------------------------
-# BigQueryWriter.
-
-
 class RowAsDictJsonCoder(coders.Coder):
   """A coder for a table row (represented as a dict) to/from a JSON string.
 

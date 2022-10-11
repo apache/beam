@@ -495,8 +495,8 @@ class TestBigQuerySink(unittest.TestCase):
     self.assertEqual(sink.table_reference.datasetId, 'dataset')
     self.assertEqual(sink.table_reference.tableId, 'table')
     result_schema = {
-        field.name: field.type
-        for field in sink.table_schema.fields
+        field['name']: field['type']
+        for field in sink.schema['fields']
     }
     self.assertEqual({'n': 'INTEGER', 's': 'STRING'}, result_schema)
 
@@ -508,54 +508,6 @@ class TestBigQuerySink(unittest.TestCase):
         DisplayDataItemMatcher('validation', False)
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-  def test_simple_schema_as_json(self):
-    sink = beam.io.BigQuerySink(
-        'project:dataset.table', schema='s:STRING, n:INTEGER')
-    self.assertEqual(
-        json.dumps({
-            'fields': [{
-                'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'
-            }, {
-                'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'
-            }]
-        }),
-        sink.schema_as_json())
-
-  def test_nested_schema_as_json(self):
-    string_field = bigquery.TableFieldSchema(
-        name='s', type='STRING', mode='NULLABLE', description='s description')
-    number_field = bigquery.TableFieldSchema(
-        name='n', type='INTEGER', mode='REQUIRED', description='n description')
-    record_field = bigquery.TableFieldSchema(
-        name='r',
-        type='RECORD',
-        mode='REQUIRED',
-        description='r description',
-        fields=[string_field, number_field])
-    schema = bigquery.TableSchema(fields=[record_field])
-    sink = beam.io.BigQuerySink('dataset.table', schema=schema)
-    self.assertEqual({
-        'fields': [{
-            'name': 'r',
-            'type': 'RECORD',
-            'mode': 'REQUIRED',
-            'description': 'r description',
-            'fields': [{
-                'name': 's',
-                'type': 'STRING',
-                'mode': 'NULLABLE',
-                'description': 's description'
-            },
-                       {
-                           'name': 'n',
-                           'type': 'INTEGER',
-                           'mode': 'REQUIRED',
-                           'description': 'n description'
-                       }]
-        }]
-    },
-                     json.loads(sink.schema_as_json()))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
