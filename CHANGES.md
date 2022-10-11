@@ -67,6 +67,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add support for Google Drive backed tables in BigQuery (Java/Python) ([#23290](https://github.com/apache/beam/issues/23290))
 
 ## Breaking Changes
 
