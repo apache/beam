@@ -24,7 +24,7 @@ module "infrastructure" {
   region                        = var.region
   network_region                = var.region
   redis_region                  = var.region
-  pg_location                   = var.pg_location
+  pg_location                   = var.location
   #GCS
   bucket_examples_name          = var.bucket_examples_name
   bucket_examples_location      = var.bucket_examples_location
