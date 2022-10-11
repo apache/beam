@@ -115,7 +115,7 @@ jobs:
           python-version: ${{ matrix.params.py_ver }}
       - name: Get build dependencies
         working-directory: ./sdks/python
-        run: pip install -r build-requirements.txt --no-binary=protobuf
+        run: pip install -r build-requirements.txt
       - name: Install tox
         run: pip install tox
       - name: Run tests basic unix
