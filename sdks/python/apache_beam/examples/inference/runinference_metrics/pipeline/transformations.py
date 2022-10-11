@@ -75,19 +75,19 @@ class Tokenize(beam.DoFn):
 
 class PostProcessor(beam.DoFn):
   """Postprocess the RunInference output"""
-  def process(self, tuple_):
+  def process(self, element):
     """
         Takes the input text and the prediction result, and returns a dictionary
         with the input text and the softmax probabilities
 
         Args:
-          tuple_: The tuple that is passed to the function.
+          element: The tuple of input text and the prediction result
 
         Returns:
           A list of dictionaries, each containing the input text
           and the softmax output.
         """
-    text_input, prediction_result = tuple_
+    text_input, prediction_result = element
     softmax = (
         torch.nn.Softmax(dim=-1)(
             prediction_result.inference["logits"]).detach().numpy())
