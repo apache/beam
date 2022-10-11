@@ -205,7 +205,7 @@ cluster runs. The word count job won't be able to read the data otherwise.
   <td><code>codeJarPathname</code></td>
   <td>Also a property needed only when using external Jet Clusters, specifies the location of a fat jar
   containing all the code that needs to run on the cluster (so at least the pipeline and the runner code). The value
-  is any string that is acceptad by <code>new java.io.File()</code> as a parameter.</td>
+  is any string that is accepted by <code>new java.io.File()</code> as a parameter.</td>
   <td>Has no default value.</td>
 </tr>
 <tr>
