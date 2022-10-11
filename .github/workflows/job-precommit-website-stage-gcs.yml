@@ -48,7 +48,7 @@ jobs:
           requires-go-18: false
       - name: Run :website:stageWebsite
         uses: ./.github/actions/gradle-command-self-hosted-action
-        env:
+        env: # TODO(https://github.com/apache/beam/issues/23580) Rename ghprb env vars to a more GHA concept.
           ghprbPullId: ${{github.event.pull_request.number}}
           ghprbPullAuthorLogin: ${{github.actor}}
           ghprbSourceBranch: ${{github.ref_name}}
