@@ -91,3 +91,9 @@ module "appengine" {
  project_id         = var.project_id
  region             = var.region
 }
+
+module "api_enable" {
+  source            = "./api_enable"
+  project_id         = var.project_id
+  depends_on         = [module.setup]
+}
