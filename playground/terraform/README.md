@@ -63,18 +63,12 @@ https://cloud.google.com/apis
 ```
 **Description:** * *Short description of all Google Platform APIs* *
 
-8. How to Enable Google Cloud Platform API
-```
-https://cloud.google.com/endpoints/docs/openapi/enable-api
-```
-**Description:** * *Steps to enable APIs in Google Cloud Platform* *
-
-9. Google Cloud Platform naming policy
+8. Google Cloud Platform naming policy
 ```
 https://cloud.google.com/compute/docs/naming-resources
 ```
 **Description:** * *Describes the naming convention for Compute Engine resources.* *
-10. What is Docker
+9. What is Docker
 ```
 https://docs.docker.com/get-started/overview/
 ```
@@ -95,13 +89,6 @@ After you created or identified an existing project for deployment, add or selec
    - Service Account User
    - Storage Admin
    - Cloud Datastore Index Admin
-
-These Google APIs will be needed for the BEAM Playground
-   - **Identity and Access Management (IAM)** - Manages identity and access control for Google Cloud Platform resources, including the creation of service accounts, which you can use to authenticate to Google and make API calls
-   - **Compute Engine API** - Creates and runs Virtual Machines on Google Cloud
-   - **App Engine Admin API** - Provisions and manages App Engine applications
-   - **Cloud Resource Manager API** - Creates, reads, and updates metadata for Google Cloud Platform resource containers
-You may find the instruction "How to enable Google Cloud Platform API" above
 
 ***Operation System preparation steps:***
 
