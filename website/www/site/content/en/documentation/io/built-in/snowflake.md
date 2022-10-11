@@ -729,7 +729,7 @@ static SnowflakeIO.CsvMapper<GenericRecord> getCsvMapper() {
 {{< /highlight >}}
 ## Using SnowflakeIO with AWS S3
 To be able to use AWS S3 bucket as `stagingBucketName` is required to:
-1. Create `PipelineOptions` interface which is [extending](https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options) `SnowflakePipelineOptions` and [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/options/S3Options.html)
+1. Create `PipelineOptions` interface which is [extending](https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options) `SnowflakePipelineOptions` and [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/options/S3Options.html)
 with `AwsAccessKey` and `AwsSecretKey` options. Example:
 
 {{< highlight >}}
@@ -763,7 +763,7 @@ options.setAwsCredentialsProvider(
 Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
-**Note**: Remember to set `awsRegion` from [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/options/S3Options.html).
+**Note**: Remember to set `awsRegion` from [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/options/S3Options.html).
 
 ## Using SnowflakeIO in Python SDK
 ### Intro
