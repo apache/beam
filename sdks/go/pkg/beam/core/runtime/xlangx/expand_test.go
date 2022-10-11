@@ -16,10 +16,16 @@
 package xlangx
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 )
 
 func TestStartAutomated(t *testing.T) {
+	if strings.HasSuffix(core.SdkVersion, ".dev") {
+		t.Skipf("need a released SDK version to test auto python expansion service, got: %s", core.SdkVersion)
+	}
 	sp, addr, err := startPythonExpansionService("apache_beam.runners.portability.expansion_service_main", "")
 	if err != nil {
 		t.Fatal(err)
