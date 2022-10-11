@@ -45,9 +45,6 @@ variable "gke_node_count" {
   default     = 1
 }
 
-variable "pg_location" {
-}
-
 variable "gke_name" {
   description = "Name of GKE cluster"
   default = "playground-backend"
