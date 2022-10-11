@@ -359,7 +359,7 @@ tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
 }
-//
+
 tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
@@ -377,7 +377,6 @@ task("python38SickbayPostCommit") {
 }
 
 task("python39SickbayPostCommit") {
-  // (TODO): https://github.com/apache/beam/issues/21971
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitSickbay")
 }
 
