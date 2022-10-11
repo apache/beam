@@ -323,3 +323,4 @@ variable "state_prefix" {
   description = "terraform state prefix on GCP"
   default     = ""
 }
+variable "location" {}
