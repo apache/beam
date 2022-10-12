@@ -28,8 +28,8 @@ from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedT
 from apache_beam.ml.inference.sklearn_inference import ModelFileType
 from pipeline.options import get_pipeline_options
 from pipeline.transformations import CustomSklearnModelHandlerNumpy
-from pipeline.transformations import DecodePubSubMessage
 from pipeline.transformations import DecodePrediction
+from pipeline.transformations import DecodePubSubMessage
 from pipeline.transformations import ModelWrapper
 from pipeline.transformations import NormalizeEmbedding
 from pipeline.transformations import TriggerEmailAlert
