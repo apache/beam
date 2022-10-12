@@ -3,7 +3,7 @@ variable "name" {
   default     = "tour-of-beam-cloudfunction-bucket"
 }
 
-variable "region" {
+variable "location" {
   description = "Cloud Functions Bucket Region"
   default     = "US"
 }

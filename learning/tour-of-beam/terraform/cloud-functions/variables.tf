@@ -5,12 +5,3 @@ variable "project_id" {
 variable "region" {
   description = "Region of App"
 }
-
-variable "cloud_function_name" {
-  description = "Name of cloud function"
-}
-
-variable "service_account_id" {
-  description = "Service account ID"
-  default     = "tour-of-beam-sa"
-}

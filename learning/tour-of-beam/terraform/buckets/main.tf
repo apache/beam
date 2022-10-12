@@ -7,7 +7,7 @@ data "archive_file" "source" {
 
 resource "google_storage_bucket" "function_bucket" {
   name          = var.name
-  region        = var.region
+  location      = var.location
   project       = var.project_id
   storage_class = var.storage_class
 }
