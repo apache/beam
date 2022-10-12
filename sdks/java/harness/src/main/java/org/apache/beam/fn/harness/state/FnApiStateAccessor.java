@@ -585,7 +585,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       Coder<ValueT> valueCoder) {
     throw new UnsupportedOperationException(
         "TODO(https://github.com/apache/beam/issues/23616): Add support for a multimap"
-        + " state to the Fn API.");
+            + " state to the Fn API.");
   }
 
   @Override

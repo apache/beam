@@ -21,7 +21,6 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -507,6 +506,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
     public @UnknownKeyFor @NonNull @Initialized ReadableState<Iterable<V>> get(K key) {
       return CollectionViewState.of(contents.get(key));
     }
+
     @Override
     public ReadableState<Iterable<K>> keys() {
       return CollectionViewState.of(contents.keySet());
