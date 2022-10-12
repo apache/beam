@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "python": "AnandInguva",
-    "build": "Abacn"
+    "python": "pabloem",
+    "build": "damccorm"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
