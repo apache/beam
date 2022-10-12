@@ -39,6 +39,8 @@ def test_check_for_nested():
         _check_no_nested(["sub3", "sub1", "sub1/sub2"])
     with pytest.raises(ValueError):
         _check_no_nested([".", "sub"])
+    with pytest.raises(ValueError):
+        _check_no_nested(["./sub1", "sub1"])
 
 
 @pytest.mark.parametrize(

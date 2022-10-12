@@ -88,11 +88,9 @@ def _check_no_nested(subdirs: List[str]):
     Sort alphabetically and compare the pairs of adjacent items
     using pathlib.PurePath: we don't want fs calls in this check
     """
-    sorted_subdirs = sorted(subdirs)
+    sorted_subdirs = sorted(PurePath(s) for s in subdirs)
     for dir1, dir2 in zip(sorted_subdirs, sorted_subdirs[1:]):
-        dir1 = PurePath(dir1)
-        dir2 = PurePath(dir2)
-        if dir1 in dir2.parents:
+        if dir1 in [dir2, *dir2.parents]:
             raise ValueError(f"{dir2} is a subdirectory of {dir1}")
 
 def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[str],
