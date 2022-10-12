@@ -34,6 +34,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -121,7 +122,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -209,7 +210,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.expand(any(GcsPath.class)))
         .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
-    when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(true);
+    doNothing().when(mockGcsUtil).verifyBucketAccessible(any(GcsPath.class));
 
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);

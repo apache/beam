@@ -16,19 +16,45 @@
  * limitations under the License.
  */
 
+import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:playground/constants/colors.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/fonts.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/editor/components/editor_themes.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const kThemeMode = 'theme_mode';
 
-class ThemeProvider extends ChangeNotifier {
+class ThemeSwitchNotifier extends ChangeNotifier {
   late SharedPreferences _preferences;
   ThemeMode themeMode = ThemeMode.light;
+
+  static const _darkThemeColors = ThemeColors.fromBrightness(isDark: true);
+  static const _lightThemeColors = ThemeColors.fromBrightness(isDark: false);
+
+  ThemeColors get themeColors {
+    switch (themeMode) {
+      case ThemeMode.dark:
+        return _darkThemeColors;
+      default:
+        return _lightThemeColors;
+    }
+  }
+
+  final _darkCodeTheme = createTheme(_darkThemeColors);
+  final _lightCodeTheme = createTheme(_lightThemeColors);
+
+  CodeThemeData get codeTheme {
+    switch (themeMode) {
+      case ThemeMode.dark:
+        return _darkCodeTheme;
+      default:
+        return _lightCodeTheme;
+    }
+  }
 
   init() {
     _setPreferences();
@@ -50,6 +76,47 @@ class ThemeProvider extends ChangeNotifier {
     themeMode = themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
     _preferences.setString(kThemeMode, themeMode.toString());
     notifyListeners();
+  }
+}
+
+class ThemeSwitchNotifierProvider extends StatelessWidget {
+  final Widget child;
+
+  const ThemeSwitchNotifierProvider({
+    super.key,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider<ThemeSwitchNotifier>(
+      create: (context) => ThemeSwitchNotifier()..init(),
+      child: Consumer<ThemeSwitchNotifier>(
+        builder: (context, themeSwitchNotifier, _) => ThemeColorsProvider(
+          data: themeSwitchNotifier.themeColors,
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class ThemeColorsProvider extends StatelessWidget {
+  final ThemeColors data;
+  final Widget child;
+
+  const ThemeColorsProvider({
+    super.key,
+    required this.data,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Provider<ThemeColors>.value(
+      value: data,
+      child: child,
+    );
   }
 }
 
@@ -174,16 +241,42 @@ final kDarkTheme = ThemeData(
 );
 
 class ThemeColors {
+  final Color? _background;
+  final Color? _dropdownButton;
+
   final bool isDark;
 
-  static ThemeColors of(BuildContext context) {
-    final theme = Provider.of<ThemeProvider>(context);
-    return ThemeColors(theme.isDarkMode);
+  static ThemeColors of(BuildContext context, {bool listen = true}) {
+    return Provider.of<ThemeColors>(context, listen: listen);
   }
 
-  ThemeColors(this.isDark);
+  ThemeColors({
+    required this.isDark,
+    Color? background,
+    Color? dropdownButtonColor,
+  })  : _background = background,
+        _dropdownButton = dropdownButtonColor;
 
-  Color get greyColor => isDark ? kDarkGrey : kLightGrey;
+  const ThemeColors.fromBrightness({
+    required this.isDark,
+  })  : _background = null,
+        _dropdownButton = null;
+
+  ThemeColors copyWith({
+    Color? background,
+    Color? dropdownButton,
+  }) {
+    return ThemeColors(
+      isDark: isDark,
+      background: background ?? this.background,
+      dropdownButtonColor: dropdownButton ?? this.dropdownButton,
+    );
+  }
+
+  Color get dropdownButton =>
+      _dropdownButton ?? (isDark ? kDarkGrey : kLightGrey);
+
+  Color get divider => isDark ? kDarkGrey : kLightGrey;
 
   Color get lightGreyColor => isDark ? kLightGrey1 : kLightGrey;
 
@@ -198,8 +291,9 @@ class ThemeColors {
   Color get secondaryBackground =>
       isDark ? kDarkSecondaryBackground : kLightSecondaryBackground;
 
-  Color get primaryBackground =>
-      isDark ? kDarkPrimaryBackground : kLightPrimaryBackground;
+  Color get background =>
+      _background ??
+      (isDark ? kDarkPrimaryBackground : kLightPrimaryBackground);
 
   Color get code1 => isDark ? kDarkCode2 : kLightCode2;
 

@@ -33,7 +33,7 @@ export function readFromParquet(
   } = {}
 ): (root: beam.Root) => Promise<beam.PCollection<any>> {
   return async function readFromParquet(root: beam.Root) {
-    return root.asyncApply(
+    return root.applyAsync(
       pythonTransform("apache_beam.dataframe.io.ReadViaPandas", {
         path: filePattern,
         format: "parquet",
@@ -57,7 +57,7 @@ export function writeToParquet(
       delete options.schema;
     }
     return {
-      filesWritten: await toWrite.asyncApply(
+      filesWritten: await toWrite.applyAsync(
         pythonTransform("apache_beam.dataframe.io.WriteViaPandas", {
           path: filePathPrefix,
           format: "parquet",

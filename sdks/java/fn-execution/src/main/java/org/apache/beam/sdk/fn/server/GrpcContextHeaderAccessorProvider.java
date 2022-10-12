@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.fn.server;
 
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Context;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Contexts;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Metadata;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Metadata.Key;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ServerCall;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ServerCall.Listener;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ServerCallHandler;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ServerInterceptor;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Context;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Contexts;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Metadata.Key;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerCall;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerCall.Listener;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerCallHandler;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerInterceptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /**

@@ -55,6 +55,18 @@ function clean_up(){
 
   rm -rf ${LOCAL_BEAM_DIR}
   echo "* Deleted workspace ${LOCAL_BEAM_DIR}"
+
+  if [[ -n `which gcloud` ]]; then
+    if [[ -n ${KAFKA_CLUSTER_NAME} ]]; then
+        echo "-----------------------Clean up Kafka Cluster on GKE------------------------"
+        gcloud container clusters delete --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --async -q ${KAFKA_CLUSTER_NAME}
+    fi
+
+    if [[ -n ${SQL_TAXI_TOPIC} ]]; then
+        echo "-----------------------Clean up pubsub topic on GCP------------------------"
+        gcloud pubsub topics delete --project=${USER_GCP_PROJECT} ${SQL_TAXI_TOPIC}
+    fi
+  fi
 }
 trap clean_up EXIT
 
@@ -496,9 +508,9 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
   set_bashrc
 
   echo "-----------------------Setting up Kafka Cluster on GKE------------------------"
-  CLUSTER_NAME=xlang-kafka-cluster-$RANDOM
+  KAFKA_CLUSTER_NAME=xlang-kafka-cluster-$RANDOM
   if [[ "$python_xlang_kafka_taxi_dataflow" = true ]]; then
-    gcloud container clusters create --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --no-enable-ip-alias $CLUSTER_NAME
+    gcloud container clusters create --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --no-enable-ip-alias $KAFKA_CLUSTER_NAME
     kubectl apply -R -f ${LOCAL_BEAM_DIR}/.test-infra/kubernetes/kafka-cluster
     echo "* Please wait for 10 mins to let a Kafka cluster be launched on GKE."
     echo "* Sleeping for 10 mins"

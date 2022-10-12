@@ -57,12 +57,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"reflect"
 	"regexp"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
@@ -81,11 +81,19 @@ var (
 // available at runtime.
 
 func init() {
-	beam.RegisterFunction(extractFn)
-	beam.RegisterFunction(formatFn)
-	// To be correctly serialized on non-direct runners, struct form DoFns must be
-	// registered during initialization.
-	beam.RegisterType(reflect.TypeOf((*filterFn)(nil)).Elem())
+	// register.DoFnXxY registers a struct DoFn so that it can be correctly serialized and does some optimization
+	// to avoid runtime reflection. Since addTimestampFn has 4 inputs and 0 outputs, we use register.DoFn4x0 and provide
+	// its input/output types as its constraints.
+	// Struct DoFns must be registered for a pipeline to run.
+	register.DoFn4x0[context.Context, string, int, func(string, int)](&filterFn{})
+	// For simple functional (non-struct) DoFns we can use register.FunctionXxY to perform the same registration without
+	// providing type constraints.
+	register.Function2x0(extractFn)
+	register.Function2x1(formatFn)
+	// register.EmitterX is optional and will provide some optimization to make things run faster. Any emitters
+	// (functions that produce output for the next step) should be registered. Here we register all emitters with
+	// the signature func(string, int).
+	register.Emitter2[string, int]()
 }
 
 // filterFn is a DoFn for filtering out certain words.

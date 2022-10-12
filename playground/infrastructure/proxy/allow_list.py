@@ -18,7 +18,9 @@
 ALLOWED_LIST = [
     "localhost",
     "127.0.0.1",
-    "logging.googleapis.com"
+    "logging.googleapis.com",
+    "datastore.googleapis.com",
+    "oauth2.googleapis.com"
 ]
 
 # ALLOWED_BUCKET_LIST contains all public Google Cloud Storage buckets

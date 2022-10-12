@@ -25,7 +25,7 @@ job('Rotate IO-Datastores Cluster Credentials') {
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Sets that this is a cron job.
-  commonJobProperties.setCronJob(delegate, 'H 2 1 */2 *')// At 00:02am every second month.
+  commonJobProperties.setCronJob(delegate, 'H 2 1 * *')// At 00:02am every month.
   def date = new Date().format('E MMM dd HH:mm:ss z yyyy')
 
   steps {

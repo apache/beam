@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import io
 import logging
 import unittest
 
@@ -99,6 +100,30 @@ class SdkWorkerMainTest(unittest.TestCase):
                                    dry_run=True)
     self.assertTrue(test_runtime_provider.is_accessible())
     self.assertEqual(test_runtime_provider.get(), 37)
+
+  def test_create_sdk_harness_log_handler_received_log(self):
+    # tests that the log handler created in create_harness() does not miss
+    # logs emitted from create_harness() itself.
+    logstream = io.StringIO()
+
+    class InMemoryHandler(logging.StreamHandler):
+      def __init__(self, *unused):
+        super().__init__(stream=logstream)
+
+    with unittest.mock.patch(
+        'apache_beam.runners.worker.sdk_worker_main.FnApiLogRecordHandler',
+        InMemoryHandler):
+      sdk_worker_main.create_harness({
+          'LOGGING_API_SERVICE_DESCRIPTOR': '',
+          'CONTROL_API_SERVICE_DESCRIPTOR': '',
+          'PIPELINE_OPTIONS': '{"default_sdk_harness_log_level":"INVALID",'
+          '"sdk_harness_log_level_overrides":"{INVALID_JSON}"}',
+      },
+                                     dry_run=True)
+    logstream.seek(0)
+    logs = logstream.read()
+    self.assertIn('Unknown log level', logs)
+    self.assertIn('Unable to parse sdk_harness_log_level_overrides', logs)
 
   def test_import_beam_plugins(self):
     sdk_worker_main._import_beam_plugins(BeamPlugin.get_all_plugin_paths())

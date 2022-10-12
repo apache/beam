@@ -16,21 +16,9 @@
 package code_processing
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/cache"
-	"beam.apache.org/playground/backend/internal/cache/local"
-	"beam.apache.org/playground/backend/internal/cache/redis"
-	"beam.apache.org/playground/backend/internal/environment"
-	"beam.apache.org/playground/backend/internal/executors"
-	"beam.apache.org/playground/backend/internal/fs_tool"
-	"beam.apache.org/playground/backend/internal/utils"
-	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redismock/v8"
-	"github.com/google/uuid"
-	"go.uber.org/goleak"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -40,6 +28,20 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-redis/redismock/v8"
+	"github.com/google/uuid"
+	"go.uber.org/goleak"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/cache/local"
+	"beam.apache.org/playground/backend/internal/cache/redis"
+	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/executors"
+	"beam.apache.org/playground/backend/internal/fs_tool"
+	"beam.apache.org/playground/backend/internal/utils"
+	"beam.apache.org/playground/backend/internal/validators"
 )
 
 const (

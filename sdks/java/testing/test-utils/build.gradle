@@ -37,6 +37,7 @@ dependencies {
   implementation library.java.http_client
   implementation library.java.http_core
   implementation library.java.slf4j_api
+  provided library.java.jmh_core
 
   testImplementation library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")

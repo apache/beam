@@ -18,10 +18,13 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
@@ -38,7 +41,7 @@ var (
 	semiPersistDir    = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional).")
 )
 
-const entrypoint = "dist/worker/worker_main.js"
+const entrypoint = "apache-beam-worker"
 
 func main() {
 	flag.Parse()
@@ -87,7 +90,71 @@ func main() {
 		log.Fatalf("Failed to convert pipeline options: %v", err)
 	}
 
-	// (2) Invoke the Node entrypoint, passing the Fn API container contract info as flags.
+	// (2) Retrieve and install the staged packages.
+
+	dir := filepath.Join(*semiPersistDir, *id, "staged")
+	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
+	if err != nil {
+		log.Fatalf("Failed to retrieve staged files: %v", err)
+	}
+
+	// Create a package.json that names given dependencies as overrides.
+	npmOverrides := make(map[string]string)
+	for _, v := range artifacts {
+		name, _ := artifact.MustExtractFilePayload(v)
+		path := filepath.Join(dir, name)
+		if v.RoleUrn == "beam:artifact:type:npm_dep:v1" {
+			// Npm cannot handle arbitrary suffixes.
+			suffixedPath := path + ".tar"
+			e := os.Rename(path, suffixedPath)
+			if e != nil {
+				log.Fatal(e)
+			}
+			npmOverrides[string(v.RolePayload)] = suffixedPath
+		}
+	}
+	if len(npmOverrides) > 0 {
+		f, e := os.Create("package.json")
+		if e != nil {
+			log.Fatal(e)
+		}
+		defer f.Close()
+		f.WriteString("{\n")
+		f.WriteString("  \"name\": \"beam-worker\",\n  \"version\": \"1.0\",\n")
+		f.WriteString("  \"overrides\": {\n")
+		needsComma := false
+		for pkg, path := range npmOverrides {
+			if needsComma {
+				f.WriteString(",")
+			} else {
+				needsComma = true
+			}
+			f.WriteString(fmt.Sprintf("    %q: %q\n", pkg, "file:"+path))
+		}
+		f.WriteString("  }\n")
+		f.WriteString("}\n")
+	}
+	execx.Execute("cat", "package.json")
+
+	// Now install any other npm packages.
+	for _, v := range artifacts {
+		name, _ := artifact.MustExtractFilePayload(v)
+		path := filepath.Join(dir, name)
+		if v.RoleUrn == "beam:artifact:type:npm:v1" {
+			// Npm cannot handle arbitrary suffixes.
+			suffixedPath := path + ".tar"
+			e := os.Rename(path, suffixedPath)
+			if e != nil {
+				log.Fatal(e)
+			}
+			e = execx.Execute("npm", "install", suffixedPath)
+			if e != nil {
+				log.Fatalf("Error installing package %q: %v", suffixedPath, e)
+			}
+		}
+	}
+
+	// (3) Invoke the Node entrypoint, passing the Fn API container contract info as flags.
 
 	args := []string{
 		entrypoint,
@@ -102,6 +169,5 @@ func main() {
 		args = append(args, "--status_endpoint="+info.GetStatusEndpoint().GetUrl())
 	}
 
-	log.Fatalf("User program exited: %v", execx.Execute("node", args...))
-	log.Printf("SDK exited cleanly.")
+	log.Fatalf("User program exited: %v", execx.Execute("npx", args...))
 }

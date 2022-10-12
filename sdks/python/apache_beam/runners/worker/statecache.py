@@ -20,245 +20,179 @@
 # mypy: disallow-untyped-defs
 
 import collections
+import gc
 import logging
 import threading
-from typing import TYPE_CHECKING
 from typing import Any
-from typing import Callable
-from typing import Generic
-from typing import Hashable
 from typing import List
 from typing import Optional
-from typing import Set
 from typing import Tuple
-from typing import TypeVar
 
-from apache_beam.metrics import monitoring_infos
-
-if TYPE_CHECKING:
-  from apache_beam.portability.api import metrics_pb2
+import objsize
 
 _LOGGER = logging.getLogger(__name__)
 
-CallableT = TypeVar('CallableT', bound='Callable')
-KT = TypeVar('KT')
-VT = TypeVar('VT')
+
+class WeightedValue(object):
+  """Value type that stores corresponding weight.
+
+  :arg value The value to be stored.
+  :arg weight The associated weight of the value. If unspecified, the objects
+  size will be used.
+  """
+  def __init__(self, value, weight):
+    # type: (Any, int) -> None
+    self._value = value
+    if weight <= 0:
+      raise ValueError(
+          'Expected weight to be > 0 for %s but received %d' % (value, weight))
+    self._weight = weight
+
+  def weight(self):
+    # type: () -> int
+    return self._weight
+
+  def value(self):
+    # type: () -> Any
+    return self._value
 
 
-class Metrics(object):
-  """Metrics container for state cache metrics."""
-
-  # A set of all registered metrics
-  ALL_METRICS = set()  # type: Set[Hashable]
-  PREFIX = "beam:metric:statecache:"
-
+class CacheAware(object):
   def __init__(self):
     # type: () -> None
-    self._context = threading.local()
+    pass
 
-  def initialize(self):
-    # type: () -> None
+  def get_referents_for_cache(self):
+    # type: () -> List[Any]
 
-    """Needs to be called once per thread to initialize the local metrics cache.
-    """
-    if hasattr(self._context, 'metrics'):
-      return  # Already initialized
-    self._context.metrics = collections.defaultdict(int)
+    """Returns the list of objects accounted during cache measurement."""
+    raise NotImplementedError()
 
-  def count(self, name):
-    # type: (str) -> None
-    self._context.metrics[name] += 1
 
-  def hit_miss(self, total_name, hit_miss_name):
-    # type: (str, str) -> None
-    self._context.metrics[total_name] += 1
-    self._context.metrics[hit_miss_name] += 1
+def get_referents_for_cache(*objs):
+  # type: (List[Any]) -> List[Any]
 
-  def get_monitoring_infos(self, cache_size, cache_capacity):
-    # type: (int, int) -> List[metrics_pb2.MonitoringInfo]
+  """Returns the list of objects accounted during cache measurement.
 
-    """Returns the metrics scoped to the current bundle."""
-    metrics = self._context.metrics
-    if len(metrics) == 0:
-      # No metrics collected, do not report
-      return []
-    # Add all missing metrics which were not reported
-    for key in Metrics.ALL_METRICS:
-      if key not in metrics:
-        metrics[key] = 0
-    # Gauges which reflect the state since last queried
-    gauges = [
-        monitoring_infos.int64_gauge(self.PREFIX + name, val) for name,
-        val in metrics.items()
-    ]
-    gauges.append(
-        monitoring_infos.int64_gauge(self.PREFIX + 'size', cache_size))
-    gauges.append(
-        monitoring_infos.int64_gauge(self.PREFIX + 'capacity', cache_capacity))
-    # Counters for the summary across all metrics
-    counters = [
-        monitoring_infos.int64_counter(self.PREFIX + name + '_total', val)
-        for name,
-        val in metrics.items()
-    ]
-    # Reinitialize metrics for this thread/bundle
-    metrics.clear()
-    return gauges + counters
-
-  @staticmethod
-  def counter_hit_miss(total_name, hit_name, miss_name):
-    # type: (str, str, str) -> Callable[[CallableT], CallableT]
-
-    """Decorator for counting function calls and whether
-       the return value equals None (=miss) or not (=hit)."""
-    Metrics.ALL_METRICS.update([total_name, hit_name, miss_name])
-
-    def decorator(function):
-      # type: (CallableT) -> CallableT
-      def reporter(self, *args, **kwargs):
-        # type: (StateCache, Any, Any) -> Any
-        value = function(self, *args, **kwargs)
-        if value is None:
-          self._metrics.hit_miss(total_name, miss_name)
-        else:
-          self._metrics.hit_miss(total_name, hit_name)
-        return value
-
-      return reporter  # type: ignore[return-value]
-
-    return decorator
-
-  @staticmethod
-  def counter(metric_name):
-    # type: (str) -> Callable[[CallableT], CallableT]
-
-    """Decorator for counting function calls."""
-    Metrics.ALL_METRICS.add(metric_name)
-
-    def decorator(function):
-      # type: (CallableT) -> CallableT
-      def reporter(self, *args, **kwargs):
-        # type: (StateCache, Any, Any) -> Any
-        self._metrics.count(metric_name)
-        return function(self, *args, **kwargs)
-
-      return reporter  # type: ignore[return-value]
-
-    return decorator
+  Users can inherit CacheAware to override which referrents should be
+  used when measuring the deep size of the object. The default is to
+  use gc.get_referents(*objs).
+  """
+  rval = []
+  for obj in objs:
+    if isinstance(obj, CacheAware):
+      rval.extend(obj.get_referents_for_cache())
+    else:
+      rval.extend(gc.get_referents(obj))
+  return rval
 
 
 class StateCache(object):
-  """ Cache for Beam state access, scoped by state key and cache_token.
-      Assumes a bag state implementation.
+  """Cache for Beam state access, scoped by state key and cache_token.
+     Assumes a bag state implementation.
 
-  For a given state_key, caches a (cache_token, value) tuple and allows to
+  For a given state_key and cache_token, caches a value and allows to
     a) read from the cache (get),
            if the currently stored cache_token matches the provided
-    a) write to the cache (put),
+    b) write to the cache (put),
            storing the new value alongside with a cache token
-    c) append to the currently cache item (extend),
-           if the currently stored cache_token matches the provided
     c) empty a cached element (clear),
            if the currently stored cache_token matches the provided
-    d) evict a cached element (evict)
+    d) invalidate a cached element (invalidate)
+    e) invalidate all cached elements (invalidate_all)
 
   The operations on the cache are thread-safe for use by multiple workers.
 
-  :arg max_entries The maximum number of entries to store in the cache.
-  TODO Memory-based caching: https://github.com/apache/beam/issues/19857
+  :arg max_weight The maximum weight of entries to store in the cache in bytes.
   """
-  def __init__(self, max_entries):
+  def __init__(self, max_weight):
     # type: (int) -> None
-    _LOGGER.info('Creating state cache with size %s', max_entries)
-    self._missing = None
-    self._cache = self.LRUCache[Tuple[bytes, Optional[bytes]],
-                                Any](max_entries, self._missing)
+    _LOGGER.info('Creating state cache with size %s', max_weight)
+    self._max_weight = max_weight
+    self._current_weight = 0
+    self._cache = collections.OrderedDict(
+    )  # type: collections.OrderedDict[Tuple[bytes, Optional[bytes]], WeightedValue]
+    self._hit_count = 0
+    self._miss_count = 0
+    self._evict_count = 0
     self._lock = threading.RLock()
-    self._metrics = Metrics()
 
-  @Metrics.counter_hit_miss("get", "hit", "miss")
   def get(self, state_key, cache_token):
     # type: (bytes, Optional[bytes]) -> Any
     assert cache_token and self.is_cache_enabled()
+    key = (state_key, cache_token)
     with self._lock:
-      return self._cache.get((state_key, cache_token))
+      value = self._cache.get(key, None)
+      if value is None:
+        self._miss_count += 1
+        return None
+      self._cache.move_to_end(key)
+      self._hit_count += 1
+      return value.value()
 
-  @Metrics.counter("put")
   def put(self, state_key, cache_token, value):
     # type: (bytes, Optional[bytes], Any) -> None
     assert cache_token and self.is_cache_enabled()
+    if not isinstance(value, WeightedValue):
+      weight = objsize.get_deep_size(
+          value, get_referents_func=get_referents_for_cache)
+      if weight <= 0:
+        _LOGGER.warning(
+            'Expected object size to be >= 0 for %s but received %d.',
+            value,
+            weight)
+        weight = 8
+      value = WeightedValue(value, weight)
+    key = (state_key, cache_token)
     with self._lock:
-      return self._cache.put((state_key, cache_token), value)
+      old_value = self._cache.pop(key, None)
+      if old_value is not None:
+        self._current_weight -= old_value.weight()
+      self._cache[(state_key, cache_token)] = value
+      self._current_weight += value.weight()
+      while self._current_weight > self._max_weight:
+        (_, weighted_value) = self._cache.popitem(last=False)
+        self._current_weight -= weighted_value.weight()
+        self._evict_count += 1
 
-  @Metrics.counter("clear")
   def clear(self, state_key, cache_token):
     # type: (bytes, Optional[bytes]) -> None
-    assert cache_token and self.is_cache_enabled()
-    with self._lock:
-      self._cache.put((state_key, cache_token), [])
+    self.put(state_key, cache_token, [])
 
-  @Metrics.counter("evict")
-  def evict(self, state_key, cache_token):
+  def invalidate(self, state_key, cache_token):
     # type: (bytes, Optional[bytes]) -> None
     assert self.is_cache_enabled()
     with self._lock:
-      self._cache.evict((state_key, cache_token))
+      weighted_value = self._cache.pop((state_key, cache_token), None)
+      if weighted_value is not None:
+        self._current_weight -= weighted_value.weight()
 
-  def evict_all(self):
+  def invalidate_all(self):
     # type: () -> None
     with self._lock:
-      self._cache.evict_all()
+      self._cache.clear()
+      self._current_weight = 0
 
-  def initialize_metrics(self):
-    # type: () -> None
-    self._metrics.initialize()
+  def describe_stats(self):
+    # type: () -> str
+    with self._lock:
+      request_count = self._hit_count + self._miss_count
+      if request_count > 0:
+        hit_ratio = 100.0 * self._hit_count / request_count
+      else:
+        hit_ratio = 100.0
+      return 'used/max %d/%d MB, hit %.2f%%, lookups %d, evictions %d' % (
+          self._current_weight >> 20,
+          self._max_weight >> 20,
+          hit_ratio,
+          request_count,
+          self._evict_count)
 
   def is_cache_enabled(self):
     # type: () -> bool
-    return self._cache._max_entries > 0
+    return self._max_weight > 0
 
   def size(self):
     # type: () -> int
-    return len(self._cache)
-
-  def get_monitoring_infos(self):
-    # type: () -> List[metrics_pb2.MonitoringInfo]
-
-    """Retrieves the monitoring infos and resets the counters."""
     with self._lock:
-      size = len(self._cache)
-    capacity = self._cache._max_entries
-    return self._metrics.get_monitoring_infos(size, capacity)
-
-  class LRUCache(Generic[KT, VT]):
-    def __init__(self, max_entries, default_entry):
-      # type: (int, VT) -> None
-      self._max_entries = max_entries
-      self._default_entry = default_entry
-      self._cache = collections.OrderedDict(
-      )  # type: collections.OrderedDict[KT, VT]
-
-    def get(self, key):
-      # type: (KT) -> VT
-      value = self._cache.pop(key, self._default_entry)
-      if value != self._default_entry:
-        self._cache[key] = value
-      return value
-
-    def put(self, key, value):
-      # type: (KT, VT) -> None
-      self._cache[key] = value
-      while len(self._cache) > self._max_entries:
-        self._cache.popitem(last=False)
-
-    def evict(self, key):
-      # type: (KT) -> None
-      self._cache.pop(key, self._default_entry)
-
-    def evict_all(self):
-      # type: () -> None
-      self._cache.clear()
-
-    def __len__(self):
-      # type: () -> int
       return len(self._cache)

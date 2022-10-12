@@ -19,27 +19,29 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/modules/examples/repositories/example_client/example_client.dart';
-import 'package:playground/modules/examples/repositories/example_repository.dart';
+import 'package:playground/pages/playground/states/example_loaders/examples_loader.dart';
 import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 
 import 'example_selector_state_test.mocks.dart';
 import 'mocks/categories_mock.dart';
+import 'mocks/example_repository_mock.dart';
 
-@GenerateMocks([ExampleClient])
+@GenerateMocks([ExamplesLoader])
 void main() {
   late PlaygroundState playgroundState;
   late ExampleState exampleState;
   late ExampleSelectorState state;
-  late ExampleClient client;
+  final mockExampleRepository = getMockExampleRepository();
 
   setUp(() {
-    client = MockExampleClient();
-    playgroundState = PlaygroundState();
-    exampleState = ExampleState(ExampleRepository(client));
-    state = ExampleSelectorState(exampleState, playgroundState, []);
+    exampleState = ExampleState(mockExampleRepository);
+    playgroundState = PlaygroundState(
+      examplesLoader: MockExamplesLoader(),
+      exampleState: exampleState,
+    );
+    state = ExampleSelectorState(playgroundState, []);
   });
 
   test(
@@ -105,7 +107,6 @@ void main() {
       'but should NOT:'
       '- affect Example state categories', () {
     final state = ExampleSelectorState(
-      exampleState,
       playgroundState,
       categoriesMock,
     );
@@ -125,7 +126,6 @@ void main() {
       '- be sensitive for register,'
       '- affect Example state categories', () {
     final state = ExampleSelectorState(
-      exampleState,
       playgroundState,
       categoriesMock,
     );

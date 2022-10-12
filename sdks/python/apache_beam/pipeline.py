@@ -82,6 +82,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
@@ -100,7 +101,6 @@ from apache_beam.utils.interactive_utils import is_in_ipython
 
 if TYPE_CHECKING:
   from types import TracebackType
-  from apache_beam.portability.api import beam_runner_api_pb2
   from apache_beam.runners.pipeline_context import PipelineContext
   from apache_beam.runners.runner import PipelineResult
   from apache_beam.transforms import environments
@@ -851,7 +851,6 @@ class Pipeline(object):
 
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
-    from apache_beam.portability.api import beam_runner_api_pb2
     if context is None:
       context = pipeline_context.PipelineContext(
           use_fake_coders=use_fake_coders,
@@ -919,10 +918,48 @@ class Pipeline(object):
         requirements=context.requirements())
     proto.components.transforms[root_transform_id].unique_name = (
         root_transform_id)
+    self.merge_compatible_environments(proto)
     if return_context:
       return proto, context  # type: ignore  # too complicated for now
     else:
       return proto
+
+  @staticmethod
+  def merge_compatible_environments(proto):
+    """Tries to minimize the number of distinct environments by merging
+    those that are compatible (currently defined as identical).
+
+    Mutates proto as contexts may have references to proto.components.
+    """
+    env_map = {}
+    canonical_env = {}
+    files_by_hash = {}
+    for env_id, env in proto.components.environments.items():
+      # First deduplicate any file dependencies by their hash.
+      for dep in env.dependencies:
+        if dep.type_urn == common_urns.artifact_types.FILE.urn:
+          file_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+              dep.type_payload)
+          if file_payload.sha256:
+            if file_payload.sha256 in files_by_hash:
+              file_payload.path = files_by_hash[file_payload.sha256]
+              dep.type_payload = file_payload.SerializeToString()
+            else:
+              files_by_hash[file_payload.sha256] = file_payload.path
+      # Next check if we've ever seen this environment before.
+      normalized = env.SerializeToString(deterministic=True)
+      if normalized in canonical_env:
+        env_map[env_id] = canonical_env[normalized]
+      else:
+        canonical_env[normalized] = env_id
+    for old_env, new_env in env_map.items():
+      for transform in proto.components.transforms.values():
+        if transform.environment_id == old_env:
+          transform.environment_id = new_env
+      for windowing_strategy in proto.components.windowing_strategies.values():
+        if windowing_strategy.environment_id == old_env:
+          windowing_strategy.environment_id = new_env
+      del proto.components.environments[old_env]
 
   @staticmethod
   def from_runner_api(
@@ -1270,8 +1307,6 @@ class AppliedPTransform(object):
       # are properly propagated.
       return self.transform.to_runner_api_transform(context, self.full_label)
 
-    from apache_beam.portability.api import beam_runner_api_pb2
-
     def transform_to_runner_api(
         transform,  # type: Optional[ptransform.PTransform]
         context  # type: PipelineContext
@@ -1331,7 +1366,6 @@ class AppliedPTransform(object):
 
     if common_urns.primitives.PAR_DO.urn == proto.spec.urn:
       # Preserving side input tags.
-      from apache_beam.portability.api import beam_runner_api_pb2
       pardo_payload = (
           proto_utils.parse_Bytes(
               proto.spec.payload, beam_runner_api_pb2.ParDoPayload))

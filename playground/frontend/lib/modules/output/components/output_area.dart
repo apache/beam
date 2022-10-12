@@ -41,20 +41,24 @@ class OutputArea extends StatelessWidget {
       color: Theme.of(context).backgroundColor,
       child: Consumer2<PlaygroundState, OutputPlacementState>(
         builder: (context, playgroundState, placementState, child) {
+          final sdk = playgroundState.sdk;
+
           return TabBarView(
             controller: tabController,
             physics: const NeverScrollableScrollPhysics(),
             children: <Widget>[
               OutputResult(
-                text: playgroundState.outputResult ?? '',
+                text: playgroundState.outputResult,
                 isSelected: tabController.index == 0,
               ),
               if (showGraph)
-                GraphTab(
-                  graph: playgroundState.result?.graph ?? '',
-                  sdk: playgroundState.sdk,
-                  direction: _getGraphDirection(placementState.placement),
-                ),
+                sdk == null
+                    ? Container()
+                    : GraphTab(
+                        graph: playgroundState.result?.graph ?? '',
+                        sdk: sdk,
+                        direction: _getGraphDirection(placementState.placement),
+                      ),
             ],
           );
         },

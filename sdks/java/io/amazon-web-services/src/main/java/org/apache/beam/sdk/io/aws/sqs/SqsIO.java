@@ -36,6 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded source for Amazon Simple Queue Service (SQS).
@@ -77,8 +78,13 @@ import org.joda.time.Duration;
  * }</pre>
  *
  * <p>For more information on the available options see {@link AwsOptions}.
+ *
+ * @deprecated Module <code>beam-sdks-java-io-amazon-web-services</code> is deprecated and will be
+ *     eventually removed. Please migrate to {@link org.apache.beam.sdk.io.aws2.sqs.SqsIO} in module
+ *     <code>beam-sdks-java-io-amazon-web-services2</code>.
  */
 @Experimental(Kind.SOURCE_SINK)
+@Deprecated
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -164,6 +170,10 @@ public class SqsIO {
 
     @Override
     public PCollection<Message> expand(PBegin input) {
+      LoggerFactory.getLogger(SqsIO.class)
+          .warn(
+              "You are using a deprecated IO for Sqs. Please migrate to module "
+                  + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
 
       org.apache.beam.sdk.io.Read.Unbounded<Message> unbounded =
           org.apache.beam.sdk.io.Read.from(
@@ -197,6 +207,11 @@ public class SqsIO {
 
     @Override
     public PDone expand(PCollection<SendMessageRequest> input) {
+      LoggerFactory.getLogger(SqsIO.class)
+          .warn(
+              "You are using a deprecated IO for Sqs. Please migrate to module "
+                  + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       input.apply(
           ParDo.of(
               new SqsWriteFn(

@@ -750,6 +750,22 @@ class NullableCoderImpl(StreamCoderImpl):
         if unused_value is not None else 0)
 
 
+class SinglePrecisionFloatCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def encode_to_stream(self, value, out, nested):
+    # type: (float, create_OutputStream, bool) -> None
+    out.write_bigendian_float(value)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> float
+    return in_stream.read_bigendian_float()
+
+  def estimate_size(self, unused_value, nested=False):
+    # type: (Any, bool) -> int
+    # A double is encoded as 8 bytes, regardless of nesting.
+    return 4
+
+
 class FloatCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def encode_to_stream(self, value, out, nested):

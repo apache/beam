@@ -113,7 +113,7 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
     SparkContextFactory.stopSparkContext(jsc);
 
     String debugString = visitor.getDebugString();
-    LOG.info("Translated Native Spark pipeline:\n" + debugString);
+    LOG.info("Translated Native Spark pipeline:\n{}", debugString);
     return new DebugSparkPipelineResult(debugString);
   }
 

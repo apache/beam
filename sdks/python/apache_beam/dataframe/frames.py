@@ -136,6 +136,7 @@ HAND_IMPLEMENTED_GLOBAL_AGGREGATIONS = {
     'quantile',
     'std',
     'var',
+    'mean',
     'nunique',
     'corr',
     'cov',
@@ -1580,6 +1581,17 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
+  def mean(self, skipna, **kwargs):
+    if skipna:
+      size = self.count()
+    else:
+      size = self.length()
+
+    return self.sum(skipna=skipna, **kwargs) / size
+
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
   def var(self, axis, skipna, level, ddof, **kwargs):
     """Per-level aggregation is not yet supported
     (https://github.com/apache/beam/issues/21829). Only the default,
@@ -2068,7 +2080,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   max = _agg_method(pd.Series, 'max')
   prod = product = _agg_method(pd.Series, 'prod')
   sum = _agg_method(pd.Series, 'sum')
-  mean = _agg_method(pd.Series, 'mean')
   median = _agg_method(pd.Series, 'median')
   sem = _agg_method(pd.Series, 'sem')
   mad = _agg_method(pd.Series, 'mad')

@@ -19,17 +19,11 @@
 import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:highlight/languages/go.dart';
-import 'package:highlight/languages/java.dart';
-import 'package:highlight/languages/python.dart';
-import 'package:highlight/languages/scala.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/fonts.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/editor/components/editor_themes.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
-import 'package:provider/provider.dart';
 
 const kJavaRegExp = r'import\s[A-z.0-9]*\;\n\n[(\/\*\*)|(public)|(class)]';
 const kPythonRegExp = r'[^\S\r\n](import|as)[^\S\r\n][A-z]*\n\n';
@@ -41,18 +35,18 @@ const kGoRegExp = r'[^\S\r\n]+\'
 const kAdditionalLinesForScrolling = 4;
 
 class EditorTextArea extends StatefulWidget {
+  final CodeController codeController;
   final SDK sdk;
   final ExampleModel? example;
   final bool enabled;
-  final void Function(String)? onSourceChange;
   final bool isEditable;
   final bool isEmbedded;
 
   const EditorTextArea({
     Key? key,
+    required this.codeController,
     required this.sdk,
     this.example,
-    this.onSourceChange,
     required this.enabled,
     required this.isEditable,
     this.isEmbedded = false,
@@ -63,37 +57,12 @@ class EditorTextArea extends StatefulWidget {
 }
 
 class _EditorTextAreaState extends State<EditorTextArea> {
-  CodeController? _codeController;
   var focusNode = FocusNode();
   final GlobalKey codeFieldKey = LabeledGlobalKey('CodeFieldKey');
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void didChangeDependencies() {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: true);
-    _codeController = CodeController(
-      text: _codeController?.text ?? widget.example?.source ?? '',
-      language: _getLanguageFromSdk(),
-      theme: themeProvider.isDarkMode ? kDarkCodeTheme : kLightCodeTheme,
-      onChange: (newSource) {
-        if (widget.onSourceChange != null) {
-          widget.onSourceChange!(newSource);
-        }
-      },
-      webSpaceFix: false,
-    );
-
-    super.didChangeDependencies();
-  }
-
-  @override
   void dispose() {
     super.dispose();
-    _codeController?.dispose();
     focusNode.dispose();
   }
 
@@ -116,7 +85,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
           key: codeFieldKey,
           focusNode: focusNode,
           enabled: widget.enabled,
-          controller: _codeController!,
+          controller: widget.codeController,
           textStyle: getCodeFontStyle(
             textStyle: const TextStyle(fontSize: kCodeFontSize),
           ),
@@ -131,10 +100,10 @@ class _EditorTextAreaState extends State<EditorTextArea> {
     );
   }
 
-  _setTextScrolling() {
+  void _setTextScrolling() {
     focusNode.requestFocus();
-    if (_codeController!.text.isNotEmpty) {
-      _codeController!.selection = TextSelection.fromPosition(
+    if (widget.codeController.text.isNotEmpty) {
+      widget.codeController.selection = TextSelection.fromPosition(
         TextPosition(
           offset: _getOffset(),
         ),
@@ -146,10 +115,10 @@ class _EditorTextAreaState extends State<EditorTextArea> {
     int contextLine = _getIndexOfContextLine();
     String pattern = _getPattern(_getQntOfStringsOnScreen());
     if (pattern == '' || pattern == '}') {
-      return _codeController!.text.lastIndexOf(pattern);
+      return widget.codeController.text.lastIndexOf(pattern);
     }
 
-    return _codeController!.text.indexOf(
+    return widget.codeController.text.indexOf(
       pattern,
       contextLine,
     );
@@ -158,7 +127,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   String _getPattern(int qntOfStrings) {
     int contextLineIndex = _getIndexOfContextLine();
     List<String> stringsAfterContextLine =
-        _codeController!.text.substring(contextLineIndex).split('\n');
+        widget.codeController.text.substring(contextLineIndex).split('\n');
 
     String result =
         stringsAfterContextLine.length + kAdditionalLinesForScrolling >
@@ -179,14 +148,14 @@ class _EditorTextAreaState extends State<EditorTextArea> {
 
   int _getIndexOfContextLine() {
     int ctxLineNumber = widget.example!.contextLine;
-    String contextLine = _codeController!.text.split('\n')[ctxLineNumber];
+    String contextLine = widget.codeController.text.split('\n')[ctxLineNumber];
 
     while (contextLine == '') {
       ctxLineNumber -= 1;
-      contextLine = _codeController!.text.split('\n')[ctxLineNumber];
+      contextLine = widget.codeController.text.split('\n')[ctxLineNumber];
     }
 
-    return _codeController!.text.indexOf(contextLine);
+    return widget.codeController.text.indexOf(contextLine);
   }
 
   // This function made for more accuracy in the process of finding an exact line.
@@ -206,18 +175,5 @@ class _EditorTextAreaState extends State<EditorTextArea> {
     }
 
     return result.toString();
-  }
-
-  _getLanguageFromSdk() {
-    switch (widget.sdk) {
-      case SDK.java:
-        return java;
-      case SDK.go:
-        return go;
-      case SDK.python:
-        return python;
-      case SDK.scio:
-        return scala;
-    }
   }
 }

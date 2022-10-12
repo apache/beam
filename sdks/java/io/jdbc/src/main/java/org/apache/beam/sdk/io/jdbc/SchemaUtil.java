@@ -31,14 +31,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.Serializable;
 import java.sql.Array;
-import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -313,11 +311,12 @@ class SchemaUtil {
   /** Convert SQL date type to Beam DateTime. */
   private static ResultSetFieldExtractor createDateExtractor() {
     return (rs, i) -> {
-      Date date = rs.getDate(i, Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
+      // TODO(https://github.com/apache/beam/issues/19215) import when joda LocalDate is removed.
+      java.time.LocalDate date = rs.getObject(i, java.time.LocalDate.class);
       if (date == null) {
         return null;
       }
-      ZonedDateTime zdt = ZonedDateTime.of(date.toLocalDate(), LocalTime.MIDNIGHT, ZoneOffset.UTC);
+      ZonedDateTime zdt = date.atStartOfDay(ZoneOffset.UTC);
       return new DateTime(zdt.toInstant().toEpochMilli(), ISOChronology.getInstanceUTC());
     };
   }

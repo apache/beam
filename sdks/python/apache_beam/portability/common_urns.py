@@ -80,4 +80,5 @@ displayData = StandardDisplayData.DisplayData
 java_class_lookup = ExpansionMethods.Enum.JAVA_CLASS_LOOKUP
 
 micros_instant = LogicalTypes.Enum.MICROS_INSTANT
+millis_instant = LogicalTypes.Enum.MILLIS_INSTANT
 python_callable = LogicalTypes.Enum.PYTHON_CALLABLE

@@ -158,7 +158,8 @@ class CodersTest(unittest.TestCase):
         coders.ListLikeCoder,
         coders.ProtoCoder,
         coders.ProtoPlusCoder,
-        coders.ToBytesCoder
+        coders.SinglePrecisionFloatCoder,
+        coders.ToBytesCoder,
     ])
     cls.seen_nested -= set(
         [coders.ProtoCoder, coders.ProtoPlusCoder, CustomCoder])

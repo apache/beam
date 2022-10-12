@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:akvelon_flutter_issue_106664_workaround/akvelon_flutter_issue_106664_workaround.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl_browser.dart';
 import 'package:playground/configure_nonweb.dart'
@@ -23,6 +24,7 @@ if (dart.library.html) 'package:playground/configure_web.dart';
 import 'package:playground/playground_app.dart';
 
 void main() {
+  FlutterIssue106664Workaround.instance.apply();
   findSystemLocale();
   configureApp();
   runApp(const PlaygroundApp());

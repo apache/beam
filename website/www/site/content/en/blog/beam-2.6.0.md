@@ -3,6 +3,7 @@ title:  "Apache Beam 2.6.0"
 date:   2018-08-10 00:00:01 -0800
 categories:
   - blog
+  - release
 aliases:
   - /blog/2018/08/10/beam-2.6.0.html
 authors:

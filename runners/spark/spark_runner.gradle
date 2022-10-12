@@ -17,7 +17,6 @@
  */
 
 import groovy.json.JsonOutput
-import java.util.stream.Collectors
 
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
@@ -63,8 +62,8 @@ def sparkTestProperties(overrides = [:]) {
 def hadoopVersions = [
   "285" : "2.8.5",
   "292" : "2.9.2",
-  "2101": "2.10.1",
-  "321" : "3.2.1",
+  "2102": "2.10.2",
+  "324" : "3.2.4",
 ]
 
 hadoopVersions.each { kv -> configurations.create("hadoopVersion$kv.key") }
@@ -123,6 +122,19 @@ test {
   if(project.hasProperty("rerun-tests")) { 	outputs.upToDateWhen {false} }
 }
 
+class SparkComponents {
+  List<String> components
+}
+
+extensions.create('spark', SparkComponents)
+spark.components = [
+    "org.apache.spark:spark-core_$spark_scala_version",
+    "org.apache.spark:spark-network-common_$spark_scala_version",
+    "org.apache.spark:spark-sql_$spark_scala_version",
+    "org.apache.spark:spark-streaming_$spark_scala_version",
+    "org.apache.spark:spark-catalyst_$spark_scala_version"
+]
+
 dependencies {
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -138,15 +150,13 @@ dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   implementation library.java.vendored_guava_26_0_jre
-  implementation "com.codahale.metrics:metrics-core:3.0.1"
-  provided "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
-  provided "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
+  implementation "io.dropwizard.metrics:metrics-core:3.1.5" // version used by Spark 2.4
+  spark.components.each { component ->
+    provided "$component:$spark_version"
+  }
   permitUnusedDeclared "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
-  provided "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
-  provided "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
-  provided "org.apache.spark:spark-catalyst_$spark_scala_version:$spark_version"
   if (project.property("spark_scala_version").equals("2.11")) {
     compileOnly "org.scala-lang:scala-library:2.11.12"
     runtimeOnly library.java.jackson_module_scala_2_11
@@ -154,19 +164,15 @@ dependencies {
     compileOnly "org.scala-lang:scala-library:2.12.15"
     runtimeOnly library.java.jackson_module_scala_2_12
   }
-  if (project.property("spark_version").equals("3.1.2")) {
-    compileOnly "org.apache.parquet:parquet-common:1.10.1"
-  }
   // Force paranamer 2.8 to avoid issues when using Scala 2.12
   runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
   provided library.java.hadoop_common
   provided library.java.commons_io
   provided library.java.hamcrest
   provided "com.esotericsoftware:kryo-shaded:4.0.2"
-  testImplementation "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
-  testImplementation "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
-  testImplementation "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
-  testImplementation "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
+  spark.components.each { component ->
+    testImplementation "$component:$spark_version"
+  }
   testImplementation project(":sdks:java:io:kafka")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
@@ -194,21 +200,15 @@ dependencies {
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def tempLocation = project.findProperty('tempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
 
-configurations.testRuntimeClasspath {
-  // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+configurations.all {
+  // Prevent StackOverflowError if slf4j-jdk14 is on the classpath
   exclude group: "org.slf4j", module: "slf4j-jdk14"
+  // Avoid any transitive usage of the old codahale group to make dependency resolution deterministic
+  exclude group: "com.codahale.metrics", module: "metrics-core"
 }
-
-configurations.validatesRunner {
-  // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
-  exclude group: "org.slf4j", module: "slf4j-jdk14"
-}
-
 
 hadoopVersions.each { kv ->
   configurations."hadoopVersion$kv.key" {
-    // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
-    exclude group: "org.slf4j", module: "slf4j-jdk14"
     resolutionStrategy {
       force "org.apache.hadoop:hadoop-common:$kv.value"
     }

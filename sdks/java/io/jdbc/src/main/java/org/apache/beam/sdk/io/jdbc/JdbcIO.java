@@ -44,8 +44,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.sql.DataSource;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -305,7 +303,6 @@ import org.slf4j.LoggerFactory;
  * Consider using <a href="https://en.wikipedia.org/wiki/Merge_(SQL)">MERGE ("upsert")
  * statements</a> supported by your database instead.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -327,7 +324,6 @@ public class JdbcIO {
   }
 
   /** Read Beam {@link Row}s from a JDBC data source. */
-  @Experimental(Kind.SCHEMAS)
   public static ReadRows readRows() {
     return new AutoValue_JdbcIO_ReadRows.Builder()
         .setFetchSize(DEFAULT_FETCH_SIZE)
@@ -440,6 +436,8 @@ public class JdbcIO {
 
     abstract @Nullable ValueProvider<Collection<String>> getConnectionInitSqls();
 
+    abstract @Nullable ClassLoader getDriverClassLoader();
+
     abstract @Nullable DataSource getDataSource();
 
     abstract Builder builder();
@@ -457,6 +455,8 @@ public class JdbcIO {
       abstract Builder setConnectionProperties(ValueProvider<String> connectionProperties);
 
       abstract Builder setConnectionInitSqls(ValueProvider<Collection<String>> connectionInitSqls);
+
+      abstract Builder setDriverClassLoader(ClassLoader driverClassLoader);
 
       abstract Builder setDataSource(DataSource dataSource);
 
@@ -543,6 +543,15 @@ public class JdbcIO {
       return builder().setConnectionInitSqls(connectionInitSqls).build();
     }
 
+    /**
+     * Sets the class loader instance to be used to load the JDBC driver. If not specified, the
+     * default class loader is used.
+     */
+    public DataSourceConfiguration withDriverClassLoader(ClassLoader driverClassLoader) {
+      checkArgument(driverClassLoader != null, "driverClassLoader can not be null");
+      return builder().setDriverClassLoader(driverClassLoader).build();
+    }
+
     void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
@@ -576,6 +585,9 @@ public class JdbcIO {
             && !getConnectionInitSqls().get().isEmpty()) {
           basicDataSource.setConnectionInitSqls(getConnectionInitSqls().get());
         }
+        if (getDriverClassLoader() != null) {
+          basicDataSource.setDriverClassLoader(getDriverClassLoader());
+        }
 
         return basicDataSource;
       }
@@ -594,7 +606,6 @@ public class JdbcIO {
 
   /** Implementation of {@link #readRows()}. */
   @AutoValue
-  @Experimental(Kind.SCHEMAS)
   public abstract static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
 
     abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();

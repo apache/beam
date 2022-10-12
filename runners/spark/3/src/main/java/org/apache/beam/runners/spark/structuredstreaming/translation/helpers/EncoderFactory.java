@@ -17,33 +17,48 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
-import static org.apache.spark.sql.types.DataTypes.BinaryType;
-
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.spark.sql.Encoder;
-import org.apache.spark.sql.catalyst.analysis.GetColumnByOrdinal;
+import java.lang.reflect.Constructor;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
-import org.apache.spark.sql.catalyst.expressions.BoundReference;
-import org.apache.spark.sql.catalyst.expressions.Cast;
 import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.types.ObjectType;
+import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke;
+import org.apache.spark.sql.types.DataType;
+import scala.collection.immutable.Nil$;
+import scala.collection.mutable.WrappedArray;
 import scala.reflect.ClassTag;
-import scala.reflect.ClassTag$;
 
 public class EncoderFactory {
+  // default constructor to reflectively create static invoke expressions
+  private static final Constructor<StaticInvoke> STATIC_INVOKE_CONSTRUCTOR =
+      (Constructor<StaticInvoke>) StaticInvoke.class.getConstructors()[0];
 
-  public static <T> Encoder<T> fromBeamCoder(Coder<T> coder) {
-    Class<? super T> clazz = coder.getEncodedTypeDescriptor().getRawType();
-    ClassTag<T> classTag = ClassTag$.MODULE$.apply(clazz);
-    Expression serializer =
-        new EncoderHelpers.EncodeUsingBeamCoder<>(
-            new BoundReference(0, new ObjectType(clazz), true), coder);
-    Expression deserializer =
-        new EncoderHelpers.DecodeUsingBeamCoder<>(
-            new Cast(
-                new GetColumnByOrdinal(0, BinaryType), BinaryType, scala.Option.<String>empty()),
-            classTag,
-            coder);
-    return new ExpressionEncoder<>(serializer, deserializer, classTag);
+  static <T> ExpressionEncoder<T> create(
+      Expression serializer, Expression deserializer, Class<? super T> clazz) {
+    return new ExpressionEncoder<>(serializer, deserializer, ClassTag.apply(clazz));
+  }
+
+  /**
+   * Invoke method {@code fun} on Class {@code cls}, immediately propagating {@code null} if any
+   * input arg is {@code null}.
+   *
+   * <p>To address breaking interfaces between various version of Spark 3 these are created
+   * reflectively. This is fine as it's just needed once to create the query plan.
+   */
+  static Expression invokeIfNotNull(Class<?> cls, String fun, DataType type, Expression... args) {
+    try {
+      switch (STATIC_INVOKE_CONSTRUCTOR.getParameterCount()) {
+        case 6:
+          // Spark 3.1.x
+          return STATIC_INVOKE_CONSTRUCTOR.newInstance(
+              cls, type, fun, new WrappedArray.ofRef<>(args), true, true);
+        case 8:
+          // Spark 3.2.x, 3.3.x
+          return STATIC_INVOKE_CONSTRUCTOR.newInstance(
+              cls, type, fun, new WrappedArray.ofRef<>(args), Nil$.MODULE$, true, true, true);
+        default:
+          throw new RuntimeException("Unsupported version of Spark");
+      }
+    } catch (IllegalArgumentException | ReflectiveOperationException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 }

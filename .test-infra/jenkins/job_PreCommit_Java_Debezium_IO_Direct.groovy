@@ -23,7 +23,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Java_Debezium_IO_Direct',
     gradleTask: ':sdks:java:io:debezium:integrationTest',
     gradleSwitches: [
-      '-PdisableSpotlessCheck=true'
+      '-PdisableSpotlessCheck=true',
+      '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^sdks/java/io/debezium/.*$',

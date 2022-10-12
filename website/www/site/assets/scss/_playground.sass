@@ -42,5 +42,11 @@
   display: flex
   justify-content: center
 
-#playgroundIframe
-  pointer-events: none
+.playground-iframe-wrapper-no-scroll
+  position: relative
+  .playground-iframe-overlay
+    position: absolute
+    top: 58px
+    left: 0
+    height: calc(100% - 58px)
+    width: 100%

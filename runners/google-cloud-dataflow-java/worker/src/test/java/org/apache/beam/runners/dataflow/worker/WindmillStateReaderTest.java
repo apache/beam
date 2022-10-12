@@ -33,11 +33,12 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListRange
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString.Output;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Range;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -93,7 +94,7 @@ public class WindmillStateReaderTest {
   }
 
   private ByteString intData(int value) throws IOException {
-    Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     INT_CODER.encode(value, output, Coder.Context.OUTER);
     return output.toByteString();
   }
@@ -763,7 +764,7 @@ public class WindmillStateReaderTest {
 
   @Test
   public void testKeyTokenInvalid() throws Exception {
-    // Reads two bags and verifies that we batch them up correctly.
+    // Reads two states and verifies that we batch them up correctly.
     Future<Instant> watermarkFuture = underTest.watermarkFuture(STATE_KEY_2, STATE_FAMILY);
     Future<Iterable<Integer>> bagFuture = underTest.bagFuture(STATE_KEY_1, STATE_FAMILY, INT_CODER);
 
@@ -790,6 +791,164 @@ public class WindmillStateReaderTest {
     } catch (Exception e) {
       assertTrue(KeyTokenInvalidException.isKeyTokenInvalidException(e));
     }
+  }
+
+  @Test
+  public void testBatchingReadException() throws Exception {
+    // Reads two states and verifies that we batch them up correctly and propagate the read
+    // exception to both, not just the issuing future.
+    Future<Instant> watermarkFuture = underTest.watermarkFuture(STATE_KEY_2, STATE_FAMILY);
+    Future<Iterable<Integer>> bagFuture = underTest.bagFuture(STATE_KEY_1, STATE_FAMILY, INT_CODER);
+
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    RuntimeException expectedException = new RuntimeException("expected exception");
+
+    Mockito.when(
+            mockWindmill.getStateData(
+                Mockito.eq(COMPUTATION), Mockito.isA(Windmill.KeyedGetDataRequest.class)))
+        .thenThrow(expectedException);
+
+    try {
+      watermarkFuture.get();
+      fail("Expected RuntimeException");
+    } catch (Exception e) {
+      assertThat(e.toString(), Matchers.containsString("expected exception"));
+    }
+
+    try {
+      bagFuture.get();
+      fail("Expected RuntimeException");
+    } catch (Exception e) {
+      assertThat(e.toString(), Matchers.containsString("expected exception"));
+    }
+  }
+
+  @Test
+  public void testBatchingCoderExceptions() throws Exception {
+    // Read a batch of states with coder errors and verify it only affects the
+    // relevant futures.
+    Future<Integer> valueFuture = underTest.valueFuture(STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Future<Iterable<Integer>> bagFuture = underTest.bagFuture(STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Future<Iterable<Map.Entry<ByteString, Integer>>> valuePrefixFuture =
+        underTest.valuePrefixFuture(STATE_KEY_PREFIX, STATE_FAMILY, INT_CODER);
+    long beginning = SortedListRange.getDefaultInstance().getStart();
+    long end = SortedListRange.getDefaultInstance().getLimit();
+    Future<Iterable<TimestampedValue<Integer>>> orderedListFuture =
+        underTest.orderedListFuture(
+            Range.closedOpen(beginning, end), STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    // This should be the final part of the response, and we should process it successfully.
+    Future<Instant> watermarkFuture = underTest.watermarkFuture(STATE_KEY_1, STATE_FAMILY);
+
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    ByteString invalidByteString = ByteString.copyFrom(BaseEncoding.base16().decode("FFFF"));
+    Windmill.Value invalidValue = intValue(0).toBuilder().setData(invalidByteString).build();
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addValuesToFetch(
+                Windmill.TagValue.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .build())
+            .addBagsToFetch(
+                Windmill.TagBag.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_BAG_BYTES))
+            .addTagValuePrefixesToFetch(
+                Windmill.TagValuePrefixRequest.newBuilder()
+                    .setTagPrefix(STATE_KEY_PREFIX)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchMaxBytes(WindmillStateReader.MAX_TAG_VALUE_PREFIX_BYTES))
+            .addSortedListsToFetch(
+                Windmill.TagSortedListFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addFetchRanges(SortedListRange.newBuilder().setStart(beginning).setLimit(end))
+                    .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES))
+            .addWatermarkHoldsToFetch(
+                Windmill.WatermarkHold.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY));
+
+    Windmill.KeyedGetDataResponse.Builder response =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addValues(
+                Windmill.TagValue.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setValue(invalidValue))
+            .addBags(
+                Windmill.TagBag.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addValues(invalidByteString))
+            .addTagValuePrefixes(
+                Windmill.TagValuePrefixResponse.newBuilder()
+                    .setTagPrefix(STATE_KEY_PREFIX)
+                    .setStateFamily(STATE_FAMILY)
+                    .addTagValues(
+                        Windmill.TagValue.newBuilder()
+                            .setTag(STATE_KEY_1)
+                            .setStateFamily(STATE_FAMILY)
+                            .setValue(invalidValue)))
+            .addTagSortedLists(
+                Windmill.TagSortedListFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        SortedListEntry.newBuilder()
+                            .setValue(invalidByteString)
+                            .setSortKey(5000)
+                            .setId(5))
+                    .addFetchRanges(SortedListRange.newBuilder().setStart(beginning).setLimit(end)))
+            .addWatermarkHolds(
+                Windmill.WatermarkHold.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addTimestamps(5000000)
+                    .addTimestamps(6000000));
+
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest.build()))
+        .thenReturn(response.build());
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    try {
+      valueFuture.get();
+      fail("Expected RuntimeException");
+    } catch (Exception e) {
+      assertThat(e.toString(), Matchers.containsString("Unable to decode value"));
+    }
+
+    try {
+      bagFuture.get();
+      fail("Expected RuntimeException");
+    } catch (Exception e) {
+      assertThat(e.toString(), Matchers.containsString("Error parsing bag"));
+    }
+
+    try {
+      orderedListFuture.get();
+      fail("Expected RuntimeException");
+    } catch (Exception e) {
+      assertThat(e.toString(), Matchers.containsString("Error parsing ordered list"));
+    }
+
+    try {
+      valuePrefixFuture.get();
+      fail("Expected RuntimeException");
+    } catch (Exception e) {
+      assertThat(e.toString(), Matchers.containsString("Error parsing tag value prefix"));
+    }
+
+    assertThat(watermarkFuture.get(), Matchers.equalTo(new Instant(5000)));
   }
 
   /**

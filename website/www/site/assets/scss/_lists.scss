@@ -288,7 +288,7 @@
  .margin-50 {
    margin-top: 50px;
  }
- @media (min-width: 768px) {
+ @media (min-width: $mobile) {
    .arrow-list {
      .collapse.dont-collapse-sm {
        display: block;

@@ -1,0 +1,7 @@
+id: group
+name: The Group
+complexity: BASIC
+content:
+- unit-example
+- unit-challenge
+

@@ -277,4 +277,10 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.testValidSSLAndUsernameConfiguration(
         filePath.toAbsolutePath().toString());
   }
+
+  @Test
+  public void testWriteWindowPreservation() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWindowPreservation();
+  }
 }

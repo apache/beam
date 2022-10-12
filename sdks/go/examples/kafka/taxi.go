@@ -105,7 +105,6 @@ package main
 import (
 	"context"
 	"flag"
-	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -113,6 +112,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/pubsubio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/kafkaio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
@@ -125,7 +125,7 @@ var (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*LogFn)(nil)).Elem())
+	register.DoFn2x0[context.Context, []byte](&LogFn{})
 }
 
 // LogFn is a DoFn to log rides.

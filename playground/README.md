@@ -31,6 +31,11 @@ The following requirements are needed for development, testing, and deploying.
 - Go protobuf dependencies (See [Go gRPC Quickstart](https://grpc.io/docs/languages/go/quickstart/))
 - Dart protobuf dependencies (See [Dart gRPC Quickstart](https://grpc.io/docs/languages/dart/))
 - [buf](https://docs.buf.build/installation)
+- [Docker](https://docs.docker.com/desktop/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+- [gcloud CLI](https://cloud.google.com/sdk/docs/install)
+- [gcloud Beta Commands](https://cloud.google.com/sdk/gcloud/reference/components/install)
+- [Cloud Datastore Emulator](https://cloud.google.com/sdk/gcloud/reference/components/install)
 
 # Available Gradle Tasks
 
@@ -53,6 +58,27 @@ cd beam
 ```
 cd beam
 ./gradlew playground:generateProto
+```
+
+## Run local environment using docker compose
+
+```
+cd beam
+./gradlew playground:backend:containers:router:dockerComposeLocalUp
+```
+
+## Stop containers and removes containers created by dockerComposeLocalUp
+
+```
+cd beam
+./gradlew playground:backend:containers:router:dockerComposeLocalDown
+```
+
+## Run the method to remove unused code snippets from the Cloud Datastore. Unused snippets are snippets that are out of date. If the last visited date property less or equals than the current date minus dayDiff parameter then a snippet is out of date
+
+```
+cd beam
+./gradlew playground:backend:removeUnusedSnippet -DdayDiff={int} -DprojectId={string}
 ```
 
 # Deployment

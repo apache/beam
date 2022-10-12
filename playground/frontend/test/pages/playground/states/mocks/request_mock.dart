@@ -37,7 +37,7 @@ final kGetExampleCodeResponseMock = GetExampleCodeResponse('test source');
 final kOutputResponseMock = OutputResponse('test outputs');
 
 final kRequestForExampleInfo =
-    GetExampleRequestWrapper('SDK/Category/Name', SDK.java);
+    GetExampleRequestWrapper('SDK_PYTHON/Category/Name', SDK.python);
 final kRequestDefaultExampleForJava = GetExampleRequestWrapper('', SDK.java);
 final kRequestDefaultExampleForGo = GetExampleRequestWrapper('', SDK.go);
 final kRequestDefaultExampleForPython =

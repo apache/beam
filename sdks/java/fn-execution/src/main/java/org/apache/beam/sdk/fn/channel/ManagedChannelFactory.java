@@ -21,15 +21,15 @@ import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.netty.NettyChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollDomainSocketChannel;
-import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollEventLoopGroup;
-import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollSocketChannel;
-import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.netty.NettyChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.EpollDomainSocketChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.EpollEventLoopGroup;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.EpollSocketChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.unix.DomainSocketAddress;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** A Factory which creates {@link ManagedChannel} instances. */
@@ -48,7 +48,7 @@ public class ManagedChannelFactory {
    * an {@link EpollSocketChannel}.
    */
   public static ManagedChannelFactory createEpoll() {
-    org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.Epoll.ensureAvailability();
+    org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.Epoll.ensureAvailability();
     return new ManagedChannelFactory(Type.EPOLL, Collections.emptyList(), false);
   }
 

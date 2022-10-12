@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.fn.data;
 
 import java.util.function.BiConsumer;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

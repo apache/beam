@@ -34,13 +34,13 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -93,7 +93,7 @@ public class ValidateRunnerXlangTest {
               .withFieldValue("data", data)
               .build();
 
-      ByteString.Output outputStream = ByteString.newOutput();
+      ByteStringOutputStream outputStream = new ByteStringOutputStream();
       try {
         RowCoder.of(configRow.getSchema()).encode(configRow, outputStream);
       } catch (IOException e) {

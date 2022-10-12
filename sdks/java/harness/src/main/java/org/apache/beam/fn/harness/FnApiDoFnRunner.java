@@ -106,6 +106,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -114,8 +115,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
@@ -728,7 +729,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               public void reset() {}
 
               private ByteString encodeProgress(double value) throws IOException {
-                ByteString.Output output = ByteString.newOutput();
+                ByteStringOutputStream output = new ByteStringOutputStream();
                 IterableCoder.of(DoubleCoder.of()).encode(Arrays.asList(value), output);
                 return output.toByteString();
               }
@@ -1514,7 +1515,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     // Encode window splits.
     if (windowedSplitResult != null
         && windowedSplitResult.getPrimaryInFullyProcessedWindowsRoot() != null) {
-      ByteString.Output primaryInOtherWindowsBytes = ByteString.newOutput();
+      ByteStringOutputStream primaryInOtherWindowsBytes = new ByteStringOutputStream();
       try {
         fullInputCoder.encode(
             windowedSplitResult.getPrimaryInFullyProcessedWindowsRoot(),
@@ -1531,7 +1532,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
     if (windowedSplitResult != null
         && windowedSplitResult.getResidualInUnprocessedWindowsRoot() != null) {
-      ByteString.Output bytesOut = ByteString.newOutput();
+      ByteStringOutputStream bytesOut = new ByteStringOutputStream();
       try {
         fullInputCoder.encode(windowedSplitResult.getResidualInUnprocessedWindowsRoot(), bytesOut);
       } catch (IOException e) {
@@ -1544,11 +1545,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .setElement(bytesOut.toByteString());
       // We don't want to change the output watermarks or set the checkpoint resume time since
       // that applies to the current window.
-      Map<String, org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp>
+      Map<String, org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Timestamp>
           outputWatermarkMapForUnprocessedWindows = new HashMap<>();
       if (!initialWatermark.equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-        org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp outputWatermark =
-            org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp.newBuilder()
+        org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Timestamp outputWatermark =
+            org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Timestamp.newBuilder()
                 .setSeconds(initialWatermark.getMillis() / 1000)
                 .setNanos((int) (initialWatermark.getMillis() % 1000) * 1000000)
                 .build();
@@ -1564,8 +1565,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .build());
     }
 
-    ByteString.Output primaryBytes = ByteString.newOutput();
-    ByteString.Output residualBytes = ByteString.newOutput();
+    ByteStringOutputStream primaryBytes = new ByteStringOutputStream();
+    ByteStringOutputStream residualBytes = new ByteStringOutputStream();
     // Encode element split from windowedSplitResult or from downstream element split. It's possible
     // that there is no element split.
     if (windowedSplitResult != null && windowedSplitResult.getResidualSplitRoot() != null) {
@@ -1588,11 +1589,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .setTransformId(pTransformId)
               .setInputId(mainInputId)
               .setElement(residualBytes.toByteString());
-      Map<String, org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp>
+      Map<String, org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Timestamp>
           outputWatermarkMap = new HashMap<>();
       if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-        org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp outputWatermark =
-            org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp.newBuilder()
+        org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Timestamp outputWatermark =
+            org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Timestamp.newBuilder()
                 .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
                 .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
                 .build();
