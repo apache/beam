@@ -65,6 +65,8 @@ EXPECTED_MAPPING = {
 
 
 class DistribOptimizationTest(unittest.TestCase):
+  #TODO(https://github.com/apache/beam/issues/23606) Fix and enable
+  @pytest.mark.sickbay_dataflow
   @pytest.mark.examples_postcommit
   def test_basics(self):
     test_pipeline = TestPipeline(is_integration_test=True)

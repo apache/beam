@@ -81,6 +81,8 @@ class GroupWithCoderTest(unittest.TestCase):
         '/'.join([self.temp_location, str(uuid.uuid4()), 'input.txt']),
         self.SAMPLE_RECORDS)
 
+  #TODO(https://github.com/apache/beam/issues/23608) Fix and enable
+  @pytest.mark.sickbay_dataflow
   def test_basics_with_type_check(self):
     # Run the workflow with pipeline_type_check option. This will make sure
     # the typehints associated with all transforms will have non-default values
