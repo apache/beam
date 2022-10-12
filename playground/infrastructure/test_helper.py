@@ -25,23 +25,29 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, \
     PRECOMPILED_OBJECT_TYPE_UNIT_TEST
 from grpc_client import GRPCClient
 from helper import find_examples, Example, _get_example, _get_name, get_tag, \
-    _validate, Tag, get_statuses, _sort_check_for_nested, \
+    _validate, Tag, get_statuses, _check_no_nested, \
     _update_example_status, get_supported_categories, _check_file, \
     _get_object_type, ExampleTag, validate_examples_for_duplicates_by_name, ValidationException, validate_example_fields
 
 
 def test_check_for_nested():
-    _sort_check_for_nested(["sub1", "sub2"])
+    _check_no_nested([])
+    _check_no_nested(["sub"])
+    _check_no_nested(["sub", "subsub"])
+    _check_no_nested(["sub1", "sub2"])
     with pytest.raises(ValueError, match="sub1/sub2 is a subdirectory of sub1"):
-        _sort_check_for_nested(["sub1", "sub1/sub2"])
+        _check_no_nested(["sub3", "sub1", "sub1/sub2"])
+    with pytest.raises(ValueError):
+        _check_no_nested([".", "sub"])
 
 
 @pytest.mark.parametrize(
     "is_valid", [True, False]
 )
+@mock.patch("helper._check_no_nested")
 @mock.patch("helper._check_file")
 @mock.patch("helper.os.walk")
-def test_find_examples(mock_os_walk, mock_check_file, is_valid):
+def test_find_examples(mock_os_walk, mock_check_file, mock_check_no_nested, is_valid):
     mock_os_walk.return_value = [
         ("/root/sub1", (), ("file.java",)),
         ("/root/sub2", (), ("file2.java",)),
@@ -59,6 +65,9 @@ def test_find_examples(mock_os_walk, mock_check_file, is_valid):
                     "an incorrect format"):
             find_examples("/root", ["sub1", "sub2"], [], sdk=sdk)
 
+    mock_check_no_nested.assert_called_once_with(
+        ["sub1", "sub2"]
+    )
     mock_os_walk.assert_has_calls([
         mock.call("/root/sub1"),
         mock.call("/root/sub2"),

@@ -22,6 +22,7 @@ import logging
 import os
 from collections import namedtuple
 from dataclasses import dataclass, fields
+from pathlib import PurePath
 from typing import List, Optional, Dict
 
 from tqdm.asyncio import tqdm
@@ -80,10 +81,12 @@ class ExampleTag:
     tag_as_dict: Dict[str, str]
     tag_as_string: str
 
-def _sort_check_for_nested(subdirs: List[str]):
-    subdirs.sort()
-    for dir1, dir2 in zip(subdirs[:], subdirs[1:]):
-        if dir2.startswith(dir1):
+def _check_no_nested(subdirs: List[str]):
+    sorted_subdirs = sorted(subdirs)
+    for dir1, dir2 in zip(sorted_subdirs, sorted_subdirs[1:]):
+        dir1 = PurePath(dir1)
+        dir2 = PurePath(dir2)
+        if dir1 in dir2.parents:
             raise ValueError(f"{dir2} is a subdirectory of {dir1}")
 
 def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[str],
@@ -118,7 +121,7 @@ def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[
     """
     has_error = False
     examples = []
-    _sort_check_for_nested(subdirs)
+    _check_no_nested(subdirs)
     for subdir in subdirs:
         subdir = os.path.join(root_dir, subdir)
         logging.info("subdir: %s", subdir)
