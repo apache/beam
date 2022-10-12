@@ -788,7 +788,7 @@ public class StateSpecs {
 
     @Override
     public <ResultT> ResultT match(Cases<ResultT> cases) {
-      return cases.dispatchMap(keyCoder, valueCoder);
+      return cases.dispatchMultimap(keyCoder, valueCoder);
     }
 
     @SuppressWarnings("unchecked")
