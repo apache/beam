@@ -1038,7 +1038,7 @@ limitations under the License.
 &lt;blockquote>
 &lt;p>&lt;strong>IMPORTANT!&lt;/strong> Previous implementation of Hadoop Input Format IO, called &lt;code>HadoopInputFormatIO&lt;/code>, is deprecated starting from &lt;em>Apache Beam 2.10&lt;/em>. Please, use current &lt;code>HadoopFormatIO&lt;/code> which supports both &lt;code>InputFormat&lt;/code> and &lt;code>OutputFormat&lt;/code>.&lt;/p>
 &lt;/blockquote>
-&lt;p>A &lt;code>HadoopFormatIO&lt;/code> is a transform for reading data from any source or writing data to any sink that implements Hadoop&amp;rsquo;s &lt;code>InputFormat&lt;/code> or &lt;code>OurputFormat&lt;/code> accordingly. For example, Cassandra, Elasticsearch, HBase, Redis, Postgres, etc.&lt;/p>
+&lt;p>A &lt;code>HadoopFormatIO&lt;/code> is a transform for reading data from any source or writing data to any sink that implements Hadoop&amp;rsquo;s &lt;code>InputFormat&lt;/code> or &lt;code>OutputFormat&lt;/code> accordingly. For example, Cassandra, Elasticsearch, HBase, Redis, Postgres, etc.&lt;/p>
 &lt;p>&lt;code>HadoopFormatIO&lt;/code> allows you to connect to many data sources/sinks that do not yet have a Beam IO transform. However, &lt;code>HadoopFormatIO&lt;/code> has to make several performance trade-offs in connecting to &lt;code>InputFormat&lt;/code> or &lt;code>OutputFormat&lt;/code>. So, if there is another Beam IO transform for connecting specifically to your data source/sink of choice, we recommend you use that one.&lt;/p>
 &lt;h3 id="reading-using-hadoopformatio">Reading using HadoopFormatIO&lt;/h3>
 &lt;p>You will need to pass a Hadoop &lt;code>Configuration&lt;/code> with parameters specifying how the read will occur. Many properties of the &lt;code>Configuration&lt;/code> are optional and some are required for certain &lt;code>InputFormat&lt;/code> classes, but the following properties must be set for all &lt;code>InputFormat&lt;/code> classes:&lt;/p>
@@ -1486,7 +1486,7 @@ There are scenarios when this may prove faster than accessing content through th
 &lt;li>&lt;code>mapreduce.job.outputformat.class&lt;/code> - The &lt;code>OutputFormat&lt;/code> class used to connect to your data sink of choice.&lt;/li>
 &lt;li>&lt;code>mapreduce.job.output.key.class&lt;/code> - The key class passed to the &lt;code>OutputFormat&lt;/code> in &lt;code>mapreduce.job.outputformat.class&lt;/code>.&lt;/li>
 &lt;li>&lt;code>mapreduce.job.output.value.class&lt;/code> - The value class passed to the &lt;code>OutputFormat&lt;/code> in &lt;code>mapreduce.job.outputformat.class&lt;/code>.&lt;/li>
-&lt;li>&lt;code>mapreduce.job.reduces&lt;/code> - Number of reduce tasks. Value is equal to number of write tasks which will be genarated. This property is not required for &lt;code>Write.PartitionedWriterBuilder#withoutPartitioning()&lt;/code> write.&lt;/li>
+&lt;li>&lt;code>mapreduce.job.reduces&lt;/code> - Number of reduce tasks. Value is equal to number of write tasks which will be generated. This property is not required for &lt;code>Write.PartitionedWriterBuilder#withoutPartitioning()&lt;/code> write.&lt;/li>
 &lt;li>&lt;code>mapreduce.job.partitioner.class&lt;/code> - Hadoop partitioner class which will be used for distributing of records among partitions. This property is not required for &lt;code>Write.PartitionedWriterBuilder#withoutPartitioning()&lt;/code> write.&lt;/li>
 &lt;/ul>
 &lt;p>&lt;em>Note&lt;/em>: All mentioned values have appropriate constants. E.g.: &lt;code>HadoopFormatIO.OUTPUT_FORMAT_CLASS_ATTR&lt;/code>.&lt;/p>
@@ -1647,7 +1647,7 @@ The destination table should exist beforehand as the transform will not create a
 &lt;h3 id="using-older-versions-of-hcatalog-1x">Using older versions of HCatalog (1.x)&lt;/h3>
 &lt;p>&lt;code>HCatalogIO&lt;/code> is built for Apache HCatalog versions 2 and up and will not work out of the box for older versions of HCatalog.
 The following illustrates a workaround to work with Hive 1.1.&lt;/p>
-&lt;p>Include the following Hive 1.2 jars in the über jar you build.
+&lt;p>Include the following Hive 1.2 jars in the uber jar you build.
 The 1.2 jars provide the necessary methods for Beam while remain compatible with Hive 1.1.&lt;/p>
 &lt;pre>&lt;code>&amp;lt;dependency&amp;gt;
 &amp;lt;groupId&amp;gt;org.apache.beam&amp;lt;/groupId&amp;gt;
@@ -2489,7 +2489,7 @@ SnowflakeIO.&amp;lt;type&amp;gt;write()
 &lt;li>
 &lt;p>&lt;code>.withStorageIntegrationName()&lt;/code>&lt;/p>
 &lt;ul>
-&lt;li>Accepts a name of a Snowflake storage integration object created according to Snowflake documentationt.&lt;/li>
+&lt;li>Accepts a name of a Snowflake storage integration object created according to Snowflake documentation.&lt;/li>
 &lt;li>Example:
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
@@ -2619,14 +2619,14 @@ SnowflakeIO is not going to delete created CSV files from path under the “stag
 &lt;/ul>
 &lt;/li>
 &lt;/ul>
-&lt;p>&lt;strong>Important noticse&lt;/strong>:&lt;/p>
+&lt;p>&lt;strong>Important notice&lt;/strong>:&lt;/p>
 &lt;ol>
 &lt;li>Streaming accepts only &lt;strong>key pair authentication&lt;/strong>. For details, see: &lt;a href="https://github.com/apache/beam/issues/21287">Issue 21287&lt;/a>.&lt;/li>
 &lt;li>The role parameter configured in &lt;code>SnowflakeIO.DataSourceConfiguration&lt;/code> object is ignored for streaming writing. For details, see: &lt;a href="https://github.com/apache/beam/issues/21365">Issue 21365&lt;/a>&lt;/li>
 &lt;/ol>
 &lt;h4 id="flush-time-duration--number-of-rows">Flush time: duration &amp;amp; number of rows&lt;/h4>
 &lt;p>Duration: streaming write will write periodically files on stage according to time duration specified in flush time limit (for example. every 1 minute).&lt;/p>
-&lt;p>Number of rows: files staged for write will have number of rows specified in flush row limit unless the flush time limit will be reached (for example if the limit is 1000 rows and buffor collected 99 rows and the 1 minute flush time passes, the rows will be sent to SnowPipe for insertion).&lt;/p>
+&lt;p>Number of rows: files staged for write will have number of rows specified in flush row limit unless the flush time limit will be reached (for example if the limit is 1000 rows and buffer collected 99 rows and the 1-minute flush time passes, the rows will be sent to SnowPipe for insertion).&lt;/p>
 &lt;p>Size of staged files will depend on the rows size and used compression (GZIP).&lt;/p>
 &lt;h3 id="userdatamapper-function">UserDataMapper function&lt;/h3>
 &lt;p>The &lt;code>UserDataMapper&lt;/code> function is required to map data from a &lt;code>PCollection&lt;/code> to an array of String values before the &lt;code>write()&lt;/code> operation saves the data to temporary &lt;code>.csv&lt;/code> files. For example:
@@ -3494,7 +3494,7 @@ the output is no smaller than the input. Often, you will apply an operation such
 as summation, called a &lt;code>CombineFn&lt;/code>, in which the output is significantly smaller
 than the input. In this case the aggregation is called &lt;code>CombinePerKey&lt;/code>.&lt;/p>
 &lt;p>In a real application, you might have millions of keys and/or windows; that is
-why this is still an &amp;ldquo;embarassingly parallel&amp;rdquo; computational pattern. In those
+why this is still an &amp;ldquo;embarrassingly parallel&amp;rdquo; computational pattern. In those
 cases where you have fewer keys, you can add parallelism by adding a
 supplementary key, splitting each of your problem&amp;rsquo;s natural keys into many
 sub-keys. After these sub-keys are aggregated, the results can be further
@@ -3807,7 +3807,7 @@ directory and give it additional resources.&lt;/p>
 &lt;li>&lt;a href="/blog/splittable-do-fn-is-available/">Splittable DoFn in Apache Beam is Ready to Use&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h3 id="whats-next">What&amp;rsquo;s next&lt;/h3>
-&lt;p>Take a look at our &lt;a href="/documentation/">other documention&lt;/a> such as the Beam
+&lt;p>Take a look at our &lt;a href="/documentation/">other documentation&lt;/a> such as the Beam
 programming guide, pipeline execution information, and transform reference
 catalogs.&lt;/p></description></item><item><title>Documentation: Beam glossary</title><link>/documentation/glossary/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/glossary/</guid><description>
 &lt;!--
@@ -4492,7 +4492,7 @@ The following example shows how to add &lt;code>input&lt;/code> and &lt;code>out
 &lt;/div>
 &lt;p>You can also specify a description, which appears when a user passes &lt;code>--help&lt;/code> as
 a command-line argument, and a default value.&lt;/p>
-&lt;p class="language-java language-py langauge-go">You set the description and default value using annotations, as follows:&lt;/p>
+&lt;p class="language-java language-py language-go">You set the description and default value using annotations, as follows:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6680,7 +6680,7 @@ is a Beam transform for &lt;code>PCollection&lt;/code> objects that store the sa
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="c1">// Flatten takem an array of PCollection objects, wrapped in beam.P(...)
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="c1">// Flatten taken an array of PCollection objects, wrapped in beam.P(...)
 &lt;/span>&lt;span class="c1">// Returns a single PCollection that contains a union of all of the elements in all input PCollections.
 &lt;/span>&lt;span class="c1">&lt;/span>
 &lt;span class="kr">const&lt;/span> &lt;span class="nx">fib&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
@@ -6856,7 +6856,7 @@ contain closures, it is not sufficient to register &lt;code>func&lt;/code> alone
 value must be registered if used.&lt;/span>&lt;/p>
 &lt;p>Some other serializability factors you should keep in mind are:&lt;/p>
 &lt;ul>
-&lt;li>&lt;span class="language-java language-py">Transient&lt;/span>&lt;span class="langauage-go">Unexported&lt;/span>
+&lt;li>&lt;span class="language-java language-py">Transient&lt;/span>&lt;span class="language-go">Unexported&lt;/span>
 fields in your function object are &lt;em>not&lt;/em> transmitted to worker
 instances, because they are not automatically serialized.&lt;/li>
 &lt;li>Avoid loading a field with a large amount of data before serialization.&lt;/li>
@@ -8160,7 +8160,7 @@ infer the correct schema based on the members of the class.&lt;/p>
 Beam will automatically infer the schema based on the fields and field tags of the struct, and their order.&lt;/p>
 &lt;p class="language-typescript">In Typescript, JSON objects are used to represent schema&amp;rsquo;d data.
 Unfortunately type information in Typescript is not propagated to the runtime layer,
-so it needs to be manually specified in some places (e.g. when using cross-langauge pipelines).&lt;/p>
+so it needs to be manually specified in some places (e.g. when using cross-language pipelines).&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -8851,7 +8851,7 @@ schema encoding.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p class="language-go">Unexported fields are ignored, and cannot be automatically infered as part of the schema.
+&lt;p class="language-go">Unexported fields are ignored, and cannot be automatically inferred as part of the schema.
 Fields of type func, channel, unsafe.Pointer, or uintptr will be ignored by inference.
 Fields of interface types are ignored, unless a schema provider
 is registered for them.&lt;/p>
@@ -9424,7 +9424,7 @@ since there is a schema, you could apply the following DoFn:&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">appy&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">PurchasePojo&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">PurchasePojo&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">PurchasePojo&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">PurchasePojo&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="nd">@ProcessElement&lt;/span> &lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="nd">@Element&lt;/span> &lt;span class="n">PurchaseBean&lt;/span> &lt;span class="n">purchase&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="o">...&lt;/span>
 &lt;span class="o">}&lt;/span>
@@ -9709,7 +9709,7 @@ to get the &lt;code>CoderRegistry&lt;/code> object, and then use the method
 &lt;span class="language-py">&lt;code>CoderRegistry.register_coder&lt;/code>&lt;/span>
 to register a new &lt;code>Coder&lt;/code> for the target type.&lt;/p>
 &lt;p class="language-go">To set the default Coder for a Go type you use the function &lt;code>beam.RegisterCoder&lt;/code> to register a encoder and decoder functions for the target type.
-However, built in types like &lt;code>int&lt;/code>, &lt;code>string&lt;/code>, &lt;code>float64&lt;/code>, etc cannot have their coders overridde.&lt;/p>
+However, built in types like &lt;code>int&lt;/code>, &lt;code>string&lt;/code>, &lt;code>float64&lt;/code>, etc cannot have their coders override.&lt;/p>
 &lt;p class="language-java language-py">The following example code demonstrates how to set a default Coder, in this case
 &lt;code>BigEndianIntegerCoder&lt;/code>, for
 &lt;span class="language-java">Integer&lt;/span>&lt;span class="language-py">int&lt;/span>
@@ -10526,7 +10526,7 @@ arrive.&lt;/li>
 &lt;p>The following diagram shows data events for key X as they arrive in the
 PCollection and are assigned to windows. To keep the diagram a bit simpler,
 we&amp;rsquo;ll assume that the events all arrive in the pipeline in order.&lt;/p>
-&lt;p>&lt;img src="/images/trigger-accumulation.png" alt="Diagram of data events for acculumating mode example">&lt;/p>
+&lt;p>&lt;img src="/images/trigger-accumulation.png" alt="Diagram of data events for accumulating mode example">&lt;/p>
 &lt;h5 id="accumulating-mode">9.4.1.1. Accumulating mode&lt;/h5>
 &lt;p>If our trigger is set to accumulating mode, the trigger emits the following
 values each time it fires. Keep in mind that the trigger fires every time three
@@ -11001,7 +11001,7 @@ to other nodes in the graph. A &lt;code>DoFn&lt;/code> can declare multiple stat
 &lt;span class="language-typescript">
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> The Beam SDK for Typescript does not yet support a State and Timer API,
-but it is possible to use these features from cross-langauge pipelines (see below).&lt;/p>
+but it is possible to use these features from cross-language pipelines (see below).&lt;/p>
 &lt;/blockquote>
 &lt;/span>
 &lt;h3 id="types-of-state">11.1. Types of state&lt;/h3>
@@ -11067,49 +11067,52 @@ accumulates the number of elements seen.&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;div class='language-typscript snippet'>
+&lt;div class='language-typescript snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-typscript" data-lang="typscript">const pcoll = root.apply(
-beam.create([
-{ key: &amp;#34;a&amp;#34;, value: 1 },
-{ key: &amp;#34;b&amp;#34;, value: 10 },
-{ key: &amp;#34;a&amp;#34;, value: 100 },
-])
-);
-const result: PCollection&amp;lt;number&amp;gt; = await pcoll
-.apply(
-withCoderInternal(
-new KVCoder(new StrUtf8Coder(), new VarIntCoder())
-)
-)
-.applyAsync(
-pythonTransform(
-// Construct a new Transform from source.
-&amp;#34;__constructor__&amp;#34;,
-[
-pythonCallable(`
-# Define a DoFn to be used below.
-class ReadModifyWriteStateDoFn(beam.DoFn):
-STATE_SPEC = beam.transforms.userstate.ReadModifyWriteStateSpec(
-&amp;#39;num_elements&amp;#39;, beam.coders.VarIntCoder())
-def process(self, element, state=beam.DoFn.StateParam(STATE_SPEC)):
-current_value = state.read() or 0
-state.write(current_value + 1)
-yield current_value + 1
-class MyPythonTransform(beam.PTransform):
-def expand(self, pcoll):
-return pcoll | beam.ParDo(ReadModifyWriteStateDoFn())
-`),
-],
-// Keyword arguments to pass to the transform, if any.
-{},
-// Output type if it cannot be inferred
-{ requestedOutputCoders: { output: new VarIntCoder() } }
-)
-);&lt;/code>&lt;/pre>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">([&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">key&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;a&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">value&lt;/span>: &lt;span class="kt">1&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">key&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;b&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">value&lt;/span>: &lt;span class="kt">10&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">key&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;a&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">value&lt;/span>: &lt;span class="kt">100&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">])&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">result&lt;/span>: &lt;span class="kt">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">number&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">await&lt;/span> &lt;span class="nx">pcoll&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">withCoderInternal&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="nx">KVCoder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="nx">StrUtf8Coder&lt;/span>&lt;span class="p">(),&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="nx">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">applyAsync&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">pythonTransform&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="c1">// Construct a new Transform from source.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="s2">&amp;#34;__constructor__&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">[&lt;/span>
+&lt;span class="nx">pythonCallable&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sb">`
+&lt;/span>&lt;span class="sb"> # Define a DoFn to be used below.
+&lt;/span>&lt;span class="sb"> class ReadModifyWriteStateDoFn(beam.DoFn):
+&lt;/span>&lt;span class="sb"> STATE_SPEC = beam.transforms.userstate.ReadModifyWriteStateSpec(
+&lt;/span>&lt;span class="sb"> &amp;#39;num_elements&amp;#39;, beam.coders.VarIntCoder())
+&lt;/span>&lt;span class="sb">
+&lt;/span>&lt;span class="sb"> def process(self, element, state=beam.DoFn.StateParam(STATE_SPEC)):
+&lt;/span>&lt;span class="sb"> current_value = state.read() or 0
+&lt;/span>&lt;span class="sb"> state.write(current_value + 1)
+&lt;/span>&lt;span class="sb"> yield current_value + 1
+&lt;/span>&lt;span class="sb">
+&lt;/span>&lt;span class="sb"> class MyPythonTransform(beam.PTransform):
+&lt;/span>&lt;span class="sb"> def expand(self, pcoll):
+&lt;/span>&lt;span class="sb"> return pcoll | beam.ParDo(ReadModifyWriteStateDoFn())
+&lt;/span>&lt;span class="sb"> `&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">],&lt;/span>
+&lt;span class="c1">// Keyword arguments to pass to the transform, if any.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="p">{},&lt;/span>
+&lt;span class="c1">// Output type if it cannot be inferred
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">requestedOutputCoders&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">output&lt;/span>: &lt;span class="kt">new&lt;/span> &lt;span class="nx">VarIntCoder&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">}&lt;/span> &lt;span class="p">}&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="combiningstate">CombiningState&lt;/h4>
@@ -13216,7 +13219,7 @@ pythonTransform(
 { requestedOutputCoders: { output: new VarIntCoder() } }
 )
 );
-&lt;/code>&lt;/pre>&lt;p>Cross-langauge transforms can also be defined in line, which can be useful
+&lt;/code>&lt;/pre>&lt;p>Cross-language transforms can also be defined in line, which can be useful
 for accessing features or libraries not available in the calling SDK&lt;/p>
 &lt;pre>&lt;code>
 const result: PCollection&amp;lt;string&amp;gt; = await pcoll
@@ -16130,7 +16133,7 @@ TimestampedValue.of(&amp;quot;{\&amp;quot;user\&amp;quot;:\&amp;quot;user-2\&amp
 user=user-1, score=18, window=[2019-05-26T13:28:48.582Z..2019-05-26T13:29:12.774Z)
 user=user-2, score=10, window=[2019-05-26T13:29:03.367Z..2019-05-26T13:29:13.367Z)
 &lt;/code>&lt;/pre>&lt;p>User #1 sees two events separated by 12 seconds. With standard sessions, the gap defaults to 10 seconds; both scores are in different sessions, so the scores aren&amp;rsquo;t added.&lt;/p>
-&lt;p>User #2 sees four events, seperated by two, seven, and three seconds, respectively. Since none of the gaps are greater than the default, the four events are in the same standard session and added together (18 points).&lt;/p>
+&lt;p>User #2 sees four events, separated by two, seven, and three seconds, respectively. Since none of the gaps are greater than the default, the four events are in the same standard session and added together (18 points).&lt;/p>
 &lt;h4 id="dynamic-sessions">Dynamic sessions&lt;/h4>
 &lt;p>The dynamic sessions specify a five-second gap, so they use the following windows and scores:&lt;/p>
 &lt;pre>&lt;code>user=user-2, score=4, window=[2019-05-26T14:30:22.969Z..2019-05-26T14:30:32.969Z)
@@ -18150,7 +18153,7 @@ Avro &lt;code>GenericRecord&lt;/code> into your custom type, or use &lt;code>rea
 them into JSON &lt;code>TableRow&lt;/code> objects.&lt;/p>
 &lt;!-- Python specific -->
 &lt;p class="language-py">To read from a BigQuery table using the Beam SDK for Python, apply a &lt;code>ReadFromBigQuery&lt;/code>
-transfrom. &lt;code>ReadFromBigQuery&lt;/code> returns a &lt;code>PCollection&lt;/code> of dictionaries,
+transform. &lt;code>ReadFromBigQuery&lt;/code> returns a &lt;code>PCollection&lt;/code> of dictionaries,
 where each element in the &lt;code>PCollection&lt;/code> represents a single row in the table.
 Integer values in the &lt;code>TableRow&lt;/code> objects are encoded as strings to match
 BigQuery&amp;rsquo;s exported JSON format.&lt;/p>

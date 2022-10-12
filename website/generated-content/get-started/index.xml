@@ -789,7 +789,7 @@ late results.&lt;/em>&lt;/p>
 &lt;span class="k">return&lt;/span> &lt;span class="n">filtered&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>The abuse-detection transform generates a view of users supected to be spambots. Later in the pipeline, we use that view to filter out any such users when we calculate the team score per hour, again by using the side input mechanism. The following code example shows where we insert the spam filter, between windowing the scores into fixed windows and extracting the team scores:&lt;/p>
+&lt;p>The abuse-detection transform generates a view of users suspected to be spambots. Later in the pipeline, we use that view to filter out any such users when we calculate the team score per hour, again by using the side input mechanism. The following code example shows where we insert the spam filter, between windowing the scores into fixed windows and extracting the team scores:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -2558,7 +2558,7 @@ test and can make the &lt;code>ParDo&lt;/code> code more readable.&lt;/p>
 &lt;p class="language-go">When using &lt;code>ParDo&lt;/code> transforms, you need to specify the processing operation that
 gets applied to each element in the input &lt;code>PCollection&lt;/code>. This processing
 operation is either a named function or a struct with specially-named methods. You
-can use anomynous functions (but not closures). However, it&amp;rsquo;s often a good
+can use anonymous functions (but not closures). However, it&amp;rsquo;s often a good
 idea to define the &lt;code>DoFn&lt;/code> at the global level, which makes it easier to unit
 test and can make the &lt;code>ParDo&lt;/code> code more readable.&lt;/p>
 &lt;div class='language-java snippet'>

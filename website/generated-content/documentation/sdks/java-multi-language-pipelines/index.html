@@ -100,7 +100,7 @@ before running your pipeline.</p><p>Here we&rsquo;ve provided commands for runni
 Gradle on a <a href=https://github.com/apache/beam>Beam HEAD Git clone</a>.
 If you need a more stable environment, please
 <a href=/get-started/quickstart-java/>setup a Java project</a> that uses the latest
-releaesed Beam version and include the necessary dependencies.</p><h3 id=run-with-dataflow-runner>Run with Dataflow runner</h3><p>The following script runs the example multi-language pipeline on Dataflow, using
+released Beam version and include the necessary dependencies.</p><h3 id=run-with-dataflow-runner>Run with Dataflow runner</h3><p>The following script runs the example multi-language pipeline on Dataflow, using
 example text from a Cloud Storage bucket. You’ll need to adapt the script to
 your environment.</p><pre><code>export OUTPUT_BUCKET=&lt;bucket&gt;
 export GCP_REGION=&lt;region&gt;
@@ -130,7 +130,7 @@ export PYTHON_VERSION=&lt;version&gt;
 --output=$OUTPUT_FILE&quot;
 </code></pre><blockquote><p><strong>Note</strong> This output gets written to the local file system of a Python Docker
 container. To verify the output by writing to GCS, you need to specify a
-publicly acessible
+publicly accessible
 GCS path for the <code>output</code> option since portable DirectRunner is currently
 unable to correctly forward local credentials for accessing GCS.</p></blockquote><h2 id=advanced-start-an-expansion-service>Advanced: Start an expansion service</h2><p>When building a job for a multi-language pipeline, Beam uses an
 <a href=/documentation/glossary/#expansion-service>expansion service</a> to expand

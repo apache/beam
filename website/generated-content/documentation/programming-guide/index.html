@@ -148,7 +148,7 @@ setter methods for each option.</p>The following example shows how to add <code>
 </span><span class=c1></span>
 <span class=c1>// Use options.input and options.output during pipeline construction.
 </span></code></pre></div></div></div><p>You can also specify a description, which appears when a user passes <code>--help</code> as
-a command-line argument, and a default value.</p><p class="language-java language-py langauge-go">You set the description and default value using annotations, as follows:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>public</span> <span class=kd>interface</span> <span class=nc>MyOptions</span> <span class=kd>extends</span> <span class=n>PipelineOptions</span> <span class=o>{</span>
+a command-line argument, and a default value.</p><p class="language-java language-py language-go">You set the description and default value using annotations, as follows:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>public</span> <span class=kd>interface</span> <span class=nc>MyOptions</span> <span class=kd>extends</span> <span class=n>PipelineOptions</span> <span class=o>{</span>
     <span class=nd>@Description</span><span class=o>(</span><span class=s>&#34;Input for the pipeline&#34;</span><span class=o>)</span>
     <span class=nd>@Default.String</span><span class=o>(</span><span class=s>&#34;gs://my-bucket/input&#34;</span><span class=o>)</span>
     <span class=n>String</span> <span class=nf>getInput</span><span class=o>();</span>
@@ -1475,7 +1475,7 @@ is a Beam transform for <code>PCollection</code> objects that store the same dat
     <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Flatten</span><span class=p>())</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// Flatten accepts any number of PCollections of the same element type.
 </span><span class=c1>// Returns a single PCollection that contains all of the elements in input PCollections.
 </span><span class=c1></span>
-<span class=nx>merged</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>Flatten</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>pcol1</span><span class=p>,</span> <span class=nx>pcol2</span><span class=p>,</span> <span class=nx>pcol3</span><span class=p>)</span></code></pre></div></div></div><div class="language-typescript snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-typescript data-lang=typescript><span class=c1>// Flatten takem an array of PCollection objects, wrapped in beam.P(...)
+<span class=nx>merged</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>Flatten</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>pcol1</span><span class=p>,</span> <span class=nx>pcol2</span><span class=p>,</span> <span class=nx>pcol3</span><span class=p>)</span></code></pre></div></div></div><div class="language-typescript snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-typescript data-lang=typescript><span class=c1>// Flatten taken an array of PCollection objects, wrapped in beam.P(...)
 </span><span class=c1>// Returns a single PCollection that contains a union of all of the elements in all input PCollections.
 </span><span class=c1></span>
 <span class=kr>const</span> <span class=nx>fib</span> <span class=o>=</span> <span class=nx>root</span><span class=p>.</span><span class=nx>apply</span><span class=p>(</span>
@@ -1593,7 +1593,7 @@ One can alternatively call
 to <a href=https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/serialization.ts>register a function directly</a> by name which can be less error-prone.
 Note that if, as is often the case in Javascript, <code>func</code> returns objects that
 contain closures, it is not sufficient to register <code>func</code> alone&ndash;its return
-value must be registered if used.</span></p><p>Some other serializability factors you should keep in mind are:</p><ul><li><span class="language-java language-py">Transient</span><span class=langauage-go>Unexported</span>
+value must be registered if used.</span></p><p>Some other serializability factors you should keep in mind are:</p><ul><li><span class="language-java language-py">Transient</span><span class=language-go>Unexported</span>
 fields in your function object are <em>not</em> transmitted to worker
 instances, because they are not automatically serialized.</li><li>Avoid loading a field with a large amount of data before serialization.</li><li>Individual instances of your function object cannot share data.</li><li>Mutating a function object after it gets applied will have no effect.</li></ul><span class=language-java><blockquote><p><strong>Note:</strong> Take care when declaring your function object inline by using an anonymous
 inner class instance. In a non-static context, your inner class instance will
@@ -2348,7 +2348,7 @@ having Beam understand their element schemas.</p><p class=language-java>In Java 
 infer the correct schema based on the members of the class.</p><p class=language-py>In Python you can use the following set of classes to represent the purchase schema. Beam will automatically infer the correct schema based on the members of the class.</p><p class=language-go>In Go, schema encoding is used by default for struct types, with Exported fields becoming part of the schema.
 Beam will automatically infer the schema based on the fields and field tags of the struct, and their order.</p><p class=language-typescript>In Typescript, JSON objects are used to represent schema&rsquo;d data.
 Unfortunately type information in Typescript is not propagated to the runtime layer,
-so it needs to be manually specified in some places (e.g. when using cross-langauge pipelines).</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=nd>@DefaultSchema</span><span class=o>(</span><span class=n>JavaBeanSchema</span><span class=o>.</span><span class=na>class</span><span class=o>)</span>
+so it needs to be manually specified in some places (e.g. when using cross-language pipelines).</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=nd>@DefaultSchema</span><span class=o>(</span><span class=n>JavaBeanSchema</span><span class=o>.</span><span class=na>class</span><span class=o>)</span>
 <span class=kd>public</span> <span class=kd>class</span> <span class=nc>Purchase</span> <span class=o>{</span>
   <span class=kd>public</span> <span class=n>String</span> <span class=nf>getUserId</span><span class=o>();</span>  <span class=c1>// Returns the id of the user who made the purchase.
 </span><span class=c1></span>  <span class=kd>public</span> <span class=kt>long</span> <span class=nf>getItemId</span><span class=o>();</span>  <span class=c1>// Returns the identifier of the item that was purchased.
@@ -2726,7 +2726,7 @@ schema encoding.</p><div class="language-go snippet"><div class="notebook-skip c
   <span class=nx>PurchaseAmount</span> <span class=kt>float64</span>
 
   <span class=nx>checksum</span> <span class=p>[]</span><span class=kt>byte</span> <span class=c1>// ignored
-</span><span class=c1></span><span class=p>}</span></code></pre></div></div></div><p class=language-go>Unexported fields are ignored, and cannot be automatically infered as part of the schema.
+</span><span class=c1></span><span class=p>}</span></code></pre></div></div></div><p class=language-go>Unexported fields are ignored, and cannot be automatically inferred as part of the schema.
 Fields of type func, channel, unsafe.Pointer, or uintptr will be ignored by inference.
 Fields of interface types are ignored, unless a schema provider
 is registered for them.</p><p class=language-go>By default, schema field names will match the exported struct field names.
@@ -2830,7 +2830,7 @@ pipeline will fail to launch.</p><h4 id=663-schemas-in-pardo>6.6.3. Schemas in P
 of schemas when applying a <code>ParDo</code>, which enables additional functionality.</p><h5 id=input-conversion><strong>Input conversion</strong></h5><p class=language-go>Beam does not yet support input conversion in Go.</p><p>Since Beam knows the schema of the source <code>PCollection</code>, it can automatically convert the elements to any Java type for
 which a matching schema is known. For example, using the above-mentioned Transaction schema, say we have the following
 <code>PCollection</code>:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>PurchasePojo</span><span class=o>&gt;</span> <span class=n>purchases</span> <span class=o>=</span> <span class=n>readPurchases</span><span class=o>();</span></code></pre></div></div></div><p>If there were no schema, then the applied <code>DoFn</code> would have to accept an element of type <code>TransactionPojo</code>. However
-since there is a schema, you could apply the following DoFn:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>purchases</span><span class=o>.</span><span class=na>appy</span><span class=o>(</span><span class=n>ParDo</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=k>new</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>PurchasePojo</span><span class=o>,</span> <span class=n>PurchasePojo</span><span class=o>&gt;()</span> <span class=o>{</span>
+since there is a schema, you could apply the following DoFn:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>purchases</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>ParDo</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=k>new</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>PurchasePojo</span><span class=o>,</span> <span class=n>PurchasePojo</span><span class=o>&gt;()</span> <span class=o>{</span>
   <span class=nd>@ProcessElement</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>process</span><span class=o>(</span><span class=nd>@Element</span> <span class=n>PurchaseBean</span> <span class=n>purchase</span><span class=o>)</span> <span class=o>{</span>
       <span class=o>...</span>
   <span class=o>}</span>
@@ -2942,7 +2942,7 @@ to get the <code>CoderRegistry</code> object, and then use the method
 <span class=language-java><code>CoderRegistry.registerCoder</code></span>
 <span class=language-py><code>CoderRegistry.register_coder</code></span>
 to register a new <code>Coder</code> for the target type.</p><p class=language-go>To set the default Coder for a Go type you use the function <code>beam.RegisterCoder</code> to register a encoder and decoder functions for the target type.
-However, built in types like <code>int</code>, <code>string</code>, <code>float64</code>, etc cannot have their coders overridde.</p><p class="language-java language-py">The following example code demonstrates how to set a default Coder, in this case
+However, built in types like <code>int</code>, <code>string</code>, <code>float64</code>, etc cannot have their coders override.</p><p class="language-java language-py">The following example code demonstrates how to set a default Coder, in this case
 <code>BigEndianIntegerCoder</code>, for
 <span class=language-java>Integer</span><span class=language-py>int</span>
 values for a pipeline.</p><p class=language-go>The following example code demonstrates how to set a custom Coder for <code>MyCustomType</code> elements.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PipelineOptions</span> <span class=n>options</span> <span class=o>=</span> <span class=n>PipelineOptionsFactory</span><span class=o>.</span><span class=na>create</span><span class=o>();</span>
@@ -3345,7 +3345,7 @@ value of the average in a UI more frequently than every ten minutes. We&rsquo;ll
 assume the following conditions:</p><ul><li>The <code>PCollection</code> uses 10-minute fixed-time windows.</li><li>The <code>PCollection</code> has a repeating trigger that fires every time 3 elements
 arrive.</li></ul><p>The following diagram shows data events for key X as they arrive in the
 PCollection and are assigned to windows. To keep the diagram a bit simpler,
-we&rsquo;ll assume that the events all arrive in the pipeline in order.</p><p><img src=/images/trigger-accumulation.png alt="Diagram of data events for acculumating mode example"></p><h5 id=accumulating-mode>9.4.1.1. Accumulating mode</h5><p>If our trigger is set to accumulating mode, the trigger emits the following
+we&rsquo;ll assume that the events all arrive in the pipeline in order.</p><p><img src=/images/trigger-accumulation.png alt="Diagram of data events for accumulating mode example"></p><h5 id=accumulating-mode>9.4.1.1. Accumulating mode</h5><p>If our trigger is set to accumulating mode, the trigger emits the following
 values each time it fires. Keep in mind that the trigger fires every time three
 elements arrive:</p><pre><code>  First trigger firing:  [5, 8, 3]
   Second trigger firing: [5, 8, 3, 15, 19, 23]
@@ -3605,7 +3605,7 @@ state must be named using the <code>StateId</code> annotation; this name is uniq
 to other nodes in the graph. A <code>DoFn</code> can declare multiple state variables.</p><p class=language-py>In Python, DoFn declares states to be accessed by creating <code>StateSpec</code> class member variables representing each state. Each
 <code>StateSpec</code> is initialized with a name, this name is unique to a ParDo in the graph and has no relation
 to other nodes in the graph. A <code>DoFn</code> can declare multiple state variables.</p><span class=language-go><blockquote><p><strong>Note:</strong> The Beam SDK for Go does not yet support a State and Timer API. See <a href=https://github.com/apache/beam/issues/20510>Issue 20510</a> to contribute.</p></blockquote></span><span class=language-typescript><blockquote><p><strong>Note:</strong> The Beam SDK for Typescript does not yet support a State and Timer API,
-but it is possible to use these features from cross-langauge pipelines (see below).</p></blockquote></span><h3 id=types-of-state>11.1. Types of state</h3><p>Beam provides several types of state:</p><h4 id=valuestate>ValueState</h4><p>A ValueState is a scalar state value. For each key in the input, a ValueState will store a typed value that can be
+but it is possible to use these features from cross-language pipelines (see below).</p></blockquote></span><h3 id=types-of-state>11.1. Types of state</h3><p>Beam provides several types of state:</p><h4 id=valuestate>ValueState</h4><p>A ValueState is a scalar state value. For each key in the input, a ValueState will store a typed value that can be
 read and modified inside the DoFn&rsquo;s <code>@ProcessElement</code> or <code>@OnTimer</code> methods. If the type of the ValueState has a coder
 registered, then Beam will automatically infer the coder for the state value. Otherwise, a coder can be explicitly
 specified when creating the ValueState. For example, the following ParDo creates a single state variable that
@@ -3633,46 +3633,47 @@ accumulates the number of elements seen.</p><p>Note: <code>ValueState</code> is 
     <span class=n>state</span><span class=o>.</span><span class=n>write</span><span class=p>(</span><span class=n>current_value</span><span class=o>+</span><span class=mi>1</span><span class=p>)</span>
 
 <span class=n>_</span> <span class=o>=</span> <span class=p>(</span><span class=n>p</span> <span class=o>|</span> <span class=s1>&#39;Read per user&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>ReadPerUser</span><span class=p>()</span>
-       <span class=o>|</span> <span class=s1>&#39;state pardo&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>ReadModifyWriteStateDoFn</span><span class=p>()))</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=nx>This</span> <span class=nx>is</span> <span class=nx>not</span> <span class=nx>supported</span> <span class=nx>yet</span><span class=p>,</span> <span class=nx>see</span> <span class=nx>https</span><span class=p>:</span><span class=o>//</span><span class=nx>github</span><span class=p>.</span><span class=nx>com</span><span class=o>/</span><span class=nx>apache</span><span class=o>/</span><span class=nx>beam</span><span class=o>/</span><span class=nx>issues</span><span class=o>/</span><span class=mf>20510.</span></code></pre></div></div></div><div class="language-typscript snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code class=language-typscript data-lang=typscript>const pcoll = root.apply(
-  beam.create([
-    { key: &#34;a&#34;, value: 1 },
-    { key: &#34;b&#34;, value: 10 },
-    { key: &#34;a&#34;, value: 100 },
-  ])
-);
-const result: PCollection&lt;number&gt; = await pcoll
-  .apply(
-    withCoderInternal(
-      new KVCoder(new StrUtf8Coder(), new VarIntCoder())
-    )
-  )
-  .applyAsync(
-    pythonTransform(
-      // Construct a new Transform from source.
-      &#34;__constructor__&#34;,
-      [
-        pythonCallable(`
-        # Define a DoFn to be used below.
-        class ReadModifyWriteStateDoFn(beam.DoFn):
-          STATE_SPEC = beam.transforms.userstate.ReadModifyWriteStateSpec(
-              &#39;num_elements&#39;, beam.coders.VarIntCoder())
-
-          def process(self, element, state=beam.DoFn.StateParam(STATE_SPEC)):
-            current_value = state.read() or 0
-            state.write(current_value + 1)
-            yield current_value + 1
-
-        class MyPythonTransform(beam.PTransform):
-          def expand(self, pcoll):
-            return pcoll | beam.ParDo(ReadModifyWriteStateDoFn())
-      `),
-      ],
-      // Keyword arguments to pass to the transform, if any.
-      {},
-      // Output type if it cannot be inferred
-      { requestedOutputCoders: { output: new VarIntCoder() } }
-    )
-  );</code></pre></div></div><h4 id=combiningstate>CombiningState</h4><p><code>CombiningState</code> allows you to create a state object that is updated using a Beam combiner. For example, the previous
+       <span class=o>|</span> <span class=s1>&#39;state pardo&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>ReadModifyWriteStateDoFn</span><span class=p>()))</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=nx>This</span> <span class=nx>is</span> <span class=nx>not</span> <span class=nx>supported</span> <span class=nx>yet</span><span class=p>,</span> <span class=nx>see</span> <span class=nx>https</span><span class=p>:</span><span class=o>//</span><span class=nx>github</span><span class=p>.</span><span class=nx>com</span><span class=o>/</span><span class=nx>apache</span><span class=o>/</span><span class=nx>beam</span><span class=o>/</span><span class=nx>issues</span><span class=o>/</span><span class=mf>20510.</span></code></pre></div></div></div><div class="language-typescript snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-typescript data-lang=typescript><span class=kr>const</span> <span class=nx>pcoll</span> <span class=o>=</span> <span class=nx>root</span><span class=p>.</span><span class=nx>apply</span><span class=p>(</span>
+  <span class=nx>beam</span><span class=p>.</span><span class=nx>create</span><span class=p>([</span>
+    <span class=p>{</span> <span class=nx>key</span><span class=o>:</span> <span class=s2>&#34;a&#34;</span><span class=p>,</span> <span class=nx>value</span>: <span class=kt>1</span> <span class=p>},</span>
+    <span class=p>{</span> <span class=nx>key</span><span class=o>:</span> <span class=s2>&#34;b&#34;</span><span class=p>,</span> <span class=nx>value</span>: <span class=kt>10</span> <span class=p>},</span>
+    <span class=p>{</span> <span class=nx>key</span><span class=o>:</span> <span class=s2>&#34;a&#34;</span><span class=p>,</span> <span class=nx>value</span>: <span class=kt>100</span> <span class=p>},</span>
+  <span class=p>])</span>
+<span class=p>);</span>
+<span class=kr>const</span> <span class=nx>result</span>: <span class=kt>PCollection</span><span class=o>&lt;</span><span class=kt>number</span><span class=o>&gt;</span> <span class=o>=</span> <span class=nx>await</span> <span class=nx>pcoll</span>
+  <span class=p>.</span><span class=nx>apply</span><span class=p>(</span>
+    <span class=nx>withCoderInternal</span><span class=p>(</span>
+      <span class=k>new</span> <span class=nx>KVCoder</span><span class=p>(</span><span class=k>new</span> <span class=nx>StrUtf8Coder</span><span class=p>(),</span> <span class=k>new</span> <span class=nx>VarIntCoder</span><span class=p>())</span>
+    <span class=p>)</span>
+  <span class=p>)</span>
+  <span class=p>.</span><span class=nx>applyAsync</span><span class=p>(</span>
+    <span class=nx>pythonTransform</span><span class=p>(</span>
+      <span class=c1>// Construct a new Transform from source.
+</span><span class=c1></span>      <span class=s2>&#34;__constructor__&#34;</span><span class=p>,</span>
+      <span class=p>[</span>
+        <span class=nx>pythonCallable</span><span class=p>(</span><span class=sb>`
+</span><span class=sb>        # Define a DoFn to be used below.
+</span><span class=sb>        class ReadModifyWriteStateDoFn(beam.DoFn):
+</span><span class=sb>          STATE_SPEC = beam.transforms.userstate.ReadModifyWriteStateSpec(
+</span><span class=sb>              &#39;num_elements&#39;, beam.coders.VarIntCoder())
+</span><span class=sb>
+</span><span class=sb>          def process(self, element, state=beam.DoFn.StateParam(STATE_SPEC)):
+</span><span class=sb>            current_value = state.read() or 0
+</span><span class=sb>            state.write(current_value + 1)
+</span><span class=sb>            yield current_value + 1
+</span><span class=sb>
+</span><span class=sb>        class MyPythonTransform(beam.PTransform):
+</span><span class=sb>          def expand(self, pcoll):
+</span><span class=sb>            return pcoll | beam.ParDo(ReadModifyWriteStateDoFn())
+</span><span class=sb>      `</span><span class=p>),</span>
+      <span class=p>],</span>
+      <span class=c1>// Keyword arguments to pass to the transform, if any.
+</span><span class=c1></span>      <span class=p>{},</span>
+      <span class=c1>// Output type if it cannot be inferred
+</span><span class=c1></span>      <span class=p>{</span> <span class=nx>requestedOutputCoders</span><span class=o>:</span> <span class=p>{</span> <span class=nx>output</span>: <span class=kt>new</span> <span class=nx>VarIntCoder</span><span class=p>()</span> <span class=p>}</span> <span class=p>}</span>
+    <span class=p>)</span>
+  <span class=p>);</span>
+</code></pre></div></div></div><h4 id=combiningstate>CombiningState</h4><p><code>CombiningState</code> allows you to create a state object that is updated using a Beam combiner. For example, the previous
 <code>ValueState</code> example could be rewritten to use <code>CombiningState</code></p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;&gt;</span> <span class=n>perUser</span> <span class=o>=</span> <span class=n>readPerUser</span><span class=o>();</span>
 <span class=n>perUser</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>ParDo</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=k>new</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;,</span> <span class=n>OutputT</span><span class=o>&gt;()</span> <span class=o>{</span>
   <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>CombiningState</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>,</span> <span class=kt>int</span><span class=o>[],</span> <span class=n>Integer</span><span class=o>&gt;&gt;</span> <span class=n>numElements</span> <span class=o>=</span>
@@ -5007,7 +5008,7 @@ const result: PCollection&lt;number&gt; = await pcoll
     )
   );
 
-</code></pre><p>Cross-langauge transforms can also be defined in line, which can be useful
+</code></pre><p>Cross-language transforms can also be defined in line, which can be useful
 for accessing features or libraries not available in the calling SDK</p><pre><code>
 const result: PCollection&lt;string&gt; = await pcoll
   .apply(withCoderInternal(new StrUtf8Coder()))
