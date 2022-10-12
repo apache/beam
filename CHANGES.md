@@ -290,6 +290,7 @@
 * S3 implementation of the Beam filesystem (Go) ([#23991](https://github.com/apache/beam/issues/23991)).
 * Support for SingleStoreDB source and sink added (Java) ([#22617](https://github.com/apache/beam/issues/22617)).
 * Added support for DefaultAzureCredential authentication in Azure Filesystem (Python) ([#24210](https://github.com/apache/beam/issues/24210)).
+* Support for read from Cosmos DB Core SQL API [#23610](https://github.com/apache/beam/pull/23610)
 
 ## New Features / Improvements
 
