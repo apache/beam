@@ -38,6 +38,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/diagnostics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -101,10 +102,15 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 
 	client := fnpb.NewBeamFnControlClient(conn)
 
+	var bundleGetGroup singleflight.Group
 	lookupDesc := func(id bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error) {
-		pbd, err := client.GetProcessBundleDescriptor(ctx, &fnpb.GetProcessBundleDescriptorRequest{ProcessBundleDescriptorId: string(id)})
-		log.Debugf(ctx, "GPBD RESP [%v]: %v, err %v", id, pbd, err)
-		return pbd, err
+		pbd, err, _ := bundleGetGroup.Do(string(id), func() (any, error) {
+			return client.GetProcessBundleDescriptor(ctx, &fnpb.GetProcessBundleDescriptorRequest{ProcessBundleDescriptorId: string(id)})
+		})
+		if err != nil {
+			return nil, err
+		}
+		return pbd.(*fnpb.ProcessBundleDescriptor), nil
 	}
 
 	stub, err := client.Control(ctx)
