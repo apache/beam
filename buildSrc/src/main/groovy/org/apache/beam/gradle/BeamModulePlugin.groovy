@@ -499,6 +499,10 @@ class BeamModulePlugin implements Plugin<Project> {
     def arrow_version = "5.0.0"
     def jmh_version = "1.34"
 
+    // Export Spark versions, so they are defined in a single place only
+    project.ext.spark2_version = spark2_version
+    project.ext.spark3_version = spark3_version
+
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
     //   compile library.java.slf4j_api
