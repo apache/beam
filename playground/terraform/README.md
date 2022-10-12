@@ -57,29 +57,17 @@ After you created or identified an existing project for deployment, add or selec
 
 During the Operation system preparation steps, you will need to install Java, HELM, GIT, Docker, GCloud, Terraform, Kubernetes command line interface
 
-1. How to install Java:
-* [This link](https://adoptopenjdk.net/) will provide you will all necessary instructions for Windows and Linux operation systems
+* [Java](https://adoptopenjdk.net/)
 
-2. How to install Kubernetes Command Line Interface
-* [Linux link](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/) instructions for Linux operation systems
-* [Windows link](https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/) instructions for Windows operation systems
+* [Kubernetes Command Line Interface](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
 
-3. How to install HELM
-* [HELM link](https://helm.sh/docs/intro/install/) instructions for Windows and Linux operation systems
+* [HELM](https://helm.sh/docs/intro/install/)
 
-4. How to install GIT
-* [Git link](https://git-scm.com/download/win) instructions for Windows operation systems
-* [Git Link](https://git-scm.com/download/linux) instructions for Linux operation systems
+* [Docker](https://docs.docker.com/engine/install/)
 
-5. How to install Docker
-* [Docker link](https://docs.docker.com/engine/install/) instructions for Windows and Linux operation systems
+* [Terraform](https://www.terraform.io/downloads)
 
-6. How to install Terraform
-* [Terraform link](https://www.terraform.io/downloads)
-
-After installations of the required packages will be completed, you will need to download ***BEAM Playground*** from the repository. Please open the terminal and execute the following command:
-
-`git clone 'url_to_github_project_with_beam_playground'`
+After installations of the required packages will be completed, you will need to download ***BEAM Playground*** from the repository. 
 
 Once downloading is completed you will find the "beam" folder on your disk (you can execute the `ls -la` command for Linux, or the `dir` command for Windows). Open that folder
 
