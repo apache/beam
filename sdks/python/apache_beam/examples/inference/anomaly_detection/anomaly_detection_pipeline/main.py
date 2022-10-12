@@ -28,7 +28,7 @@ from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedT
 from apache_beam.ml.inference.sklearn_inference import ModelFileType
 from pipeline.options import get_pipeline_options
 from pipeline.transformations import CustomSklearnModelHandlerNumpy
-from pipeline.transformations import Decode
+from pipeline.transformations import DecodePubSubMessage
 from pipeline.transformations import DecodePrediction
 from pipeline.transformations import ModelWrapper
 from pipeline.transformations import NormalizeEmbedding
@@ -86,7 +86,7 @@ class PytorchNoBatchModelHandler(PytorchModelHandlerKeyedTensor):
 
 def run():
   """
-    Runs the pipeline.  The pipeline reads from PubSub, decodes the message,
+    Runs the interjector pipeline which reads from PubSub, decodes the message,
     tokenizes the text, gets the embedding, normalizes the embedding,
     does anomaly dectection using HDBSCAN trained model, and then
     writes to BQ, and sending an email alert if anomaly detected.
@@ -116,7 +116,7 @@ def run():
     docs = (
         pipeline | "Read from PubSub" >> ReadFromPubSub(
             subscription=cfg.SUBSCRIPTION_ID, with_attributes=True)
-        | "Decode PubSubMessage" >> beam.ParDo(Decode()))
+        | "Decode PubSubMessage" >> beam.ParDo(DecodePubSubMessage()))
     normalized_embedding = (
         docs | "Tokenize Text" >> beam.Map(tokenize_sentence)
         | "Get Embedding" >> RunInference(

@@ -60,7 +60,7 @@ def parse_arguments(argv):
 
 def run():
   """
-    Runs the pipeline. It loads the training data,
+    Runs the interjector pipeline which loads the training data,
     assigns an unique ID to each document, converts it to a PubSub message, and
     writes it to PubSub
     """
@@ -71,12 +71,12 @@ def run():
       project=args.project,
       mode=args.mode,
   )
-  train_categories = ["joy", "love", "fear"]
-  train_data, _ = get_dataset(train_categories)
+  test_categories = ["sadness", "anger", "surprise"]
+  test_data, _ = get_dataset(test_categories)
 
   with beam.Pipeline(options=pipeline_options) as pipeline:
     docs = (
-        pipeline | "Load Documents" >> beam.Create(train_data)
+        pipeline | "Load Documents" >> beam.Create(test_data)
         | "Assign unique key" >> beam.ParDo(AssignUniqueID()))
     _ = (
         docs

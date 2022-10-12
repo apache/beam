@@ -93,12 +93,12 @@ class ModelWrapper(DistilBertModel):
 
 # [START CustomSklearnModelHandlerNumpy]
 class CustomSklearnModelHandlerNumpy(SklearnModelHandlerNumpy):
-  # Can be removed once: https://github.com/apache/beam/issues/21863 is fixed
+  # limit batch size to 1 can be removed once: https://github.com/apache/beam/issues/21863 is fixed
   def batch_elements_kwargs(self):
     """Limit batch size to 1 for inference"""
     return {"max_batch_size": 1}
 
-  # Can be removed once: https://github.com/apache/beam/issues/22572 is fixed
+  # run_inference can be removed once: https://github.com/apache/beam/issues/22572 is fixed
   def run_inference(self, batch, model, inference_args=None):
     """Runs inferences on a batch of numpy arrays.
 
@@ -137,7 +137,7 @@ class NormalizeEmbedding(beam.DoFn):
     yield {"text": text, "id": uid, "embedding": embedding / l2_norm}
 
 
-class Decode(beam.DoFn):
+class DecodePubSubMessage(beam.DoFn):
   """A DoFn for decoding PubSub message into a dictionary."""
   def process(self, element, *args, **kwargs):
     """
@@ -180,8 +180,8 @@ class TriggerEmailAlert(beam.DoFn):
 
   def process(self, element):
     """
-        Takes a tuple of (text, id) and a prediction, and if the prediction is -1, it sends an email to
-        the specified address
+        Takes a tuple of (text, id) and a prediction, and if the prediction is -1,
+        it sends an email to the specified address
 
         Args:
           element: The element that is being processed.
