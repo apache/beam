@@ -276,7 +276,7 @@ public interface MyOptions extends PipelineOptions {
 You can also specify a description, which appears when a user passes `--help` as
 a command-line argument, and a default value.
 
-{{< paragraph class="language-java language-py langauge-go" >}}
+{{< paragraph class="language-java language-py language-go" >}}
 You set the description and default value using annotations, as follows:
 {{< /paragraph >}}
 
@@ -1840,7 +1840,7 @@ PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< /highlight >}}
 
 {{< highlight typescript >}}
-// Flatten takem an array of PCollection objects, wrapped in beam.P(...)
+// Flatten taken an array of PCollection objects, wrapped in beam.P(...)
 // Returns a single PCollection that contains a union of all of the elements in all input PCollections.
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" model_multiple_pcollections_flatten >}}
 {{< /highlight >}}
@@ -1995,7 +1995,7 @@ value must be registered if used.</span>
 
 Some other serializability factors you should keep in mind are:
 
-* <span class="language-java language-py">Transient</span><span class="langauage-go">Unexported</span>
+* <span class="language-java language-py">Transient</span><span class="language-go">Unexported</span>
   fields in your function object are *not* transmitted to worker
   instances, because they are not automatically serialized.
 * Avoid loading a field with a large amount of data before serialization.
@@ -3088,7 +3088,7 @@ Beam will automatically infer the schema based on the fields and field tags of t
 {{< paragraph class="language-typescript" >}}
 In Typescript, JSON objects are used to represent schema'd data.
 Unfortunately type information in Typescript is not propagated to the runtime layer,
-so it needs to be manually specified in some places (e.g. when using cross-langauge pipelines).
+so it needs to be manually specified in some places (e.g. when using cross-language pipelines).
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -3733,7 +3733,7 @@ type Transaction struct{
 {{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
-Unexported fields are ignored, and cannot be automatically infered as part of the schema.
+Unexported fields are ignored, and cannot be automatically inferred as part of the schema.
 Fields of type  func, channel, unsafe.Pointer, or uintptr will be ignored by inference.
 Fields of interface types are ignored, unless a schema provider
 is registered for them.
@@ -4308,7 +4308,7 @@ If there were no schema, then the applied `DoFn` would have to accept an element
 since there is a schema, you could apply the following DoFn:
 
 {{< highlight java >}}
-purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
+purchases.apply(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
   @ProcessElement public void process(@Element PurchaseBean purchase) {
       ...
   }
@@ -4649,7 +4649,7 @@ to register a new `Coder` for the target type.
 
 {{< paragraph class="language-go" >}}
 To set the default Coder for a Go type you use the function `beam.RegisterCoder` to register a encoder and decoder functions for the target type.
-However, built in types like `int`, `string`, `float64`, etc cannot have their coders overridde.
+However, built in types like `int`, `string`, `float64`, etc cannot have their coders override.
 {{< /paragraph >}}
 
 {{< paragraph class="language-java language-py" >}}
@@ -5416,7 +5416,7 @@ The following diagram shows data events for key X as they arrive in the
 PCollection and are assigned to windows. To keep the diagram a bit simpler,
 we'll assume that the events all arrive in the pipeline in order.
 
-![Diagram of data events for acculumating mode example](/images/trigger-accumulation.png)
+![Diagram of data events for accumulating mode example](/images/trigger-accumulation.png)
 
 ##### 9.4.1.1. Accumulating mode {#accumulating-mode}
 
@@ -5823,7 +5823,7 @@ to other nodes in the graph. A `DoFn` can declare multiple state variables.
 <span class="language-typescript">
 
 > **Note:** The Beam SDK for Typescript does not yet support a State and Timer API,
-but it is possible to use these features from cross-langauge pipelines (see below).
+but it is possible to use these features from cross-language pipelines (see below).
 
 </span>
 
@@ -5884,7 +5884,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
-{{< highlight typscript >}}
+{{< highlight typescript >}}
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" stateful_dofn >}}
 {{< /highlight >}}
 
@@ -7584,7 +7584,7 @@ that make it easier to invoke transforms from specific languages:
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" python_map >}}
 ```
 
-Cross-langauge transforms can also be defined in line, which can be useful
+Cross-language transforms can also be defined in line, which can be useful
 for accessing features or libraries not available in the calling SDK
 
 ```
