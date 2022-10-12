@@ -21,54 +21,21 @@
 ## Prerequisites:
 
 ### Before you will start with the installation steps, please read this carefully:
-1. [How to create a new project in Google Cloud Platform](https://cloud.google.com/resource-manager/docs/creating-managing-projects/) _(Note:How to create a new project in Google Cloud Platform. It's strongly recommended to use the new Google Cloud Project for your new projects)_
+1. [How to create a new project in Google Cloud Platform](https://cloud.google.com/resource-manager/docs/creating-managing-projects/) _(Note: How to create a new project in Google Cloud Platform. It's strongly recommended to use the new Google Cloud Project for your new projects)_
 
-2. How to create a new service account
-```
-https://cloud.google.com/iam/docs/creating-managing-service-accounts
-```
-**Description:** * *You will find the instruction "How to create Service account" for your new project* *
+2. [How to create a new service account](https://cloud.google.com/iam/docs/creating-managing-service-accounts) _(Note: You will find the instruction "How to create Service account" for your new project)_
 
-3. How to create a JSON key for a Google Service account:
-```
-https://cloud.google.com/iam/docs/creating-managing-service-account-keys
-```
-**Description:** * *In this instruction will be explained how to create a JSON key for your service account. it will be required for authentication.* *
+3. [How to create a JSON key for a Google Service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) _(Note: In this instruction will be explained how to create a JSON key for your service account. it will be required for authentication)_
 
-4. How to create a new bucket:
-```
-https://cloud.google.com/storage/docs/creating-buckets
-```
-**Description:** * *Short instruction for bucket creation. You will need at least one bucket for file keeping* *
+4. [How to create a new bucket](https://cloud.google.com/storage/docs/creating-buckets) _(Note: Short instruction for bucket creation. You will need at least one bucket for file keeping)_
 
-5. How to assign a new role for the service account:
-```
-https://cloud.google.com/iam/docs/granting-changing-revoking-access
-```
-**Description:** * *It will explain how to assign required roles for your service account* *
+5. [How to assign a new role for the service account](https://cloud.google.com/iam/docs/granting-changing-revoking-access) _(Note: It will explain how to assign required roles for your service account)_
 
-6. How to install gcloud CLI to your local environment
-```
-https://cloud.google.com/sdk/docs/install?hl=en
-```
-**Description:** * *GCloud - Google command line interface, which will allow you to interact with the Google cloud platform thru the command line (https://en.wikipedia.org/wiki/Command-line_interface)* *
+6. [How to install gcloud CLI to your local environment](https://cloud.google.com/sdk/docs/install?hl=en) _(Note: GCloud - Google command line interface, which will allow you to interact with the Google cloud platform thru the command line (https://en.wikipedia.org/wiki/Command-line_interface)_
 
-7. What are Google Cloud Platform APIs
-```
-https://cloud.google.com/apis
-```
-**Description:** * *Short description of all Google Platform APIs* *
+7. [What are Google Cloud Platform APIs](https://cloud.google.com/apis) _(Note: Short description of all Google Platform APIs)_
 
-8. Google Cloud Platform naming policy
-```
-https://cloud.google.com/compute/docs/naming-resources
-```
-**Description:** * *Describes the naming convention for Compute Engine resources.* *
-9. What is Docker
-```
-https://docs.docker.com/get-started/overview/
-```
-**Description:** * *What is Docker and how to use it* *
+8. [Google Cloud Platform naming policy](https://cloud.google.com/compute/docs/naming-resources) _(Note: Describes the naming convention for Compute Engine resources)_
 
 ***Google Cloud preparation steps:***
 After you created or identified an existing project for deployment, add or select a service account with a JSON key, and add or select state_bucket for storing the Terraform state data according to the instructions above:
