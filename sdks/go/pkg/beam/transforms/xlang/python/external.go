@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package xlang contains data structures required for python external transforms in a multilanguage pipeline.
-package xlang
+// Package python contains data structures required for python external transforms in a multilanguage pipeline.
+package python
 
 import (
 	"fmt"
@@ -31,16 +31,16 @@ const (
 )
 
 var (
-	pcsType        = reflect.TypeOf((*PythonCallableSource)(nil)).Elem()
+	pcsType        = reflect.TypeOf((*CallableSource)(nil)).Elem()
 	pcsStorageType = reflectx.String
 )
 
 func init() {
 	beam.RegisterType(pcsType)
-	beam.RegisterSchemaProviderWithURN(pcsType, &PythonCallableSourceProvider{}, pythonCallableUrn)
+	beam.RegisterSchemaProviderWithURN(pcsType, &CallableSourceProvider{}, pythonCallableUrn)
 }
 
-// PythonCallableSource is a wrapper object storing a Python function definition
+// CallableSource is a wrapper object storing a Python function definition
 // that can be evaluated to Python callables in Python SDK.
 //
 // The snippet of Python code can be a valid Python expression such as
@@ -64,13 +64,13 @@ func init() {
 //    def func(y):
 //        return helper(y) + y
 // in which case `func` would get applied to each element.
-type PythonCallableSource string
+type CallableSource string
 
-// PythonCallableSourceProvider implement the SchemaProvider interface for logical types
-type PythonCallableSourceProvider struct{}
+// CallableSourceProvider implement the SchemaProvider interface for logical types
+type CallableSourceProvider struct{}
 
 // FromLogicalType returns the goType of the logical type
-func (p *PythonCallableSourceProvider) FromLogicalType(rt reflect.Type) (reflect.Type, error) {
+func (p *CallableSourceProvider) FromLogicalType(rt reflect.Type) (reflect.Type, error) {
 	if rt != pcsType {
 		return nil, fmt.Errorf("unable to provide schema.LogicalType for type %v, want %v", rt, pcsType)
 	}
@@ -78,19 +78,19 @@ func (p *PythonCallableSourceProvider) FromLogicalType(rt reflect.Type) (reflect
 }
 
 // BuildEncoder encodes the PythonCallableSource logical type
-func (p *PythonCallableSourceProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+func (p *CallableSourceProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
 	if _, err := p.FromLogicalType(rt); err != nil {
 		return nil, err
 	}
 
 	return func(iface interface{}, w io.Writer) error {
-		v := iface.(PythonCallableSource)
+		v := iface.(CallableSource)
 		return coder.EncodeStringUTF8(string(v), w)
 	}, nil
 }
 
 // BuildDecoder decodes the PythonCallableSource logical type
-func (p *PythonCallableSourceProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
+func (p *CallableSourceProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
 	if _, err := p.FromLogicalType(rt); err != nil {
 		return nil, err
 	}
@@ -100,14 +100,14 @@ func (p *PythonCallableSourceProvider) BuildDecoder(rt reflect.Type) (func(io.Re
 		if err != nil {
 			return nil, err
 		}
-		return PythonCallableSource(s), nil
+		return CallableSource(s), nil
 	}, nil
 }
 
-// NewPythonExternalTransform creates a new instance of PythonExternalTransform. It accepts two types:
+// NewExternalTransform creates a new instance for python external transform. It accepts two types:
 // A: used for normal arguments
 // K: used for keyword arguments
-func NewPythonExternalTransform[A, K any](constructor string) *pythonExternalTransform[A, K] {
+func NewExternalTransform[A, K any](constructor string) *pythonExternalTransform[A, K] {
 	return &pythonExternalTransform[A, K]{Constructor: constructor}
 }
 

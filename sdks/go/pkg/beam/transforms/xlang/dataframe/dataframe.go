@@ -15,7 +15,7 @@
 
 // Package dataframe is a wrapper for DataframeTransform defined in Apache Beam Python SDK.
 // An exapnsion service for python external transforms can be started by running
-// $ python -m apache_beam.runners.portability.expansion_service_test -p $PORT_FOR_EXPANSION_SERVICE
+// $ python -m apache_beam.runners.portability.expansion_service_main -p $PORT_FOR_EXPANSION_SERVICE
 package dataframe
 
 import (
@@ -23,7 +23,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang/python"
 )
 
 func init() {
@@ -33,8 +33,8 @@ func init() {
 }
 
 type kwargs struct {
-	Fn             xlang.PythonCallableSource `beam:"func"`
-	IncludeIndexes bool                       `beam:"include_indexes"`
+	Fn             python.CallableSource `beam:"func"`
+	IncludeIndexes bool                  `beam:"include_indexes"`
 }
 
 type argStruct struct{}
@@ -67,7 +67,7 @@ func WithIndexes() configOption {
 func Transform(s beam.Scope, fn string, col beam.PCollection, outT reflect.Type, opts ...configOption) beam.PCollection {
 	s.Scope("xlang.python.DataframeTransform")
 	cfg := config{
-		dpl: kwargs{Fn: xlang.PythonCallableSource(fn)},
+		dpl: kwargs{Fn: python.CallableSource(fn)},
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -78,7 +78,7 @@ func Transform(s beam.Scope, fn string, col beam.PCollection, outT reflect.Type,
 		panic("no expansion service address provided for xlang.DataframeTransform(), pass xlang.WithExpansionAddr(address) as a param.")
 	}
 
-	pet := xlang.NewPythonExternalTransform[argStruct, kwargs]("apache_beam.dataframe.transforms.DataframeTransform")
+	pet := python.NewExternalTransform[argStruct, kwargs]("apache_beam.dataframe.transforms.DataframeTransform")
 	pet.WithKwargs(cfg.dpl)
 	pl := beam.CrossLanguagePayload(pet)
 	result := beam.CrossLanguage(s, "beam:transforms:python:fully_qualified_named", pl, cfg.expansionAddr, beam.UnnamedInput(col), beam.UnnamedOutput(typex.New(outT)))

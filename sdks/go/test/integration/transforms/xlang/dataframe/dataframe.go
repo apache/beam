@@ -20,7 +20,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang/python/dataframe"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang/dataframe"
 )
 
 func init() {
