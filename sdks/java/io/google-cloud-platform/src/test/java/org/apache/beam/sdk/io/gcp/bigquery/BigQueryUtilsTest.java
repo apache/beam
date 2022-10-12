@@ -592,6 +592,18 @@ public class BigQueryUtilsTest {
     assertThat(field.getMode(), equalTo(Mode.REPEATED.toString()));
     assertThat(field.getFields(), containsInAnyOrder(MAP_KEY, MAP_VALUE));
   }
+  
+  @Test
+  public void testToTableSchema_map_array() {
+    TableSchema schema = toTableSchema(MAP_ARRAY_TYPE);
+
+    assertThat(schema.getFields().size(), equalTo(1));
+    TableFieldSchema field = schema.getFields().get(0);
+    assertThat(field.getName(), equalTo("map"));
+    assertThat(field.getType(), equalTo(StandardSQLTypeName.STRUCT.toString()));
+    assertThat(field.getMode(), equalTo(Mode.REPEATED.toString()));
+    assertThat(field.getFields(), containsInAnyOrder(MAP_KEY, MAP_VALUE));
+  }
 
   @Test
   public void testToTableRow_flat() {
