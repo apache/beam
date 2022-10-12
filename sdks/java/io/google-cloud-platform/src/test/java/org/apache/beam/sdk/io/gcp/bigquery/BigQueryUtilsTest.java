@@ -592,7 +592,7 @@ public class BigQueryUtilsTest {
     assertThat(field.getMode(), equalTo(Mode.REPEATED.toString()));
     assertThat(field.getFields(), containsInAnyOrder(MAP_KEY, MAP_VALUE));
   }
-  
+
   @Test
   public void testToTableSchema_map_array() {
     TableSchema schema = toTableSchema(MAP_ARRAY_TYPE);
