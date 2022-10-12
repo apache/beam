@@ -232,11 +232,12 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 	}
 	// Check this after hardoverrides and URN overrides so those can point to automated expansion
 	// themselves.
-	if ns == autoJavaNamespace {
+	switch ns {
+	case autoJavaNamespace:
 		// Leave expansionAddr unmodified so the autoNamespace keyword sticks.
 		// We strip it manually in the HandlerFunc.
 		return QueryAutomatedExpansionService, expansionAddr
-	} else if ns == autoPythonNamespace {
+	case autoPythonNamespace:
 		return QueryPythonExpansionService, expansionAddr
 	}
 
@@ -306,8 +307,8 @@ func UseAutomatedJavaExpansionService(gradleTarget string, opts ...ExpansionServ
 // up an expansion service for a user if no expansion service address
 // is provided.
 func UseAutomatedPythonExpansionService(service string) string {
-	expansionAddress := autoPythonNamespace + Separator + service
-	return expansionAddress
+	return autoPythonNamespace + Separator + service
+
 }
 
 // restricted namespaces to prevent some awkward edge cases.

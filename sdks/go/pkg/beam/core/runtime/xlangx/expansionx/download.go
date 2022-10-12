@@ -47,7 +47,8 @@ var defaultJarGetter = newJarGetter()
 const (
 	apacheRepository = url("https://repo.maven.apache.org/maven2")
 	beamGroupID      = "org/apache/beam"
-	jarCache         = "~/.apache_beam/cache/jars"
+	cacheDir         = "~/.apache_beam/cache"
+	jarCache         = cacheDir + "/jars"
 )
 
 func newJarGetter() *jarGetter {
@@ -405,8 +406,7 @@ func SetUpPythonEnvironment(extraPackage string) (string, error) {
 
 	// create python virtual environment
 	sort.Strings(extraPackages)
-	beamPackage := fmt.Sprintf("apache_beam[gcp,aws,asure,dataframe]==%s", core.SdkVersion)
-	cacheDir := "~/.apache_beam/cache"
+	beamPackage := fmt.Sprintf("apache_beam[gcp,aws,azure,dataframe]==%s", core.SdkVersion)
 	venvDir := filepath.Join(
 		cacheDir, "venvs",
 		fmt.Sprintf("py-%s-beam-%s-%s", py, core.SdkVersion, strings.Join(extraPackages, ";")),
