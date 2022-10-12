@@ -4,7 +4,7 @@ plugins {
   // https://github.com/ben-manes/gradle-versions-plugin
   id("com.github.ben-manes.versions") version "0.33.0"
   // top level licence enforcement analysis
-  id("org.nosphere.apache.rat") version "0.7.0"
+  id("org.nosphere.apache.rat") version "0.8.0"
   // release management via gradle
   id("net.researchgate.release") version "2.8.1"
   id("org.apache.beam.module")
@@ -79,6 +79,8 @@ tasks.rat {
     "**/*.json",
 
     // Katas files
+    "learning/katas/**/course-info.yaml",
+    "learning/katas/**/task-info.yaml",
     "learning/katas/**/course-remote-info.yaml",
     "learning/katas/**/section-remote-info.yaml",
     "learning/katas/**/lesson-remote-info.yaml",
@@ -345,6 +347,11 @@ task("python39SickbayPostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitSickbay")
 }
 
+tasks.register("portablePythonPreCommit") {
+  dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
+  dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
+}
+
 tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
@@ -377,7 +384,7 @@ tasks.register("whitespacePreCommit") {
   // @TODO https://github/apache/beam/issues/20209
   dependsOn(":sdks:python:test-suites:tox:py38:archiveFilesToLint")
   dependsOn(":sdks:python:test-suites:tox:py38:unpackFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py38:whitespaceLint")
+  dependsOn(":sdks:python:test-suites:tox:py38:whitespacelint")
 }
 
 tasks.register("typescriptPreCommit") {
