@@ -56,8 +56,6 @@ from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.options import value_provider
-from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
 from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
@@ -1338,71 +1336,6 @@ class BigQueryWrapper(object):
       else:
         result[field.name] = self._convert_cell_value_to_dict(value, field)
     return result
-
-
-# -----------------------------------------------------------------------------
-# BigQueryWriter.
-
-
-class BigQueryWriter(dataflow_io.NativeSinkWriter):
-  """The sink writer for a BigQuerySink."""
-  def __init__(self, sink, test_bigquery_client=None, buffer_size=None):
-    self.sink = sink
-    self.test_bigquery_client = test_bigquery_client
-    self.row_as_dict = isinstance(self.sink.coder, RowAsDictJsonCoder)
-    # Buffer used to batch written rows so we reduce communication with the
-    # BigQuery service.
-    self.rows_buffer = []
-    self.rows_buffer_flush_threshold = buffer_size or 1000
-    # Figure out the project, dataset, and table used for the sink.
-    self.project_id = self.sink.table_reference.projectId
-
-    # If table schema did not define a project we default to executing project.
-    if self.project_id is None and hasattr(sink, 'pipeline_options'):
-      self.project_id = (
-          sink.pipeline_options.view_as(GoogleCloudOptions).project)
-
-    assert self.project_id is not None
-
-    self.dataset_id = self.sink.table_reference.datasetId
-    self.table_id = self.sink.table_reference.tableId
-
-  def _flush_rows_buffer(self):
-    if self.rows_buffer:
-      _LOGGER.info(
-          'Writing %d rows to %s:%s.%s table.',
-          len(self.rows_buffer),
-          self.project_id,
-          self.dataset_id,
-          self.table_id)
-      passed, errors = self.client.insert_rows(
-          project_id=self.project_id, dataset_id=self.dataset_id,
-          table_id=self.table_id, rows=self.rows_buffer)
-      self.rows_buffer = []
-      if not passed:
-        raise RuntimeError(
-            'Could not successfully insert rows to BigQuery'
-            ' table [%s:%s.%s]. Errors: %s' %
-            (self.project_id, self.dataset_id, self.table_id, errors))
-
-  def __enter__(self):
-    self.client = BigQueryWrapper(client=self.test_bigquery_client)
-    self.client.get_or_create_table(
-        self.project_id,
-        self.dataset_id,
-        self.table_id,
-        self.sink.table_schema,
-        self.sink.create_disposition,
-        self.sink.write_disposition)
-    return self
-
-  def __exit__(self, exception_type, exception_value, traceback):
-    self._flush_rows_buffer()
-
-  def Write(self, row):
-    self.rows_buffer.append(row)
-    if len(self.rows_buffer) > self.rows_buffer_flush_threshold:
-      self._flush_rows_buffer()
 
 
 class RowAsDictJsonCoder(coders.Coder):

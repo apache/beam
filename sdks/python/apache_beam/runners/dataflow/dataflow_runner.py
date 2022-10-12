@@ -28,6 +28,7 @@ import os
 import threading
 import time
 import traceback
+import warnings
 from collections import defaultdict
 from subprocess import DEVNULL
 from typing import TYPE_CHECKING
@@ -448,12 +449,14 @@ class DataflowRunner(PipelineRunner):
       # contain any added PTransforms.
       pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
-      from apache_beam.runners.dataflow.ptransform_overrides import WriteToBigQueryPTransformOverride
+      if debug_options.lookup_experiment('use_legacy_bq_sink'):
+        warnings.warn(
+            "Native sinks no longer implemented; "
+            "ignoring use_legacy_bq_sink.")
+
       from apache_beam.runners.dataflow.ptransform_overrides import GroupIntoBatchesWithShardedKeyPTransformOverride
-      pipeline.replace_all([
-          WriteToBigQueryPTransformOverride(pipeline, options),
-          GroupIntoBatchesWithShardedKeyPTransformOverride(self, options)
-      ])
+      pipeline.replace_all(
+          [GroupIntoBatchesWithShardedKeyPTransformOverride(self, options)])
 
       if use_fnapi and not apiclient._use_unified_worker(options):
         pipeline.replace_all(DataflowRunner._JRH_PTRANSFORM_OVERRIDES)
