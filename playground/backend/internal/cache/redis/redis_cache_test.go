@@ -672,6 +672,9 @@ func Test_unmarshalBySubKey(t *testing.T) {
 func getSDKs() []*entity.SDKEntity {
 	var sdkEntities []*entity.SDKEntity
 	for _, sdk := range pb.Sdk_name {
+		if sdk == pb.Sdk_SDK_UNSPECIFIED.String() {
+			continue
+		}
 		sdkEntities = append(sdkEntities, &entity.SDKEntity{
 			Name:           sdk,
 			DefaultExample: "MOCK_DEFAULT_EXAMPLE",

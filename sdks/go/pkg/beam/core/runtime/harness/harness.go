@@ -317,31 +317,31 @@ func (c *control) metStoreToString(statusInfo *strings.Builder) {
 func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 	c.mu.Lock()
 	plans, ok := c.plans[bdID]
-	var plan *exec.Plan
+	// If we have a spare plan for this bdID, we're done.
+	// Remove it from the cache, and return it.
 	if ok && len(plans) > 0 {
-		plan = plans[len(plans)-1]
+		plan := plans[len(plans)-1]
 		c.plans[bdID] = plans[:len(plans)-1]
-	} else {
-		desc, ok := c.descriptors[bdID]
-		if !ok {
-			c.mu.Unlock() // Unlock to make the lookup.
-			newDesc, err := c.lookupDesc(bdID)
-			if err != nil {
-				return nil, errors.WithContextf(err, "execution plan for %v not found", bdID)
-			}
-			c.mu.Lock()
-			c.descriptors[bdID] = newDesc
-			desc = newDesc
-		}
-		newPlan, err := exec.UnmarshalPlan(desc)
-		if err != nil {
-			c.mu.Unlock()
-			return nil, errors.WithContextf(err, "invalid bundle desc: %v\n%v\n", bdID, desc.String())
-		}
-		plan = newPlan
+		c.mu.Unlock()
+		return plan, nil
 	}
-	c.mu.Unlock()
-	return plan, nil
+	desc, ok := c.descriptors[bdID]
+	c.mu.Unlock() // Unlock to make the lookup or build the descriptor.
+	if !ok {
+		newDesc, err := c.lookupDesc(bdID)
+		if err != nil {
+			return nil, errors.WithContextf(err, "execution plan for %v not found", bdID)
+		}
+		c.mu.Lock()
+		c.descriptors[bdID] = newDesc
+		c.mu.Unlock()
+		desc = newDesc
+	}
+	newPlan, err := exec.UnmarshalPlan(desc)
+	if err != nil {
+		return nil, errors.WithContextf(err, "invalid bundle desc: %v\n%v\n", bdID, desc.String())
+	}
+	return newPlan, nil
 }
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {

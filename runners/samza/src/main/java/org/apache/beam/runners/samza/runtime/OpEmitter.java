@@ -32,4 +32,10 @@ public interface OpEmitter<OutT> {
   void emitWatermark(Instant watermark);
 
   <T> void emitView(String id, WindowedValue<Iterable<T>> elements);
+
+  Collection<OpMessage<OutT>> collectOutput();
+
+  CompletionStage<Collection<OpMessage<OutT>>> collectFuture();
+
+  Long collectWatermark();
 }
