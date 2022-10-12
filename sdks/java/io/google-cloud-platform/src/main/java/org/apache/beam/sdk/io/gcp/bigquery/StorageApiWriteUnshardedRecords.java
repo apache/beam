@@ -177,6 +177,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private Instant nextCacheTickle = Instant.MAX;
       private final int clientNumber;
       private final BigQueryOptions bigQueryOptions;
+      private final boolean usingMultiplexing;
 
       public DestinationState(
           String tableUrn,
@@ -193,6 +194,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.descriptorWrapper = messageConverter.getSchemaDescriptor();
         this.clientNumber = new Random().nextInt(streamAppendClientCount);
         this.bigQueryOptions = bigQueryOptions;
+        this.usingMultiplexing = bigQueryOptions.getUseStorageApiConnectionPool();
       }
 
       void teardown() {
@@ -233,9 +235,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       StreamAppendClient generateClient() throws Exception {
         Preconditions.checkStateNotNull(maybeDatasetService);
         return maybeDatasetService.getStreamAppendClient(
-            streamName,
-            descriptorWrapper.descriptor,
-            bigQueryOptions.getUseStorageApiConnectionPool());
+            streamName, descriptorWrapper.descriptor, usingMultiplexing);
       }
 
       StreamAppendClient getStreamAppendClient(boolean lookupCache) {
@@ -348,11 +348,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   this.currentOffset += inserts.getSerializedRowsCount();
                 }
                 ApiFuture<AppendRowsResponse> response = writeStream.appendRows(offset, protoRows);
-                inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
-                if (writeStream.getInflightWaitSeconds() > 5) {
-                  LOG.warn(
-                      "Storage Api write delay more than {} seconds.",
-                      writeStream.getInflightWaitSeconds());
+                if (!usingMultiplexing) {
+                  inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
+                  if (writeStream.getInflightWaitSeconds() > 5) {
+                    LOG.warn(
+                        "Storage Api write delay more than {} seconds.",
+                        writeStream.getInflightWaitSeconds());
+                  }
                 }
                 return response;
               } catch (Exception e) {
