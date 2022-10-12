@@ -351,6 +351,7 @@ tasks.register("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
 }
+
 tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
