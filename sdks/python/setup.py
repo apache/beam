@@ -180,6 +180,16 @@ if __name__ == '__main__':
   generate_protos_first()
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
+  if sys.platform == 'darwin' and (
+          sys.version_info.major == 3 and sys.version_info.minor == 10):
+    # TODO (https://github.com/apache/beam/issues/23585): Protobuf wheels
+    # for version 3.19.5, 3.19.6 and 3.20.x on Python 3.10 and MacOS are
+    # rolled back due to some errors on MacOS. So, for Python 3.10 on MacOS
+    # restrict the protobuf with tight upper bound(3.19.4)
+    protobuf_dependency = ['protobuf>3.12.2,<3.19.5']
+  else:
+    protobuf_dependency = ['protobuf>3.12.2,<4']
+
   setuptools.setup(
       name=PACKAGE_NAME,
       version=PACKAGE_VERSION,
@@ -217,7 +227,7 @@ if __name__ == '__main__':
           'apache_beam/utils/counters.py',
           'apache_beam/utils/windowed_value.py',
       ]),
-      install_requires=[
+      install_requires= protobuf_dependency + [
         # Avro 1.9.2 for python3 was broken.
         # The issue was fixed in version 1.9.2.1
         'crcmod>=1.7,<2.0',
@@ -242,7 +252,6 @@ if __name__ == '__main__':
         # Tight bound since minor version releases caused breakages.
         'objsize>=0.5.2,<0.6.0',
         'pymongo>=3.8.0,<4.0.0',
-        'protobuf>=3.12.2,<4',
         'proto-plus>=1.7.1,<2',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
