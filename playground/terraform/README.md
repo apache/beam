@@ -21,12 +21,9 @@
 ## Prerequisites:
 
 ### Before you will start with the installation steps, please read this carefully:
-1. How to create a new project in Google Cloud Platform:
 ```
-https://cloud.google.com/resource-manager/docs/creating-managing-projects
+1. [How to create a new project in Google Cloud Platform](https://cloud.google.com/resource-manager/docs/creating-managing-projects) _(Note:How to create a new project in Google Cloud Platform. It's strongly recommended to use the new Google Cloud Project for your new projects)_
 ```
-**Description:** * *How to create a new project in Google Cloud Platform. It's strongly recommended to use the new Google Cloud Project for your new projects* *
-
 2. How to create a new service account
 ```
 https://cloud.google.com/iam/docs/creating-managing-service-accounts
