@@ -188,7 +188,8 @@ class BatchLoads<DestinationT, ElementT>
     this.rowWriterFactory = rowWriterFactory;
     schemaUpdateOptions = Collections.emptySet();
     this.tempDataset = tempDataset;
-    this.tableDestinationCoder = clusteringEnabled ? TableDestinationCoderV3.of(): TableDestinationCoderV2.of();
+    this.tableDestinationCoder =
+        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
   }
 
   void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
