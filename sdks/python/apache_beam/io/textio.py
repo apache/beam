@@ -464,6 +464,7 @@ class _TextSink(filebasedsink.FileBasedSink):
         set to 1 and only one file will be generated. The default pattern used
         is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
       coder: Coder used to encode each line.
+      mime_type: Media type of the data.
       compression_type: Used to handle compressed output files. Typical value
         is CompressionTypes.AUTO, in which case the final file path's
         extension (as determined by file_path_prefix, file_name_suffix,
@@ -836,6 +837,7 @@ class WriteToText(PTransform):
         in which case it behaves as if num_shards was set to 1 and only one file
         will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'``.
       coder (~apache_beam.coders.coders.Coder): Coder used to encode each line.
+      mime_type (str): Media type of the data.
       compression_type (str): Used to handle compressed output files.
         Typical value is :class:`CompressionTypes.AUTO
         <apache_beam.io.filesystem.CompressionTypes.AUTO>`, in which case the
