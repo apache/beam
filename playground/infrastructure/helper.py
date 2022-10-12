@@ -82,6 +82,12 @@ class ExampleTag:
     tag_as_string: str
 
 def _check_no_nested(subdirs: List[str]):
+    """
+    Check there're no nested subdirs
+
+    Sort alphabetically and compare the pairs of adjacent items
+    using pathlib.PurePath: we don't want fs calls in this check
+    """
     sorted_subdirs = sorted(subdirs)
     for dir1, dir2 in zip(sorted_subdirs, sorted_subdirs[1:]):
         dir1 = PurePath(dir1)
