@@ -21,10 +21,8 @@
 ## Prerequisites:
 
 ### Before you will start with the installation steps, please read this carefully:
-```
-[How to create a new project in Google Cloud Platform](https://cloud.google.com/resource-manager/docs/creating-managing-projects/) _(Note:How to create a new project in Google Cloud Platform. It's strongly recommended to use the new Google Cloud Project for your new projects)_
-[HELM link](https://helm.sh/docs/intro/install/)
-```
+1. [How to create a new project in Google Cloud Platform](https://cloud.google.com/resource-manager/docs/creating-managing-projects/) _(Note:How to create a new project in Google Cloud Platform. It's strongly recommended to use the new Google Cloud Project for your new projects)_
+
 2. How to create a new service account
 ```
 https://cloud.google.com/iam/docs/creating-managing-service-accounts
