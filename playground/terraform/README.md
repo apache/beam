@@ -127,7 +127,7 @@ network_name         = "network_name"        #Enter the network name - you can c
 project_id           = "project_id"          #Enter the project ID - ID of created project
 gke_name             = "playground-backend"  #Set the GKE name - you can choose any name for Google Kubernetes Engine according to the naming policy above
 region               = "us-east1"            #Set the region - preferred region according to your needs
-pg_location          = "us-east1-b"          #Select the location - location should be in region you set before
+location             = "us-east1-b"          #Select the location - location should be in region you set before
 state_bucket         = "bucket_name"         #Name of bucket - Google Cloud bucket where BEAM Playground will put temp files, [terraform state file] (https://spacelift.io/blog/terraform-state)
 bucket_examples_name = "bucket_name-example" #Enter an example bucket name - bucket for some build-in examples for BEAM Playground
 ```
