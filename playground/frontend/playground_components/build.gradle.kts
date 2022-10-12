@@ -51,7 +51,7 @@ tasks.register("test") {
   }
 }
 
-tasks.register("clean") {
+tasks.register("cleanFlutter") {
   group = "build"
   description = "Remove build artifacts"
   doLast {
@@ -75,7 +75,7 @@ tasks.register("pubGet") {
 }
 
 tasks.register("generate") {
-  dependsOn("clean")
+  dependsOn("cleanFlutter")
   dependsOn("pubGet")
 
   group = "build"

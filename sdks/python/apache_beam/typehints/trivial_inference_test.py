@@ -258,6 +258,32 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.Tuple[str, typehints.Any],
         lambda: (typehints.__doc__, typehints.fake))
 
+  def testSetAttr(self):
+    def fn(obj, flag):
+      if flag == 1:
+        obj.attr = 1
+        res = 1
+      elif flag == 2:
+        obj.attr = 2
+        res = 1.5
+      return res
+
+    self.assertReturnType(typehints.Union[int, float], fn, [int])
+
+  def testSetDeleteGlobal(self):
+    def fn(flag):
+      # pylint: disable=global-variable-undefined
+      global global_var
+      if flag == 1:
+        global_var = 3
+        res = 1
+      elif flag == 4:
+        del global_var
+        res = "str"
+      return res
+
+    self.assertReturnType(typehints.Union[int, str], fn, [int])
+
   def testMethod(self):
     class A(object):
       def m(self, x):

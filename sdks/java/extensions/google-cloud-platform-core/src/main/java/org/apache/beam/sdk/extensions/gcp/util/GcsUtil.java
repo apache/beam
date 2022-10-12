@@ -930,7 +930,9 @@ public class GcsUtil {
           readyToEnqueue = false;
           lastError = null;
         } else {
-          throw new FileNotFoundException(e.getMessage());
+          throw new FileNotFoundException(
+              String.format(
+                  "Source %s not found. Failed with error: %s", from.toString(), e.getMessage()));
         }
       } else if (e.getCode() == 403
           && e.getErrors().size() == 1

@@ -41,7 +41,7 @@ Using the `Shared` class within the RunInference implementation makes it possibl
 
 ### Multi-model pipelines
 
-The RunInference API can be composed into multi-model pipelines. Multi-model pipelines can be useful for A/B testing or for building out ensembles made up of models that perform tokenization, sentence segmentation, part-of-speech tagging, named entity extraction, language detection, coreference resolution, and more.
+The RunInference API can be composed into multi-model pipelines. Multi-model pipelines can be useful for A/B testing or for building out cascade models made up of models that perform tokenization, sentence segmentation, part-of-speech tagging, named entity extraction, language detection, coreference resolution, and more.
 
 ## Modify a pipeline to use an ML model
 
@@ -107,7 +107,7 @@ with pipeline as p:
 
 Where `model_handler_A` and `model_handler_B` are the model handler setup code.
 
-#### Ensemble Pattern
+#### Cascade Pattern
 
 ```
 with pipeline as p:
@@ -124,7 +124,7 @@ When using multiple models in a single pipeline, different models may have diffe
 Resource hints allow you to provide information to a runner about the compute resource requirements for each step in your
 pipeline.
 
-For example, the following snippet extends the previous ensemble pattern with hints for each RunInference call
+For example, the following snippet extends the previous cascade pattern with hints for each RunInference call
 to specify RAM and hardware accelerator requirements:
 
 ```

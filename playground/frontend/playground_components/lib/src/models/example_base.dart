@@ -18,6 +18,7 @@
 
 import 'package:equatable/equatable.dart';
 
+import '../enums/complexity.dart';
 import '../repositories/example_repository.dart';
 import 'sdk.dart';
 
@@ -56,6 +57,7 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final bool isMultiFile;
   final String? link;
   final String pipelineOptions;
+  final Complexity complexity;
 
   const ExampleBase({
     required this.sdk,
@@ -67,6 +69,7 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
     this.isMultiFile = false,
     this.link,
     required this.pipelineOptions,
+    required this.complexity,
   });
 
   @override
