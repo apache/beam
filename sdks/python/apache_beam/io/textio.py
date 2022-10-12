@@ -432,6 +432,7 @@ class _TextSink(filebasedsink.FileBasedSink):
                num_shards=0,
                shard_name_template=None,
                coder=coders.ToBytesCoder(),  # type: coders.Coder
+               mime_type='text/plain',
                compression_type=CompressionTypes.AUTO,
                header=None,
                footer=None,
@@ -491,7 +492,7 @@ class _TextSink(filebasedsink.FileBasedSink):
         num_shards=num_shards,
         shard_name_template=shard_name_template,
         coder=coder,
-        mime_type='text/plain',
+        mime_type=mime_type,
         compression_type=compression_type,
         max_records_per_shard=max_records_per_shard,
         max_bytes_per_shard=max_bytes_per_shard,
@@ -801,6 +802,7 @@ class WriteToText(PTransform):
       num_shards=0,
       shard_name_template=None,  # type: Optional[str]
       coder=coders.ToBytesCoder(),  # type: coders.Coder
+      mime_type="text/plain",
       compression_type=CompressionTypes.AUTO,
       header=None,
       footer=None,
@@ -864,6 +866,7 @@ class WriteToText(PTransform):
         num_shards,
         shard_name_template,
         coder,
+        mime_type,
         compression_type,
         header,
         footer,
