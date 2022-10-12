@@ -505,11 +505,8 @@ public class InMemoryStateInternals<K> implements StateInternals {
 
     @Override
     public @UnknownKeyFor @NonNull @Initialized ReadableState<Iterable<V>> get(K key) {
-      return contents.containsKey(key)
-          ? CollectionViewState.of(contents.get(key))
-          : CollectionViewState.of(Collections.emptyList());
+      return CollectionViewState.of(contents.get(key));
     }
-
     @Override
     public ReadableState<Iterable<K>> keys() {
       return CollectionViewState.of(contents.keySet());
@@ -542,7 +539,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
         containsKey(K key) {
       return new ReadableState<Boolean>() {
         @Override
-        public @org.checkerframework.checker.nullness.qual.Nullable Boolean read() {
+        public Boolean read() {
           return contents.containsKey(key);
         }
 
@@ -559,7 +556,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
         isEmpty() {
       return new ReadableState<Boolean>() {
         @Override
-        public @org.checkerframework.checker.nullness.qual.Nullable Boolean read() {
+        public Boolean read() {
           return contents.isEmpty();
         }
 

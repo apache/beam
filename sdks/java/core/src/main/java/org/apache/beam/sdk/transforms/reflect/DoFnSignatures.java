@@ -2504,16 +2504,16 @@ public class DoFnSignatures {
     return usesGivenStateClass(doFn, OrderedListState.class);
   }
 
+  public static boolean usesMultimapState(DoFn<?, ?> doFn) {
+    return usesGivenStateClass(doFn, MultimapState.class);
+  }
+
   public static boolean usesValueState(DoFn<?, ?> doFn) {
     return usesGivenStateClass(doFn, ValueState.class) || requiresTimeSortedInput(doFn);
   }
 
   public static boolean usesBagState(DoFn<?, ?> doFn) {
     return usesGivenStateClass(doFn, BagState.class) || requiresTimeSortedInput(doFn);
-  }
-
-  public static boolean usesMultimapState(DoFn<?, ?> doFn) {
-    return usesGivenStateClass(doFn, MultimapState.class) || requiresTimeSortedInput(doFn);
   }
 
   public static boolean usesWatermarkHold(DoFn<?, ?> doFn) {
