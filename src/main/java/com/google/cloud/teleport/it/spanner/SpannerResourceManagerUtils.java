@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.common.base.CharMatcher;
 import com.google.re2j.Pattern;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Utilities for {@link com.google.cloud.teleport.it.spanner.SpannerResourceManager}
@@ -31,6 +32,8 @@ public final class SpannerResourceManagerUtils {
   private static final Pattern ILLEGAL_INSTANCE_CHARS = Pattern.compile("[^a-z0-9-]");
   private static final String REPLACE_INSTANCE_CHAR = "-";
   public static final int MAX_INSTANCE_ID_LENGTH = 36;
+  private static final DateTimeFormatter TIME_FORMAT =
+      DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSSSSS");
 
   private SpannerResourceManagerUtils() {}
 
@@ -74,7 +77,11 @@ public final class SpannerResourceManagerUtils {
   static String generateInstanceId(String baseString) {
     String instanceId =
         generateResourceId(
-            baseString, ILLEGAL_INSTANCE_CHARS, REPLACE_INSTANCE_CHAR, MAX_INSTANCE_ID_LENGTH);
+            baseString,
+            ILLEGAL_INSTANCE_CHARS,
+            REPLACE_INSTANCE_CHAR,
+            MAX_INSTANCE_ID_LENGTH,
+            TIME_FORMAT);
 
     // if first char is not a letter, replace with letter, so it doesn't
     // violate spanner's database naming rules

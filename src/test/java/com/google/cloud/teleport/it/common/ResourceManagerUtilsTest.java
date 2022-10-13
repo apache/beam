@@ -22,6 +22,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.re2j.Pattern;
+import java.time.format.DateTimeFormatter;
 import org.junit.Test;
 
 /** Unit tests for {@link com.google.cloud.teleport.it.common.ResourceManagerUtils}. */
@@ -30,6 +31,8 @@ public class ResourceManagerUtilsTest {
   private static final Pattern ILLEGAL_INSTANCE_CHARS = Pattern.compile("[^a-z0-9-]");
   private static final String REPLACE_INSTANCE_CHAR = "-";
   public static final int MAX_INSTANCE_ID_LENGTH = 36;
+  private static final DateTimeFormatter TIME_FORMAT =
+      DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSSSSS");
 
   @Test
   public void testGenerateResourceIdShouldReplaceDollarSignWithHyphen() {
@@ -37,7 +40,11 @@ public class ResourceManagerUtilsTest {
 
     String actual =
         generateResourceId(
-            testBaseString, ILLEGAL_INSTANCE_CHARS, REPLACE_INSTANCE_CHAR, MAX_INSTANCE_ID_LENGTH);
+            testBaseString,
+            ILLEGAL_INSTANCE_CHARS,
+            REPLACE_INSTANCE_CHAR,
+            MAX_INSTANCE_ID_LENGTH,
+            TIME_FORMAT);
 
     assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
   }
@@ -48,7 +55,11 @@ public class ResourceManagerUtilsTest {
 
     String actual =
         generateResourceId(
-            testBaseString, ILLEGAL_INSTANCE_CHARS, REPLACE_INSTANCE_CHAR, MAX_INSTANCE_ID_LENGTH);
+            testBaseString,
+            ILLEGAL_INSTANCE_CHARS,
+            REPLACE_INSTANCE_CHAR,
+            MAX_INSTANCE_ID_LENGTH,
+            TIME_FORMAT);
 
     assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
   }
@@ -59,7 +70,11 @@ public class ResourceManagerUtilsTest {
 
     String actual =
         generateResourceId(
-            testBaseString, ILLEGAL_INSTANCE_CHARS, REPLACE_INSTANCE_CHAR, MAX_INSTANCE_ID_LENGTH);
+            testBaseString,
+            ILLEGAL_INSTANCE_CHARS,
+            REPLACE_INSTANCE_CHAR,
+            MAX_INSTANCE_ID_LENGTH,
+            TIME_FORMAT);
 
     assertThat(actual).matches("test-inst-\\d{8}-\\d{6}-\\d{6}");
   }
@@ -70,7 +85,11 @@ public class ResourceManagerUtilsTest {
 
     String actual =
         generateResourceId(
-            testBaseString, ILLEGAL_INSTANCE_CHARS, REPLACE_INSTANCE_CHAR, MAX_INSTANCE_ID_LENGTH);
+            testBaseString,
+            ILLEGAL_INSTANCE_CHARS,
+            REPLACE_INSTANCE_CHAR,
+            MAX_INSTANCE_ID_LENGTH,
+            TIME_FORMAT);
 
     assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
   }
@@ -86,7 +105,8 @@ public class ResourceManagerUtilsTest {
                 testBaseString,
                 ILLEGAL_INSTANCE_CHARS,
                 REPLACE_INSTANCE_CHAR,
-                MAX_INSTANCE_ID_LENGTH));
+                MAX_INSTANCE_ID_LENGTH,
+                TIME_FORMAT));
   }
 
   @Test
@@ -100,7 +120,8 @@ public class ResourceManagerUtilsTest {
                 testBaseString,
                 ILLEGAL_INSTANCE_CHARS,
                 REPLACE_INSTANCE_CHAR,
-                MAX_INSTANCE_ID_LENGTH));
+                MAX_INSTANCE_ID_LENGTH,
+                TIME_FORMAT));
   }
 
   @Test
@@ -109,7 +130,11 @@ public class ResourceManagerUtilsTest {
 
     String actual =
         generateResourceId(
-            longId, ILLEGAL_INSTANCE_CHARS, REPLACE_INSTANCE_CHAR, MAX_INSTANCE_ID_LENGTH);
+            longId,
+            ILLEGAL_INSTANCE_CHARS,
+            REPLACE_INSTANCE_CHAR,
+            MAX_INSTANCE_ID_LENGTH,
+            TIME_FORMAT);
 
     assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
   }

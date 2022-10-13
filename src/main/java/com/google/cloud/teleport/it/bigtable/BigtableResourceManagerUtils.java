@@ -20,6 +20,7 @@ import static com.google.cloud.teleport.it.common.ResourceManagerUtils.generateR
 import com.google.cloud.bigtable.admin.v2.models.StorageType;
 import com.google.common.collect.ImmutableList;
 import com.google.re2j.Pattern;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Utilities for {@link com.google.cloud.teleport.it.bigtable.BigtableResourceManager}
@@ -36,6 +37,8 @@ public final class BigtableResourceManagerUtils {
   private static final int MIN_TABLE_ID_LENGTH = 1;
   private static final int MAX_TABLE_ID_LENGTH = 30;
   private static final Pattern ILLEGAL_TABLE_CHARS = Pattern.compile("[^a-zA-Z0-9-_.]");
+  private static final DateTimeFormatter TIME_FORMAT =
+      DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSSSSS");
 
   private BigtableResourceManagerUtils() {}
 
@@ -54,7 +57,11 @@ public final class BigtableResourceManagerUtils {
 
     String clusterId =
         generateResourceId(
-            baseString, ILLEGAL_CLUSTER_CHARS, REPLACE_CLUSTER_CHAR, MAX_CLUSTER_ID_LENGTH);
+            baseString,
+            ILLEGAL_CLUSTER_CHARS,
+            REPLACE_CLUSTER_CHAR,
+            MAX_CLUSTER_ID_LENGTH,
+            TIME_FORMAT);
     BigtableResourceManagerCluster cluster =
         BigtableResourceManagerCluster.create(clusterId, zone, numNodes, storageType);
 
@@ -69,7 +76,11 @@ public final class BigtableResourceManagerUtils {
    */
   static String generateInstanceId(String baseString) {
     return generateResourceId(
-        baseString, ILLEGAL_INSTANCE_ID_CHARS, REPLACE_INSTANCE_ID_CHAR, MAX_INSTANCE_ID_LENGTH);
+        baseString,
+        ILLEGAL_INSTANCE_ID_CHARS,
+        REPLACE_INSTANCE_ID_CHAR,
+        MAX_INSTANCE_ID_LENGTH,
+        TIME_FORMAT);
   }
 
   /**

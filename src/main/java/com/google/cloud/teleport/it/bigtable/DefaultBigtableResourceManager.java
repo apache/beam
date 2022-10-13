@@ -35,6 +35,7 @@ import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
@@ -68,15 +69,49 @@ public class DefaultBigtableResourceManager implements BigtableResourceManager {
 
   private boolean hasInstance = false;
 
-  private DefaultBigtableResourceManager(
-      DefaultBigtableResourceManager.Builder builder,
-      BigtableResourceManagerClientFactory bigtableResourceManagerClientFactory,
-      String instanceId) {
+  private DefaultBigtableResourceManager(DefaultBigtableResourceManager.Builder builder)
+      throws IOException {
     // Check that the project ID conforms to GCP standards
     checkValidProjectId(builder.projectId);
 
+    // generate instance id based on given test id.
+    this.instanceId = generateInstanceId(builder.testId);
+
+    // create the bigtable admin and data client settings builders, and set the necessary id's for
+    // each.
+    BigtableInstanceAdminSettings.Builder bigtableInstanceAdminSettings =
+        BigtableInstanceAdminSettings.newBuilder().setProjectId(builder.projectId);
+    BigtableTableAdminSettings.Builder bigtableTableAdminSettings =
+        BigtableTableAdminSettings.newBuilder()
+            .setProjectId(builder.projectId)
+            .setInstanceId(this.instanceId);
+    BigtableDataSettings.Builder bigtableDataSettings =
+        BigtableDataSettings.newBuilder()
+            .setProjectId(builder.projectId)
+            .setInstanceId(this.instanceId);
+
+    // add the credentials to the builders, if set.
+    if (builder.credentialsProvider != null) {
+      bigtableInstanceAdminSettings.setCredentialsProvider(builder.credentialsProvider);
+      bigtableTableAdminSettings.setCredentialsProvider(builder.credentialsProvider);
+      bigtableDataSettings.setCredentialsProvider(builder.credentialsProvider);
+    }
+
     this.projectId = builder.projectId;
-    this.instanceId = instanceId;
+    this.bigtableResourceManagerClientFactory =
+        new BigtableResourceManagerClientFactory(
+            bigtableInstanceAdminSettings.build(),
+            bigtableTableAdminSettings.build(),
+            bigtableDataSettings.build());
+  }
+
+  @VisibleForTesting
+  DefaultBigtableResourceManager(
+      String testId,
+      String projectId,
+      BigtableResourceManagerClientFactory bigtableResourceManagerClientFactory) {
+    this.projectId = projectId;
+    this.instanceId = generateInstanceId(testId);
     this.bigtableResourceManagerClientFactory = bigtableResourceManagerClientFactory;
   }
 
@@ -293,8 +328,6 @@ public class DefaultBigtableResourceManager implements BigtableResourceManager {
     private final String projectId;
     private CredentialsProvider credentialsProvider;
 
-    private BigtableResourceManagerClientFactory bigtableResourceManagerClientFactory;
-
     private Builder(String testId, String projectId) {
 
       this.testId = testId;
@@ -306,49 +339,8 @@ public class DefaultBigtableResourceManager implements BigtableResourceManager {
       return this;
     }
 
-    public Builder setBigtableResourceManagerClientFactory(
-        BigtableResourceManagerClientFactory bigtableResourceManagerClientFactory) {
-      this.bigtableResourceManagerClientFactory = bigtableResourceManagerClientFactory;
-      return this;
-    }
-
     public DefaultBigtableResourceManager build() throws IOException {
-
-      // generate instance id based on given test id.
-      String instanceId = generateInstanceId(testId);
-
-      // create the default bigtable resource manager client handler if one was not already set.
-      BigtableResourceManagerClientFactory bigtableResourceManagerClientFactoryToUse;
-      if (this.bigtableResourceManagerClientFactory == null) {
-        // create the bigtable admin and data client settings builders, and set the necessary id's
-        // for each.
-        BigtableInstanceAdminSettings.Builder bigtableInstanceAdminSettings =
-            BigtableInstanceAdminSettings.newBuilder().setProjectId(projectId);
-        BigtableTableAdminSettings.Builder bigtableTableAdminSettings =
-            BigtableTableAdminSettings.newBuilder()
-                .setProjectId(projectId)
-                .setInstanceId(instanceId);
-        BigtableDataSettings.Builder bigtableDataSettings =
-            BigtableDataSettings.newBuilder().setProjectId(projectId).setInstanceId(instanceId);
-
-        // add the credentials to the builders, if set.
-        if (this.credentialsProvider != null) {
-          bigtableInstanceAdminSettings.setCredentialsProvider(this.credentialsProvider);
-          bigtableTableAdminSettings.setCredentialsProvider(this.credentialsProvider);
-          bigtableDataSettings.setCredentialsProvider(this.credentialsProvider);
-        }
-
-        bigtableResourceManagerClientFactoryToUse =
-            new BigtableResourceManagerClientFactory(
-                bigtableInstanceAdminSettings.build(),
-                bigtableTableAdminSettings.build(),
-                bigtableDataSettings.build());
-      } else {
-        bigtableResourceManagerClientFactoryToUse = this.bigtableResourceManagerClientFactory;
-      }
-
-      return new DefaultBigtableResourceManager(
-          this, bigtableResourceManagerClientFactoryToUse, instanceId);
+      return new DefaultBigtableResourceManager(this);
     }
   }
 }
