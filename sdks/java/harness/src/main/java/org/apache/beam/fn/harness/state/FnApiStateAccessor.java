@@ -584,8 +584,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       Coder<KeyT> keyCoder,
       Coder<ValueT> valueCoder) {
     // TODO(https://github.com/apache/beam/issues/23616)
-    throw new UnsupportedOperationException(
-        "Multimap is not currently supported with Fn API.");
+    throw new UnsupportedOperationException("Multimap is not currently supported with Fn API.");
   }
 
   @Override
