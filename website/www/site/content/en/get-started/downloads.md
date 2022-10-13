@@ -88,7 +88,7 @@ versions denoted `0.x.y`.
 
 ## Releases
 
-### 2.42.0 (2022-10-04)
+### 2.42.0 (2022-10-17)
 Official [source code download](https://archive.apache.org/dist/beam/2.42.0/apache-beam-2.42.0-source-release.zip).
 [SHA-512](https://downloads.apache.org/beam/2.42.0/apache-beam-2.42.0-source-release.zip.sha512).
 [signature](https://downloads.apache.org/beam/2.42.0/apache-beam-2.42.0-source-release.zip.asc).
