@@ -115,6 +115,7 @@ class FakeWindmillServer extends WindmillServerStub {
 
   private final ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse> workToOffer;
   private final ResponseQueue<GetDataRequest, GetDataResponse> dataToOffer;
+  private final ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse> commitsToOffer;
   // Keys are work tokens.
   private final Map<Long, WorkItemCommitRequest> commitsReceived;
   private final ArrayList<Windmill.ReportStatsRequest> statsReceived;
@@ -136,6 +137,9 @@ class FakeWindmillServer extends WindmillServerStub {
             .returnByDefault(GetDataResponse.getDefaultInstance())
             // Sleep for a little bit to ensure that *-windmill-read state-sampled counters show up.
             .delayEachResponseBy(Duration.millis(500));
+    commitsToOffer =
+        new ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse>()
+            .returnByDefault(CommitWorkResponse.getDefaultInstance());
     commitsReceived = new ConcurrentHashMap<>();
     exceptions = new LinkedBlockingQueue<>();
     expectedExceptionCount = new AtomicInteger();
@@ -154,6 +158,11 @@ class FakeWindmillServer extends WindmillServerStub {
 
   public ResponseQueue<GetDataRequest, GetDataResponse> whenGetDataCalled() {
     return dataToOffer;
+  }
+
+  public ResponseQueue<Windmill.CommitWorkRequest, Windmill.CommitWorkResponse>
+      whenCommitWorkCalled() {
+    return commitsToOffer;
   }
 
   @Override
@@ -205,7 +214,7 @@ class FakeWindmillServer extends WindmillServerStub {
         commitsReceived.put(commit.getWorkToken(), commit);
       }
     }
-    CommitWorkResponse response = CommitWorkResponse.newBuilder().build();
+    CommitWorkResponse response = commitsToOffer.getOrDefault(request);
     LOG.debug("commitWorkResponse: {}", response);
     return response;
   }
@@ -358,6 +367,10 @@ class FakeWindmillServer extends WindmillServerStub {
         errorCollector.checkThat(
             request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
         errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
+        // Throws away the result, but allows to inject latency.
+        Windmill.CommitWorkRequest.Builder builder = Windmill.CommitWorkRequest.newBuilder();
+        builder.addRequestsBuilder().setComputationId(computation).addRequests(request);
+        commitsToOffer.getOrDefault(builder.build());
         if (dropStreamingCommits) {
           droppedStreamingCommits.put(request.getWorkToken(), onDone);
         } else {
