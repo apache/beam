@@ -34,7 +34,7 @@ env:
   BEAM_VERSION: 2.40.0
 jobs:
   ci_cd:
-    name: Examples ${{ inputs.step }} ${{ inputs.sdk }} ${{ inputs.origin }}
+    name: ${{ inputs.step }} ${{ inputs.sdk }} ${{ inputs.origin }}
     runs-on: ubuntu-latest
     env:
       ORIGIN: ${{ inputs.origin }}
