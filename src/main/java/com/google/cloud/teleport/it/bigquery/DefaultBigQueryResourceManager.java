@@ -57,10 +57,26 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
   private final BigQuery bigQuery;
   private Dataset dataset;
 
-  private DefaultBigQueryResourceManager(Builder builder, BigQuery bigQuery, String datasetId) {
+  private DefaultBigQueryResourceManager(Builder builder) {
+    // create default bigQuery client if one was not set.
+    BigQuery bigQueryToUse;
+    if (builder.bigQuery == null) {
+      BigQueryOptions.Builder bigQueryOptions =
+          BigQueryOptions.newBuilder().setProjectId(builder.projectId);
+
+      // set credentials, if provided
+      if (builder.credentials != null) {
+        bigQueryOptions.setCredentials(builder.credentials);
+      }
+
+      bigQueryToUse = bigQueryOptions.build().getService();
+    } else {
+      bigQueryToUse = builder.bigQuery;
+    }
+
+    this.datasetId = BigQueryResourceManagerUtils.generateDatasetId(builder.testId);
     this.projectId = builder.projectId;
-    this.datasetId = datasetId;
-    this.bigQuery = bigQuery;
+    this.bigQuery = bigQueryToUse;
   }
 
   public static DefaultBigQueryResourceManager.Builder builder(String testId, String projectId) {
@@ -309,24 +325,7 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
     }
 
     public DefaultBigQueryResourceManager build() {
-      // create default bigQuery client if one was not set.
-      BigQuery bigQueryToUse;
-      if (bigQuery == null) {
-        BigQueryOptions.Builder bigQueryOptions =
-            BigQueryOptions.newBuilder().setProjectId(projectId);
-
-        // set credentials, if provided
-        if (credentials != null) {
-          bigQueryOptions.setCredentials(credentials);
-        }
-
-        bigQueryToUse = bigQueryOptions.build().getService();
-      } else {
-        bigQueryToUse = bigQuery;
-      }
-      String datasetId = BigQueryResourceManagerUtils.generateDatasetId(testId);
-
-      return new DefaultBigQueryResourceManager(this, bigQueryToUse, datasetId);
+      return new DefaultBigQueryResourceManager(this);
     }
   }
 }
