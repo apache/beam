@@ -36,6 +36,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.avro.Conversions;
@@ -429,7 +430,7 @@ class BigQueryAvroUtils {
     if (avroType == Type.RECORD) {
       elementSchema = toGenericAvroSchema(bigQueryField.getName(), bigQueryField.getFields());
     } else {
-      elementSchema = Schema.create(avroType);
+      elementSchema = handleAvroLogicalTypes(bigQueryField, avroType);
     }
     Schema fieldSchema;
     if (bigQueryField.getMode() == null || "NULLABLE".equals(bigQueryField.getMode())) {
@@ -447,5 +448,33 @@ class BigQueryAvroUtils {
         fieldSchema,
         bigQueryField.getDescription(),
         (Object) null /* Cast to avoid deprecated JsonNode constructor. */);
+  }
+
+  private static Schema handleAvroLogicalTypes(TableFieldSchema bigQueryField, Type avroType) {
+    String bqType = bigQueryField.getType();
+    switch (bqType) {
+      case "NUMERIC":
+        // Default value based on
+        // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
+        int precision = Optional.ofNullable(bigQueryField.getPrecision()).orElse(38L).intValue();
+        int scale = Optional.ofNullable(bigQueryField.getScale()).orElse(9L).intValue();
+        return LogicalTypes.decimal(precision, scale).addToSchema(Schema.create(Type.BYTES));
+      case "BIGNUMERIC":
+        // Default value based on
+        // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
+        int precisionBigNumeric =
+            Optional.ofNullable(bigQueryField.getPrecision()).orElse(77L).intValue();
+        int scaleBigNumeric = Optional.ofNullable(bigQueryField.getScale()).orElse(38L).intValue();
+        return LogicalTypes.decimal(precisionBigNumeric, scaleBigNumeric)
+            .addToSchema(Schema.create(Type.BYTES));
+      case "TIMESTAMP":
+        return LogicalTypes.timestampMicros().addToSchema(Schema.create(Type.LONG));
+      case "GEOGRAPHY":
+        Schema geoSchema = Schema.create(Type.STRING);
+        geoSchema.addProp(LogicalType.LOGICAL_TYPE_PROP, "geography_wkt");
+        return geoSchema;
+      default:
+        return Schema.create(avroType);
+    }
   }
 }
