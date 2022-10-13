@@ -26,12 +26,12 @@ from parameterized import parameterized_class
 from apache_beam.typehints import typehints
 from apache_beam.typehints.batch import BatchConverter
 from apache_beam.typehints.batch import N
-from apache_beam.typehints.pytorch_type_compatibility import PytorchTensor
 
 # Protect against environments where pytorch library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import torch
+  from apache_beam.typehints.pytorch_type_compatibility import PytorchTensor
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
@@ -39,7 +39,7 @@ except ImportError:
 @parameterized_class([
     {
         'batch_typehint': torch.Tensor,
-        'element_typehint': torch.Tensor,
+        'element_typehint': PytorchTensor[torch.int32, ()],
         'batch': torch.tensor(range(100), dtype=torch.int32)
     },
     {

@@ -23,7 +23,6 @@ import typing
 import unittest
 
 import numpy as np
-import pytest
 from parameterized import parameterized
 from parameterized import parameterized_class
 
@@ -33,7 +32,6 @@ from apache_beam.typehints.batch import N
 from apache_beam.typehints.batch import NumpyArray
 
 
-@pytest.mark.uses_pytorch
 @parameterized_class([
     {
         'batch_typehint': np.ndarray,
