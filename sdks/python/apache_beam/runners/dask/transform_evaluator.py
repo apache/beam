@@ -194,23 +194,19 @@ class ParDo(DaskBagOp):
       user_state_context=None,
       bundle_finalizer_param=bundle_finalizer_param)
 
-    # Invoke setup just in case
-    do_fn_invoker.invoke_setup()
-    do_fn_invoker.invoke_start_bundle()
+    try:
+      # Invoke setup just in case
+      do_fn_invoker.invoke_setup()
+      do_fn_invoker.invoke_start_bundle()
+      return input_bag.map(get_windowed_value, window_fn).map(do_fn_invoker.invoke_process).flatten()
 
-    for input_item in batch:
-      windowed_value = get_windowed_value(input_item, window_fn)
-      do_fn_invoker.invoke_process(windowed_value)
+    # TODO(alxr): Check that finally will still be executed in the return.
+    finally:
+      do_fn_invoker.invoke_finish_bundle()
+      # Invoke teardown just in case
+      do_fn_invoker.invoke_teardown()
 
-    do_fn_invoker.invoke_finish_bundle()
-    # Invoke teardown just in case
-    do_fn_invoker.invoke_teardown()
 
-    # This has to happen last as we might receive results
-    # in invoke_finish_bundle() or invoke_teardown()
-    ret = list(values)
-
-    return input_bag.map(transform.fn.process, *args, **kwargs).flatten()
 
 
 class Map(DaskBagOp):
