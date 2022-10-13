@@ -132,3 +132,7 @@ class DataFrameBatchConverterTest(unittest.TestCase):
 
   def test_hash(self):
     self.assertEqual(hash(self.create_batch_converter()), hash(self.converter))
+
+
+if __name__ == '__main__':
+  unittest.main()
