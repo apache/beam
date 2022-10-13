@@ -16,26 +16,38 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
+import 'package:playground_components/playground_components.dart';
 
-import '../../cache/sdk_cache.dart';
-import '../../models/sdk.dart';
+import '../repositories/client/client.dart';
+import '../repositories/models/get_sdks_response.dart';
 
-class SdksBuilder extends StatelessWidget {
-  final ValueWidgetBuilder<List<SdkModel>> builder;
+class SdkCache extends ChangeNotifier {
+  final TobClient client;
 
-  const SdksBuilder({
-    required this.builder,
+  final _sdks = <Sdk>[];
+  Future<GetSdksResponse>? _future;
+
+  SdkCache({
+    required this.client,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<SdkCache>();
+  List<Sdk> getSdks() {
+    if (_future == null) {
+      unawaited(_loadSdks());
+    }
 
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) => builder(context, cache.getSdks(), child),
-    );
+    return _sdks;
+  }
+
+  Future<List<Sdk>> _loadSdks() async {
+    _future = client.getSdks();
+    final result = await _future!;
+
+    _sdks.addAll(result.sdks);
+    notifyListeners();
+    return _sdks;
   }
 }

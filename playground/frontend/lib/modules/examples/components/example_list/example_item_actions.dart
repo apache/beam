@@ -36,6 +36,8 @@ class ExampleItemActions extends StatelessWidget {
     return Row(
       children: [
         if (example.isMultiFile) multifilePopover,
+        if (example.complexity != Complexity.unspecified)
+          ComplexityWidget(complexity: example.complexity),
         descriptionPopover,
       ],
     );

@@ -37,7 +37,7 @@ To slowly update global window side inputs in pipelines with non-global windows:
 
 1. Create the side input for downstream transforms. The side input should fit into memory.
 
-The global window side input triggers on processing time, so the main pipeline nondeterministically matches the side input to elements in event time.
+The global window side input triggers on processing time, so the main pipeline non-deterministically matches the side input to elements in event time.
 
 For instance, the following code sample uses a `Map` to create a `DoFn`. The `Map` becomes a `View.asSingleton` side input that’s rebuilt on each counter tick. The side input updates every 5 seconds in order to demonstrate the workflow. In a real-world scenario, the side input would typically update every few hours or once per day.
 
