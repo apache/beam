@@ -76,7 +76,7 @@ class PytorchBatchConverter(BatchConverter):
     yield from torch.swapaxes(batch, self.partition_dimension, 0)
 
   def combine_batches(self, batches):
-    return torch.concat(batches, dim=self.partition_dimension)
+    return torch.cat(batches, dim=self.partition_dimension)
 
   def get_length(self, batch):
     return batch.size(dim=self.partition_dimension)
