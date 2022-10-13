@@ -881,6 +881,19 @@ limitations under the License.
 &lt;div class="cirkle">
 &lt;i class="fas fa-check">&lt;/i>
 &lt;/div>
+&lt;img src="/images/ellipse.svg" class="reverse desktop" alt="elipse icon">
+&lt;img src="/images/ellipse-mobile.svg" class="reverse mobile" alt="elipse icon">
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">Blog posts&lt;/p>
+&lt;p class="beam-description">Publish articles and share your knowledge about Beam on Medium using the &lt;a target="_blank" https://medium.com/tag/apache-beam">apache-beam tag&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
 &lt;/div>
 &lt;div class="list-item-description">
 &lt;p class="beam-title">Events&lt;/p>

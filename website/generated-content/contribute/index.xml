@@ -1178,6 +1178,7 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 &lt;li>Originating branch has the version information updated to the new version;&lt;/li>
 &lt;li>Nightly snapshot is in progress (do revisit it continually);&lt;/li>
 &lt;li>Set &lt;code>JAVA_HOME&lt;/code> to JDK 8 (Example: &lt;code>export JAVA_HOME=/example/path/to/java/jdk8&lt;/code>).&lt;/li>
+&lt;li>Have Java 11 installed.&lt;/li>
 &lt;/ul>
 &lt;p>The core of the release process is the build-vote-fix cycle.
 Each cycle produces one release candidate.
@@ -1220,7 +1221,7 @@ is perfectly safe since the script does not depend on the current working tree.&
 &lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Usage&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>./beam/release/src/main/scripts/build_release_candidate.sh --release &amp;quot;${RELEASE_VERSION}&amp;quot; --rc &amp;quot;${RC_NUM}&amp;quot; --github-user &amp;quot;${GITHUB_USER}&amp;quot;
+&lt;pre>&lt;code>./beam/release/src/main/scripts/build_release_candidate.sh --release &amp;quot;${RELEASE_VERSION}&amp;quot; --rc &amp;quot;${RC_NUM}&amp;quot; --github-user &amp;quot;${GITHUB_USER}&amp;quot; --java11-home &amp;quot;${JAVA11_HOME}&amp;quot;
 &lt;/code>&lt;/pre>
 &lt;/li>
 &lt;li>
