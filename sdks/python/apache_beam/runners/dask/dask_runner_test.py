@@ -17,7 +17,7 @@
 import unittest
 
 try:
-  import dask  # pylint: disable=unused-import
+  import dask  # pylint: disable=unused-import # isort:skip
 except (ImportError, ModuleNotFoundError):
   raise unittest.SkipTest('Dask must be installed to run tests.')
 
