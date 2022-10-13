@@ -16,32 +16,42 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
+import 'package:flutter/material.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
+import '../../../models/group.dart';
+import '../../../models/node.dart';
+import '../../../models/unit.dart';
+import '../controllers/content_tree.dart';
+import 'group.dart';
+import 'unit.dart';
 
-class ContentTreeBuilder extends StatelessWidget {
-  final String sdkId;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
+class NodeWidget extends StatelessWidget {
+  final NodeModel node;
+  final ContentTreeController contentTreeController;
 
-  const ContentTreeBuilder({
-    required this.sdkId,
-    required this.builder,
+  const NodeWidget({
+    required this.node,
+    required this.contentTreeController,
   });
 
   @override
   Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
+    final node = this.node;
 
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) => builder(
-        context,
-        cache.getContentTree(sdkId),
-        child,
-      ),
-    );
+    if (node is GroupModel) {
+      return GroupWidget(
+        group: node,
+        contentTreeController: contentTreeController,
+      );
+    }
+
+    if (node is UnitModel) {
+      return UnitWidget(
+        unit: node,
+        contentTreeController: contentTreeController,
+      );
+    }
+
+    throw Exception('A node with an unknown type');
   }
 }

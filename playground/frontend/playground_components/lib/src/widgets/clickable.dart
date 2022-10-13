@@ -17,30 +17,26 @@
  */
 
 import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
+/// MouseRegion + GestureDetector.
+class ClickableWidget extends StatelessWidget {
+  final Widget child;
+  final VoidCallback? onTap;
 
-class ContentTreeBuilder extends StatelessWidget {
-  final String sdkId;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
-
-  const ContentTreeBuilder({
-    required this.sdkId,
-    required this.builder,
+  const ClickableWidget({
+    required this.child,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
+    if (onTap == null) return child;
 
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) => builder(
-        context,
-        cache.getContentTree(sdkId),
-        child,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: child,
       ),
     );
   }

@@ -22,8 +22,13 @@ import 'group.dart';
 import 'unit.dart';
 
 abstract class NodeModel {
+  final String id;
   final String title;
-  const NodeModel({required this.title});
+
+  const NodeModel({
+    required this.id,
+    required this.title,
+  });
 
   /// Constructs nodes from the response data.
   ///

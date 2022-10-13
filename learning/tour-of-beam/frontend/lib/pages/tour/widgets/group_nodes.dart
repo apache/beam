@@ -16,32 +16,32 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
+import 'package:flutter/material.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
+import '../../../models/node.dart';
+import '../controllers/content_tree.dart';
+import 'node.dart';
 
-class ContentTreeBuilder extends StatelessWidget {
-  final String sdkId;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
+class GroupNodesWidget extends StatelessWidget {
+  final List<NodeModel> nodes;
+  final ContentTreeController contentTreeController;
 
-  const ContentTreeBuilder({
-    required this.sdkId,
-    required this.builder,
+  const GroupNodesWidget({
+    required this.nodes,
+    required this.contentTreeController,
   });
 
   @override
   Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
-
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) => builder(
-        context,
-        cache.getContentTree(sdkId),
-        child,
-      ),
+    return Column(
+      children: nodes
+          .map(
+            (node) => NodeWidget(
+              node: node,
+              contentTreeController: contentTreeController,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 }

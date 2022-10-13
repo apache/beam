@@ -18,30 +18,24 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
+import 'package:playground_components/playground_components.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
+import '../../cache/sdk.dart';
 
-class ContentTreeBuilder extends StatelessWidget {
-  final String sdkId;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
+class SdksBuilder extends StatelessWidget {
+  final ValueWidgetBuilder<List<Sdk>> builder;
 
-  const ContentTreeBuilder({
-    required this.sdkId,
+  const SdksBuilder({
     required this.builder,
   });
 
   @override
   Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
+    final cache = GetIt.instance.get<SdkCache>();
 
     return AnimatedBuilder(
       animation: cache,
-      builder: (context, child) => builder(
-        context,
-        cache.getContentTree(sdkId),
-        child,
-      ),
+      builder: (context, child) => builder(context, cache.getSdks(), child),
     );
   }
 }

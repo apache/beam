@@ -16,32 +16,23 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
+import 'package:app_state/app_state.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
+import '../pages/tour/page.dart';
+import '../pages/welcome/page.dart';
 
-class ContentTreeBuilder extends StatelessWidget {
-  final String sdkId;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
+class PageFactory {
+  static AbstractPage? createPage(
+    String factoryKey,
+    Map<String, dynamic> state,
+  ) {
+    switch (factoryKey) {
+      case TourPage.classFactoryKey:
+        return TourPage.fromStateMap(state);
+      case WelcomePage.classFactoryKey:
+        return WelcomePage.fromStateMap(state);
+    }
 
-  const ContentTreeBuilder({
-    required this.sdkId,
-    required this.builder,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
-
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) => builder(
-        context,
-        cache.getContentTree(sdkId),
-        child,
-      ),
-    );
+    return null;
   }
 }
