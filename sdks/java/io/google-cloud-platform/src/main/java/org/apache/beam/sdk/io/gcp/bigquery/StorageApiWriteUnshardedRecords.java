@@ -176,7 +176,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private DescriptorWrapper descriptorWrapper;
       private Instant nextCacheTickle = Instant.MAX;
       private final int clientNumber;
-      private final BigQueryOptions bigQueryOptions;
       private final boolean usingMultiplexing;
 
       public DestinationState(
@@ -193,7 +192,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.useDefaultStream = useDefaultStream;
         this.descriptorWrapper = messageConverter.getSchemaDescriptor();
         this.clientNumber = new Random().nextInt(streamAppendClientCount);
-        this.bigQueryOptions = bigQueryOptions;
         this.usingMultiplexing = bigQueryOptions.getUseStorageApiConnectionPool();
       }
 
