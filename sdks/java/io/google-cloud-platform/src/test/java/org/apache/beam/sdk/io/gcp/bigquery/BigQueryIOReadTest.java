@@ -167,8 +167,12 @@ public class BigQueryIOReadTest implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       MyData myData = (MyData) o;
       return number.equals(myData.number)
           && name.equals(myData.name)
