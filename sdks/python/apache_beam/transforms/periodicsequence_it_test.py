@@ -38,7 +38,15 @@ from apache_beam.transforms.periodicsequence import PeriodicSequence
 
 class PeriodicSequenceIT(unittest.TestCase):
   @pytest.mark.it_postcommit
+  @pytest.mark.sickbay_direct
+  @pytest.mark.sickbay_spark
+  @pytest.mark.sickbay_flink
   def test_periodicsequence_outputs_valid_watermarks_it(self):
+    """Tests periodic sequence with watermarks on dataflow.
+    For testing that watermarks are being correctly emitted,
+    we make sure that there's not a long gap between an element being
+    emitted and being correctly aggregated.
+    """
     class DoFnWithLongGaps(DoFn):
       def process(self, element, timestamp=beam.DoFn.TimestampParam):
         now = time.time()
@@ -59,7 +67,7 @@ class PeriodicSequenceIT(unittest.TestCase):
         | 'ImpulseElement' >> beam.Create([(start_time, end_time, interval)])
         | 'ImpulseSeqGen' >> PeriodicSequence()
         | 'window_into' >> beam.WindowInto(
-            window.FixedWindows(1),
+            window.FixedWindows(2),
             accumulation_mode=trigger.AccumulationMode.DISCARDING)
         | beam.combiners.Count.PerElement()
         | beam.ParDo(DoFnWithLongGaps()))
