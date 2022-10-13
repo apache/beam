@@ -33,7 +33,7 @@ public class OpenModuleAgent {
     Set<Module> modulesToOpen = new HashSet<>();
     Optional<Module> jamm = ModuleLayer.boot().findModule("jamm");
     if (!jamm.isPresent()) {
-      System.out.println("Jamm module expected, but not found");
+      System.err.println("Jamm module expected, but not found");
       return;
     }
 
