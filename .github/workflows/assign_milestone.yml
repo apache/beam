@@ -63,9 +63,10 @@ jobs:
               });
             }
 
-            await github.rest.issues.update({
+            const issue = await github.rest.issues.update({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              milestone: curMilestone.number,
+              milestone: curMilestone.id,
             })
+            console.log(issue)
