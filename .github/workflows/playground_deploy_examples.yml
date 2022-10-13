@@ -53,11 +53,11 @@ jobs:
             BASE_REF=origin/master
           fi
           DIFF=$(git diff --name-only $BASE_REF $GITHUB_SHA -- $SUBDIRS)
-          echo "::set-output name=example_diff::$DIFF"
+          echo "example_diff=$DIFF" >> $GITHUB_OUTPUT
       - name: has Examples
         run: |
           output=$(python3 checker.py ${{ steps.check_file_changed.outputs.example_diff }})
-          echo "::set-output name=example_has_changed::$output"
+          echo "example_has_changed=$output" >> $GITHUB_OUTPUT
         id: check_has_example
         working-directory: playground/infrastructure
       - name: Print has_example
