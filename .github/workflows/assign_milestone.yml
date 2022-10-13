@@ -56,7 +56,7 @@ jobs:
             let curMilestone = filteredMilestones[0]
 
             if (!curMilestone) {
-              curMilestone = await octokit.rest.issues.createMilestone({
+              curMilestone = await github.rest.issues.createMilestone({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title: `2.${minorVersion}.0 Release`,
