@@ -25,6 +25,9 @@ on:
 
 jobs:
   assign-milestone:
+    permissions:
+      contents: write # Needed to write milestones and write to them
+      issues: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -67,6 +70,6 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              milestone: curMilestone.id,
+              milestone: curMilestone.number,
             })
             console.log(issue)
