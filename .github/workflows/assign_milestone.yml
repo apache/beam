@@ -44,27 +44,35 @@ jobs:
 
             console.log(`Beam fix version: 2.${minorVersion}.0`)
 
-            const milestones = await github.rest.issues.listMilestones({
+            let milestones = await github.rest.issues.listMilestones({
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
             })
 
-            const filteredMilestones =  milestones.data.filter(m => m.title.indexOf(`2.${minorVersion}.0`) > -1)
+            let filteredMilestones =  milestones.data.filter(m => m.title.indexOf(`2.${minorVersion}.0`) > -1)
 
             if (filteredMilestones.length > 1) {
               throw new Exception(`Invalid milestone. More than one milestone exists for 2.${minorVersion}.0`)
             }
 
-            let curMilestone = filteredMilestones[0]
-
-            if (!curMilestone) {
-              curMilestone = await github.rest.issues.createMilestone({
+            if (filteredMilestones.length == 0) {
+              await github.rest.issues.createMilestone({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title: `2.${minorVersion}.0 Release`,
               });
+
+              milestones = await github.rest.issues.listMilestones({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+              })
+
+              filteredMilestones =  milestones.data.filter(m => m.title.indexOf(`2.${minorVersion}.0`) > -1)
             }
+
+            const curMilestone = filteredMilestones[0]
 
             const issue = await github.rest.issues.update({
               issue_number: context.issue.number,
