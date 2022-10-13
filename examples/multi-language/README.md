@@ -65,7 +65,7 @@ Please note that the Java pipeline is
 
 #### Setup
 
-* Obtain/generate a csv input file that contains labels and pixels to feed into the model and store it in 
+* Obtain/generate a csv input file that contains labels and pixels to feed into the model and store it in
 GCS. And example input is available [here](TODO).
 
 * Create a model file that contains the pickled file of a scikit-learn model
