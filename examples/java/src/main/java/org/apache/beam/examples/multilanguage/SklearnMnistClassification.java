@@ -69,7 +69,7 @@ public class SklearnMnistClassification {
 
     @Override
     public KV<Long, Iterable<Long>> apply(String input) {
-      String[] data = Splitter.on(',').splitToList(input).toArray(new String[]{});
+      String[] data = Splitter.on(',').splitToList(input).toArray(new String[] {});
       Long label = Long.valueOf(data[0]);
       List<Long> pixels = new ArrayList<Long>();
       for (int i = 1; i < data.length; i++) {
@@ -84,11 +84,9 @@ public class SklearnMnistClassification {
 
     @Override
     public String apply(KV<Long, Row> input) {
-      return input.getKey() + " was mapped to " +
-          input.getValue().getString("inference");
+      return input.getKey() + " was mapped to " + input.getValue().getString("inference");
     }
   }
-
 
   void runExample(SklearnMnistClassificationOptions options, String expansionService) {
     Schema schema =
@@ -106,7 +104,8 @@ public class SklearnMnistClassification {
             RunInference.ofKVs(getModelLoaderScript(), schema, VarLongCoder.of())
                 .withKwarg("model_uri", options.getModelPath())
                 .withExpansionService(expansionService))
-        .apply(MapElements.via(new FormatOutput())).apply(TextIO.write().to(options.getOutput()));
+        .apply(MapElements.via(new FormatOutput()))
+        .apply(TextIO.write().to(options.getOutput()));
 
     pipeline.run().waitUntilFinish();
   }
