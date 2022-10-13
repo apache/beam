@@ -16,13 +16,11 @@
 #
 import unittest
 
+import apache_beam as beam
 try:
-  import dask  # pylint: disable=unused-import # isort:skip
+  from apache_beam.runners.dask.dask_runner import DaskRunner
 except (ImportError, ModuleNotFoundError):
   raise unittest.SkipTest('Dask must be installed to run tests.')
-
-import apache_beam as beam
-from apache_beam.runners.dask.dask_runner import DaskRunner
 from apache_beam.testing import test_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
