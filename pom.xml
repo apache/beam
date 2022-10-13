@@ -32,7 +32,7 @@
     <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
     <maven-compiler-plugin.version>3.6.2</maven-compiler-plugin.version>
     <mockito.version>3.7.7</mockito.version>
-    <mockito-inline.version>4.2.0</mockito-inline.version>
+    <mockito-inline.version>4.5.1</mockito-inline.version>
     <puppycrawl.version>8.7</puppycrawl.version>
     <re2j.version>1.5</re2j.version>
     <slf4j.version>1.7.25</slf4j.version>

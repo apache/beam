@@ -34,6 +34,7 @@ import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Map;
@@ -58,25 +59,25 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
   private Dataset dataset;
 
   private DefaultBigQueryResourceManager(Builder builder) {
-    // create default bigQuery client if one was not set.
-    BigQuery bigQueryToUse;
-    if (builder.bigQuery == null) {
-      BigQueryOptions.Builder bigQueryOptions =
-          BigQueryOptions.newBuilder().setProjectId(builder.projectId);
+    // create bigQuery client
+    BigQueryOptions.Builder bigQueryOptions =
+        BigQueryOptions.newBuilder().setProjectId(builder.projectId);
 
-      // set credentials, if provided
-      if (builder.credentials != null) {
-        bigQueryOptions.setCredentials(builder.credentials);
-      }
-
-      bigQueryToUse = bigQueryOptions.build().getService();
-    } else {
-      bigQueryToUse = builder.bigQuery;
+    // set credentials, if provided
+    if (builder.credentials != null) {
+      bigQueryOptions.setCredentials(builder.credentials);
     }
 
+    this.bigQuery = bigQueryOptions.build().getService();
     this.datasetId = BigQueryResourceManagerUtils.generateDatasetId(builder.testId);
     this.projectId = builder.projectId;
-    this.bigQuery = bigQueryToUse;
+  }
+
+  @VisibleForTesting
+  DefaultBigQueryResourceManager(String testId, String projectId, BigQuery bigQuery) {
+    this.datasetId = BigQueryResourceManagerUtils.generateDatasetId(testId);
+    this.projectId = projectId;
+    this.bigQuery = bigQuery;
   }
 
   public static DefaultBigQueryResourceManager.Builder builder(String testId, String projectId) {
@@ -304,7 +305,6 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
   /** Builder for {@link DefaultBigQueryResourceManager}. */
   public static final class Builder {
 
-    private BigQuery bigQuery;
     private final String testId;
     private final String projectId;
     private Credentials credentials;
@@ -312,11 +312,6 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
     private Builder(String testId, String projectId) {
       this.testId = testId;
       this.projectId = projectId;
-    }
-
-    public Builder setBigQuery(BigQuery bigQuery) {
-      this.bigQuery = bigQuery;
-      return this;
     }
 
     public Builder setCredentials(Credentials credentials) {

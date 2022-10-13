@@ -88,8 +88,7 @@ public class DefaultBigQueryResourceManagerTest {
 
   @Before
   public void setUp() {
-    testManager =
-        DefaultBigQueryResourceManager.builder(TEST_ID, PROJECT_ID).setBigQuery(bigQuery).build();
+    testManager = new DefaultBigQueryResourceManager(TEST_ID, PROJECT_ID, bigQuery);
   }
 
   @Test
