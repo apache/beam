@@ -33,8 +33,8 @@ ext.summary = "Java Classes for Multi-language Examples"
 
 dependencies {
     implementation library.java.vendored_guava_26_0_jre
-    implementation project(":examples:java")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
+    runtimeOnly project(path: ":examples:java")
     runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     runtimeOnly project(path: ":runners:google-cloud-dataflow-java")
     runtimeOnly project(path: ":runners:portability:java")
