@@ -1,0 +1,10 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "python": "y1chi"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false
+}
