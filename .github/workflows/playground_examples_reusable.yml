@@ -41,6 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       example_has_changed: ${{ steps.check_has_example.conclusion }} == 'success'
+    env:
+      SDK: ${{ inputs.sdk }}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
