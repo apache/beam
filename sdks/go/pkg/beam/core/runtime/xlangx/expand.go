@@ -109,12 +109,28 @@ func expand(
 	if config != ext.ExpansionAddr {
 		ext.ExpansionAddr = config
 	}
+
+	coders := make(map[string]string)
+	for cid, spec := range comps.GetCoders() {
+		coders[spec.Spec.GetUrn()] = cid
+	}
+
+	outputCoderID := make(map[string]string)
+	for tag, id := range edge.External.OutputsMap {
+		urn, err := graphx.CoderToUrn(edge.Output[id].To.Coder)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to find output coder for expansion request")
+		}
+		outputCoderID[tag] = coders[urn]
+	}
+
 	return h(ctx, &HandlerParams{
 		Config: config,
 		Req: &jobpb.ExpansionRequest{
-			Components: comps,
-			Transform:  transform,
-			Namespace:  ext.Namespace,
+			Components:          comps,
+			Transform:           transform,
+			Namespace:           ext.Namespace,
+			OutputCoderRequests: outputCoderID,
 		},
 		edge: edge,
 		ext:  ext,
