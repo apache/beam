@@ -44,12 +44,6 @@ jobs:
     env:
       SDK: ${{ inputs.sdk }}
     steps:
-      - name: Dump GitHub context
-        id: github_context_step
-        run: echo '${{ toJSON(github) }}'
-      - name: Dump GitHub env
-        id: github_context_step2
-        run: env | sort
       - name: Check out the repo
         uses: actions/checkout@v3
         with:
