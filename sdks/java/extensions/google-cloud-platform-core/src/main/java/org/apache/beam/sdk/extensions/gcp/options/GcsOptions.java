@@ -59,7 +59,8 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   @Deprecated
   ExecutorService getExecutorService();
 
-  /** @deprecated use {@link ExecutorOptions#setScheduledExecutorService} instead */
+  /** @deprecated use {@link ExecutorOptions#setScheduledExecutorService} instead. If set, it may
+   * result in multiple ExecutorServices, and therefor thread pools, in the runtime  */
   @Deprecated
   void setExecutorService(ExecutorService value);
 

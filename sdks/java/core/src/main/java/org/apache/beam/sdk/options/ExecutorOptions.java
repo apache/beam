@@ -21,20 +21,21 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.sdk.util.UnboundedScheduledExecutorService;
 
+/**
+ * Options for configuring the {@link ScheduledExecutorService} used throughout the Java runtime.
+ */
 public interface ExecutorOptions extends PipelineOptions {
 
   /**
    * The {@link ScheduledExecutorService} instance to use to create threads, can be overridden to
    * specify a {@link ScheduledExecutorService} that is compatible with the user's environment. If
-   * unset, the default is to create an {@link ScheduledExecutorService} with a core number of
-   * threads equal to {@code Math.max(4,Runtime.getRuntime().availableProcessors())}.
+   * unset, the default is to create an {@link UnboundedScheduledExecutorService}.
    */
   @JsonIgnore
   @Description(
       "The ScheduledExecutorService instance to use to create threads, can be overridden to specify "
           + "a ScheduledExecutorService that is compatible with the user's environment. If unset, "
-          + "the default is to create a ScheduledExecutorService with a core number of threads "
-          + "equal to Math.max(4, Runtime.getRuntime().availableProcessors()).")
+          + "the default is to create an UnboundedScheduledExecutorService.")
   @Default.InstanceFactory(ScheduledExecutorServiceFactory.class)
   @Hidden
   ScheduledExecutorService getScheduledExecutorService();
@@ -45,6 +46,13 @@ public interface ExecutorOptions extends PipelineOptions {
   class ScheduledExecutorServiceFactory implements DefaultValueFactory<ScheduledExecutorService> {
     @Override
     public ScheduledExecutorService create(PipelineOptions options) {
+      /* The SDK requires an unbounded thread pool because a step may create X writers
+       * each requiring their own thread to perform the writes otherwise a writer may
+       * block causing deadlock for the step because the writers buffer is full.
+       * Also, the MapTaskExecutor launches the steps in reverse order and completes
+       * them in forward order thus requiring enough threads so that each step's writers
+       * can be active.
+       */
       return new UnboundedScheduledExecutorService();
     }
   }
