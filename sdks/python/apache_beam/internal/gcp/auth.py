@@ -24,7 +24,6 @@ import socket
 import threading
 
 from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.options.pipeline_options import PipelineOptions
 
 # google.auth is only available when Beam is installed with the gcp extra.
 try:
@@ -143,11 +142,11 @@ class _Credentials(object):
       return None
 
     try:
-      scopes = pipeline_options.view_as(GoogleCloudOptions).gcp_oauth_scopes
       # pylint: disable=c-extension-no-member
-      credentials, _ = google.auth.default(scopes=scopes)  # pylint: disable=c-extension-no-member
+      credentials, _ = google.auth.default(
+          scopes=pipeline_options.view_as(GoogleCloudOptions).gcp_oauth_scopes)
       credentials = _Credentials._add_impersonation_credentials(
-          credentials, scopes, pipeline_options)
+          credentials, pipeline_options)
       credentials = _ApitoolsCredentialsAdapter(credentials)
       logging.debug(
           'Connecting using Google Application Default '
@@ -161,15 +160,10 @@ class _Credentials(object):
       return None
 
   @staticmethod
-  def _add_impersonation_credentials(credentials, scopes, pipeline_options):
-    if isinstance(pipeline_options, PipelineOptions):
-      gcs_options = pipeline_options.view_as(GoogleCloudOptions)
-      impersonate_service_account = gcs_options.impersonate_service_account
-    elif isinstance(pipeline_options, dict):
-      impersonate_service_account = pipeline_options.get(
-          'impersonate_service_account')
-    else:
-      return credentials
+  def _add_impersonation_credentials(credentials, pipeline_options):
+    gcs_options = pipeline_options.view_as(GoogleCloudOptions)
+    impersonate_service_account = gcs_options.impersonate_service_account
+    scopes = gcs_options.gcp_oauth_scopes
     if impersonate_service_account:
       _LOGGER.info('Impersonating: %s', impersonate_service_account)
       impersonate_accounts = impersonate_service_account.split(',')
