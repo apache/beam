@@ -37,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sdk", type=str, choices=Sdk.keys())
     parser.add_argument(
-        "--whitelist",
+        "--allowlist",
         nargs="*",
         default=[],
         required=True,
@@ -56,13 +56,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def check_in_whitelist(paths: List[PurePath], whitelist: List[PurePath]) -> bool:
-    """Check if any of whitelist paths affected"""
+def check_in_allowlist(paths: List[PurePath], allowlist: List[PurePath]) -> bool:
+    """Check if any of allowlist paths affected"""
     for path in paths:
-        logging.debug("check if whitelisted: %s", path)
-        for w in whitelist:
+        logging.debug("check if allowlisted: %s", path)
+        for w in allowlist:
             if w in [path, *path.parents]:
-                logging.info(f"{path} is whitelisted by {w}")
+                logging.info(f"{path} is allowlisted by {w}")
                 return True
     return False
 
@@ -93,7 +93,7 @@ def main():
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARNING)
 
-    if check_in_whitelist(args.paths, args.whitelist):
+    if check_in_allowlist(args.paths, args.allowlist):
         return
 
     if check_sdk_examples(args.paths, Sdk.Value(args.sdk), root_dir):

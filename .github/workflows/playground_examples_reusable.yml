@@ -27,7 +27,7 @@ on:
       subdirs:
         type: string
         required: true
-      whitelist:
+      allowlist:
         type: string
         required: true
       origin:
@@ -79,7 +79,7 @@ jobs:
           python3 checker.py \
             --verbose \
             --sdk SDK_${SDK^^} \
-            --whitelist ${{ inputs.whitelist }} \
+            --allowlist ${{ inputs.allowlist }} \
             --paths ${{ steps.check_file_changed.outputs.example_diff }}
           if [ $? -eq 0 ]; then
             echo "::set-output name=example_has_changed::True"

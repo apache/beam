@@ -19,11 +19,11 @@ from pathlib import PurePath
 from api.v1.api_pb2 import SDK_JAVA
 
 import checker
-from checker import check_in_whitelist, check_sdk_examples
+from checker import check_in_allowlist, check_sdk_examples
 
 
 @pytest.mark.parametrize(
-    "paths, whitelist, result",
+    "paths, allowlist, result",
     [
         ([PurePath("path1"), PurePath("path/path2")], [PurePath("path1")], True),
         ([PurePath("path1"), PurePath("path/path2")], [PurePath("path1")], True),
@@ -32,8 +32,8 @@ from checker import check_in_whitelist, check_sdk_examples
         ([PurePath("path1"), PurePath("./path/path2")], [PurePath("path3")], False),
     ],
 )
-def test_check_in_whitelist(paths, whitelist, result):
-    assert result == check_in_whitelist(paths, whitelist)
+def test_check_in_allowlist(paths, allowlist, result):
+    assert result == check_in_allowlist(paths, allowlist)
 
 
 @pytest.mark.parametrize(
