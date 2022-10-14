@@ -74,8 +74,10 @@ jobs:
       - id: check_has_example
         name: has Examples
         run: |
-          set -u
+          # don't quit on errors
+          set +e
           python3 checker.py \
+            --verbose \
             --sdk SDK_${SDK^^} \
             --whitelist ${{ inputs.whitelist }} \
             --paths ${{ steps.check_file_changed.outputs.example_diff }}
