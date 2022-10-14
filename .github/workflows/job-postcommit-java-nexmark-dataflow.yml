@@ -25,19 +25,6 @@ on:
     tags: ['v*']
 permissions: read-all
 
-env:
-  BIGQUERYTABLE: nexmark
-  BIGQUERYDATASET: nexmark
-  PROJECT: apache-beam-testing
-  RESOURCENAMEMODE: QUERY_RUNNER_AND_MODE
-  EXPORTSUMMARYTOBIGQUERY: true
-  TEMPLOCATION: gs://temp-storage-for-perf-tests/nexmark
-  INFLUXDATABASE: beam_test_metrics
-  INFLUXHOST: http://10.128.0.96:8086 
-  BASEINFLUXMEASUREMENT: nexmark
-  EXPORTSUMMARYTOINFLUXDB: true
-  INFLUXRETENTIONPOLICY: forever
-
 jobs:
   java-postcommit-nexmark-dataflow:
     name: Run PostCommit Java Nexmark - Dataflow 
@@ -46,7 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         streaming: ["true","false"]
-        querytype: ["sql","zetasql"]
+        querytype: ["","sql","zetasql"]
     timeout-minutes: 240
     steps:
       - name: Checkout code
@@ -55,23 +42,23 @@ jobs:
           persist-credentials: false
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
-      - name: Run *** RUN NEXMARK IN BATCH ${{matrix.streaming}} MODE USING DATAFLOW RUNNER ***
+      - name: Run Nexmark with Batch=${{matrix.streaming}} on Dataflow
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: >
             :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:google-cloud-dataflow-java
             -Pnexmark.args="  
-              --bigQueryTable=$BIGQUERYTABLE
-              --bigQueryDataset=$BIGQUERYDATASET
-              --project=$PROJECT
-              --resourceNameMode=$RESOURCENAMEMODE
-              --exportSummaryToBigQuery=$EXPORTSUMMARYTOBIGQUERY
-              --tempLocation=$TEMPLOCATION
-              --influxDatabase=$INFLUXDATABASE
-              --influxHost=$INFLUXHOST
-              --baseInfluxMeasurement=$BASEINFLUXMEASUREMENT
-              --exportSummaryToInfluxDB=$EXPORTSUMMARYTOINFLUXDB
-              --influxRetentionPolicy=$INFLUXRETENTIONPOLICY
+              --bigQueryTable=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.BIGQUERY_TABLE}}
+              --bigQueryDataset=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.BIGQUERY_DATASET}}
+              --project=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.PROJECT}}
+              --resourceNameMode=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.RESOURCE_NAMENODE}}
+              --exportSummaryToBigQuery=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.EXPORT_SUMMARY_TO_BIGQUERY}}
+              --tempLocation=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.TEMP_LOCATION}}
+              --influxDatabase=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.INFLUX_DATABASE}}
+              --influxHost=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.INFLUX_HOST}}
+              --baseInfluxMeasurement=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.BASE_INFLUX_MEASUREMENT}}
+              --exportSummaryToInfluxDB=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.EXPORT_SUMMARY_TO_INFLUXDB}}
+              --influxRetentionPolicy=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.INFLUX_RETENTION_POLICY}}
               --runner=DataflowRunner 
               --region=us-central1 
               --numWorkers=4 
@@ -84,7 +71,7 @@ jobs:
               --monitorJobs=true 
               --enforceEncodability=true 
               --enforceImmutability=true "
-      - name: Run *** RUN NEXMARK IN ${{matrix.querytype}} BATCH ${{matrix.streaming}} MODE USING DATAFLOW RUNNER ***
+      - name: Run Nexmark with ${{matrix.querytype}} Batch ${{matrix.streaming}} on Dataflow
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: >
