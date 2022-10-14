@@ -63,6 +63,7 @@ class DaskOptions(PipelineOptions):
         help='Timeout duration for initial connection to the scheduler.')
     parser.add_argument(
         '--dask_scheduler_file',
+        dest='scheduler_file',
         type=str,
         default=None,
         help='Path to a file with scheduler information if available.')

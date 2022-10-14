@@ -17,14 +17,50 @@
 import unittest
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing import test_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
+  from apache_beam.runners.dask.dask_runner import DaskOptions
   from apache_beam.runners.dask.dask_runner import DaskRunner
+  import dask
+  import dask.distributed as ddist
 except (ImportError, ModuleNotFoundError):
   raise unittest.SkipTest('Dask must be installed to run tests.')
+
+
+class DaskOptionsTest(unittest.TestCase):
+
+  def test_parses_connection_timeout__defaults_to_none(self):
+    default_options = PipelineOptions([])
+    default_dask_options = default_options.view_as(DaskOptions)
+    self.assertEqual(None, default_dask_options.timeout)
+
+  def test_parses_connection_timeout__parses_int(self):
+    conn_options = PipelineOptions('--dask_connection_timeout 12'.split())
+    dask_conn_options = conn_options.view_as(DaskOptions)
+    self.assertEqual(12, dask_conn_options.timeout)
+
+  def test_parses_connection_timeout__handles_bad_input(self):
+    err_options = PipelineOptions('--dask_connection_timeout foo'.split())
+    dask_err_options = err_options.view_as(DaskOptions)
+    self.assertEqual(dask.config.no_default, dask_err_options.timeout)
+
+  def test_parser_destinations__agree_with_dask_client(self):
+    options = PipelineOptions(
+      '--dask_client_address localhost:8080 --dask_connection_timeout 7 '
+      '--dask_scheduler_file foobar.cfg --dask_client_name charlie '
+      '--dask_connection_limit 1024'.split()
+    )
+    dask_options = options.view_as(DaskOptions)
+
+    try:
+      client = ddist.Client(**dask_options.get_all_options(drop_default=True))
+      client.close()
+    except ValueError:
+      self.fail('parsed args did not match dask Client args.')
 
 
 class DaskRunnerRunPipelineTest(unittest.TestCase):
