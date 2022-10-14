@@ -40,7 +40,7 @@ jobs:
     name: Check examples
     runs-on: ubuntu-latest
     outputs:
-      example_has_changed: ${{ steps.check_has_example.conclusion }} == 'success'
+      example_has_changed: ${{ steps.check_has_example.outputs.example_has_changed }}
     env:
       SDK: ${{ inputs.sdk }}
     steps:
@@ -49,7 +49,7 @@ jobs:
         run: echo '${{ toJSON(github) }}'
       - name: Dump GitHub env
         id: github_context_step2
-        run: env
+        run: env | sort
       - name: Check out the repo
         uses: actions/checkout@v3
         with:
@@ -74,10 +74,16 @@ jobs:
       - id: check_has_example
         name: has Examples
         run: |
+          set -ux
           python3 checker.py \
             --sdk SDK_${SDK^^} \
             --whitelist ${{ inputs.whitelist }} \
             --paths ${{ steps.check_file_changed.outputs.example_diff }}
+          if [ $? -eq 0 ]; then
+            echo "::set-output name=example_has_changed::True"
+          else
+            echo "::set-output name=example_has_changed::False"
+          fi
         working-directory: playground/infrastructure
         env:
           BEAM_ROOT_DIR: "../.."
