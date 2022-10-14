@@ -44,16 +44,6 @@ executing_project = None
 
 _LOGGER = logging.getLogger(__name__)
 
-CLIENT_SCOPES = [
-    'https://www.googleapis.com/auth/bigquery',
-    'https://www.googleapis.com/auth/cloud-platform',
-    'https://www.googleapis.com/auth/devstorage.full_control',
-    'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/datastore',
-    'https://www.googleapis.com/auth/spanner.admin',
-    'https://www.googleapis.com/auth/spanner.data'
-]
-
 
 def set_running_in_gce(worker_executing_project):
   """For internal use only; no backwards-compatibility guarantees.
@@ -153,7 +143,9 @@ class _Credentials(object):
       return None
 
     try:
-      credentials, _ = google.auth.default(scopes=CLIENT_SCOPES)  # pylint: disable=c-extension-no-member
+      # pylint: disable=c-extension-no-member
+      credentials, _ = google.auth.default(
+          scopes=pipeline_options.view_as(GoogleCloudOptions).gcp_oauth_scopes)
       credentials = _Credentials._add_impersonation_credentials(
           credentials, pipeline_options)
       credentials = _ApitoolsCredentialsAdapter(credentials)
