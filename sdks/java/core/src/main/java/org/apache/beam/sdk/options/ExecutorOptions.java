@@ -19,10 +19,7 @@ package org.apache.beam.sdk.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.sdk.util.UnboundedScheduledExecutorService;
 
 public interface ExecutorOptions extends PipelineOptions {
 
@@ -46,26 +43,9 @@ public interface ExecutorOptions extends PipelineOptions {
 
   /** Returns the default {@link ScheduledExecutorService} to use within the Apache Beam SDK. */
   class ScheduledExecutorServiceFactory implements DefaultValueFactory<ScheduledExecutorService> {
-    @SuppressWarnings("deprecation") // IS_APP_ENGINE is deprecated for internal use only.
     @Override
     public ScheduledExecutorService create(PipelineOptions options) {
-      ThreadFactoryBuilder threadFactoryBuilder = new ThreadFactoryBuilder();
-      threadFactoryBuilder.setThreadFactory(MoreExecutors.platformThreadFactory());
-      threadFactoryBuilder.setDaemon(true);
-      /* The SDK requires an unbounded thread pool because a step may create X writers
-       * each requiring their own thread to perform the writes otherwise a writer may
-       * block causing deadlock for the step because the writers buffer is full.
-       * Also, the MapTaskExecutor launches the steps in reverse order and completes
-       * them in forward order thus requiring enough threads so that each step's writers
-       * can be active.
-       * <p> The minimum of max(4, processors) was chosen as a default working configuration found in
-       * the Bigquery client library
-       */
-      ScheduledThreadPoolExecutor executor =
-          new ScheduledThreadPoolExecutor(Integer.MAX_VALUE, threadFactoryBuilder.build());
-      executor.setKeepAliveTime(1, TimeUnit.MINUTES);
-      executor.allowCoreThreadTimeOut(true);
-      return executor;
+      return new UnboundedScheduledExecutorService();
     }
   }
 }
