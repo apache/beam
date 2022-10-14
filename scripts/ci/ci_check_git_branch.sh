@@ -23,7 +23,6 @@ function is_branch() {
     else
       return 0
     fi
-  $ret
 }
 
 if is_branch "$1"; then
