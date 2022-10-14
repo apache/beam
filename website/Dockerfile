@@ -91,4 +91,7 @@ RUN update-alternatives --install /usr/bin/python python /usr/local/bin/python3.
     && update-alternatives --install /usr/bin/python python /usr/bin/python3.5 2  \
     &&  update-alternatives --set python $(update-alternatives --list python | grep python3.8)
 
+# Add dedicated user to have permissions on opt dir
+RUN useradd -m actions && usermod -aG sudo actions && echo "%sudo ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+RUN chown -R actions:actions /opt/
 WORKDIR /opt/
