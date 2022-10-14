@@ -25,6 +25,7 @@ on:
 
 jobs:
   assign-milestone:
+    if: github.event.issue.state_reason == 'completed'
     permissions:
       contents: write # Needed to write milestones and write to them
       issues: write
