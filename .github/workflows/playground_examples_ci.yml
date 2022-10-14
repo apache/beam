@@ -42,8 +42,9 @@ jobs:
       origin: PG_EXAMPLES
       subdirs: ./learning/katas ./examples ./sdks
       # unfortunately, there's no input type for list
-      whitelist: |
-        .github/workflows/playground_examples_reusable.yml \
-        .github/workflows/playground_examples_ci.yml \
-        playground/backend \
-        playground/infrastructure
+      whitelist: ""
+#      whitelist: |
+#        .github/workflows/playground_examples_reusable.yml \
+#        .github/workflows/playground_examples_ci.yml \
+#        playground/backend \
+#        playground/infrastructure
