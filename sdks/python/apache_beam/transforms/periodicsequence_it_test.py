@@ -50,10 +50,10 @@ class PeriodicSequenceIT(unittest.TestCase):
     class DoFnWithLongGaps(DoFn):
       def process(self, element, timestamp=beam.DoFn.TimestampParam):
         now = time.time()
-        if now - timestamp.seconds() > 5:
+        if now - timestamp.seconds() > 25:
           return (element, now, timestamp)
 
-    start_offset = 10
+    start_offset = 60
     start_time = time.time() + start_offset
     duration = 150
     end_time = start_time + duration
