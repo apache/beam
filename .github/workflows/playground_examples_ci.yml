@@ -23,6 +23,7 @@ on:
      - playground/infrastructure/**
      - learning/katas/**
      - examples/**
+     - sdks/**
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
@@ -39,4 +40,10 @@ jobs:
       sdk: ${{ matrix.sdk }}
       step: CI
       origin: PG_EXAMPLES
-      subdirs: "./learning/katas ./examples ./sdks"
+      subdirs: ./learning/katas ./examples ./sdks
+      # unfortunately, there's no input type for list
+      whitelist: |
+        .github/workflows/playground_examples_reusable.yml \
+        .github/workflows/playground_examples_ci.yml \
+        playground/backend \
+        playground/infrastructure

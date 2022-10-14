@@ -40,3 +40,8 @@ jobs:
       step: CI
       origin: TB_EXAMPLES
       subdirs: "./learning/tour-of-beam/learning-content"
+      whitelist: |
+        .github/workflows/playground_examples_reusable.yml \
+        .github/workflows/tour_of_beam_examples_ci.yml \
+        playground/backend \
+        playground/infrastructure

@@ -27,14 +27,56 @@ on:
       subdirs:
         type: string
         required: true
+      whitelist:
+        type: string
+        required: true
       origin:
         type: string
         required: true
 env:
   BEAM_VERSION: 2.40.0
 jobs:
+  check_has_examples:
+    name: Check examples
+    runs-on: ubuntu-latest
+    outputs:
+      example_has_changed: ${{ steps.check_has_example.conclusion }} == 'success'
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: install deps
+        run: pip install -r requirements.txt
+        working-directory: playground/infrastructure
+      - name: get Difference
+        id: check_file_changed
+        run: |
+          set -xeu
+          # define the base ref
+          BASE_REF=$GITHUB_BASE_REF
+          if [ -z "$BASE_REF" ] || [ "$BASE_REF" == "master" ]; then
+            BASE_REF=origin/master
+          fi
+          DIFF=$(git diff --name-only $BASE_REF $GITHUB_SHA -- $SUBDIRS)
+          echo "::set-output name=example_diff::$DIFF"
+      - id: check_has_example
+        name: has Examples
+        run: |
+          python3 checker.py \
+            --sdk SDK_${SDK^^} \
+            --whitelist {{ inputs.whitelist }}
+            --paths {{ steps.check_file_changed.outputs.example_diff }})
+        env:
+          BEAM_ROOT_DIR: "../.."
+
   ci_cd:
     name: ${{ inputs.step }} ${{ inputs.sdk }} ${{ inputs.origin }}
+    needs: [ check_examples ]
+    if: needs.check_examples.outputs.example_has_changed
     runs-on: ubuntu-latest
     env:
       ORIGIN: ${{ inputs.origin }}
