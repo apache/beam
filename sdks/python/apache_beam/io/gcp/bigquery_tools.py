@@ -45,6 +45,7 @@ import regex
 
 import apache_beam
 from apache_beam import coders
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.http_client import get_new_http
@@ -331,7 +332,7 @@ class BigQueryWrapper(object):
   def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
     self.client = client or bigquery.BigqueryV2(
         http=get_new_http(),
-        credentials=auth.get_service_credentials(None),
+        credentials=auth.get_service_credentials(PipelineOptions()),
         response_encoding='utf8',
         additional_http_headers={
             "user-agent": "apache-beam-%s" % apache_beam.__version__

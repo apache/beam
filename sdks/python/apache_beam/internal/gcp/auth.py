@@ -143,11 +143,11 @@ class _Credentials(object):
       return None
 
     try:
+      scopes = pipeline_options.view_as(GoogleCloudOptions).gcp_oauth_scopes
       # pylint: disable=c-extension-no-member
-      credentials, _ = google.auth.default(
-          scopes=pipeline_options.view_as(GoogleCloudOptions).gcp_oauth_scopes)
+      credentials, _ = google.auth.default(scopes=scopes)  # pylint: disable=c-extension-no-member
       credentials = _Credentials._add_impersonation_credentials(
-          credentials, pipeline_options)
+          credentials, scopes, pipeline_options)
       credentials = _ApitoolsCredentialsAdapter(credentials)
       logging.debug(
           'Connecting using Google Application Default '
@@ -161,7 +161,7 @@ class _Credentials(object):
       return None
 
   @staticmethod
-  def _add_impersonation_credentials(credentials, pipeline_options):
+  def _add_impersonation_credentials(credentials, scopes, pipeline_options):
     if isinstance(pipeline_options, PipelineOptions):
       gcs_options = pipeline_options.view_as(GoogleCloudOptions)
       impersonate_service_account = gcs_options.impersonate_service_account
@@ -179,6 +179,6 @@ class _Credentials(object):
           source_credentials=credentials,
           target_principal=target_principal,
           delegates=delegate_to,
-          target_scopes=CLIENT_SCOPES,
+          target_scopes=scopes,
       )
     return credentials
