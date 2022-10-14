@@ -688,10 +688,11 @@ func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) (string, error) {
 	names := strings.Split(spec.Urn, ":")
 	if len(names) > 2 && names[2] == "python" {
 		for _, out := range edge.Output {
-			_, err := m.coders.Add(out.To.Coder)
+			cID, err := m.coders.Add(out.To.Coder)
 			if err != nil {
 				return "", errors.Wrapf(err, "failed to add output coder to coder registry: %v", m.coders)
 			}
+			out.To.Coder.ID = cID
 		}
 	}
 
