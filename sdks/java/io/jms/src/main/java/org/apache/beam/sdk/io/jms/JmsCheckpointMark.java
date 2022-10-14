@@ -49,6 +49,11 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
   void add(Message message) throws Exception {
     lock.writeLock().lock();
     try {
+      if (discarded) {
+        throw new IllegalStateException(
+            String.format(
+                "Attempting to add message %s to checkpoint that is discarded.", message));
+      }
       Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
       if (currentMessageTimestamp.isBefore(oldestMessageTimestamp)) {
         oldestMessageTimestamp = currentMessageTimestamp;
@@ -99,7 +104,6 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
           }
         } catch (Exception e) {
           LOG.error("Exception while finalizing message: ", e);
-          }
         }
       }
       messages.clear();
