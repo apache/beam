@@ -91,7 +91,6 @@ import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
-import org.apache.beam.sdk.extensions.gcp.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl;
@@ -102,6 +101,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -248,7 +248,7 @@ public class BigQueryServicesImplTest {
           when(response.getContent()).thenReturn(toStream(testJob));
         });
 
-    Sleeper sleeper = new FastNanoClockAndSleeper();
+    Sleeper sleeper = new FastNanoClockAndSleeper()::sleep;
     JobServiceImpl.startJob(
         testJob,
         new ApiErrorExtractor(),
@@ -277,7 +277,7 @@ public class BigQueryServicesImplTest {
           when(response.getStatusCode()).thenReturn(409); // 409 means already exists
         });
 
-    Sleeper sleeper = new FastNanoClockAndSleeper();
+    Sleeper sleeper = new FastNanoClockAndSleeper()::sleep;
     JobServiceImpl.startJob(
         testJob,
         new ApiErrorExtractor(),
@@ -312,7 +312,7 @@ public class BigQueryServicesImplTest {
           when(response.getContent()).thenReturn(toStream(testJob));
         });
 
-    Sleeper sleeper = new FastNanoClockAndSleeper();
+    Sleeper sleeper = new FastNanoClockAndSleeper()::sleep;
     JobServiceImpl.startJob(
         testJob,
         new ApiErrorExtractor(),

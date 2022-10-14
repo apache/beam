@@ -19,6 +19,8 @@ on:
 
 jobs:
   assign:
+    permissions:
+      issues: write
     name: Take or close an issue
     if: ${{ !github.event.issue.pull_request }}
     runs-on: ubuntu-latest

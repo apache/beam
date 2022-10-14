@@ -23,7 +23,13 @@ import * as runnerApi from "../proto/beam_runner_api";
 import { Writer, Reader } from "protobufjs";
 import { Coder, Context, ProtoContext, globalRegistry } from "./coders";
 
-import { Schema, Field, FieldType, AtomicType } from "../proto/schema";
+import {
+  Schema,
+  Field,
+  FieldType,
+  AtomicType,
+  LogicalType,
+} from "../proto/schema";
 import {
   BoolCoder,
   BytesCoder,
@@ -32,6 +38,43 @@ import {
   StrUtf8Coder,
   VarIntCoder,
 } from "./standard_coders";
+
+interface LogicalTypeInfo<T, R> {
+  urn: string;
+  reprType: FieldType;
+  toRepr(obj: T): R;
+  fromRepr(repr: R): T;
+}
+
+const logicalTypes: Map<string, LogicalTypeInfo<unknown, unknown>> = new Map();
+
+export function registerLogicalType(logicalType: LogicalTypeInfo<any, any>) {
+  logicalTypes.set(logicalType.urn, logicalType);
+}
+
+function getLogicalFieldType(urn: string, nullable: boolean = true): FieldType {
+  const info = logicalTypes.get(urn)!;
+  return {
+    nullable: nullable,
+    typeInfo: {
+      oneofKind: "logicalType",
+      logicalType: LogicalType.create({
+        urn,
+        representation: info.reprType,
+      }),
+    },
+  };
+}
+
+export class TypePlaceholder {
+  constructor(public fieldType: FieldType) {}
+}
+
+export class LogicalTypePlaceholder extends TypePlaceholder {
+  constructor(public urn: string) {
+    super(getLogicalFieldType(urn));
+  }
+}
 
 const argsort = (x) =>
   x
@@ -58,6 +101,8 @@ export class RowCoder implements Coder<any> {
       let typeInfo = f.type?.typeInfo;
       switch (typeInfo.oneofKind) {
         case "atomicType":
+        case "rowType":
+        case "logicalType":
           obj[f.name] = value;
           break;
         case "arrayType":
@@ -65,14 +110,6 @@ export class RowCoder implements Coder<any> {
           break;
         // case "iterableType":
         // case "mapType":
-        case "rowType":
-          if (typeInfo.rowType.schema !== undefined) {
-            obj[f.name] = value;
-          } else {
-            throw new Error("Schema missing on RowType");
-          }
-          break;
-        // case "logicalType":
         default:
           throw new Error(
             `Encountered a type that is not currently supported by RowCoder: ${JSON.stringify(
@@ -85,6 +122,10 @@ export class RowCoder implements Coder<any> {
   }
 
   static inferTypeFromJSON(obj: any, nullable: boolean = true): FieldType {
+    if (obj instanceof TypePlaceholder) {
+      return obj.fieldType;
+    }
+
     let fieldType: FieldType = {
       nullable: nullable,
       typeInfo: {
@@ -132,6 +173,16 @@ export class RowCoder implements Coder<any> {
           fieldType.typeInfo = {
             oneofKind: "atomicType",
             atomicType: AtomicType.BYTES,
+          };
+        } else if (obj.beamLogicalType) {
+          const logicalTypeInfo = logicalTypes.get(obj.beamLogicalType);
+          fieldType.typeInfo = {
+            oneofKind: "logicalType",
+            logicalType: {
+              urn: obj.beamLogicalType,
+              payload: new Uint8Array(),
+              representation: logicalTypeInfo?.reprType,
+            },
           };
         } else {
           fieldType.typeInfo = {
@@ -219,7 +270,29 @@ export class RowCoder implements Coder<any> {
           throw new Error("Schema missing on RowType");
         }
         break;
-      // case "logicalType":
+      case "logicalType":
+        const logicalTypeInfo = logicalTypes.get(typeInfo.logicalType.urn);
+        if (logicalTypeInfo !== undefined) {
+          const reprCoder = this.getCoderFromType(
+            typeInfo.logicalType.representation!
+          );
+          return {
+            encode: (element: any, writer: Writer, context: Context) =>
+              reprCoder.encode(
+                logicalTypeInfo.toRepr(element),
+                writer,
+                context
+              ),
+            decode: (reader: Reader, context: Context) =>
+              logicalTypeInfo.fromRepr(reprCoder.decode(reader, context)),
+            toProto: (pipelineContext: ProtoContext) => {
+              throw new Error("Ephemeral coder.");
+            },
+          };
+        } else {
+          throw new Error(`Unknown logical type: ${typeInfo.logicalType.urn}`);
+        }
+        break;
       default:
         throw new Error(
           `Encountered a type that is not currently supported by RowCoder: ${JSON.stringify(
@@ -402,3 +475,10 @@ export class RowCoder implements Coder<any> {
 }
 
 globalRegistry().register(RowCoder.URN, RowCoder);
+
+registerLogicalType({
+  urn: "beam:logical_type:schema:v1",
+  reprType: RowCoder.inferTypeFromJSON(new Uint8Array(), false),
+  toRepr: (schema) => Schema.toBinary(schema),
+  fromRepr: (serialized) => Schema.fromBinary(serialized),
+});

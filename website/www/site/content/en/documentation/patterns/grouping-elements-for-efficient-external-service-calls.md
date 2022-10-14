@@ -37,7 +37,7 @@ The `GroupIntoBatches`-transform uses state and timers under the hood to allow t
 
 while abstracting away the implementation details from users.
 
-The `withShardedKey()` functionality increases parallellism by spreading one key over multiple threads.
+The `withShardedKey()` functionality increases parallelism by spreading one key over multiple threads.
 
 The transforms are used in the following way in Java & Python:
 

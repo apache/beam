@@ -24,7 +24,7 @@ import 'package:playground/modules/messages/handlers/abstract_message_handler.da
 import 'package:playground/modules/messages/handlers/messages_debouncer.dart';
 import 'package:playground/modules/messages/models/abstract_message.dart';
 import 'package:playground/modules/messages/models/set_sdk_message.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground_components/playground_components.dart';
 
 void main() {
   group('MessagesDebouncer', () {
@@ -38,13 +38,13 @@ void main() {
 
     test('drops sequential calls, no time limit', () {
       fakeAsync((async) {
-        debouncer.handle(SetSdkMessage(sdk: SDK.java));
-        debouncer.handle(SetSdkMessage(sdk: SDK.java));
+        debouncer.handle(SetSdkMessage(sdk: Sdk.java));
+        debouncer.handle(SetSdkMessage(sdk: Sdk.java));
         async.elapse(const Duration(days: 36500));
-        debouncer.handle(SetSdkMessage(sdk: SDK.java));
+        debouncer.handle(SetSdkMessage(sdk: Sdk.java));
       });
 
-      expect(recorder.messages, [SetSdkMessage(sdk: SDK.java)]);
+      expect(recorder.messages, [SetSdkMessage(sdk: Sdk.java)]);
     });
 
     test('returns the last result on debouncing', () {

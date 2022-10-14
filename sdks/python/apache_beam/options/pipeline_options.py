@@ -1421,6 +1421,20 @@ class FlinkRunnerOptions(PipelineOptions):
         ' directly, rather than starting up a job server.'
         ' Only applies when flink_master is set to a'
         ' cluster address.  Requires Python 3.6+.')
+    parser.add_argument(
+        '--parallelism',
+        type=int,
+        default=-1,
+        help='The degree of parallelism to be used when distributing'
+        ' operations onto workers. If the parallelism is not set, the'
+        ' configured Flink default is used, or 1 if none can be found.')
+    parser.add_argument(
+        '--max_parallelism',
+        type=int,
+        default=-1,
+        help='The pipeline wide maximum degree of parallelism to be used. The'
+        ' maximum parallelism specifies the upper limit for dynamic scaling'
+        ' and the number of key groups used for partitioned state.')
 
 
 class SparkRunnerOptions(PipelineOptions):

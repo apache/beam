@@ -86,7 +86,7 @@ public class SparkMetricsSinkTest {
   @Category(StreamingTest.class)
   @Test
   public void testInStreamingMode() throws Exception {
-    pipeline.getOptions().as(TestSparkPipelineOptions.class).setForceStreaming(true);
+    pipeline.getOptions().as(TestSparkPipelineOptions.class).setStreaming(true);
     assertThat(InMemoryMetrics.valueOf("emptyLines"), is(nullValue()));
 
     Instant instant = new Instant(0);

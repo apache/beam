@@ -105,7 +105,7 @@ public class UnboundedSourceImpl extends UnboundedSource<SequencedMessage, Check
         this,
         subscriber,
         readerFactory.create(subscription),
-        assembler.newCommitter(),
+        CloserReference.of(assembler.newCommitter()),
         initialOffset);
   }
 

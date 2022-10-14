@@ -1896,6 +1896,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .to(tableRef)
             .withMethod(method)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withAutoSchemaUpdate(true)
             .withTestServices(fakeBqServices)
             .withoutValidation());
 

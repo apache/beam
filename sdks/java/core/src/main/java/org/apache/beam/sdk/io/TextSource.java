@@ -19,10 +19,12 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -92,27 +94,34 @@ class TextSource extends FileBasedSource<String> {
     private static final int READ_BUFFER_SIZE = 8192;
     private static final ByteString UTF8_BOM =
         ByteString.copyFrom(new byte[] {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF});
-    private final ByteBuffer readBuffer = ByteBuffer.allocate(READ_BUFFER_SIZE);
-    private ByteString buffer;
-    private int startOfDelimiterInBuffer;
-    private int endOfDelimiterInBuffer;
+    private static final byte CR = '\r';
+    private static final byte LF = '\n';
+
+    private final byte @Nullable [] delimiter;
+    private final ByteArrayOutputStream str;
+    private final byte[] buffer;
+    private final ByteBuffer byteBuffer;
+
+    private ReadableByteChannel inChannel;
     private long startOfRecord;
     private volatile long startOfNextRecord;
     private volatile boolean eof;
-    private volatile boolean elementIsPresent;
-    private @Nullable String currentValue;
-    private @Nullable ReadableByteChannel inChannel;
-    private byte @Nullable [] delimiter;
+    private volatile @Nullable String currentValue;
+    private int bufferLength = 0; // the number of bytes of real data in the buffer
+    private int bufferPosn = 0; // the current position in the buffer
+    private boolean skipLineFeedAtStart; // skip an LF if at the start of the next buffer
 
     private TextBasedReader(TextSource source, byte[] delimiter) {
       super(source);
-      buffer = ByteString.EMPTY;
+      this.buffer = new byte[READ_BUFFER_SIZE];
+      this.str = new ByteArrayOutputStream();
+      this.byteBuffer = ByteBuffer.wrap(buffer);
       this.delimiter = delimiter;
     }
 
     @Override
     protected long getCurrentOffset() throws NoSuchElementException {
-      if (!elementIsPresent) {
+      if (currentValue == null) {
         throw new NoSuchElementException();
       }
       return startOfRecord;
@@ -128,7 +137,7 @@ class TextSource extends FileBasedSource<String> {
 
     @Override
     public String getCurrent() throws NoSuchElementException {
-      if (!elementIsPresent) {
+      if (currentValue == null) {
         throw new NoSuchElementException();
       }
       return currentValue;
@@ -152,131 +161,277 @@ class TextSource extends FileBasedSource<String> {
           // all the bytes of the delimiter in the call to findDelimiterBounds() below
           requiredPosition = startOffset - delimiter.length;
         }
-        ((SeekableByteChannel) channel).position(requiredPosition);
-        findDelimiterBounds();
-        buffer = buffer.substring(endOfDelimiterInBuffer);
-        startOfNextRecord = requiredPosition + endOfDelimiterInBuffer;
-        endOfDelimiterInBuffer = 0;
-        startOfDelimiterInBuffer = 0;
+
+        // Handle the case where the requiredPosition is at the beginning of the file so we can
+        // skip over UTF8_BOM if present.
+        if (requiredPosition < UTF8_BOM.size()) {
+          ((SeekableByteChannel) channel).position(0);
+          if (fileStartsWithBom()) {
+            startOfNextRecord = bufferPosn = UTF8_BOM.size();
+          } else {
+            startOfNextRecord = bufferPosn = (int) requiredPosition;
+          }
+        } else {
+          ((SeekableByteChannel) channel).position(requiredPosition);
+          startOfNextRecord = requiredPosition;
+        }
+
+        // Read and discard the next record ensuring that startOfNextRecord and bufferPosn point
+        // to the beginning of the next record.
+        readNextRecord();
+        currentValue = null;
+      } else {
+        // Check to see if we start with the UTF_BOM bytes skipping them if present.
+        if (fileStartsWithBom()) {
+          startOfNextRecord = bufferPosn = UTF8_BOM.size();
+        }
       }
     }
 
-    /**
-     * Locates the start position and end position of the next delimiter. Will consume the channel
-     * till either EOF or the delimiter bounds are found.
-     *
-     * <p>This fills the buffer and updates the positions as follows:
-     *
-     * <pre>{@code
-     * ------------------------------------------------------
-     * | element bytes | delimiter bytes | unconsumed bytes |
-     * ------------------------------------------------------
-     * 0            start of          end of              buffer
-     *              delimiter         delimiter           size
-     *              in buffer         in buffer
-     * }</pre>
-     */
-    private void findDelimiterBounds() throws IOException {
-      int bytePositionInBuffer = 0;
-      while (true) {
-        if (!tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + 1)) {
-          startOfDelimiterInBuffer = endOfDelimiterInBuffer = bytePositionInBuffer;
-          break;
-        }
-
-        byte currentByte = buffer.byteAt(bytePositionInBuffer);
-
-        if (delimiter == null) {
-          // default delimiter
-          if (currentByte == '\n') {
-            startOfDelimiterInBuffer = bytePositionInBuffer;
-            endOfDelimiterInBuffer = startOfDelimiterInBuffer + 1;
-            break;
-          } else if (currentByte == '\r') {
-            startOfDelimiterInBuffer = bytePositionInBuffer;
-            endOfDelimiterInBuffer = startOfDelimiterInBuffer + 1;
-
-            if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + 2)) {
-              currentByte = buffer.byteAt(bytePositionInBuffer + 1);
-              if (currentByte == '\n') {
-                endOfDelimiterInBuffer += 1;
-              }
-            }
-            break;
-          }
+    private boolean fileStartsWithBom() throws IOException {
+      for (; ; ) {
+        int bytesRead = inChannel.read(byteBuffer);
+        if (bytesRead == -1) {
+          return false;
         } else {
-          // user defined delimiter
-          int i = 0;
-          // initialize delimiter not found
-          startOfDelimiterInBuffer = endOfDelimiterInBuffer = bytePositionInBuffer;
-          while ((i <= delimiter.length - 1) && (currentByte == delimiter[i])) {
-            // read next byte
-            i++;
-            if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + i + 1)) {
-              currentByte = buffer.byteAt(bytePositionInBuffer + i);
-            } else {
-              // corner case: delimiter truncated at the end of the file
-              startOfDelimiterInBuffer = endOfDelimiterInBuffer = bytePositionInBuffer;
-              break;
-            }
-          }
-          if (i == delimiter.length) {
-            // all bytes of delimiter found
-            endOfDelimiterInBuffer = bytePositionInBuffer + i;
-            break;
-          }
+          bufferLength += bytesRead;
         }
-        // Move to the next byte in buffer.
-        bytePositionInBuffer += 1;
+        if (bufferLength >= UTF8_BOM.size()) {
+          int i;
+          for (i = 0; i < UTF8_BOM.size() && buffer[i] == UTF8_BOM.byteAt(i); ++i) {}
+          if (i == UTF8_BOM.size()) {
+            return true;
+          }
+          return false;
+        }
       }
     }
 
     @Override
     protected boolean readNextRecord() throws IOException {
       startOfRecord = startOfNextRecord;
-      findDelimiterBounds();
 
-      // If we have reached EOF file and consumed all of the buffer then we know
-      // that there are no more records.
-      if (eof && buffer.isEmpty()) {
-        elementIsPresent = false;
+      // If we have reached EOF file last time around then we will mark that we don't have an
+      // element and return false.
+      if (eof) {
+        currentValue = null;
         return false;
       }
 
-      decodeCurrentElement();
-      startOfNextRecord = startOfRecord + endOfDelimiterInBuffer;
+      if (delimiter == null) {
+        return readDefaultLine();
+      } else {
+        return readCustomLine();
+      }
+    }
+
+    /**
+     * Loosely based upon <a
+     * href="https://github.com/hanborq/hadoop/blob/master/src/core/org/apache/hadoop/util/LineReader.java">Hadoop
+     * LineReader.java</a>
+     *
+     * <p>We're reading data from inChannel, but the head of the stream may be already buffered in
+     * buffer, so we have several cases:
+     *
+     * <ol>
+     *   <li>No newline characters are in the buffer, so we need to copy everything and read another
+     *       buffer from the stream.
+     *   <li>An unambiguously terminated line is in buffer, so we just create currentValue
+     *   <li>Ambiguously terminated line is in buffer, i.e. buffer ends in CR. In this case we copy
+     *       everything up to CR to str, but we also need to see what follows CR: if it's LF, then
+     *       we need consume LF as well, so next call to readLine will read from after that.
+     * </ol>
+     *
+     * <p>We use a flag prevCharCR to signal if previous character was CR and, if it happens to be
+     * at the end of the buffer, delay consuming it until we have a chance to look at the char that
+     * follows.
+     */
+    private boolean readDefaultLine() throws IOException {
+      assert !eof;
+
+      int newlineLength = 0; // length of terminating newline
+      boolean prevCharCR = false; // true if prev char was CR
+      long bytesConsumed = 0;
+      EOF:
+      for (; ; ) {
+        int startPosn = bufferPosn; // starting from where we left off the last time
+
+        // Read the next chunk from the file, ensure that we read at least one byte
+        // or reach EOF.
+        while (bufferPosn == bufferLength) {
+          startPosn = bufferPosn = 0;
+          byteBuffer.clear();
+          bufferLength = inChannel.read(byteBuffer);
+
+          // If we are at EOF then try to create the last value from the buffer.
+          if (bufferLength < 0) {
+            eof = true;
+
+            // Don't return an empty record if the file ends with a delimiter
+            if (str.size() == 0) {
+              return false;
+            }
+
+            currentValue = str.toString(StandardCharsets.UTF_8.name());
+            break EOF;
+          }
+        }
+
+        // Consume any LF after CR if it is the first character of the next buffer
+        if (skipLineFeedAtStart && buffer[bufferPosn] == LF) {
+          ++bytesConsumed;
+          ++startPosn;
+          ++bufferPosn;
+          skipLineFeedAtStart = false;
+        }
+
+        // Search for the newline
+        for (; bufferPosn < bufferLength; ++bufferPosn) {
+          if (buffer[bufferPosn] == LF) {
+            newlineLength = (prevCharCR) ? 2 : 1;
+            ++bufferPosn; // at next invocation proceed from following byte
+            break;
+          }
+          if (prevCharCR) { // CR + notLF, we are at notLF
+            newlineLength = 1;
+            break;
+          }
+          prevCharCR = (buffer[bufferPosn] == CR);
+        }
+
+        // CR at the end of the buffer
+        if (newlineLength == 0 && prevCharCR) {
+          skipLineFeedAtStart = true;
+          newlineLength = 1;
+        } else {
+          skipLineFeedAtStart = false;
+        }
+
+        int readLength = bufferPosn - startPosn;
+        bytesConsumed += readLength;
+        int appendLength = readLength - newlineLength;
+        if (newlineLength == 0) {
+          // Append the prefix of the value to str skipping the partial delimiter
+          str.write(buffer, startPosn, appendLength);
+        } else {
+          if (str.size() == 0) {
+            // Optimize for the common case where the string is wholly contained within the buffer
+            currentValue = new String(buffer, startPosn, appendLength, StandardCharsets.UTF_8);
+          } else {
+            str.write(buffer, startPosn, appendLength);
+            currentValue = str.toString(StandardCharsets.UTF_8.name());
+          }
+          break;
+        }
+      }
+
+      startOfNextRecord = startOfRecord + bytesConsumed;
+      str.reset();
       return true;
     }
 
     /**
-     * Decodes the current element updating the buffer to only contain the unconsumed bytes.
+     * Loosely based upon <a
+     * href="https://github.com/hanborq/hadoop/blob/master/src/core/org/apache/hadoop/util/LineReader.java">Hadoop
+     * LineReader.java</a>
      *
-     * <p>This invalidates the currently stored {@code startOfDelimiterInBuffer} and {@code
-     * endOfDelimiterInBuffer}.
+     * <p>Note that this implementation fixes an issue where a partial match against the delimiter
+     * would have been lost if the delimiter crossed at the buffer boundaries during reading.
      */
-    private void decodeCurrentElement() throws IOException {
-      ByteString dataToDecode = buffer.substring(0, startOfDelimiterInBuffer);
-      // If present, the UTF8 Byte Order Mark (BOM) will be removed.
-      if (startOfRecord == 0 && dataToDecode.startsWith(UTF8_BOM)) {
-        dataToDecode = dataToDecode.substring(UTF8_BOM.size());
-      }
-      currentValue = dataToDecode.toStringUtf8();
-      elementIsPresent = true;
-      buffer = buffer.substring(endOfDelimiterInBuffer);
-    }
+    private boolean readCustomLine() throws IOException {
+      assert !eof;
 
-    /** Returns false if we were unable to ensure the minimum capacity by consuming the channel. */
-    private boolean tryToEnsureNumberOfBytesInBuffer(int minCapacity) throws IOException {
-      // While we aren't at EOF or haven't fulfilled the minimum buffer capacity,
-      // attempt to read more bytes.
-      while (buffer.size() <= minCapacity && !eof) {
-        eof = inChannel.read(readBuffer) == -1;
-        readBuffer.flip();
-        buffer = buffer.concat(ByteString.copyFrom(readBuffer));
-        readBuffer.clear();
+      long bytesConsumed = 0;
+      int delPosn = 0;
+      EOF:
+      for (; ; ) {
+        int startPosn = bufferPosn; // starting from where we left off the last time
+
+        // Read the next chunk from the file, ensure that we read at least one byte
+        // or reach EOF.
+        while (bufferPosn >= bufferLength) {
+          startPosn = bufferPosn = 0;
+          byteBuffer.clear();
+          bufferLength = inChannel.read(byteBuffer);
+
+          // If we are at EOF then try to create the last value from the buffer.
+          if (bufferLength < 0) {
+            eof = true;
+
+            // Write any partial delimiter now that we are at EOF
+            if (delPosn != 0) {
+              str.write(delimiter, 0, delPosn);
+            }
+
+            // Don't return an empty record if the file ends with a delimiter
+            if (str.size() == 0) {
+              return false;
+            }
+
+            currentValue = str.toString(StandardCharsets.UTF_8.name());
+            break EOF;
+          }
+        }
+
+        int prevDelPosn = delPosn;
+        DELIMITER_MATCH:
+        {
+          if (delPosn > 0) {
+            // slow-path: Handle the case where we only matched part of the delimiter, possibly
+            // adding that to str fixing up any partially consumed delimiter if we don't match the
+            // whole delimiter
+            for (; bufferPosn < bufferLength; ++bufferPosn) {
+              if (buffer[bufferPosn] == delimiter[delPosn]) {
+                delPosn++;
+                if (delPosn == delimiter.length) {
+                  bufferPosn++;
+                  break DELIMITER_MATCH; // Skip matching the delimiter using the fast path
+                }
+              } else {
+                // Add to str any previous partial delimiter since we didn't match the whole
+                // delimiter
+                str.write(delimiter, 0, prevDelPosn);
+                delPosn = 0;
+                break; // Leave this loop and use the fast-path delimiter matching
+              }
+            }
+          }
+
+          // fast-path: Look for the delimiter within the buffer
+          for (; bufferPosn < bufferLength; ++bufferPosn) {
+            if (buffer[bufferPosn] == delimiter[delPosn]) {
+              delPosn++;
+              if (delPosn == delimiter.length) {
+                bufferPosn++;
+                break;
+              }
+            } else {
+              delPosn = 0;
+            }
+          }
+        }
+
+        int readLength = bufferPosn - startPosn;
+        bytesConsumed += readLength;
+        int appendLength = readLength - (delPosn - prevDelPosn);
+        if (delPosn < delimiter.length) {
+          // Append the prefix of the value to str skipping the partial delimiter
+          str.write(buffer, startPosn, appendLength);
+        } else {
+          if (str.size() == 0) {
+            // Optimize for the common case where the string is wholly contained within the buffer
+            currentValue = new String(buffer, startPosn, appendLength, StandardCharsets.UTF_8);
+          } else {
+            str.write(buffer, startPosn, appendLength);
+            currentValue = str.toString(StandardCharsets.UTF_8.name());
+          }
+          break;
+        }
       }
-      // Return true if we were able to honor the minimum buffer capacity request
-      return buffer.size() >= minCapacity;
+
+      startOfNextRecord = startOfRecord + bytesConsumed;
+      str.reset();
+      return true;
     }
   }
 }

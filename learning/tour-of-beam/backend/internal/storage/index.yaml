@@ -16,5 +16,5 @@ indexes:
   - name: "level"
   - name: "order"
   - name: "id"
-  - name: "name"
+  - name: "title"
   - name: "type"

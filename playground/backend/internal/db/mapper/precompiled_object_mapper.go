@@ -43,6 +43,9 @@ func (pom *PrecompiledObjectMapper) ToObjectInfo(exampleDTO *dto.ExampleDTO) *dt
 		Multifile:       exampleDTO.HasMultiFiles(),
 		ContextLine:     exampleDTO.GetContextLine(),
 		DefaultExample:  exampleDTO.IsDefault(),
+		Sdk:             exampleDTO.GetSDK(),
+		Complexity:      exampleDTO.GetComplexity(),
+		Tags:            exampleDTO.Example.Tags,
 	}
 }
 
@@ -74,6 +77,44 @@ func (pom *PrecompiledObjectMapper) ToArrayCategories(catalogDTO *dto.CatalogDTO
 	}
 
 	return sdkCategories
+}
+
+func (pom *PrecompiledObjectMapper) ToDefaultPrecompiledObjects(defaultExamplesDTO *dto.DefaultExamplesDTO) map[pb.Sdk]*pb.PrecompiledObject {
+	result := make(map[pb.Sdk]*pb.PrecompiledObject)
+	for exampleIndx, example := range defaultExamplesDTO.Examples {
+		result[pb.Sdk(pb.Sdk_value[example.Sdk.Name])] = &pb.PrecompiledObject{
+			CloudPath:       getCloudPath(example),
+			Name:            example.Name,
+			Description:     example.Descr,
+			Type:            pb.PrecompiledObjectType(pb.PrecompiledObjectType_value[example.Type]),
+			PipelineOptions: defaultExamplesDTO.Snippets[exampleIndx].PipeOpts,
+			Link:            example.Path,
+			Multifile:       false,
+			ContextLine:     defaultExamplesDTO.Files[exampleIndx].CntxLine,
+			DefaultExample:  true,
+			Sdk:             pb.Sdk(pb.Sdk_value[example.Sdk.Name]),
+			Tags:            example.Tags,
+			Complexity:      pb.Complexity(pb.Complexity_value[defaultExamplesDTO.Snippets[exampleIndx].Complexity]),
+		}
+	}
+	return result
+}
+
+func (pom *PrecompiledObjectMapper) ToPrecompiledObj(exampleDTO *dto.ExampleDTO) *pb.PrecompiledObject {
+	return &pb.PrecompiledObject{
+		CloudPath:       getCloudPath(exampleDTO.Example),
+		Name:            exampleDTO.Example.Name,
+		Description:     exampleDTO.Example.Descr,
+		Type:            exampleDTO.GetType(),
+		PipelineOptions: exampleDTO.Snippet.PipeOpts,
+		Link:            exampleDTO.Example.Path,
+		Multifile:       exampleDTO.HasMultiFiles(),
+		ContextLine:     exampleDTO.GetContextLine(),
+		DefaultExample:  exampleDTO.IsDefault(),
+		Sdk:             exampleDTO.GetSDK(),
+		Complexity:      exampleDTO.GetComplexity(),
+		Tags:            exampleDTO.Example.Tags,
+	}
 }
 
 // appendPrecompiledObject add precompiled object to the common structure of precompiled objects
@@ -108,6 +149,9 @@ func putPrecompiledObjectsToCategory(categoryName string, precompiledObjects *dt
 			Multifile:       object.Multifile,
 			ContextLine:     object.ContextLine,
 			DefaultExample:  object.DefaultExample,
+			Sdk:             object.Sdk,
+			Complexity:      object.Complexity,
+			Tags:            object.Tags,
 		})
 	}
 	sdkCategory.Categories = append(sdkCategory.Categories, &category)
