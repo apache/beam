@@ -80,7 +80,7 @@ jobs:
             --verbose \
             --sdk SDK_${SDK^^} \
             --whitelist ${{ inputs.whitelist }} \
-            --paths "${{ steps.check_file_changed.outputs.example_diff }}"
+            --paths ${{ steps.check_file_changed.outputs.example_diff }}
           if [ $? -eq 0 ]; then
             echo "::set-output name=example_has_changed::True"
           else
