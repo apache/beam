@@ -70,6 +70,7 @@ jobs:
             --sdk SDK_${SDK^^} \
             --whitelist {{ inputs.whitelist }}
             --paths {{ steps.check_file_changed.outputs.example_diff }})
+        working-directory: playground/infrastructure
         env:
           BEAM_ROOT_DIR: "../.."
 
