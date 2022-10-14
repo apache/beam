@@ -74,7 +74,7 @@ jobs:
       - id: check_has_example
         name: has Examples
         run: |
-          set -ux
+          set -u
           python3 checker.py \
             --sdk SDK_${SDK^^} \
             --whitelist ${{ inputs.whitelist }} \
