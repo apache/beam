@@ -41,8 +41,8 @@ class DaskBagOp(abc.ABC):
   applied: AppliedPTransform
 
   @property
-  def side_inputs(self):
-    return self.applied.transform.args
+  def transform(self):
+    return self.applied.transform
 
   @abc.abstractmethod
   def apply(self, input_bag: OpInput) -> db.Bag:
@@ -57,21 +57,21 @@ class NoOp(DaskBagOp):
 class Create(DaskBagOp):
   def apply(self, input_bag: OpInput) -> db.Bag:
     assert input_bag is None, 'Create expects no input!'
-    original_transform = t.cast(_Create, self.applied.transform)
+    original_transform = t.cast(_Create, self.transform)
     items = original_transform.values
     return db.from_sequence(items)
 
 
 class ParDo(DaskBagOp):
   def apply(self, input_bag: db.Bag) -> db.Bag:
-    transform = t.cast(apache_beam.ParDo, self.applied.transform)
+    transform = t.cast(apache_beam.ParDo, self.transform)
     return input_bag.map(
         transform.fn.process, *transform.args, **transform.kwargs).flatten()
 
 
 class Map(DaskBagOp):
   def apply(self, input_bag: db.Bag) -> db.Bag:
-    transform = t.cast(apache_beam.Map, self.applied.transform)
+    transform = t.cast(apache_beam.Map, self.transform)
     return input_bag.map(
         transform.fn.process, *transform.args, **transform.kwargs)
 
