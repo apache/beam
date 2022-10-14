@@ -28,7 +28,7 @@ on:
         description: Flag to comment the Jenkins Trigger Phrases in the new PR
         required: true
 env:
-  WORKING_BRANCH: postcommit_validation_pr # Is it always the same branch name? or should we need to add it as input?
+  WORKING_BRANCH: postcommit_validation_pr
 jobs:
   verify_release:
     runs-on: [self-hosted, ubuntu-20.04]
@@ -38,6 +38,10 @@ jobs:
     env:
       RELEASE_VER: ${{ github.event.inputs.RELEASE_VER }}
     steps:
+      - name: Verify branch name
+        run:
+          - sh ./ci_check_git_branch.sh $WORKING_BRANCH
+        working-directory: 'scripts/ci'
       - name: Set RELEASE_BRANCH env variable
         run: |
           RELEASE_BRANCH=release-${{env.RELEASE_VER}}
