@@ -50,7 +50,7 @@ except ImportError:
     },
 ])
 @pytest.mark.uses_pytorch
-class DataFrameBatchConverterTest(unittest.TestCase):
+class PytorchBatchConverterTest(unittest.TestCase):
   def create_batch_converter(self):
     return BatchConverter.from_typehints(
         element_type=self.element_typehint, batch_type=self.batch_typehint)
