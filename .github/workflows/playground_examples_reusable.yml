@@ -60,27 +60,23 @@ jobs:
       - name: install deps
         run: pip install -r requirements.txt
         working-directory: playground/infrastructure
-      - name: get Difference
-        id: check_file_changed
+      - id: check_has_example
+        name: has Examples
         run: |
-          set -xeu
+          # don't quit on errors, check unbound vars, and show commands
+          set +e -ux
+          
           # define the base ref
           BASE_REF=$GITHUB_BASE_REF
           if [ -z "$BASE_REF" ] || [ "$BASE_REF" == "master" ]; then
             BASE_REF=origin/master
           fi
-          DIFF=$(git diff --name-only $BASE_REF $GITHUB_SHA)
-          echo "::set-output name=example_diff::$DIFF"
-      - id: check_has_example
-        name: has Examples
-        run: |
-          # don't quit on errors
-          set +e
+           
           python3 checker.py \
             --verbose \
             --sdk SDK_${SDK^^} \
             --whitelist ${{ inputs.whitelist }} \
-            --paths ${{ steps.check_file_changed.outputs.example_diff }}
+            --paths $(git diff --name-only $BASE_REF $GITHUB_SHA)
           if [ $? -eq 0 ]; then
             echo "::set-output name=example_has_changed::True"
           else
