@@ -61,7 +61,7 @@ def check_in_whitelist(paths: List[PurePath], whitelist: List[PurePath]) -> bool
     for path in paths:
         logging.debug("check if whitelisted: %s", path)
         for w in whitelist:
-            if path.is_relative_to(w):
+            if w in [path, *path.parents]:
                 logging.info(f"{path} is whitelisted by {w}")
                 return True
     return False
