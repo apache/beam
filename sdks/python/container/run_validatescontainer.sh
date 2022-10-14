@@ -65,6 +65,7 @@ test -d sdks/python/container
 command -v docker
 command -v gcloud
 docker -v
+python --version
 gcloud -v
 
 # Verify docker image has been built.

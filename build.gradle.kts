@@ -364,7 +364,7 @@ tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
+  // dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
   dependsOn(":sdks:python:test-suites:direct:py310:inferencePostCommitIT")
 }
 
