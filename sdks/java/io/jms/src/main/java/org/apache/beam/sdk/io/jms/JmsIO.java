@@ -383,6 +383,8 @@ public class JmsIO {
      * redelivered to other clients.
      */
     public Read<T> withCloseTimeout(Duration closeTimeout) {
+      checkArgument(closeTimeout != null, "closeTimeout can not be null");
+      checkArgument(closeTimeout.getMillis() >= 0, "Close timeout must be non-negative.");
       return builder().setCloseTimeout(closeTimeout).build();
     }
 
