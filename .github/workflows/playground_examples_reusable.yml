@@ -76,7 +76,7 @@ jobs:
   ci_cd:
     name: ${{ inputs.step }} ${{ inputs.sdk }} ${{ inputs.origin }}
     needs: [ check_examples ]
-    if: needs.check_examples.outputs.example_has_changed
+    if: needs.check_has_examples.outputs.example_has_changed
     runs-on: ubuntu-latest
     env:
       ORIGIN: ${{ inputs.origin }}
