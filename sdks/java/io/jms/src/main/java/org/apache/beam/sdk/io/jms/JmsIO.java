@@ -126,7 +126,7 @@ import org.slf4j.LoggerFactory;
 public class JmsIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);
-  private static final long DEFAULT_CLOSE_TIMEOUT = 60000L;
+  private static final Duration DEFAULT_CLOSE_TIMEOUT = Duration.millis(60000L);
 
   public static Read<JmsRecord> read() {
     return new AutoValue_JmsIO_Read.Builder<JmsRecord>()
@@ -214,7 +214,7 @@ public class JmsIO {
 
     abstract @Nullable AutoScaler getAutoScaler();
 
-    abstract long getCloseTimeout();
+    abstract Duration getCloseTimeout();
 
     abstract Builder<T> builder();
 
@@ -240,7 +240,7 @@ public class JmsIO {
 
       abstract Builder<T> setAutoScaler(AutoScaler autoScaler);
 
-      abstract Builder<T> setCloseTimeout(long closeTimeout);
+      abstract Builder<T> setCloseTimeout(Duration closeTimeout);
 
       abstract Read<T> build();
     }
@@ -376,7 +376,13 @@ public class JmsIO {
       return builder().setAutoScaler(autoScaler).build();
     }
 
-    public Read<T> withCloseTimeout(long closeTimeout) {
+    /**
+     * Sets the amount of time to wait for callbacks from the runner stating that the output has
+     * been durably persisted before closing the connection to the JMS broker. Any callbacks that do
+     * not occur will cause any unacknowledged messages to be returned to the JMS broker and
+     * redelivered to other clients.
+     */
+    public Read<T> withCloseTimeout(Duration closeTimeout) {
       return builder().setCloseTimeout(closeTimeout).build();
     }
 
@@ -614,7 +620,7 @@ public class JmsIO {
               closeSession();
               closeConnection();
             },
-            source.spec.getCloseTimeout(),
+            source.spec.getCloseTimeout().getMillis(),
             TimeUnit.MILLISECONDS);
 
       } catch (Exception e) {

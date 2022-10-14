@@ -69,6 +69,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -560,7 +561,7 @@ public class JmsIOTest {
   public void testCloseWithTimeout()
       throws IOException, NoSuchFieldException, IllegalAccessException {
 
-    int closeTimeout = 2000;
+    Duration closeTimeout = Duration.millis(2000L);
     JmsIO.Read spec =
         JmsIO.read()
             .withConnectionFactory(connectionFactory)
@@ -578,7 +579,7 @@ public class JmsIOTest {
     boolean discarded = getDiscardedValue(reader);
     assertFalse(discarded);
     try {
-      Thread.sleep(closeTimeout + 1000);
+      Thread.sleep(closeTimeout.getMillis() + 1000);
     } catch (InterruptedException ignored) {
     }
     discarded = getDiscardedValue(reader);
