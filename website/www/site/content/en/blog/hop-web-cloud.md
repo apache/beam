@@ -34,7 +34,7 @@ of those jobs. Because we don't want just anyone to access your Hop instance,
 we’re going to secure it so that only you can access that virtual machine. The
 following diagram illustrates the setup:
 
-![Architecture deployed with this tutorial](/images/blog/hop-web-cloud/hop-web-cloud-image1.png)
+![Architecture deployed with this tutorial](/images/blog/hop-web-cloud/hop-web-cloud-image2.png)
 
 We will show how to do the deployment described previously, creating a web and
 visual development environment that builds Beam pipelines using just a web
@@ -58,7 +58,7 @@ configure the Google Cloud SDK in your local computer. For instructions, see
 To open Cloud Shell, go to the [Google Cloud console]
 (http://console.cloud.google.com), make sure your project is selected, and click
 the Cloud Shell button ![Cloud Shell
-button](/images/blog/hop-web-cloud/hop-web-cloud-image2.png). Cloud Shell opens,
+button](/images/blog/hop-web-cloud/hop-web-cloud-image1.png). Cloud Shell opens,
 and you can use it to run the commands shown in this post.
 
 The commands that we are going to use in the next steps are [available in a Gist
