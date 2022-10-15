@@ -25,14 +25,14 @@ can run jobs in any Beam runner, such as Dataflow, Flink or Spark. [In a
 previous post](https://beam.apache.org/blog/apache-hop-with-dataflow/), we
 introduced the desktop version of Apache Hop. Hop also has a web environment,
 Hop Web, that you can run from a container, so you don't have to install
-anything on your computer to use it. 
+anything on your computer to use it.
 
 In this detailed tutorial, you access Hop through the internet using a web
 browser and point to a container running in a virtual machine on Google
 Cloud. That container will launch jobs in Dataflow and report back the results
 of those jobs. Because we don't want just anyone to access your Hop instance,
 we’re going to secure it so that only you can access that virtual machine. The
-following diagram illustrates the setup: 
+following diagram illustrates the setup:
 
 ![Architecture deployed with this tutorial](/images/blog/hop-web-cloud/hop-web-cloud-image1.png)
 
@@ -40,7 +40,7 @@ We will show how to do the deployment described previously, creating a web and
 visual development environment that builds Beam pipelines using just a web
 browser. When complete, you will have a secure web environment that you can use
 to create pipelines with your web browser and launch them using Google Cloud
-Dataflow. 
+Dataflow.
 
 ## What do you need to run this example?
 
@@ -77,16 +77,16 @@ permission to run Dataflow jobs.
 By default, virtual machines use the service account called _Compute Engine
 default service account_. For the sake of simplicity, we will use this
 account. Still, we need to add some permissions to run Dataflow jobs with that
-service account. 
+service account.
 
 First, let's make sure that you have enabled all the required Google Cloud
 APIs. [Click this link to enable Dataflow, BigQuery and
 Pub/Sub](https://console.cloud.google.com/flows/enableapi?apiid=dataflow,compute_component,logging,storage_component,storage_api,bigquery,pubsub),
 which we’ll use in this workflow. The link takes you to your project in the
-Google Cloud console, where you can enable the APIs. 
+Google Cloud console, where you can enable the APIs.
 
 Let's now give permissions to the VM account. First, find the ID of the service
-account. Open Cloud Shell, and run the following command. 
+account. Open Cloud Shell, and run the following command.
 
 ```
 gcloud iam service-accounts list | grep compute
@@ -121,7 +121,7 @@ roles for those services to the service account.
 ## Disk and virtual machine
 
 Let's create a virtual machine (VM) in Compute Engine to run the Docker
-container of Apache Hop. 
+container of Apache Hop.
 
 In Compute Engine, it is possible to run a container directly in a VM. There are
 other options to run containers in Google Cloud, but a VM is probably the
@@ -149,7 +149,7 @@ to create a persistent disk, where we will store all our work with Hop web. Run
 the following command to create the disk:
 
 ```
-gcloud compute disks create my-hop-disk \ 
+gcloud compute disks create my-hop-disk \
   --type=pd-balanced \
   --size=10GB \
   --zone=$ZONE
