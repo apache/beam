@@ -23,43 +23,47 @@ import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../components/builders/content_tree.dart';
-import '../../components/builders/sdks_builder.dart';
+import '../../components/builders/sdks.dart';
 import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
 import '../../models/module.dart';
-import '../../models/sdk.dart';
+import 'state.dart';
 
 class WelcomeScreen extends StatelessWidget {
-  const WelcomeScreen();
+  final WelcomeNotifier notifier;
+
+  const WelcomeScreen(this.notifier);
 
   @override
   Widget build(BuildContext context) {
     return TobScaffold(
       child: SingleChildScrollView(
         child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
-            ? const _WideWelcome()
-            : const _NarrowWelcome(),
+            ? _WideWelcome(notifier)
+            : _NarrowWelcome(notifier),
       ),
     );
   }
 }
 
 class _WideWelcome extends StatelessWidget {
-  const _WideWelcome();
+  final WelcomeNotifier notifier;
+
+  const _WideWelcome(this.notifier);
 
   @override
   Widget build(BuildContext context) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+        children: [
           Expanded(
-            child: _SdkSelection(),
+            child: _SdkSelection(notifier),
           ),
           Expanded(
-            child: _TourSummary(),
+            child: _TourSummary(notifier),
           ),
         ],
       ),
@@ -68,21 +72,25 @@ class _WideWelcome extends StatelessWidget {
 }
 
 class _NarrowWelcome extends StatelessWidget {
-  const _NarrowWelcome();
+  final WelcomeNotifier notifier;
+
+  const _NarrowWelcome(this.notifier);
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: const [
-        _SdkSelection(),
-        _TourSummary(),
+      children: [
+        _SdkSelection(notifier),
+        _TourSummary(notifier),
       ],
     );
   }
 }
 
 class _SdkSelection extends StatelessWidget {
-  const _SdkSelection();
+  final WelcomeNotifier notifier;
+
+  const _SdkSelection(this.notifier);
 
   static const double _minimalHeight = 900;
 
@@ -119,7 +127,15 @@ class _SdkSelection extends StatelessWidget {
                       return Container();
                     }
 
-                    return _Buttons(sdks: sdks);
+                    return AnimatedBuilder(
+                      animation: notifier,
+                      builder: (context, child) => _Buttons(
+                        sdks: sdks,
+                        sdkId: notifier.sdkId,
+                        setSdkId: (v) => notifier.sdkId = v,
+                        onStartPressed: notifier.startTour,
+                      ),
+                    );
                   },
                 ),
               ],
@@ -132,33 +148,46 @@ class _SdkSelection extends StatelessWidget {
 }
 
 class _TourSummary extends StatelessWidget {
-  const _TourSummary();
+  final WelcomeNotifier notifier;
+
+  const _TourSummary(this.notifier);
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: BeamSizes.size20,
-        horizontal: 27,
-      ),
-      child: ContentTreeBuilder(
-        builder: (context, contentTree, child) {
-          if (contentTree == null) {
-            return Container();
-          }
+    return AnimatedBuilder(
+      animation: notifier,
+      builder: (context, child) {
+        final sdkId = notifier.sdkId;
+        if (sdkId == null) {
+          return Container();
+        }
 
-          return Column(
-            children: contentTree.modules
-                .map(
-                  (module) => _Module(
-                    module: module,
-                    isLast: module == contentTree.modules.last,
-                  ),
-                )
-                .toList(growable: false),
-          );
-        },
-      ),
+        return Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: BeamSizes.size20,
+            horizontal: 27,
+          ),
+          child: ContentTreeBuilder(
+            sdkId: sdkId,
+            builder: (context, contentTree, child) {
+              if (contentTree == null) {
+                return Container();
+              }
+
+              return Column(
+                children: contentTree.modules
+                    .map(
+                      (module) => _Module(
+                        module: module,
+                        isLast: module == contentTree.modules.last,
+                      ),
+                    )
+                    .toList(growable: false),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
@@ -211,12 +240,17 @@ class _IntroText extends StatelessWidget {
 }
 
 class _Buttons extends StatelessWidget {
-  final List<SdkModel> sdks;
-  const _Buttons({required this.sdks});
+  final List<Sdk> sdks;
+  final String? sdkId;
+  final ValueChanged<String> setSdkId;
+  final VoidCallback onStartPressed;
 
-  void _onSdkChanged(String value) {
-    // TODO(nausharipov): change sdk
-  }
+  const _Buttons({
+    required this.sdks,
+    required this.sdkId,
+    required this.setSdkId,
+    required this.onStartPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -228,29 +262,25 @@ class _Buttons extends StatelessWidget {
                 (sdk) => _SdkButton(
                   title: sdk.title,
                   value: sdk.id,
-                  groupValue: _sdk,
-                  onChanged: _onSdkChanged,
+                  groupValue: sdkId,
+                  onChanged: setSdkId,
                 ),
               )
               .toList(growable: false),
         ),
         ElevatedButton(
-          onPressed: () {
-            // TODO(nausharipov): redirect
-          },
+          onPressed: sdkId == null ? null : onStartPressed,
           child: const Text('pages.welcome.startTour').tr(),
         ),
       ],
     );
   }
-
-  static const String _sdk = 'java';
 }
 
 class _SdkButton extends StatelessWidget {
   final String title;
   final String value;
-  final String groupValue;
+  final String? groupValue;
   final ValueChanged<String> onChanged;
 
   const _SdkButton({
@@ -302,6 +332,7 @@ class _Module extends StatelessWidget {
 
 class _ModuleHeader extends StatelessWidget {
   final String title;
+
   const _ModuleHeader({required this.title});
 
   @override

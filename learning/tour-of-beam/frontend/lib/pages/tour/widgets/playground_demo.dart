@@ -20,57 +20,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../config.dart';
+class PlaygroundDemoWidget extends StatelessWidget {
+  final PlaygroundController playgroundController;
 
-class PlaygroundDemoWidget extends StatefulWidget {
-  const PlaygroundDemoWidget({super.key});
-
-  @override
-  State<PlaygroundDemoWidget> createState() => _PlaygroundDemoWidgetState();
-}
-
-class _PlaygroundDemoWidgetState extends State<PlaygroundDemoWidget> {
-  late final PlaygroundController playgroundController;
-
-  @override
-  void initState() {
-    super.initState();
-
-    final exampleRepository = ExampleRepository(
-      client: GrpcExampleClient(url: kApiClientURL),
-    );
-
-    final codeRepository = CodeRepository(
-      client: GrpcCodeClient(
-        url: kApiClientURL,
-        runnerUrlsById: {
-          Sdk.java.id: kApiJavaClientURL,
-          Sdk.go.id: kApiGoClientURL,
-          Sdk.python.id: kApiPythonClientURL,
-          Sdk.scio.id: kApiScioClientURL,
-        },
-      ),
-    );
-
-    final exampleCache = ExampleCache(
-      exampleRepository: exampleRepository,
-      hasCatalog: true,
-    );
-
-    playgroundController = PlaygroundController(
-      codeRepository: codeRepository,
-      exampleCache: exampleCache,
-      examplesLoader: ExamplesLoader(),
-    );
-
-    playgroundController.examplesLoader.load(
-      const ExamplesLoadingDescriptor(
-        descriptors: [
-          CatalogDefaultExampleLoadingDescriptor(sdk: Sdk.java),
-        ],
-      ),
-    );
-  }
+  const PlaygroundDemoWidget({
+    required this.playgroundController,
+  });
 
   @override
   Widget build(BuildContext context) {

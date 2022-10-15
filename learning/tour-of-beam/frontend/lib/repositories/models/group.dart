@@ -34,4 +34,7 @@ class GroupResponseModel {
 
   factory GroupResponseModel.fromJson(Map<String, dynamic> json) =>
       _$GroupResponseModelFromJson(json);
+
+  // TODO(alexeyinkin): Replace with backend IDs when they start coming.
+  String get id => title.toLowerCase().replaceAll(RegExp('[^a-zA-Z0-9]+'), '-');
 }

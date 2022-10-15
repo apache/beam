@@ -38,6 +38,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/diagnostics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -102,9 +103,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	client := fnpb.NewBeamFnControlClient(conn)
 
 	lookupDesc := func(id bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error) {
-		pbd, err := client.GetProcessBundleDescriptor(ctx, &fnpb.GetProcessBundleDescriptorRequest{ProcessBundleDescriptorId: string(id)})
-		log.Debugf(ctx, "GPBD RESP [%v]: %v, err %v", id, pbd, err)
-		return pbd, err
+		return client.GetProcessBundleDescriptor(ctx, &fnpb.GetProcessBundleDescriptorRequest{ProcessBundleDescriptorId: string(id)})
 	}
 
 	stub, err := client.Control(ctx)
@@ -279,7 +278,9 @@ type awaitingFinalization struct {
 }
 
 type control struct {
-	lookupDesc  func(bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error)
+	lookupDesc     func(bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error)
+	bundleGetGroup singleflight.Group
+
 	descriptors map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor // protected by mu
 	// plans that are candidates for execution.
 	plans map[bundleDescriptorID][]*exec.Plan // protected by mu
@@ -328,14 +329,20 @@ func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 	desc, ok := c.descriptors[bdID]
 	c.mu.Unlock() // Unlock to make the lookup or build the descriptor.
 	if !ok {
-		newDesc, err := c.lookupDesc(bdID)
+		newDesc, err, _ := c.bundleGetGroup.Do(string(bdID), func() (interface{}, error) {
+			newDesc, err := c.lookupDesc(bdID)
+			if err != nil {
+				return nil, errors.WithContextf(err, "execution plan for %v not found", bdID)
+			}
+			c.mu.Lock()
+			c.descriptors[bdID] = newDesc
+			c.mu.Unlock()
+			return newDesc, nil
+		})
 		if err != nil {
-			return nil, errors.WithContextf(err, "execution plan for %v not found", bdID)
+			return nil, err
 		}
-		c.mu.Lock()
-		c.descriptors[bdID] = newDesc
-		c.mu.Unlock()
-		desc = newDesc
+		desc = newDesc.(*fnpb.ProcessBundleDescriptor)
 	}
 	newPlan, err := exec.UnmarshalPlan(desc)
 	if err != nil {
