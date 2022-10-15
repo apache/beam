@@ -4206,7 +4206,8 @@ purchases.apply(Group.byFieldNames("userId")
 {{< highlight py >}}
 input_pc = ... # {"user_id": ...,"item_Id": ..., "cost_cents": ...}
 output_pc = input_pc | beam.GroupBy("user_id")
-	.aggregate_field("item_id",count,"num_purchases")
+	.aggregate_field("cost_cents",max,"max_purchase")
+	.aggregate_field("cost_cents",min,"min_purchase")
 	.aggregate_field("cost_cents",sum,"total_spendcents")
 {{< /highlight >}}
 
@@ -4253,7 +4254,7 @@ The result of this aggregation will have the following schema:
     </tr>
     <tr>
       <td>value</td>
-      <td>ROW{num_purchases: INT64, total_spendCents: INT64}</td>
+      <td>ROW{num_purchases: INT64, max_purchase: INT64, min_purchase: INT64}</td>
     </tr>
   </tbody>
 </table>
@@ -4340,6 +4341,14 @@ join record, providing a generalization of outer joins to joins with greater tha
 can optionally be expanded - providing individual joined records, as in the `Join` transform. The output can also be
 processed in unexpanded format - providing the join key along with Iterables of all records from each input that matched
 that key.
+
+{{< paragraph class="language-py" >}}
+Support for joins hasn't been developed for python SDK yet
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for joins hasn't been developed for GO SDK yet
+{{< /paragraph >}}
 
 ##### **Filtering events**
 
