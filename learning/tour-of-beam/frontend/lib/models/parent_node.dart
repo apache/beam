@@ -16,38 +16,14 @@
  * limitations under the License.
  */
 
-import 'dart:async';
+import 'node.dart';
 
-import 'package:flutter/widgets.dart';
+abstract class ParentNodeModel extends NodeModel {
+  final List<NodeModel> nodes;
 
-import '../models/sdk.dart';
-import '../repositories/client/client.dart';
-import '../repositories/models/get_sdks_response.dart';
-
-class SdkCache extends ChangeNotifier {
-  final TobClient client;
-
-  final _sdks = <SdkModel>[];
-  Future<GetSdksResponse>? _future;
-
-  SdkCache({
-    required this.client,
+  const ParentNodeModel({
+    required super.id,
+    required super.title,
+    required this.nodes,
   });
-
-  List<SdkModel> getSdks() {
-    if (_future == null) {
-      unawaited(_loadSdks());
-    }
-
-    return _sdks;
-  }
-
-  Future<List<SdkModel>> _loadSdks() async {
-    _future = client.getSdks();
-    final result = await _future!;
-
-    _sdks.addAll(result.sdks);
-    notifyListeners();
-    return _sdks;
-  }
 }

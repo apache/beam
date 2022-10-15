@@ -15,18 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.util;
 
-import 'package:json_annotation/json_annotation.dart';
+/**
+ * Nano clock which can be used to measure elapsed time in nanoseconds.
+ *
+ * <p>The default system implementation can be accessed at {@link #SYSTEM}. Alternative
+ * implementations may be used for testing.
+ */
+@FunctionalInterface
+interface NanoClock {
 
-part 'sdk.g.dart';
+  /**
+   * Returns the current value of the most precise available system timer, in nanoseconds for use to
+   * measure elapsed time, to match the behavior of {@link System#nanoTime()}.
+   */
+  long nanoTime();
 
-@JsonSerializable(createToJson: false)
-class SdkModel {
-  final String id;
-  final String title;
-
-  const SdkModel({required this.id, required this.title});
-
-  factory SdkModel.fromJson(Map<String, dynamic> json) =>
-      _$SdkModelFromJson(json);
+  /**
+   * Provides the default System implementation of a nano clock by using {@link System#nanoTime()}.
+   */
+  NanoClock SYSTEM = System::nanoTime;
 }
