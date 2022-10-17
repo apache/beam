@@ -29,7 +29,8 @@ from dataclasses import field
 import dask.bag as db
 
 import apache_beam
-from apache_beam import TaggedOutput, DoFn
+from apache_beam import TaggedOutput
+from apache_beam import DoFn
 from apache_beam.internal import util
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.runners.common import DoFnContext
@@ -40,10 +41,29 @@ from apache_beam.runners.common import DoFnInvoker
 from apache_beam.runners.dask.overrides import _Create
 from apache_beam.runners.dask.overrides import _Flatten
 from apache_beam.runners.dask.overrides import _GroupByKeyOnly
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms.window import WindowFn
+from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.windowed_value import WindowedValue
 
 OpInput = t.Union[db.Bag, t.Sequence[db.Bag], None]
 PCollVal = t.Union[WindowedValue, t.Any]
+
+
+def get_windowed_value(item: t.Any, window_fn: WindowFn) -> WindowedValue:
+  if isinstance(item, TaggedOutput):
+    item = item.value
+
+  if isinstance(item, WindowedValue):
+    windowed_value = item
+  elif isinstance(item, TimestampedValue):
+    assign_context = WindowFn.AssignContext(item.timestamp, item.value)
+    windowed_value = WindowedValue(item.value, item.timestamp,
+                                   tuple(window_fn.assign(assign_context)))
+  else:
+    windowed_value = WindowedValue(item, 0, (GlobalWindow(),))
+
+  return windowed_value
 
 
 @dataclasses.dataclass
@@ -146,7 +166,7 @@ class ParDo(DaskBagOp):
 
       return results
 
-    return input_bag.map_partitions(apply_dofn_to_bundle).flatten()
+    return input_bag.map(get_windowed_value, window_fn).map_partitions(apply_dofn_to_bundle).flatten()
 
 
 class Map(DaskBagOp):
