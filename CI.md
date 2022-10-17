@@ -125,6 +125,14 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### PreCommit Workflows
+| Workflow                                                                                       | Description             | Requires GCP Credentials  |
+|------------------------------------------------------------------------------------------------|-------------------------|---------------------------|
+| [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml)               | Description placeholder | Yes/No                    |
+| [job-precommit-java-io-amqp.yml](.github/workflows/job-precommit-java-io-amqp.yml)             | Run Java IO AMQP        | No                        |
+| [job-precommit-java-io-hbase.yml](.github/workflows/job-precommit-java-runner-spark.yml)       | Run Java Runner Spark   | No                        |
+| [job-precommit-java-io-hcatalog.yml](.github/workflows/job-precommit-java-runner-samza.yml)    | Run Java Runner Samza   | No                        |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
