@@ -44,4 +44,4 @@ jobs:
         .github/workflows/playground_examples_ci_reusable.yml \
         .github/workflows/tour_of_beam_examples_ci.yml \
         playground/backend \
-        playground/infrastructure
+        playground/infrastructure \
