@@ -31,8 +31,6 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.index.qual.NonNegative;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Options that are used to control configuration of the SDK harness. */
 @Experimental(Kind.PORTABILITY)
@@ -260,8 +258,6 @@ public interface SdkHarnessOptions extends PipelineOptions {
    * closest parent takes precedence.
    */
   class SdkHarnessLogLevelOverrides extends HashMap<String, LogLevel> {
-    private static final Logger LOG = LoggerFactory.getLogger(SdkHarnessLogLevelOverrides.class);
-
     /**
      * Overrides the default log level for the passed in class.
      *
@@ -321,11 +317,10 @@ public interface SdkHarnessOptions extends PipelineOptions {
         try {
           overrides.addOverrideForName(module, LogLevel.valueOf(level));
         } catch (IllegalArgumentException e) {
-          LOG.error(
-              "Discard unsupported log level '{}' requested for {}. Must be one of {}.",
-              level,
-              module,
-              Arrays.toString(LogLevel.values()));
+          throw new IllegalArgumentException(
+              String.format(
+                  "Unsupported log level '%s' requested for %s. Must be one of %s.",
+                  level, module, Arrays.toString(LogLevel.values())));
         }
       }
       return overrides;
