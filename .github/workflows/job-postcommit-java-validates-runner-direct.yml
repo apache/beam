@@ -53,7 +53,8 @@ jobs:
       matrix:
         java: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SUPPORTED_VERSIONS}}
         exclude:
-          - java: "8" #Execution with JDK8 is performed in another workflow.
+          - java: "8" # Execution with JDK8 is performed in another workflow: .github/workflows/job-postcommit-java-validates-runner-dataflow-jdk-8.yml
+                      # because the setups for JDK11/17 and JDK8 comprise different steps and arguments.
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
