@@ -17,7 +17,9 @@ package integration
 
 import (
 	"fmt"
+	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/test/integration/internal/jars"
@@ -94,13 +96,23 @@ func (es *ExpansionServices) GetAddr(label string) (string, error) {
 	}
 	portStr := strconv.Itoa(port)
 
-	// Run jar and cache its info.
-	proc, err := es.run(*ExpansionTimeout, jar, portStr)
-	if err != nil {
-		return "", fmt.Errorf("cannot run jar for expansion service labeled \"%s\": %w", label, err)
+	if label == "python_transform" {
+		cmds := strings.SplitN(jar, ":", 2)
+		executable := exec.Command(cmds[0], "-m", cmds[1], "-p", portStr, "--fully_qualified_name_glob=*")
+		err := executable.Run()
+		if err != nil {
+			return "", fmt.Errorf("error starting python expansion service: %s", executable)
+		}
+		es.procs = append(es.procs, executable.Process)
+	} else {
+		// Run jar and cache its info.
+		proc, err := es.run(*ExpansionTimeout, jar, portStr)
+		if err != nil {
+			return "", fmt.Errorf("cannot run jar for expansion service labeled \"%s\": %w", label, err)
+		}
+		time.Sleep(es.waitTime) // Wait a bit for the jar to start.
+		es.procs = append(es.procs, proc)
 	}
-	time.Sleep(es.waitTime) // Wait a bit for the jar to start.
-	es.procs = append(es.procs, proc)
 	addr := "localhost:" + portStr
 	es.addrs[label] = addr
 	return addr, nil
