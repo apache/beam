@@ -16,25 +16,7 @@
 name: Playground Examples CD
 
 on:
-  push:
-    paths:
-     - .github/workflows/playground*
-     - playground/backend/**
-     - playground/infrastructure/**
-     - learning/katas/**
-     - examples/**
-     - sdks/**
-  pull_request:
-    types:
-      - closed
-    branches: ['master']
-    paths:
-     - .github/workflows/playground*
-     - playground/backend/**
-     - playground/infrastructure/**
-     - learning/katas/**
-     - examples/**
-     - sdks/**
+  workflow_dispatch:
 # Concurrency group for all deployment ops
 concurrency: playground_production
 jobs:
@@ -50,5 +32,5 @@ jobs:
       origin: PG_EXAMPLES
       subdirs: "./learning/katas ./examples ./sdks"
     secrets:
-      project_id: ${{ secrets.EA_GCP_PLAYGROUND_PROJECT_ID }}
-      sa_key_content: ${{ secrets.EA_GCP_PLAYGROUND_SA_KEY }}
+      project_id: ${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+      sa_key_content: ${{ secrets.GCP_PLAYGROUND_SA_KEY }}
