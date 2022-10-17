@@ -141,9 +141,8 @@ class _DictUnionAction(argparse.Action):
   def __call__(self, parser, namespace, values, option_string=None):
     if not hasattr(namespace,
                    self.dest) or getattr(namespace, self.dest) is None:
-      setattr(namespace, self.dest, values)
-    else:
-      getattr(namespace, self.dest).update(values)
+      setattr(namespace, self.dest, {})
+    getattr(namespace, self.dest).update(values)
 
 
 class PipelineOptions(HasDisplayData):
