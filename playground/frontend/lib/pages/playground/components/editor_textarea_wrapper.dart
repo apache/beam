@@ -18,17 +18,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/components/loading_indicator/loading_indicator.dart';
+import 'package:playground/components/playground_run_or_cancel_button.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:playground/modules/editor/components/editor_textarea.dart';
-import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_button.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
 import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
-import 'package:playground/modules/notifications/components/notification.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
-import 'package:playground/utils/analytics_utils.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 class CodeTextAreaWrapper extends StatelessWidget {
@@ -36,17 +31,17 @@ class CodeTextAreaWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PlaygroundState>(builder: (context, state, child) {
-      if (state.result?.errorMessage?.isNotEmpty ?? false) {
+    return Consumer<PlaygroundController>(builder: (context, controller, child) {
+      if (controller.result?.errorMessage?.isNotEmpty ?? false) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _handleError(context, state);
+          _handleError(context, controller);
         });
       }
 
-      final controller = state.snippetEditingController;
+      final snippetController = controller.snippetEditingController;
 
-      if (controller == null) {
-        return const LoadingIndicator(size: kLgLoadingIndicatorSize);
+      if (snippetController == null) {
+        return const LoadingIndicator();
       }
 
       return Column(
@@ -55,12 +50,10 @@ class CodeTextAreaWrapper extends StatelessWidget {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: EditorTextArea(
-                    codeController: controller.codeController,
-                    enabled: !(state.selectedExample?.isMultiFile ?? false),
-                    example: state.selectedExample,
-                    sdk: controller.sdk,
+                  child: SnippetEditor(
+                    controller: snippetController,
                     isEditable: true,
+                    goToContextLine: true,
                   ),
                 ),
                 Positioned(
@@ -69,12 +62,12 @@ class CodeTextAreaWrapper extends StatelessWidget {
                   height: kButtonHeight,
                   child: Row(
                     children: [
-                      if (state.selectedExample != null) ...[
-                        if (state.selectedExample?.isMultiFile ?? false)
+                      if (controller.selectedExample != null) ...[
+                        if (controller.selectedExample?.isMultiFile ?? false)
                           Semantics(
                             container: true,
                             child: MultifilePopoverButton(
-                              example: state.selectedExample!,
+                              example: controller.selectedExample!,
                               followerAnchor: Alignment.topRight,
                               targetAnchor: Alignment.bottomRight,
                             ),
@@ -82,7 +75,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
                         Semantics(
                           container: true,
                           child: DescriptionPopoverButton(
-                            example: state.selectedExample!,
+                            example: controller.selectedExample!,
                             followerAnchor: Alignment.topRight,
                             targetAnchor: Alignment.bottomRight,
                           ),
@@ -95,39 +88,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
                       const SizedBox(width: kLgSpacing),
                       Semantics(
                         container: true,
-                        child: RunButton(
-                          disabled: state.selectedExample?.isMultiFile ?? false,
-                          isRunning: state.isCodeRunning,
-                          cancelRun: () {
-                            final exampleName = getAnalyticsExampleName(state);
-                            AnalyticsService.get(context)
-                                .trackClickCancelRunEvent(exampleName);
-                            state.cancelRun().catchError(
-                                  (_) => NotificationManager.showError(
-                                    context,
-                                    AppLocalizations.of(context)!.runCode,
-                                    AppLocalizations.of(context)!
-                                        .cancelExecution,
-                                  ),
-                                );
-                          },
-                          runCode: () {
-                            AnalyticsService analyticsService =
-                                AnalyticsService.get(context);
-                            final stopwatch = Stopwatch()..start();
-                            final exampleName = getAnalyticsExampleName(state);
-
-                            state.runCode(
-                              onFinish: () {
-                                analyticsService.trackRunTimeEvent(
-                                  exampleName,
-                                  stopwatch.elapsedMilliseconds,
-                                );
-                              },
-                            );
-                            analyticsService.trackClickRunEvent(exampleName);
-                          },
-                        ),
+                        child: const PlaygroundRunOrCancelButton(),
                       ),
                     ],
                   ),
@@ -140,12 +101,12 @@ class CodeTextAreaWrapper extends StatelessWidget {
     });
   }
 
-  _handleError(BuildContext context, PlaygroundState state) {
+  void _handleError(BuildContext context, PlaygroundController controller) {
     NotificationManager.showError(
       context,
       AppLocalizations.of(context)!.runCode,
-      state.result?.errorMessage ?? '',
+      controller.result?.errorMessage ?? '',
     );
-    state.resetError();
+    controller.resetError();
   }
 }

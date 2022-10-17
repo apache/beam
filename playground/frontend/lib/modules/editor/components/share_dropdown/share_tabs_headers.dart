@@ -17,7 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -35,17 +35,19 @@ class ShareTabsHeaders extends StatelessWidget {
   Widget build(BuildContext context) {
     final appLocale = AppLocalizations.of(context)!;
 
-    return Consumer<PlaygroundState>(builder: (context, state, child) {
-      return SizedBox(
-        width: _width,
-        child: TabBar(
-          controller: tabController,
-          tabs: [
-            Text(appLocale.link),
-            Text(appLocale.embed),
-          ],
-        ),
-      );
-    });
+    return Consumer<PlaygroundController>(
+      builder: (context, controller, child) {
+        return SizedBox(
+          width: _width,
+          child: TabBar(
+            controller: tabController,
+            tabs: [
+              Text(appLocale.link),
+              Text(appLocale.embed),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

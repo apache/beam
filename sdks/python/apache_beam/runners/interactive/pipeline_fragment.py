@@ -20,6 +20,7 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 import apache_beam as beam
+from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.testing.test_stream import TestStream
@@ -216,7 +217,7 @@ class PipelineFragment(object):
       self, runner_pipeline, necessary_transforms):
     class PruneVisitor(PipelineVisitor):
       def enter_composite_transform(self, transform_node):
-        if isinstance(transform_node.transform, TestStream):
+        if should_skip_pruning(transform_node):
           return
 
         pruned_parts = list(transform_node.parts)
@@ -233,3 +234,9 @@ class PipelineFragment(object):
     v = PruneVisitor()
     runner_pipeline.visit(v)
     return runner_pipeline
+
+
+def should_skip_pruning(transform: AppliedPTransform):
+  return (
+      isinstance(transform.transform, TestStream) or
+      '_DataFrame_' in transform.full_label)

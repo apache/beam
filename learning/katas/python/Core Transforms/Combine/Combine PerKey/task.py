@@ -21,6 +21,12 @@
 #   context_line: 29
 #   categories:
 #     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - map
+#     - combine
+#     - strings
+#     - numbers
 
 import apache_beam as beam
 
@@ -36,4 +42,3 @@ with beam.Pipeline() as p:
                     (PLAYER_3, 25), (PLAYER_2, 75)])
      | beam.CombinePerKey(sum)
      | LogElements())
-

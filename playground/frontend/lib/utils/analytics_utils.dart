@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/sdk/models/sdk.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 
-String getAnalyticsExampleName(PlaygroundState state) {
-  final customCodeName = 'Custom code, sdk ${state.sdk?.displayName}';
-  if (state.isExampleChanged) {
+String getAnalyticsExampleName(PlaygroundController controller) {
+  final customCodeName = 'Custom code, sdk ${controller.sdk?.title}';
+  if (controller.isExampleChanged) {
     return customCodeName;
   }
-  return state.selectedExample?.path ?? customCodeName;
+  return controller.selectedExample?.path ?? customCodeName;
 }

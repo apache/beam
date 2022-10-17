@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 import com.google.auth.Credentials;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -46,16 +47,9 @@ abstract class BaseFirestoreFnTest<InT, OutT, FnT extends FirestoreDoFn<InT, Out
   @Mock(lenient = true)
   protected DisplayData.Builder displayDataBuilder;
 
-  @Mock(lenient = true)
-  protected PipelineOptions pipelineOptions;
-
-  @Mock(lenient = true)
-  protected GcpOptions gcpOptions;
-
-  @Mock(lenient = true)
-  protected FirestoreOptions firestoreOptions;
-
   @Mock protected Credentials credentials;
+
+  protected PipelineOptions pipelineOptions;
 
   @Before
   public void stubDisplayDataBuilderChains() {
@@ -67,12 +61,11 @@ abstract class BaseFirestoreFnTest<InT, OutT, FnT extends FirestoreDoFn<InT, Out
 
   @Before
   public void stubPipelineOptions() {
+    pipelineOptions = TestPipeline.testingPipelineOptions();
+    pipelineOptions.as(GcpOptions.class).setProject(projectId);
+    pipelineOptions.as(GcpOptions.class).setGcpCredential(credentials);
+
     when(startBundleContext.getPipelineOptions()).thenReturn(pipelineOptions);
-    when(pipelineOptions.as(FirestoreOptions.class)).thenReturn(firestoreOptions);
-    when(firestoreOptions.getEmulatorHost()).thenReturn(null);
-    when(pipelineOptions.as(GcpOptions.class)).thenReturn(gcpOptions);
-    when(gcpOptions.getProject()).thenReturn(projectId);
-    when(gcpOptions.getGcpCredential()).thenReturn(credentials);
   }
 
   @Test

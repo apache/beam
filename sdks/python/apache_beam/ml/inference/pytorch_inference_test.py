@@ -327,8 +327,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
   def test_namespace(self):
     inference_runner = TestPytorchModelHandlerForInferenceOnly(
         torch.device('cpu'))
-    self.assertEqual(
-        'RunInferencePytorch', inference_runner.get_metrics_namespace())
+    self.assertEqual('BeamML_PyTorch', inference_runner.get_metrics_namespace())
 
 
 @pytest.mark.uses_pytorch

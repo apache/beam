@@ -115,6 +115,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
 
       pcoll | RunInference(PytorchModelHandlerTensor(state_dict_path="my_uri"))
 
+    See https://pytorch.org/tutorials/beginner/saving_loading_models.html
+    for details
+
     Args:
       state_dict_path: path to the saved dictionary of the model state.
       model_class: class of the Pytorch model that defines the model
@@ -125,8 +128,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
 
-    See https://pytorch.org/tutorials/beginner/saving_loading_models.html
-    for details
+    **Supported Versions:** RunInference APIs in Apache Beam have been tested
+    with PyTorch 1.9 and 1.10.
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU':
@@ -196,7 +199,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferencePytorch'
+    return 'BeamML_PyTorch'
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
@@ -234,6 +237,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       device: the device on which you wish to run the model. If
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
+
+    **Supported Versions:** RunInference APIs in Apache Beam have been tested
+    with PyTorch 1.9 and 1.10.
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU':
@@ -316,7 +322,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferencePytorch'
+    return 'BeamML_PyTorch'
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass

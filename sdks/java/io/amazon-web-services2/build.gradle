@@ -54,6 +54,7 @@ dependencies {
   implementation "software.amazon.kinesis:amazon-kinesis-client:2.3.4", excludeNetty
   implementation library.java.netty_all // force version of netty used by Beam
   permitUnusedDeclared library.java.netty_all
+  implementation library.java.byte_buddy
   implementation library.java.jackson_core
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind

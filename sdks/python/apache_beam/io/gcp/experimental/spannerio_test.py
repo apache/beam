@@ -82,51 +82,65 @@ def _generate_test_data():
 class SpannerReadTest(unittest.TestCase):
   def test_read_with_query_batch(
       self, mock_batch_snapshot_class, mock_client_class):
-    mock_snapshot = mock.MagicMock()
 
-    mock_snapshot.generate_query_batches.return_value = [{
+    mock_snapshot_instance = mock.MagicMock()
+    mock_snapshot_instance.generate_query_batches.return_value = [{
         'query': {
             'sql': 'SELECT * FROM users'
         }, 'partition': 'test_partition'
     } for _ in range(3)]
-    mock_snapshot.process_query_batch.side_effect = [
+    mock_snapshot_instance.to_dict.return_value = {}
+
+    mock_batch_snapshot_instance = mock.MagicMock()
+    # Prepare process_query_batch return results for three pipelines
+    mock_batch_snapshot_instance.process_query_batch.side_effect = [
         FAKE_ROWS[0:2], FAKE_ROWS[2:4], FAKE_ROWS[4:]
-    ]
+    ] * 3
+    mock_client_class.return_value.instance.return_value.database.return_value \
+        .batch_snapshot.return_value = mock_snapshot_instance
+    mock_batch_snapshot_class.from_dict.return_value \
+        = mock_batch_snapshot_instance
 
     ro = [ReadOperation.query("Select * from users")]
-    pipeline = TestPipeline()
+    with TestPipeline() as pipeline:
+      read = (
+          pipeline
+          | 'read' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              sql="SELECT * FROM users"))
+      assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
 
-    read = (
-        pipeline
-        | 'read' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            sql="SELECT * FROM users"))
+    with TestPipeline() as pipeline:
+      readall = (
+          pipeline
+          | 'read all' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              read_operations=ro))
+      assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
 
-    readall = (
-        pipeline
-        | 'read all' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            read_operations=ro))
+    with TestPipeline() as pipeline:
+      readpipeline = (
+          pipeline
+          | 'create reads' >> beam.Create(ro)
+          | 'reads' >> ReadFromSpanner(
+              TEST_PROJECT_ID, TEST_INSTANCE_ID, _generate_database_name()))
+      assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
 
-    readpipeline = (
-        pipeline
-        | 'create reads' >> beam.Create(ro)
-        | 'reads' >> ReadFromSpanner(
-            TEST_PROJECT_ID, TEST_INSTANCE_ID, _generate_database_name()))
-
-    pipeline.run()
-    assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
-    assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
-    assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
+    # three pipelines
+    self.assertEqual(
+        mock_snapshot_instance.generate_query_batches.call_count, 3)
+    # three pipelines, each called three times
+    self.assertEqual(
+        mock_batch_snapshot_instance.process_query_batch.call_count, 3 * 3)
 
   def test_read_with_table_batch(
       self, mock_batch_snapshot_class, mock_client_class):
-    mock_snapshot = mock.MagicMock()
-    mock_snapshot.generate_read_batches.return_value = [{
+    mock_snapshot_instance = mock.MagicMock()
+    mock_snapshot_instance.generate_read_batches.return_value = [{
         'read': {
             'table': 'users',
             'keyset': {
@@ -137,55 +151,68 @@ class SpannerReadTest(unittest.TestCase):
         },
         'partition': 'test_partition'
     } for _ in range(3)]
-    mock_snapshot.process_read_batch.side_effect = [
+    mock_snapshot_instance.to_dict.return_value = {}
+
+    mock_batch_snapshot_instance = mock.MagicMock()
+    # Prepare process_read_batch return results for three pipelines
+    mock_batch_snapshot_instance.process_read_batch.side_effect = [
         FAKE_ROWS[0:2], FAKE_ROWS[2:4], FAKE_ROWS[4:]
-    ]
+    ] * 3
+
+    mock_client_class.return_value.instance.return_value.database.return_value \
+        .batch_snapshot.return_value = mock_snapshot_instance
+    mock_batch_snapshot_class.from_dict.return_value \
+        = mock_batch_snapshot_instance
 
     ro = [ReadOperation.table("users", ["Key", "Value"])]
-    pipeline = TestPipeline()
+    with TestPipeline() as pipeline:
+      read = (
+          pipeline
+          | 'read' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              table="users",
+              columns=["Key", "Value"]))
+      assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
 
-    read = (
-        pipeline
-        | 'read' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            table="users",
-            columns=["Key", "Value"]))
+    with TestPipeline() as pipeline:
+      readall = (
+          pipeline
+          | 'read all' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              read_operations=ro))
+      assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
 
-    readall = (
-        pipeline
-        | 'read all' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            read_operations=ro))
+    with TestPipeline() as pipeline:
+      readpipeline = (
+          pipeline
+          | 'create reads' >> beam.Create(ro)
+          | 'reads' >> ReadFromSpanner(
+              TEST_PROJECT_ID, TEST_INSTANCE_ID, _generate_database_name()))
+      assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
 
-    readpipeline = (
-        pipeline
-        | 'create reads' >> beam.Create(ro)
-        | 'reads' >> ReadFromSpanner(
-            TEST_PROJECT_ID, TEST_INSTANCE_ID, _generate_database_name()))
+    # three pipelines
+    self.assertEqual(mock_snapshot_instance.generate_read_batches.call_count, 3)
+    # three pipelines, each called three times
+    self.assertEqual(
+        mock_batch_snapshot_instance.process_read_batch.call_count, 3 * 3)
 
-    pipeline.run()
-    assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
-    assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
-    assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
-
-    with self.assertRaises(ValueError):
-      # Test the exception raised when user passes the read operations in the
-      # constructor and also in the pipeline.
+    with TestPipeline() as pipeline, self.assertRaises(ValueError):
+      # Test the exception raised at pipeline construction time, when user
+      # passes the read operations in the constructor and also in the pipeline
       _ = (
           pipeline | 'reads error' >> ReadFromSpanner(
               project_id=TEST_PROJECT_ID,
               instance_id=TEST_INSTANCE_ID,
               database_id=_generate_database_name(),
               table="users"))
-      pipeline.run()
 
   def test_read_with_index(self, mock_batch_snapshot_class, mock_client_class):
-    mock_snapshot = mock.MagicMock()
-    mock_snapshot.generate_read_batches.return_value = [{
+    mock_snapshot_instance = mock.MagicMock()
+    mock_snapshot_instance.generate_read_batches.return_value = [{
         'read': {
             'table': 'users',
             'keyset': {
@@ -196,136 +223,157 @@ class SpannerReadTest(unittest.TestCase):
         },
         'partition': 'test_partition'
     } for _ in range(3)]
-    mock_snapshot.process_read_batch.side_effect = [
+
+    mock_batch_snapshot_instance = mock.MagicMock()
+    # Prepare process_read_batch return results for three pipelines
+    mock_batch_snapshot_instance.process_read_batch.side_effect = [
         FAKE_ROWS[0:2], FAKE_ROWS[2:4], FAKE_ROWS[4:]
-    ]
+    ] * 3
+
+    mock_snapshot_instance.to_dict.return_value = {}
+
+    mock_client_class.return_value.instance.return_value.database.return_value \
+        .batch_snapshot.return_value = mock_snapshot_instance
+    mock_batch_snapshot_class.from_dict.return_value \
+        = mock_batch_snapshot_instance
+
     ro = [ReadOperation.table("users", ["Key", "Value"], index="Key")]
-    pipeline = TestPipeline()
-    read = (
-        pipeline
-        | 'read' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            table="users",
-            columns=["Key", "Value"]))
-    readall = (
-        pipeline
-        | 'read all' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            read_operations=ro))
-    readpipeline = (
-        pipeline
-        | 'create reads' >> beam.Create(ro)
-        | 'reads' >> ReadFromSpanner(
-            TEST_PROJECT_ID, TEST_INSTANCE_ID, _generate_database_name()))
-    pipeline.run()
-    assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
-    assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
-    assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
-    with self.assertRaises(ValueError):
-      # Test the exception raised when user passes the read operations in the
-      # constructor and also in the pipeline.
+    with TestPipeline() as pipeline:
+      read = (
+          pipeline
+          | 'read' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              table="users",
+              columns=["Key", "Value"]))
+      assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
+
+    with TestPipeline() as pipeline:
+      readall = (
+          pipeline
+          | 'read all' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              read_operations=ro))
+      assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
+
+    with TestPipeline() as pipeline:
+      readpipeline = (
+          pipeline
+          | 'create reads' >> beam.Create(ro)
+          | 'reads' >> ReadFromSpanner(
+              TEST_PROJECT_ID, TEST_INSTANCE_ID, _generate_database_name()))
+      assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
+
+    # three pipelines
+    self.assertEqual(mock_snapshot_instance.generate_read_batches.call_count, 3)
+    # three pipelines, each called three times
+    self.assertEqual(
+        mock_batch_snapshot_instance.process_read_batch.call_count, 3 * 3)
+
+    with TestPipeline() as pipeline, self.assertRaises(ValueError):
+      # Test the exception raised at pipeline construction time, when user
+      # passes the read operations in the constructor and also in the pipeline.
       _ = (
           pipeline | 'reads error' >> ReadFromSpanner(
               project_id=TEST_PROJECT_ID,
               instance_id=TEST_INSTANCE_ID,
               database_id=_generate_database_name(),
               table="users"))
-      pipeline.run()
 
   def test_read_with_transaction(
       self, mock_batch_snapshot_class, mock_client_class):
-    mock_client = mock.MagicMock()
-    mock_instance = mock.MagicMock()
-    mock_database = mock.MagicMock()
-    mock_snapshot = mock.MagicMock()
+    mock_snapshot_instance = mock.MagicMock()
+    mock_snapshot_instance.to_dict.return_value = FAKE_TRANSACTION_INFO
 
-    mock_client_class.return_value = mock_client
-    mock_client.instance.return_value = mock_instance
-    mock_instance.database.return_value = mock_database
-    mock_database.batch_snapshot.return_value = mock_snapshot
-    mock_batch_snapshot_class.return_value = mock_snapshot
-    mock_batch_snapshot_class.from_dict.return_value = mock_snapshot
-    mock_snapshot.to_dict.return_value = FAKE_TRANSACTION_INFO
+    mock_transaction_instance = mock.MagicMock()
+    mock_transaction_instance.execute_sql.return_value = FAKE_ROWS
+    mock_transaction_instance.read.return_value = FAKE_ROWS
 
-    mock_session = mock.MagicMock()
-    mock_transaction_ctx = mock.MagicMock()
-    mock_transaction = mock.MagicMock()
-
-    mock_snapshot._get_session.return_value = mock_session
-    mock_session.transaction.return_value = mock_transaction
-    mock_transaction.__enter__.return_value = mock_transaction_ctx
-    mock_transaction_ctx.execute_sql.return_value = FAKE_ROWS
+    mock_client_class.return_value.instance.return_value.database.return_value \
+        .batch_snapshot.return_value = mock_snapshot_instance
+    mock_client_class.return_value.instance.return_value.database.return_value \
+        .session.return_value.transaction.return_value.__enter__.return_value \
+            = mock_transaction_instance
 
     ro = [ReadOperation.query("Select * from users")]
-    p = TestPipeline()
 
-    transaction = (
-        p | create_transaction(
-            project_id=TEST_PROJECT_ID,
-            instance_id=TEST_INSTANCE_ID,
-            database_id=_generate_database_name(),
-            exact_staleness=datetime.timedelta(seconds=10)))
+    with TestPipeline() as p:
+      transaction = (
+          p | create_transaction(
+              project_id=TEST_PROJECT_ID,
+              instance_id=TEST_INSTANCE_ID,
+              database_id=_generate_database_name(),
+              exact_staleness=datetime.timedelta(seconds=10)))
 
-    read_query = (
-        p | 'with query' >> ReadFromSpanner(
-            project_id=TEST_PROJECT_ID,
-            instance_id=TEST_INSTANCE_ID,
-            database_id=_generate_database_name(),
-            transaction=transaction,
-            sql="Select * from users"))
+      read_query = (
+          p | 'with query' >> ReadFromSpanner(
+              project_id=TEST_PROJECT_ID,
+              instance_id=TEST_INSTANCE_ID,
+              database_id=_generate_database_name(),
+              transaction=transaction,
+              sql="Select * from users"))
+      assert_that(read_query, equal_to(FAKE_ROWS), label='checkQuery')
 
-    read_table = (
-        p | 'with table' >> ReadFromSpanner(
-            project_id=TEST_PROJECT_ID,
-            instance_id=TEST_INSTANCE_ID,
-            database_id=_generate_database_name(),
-            transaction=transaction,
-            table="users",
-            columns=["Key", "Value"]))
+      read_table = (
+          p | 'with table' >> ReadFromSpanner(
+              project_id=TEST_PROJECT_ID,
+              instance_id=TEST_INSTANCE_ID,
+              database_id=_generate_database_name(),
+              transaction=transaction,
+              table="users",
+              columns=["Key", "Value"]))
+      assert_that(read_table, equal_to(FAKE_ROWS), label='checkTable')
 
-    read_indexed_table = (
-        p | 'with index' >> ReadFromSpanner(
-            project_id=TEST_PROJECT_ID,
-            instance_id=TEST_INSTANCE_ID,
-            database_id=_generate_database_name(),
-            transaction=transaction,
-            table="users",
-            index="Key",
-            columns=["Key", "Value"]))
+      read_indexed_table = (
+          p | 'with index' >> ReadFromSpanner(
+              project_id=TEST_PROJECT_ID,
+              instance_id=TEST_INSTANCE_ID,
+              database_id=_generate_database_name(),
+              transaction=transaction,
+              table="users",
+              index="Key",
+              columns=["Key", "Value"]))
+      assert_that(
+          read_indexed_table, equal_to(FAKE_ROWS), label='checkTableIndex')
 
-    read = (
-        p | 'read all' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            transaction=transaction,
-            read_operations=ro))
+      read = (
+          p | 'read all' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              transaction=transaction,
+              read_operations=ro))
+      assert_that(read, equal_to(FAKE_ROWS), label='checkReadAll')
 
-    read_pipeline = (
-        p
-        | 'create read operations' >> beam.Create(ro)
-        | 'reads' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            transaction=transaction))
+      read_pipeline = (
+          p
+          | 'create read operations' >> beam.Create(ro)
+          | 'reads' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              transaction=transaction))
+      assert_that(read_pipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
 
-    p.run()
+    # transaction setup once
+    self.assertEqual(mock_snapshot_instance.to_dict.call_count, 1)
+    # three pipelines called execute_sql
+    self.assertEqual(mock_transaction_instance.execute_sql.call_count, 3)
+    # two pipelines called read
+    self.assertEqual(mock_transaction_instance.read.call_count, 2)
 
-    assert_that(read_query, equal_to(FAKE_ROWS), label='checkQuery')
-    assert_that(read_table, equal_to(FAKE_ROWS), label='checkTable')
-    assert_that(
-        read_indexed_table, equal_to(FAKE_ROWS), label='checkTableIndex')
-    assert_that(read, equal_to(FAKE_ROWS), label='checkReadAll')
-    assert_that(read_pipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
-
-    with self.assertRaises(ValueError):
-      # Test the exception raised when user passes the read operations in the
-      # constructor and also in the pipeline.
+    with TestPipeline() as p, self.assertRaises(ValueError):
+      # Test the exception raised at pipeline construction time, when user
+      # passes the read operations in the constructor and also in the pipeline.
+      transaction = (
+          p | create_transaction(
+              project_id=TEST_PROJECT_ID,
+              instance_id=TEST_INSTANCE_ID,
+              database_id=_generate_database_name(),
+              exact_staleness=datetime.timedelta(seconds=10)))
       _ = (
           p
           | 'create read operations2' >> beam.Create(ro)
@@ -335,12 +383,11 @@ class SpannerReadTest(unittest.TestCase):
               _generate_database_name(),
               transaction=transaction,
               read_operations=ro))
-      p.run()
 
   def test_invalid_transaction(
       self, mock_batch_snapshot_class, mock_client_class):
-    with self.assertRaises(ValueError):
-      p = TestPipeline()
+    # test exception raises at pipeline execution time
+    with self.assertRaises(ValueError), TestPipeline() as p:
       transaction = (
           p | beam.Create([{
               "invalid": "transaction"
@@ -352,7 +399,6 @@ class SpannerReadTest(unittest.TestCase):
               database_id=_generate_database_name(),
               transaction=transaction,
               sql="Select * from users"))
-      p.run()
 
   def test_display_data(self, *args):
     dd_sql = ReadFromSpanner(

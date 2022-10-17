@@ -71,6 +71,16 @@ rsync -a                                                                      \
     "${ARCHETYPE_ROOT}/src/test/java/complete/game"
 
 #
+# Copy the Java multi-language examples.
+#
+
+mkdir -p "${ARCHETYPE_ROOT}/src/test/java/multilanguage/"
+
+rsync -a                                                                      \
+    "${EXAMPLES_ROOT}"/src/main/java/org/apache/beam/examples/multilanguage/  \
+    "${ARCHETYPE_ROOT}/src/main/java/multilanguage"
+
+#
 # Replace 'package org.apache.beam.examples' with 'package ${package}' in all Java code
 #
 find "${ARCHETYPE_ROOT}/src/main/java" -name '*.java' -print0 \
