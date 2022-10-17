@@ -18,7 +18,8 @@
 import enum
 import pickle
 import sys
-from typing import Any, Callable
+from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import Optional
