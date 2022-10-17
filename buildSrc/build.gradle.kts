@@ -51,7 +51,7 @@ dependencies {
   runtimeOnly("net.ltgt.gradle:gradle-errorprone-plugin:1.2.1")                                           // Enable errorprone Java static analysis
   runtimeOnly("org.ajoberstar.grgit:grgit-gradle:4.1.1")                                                   // Enable website git publish to asf-site branch
   runtimeOnly("com.avast.gradle:gradle-docker-compose-plugin:0.14.12")                                       // Enable docker compose tasks
-  runtimeOnly("ca.cutterslade.gradle:gradle-dependency-analyze:1.8.3")                                     // Enable dep analysis
+  runtimeOnly("ca.cutterslade.gradle:gradle-dependency-analyze:1.9.0")                                     // Enable dep analysis
   runtimeOnly("gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11")                                  // Enable dep vulnerability analysis
   runtimeOnly("org.checkerframework:checkerframework-gradle-plugin:0.5.16")                                 // Enable enhanced static checking plugin
 }
