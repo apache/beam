@@ -71,16 +71,16 @@ def main():
                 return parse_version('0.0')
 
         beam_version = max(info['releases'], key=maybe_strict_version)
-        beam_package = 'apache_beam[gcp,aws,asure,dataframe]==' + beam_version
+        beam_package = 'apache_beam[gcp,aws,azure,dataframe]==' + beam_version
     elif (os.path.exists(options.beam_version)
           or options.beam_version.startswith('http://')
           or options.beam_version.startswith('https://')):
         # It's a path to a tarball.
         beam_version = os.path.basename(options.beam_version)
-        beam_package = options.beam_version + '[gcp,aws,asure,dataframe]'
+        beam_package = options.beam_version + '[gcp,aws,azure,dataframe]'
     else:
         beam_version = options.beam_version
-        beam_package = 'apache_beam[gcp,aws,asure,dataframe]==' + beam_version
+        beam_package = 'apache_beam[gcp,aws,azure,dataframe]==' + beam_version
 
     deps = options.extra_packages.split(';') if options.extra_packages else []
     venv_dir = os.path.join(

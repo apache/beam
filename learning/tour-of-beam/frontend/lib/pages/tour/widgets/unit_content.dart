@@ -15,33 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.gcp.util;
 
-import com.google.api.client.util.NanoClock;
-import com.google.api.client.util.Sleeper;
-import org.junit.rules.ExternalResource;
-import org.junit.rules.TestRule;
+import 'package:flutter/widgets.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
-/**
- * This object quickly moves time forward based upon how much it has been asked to sleep, without
- * actually sleeping, to simulate the backoff.
- */
-public class FastNanoClockAndSleeper extends ExternalResource
-    implements NanoClock, Sleeper, TestRule {
-  private long fastNanoTime;
+import '../../../models/unit_content.dart';
 
-  @Override
-  public long nanoTime() {
-    return fastNanoTime;
-  }
+class UnitContentWidget extends StatelessWidget {
+  final UnitContentModel unitContent;
 
-  @Override
-  protected void before() throws Throwable {
-    fastNanoTime = SYSTEM.nanoTime();
-  }
+  const UnitContentWidget({
+    required this.unitContent,
+  });
 
-  @Override
-  public void sleep(long millis) throws InterruptedException {
-    fastNanoTime += millis * 1000000L;
+  @override
+  Widget build(BuildContext context) {
+    return MarkdownBody(data: unitContent.description);
   }
 }

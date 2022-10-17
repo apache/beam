@@ -62,7 +62,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-import org.junit.rules.Timeout;
 
 @SuppressWarnings({
   "initialization.fields.uninitialized",
@@ -76,19 +75,13 @@ abstract class BaseFirestoreIT {
   @Rule(order = 1)
   public final TestName testName = new TestName();
 
-  @Rule(
-      order =
-          2) // ensure our helper is "outer" to the timeout so we are allowed to cleanup even if a
-  // test times out
+  @Rule(order = 2)
   public final FirestoreTestingHelper helper = new FirestoreTestingHelper(CleanupMode.ALWAYS);
 
   @Rule(order = 3)
-  public final Timeout timeout = new Timeout(5, TimeUnit.MINUTES);
-
-  @Rule(order = 4)
   public final TestPipeline testPipeline = TestPipeline.create();
 
-  @Rule(order = 5)
+  @Rule(order = 4)
   public final TestPipeline testPipeline2 = TestPipeline.create();
 
   protected static final RpcQosOptions RPC_QOS_OPTIONS =

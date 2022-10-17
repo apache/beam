@@ -26,27 +26,30 @@ import '../repositories/client/client.dart';
 class ContentTreeCache extends ChangeNotifier {
   final TobClient client;
 
-  ContentTreeModel? _contentTree;
-  Future<ContentTreeModel>? _future;
+  final _treesBySdkId = <String, ContentTreeModel>{};
+  final _futuresBySdkId = <String, Future<ContentTreeModel>>{};
 
   ContentTreeCache({
     required this.client,
   });
 
-  ContentTreeModel? getContentTree() {
-    if (_future == null) {
-      unawaited(_loadContentTree());
+  ContentTreeModel? getContentTree(String sdkId) {
+    final future = _futuresBySdkId[sdkId];
+    if (future == null) {
+      unawaited(_loadContentTree(sdkId));
     }
 
-    return _contentTree;
+    return _treesBySdkId[sdkId];
   }
 
-  Future<ContentTreeModel?> _loadContentTree() async {
-    _future = client.getContentTree();
-    final result = await _future!;
-    _contentTree = result;
+  Future<ContentTreeModel> _loadContentTree(String sdkId) async {
+    final future = client.getContentTree(sdkId);
+    _futuresBySdkId[sdkId] = future;
+
+    final result = await future;
+    _treesBySdkId[sdkId] = result;
 
     notifyListeners();
-    return _contentTree;
+    return result;
   }
 }

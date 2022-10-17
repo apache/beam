@@ -102,6 +102,7 @@ import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -457,7 +458,7 @@ public class GcsUtilTest {
             .getObject(
                 GcsPath.fromComponents("testbucket", "testobject"),
                 mockBackOff,
-                new FastNanoClockAndSleeper())
+                new FastNanoClockAndSleeper()::sleep)
             .getSize()
             .longValue());
     assertEquals(BackOff.STOP, mockBackOff.nextBackOffMillis());
@@ -713,7 +714,7 @@ public class GcsUtilTest {
         .thenThrow(new SocketTimeoutException("SocketException"))
         .thenReturn(new Bucket());
 
-    gcsUtil.createBucket("a", new Bucket(), mockBackOff, new FastNanoClockAndSleeper());
+    gcsUtil.createBucket("a", new Bucket(), mockBackOff, new FastNanoClockAndSleeper()::sleep);
   }
 
   @Test
@@ -741,7 +742,7 @@ public class GcsUtilTest {
 
     thrown.expect(AccessDeniedException.class);
 
-    gcsUtil.createBucket("a", new Bucket(), mockBackOff, new FastNanoClockAndSleeper());
+    gcsUtil.createBucket("a", new Bucket(), mockBackOff, new FastNanoClockAndSleeper()::sleep);
   }
 
   @Test
@@ -767,7 +768,7 @@ public class GcsUtilTest {
         gcsUtil.bucketAccessible(
             GcsPath.fromComponents("testbucket", "testobject"),
             mockBackOff,
-            new FastNanoClockAndSleeper()));
+            new FastNanoClockAndSleeper()::sleep));
   }
 
   @Test
@@ -796,7 +797,7 @@ public class GcsUtilTest {
         gcsUtil.bucketAccessible(
             GcsPath.fromComponents("testbucket", "testobject"),
             mockBackOff,
-            new FastNanoClockAndSleeper()));
+            new FastNanoClockAndSleeper()::sleep));
   }
 
   @Test
@@ -823,7 +824,7 @@ public class GcsUtilTest {
         gcsUtil.bucketAccessible(
             GcsPath.fromComponents("testbucket", "testobject"),
             mockBackOff,
-            new FastNanoClockAndSleeper()));
+            new FastNanoClockAndSleeper()::sleep));
   }
 
   @Test
@@ -848,7 +849,7 @@ public class GcsUtilTest {
     gcsUtil.verifyBucketAccessible(
         GcsPath.fromComponents("testbucket", "testobject"),
         mockBackOff,
-        new FastNanoClockAndSleeper());
+        new FastNanoClockAndSleeper()::sleep);
   }
 
   @Test(expected = AccessDeniedException.class)
@@ -876,7 +877,7 @@ public class GcsUtilTest {
     gcsUtil.verifyBucketAccessible(
         GcsPath.fromComponents("testbucket", "testobject"),
         mockBackOff,
-        new FastNanoClockAndSleeper());
+        new FastNanoClockAndSleeper()::sleep);
   }
 
   @Test(expected = FileNotFoundException.class)
@@ -902,7 +903,7 @@ public class GcsUtilTest {
     gcsUtil.verifyBucketAccessible(
         GcsPath.fromComponents("testbucket", "testobject"),
         mockBackOff,
-        new FastNanoClockAndSleeper());
+        new FastNanoClockAndSleeper()::sleep);
   }
 
   @Test
@@ -928,7 +929,7 @@ public class GcsUtilTest {
         gcsUtil.getBucket(
             GcsPath.fromComponents("testbucket", "testobject"),
             mockBackOff,
-            new FastNanoClockAndSleeper()));
+            new FastNanoClockAndSleeper()::sleep));
   }
 
   @Test
@@ -956,7 +957,7 @@ public class GcsUtilTest {
     gcsUtil.getBucket(
         GcsPath.fromComponents("testbucket", "testobject"),
         mockBackOff,
-        new FastNanoClockAndSleeper());
+        new FastNanoClockAndSleeper()::sleep);
   }
 
   @Test
