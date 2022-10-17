@@ -716,7 +716,7 @@ the implementation of your custom I/O depends on your use case. Before you
 start, read the &lt;a href="/documentation/io/developing-io-overview/">new I/O connector overview&lt;/a>
 for an overview of developing a new I/O connector, the available implementation
 options, and how to choose the right option for your use case.&lt;/p>
-&lt;p>This guide covers using the &lt;a href="https://beam.apache.org/releases/pydoc/2.41.0/apache_beam.io.iobase.html">Source and FileBasedSink interfaces&lt;/a>
+&lt;p>This guide covers using the &lt;a href="https://beam.apache.org/releases/pydoc/2.42.0/apache_beam.io.iobase.html">Source and FileBasedSink interfaces&lt;/a>
 for Python. The Java SDK offers the same functionality, but uses a slightly
 different API. See &lt;a href="/documentation/io/developing-io-java/">Developing I/O connectors for Java&lt;/a>
 for information specific to the Java SDK.&lt;/p>
@@ -769,7 +769,7 @@ why you should avoid exposing your sources, and walks through how to create
 a wrapper.&lt;/li>
 &lt;/ul>
 &lt;p>You can find these classes in the
-&lt;a href="https://beam.apache.org/releases/pydoc/2.41.0/apache_beam.io.iobase.html">apache_beam.io.iobase module&lt;/a>.&lt;/p>
+&lt;a href="https://beam.apache.org/releases/pydoc/2.42.0/apache_beam.io.iobase.html">apache_beam.io.iobase module&lt;/a>.&lt;/p>
 &lt;h3 id="implementing-the-boundedsource-subclass">Implementing the BoundedSource subclass&lt;/h3>
 &lt;p>&lt;code>BoundedSource&lt;/code> represents a finite data set from which the service reads, possibly in parallel. &lt;code>BoundedSource&lt;/code> contains a set of methods that the service uses to split the data set for reading by multiple remote workers.&lt;/p>
 &lt;p>To implement a &lt;code>BoundedSource&lt;/code>, your subclass must override the following methods:&lt;/p>
@@ -916,7 +916,7 @@ demonstrated in the example above. Use a wrapping &lt;code>PTransform&lt;/code> 
 &lt;a href="#ptransform-wrappers">PTransform wrappers&lt;/a> discusses why you should avoid
 exposing your sources, and walks through how to create a wrapper.&lt;/p>
 &lt;h2 id="using-the-filebasedsink-abstraction">Using the FileBasedSink abstraction&lt;/h2>
-&lt;p>If your data source uses files, you can implement the &lt;a href="https://beam.apache.org/releases/pydoc/2.41.0/apache_beam.io.filebasedsink.html">FileBasedSink&lt;/a>
+&lt;p>If your data source uses files, you can implement the &lt;a href="https://beam.apache.org/releases/pydoc/2.42.0/apache_beam.io.filebasedsink.html">FileBasedSink&lt;/a>
 abstraction to create a file-based sink. For other sinks, use &lt;code>ParDo&lt;/code>,
 &lt;code>GroupByKey&lt;/code>, and other transforms offered by the Beam SDK for Python. See the
 &lt;a href="/documentation/io/developing-io-overview/">developing I/O connectors overview&lt;/a>
@@ -1758,21 +1758,21 @@ to &lt;a href="https://parquet.apache.org">Apache Parquet&lt;/a> files.&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">sdks&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">parquet&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">41&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">42&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="language-java">Additional resources:&lt;/p>
 &lt;span class="language-java">&lt;ul>
 &lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/io/parquet/src/main/java/org/apache/beam/sdk/io/parquet/ParquetIO.java">ParquetIO source code&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/org/apache/beam/sdk/io/parquet/ParquetIO.html">ParquetIO Javadoc&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/org/apache/beam/sdk/io/parquet/ParquetIO.html">ParquetIO Javadoc&lt;/a>&lt;/li>
 &lt;/ul>&lt;/span>
 &lt;!-- Python specific -->
-&lt;p class="language-py">ParquetIO comes preinstalled with the Apache Beam python sdk..2.41.0&lt;/p>
+&lt;p class="language-py">ParquetIO comes preinstalled with the Apache Beam python sdk..2.42.0&lt;/p>
 &lt;p class="language-py">Additional resources:&lt;/p>
 &lt;span class="language-py">&lt;ul>
 &lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/parquetio.py">ParquetIO source code&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.41.0/apache_beam.io.parquetio.html">ParquetIO Pydoc&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.42.0/apache_beam.io.parquetio.html">ParquetIO Pydoc&lt;/a>&lt;/li>
 &lt;/ul>&lt;/span>
 &lt;p class="language-java">&lt;h4 id="using-parquetio-with-spark-before-24">Using ParquetIO with Spark before 2.4&lt;/h4>&lt;/p>
 &lt;p class="language-java">&lt;code>ParquetIO&lt;/code> depends on an API introduced in Apache Parquet 1.10.0. &lt;strong>Spark 2.4.x is compatible and no additional steps are necessary&lt;/strong>. Older versions of Spark will not work out of the box since a pre-installed version of Parquet libraries will take precedence during execution. The following workaround should be applied.&lt;/p>
@@ -1874,14 +1874,14 @@ limitations under the License.
 &lt;pre>&lt;code>&amp;lt;dependency&amp;gt;
 &amp;lt;groupId&amp;gt;org.apache.beam&amp;lt;/groupId&amp;gt;
 &amp;lt;artifactId&amp;gt;beam-sdks-java-io-snowflake&amp;lt;/artifactId&amp;gt;
-&amp;lt;version&amp;gt;2.41.0&amp;lt;/version&amp;gt;
+&amp;lt;version&amp;gt;2.42.0&amp;lt;/version&amp;gt;
 &amp;lt;/dependency&amp;gt;&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>Additional resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="https://github.com/apache/beam/tree/master/sdks/java/io/snowflake/src/main/java/org/apache/beam/sdk/io/snowflake">SnowflakeIO source code&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/org/apache/beam/sdk/io/snowflake/SnowflakeIO.html">SnowflakeIO Javadoc&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/org/apache/beam/sdk/io/snowflake/SnowflakeIO.html">SnowflakeIO Javadoc&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://docs.snowflake.com/en/">Snowflake documentation&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="authentication">Authentication&lt;/h2>
@@ -2924,7 +2924,7 @@ and &lt;a href="https://beam.apache.org/roadmap/connectors-multi-sdk/#cross-lang
 &lt;p>Additional resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/snowflake.py">SnowflakeIO source code&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.41.0/apache_beam.io.snowflake.html">SnowflakeIO Pydoc&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.42.0/apache_beam.io.snowflake.html">SnowflakeIO Pydoc&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://docs.snowflake.com/en">Snowflake documentation&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h3 id="reading-from-snowflake-1">Reading from Snowflake&lt;/h3>
@@ -4298,7 +4298,7 @@ asynchronous &amp;ldquo;job&amp;rdquo; (or equivalent) on that back-end.&lt;/p>
 &lt;h2 id="creating-a-pipeline">2. Creating a pipeline&lt;/h2>
 &lt;p>The &lt;code>Pipeline&lt;/code> abstraction encapsulates all the data and steps in your data
 processing task. Your Beam driver program typically starts by constructing a
-&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline&lt;/a>&lt;/span>
+&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py">Pipeline&lt;/a>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/pipeline.go#L62">Pipeline&lt;/a>&lt;/span>
 object, and then using that object as the basis for creating the pipeline&amp;rsquo;s data
@@ -4561,7 +4561,7 @@ with &lt;code>PipelineOptionsFactory&lt;/code>:&lt;/p>
 &lt;/div>
 &lt;p>Now your pipeline can accept &lt;code>--input=value&lt;/code> and &lt;code>--output=value&lt;/code> as command-line arguments.&lt;/p>
 &lt;h2 id="pcollections">3. PCollections&lt;/h2>
-&lt;p>The &lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/index.html?org/apache/beam/sdk/values/PCollection.html">PCollection&lt;/a>&lt;/span>
+&lt;p>The &lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/index.html?org/apache/beam/sdk/values/PCollection.html">PCollection&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;code>PCollection&lt;/code>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/pcollection.go#L39">PCollection&lt;/a>&lt;/span>
 abstraction represents a
@@ -6112,7 +6112,7 @@ parameters maps to the ordering of the &lt;code>CoGroupByKey&lt;/code> inputs.&l
 &lt;/div>
 &lt;/div>
 &lt;h4 id="combine">4.2.4. Combine&lt;/h4>
-&lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/index.html?org/apache/beam/sdk/transforms/Combine.html">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
+&lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/index.html?org/apache/beam/sdk/transforms/Combine.html">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/combine.go#L27">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-typescript">&lt;a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/group_and_combine.ts">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
@@ -6628,7 +6628,7 @@ PerKey must be an associative reduction function or a
 &lt;/div>
 &lt;/div>
 &lt;h4 id="flatten">4.2.5. Flatten&lt;/h4>
-&lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/index.html?org/apache/beam/sdk/transforms/Flatten.html">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
+&lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/index.html?org/apache/beam/sdk/transforms/Flatten.html">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/flatten.go">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-typescript">&lt;code>Flatten&lt;/code>&lt;/span>
@@ -6708,7 +6708,7 @@ fixed windows or 4-minute sliding windows starting every 30 seconds.&lt;/p>
 incompatible windows, Beam generates an &lt;code>IllegalStateException&lt;/code> error when your
 pipeline is constructed.&lt;/p>
 &lt;h4 id="partition">4.2.6. Partition&lt;/h4>
-&lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/index.html?org/apache/beam/sdk/transforms/Partition.html">&lt;code>Partition&lt;/code>&lt;/a>&lt;/span>
+&lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/index.html?org/apache/beam/sdk/transforms/Partition.html">&lt;code>Partition&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py">&lt;code>Partition&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/partition.go">&lt;code>Partition&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-typescript">&lt;code>Partition&lt;/code>&lt;/span>
@@ -7568,7 +7568,11 @@ In addition to aforementioned parameters, user defined Timer and State parameter
 Timers and States are explained in more detail in the
 &lt;a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam&lt;/a> blog post.&lt;/p>
 &lt;p class="language-go">&lt;strong>Timer and State:&lt;/strong>
-This feature isn&amp;rsquo;t implemented in the Go SDK; see more at &lt;a href="https://github.com/apache/beam/issues/20510">Issue 20510&lt;/a>. Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.&lt;/p>
+User defined State parameters can be used in a stateful DoFn. Timers aren&amp;rsquo;t implemented in the Go SDK yet;
+see more at &lt;a href="https://github.com/apache/beam/issues/22737">Issue 22737&lt;/a>. Once implemented, user defined Timer
+parameters can be used in a stateful DoFn.
+Timers and States are explained in more detail in the
+&lt;a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam&lt;/a> blog post.&lt;/p>
 &lt;p class="language-typescript">&lt;strong>Timer and State:&lt;/strong>
 This feature isn&amp;rsquo;t yet implemented in the Typescript SDK,
 but we welcome &lt;a href="https://beam.apache.org/contribute/">contributions&lt;/a>.
@@ -7629,9 +7633,26 @@ using &lt;a href="#use-x-lang-transforms">cross-language transforms&lt;/a>.&lt;/
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// State and Timers are yet implemented in the Go SDK.
-&lt;/span>&lt;span class="c1">// See https://github.com/apache/beam/issues/20510 for info
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="o">//&lt;/span> &lt;span class="nx">on&lt;/span> &lt;span class="nx">contributing&lt;/span> &lt;span class="nx">State&lt;/span> &lt;span class="nx">and&lt;/span> &lt;span class="nx">Timers&lt;/span>&lt;span class="p">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// bagStateFn only emits words that haven&amp;#39;t been seen
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">type&lt;/span> &lt;span class="nx">bagStateFn&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">bag&lt;/span> &lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Bag&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">bagStateFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span> &lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Provider&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">book&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emitWords&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="kt">error&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Get all values we&amp;#39;ve written to this bag state in this window.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">vals&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">ok&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">bag&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Read&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="p">!&lt;/span>&lt;span class="nx">ok&lt;/span> &lt;span class="o">||&lt;/span> &lt;span class="p">!&lt;/span>&lt;span class="nf">contains&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">vals&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nf">emitWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">bag&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">vals&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">&amp;gt;&lt;/span> &lt;span class="mi">10000&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Example of clearing and starting again with an empty bag
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">bag&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Clear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-typescript snippet'>
@@ -7652,8 +7673,8 @@ transform can make your code more modular and easier to understand.&lt;/p>
 &lt;p>The Beam SDK comes packed with many useful composite transforms. See the API
 reference pages for a list of transforms:&lt;/p>
 &lt;ul>
-&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/index.html?org/apache/beam/sdk/transforms/package-summary.html">Pre-written Beam transforms for Java&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.41.0/apache_beam.transforms.html">Pre-written Beam transforms for Python&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/index.html?org/apache/beam/sdk/transforms/package-summary.html">Pre-written Beam transforms for Java&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.42.0/apache_beam.transforms.html">Pre-written Beam transforms for Python&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://github.com/apache/beam/tree/master/sdks/go/pkg/beam/transforms">Pre-written Beam transforms for Go&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h4 id="composite-transform-example">4.6.1. An example composite transform&lt;/h4>
@@ -9873,7 +9894,7 @@ all the elements are by default part of a single, global window.&lt;/p>
 &lt;p>To use windowing with fixed data sets, you can assign your own timestamps to
 each element. To assign timestamps to elements, use a &lt;code>ParDo&lt;/code> transform with a
 &lt;code>DoFn&lt;/code> that outputs each element with a new timestamp (for example, the
-&lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html">WithTimestamps&lt;/a>
+&lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html">WithTimestamps&lt;/a>
 transform in the Beam SDK for Java).&lt;/p>
 &lt;p>To illustrate how windowing with a bounded &lt;code>PCollection&lt;/code> can affect how your
 pipeline processes data, consider the following pipeline:&lt;/p>
@@ -10993,11 +11014,10 @@ to other nodes in the graph. A &lt;code>DoFn&lt;/code> can declare multiple stat
 &lt;p class="language-py">In Python, DoFn declares states to be accessed by creating &lt;code>StateSpec&lt;/code> class member variables representing each state. Each
 &lt;code>StateSpec&lt;/code> is initialized with a name, this name is unique to a ParDo in the graph and has no relation
 to other nodes in the graph. A &lt;code>DoFn&lt;/code> can declare multiple state variables.&lt;/p>
-&lt;span class="language-go">
-&lt;blockquote>
-&lt;p>&lt;strong>Note:&lt;/strong> The Beam SDK for Go does not yet support a State and Timer API. See &lt;a href="https://github.com/apache/beam/issues/20510">Issue 20510&lt;/a> to contribute.&lt;/p>
-&lt;/blockquote>
-&lt;/span>
+&lt;p class="language-go">In Go, DoFn declares states to be accessed by creating state struct member variables representing each state. Each
+state variable is initialized with a key, this key is unique to a ParDo in the graph and has no relation
+to other nodes in the graph. If no name is supplied, the key defaults to the member variable&amp;rsquo;s name.
+A &lt;code>DoFn&lt;/code> can declare multiple state variables.&lt;/p>
 &lt;span class="language-typescript">
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> The Beam SDK for Typescript does not yet support a State and Timer API,
@@ -11029,6 +11049,34 @@ accumulates the number of elements seen.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">write&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">currentValue&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">1&lt;/span>&lt;span class="o">);&lt;/span>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// valueStateFn keeps track of the number of elements seen.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">type&lt;/span> &lt;span class="nx">valueStateFn&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">val&lt;/span> &lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Value&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">valueStateFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span> &lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Provider&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">book&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emitWords&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="kt">error&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Get the value stored in our state
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">val&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">ok&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">val&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Read&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="p">!&lt;/span>&lt;span class="nx">ok&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">val&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Write&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">val&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Write&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">val&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">val&lt;/span> &lt;span class="p">&amp;gt;&lt;/span> &lt;span class="mi">10000&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Example of clearing and starting again with an empty bag
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">val&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Clear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>Beam also allows explicitly specifying a coder for &lt;code>ValueState&lt;/code> values. For example:&lt;/p>
@@ -11064,7 +11112,18 @@ accumulates the number of elements seen.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">type&lt;/span> &lt;span class="nx">valueStateDoFn&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">val&lt;/span> &lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Value&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nx">MyCustomType&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="nf">encode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">m&lt;/span> &lt;span class="nx">MyCustomType&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">[]&lt;/span>&lt;span class="kt">byte&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">m&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Bytes&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="nf">decode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">b&lt;/span> &lt;span class="p">[]&lt;/span>&lt;span class="kt">byte&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">MyCustomType&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">MyCustomType&lt;/span>&lt;span class="p">{}.&lt;/span>&lt;span class="nf">FromBytes&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">b&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterCoder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TypeOf&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">MyCustomType&lt;/span>&lt;span class="p">)(&lt;/span>&lt;span class="kc">nil&lt;/span>&lt;span class="p">)).&lt;/span>&lt;span class="nf">Elem&lt;/span>&lt;span class="p">(),&lt;/span> &lt;span class="nx">encode&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">decode&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-typescript snippet'>
@@ -11151,7 +11210,31 @@ accumulates the number of elements seen.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// combiningStateFn keeps track of the number of elements seen.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">type&lt;/span> &lt;span class="nx">combiningStateFn&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// types are the types of the accumulator, input, and output respectively
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">val&lt;/span> &lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Combining&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">int&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">combiningStateFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span> &lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Provider&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">book&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emitWords&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="kt">error&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Get the value stored in our state
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">val&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">_&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">val&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Read&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">val&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">val&lt;/span> &lt;span class="p">&amp;gt;&lt;/span> &lt;span class="mi">10000&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Example of clearing and starting again with an empty bag
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">val&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Clear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="nf">main&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// ...
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// CombineFn param can be a simple fn like this or a structural CombineFn
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">cFn&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">MakeCombiningState&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">int&lt;/span>&lt;span class="p">](&lt;/span>&lt;span class="s">&amp;#34;stateKey&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">a&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">b&lt;/span> &lt;span class="kt">int&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">int&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">a&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="nx">b&lt;/span>
+&lt;span class="p">})&lt;/span>
+&lt;span class="o">//&lt;/span> &lt;span class="o">...&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="bagstate">BagState&lt;/h4>
@@ -11204,7 +11287,26 @@ bags larger than available memory.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// bagStateFn only emits words that haven&amp;#39;t been seen
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">type&lt;/span> &lt;span class="nx">bagStateFn&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">bag&lt;/span> &lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Bag&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">bagStateFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span> &lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Provider&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">book&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emitWords&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="kt">error&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Get all values we&amp;#39;ve written to this bag state in this window.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">vals&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">ok&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">bag&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Read&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="p">!&lt;/span>&lt;span class="nx">ok&lt;/span> &lt;span class="o">||&lt;/span> &lt;span class="p">!&lt;/span>&lt;span class="nf">contains&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">vals&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nf">emitWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">bag&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">vals&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">&amp;gt;&lt;/span> &lt;span class="mi">10000&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Example of clearing and starting again with an empty bag
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">bag&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Clear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="deferred-state-reads">11.2. Deferred state reads&lt;/h3>
@@ -11246,7 +11348,7 @@ runner can prefetch all of the states necessary. For example:&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">22964.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
@@ -11340,7 +11442,7 @@ allows for event-time aggregations.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">22737.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="processing-time-timers">11.3.2. Processing-time timers&lt;/h4>
@@ -11396,7 +11498,7 @@ to the current time. In Java, the &lt;code>Timer.offset&lt;/code> and &lt;code>T
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">22737.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="dynamic-timer-tags">11.3.3. Dynamic timer tags&lt;/h4>
@@ -11461,7 +11563,7 @@ tag is an empty string if not specified.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">22737.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="timer-output-timestamps">11.3.4. Timer output timestamps&lt;/h4>
@@ -11578,7 +11680,7 @@ past the timestamp of the minimum element. The following code demonstrates this.
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">22737.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="garbage-collecting-state">11.4. Garbage collecting state&lt;/h3>
@@ -11631,7 +11733,8 @@ garbage-collection strategy.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go"> &lt;span class="nx">items&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">statefulDoFn&lt;/span>&lt;span class="p">{},&lt;/span> &lt;span class="nx">elements&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">out&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewFixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">24&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Hour&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>This &lt;code>ParDo&lt;/code> stores state per day. Once the pipeline is done processing data for a given day, all the state for that
@@ -11714,7 +11817,7 @@ This can be done by updating a timer that garbage collects state. For example&lt
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">22737.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="state-timers-examples">11.5. State and timers examples&lt;/h3>
@@ -17876,14 +17979,14 @@ to &lt;a href="https://cloud.google.com/bigquery">Google BigQuery&lt;/a> tables.
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">sdks&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">google&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">cloud&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">platform&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">41&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">42&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="language-java">Additional resources:&lt;/p>
 &lt;span class="language-java">&lt;ul>
 &lt;li>&lt;a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery">BigQueryIO source code&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">BigQueryIO Javadoc&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">BigQueryIO Javadoc&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://cloud.google.com/bigquery/docs">Google BigQuery documentation&lt;/a>&lt;/li>
 &lt;/ul>&lt;/span>
 &lt;!-- Python specific -->
@@ -17892,7 +17995,7 @@ running &lt;code>pip install apache-beam[gcp]&lt;/code>.&lt;/p>
 &lt;p class="language-py">Additional resources:&lt;/p>
 &lt;span class="language-py">&lt;ul>
 &lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py">BigQueryIO source code&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.41.0/apache_beam.io.gcp.bigquery.html">BigQueryIO Pydoc&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.42.0/apache_beam.io.gcp.bigquery.html">BigQueryIO Pydoc&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://cloud.google.com/bigquery/docs">Google BigQuery documentation&lt;/a>&lt;/li>
 &lt;/ul>&lt;/span>
 &lt;h2 id="bigquery-basics">BigQuery basics&lt;/h2>
@@ -17942,10 +18045,10 @@ table name.&lt;/p>
 &lt;p>You can also omit &lt;code>project_id&lt;/code> and use the &lt;code>[dataset_id].[table_id]&lt;/code> format. If
 you omit the project ID, Beam uses the default project ID from your
 &lt;span class="language-java">
-&lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html">pipeline options&lt;/a>.
+&lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html">pipeline options&lt;/a>.
 &lt;/span>
 &lt;span class="language-py">
-&lt;a href="https://beam.apache.org/releases/pydoc/2.41.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions">pipeline options&lt;/a>.
+&lt;a href="https://beam.apache.org/releases/pydoc/2.42.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions">pipeline options&lt;/a>.
 &lt;/span>&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -17992,7 +18095,7 @@ the three parts of the BigQuery table name.&lt;/p>
 &lt;/div>
 &lt;/div>
 &lt;!-- Java specific -->
-&lt;p class="language-java">The Beam SDK for Java also provides the &lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html">&lt;code>parseTableSpec&lt;/code>&lt;/a>
+&lt;p class="language-java">The Beam SDK for Java also provides the &lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html">&lt;code>parseTableSpec&lt;/code>&lt;/a>
 helper method, which constructs a &lt;code>TableReference&lt;/code> object from a String that
 contains the fully-qualified BigQuery table name. However, the static factory
 methods for BigQueryIO transforms accept the table name as a String and
@@ -18744,11 +18847,11 @@ and &lt;a href="https://cloud.google.com/bigquery/streaming-data-into-bigquery">
 for more information about these tradeoffs.&lt;/p>
 &lt;p class="language-java">BigQueryIO chooses a default insertion method based on the input &lt;code>PCollection&lt;/code>.
 You can use &lt;code>withMethod&lt;/code> to specify the desired insertion method. See
-&lt;a href="https://beam.apache.org/releases/javadoc/2.41.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html">&lt;code>Write.Method&lt;/code>&lt;/a>
+&lt;a href="https://beam.apache.org/releases/javadoc/2.42.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html">&lt;code>Write.Method&lt;/code>&lt;/a>
 for the list of the available methods and their restrictions.&lt;/p>
 &lt;p class="language-py">BigQueryIO chooses a default insertion method based on the input &lt;code>PCollection&lt;/code>.
 You can use &lt;code>method&lt;/code> to specify the desired insertion method. See
-&lt;a href="https://beam.apache.org/releases/pydoc/2.41.0/apache_beam.io.gcp.bigquery.html#apache_beam.io.gcp.bigquery.WriteToBigQuery">&lt;code>WriteToBigQuery&lt;/code>&lt;/a>
+&lt;a href="https://beam.apache.org/releases/pydoc/2.42.0/apache_beam.io.gcp.bigquery.html#apache_beam.io.gcp.bigquery.WriteToBigQuery">&lt;code>WriteToBigQuery&lt;/code>&lt;/a>
 for the list of the available methods and their restrictions.&lt;/p>
 &lt;p>BigQueryIO uses load jobs in the following situations:&lt;/p>
 &lt;span class="language-java">&lt;ul>
