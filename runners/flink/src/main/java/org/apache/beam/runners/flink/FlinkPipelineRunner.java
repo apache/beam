@@ -26,6 +26,7 @@ import java.util.UUID;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -67,13 +69,17 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
   public FlinkPipelineRunner(
       FlinkPipelineOptions pipelineOptions, @Nullable String confDir, List<String> filesToStage) {
     this.pipelineOptions = pipelineOptions;
-    this.confDir = confDir;
+    // confDir takes precedence than pipelineOptions.getFlinkConfDir
+    this.confDir = confDir != null ? confDir : pipelineOptions.getFlinkConfDir();
     this.filesToStage = filesToStage;
   }
 
   @Override
   public PortablePipelineResult run(final Pipeline pipeline, JobInfo jobInfo) throws Exception {
     MetricsEnvironment.setMetricsSupported(false);
+
+    // Apply log levels settings at the beginning of pipeline run
+    Environments.getConfiguredLoggerFromOptions(pipelineOptions.as(SdkHarnessOptions.class));
 
     FlinkPortablePipelineTranslator<?> translator;
     if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {
