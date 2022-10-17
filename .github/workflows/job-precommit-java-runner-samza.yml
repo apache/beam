@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Test for Precommit Java IO AMPQ
+# Test for Precommit Java Runner Samza 
 
-name: Precommit Java IO AMQP
+name: Precommit Runners Samza
 
 on:
   workflow_dispatch:
@@ -27,12 +27,12 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['sdks/java/io/amqp/**']
+    paths: ['runners/samza/**']
 permissions: read-all
 
 jobs:
-  run-precommit-java-io-amqp:
-    name: Run Precommit Java IO AMQP
+  run-precommit-runners-samza:
+    name: Run Precommit Runners Samza 
     runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 200
     steps:
@@ -48,7 +48,7 @@ jobs:
           requires-py-38: false
           requires-py-39: false
           requires-go-18: false
-      - name: SDKs Java IO AMQP - :sdks:java:io:amqp:test
+      - name: Runners Samza - :runners:samza:test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:amqp:test
+          gradle-command: :runners:samza:test
