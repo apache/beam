@@ -50,12 +50,13 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: false
-      matrix: #JDK17 execution will fail due to new access policies applied to the core JDK libraries starting at JDK 16.
+      matrix:
         java: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SUPPORTED_VERSIONS}}
         spark: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SPARK_VERSIONS}}
         exclude:
-          - java: "11" # Skipping Spark v2 with JDK11 due to compatibility issues.
+          - java: "11" # Skipping Spark v2 with JDK11 since Spark v2 dropped support for JDK9+
             spark: "2"
+            #JDK17 execution will fail due to new access policies applied to the core JDK libraries starting at JDK 16.
           - java: "17" #TODO: Remove exclude and retest once issue https://github.com/apache/beam/issues/23066 gets resolved.
     steps:
       - name: Checkout code
