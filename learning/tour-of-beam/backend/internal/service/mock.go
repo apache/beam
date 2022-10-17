@@ -46,3 +46,9 @@ func (d *Mock) GetUnitContent(_ context.Context, sdk tob.Sdk, unitId string, use
 	err = json.Unmarshal(content, &u)
 	return u, err
 }
+
+func (d *Mock) GetUserProgress(_ context.Context, sdk tob.Sdk, userId string) (sp tob.SdkProgress, err error) {
+	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_user_progress.json"))
+	_ = json.Unmarshal(content, &sp)
+	return sp, nil
+}

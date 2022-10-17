@@ -24,6 +24,13 @@ import (
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 )
 
+const (
+	BAD_FORMAT     = "BAD_FORMAT"
+	INTERNAL_ERROR = "INTERNAL_ERROR"
+	NOT_FOUND      = "NOT_FOUND"
+	UNAUTHORIZED   = "UNAUTHORIZED"
+)
+
 // Middleware-maker for setting a header
 // We also make this less generic: it works with HandlerFunc's
 // so that to be convertible to func(w http ResponseWriter, r *http.Request)

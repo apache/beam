@@ -28,6 +28,7 @@ var ErrNoUnit = errors.New("unit not found")
 type IContent interface {
 	GetContentTree(ctx context.Context, sdk tob.Sdk, userId *string) (tob.ContentTree, error)
 	GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string, userId *string) (tob.Unit, error)
+	GetUserProgress(ctx context.Context, sdk tob.Sdk, userId string) (tob.SdkProgress, error)
 }
 
 type Svc struct {
@@ -49,4 +50,9 @@ func (s *Svc) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string, us
 		return tob.Unit{}, ErrNoUnit
 	}
 	return *unit, nil
+}
+
+func (s *Svc) GetUserProgress(ctx context.Context, sdk tob.Sdk, userId string) (tob.SdkProgress, error) {
+	// TODO implement
+	return tob.SdkProgress{}, nil
 }
