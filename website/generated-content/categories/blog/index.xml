@@ -1,4 +1,114 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Sat, 15 Oct 2022 00:00:01 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Hop web version with Cloud Dataflow</title><link>/blog/hop-web-cloud/</link><pubDate>Sat, 15 Oct 2022 00:00:01 -0800</pubDate><guid>/blog/hop-web-cloud/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Mon, 17 Oct 2022 09:00:00 -0700</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.42.0</title><link>/blog/beam-2.42.0/</link><pubDate>Mon, 17 Oct 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.42.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.42.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2420-2022-10-17">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.42.0, check out the &lt;a href="https://github.com/apache/beam/milestone/4?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Added support for stateful DoFns to the Go SDK.&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Added support for Zstd compression to the Python SDK.&lt;/li>
+&lt;li>Added support for Google Cloud Profiler to the Go SDK.&lt;/li>
+&lt;li>Added support for stateful DoFns to the Go SDK.&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>The Go SDK&amp;rsquo;s Row Coder now uses a different single-precision float encoding for float32 types to match Java&amp;rsquo;s behavior (&lt;a href="https://github.com/apache/beam/issues/22629">#22629&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>Fixed Python cross-language JDBC IO Connector cannot read or write rows containing Timestamp type values &lt;a href="https://github.com/apache/beam/issues/19817">19817&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;ul>
+&lt;li>Go SDK doesn&amp;rsquo;t yet support Slowly Changing Side Input pattern (&lt;a href="https://github.com/apache/beam/issues/23106">#23106&lt;/a>)&lt;/li>
+&lt;li>See a full list of open &lt;a href="https://github.com/apache/beam/milestone/4">issues that affect&lt;/a> this version.&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.42.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Abirdcfly
+Ahmed Abualsaud
+Alexander Zhuravlev
+Alexey Inkin
+Alexey Romanenko
+Anand Inguva
+Andrej Galad
+Andrew Pilloud
+Andy Ye
+Balázs Németh
+Brian Hulette
+Bruno Volpato
+bulat safiullin
+bullet03
+Chamikara Jayalath
+ChangyuLi28
+Clément Guillaume
+Damon
+Danny McCormick
+Darkhan Nausharipov
+David Huntsperger
+dpcollins-google
+Evgeny Antyshev
+grufino
+Heejong Lee
+Ismaël Mejía
+Jack McCluskey
+johnjcasey
+Jonathan Shen
+Kenneth Knowles
+Ke Wu
+Kiley Sok
+Liam Miller-Cushon
+liferoad
+Lucas Nogueira
+Luke Cwik
+MakarkinSAkvelon
+Manit Gupta
+masahitojp
+Michael Hu
+Michel Davit
+Moritz Mack
+Naireen Hussain
+nancyxu123
+Nikhil Nadig
+oborysevych
+Pablo Estrada
+Pranav Bhandari
+Rajat Bhatta
+Rebecca Szper
+Reuven Lax
+Ritesh Ghorse
+Robert Bradshaw
+Robert Burke
+Ryan Thompson
+Sam Whittle
+Sergey Pronin
+Shivam
+Shunsuke Otani
+Shunya Ueta
+Steven Niemitz
+Stuart
+Svetak Sundhar
+Valentyn Tymofieiev
+Vitaly Terentyev
+Vlad
+Vladislav Chunikhin
+Yichi Zhang
+Yi Hu
+Yixiao Shen&lt;/p></description></item><item><title>Blog: Apache Hop web version with Cloud Dataflow</title><link>/blog/hop-web-cloud/</link><pubDate>Sat, 15 Oct 2022 00:00:01 -0800</pubDate><guid>/blog/hop-web-cloud/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5449,56 +5559,4 @@ useful for people to learn more about Apache Beam, and eventually become Beam Ma
 &lt;img src="/images/blog/beam-kata/beam-kata-intellij-edu-1.png" alt="Beam Kata - IntelliJ Edu" width="363" height="350">
 &lt;img src="/images/blog/beam-kata/beam-kata-intellij-edu-2.png" alt="Beam Kata - IntelliJ Edu" width="455" height="350">
 &lt;img src="/images/blog/beam-kata/beam-kata-pycharm-edu-1.png" alt="Beam Kata - PyCharm Edu" width="363" height="350">
-&lt;img src="/images/blog/beam-kata/beam-kata-pycharm-edu-2.png" alt="Beam Kata - PyCharm Edu" width="459" height="350"></description></item><item><title>Blog: Beam community update!</title><link>/blog/beam-summit-europe-2019/</link><pubDate>Sat, 11 May 2019 00:00:01 -0800</pubDate><guid>/blog/beam-summit-europe-2019/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="the-apache-beam-community-in-2019">The Apache Beam community in 2019&lt;/h1>
-&lt;p>2019 has already been a busy time for the Apache Beam community. The ASF blog featured &lt;a href="https://blogs.apache.org/comdev/date/20190222">our way of community building&lt;/a> and we&amp;rsquo;ve had &lt;a href="https://www.meetup.com/San-Francisco-Apache-Beam/events/257482350">more Beam meetups&lt;/a> around the world. Apache Beam also received the &lt;a href="https://www.infoworld.com/article/3336072/infoworlds-2019-technology-of-the-year-award-winners.html">Technology of the Year Award&lt;/a> from InfoWorld.&lt;/p>
-&lt;p>As these events happened, we were building up to the &lt;a href="https://opensource.googleblog.com/2019/03/celebrating-20-years-of-apache.html">20th anniversary of the Apache Software Foundation&lt;/a>. The contributions of the Beam community were a part of Maximilian Michels blog post on the success of the ASF&amp;rsquo;s open source development model:&lt;/p>
-&lt;blockquote class="twitter-tweet" data-lang="nl">&lt;p lang="en" dir="ltr">Success at Apache: What You Need to Know by Maximilian Michels &lt;a href="https://t.co/XjtVYgPAHX">https://t.co/XjtVYgPAHX&lt;/a> &lt;a href="https://twitter.com/hashtag/Apache?src=hash&amp;amp;ref_src=twsrc%5Etfw">#Apache&lt;/a> &lt;a href="https://twitter.com/hashtag/Open?src=hash&amp;amp;ref_src=twsrc%5Etfw">#Open&lt;/a> &lt;a href="https://twitter.com/hashtag/Innovation?src=hash&amp;amp;ref_src=twsrc%5Etfw">#Innovation&lt;/a> &lt;a href="https://twitter.com/hashtag/Community?src=hash&amp;amp;ref_src=twsrc%5Etfw">#Community&lt;/a> &lt;a href="https://twitter.com/hashtag/people?src=hash&amp;amp;ref_src=twsrc%5Etfw">#people&lt;/a> &lt;a href="https://twitter.com/hashtag/processes?src=hash&amp;amp;ref_src=twsrc%5Etfw">#processes&lt;/a> &lt;a href="https://twitter.com/hashtag/JustWorks?src=hash&amp;amp;ref_src=twsrc%5Etfw">#JustWorks&lt;/a> &lt;a href="https://twitter.com/stadtlegende?ref_src=twsrc%5Etfw">@stadtlegende&lt;/a> &lt;a href="https://t.co/xSibnyWAMe">pic.twitter.com/xSibnyWAMe&lt;/a>&lt;/p>&amp;mdash; Apache - The ASF (@TheASF) &lt;a href="https://twitter.com/TheASF/status/1110364656143601664?ref_src=twsrc%5Etfw">26 maart 2019&lt;/a>&lt;/blockquote>
-&lt;script async src="https://platform.twitter.com/widgets.js" charset="utf-8">&lt;/script>
-&lt;p>In that spirit, let&amp;rsquo;s have an overview of the things that have happened, what the next few months look like, and how we can foster even more community growth.&lt;/p>
-&lt;h2 id="meetups">Meetups&lt;/h2>
-&lt;p>We&amp;rsquo;ve had a flurry of activity, with several meetups in the planning process and more popping up globally over time. As diversity of contributors is a core ASF value, this geographic spread is exciting for the community. Here&amp;rsquo;s a picture from the latest Apache Beam meetup organized at Lyft in San Francisco:&lt;/p>
-&lt;p>&lt;img src="https://secure.meetupstatic.com/photos/event/8/0/1/2/600_481292786.jpeg" alt="Beam Meetup Bay Area" >&lt;/p>
-&lt;p>We have more &lt;a href="https://www.meetup.com/San-Francisco-Apache-Beam">Bay Area meetups&lt;/a> coming soon, and the community is looking into kicking off a meetup in Toronto!&lt;/p>
-&lt;p>&lt;a href="https://www.meetup.com/London-Apache-Beam-Meetup">London&lt;/a> had its first meetup of 2019 at the start of April:&lt;/p>
-&lt;p>&lt;img src="https://secure.meetupstatic.com/photos/event/4/7/0/e/600_480318190.jpeg" alt="Beam Meetup London" height="360" width="640" >&lt;/p>
-&lt;p>and &lt;a href="https://www.meetup.com/Apache-Beam-Stockholm/events/260634514">Stockholm&lt;/a> had its second meetup at the start of May:&lt;/p>
-&lt;blockquote class="twitter-tweet" data-lang="en-gb">&lt;p lang="en" dir="ltr">Big audience for the second &lt;a href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">@ApacheBeam&lt;/a> meetup in Stockholm! Gleb, &lt;a href="https://twitter.com/kanterov?ref_src=twsrc%5Etfw">@kanterov&lt;/a> from &lt;a href="https://twitter.com/SpotifyEng?ref_src=twsrc%5Etfw">@SpotifyEng&lt;/a> kicking off the first talk with Beam SQL.&lt;a href="https://twitter.com/hashtag/ApacheBeamStockholm?src=hash&amp;amp;ref_src=twsrc%5Etfw">#ApacheBeamStockholm&lt;/a> &lt;a href="https://t.co/fDqPPFh2gY">pic.twitter.com/fDqPPFh2gY&lt;/a>&lt;/p>&amp;mdash; Matthias Baetens 🌆 (@matthiasbaetens) &lt;a href="https://twitter.com/matthiasbaetens/status/1125442916711915521?ref_src=twsrc%5Etfw">6 May 2019&lt;/a>&lt;/blockquote>
-&lt;script async src="https://platform.twitter.com/widgets.js" charset="utf-8">&lt;/script>
-&lt;p>Keep an eye out for a meetup in &lt;a href="https://www.meetup.com/Paris-Apache-Beam-Meetup">Paris&lt;/a>.&lt;/p>
-&lt;p>If you are interested in starting your own meetup, feel free &lt;a href="https://beam.apache.org/community/contact-us">to reach out&lt;/a>! Good places to start include our Slack channel, the dev and user mailing lists, or the Apache Beam Twitter.&lt;/p>
-&lt;p>Even if you can’t travel to these meetups, you can stay informed on the happenings of the community. The talks and sessions from previous conferences and meetups are archived on the &lt;a href="https://www.youtube.com/c/ApacheBeamYT">Apache Beam YouTube channel&lt;/a>. If you want your session added to the channel, don’t hesitate to get in touch!&lt;/p>
-&lt;h2 id="summits">Summits&lt;/h2>
-&lt;p>The first summit of the year will be held in Berlin:&lt;/p>
-&lt;p>&lt;img src="https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F58635346%2F70962106775%2F1%2Foriginal.20190317-212619?w=800&amp;auto=compress&amp;rect=0%2C115%2C2666%2C1333&amp;s=2680f5036dcad9177b027cce026c0224" alt="Beam Summit Europe Banner" >&lt;/p>
-&lt;p>You can find more info on the &lt;a href="https://beamsummit.org">website&lt;/a> and read about the inaugural edition of the Beam Summit Europe &lt;a href="https://beam.apache.org/blog/2018/10/31/beam-summit-aftermath.html">here&lt;/a>. At these summits, you have the opportunity to meet with other Apache Beam creators and users, get expert advice, learn from the speaker sessions, and participate in workshops.&lt;/p>
-&lt;p>We strongly encourage you to get involved again this year! You can participate in the following ways for the upcoming summit in Europe:&lt;/p>
-&lt;p>🎫 If you want to secure your ticket to attend the Beam Summit Europe 2019, check our &lt;a href="https://beam-summit-europe.eventbrite.com">event page&lt;/a>.&lt;/p>
-&lt;p>💸 If you want to make the Summit even &lt;strong>more&lt;/strong> awesome, check out our &lt;a href="https://drive.google.com/file/d/1R3vvOHihQbpuzF2aaSV8WYg9YHRmJwxS/view">sponsor booklet&lt;/a>!&lt;/p>
-&lt;p>We also launched the CfP for our Beam Summit in North America, which will be held in collaboration with &lt;a href="https://www.apachecon.com">ApacheCon&lt;/a>.&lt;/p>
-&lt;p>🎤 If you want to give a talk, take a look at our &lt;a href="https://www.apachecon.com/acna19/cfp.html">CfP&lt;/a>.&lt;/p>
-&lt;p>Stay tuned for more information on the summit in North America and Asia.&lt;/p>
-&lt;h2 id="why-community-engagement-matters">Why community engagement matters&lt;/h2>
-&lt;p>Why we need a strong Apache Beam community:&lt;/p>
-&lt;ul>
-&lt;li>We&amp;rsquo;re receiving lots of code contributions and need committers to review those and help onboard new contributors to the project.&lt;/li>
-&lt;li>We want people to feel a sense of ownership to the project. By fostering this level of engagement, the work becomes even more exciting.&lt;/li>
-&lt;li>A healthy community has a further reach and leads to more growth. More hours can be contributed to the project as we can spread the work and ownership.&lt;/li>
-&lt;/ul>
-&lt;p>Why are we organizing these summits:&lt;/p>
-&lt;ul>
-&lt;li>We&amp;rsquo;d like to give folks a place to meet, congregate, and share ideas.&lt;/li>
-&lt;li>We know that offline interactions often changes the nature of the online ones in a positive manner.&lt;/li>
-&lt;li>Building an active and diverse community is part of the Apache Way. These summits provide an opportunity for us to engage people from different locations, companies, and backgrounds.&lt;/li>
-&lt;/ul></description></item></channel></rss>
+&lt;img src="/images/blog/beam-kata/beam-kata-pycharm-edu-2.png" alt="Beam Kata - PyCharm Edu" width="459" height="350"></description></item></channel></rss>
