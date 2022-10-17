@@ -40,7 +40,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 
 /**
- * An example Java MUlti-language pipeline that Performs image classification on handwritten digits
+ * An example Java Multi-language pipeline that Performs image classification on handwritten digits
  * from the <a href="https://en.wikipedia.org/wiki/MNIST_database">MNIST</a> database.
  *
  * <p>For more details and instructions for running this please see <a
@@ -48,6 +48,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
  */
 public class SklearnMnistClassification {
 
+  /**
+   * We generate a Python function that produces a KV sklearn model loader and use that to
+   * instantiate {@link RunInference}. Note that {@code RunInference} can be instantiated with any
+   * arbitrary function that produces a model loader.
+   */
   private String getModelLoaderScript() {
     String s = "from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy\n";
     s = s + "from apache_beam.ml.inference.base import KeyedModelHandler\n";
@@ -57,7 +62,8 @@ public class SklearnMnistClassification {
     return s;
   }
 
-  static class FilterFn implements SerializableFunction<String, Boolean> {
+  /** Filters out the header of the dataset that should not be used for the computation. */
+  static class FilterNonRecordsFn implements SerializableFunction<String, Boolean> {
 
     @Override
     public Boolean apply(String input) {
@@ -65,7 +71,12 @@ public class SklearnMnistClassification {
     }
   }
 
-  static class KVFn extends SimpleFunction<String, KV<Long, Iterable<Long>>> {
+  /**
+   * Seperates our input records to label and data. Each input record is a set of comma separated
+   * string digits where first digit is the label and rest are data (pixels that represent the
+   * digit).
+   */
+  static class RecordsToLabeledPixelsFn extends SimpleFunction<String, KV<Long, Iterable<Long>>> {
 
     @Override
     public KV<Long, Iterable<Long>> apply(String input) {
@@ -80,15 +91,17 @@ public class SklearnMnistClassification {
     }
   }
 
+  /** Formats the output to a mapping from the expected digit to the inferred digit. */
   static class FormatOutput extends SimpleFunction<KV<Long, Row>, String> {
 
     @Override
     public String apply(KV<Long, Row> input) {
-      return input.getKey() + " was mapped to " + input.getValue().getString("inference");
+      return input.getKey() + "," + input.getValue().getString("inference");
     }
   }
 
   void runExample(SklearnMnistClassificationOptions options, String expansionService) {
+    // Schema of the output PCollection Row type to be provided to the RunInference transform.
     Schema schema =
         Schema.of(
             Schema.Field.of("example", Schema.FieldType.array(Schema.FieldType.INT64)),
@@ -98,8 +111,8 @@ public class SklearnMnistClassification {
     PCollection<KV<Long, Iterable<Long>>> col =
         pipeline
             .apply(TextIO.read().from(options.getInput()))
-            .apply(Filter.by(new FilterFn()))
-            .apply(MapElements.via(new KVFn()));
+            .apply(Filter.by(new FilterNonRecordsFn()))
+            .apply(MapElements.via(new RecordsToLabeledPixelsFn()));
     col.apply(
             RunInference.ofKVs(getModelLoaderScript(), schema, VarLongCoder.of())
                 .withKwarg("model_uri", options.getModelPath())
