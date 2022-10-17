@@ -16,8 +16,6 @@
 package environment
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/logger"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +26,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/logger"
 )
 
 const (
@@ -60,8 +61,6 @@ const (
 	jsonExt                       = ".json"
 	configFolderName              = "configs"
 	defaultNumOfParallelJobs      = 20
-	bucketNameKey                 = "BUCKET_NAME"
-	defaultBucketName             = "playground-precompiled-objects"
 	SDKConfigPathKey              = "SDK_CONFIG"
 	defaultSDKConfigPath          = "../sdks.yaml"
 	propertyPathKey               = "PROPERTY_PATH"
@@ -107,7 +106,6 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	launchSite := getEnv(launchSiteKey, defaultLaunchSite)
 	projectId := os.Getenv(projectIdKey)
 	pipelinesFolder := getEnv(pipelinesFolderKey, defaultPipelinesFolder)
-	bucketName := getEnv(bucketNameKey, defaultBucketName)
 	sdkConfigPath := getEnv(SDKConfigPathKey, defaultSDKConfigPath)
 	propertyPath := getEnv(propertyPathKey, defaultPropertyPath)
 
@@ -127,7 +125,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	}
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, bucketName, sdkConfigPath, propertyPath, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
+		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }

@@ -19,8 +19,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/components/dropdown_button/dropdown_button.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_dropdown_body.dart';
+import 'package:playground_components/playground_components.dart';
 
 const _kShareDropdownHeight = 140.0;
 const _kShareDropdownWidth = 460.0;
@@ -31,22 +31,28 @@ class ShareButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final parentThemeData = Theme.of(context);
+    final ext = parentThemeData.extension<BeamThemeExtension>()!;
     final appLocale = AppLocalizations.of(context)!;
-    final parentThemeData = ThemeColors.of(context);
 
     final themeData = parentThemeData.copyWith(
-      background: parentThemeData.secondaryBackground,
-      dropdownButton: parentThemeData.primary.withOpacity(_kButtonColorOpacity),
+      backgroundColor: ext.secondaryBackgroundColor,
+      extensions: {
+        ext.copyWith(
+          fieldBackgroundColor:
+              parentThemeData.primaryColor.withOpacity(_kButtonColorOpacity),
+        ),
+      },
     );
 
-    return ThemeColorsProvider(
+    return Theme(
       data: themeData,
       child: AppDropdownButton(
         buttonText: Text(appLocale.shareMyCode),
         showArrow: false,
         leading: Icon(
           Icons.share_outlined,
-          color: ThemeColors.of(context).primary,
+          color: themeData.primaryColor,
         ),
         height: _kShareDropdownHeight,
         width: _kShareDropdownWidth,

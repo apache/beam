@@ -300,7 +300,11 @@ class InteractiveBeamTest(unittest.TestCase):
 @isolated_env
 class InteractiveBeamClustersTest(unittest.TestCase):
   def setUp(self):
+    self.current_env.options.cache_root = 'gs://fake'
     self.clusters = self.current_env.clusters
+
+  def tearDown(self):
+    self.current_env.options.cache_root = None
 
   def test_cluster_metadata_pass_through_metadata(self):
     cid = ClusterMetadata(project_id='test-project')

@@ -18,11 +18,13 @@
 """Tests common to all coder implementations."""
 # pytype: skip-file
 
+import base64
 import collections
 import enum
 import logging
 import math
 import unittest
+from decimal import Decimal
 from typing import Any
 from typing import List
 from typing import NamedTuple
@@ -160,6 +162,7 @@ class CodersTest(unittest.TestCase):
         coders.ProtoPlusCoder,
         coders.SinglePrecisionFloatCoder,
         coders.ToBytesCoder,
+        coders.BigIntegerCoder, # tested in DecimalCoder
     ])
     cls.seen_nested -= set(
         [coders.ProtoCoder, coders.ProtoPlusCoder, CustomCoder])
@@ -775,6 +778,26 @@ class CodersTest(unittest.TestCase):
             coders.TimestampPrefixingWindowCoder(
                 coders.IntervalWindowCoder()), )),
         (window.IntervalWindow(0, 10), ))
+
+  def test_decimal_coder(self):
+    test_coder = coders.DecimalCoder()
+
+    test_values = [
+        Decimal("-10.5"),
+        Decimal("-1"),
+        Decimal(),
+        Decimal("1"),
+        Decimal("13.258"),
+    ]
+
+    test_encodings = ("AZc", "AP8", "AAA", "AAE", "AzPK")
+
+    self.check_coder(test_coder, *test_values)
+
+    for idx, value in enumerate(test_values):
+      self.assertEqual(
+          test_encodings[idx],
+          base64.b64encode(test_coder.encode(value)).decode().rstrip("="))
 
 
 if __name__ == '__main__':

@@ -21,12 +21,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -259,7 +259,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               sideOutputTags,
               outputCoders,
               doFnSchemaInformation,
-              (Map<String, PCollectionView<?>>) sideInputMapping);
+              (Map<String, PCollectionView<?>>) sideInputMapping,
+              emitter,
+              outputFutureCollector);
     }
 
     this.pushbackFnRunner =
@@ -479,15 +481,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   static class FutureCollectorImpl<OutT> implements FutureCollector<OutT> {
-    private final List<CompletionStage<WindowedValue<OutT>>> outputFutures;
     private final AtomicBoolean collectorSealed;
+    private CompletionStage<Collection<WindowedValue<OutT>>> outputFuture;
 
     FutureCollectorImpl() {
-      /*
-       * Choosing synchronized list here since the concurrency is low as the message dispatch thread is single threaded.
-       * We need this guard against scenarios when watermark/finish bundle trigger outputs.
-       */
-      outputFutures = Collections.synchronizedList(new ArrayList<>());
+      outputFuture = CompletableFuture.completedFuture(new ArrayList<>());
       collectorSealed = new AtomicBoolean(true);
     }
 
@@ -495,14 +493,38 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     public void add(CompletionStage<WindowedValue<OutT>> element) {
       checkState(
           !collectorSealed.get(),
+          "Cannot add element to an unprepared collector. Make sure prepare() is invoked before adding elements.");
+
+      // We need synchronize guard against scenarios when watermark/finish bundle trigger outputs.
+      synchronized (this) {
+        outputFuture =
+            outputFuture.thenCombine(
+                element,
+                (collection, event) -> {
+                  collection.add(event);
+                  return collection;
+                });
+      }
+    }
+
+    @Override
+    public void addAll(CompletionStage<Collection<WindowedValue<OutT>>> elements) {
+      checkState(
+          !collectorSealed.get(),
           "Cannot add elements to an unprepared collector. Make sure prepare() is invoked before adding elements.");
-      outputFutures.add(element);
+
+      synchronized (this) {
+        outputFuture = FutureUtils.combineFutures(outputFuture, elements);
+      }
     }
 
     @Override
     public void discard() {
       collectorSealed.compareAndSet(false, true);
-      outputFutures.clear();
+
+      synchronized (this) {
+        outputFuture = CompletableFuture.completedFuture(new ArrayList<>());
+      }
     }
 
     @Override
@@ -513,10 +535,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
        */
       collectorSealed.compareAndSet(false, true);
 
-      CompletionStage<Collection<WindowedValue<OutT>>> sealedOutputFuture =
-          FutureUtils.flattenFutures(outputFutures);
-      outputFutures.clear();
-      return sealedOutputFuture;
+      synchronized (this) {
+        final CompletionStage<Collection<WindowedValue<OutT>>> sealedOutputFuture = outputFuture;
+        outputFuture = CompletableFuture.completedFuture(new ArrayList<>());
+        return sealedOutputFuture;
+      }
     }
 
     @Override
