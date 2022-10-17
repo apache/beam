@@ -21,52 +21,35 @@ to Dask Bag functions.
 
 TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
 """
-import contextlib
-import dataclasses
-
 import abc
-import dask.bag as db
+import dataclasses
 import typing as t
-import functools
+from dataclasses import field
+
+import dask.bag as db
 
 import apache_beam
 from apache_beam import TaggedOutput, DoFn
 from apache_beam.internal import util
 from apache_beam.pipeline import AppliedPTransform
-from apache_beam.runners.common import DoFnContext, DoFnSignature, Receiver, _OutputHandler, DoFnInvoker
+from apache_beam.runners.common import DoFnContext
+from apache_beam.runners.common import DoFnSignature
+from apache_beam.runners.common import Receiver
+from apache_beam.runners.common import _OutputHandler
+from apache_beam.runners.common import DoFnInvoker
 from apache_beam.runners.dask.overrides import _Create
 from apache_beam.runners.dask.overrides import _Flatten
 from apache_beam.runners.dask.overrides import _GroupByKeyOnly
-from apache_beam.transforms.sideinputs import SideInputMap
-from apache_beam.transforms.window import WindowFn, TimestampedValue, GlobalWindow
 from apache_beam.utils.windowed_value import WindowedValue
 
 OpInput = t.Union[db.Bag, t.Sequence[db.Bag], None]
-
-@dataclasses.dataclass
-class WindowAccessor:
-  window_fn: WindowFn
-
-  def __getitem__(self, item: t.Any):
-    if isinstance(item, TaggedOutput):
-      item = item.value
-
-    if isinstance(item, WindowedValue):
-      windowed_value = item
-    elif isinstance(item, TimestampedValue):
-      assign_context = WindowFn.AssignContext(item.timestamp, item.value)
-      windowed_value = WindowedValue(item.value, item.timestamp,
-                                     self.window_fn.assign(assign_context))
-    else:
-      windowed_value = WindowedValue(item, 0, (GlobalWindow(),))
-
-    return windowed_value
+PCollVal = t.Union[WindowedValue, t.Any]
 
 
 @dataclasses.dataclass
 class TaggingReceiver(Receiver):
   tag: str
-  values: t.List[t.Union[WindowedValue, t.Any]]
+  values: t.List[PCollVal]
 
   def receive(self, windowed_value: WindowedValue):
     if self.tag:
@@ -78,58 +61,14 @@ class TaggingReceiver(Receiver):
 
 @dataclasses.dataclass
 class OneReceiver(dict):
-  values: t.List[t.Union[WindowedValue, t.Any]]
+  values: t.List[PCollVal] = field(
+    default_factory=list
+  )
 
   def __missing__(self, key):
     if key not in self:
       self[key] = TaggingReceiver(key, self.values)
     return self[key]
-
-
-@dataclasses.dataclass
-class DoFnWorker:
-  label: str
-  map_fn: DoFn
-  window_fn: WindowFn
-  side_inputs: t.List[SideInputMap]
-  args: t.Any
-  kwargs: t.Any
-
-  def __post_init__(self):
-    self._values = []
-
-    tagged_receivers = OneReceiver(self._values)
-    do_fn_signature = DoFnSignature(self.map_fn)
-    output_handler = _OutputHandler(
-      window_fn=self.window_fn,
-      main_receivers=tagged_receivers[None],
-      tagged_receivers=tagged_receivers,
-      per_element_output_counter=None,
-    )
-
-    self._invoker = DoFnInvoker.create_invoker(
-      do_fn_signature,
-      output_handler,
-      DoFnContext(self.label, state=None),
-      self.side_inputs,
-      self.args,
-      self.kwargs,
-      user_state_context=None,
-      bundle_finalizer_param=DoFn.BundleFinalizerParam(),
-    )
-
-  def __del__(self):
-    self._invoker.invoke_teardown()
-
-  def invoke(self, items):
-    try:
-      self._invoker.invoke_setup()
-      self._invoker.invoke_start_bundle()
-
-      self._invoker.invoke_process()
-
-    finally:
-      self._invoker.invoke_finish_bundle()
 
 
 @dataclasses.dataclass
@@ -173,9 +112,7 @@ class ParDo(DaskBagOp):
     bundle_finalizer_param = DoFn.BundleFinalizerParam()
     do_fn_signature = DoFnSignature(map_fn)
 
-    values = []
-
-    tagged_receivers = OneReceiver(values)
+    tagged_receivers = OneReceiver()
 
     output_processor = _OutputHandler(
       window_fn=window_fn,
@@ -194,19 +131,19 @@ class ParDo(DaskBagOp):
       user_state_context=None,
       bundle_finalizer_param=bundle_finalizer_param)
 
-    try:
-      # Invoke setup just in case
+    def apply_dofn_to_bundle(items):
       do_fn_invoker.invoke_setup()
       do_fn_invoker.invoke_start_bundle()
-      return input_bag.map(get_windowed_value, window_fn).map(do_fn_invoker.invoke_process).flatten()
 
-    # TODO(alxr): Check that finally will still be executed in the return.
-    finally:
+      results = [do_fn_invoker.invoke_process(it) for it in items]
+      results.extend(tagged_receivers.values)
+
       do_fn_invoker.invoke_finish_bundle()
-      # Invoke teardown just in case
       do_fn_invoker.invoke_teardown()
 
+      return results
 
+    return input_bag.map_partitions(apply_dofn_to_bundle).flatten()
 
 
 class Map(DaskBagOp):
