@@ -265,7 +265,6 @@ def buildContentDir(name, dir = project.rootDir) {
 
 task serveWebsite(type: Exec) {
   dependsOn setupDockerContainer
-//  finalizedBy stopAndRemoveDockerContainer
   commandLine 'docker', 'exec',
     "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerSourceDir && \
