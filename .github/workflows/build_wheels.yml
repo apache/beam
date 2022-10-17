@@ -212,13 +212,13 @@ jobs:
     strategy:
       matrix:
         os_python: [
-          {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-*"},
-          {"os": "macos-latest", "python": "cp37-* cp38-* cp39-*"},
-          {"os": "windows-latest", "python": "cp37-* cp38-* cp39-*"},
+          {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
+          {"os": "macos-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
+          {"os": "windows-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
         ]
         arch: [auto]
         include:
-          - os_python: {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-*"}
+          - os_python: {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-* cp310-*"}
             arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
