@@ -33,11 +33,6 @@ jobs:
     outputs:
       example_has_changed: ${{ steps.check_has_example.outputs.example_has_changed }}
     steps:
-      - name: Dump GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: |
-          echo "$GITHUB_CONTEXT"
       - name: Check out the repo
         uses: actions/checkout@v3
         with:
