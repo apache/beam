@@ -640,14 +640,6 @@ class GoogleCloudOptions(PipelineOptions):
   COMPUTE_API_SERVICE = 'compute.googleapis.com'
   STORAGE_API_SERVICE = 'storage.googleapis.com'
   DATAFLOW_ENDPOINT = 'https://dataflow.googleapis.com'
-  OAUTH_SCOPES = [
-      'https://www.googleapis.com/auth/bigquery',
-      'https://www.googleapis.com/auth/cloud-platform',
-      'https://www.googleapis.com/auth/devstorage.full_control',
-      'https://www.googleapis.com/auth/userinfo.email',
-      'https://www.googleapis.com/auth/datastore',
-      'https://www.googleapis.com/auth/spanner'
-  ]
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -781,16 +773,6 @@ class GoogleCloudOptions(PipelineOptions):
         'either a single service account as the impersonator, or a '
         'comma-separated list of service accounts to create an '
         'impersonation delegation chain.')
-    parser.add_argument(
-        '--gcp_oauth_scope',
-        '--gcp_oauth_scopes',
-        dest='gcp_oauth_scopes',
-        action='append',
-        default=cls.OAUTH_SCOPES,
-        help=(
-            'Controls the OAuth scopes that will be requested when creating '
-            'GCP credentials. Note: If set programmatically, must be set as a '
-            'list of strings'))
 
   def _create_default_gcs_bucket(self):
     try:
