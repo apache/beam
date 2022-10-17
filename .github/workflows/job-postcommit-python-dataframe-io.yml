@@ -26,7 +26,6 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: ['v*']
-    paths: [ 'sdks/python/apache_beam/dataframe/io_it_test.py']
 permissions: read-all
 
 env:
