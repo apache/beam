@@ -24,11 +24,15 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.index.qual.NonNegative;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Options that are used to control configuration of the SDK harness. */
 @Experimental(Kind.PORTABILITY)
@@ -52,7 +56,18 @@ public interface SdkHarnessOptions extends PipelineOptions {
     DEBUG,
 
     /** LogLevel for logging tracing messages. */
-    TRACE
+    TRACE;
+
+    /** Map from LogLevel enums to java logging level. */
+    public static final ImmutableMap<LogLevel, Level> LEVEL_CONFIGURATION =
+        ImmutableMap.<SdkHarnessOptions.LogLevel, Level>builder()
+            .put(OFF, Level.OFF)
+            .put(ERROR, Level.SEVERE)
+            .put(WARN, Level.WARNING)
+            .put(INFO, Level.INFO)
+            .put(DEBUG, Level.FINE)
+            .put(TRACE, Level.FINEST)
+            .build();
   }
 
   /** This option controls the default log level of all loggers without a log level override. */
@@ -245,6 +260,8 @@ public interface SdkHarnessOptions extends PipelineOptions {
    * closest parent takes precedence.
    */
   class SdkHarnessLogLevelOverrides extends HashMap<String, LogLevel> {
+    private static final Logger LOG = LoggerFactory.getLogger(SdkHarnessLogLevelOverrides.class);
+
     /**
      * Overrides the default log level for the passed in class.
      *
@@ -290,18 +307,25 @@ public interface SdkHarnessOptions extends PipelineOptions {
      * name}, or fully qualified Java {@link Package#getName() package name}, or custom logger name.
      * The {@code LogLevel} represents the log level and must be one of {@link LogLevel}.
      */
-    @JsonCreator
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
     public static SdkHarnessLogLevelOverrides from(Map<String, String> values) {
       checkNotNull(values, "Expected values to be not null.");
       SdkHarnessLogLevelOverrides overrides = new SdkHarnessLogLevelOverrides();
       for (Map.Entry<String, String> entry : values.entrySet()) {
+        String module = entry.getKey();
+        String level = entry.getValue();
+        if (level.equals("WARNING")) {
+          // alias: "WARNING" -> "WARN"
+          level = "WARN";
+        }
         try {
-          overrides.addOverrideForName(entry.getKey(), LogLevel.valueOf(entry.getValue()));
+          overrides.addOverrideForName(module, LogLevel.valueOf(level));
         } catch (IllegalArgumentException e) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Unsupported log level '%s' requested for %s. Must be one of %s.",
-                  entry.getValue(), entry.getKey(), Arrays.toString(LogLevel.values())));
+          LOG.error(
+              "Discard unsupported log level '{}' requested for {}. Must be one of {}.",
+              level,
+              module,
+              Arrays.toString(LogLevel.values()));
         }
       }
       return overrides;

@@ -133,6 +133,14 @@ class _BeamArgumentParser(argparse.ArgumentParser):
     super().error(message)
 
 
+class _DictUnionAction(argparse.Action):
+  def __call__(self, parser, namespace, values, option_string=None):
+    if hasattr(namespace,
+               self.dest) and getattr(namespace, self.dest) is not None:
+      values.update(getattr(namespace, self.dest))
+    setattr(namespace, self.dest, values)
+
+
 class PipelineOptions(HasDisplayData):
   """This class and subclasses are used as containers for command line options.
 
@@ -979,7 +987,8 @@ class WorkerOptions(PipelineOptions):
             'Default log level is INFO.'))
     parser.add_argument(
         '--sdk_harness_log_level_overrides',
-        action='append',
+        type=json.loads,
+        action=_DictUnionAction,
         default=None,
         help=(
             'Controls the log levels for specifically named loggers. The '

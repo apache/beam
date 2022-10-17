@@ -117,7 +117,7 @@ class SdkWorkerMainTest(unittest.TestCase):
           'LOGGING_API_SERVICE_DESCRIPTOR': '',
           'CONTROL_API_SERVICE_DESCRIPTOR': '',
           'PIPELINE_OPTIONS': '{"default_sdk_harness_log_level":"INVALID",'
-          '"sdk_harness_log_level_overrides":"{INVALID_JSON}"}',
+          '"sdk_harness_log_level_overrides":[]}',
       },
                                      dry_run=True)
     logstream.seek(0)
@@ -127,6 +127,17 @@ class SdkWorkerMainTest(unittest.TestCase):
 
   def test_import_beam_plugins(self):
     sdk_worker_main._import_beam_plugins(BeamPlugin.get_all_plugin_paths())
+
+  @staticmethod
+  def _overrides_case_to_option_dict(case):
+    """
+    Return logging level overrides from command line strings via PipelineOption.
+    """
+    options_list = []
+    for c in case:
+      options_list += ['--sdk_harness_log_level_overrides', c]
+    options = PipelineOptions(options_list)
+    return options.get_all_options()
 
   def test__get_log_level_from_options_dict(self):
     test_cases = [
@@ -174,26 +185,23 @@ class SdkWorkerMainTest(unittest.TestCase):
         )
     ]
     for case, expected in test_cases:
-      options_dict = {'sdk_harness_log_level_overrides': case}
-      sdk_worker_main._set_log_level_overrides(options_dict)
+      overrides = self._overrides_case_to_option_dict(case)
+      sdk_worker_main._set_log_level_overrides(overrides)
       for name, level in expected.items():
         self.assertEqual(logging.getLogger(name).getEffectiveLevel(), level)
 
   def test__set_log_level_overrides_error(self):
     test_cases = [
-        ({
-            'sdk_harness_log_level_overrides': ['{"missed.quote":WARNING}']
-        },
+        (['["invalid", "format"]'],
          "Unable to parse sdk_harness_log_level_overrides"),
-        ({
-            'sdk_harness_log_level_overrides': ['{"invalid.level":"INVALID"}']
-        },
+        (['{"invalid.level":"INVALID"}'],
          "Error occurred when setting log level"),
     ]
     for case, expected in test_cases:
+      overrides = self._overrides_case_to_option_dict(case)
       with self.assertLogs('apache_beam.runners.worker.sdk_worker_main',
                            level='ERROR') as cm:
-        sdk_worker_main._set_log_level_overrides(case)
+        sdk_worker_main._set_log_level_overrides(overrides)
         self.assertIn(expected, cm.output[0])
 
 
