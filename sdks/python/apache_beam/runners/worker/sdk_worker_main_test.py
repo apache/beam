@@ -193,8 +193,8 @@ class SdkWorkerMainTest(unittest.TestCase):
 
   def test__set_log_level_overrides_error(self):
     test_cases = [
-        (['["invalid", "format"]'],
-         "Unable to parse sdk_harness_log_level_overrides"),
+        (['{"json.value.is.not.level": ["ERROR"]}'],
+         "Error occurred when setting log level"),
         (['{"invalid.level":"INVALID"}'],
          "Error occurred when setting log level"),
     ]
