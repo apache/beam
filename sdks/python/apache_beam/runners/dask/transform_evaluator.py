@@ -119,6 +119,9 @@ class ParDo(DaskBagOp):
       main_receivers=tagged_receivers[None],
       tagged_receivers=tagged_receivers,
       per_element_output_counter=None,
+      output_batch_converter=None,
+      process_yields_batches=False,
+      process_batch_yields_elements=False
     )
 
     do_fn_invoker = DoFnInvoker.create_invoker(
