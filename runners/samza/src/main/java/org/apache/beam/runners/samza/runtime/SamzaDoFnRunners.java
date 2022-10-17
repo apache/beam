@@ -90,7 +90,9 @@ public class SamzaDoFnRunners {
       List<TupleTag<?>> sideOutputTags,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, PCollectionView<?>> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping,
+      OpEmitter emitter,
+      FutureCollector futureCollector) {
     final KeyedInternals keyedInternals;
     final TimerInternals timerInternals;
     final StateInternals stateInternals;
@@ -133,6 +135,7 @@ public class SamzaDoFnRunners {
                 underlyingRunner, executionContext.getMetricsContainer(), transformFullName)
             : underlyingRunner;
 
+    final DoFnRunner<InT, FnOutT> doFnRunnerWithStates;
     if (keyedInternals != null) {
       final DoFnRunner<InT, FnOutT> statefulDoFnRunner =
           DoFnRunners.defaultStatefulDoFnRunner(
@@ -144,10 +147,14 @@ public class SamzaDoFnRunners {
               new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, windowingStrategy),
               createStateCleaner(doFn, windowingStrategy, keyedInternals.stateInternals()));
 
-      return new DoFnRunnerWithKeyedInternals<>(statefulDoFnRunner, keyedInternals);
+      doFnRunnerWithStates = new DoFnRunnerWithKeyedInternals<>(statefulDoFnRunner, keyedInternals);
     } else {
-      return doFnRunnerWithMetrics;
+      doFnRunnerWithStates = doFnRunnerWithMetrics;
     }
+
+    return pipelineOptions.getNumThreadsForProcessElement() > 1
+        ? AsyncDoFnRunner.create(doFnRunnerWithStates, emitter, futureCollector, pipelineOptions)
+        : doFnRunnerWithStates;
   }
 
   /** Creates a {@link StepContext} that allows accessing state and timer internals. */

@@ -88,7 +88,7 @@ deployments and how to get them setup visit [Twister2 Docs](https://twister2.org
 <nav class="version-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="version-twister2-0.6.0">Twister2 0.6.0</li>
+    <li data-value="twister2-0.6.0">Twister2 0.6.0</li>
   </ul>
 </nav>
 

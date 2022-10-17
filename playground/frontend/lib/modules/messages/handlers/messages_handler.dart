@@ -20,16 +20,16 @@ import 'package:playground/modules/messages/handlers/abstract_message_handler.da
 import 'package:playground/modules/messages/handlers/set_content_message_handler.dart';
 import 'package:playground/modules/messages/handlers/set_sdk_message_handler.dart';
 import 'package:playground/modules/messages/models/abstract_message.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 
 class MessagesHandler extends AbstractMessageHandler {
   final List<AbstractMessageHandler> handlers;
 
   MessagesHandler({
-    required PlaygroundState playgroundState,
+    required PlaygroundController playgroundController,
   }) : handlers = [
-    SetContentMessageHandler(playgroundState: playgroundState),
-    SetSdkMessageHandler(playgroundState: playgroundState),
+    SetContentMessageHandler(playgroundController: playgroundController),
+    SetSdkMessageHandler(playgroundController: playgroundController),
   ];
 
   @override

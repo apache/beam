@@ -92,7 +92,7 @@ public class StreamingSourceMetricsTest implements Serializable {
 
   private static PipelineOptions streamingOptions() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.as(TestSparkPipelineOptions.class).setForceStreaming(true);
+    options.as(TestSparkPipelineOptions.class).setStreaming(true);
     return options;
   }
 }
