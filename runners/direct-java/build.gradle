@@ -115,7 +115,7 @@ static def pipelineOptionsStringCrossPlatformHandling(String[] options) {
   }
 }
 
-def sickbayTests = [
+def disabledTests = [
         // https://github.com/apache/beam/issues/18499
         'org.apache.beam.sdk.testing.UsesLoopingTimer',
         // https://github.com/apache/beam/issues/19734
@@ -142,7 +142,7 @@ task needsRunnerTests(type: Test) {
   useJUnit {
 
     filter {
-      for (String test : sickbayTests) {
+      for (String test : disabledTests) {
         excludeTestsMatching test
       }
     }
@@ -203,7 +203,7 @@ tasks.register("validatesRunnerSickbay", Test) {
   testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
 
   filter {
-    for (String test : sickbayTests) {
+    for (String test : disabledTests) {
       includeTestsMatching test
     }
 
