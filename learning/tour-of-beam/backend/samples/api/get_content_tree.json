@@ -8,12 +8,13 @@
            {
               "type" : "unit",
               "unit" : {
-                 "title" : "Intro Unit Name",
+                 "title" : "Example Unit Name",
                  "id" : "intro-unit"
               }
            },
            {
               "group" : {
+                 "id": "group1",
                  "title" : "The Group",
                  "nodes" : [
                     {

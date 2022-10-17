@@ -33,12 +33,13 @@ class ContentExampleLoader extends ExampleLoader {
 
   @override
   Future<Example> get future async => Example(
-    sdk: descriptor.sdk,
-    name: descriptor.name ?? 'Embedded_Example',
-    path: '',
-    description: '',
-    type: ExampleType.example,
-    source: descriptor.content,
-    pipelineOptions: '',
-  );
+        sdk: descriptor.sdk,
+        name: descriptor.name ?? 'Embedded_Example',
+        path: '',
+        description: '',
+        type: ExampleType.example,
+        source: descriptor.content,
+        pipelineOptions: '',
+        complexity: descriptor.complexity,
+      );
 }

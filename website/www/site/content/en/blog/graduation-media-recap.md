@@ -47,8 +47,8 @@ include:
 * Datanami: "[Google Lauds Outside Influence on Apache Beam](https://www.datanami.com/2017/01/10/google-lauds-outside-influence-apache-beam/)" by Alex Woodie.
 * InfoWorld / JavaWorld: "[Apache Beam unifies batch and streaming for big data](https://www.infoworld.com/article/3156598/big-data/apache-beam-unifies-batch-and-streaming-for-big-data.html)" by Serdar Yegulalp, and republished in [JavaWorld](https://www.javaworld.com/article/3156598/big-data/apache-beam-unifies-batch-and-streaming-for-big-data.html).
 * JAXenter: "[In a way, Apache Beam is the glue that connects many big data systems together](https://jaxenter.com/apache-beam-interview-131314.html)" by Kypriani Sinaris.
-* OStatic: "Apache Beam Unifies Batch and Streaming Data Processing" by Sam Dean. <!-- http://ostatic.com/blog/apache-beam-unifies-batch-and-streaming-data-processing -->
-* Enterprise Apps Today: "[Apache Beam Graduates to Help Define Streaming Data Processing](http://www.enterpriseappstoday.com/business-intelligence/data-analytics/apache-beam-graduates-to-help-define-streaming-data-processing.html)" by Sean Michael Kerner.
+* OStatic: "Apache Beam Unifies Batch and Streaming Data Processing" by Sam Dean. <!-- https://ostatic.com/blog/apache-beam-unifies-batch-and-streaming-data-processing -->
+* Enterprise Apps Today: "[Apache Beam Graduates to Help Define Streaming Data Processing](https://www.enterpriseappstoday.com/business-intelligence/data-analytics/apache-beam-graduates-to-help-define-streaming-data-processing.html)" by Sean Michael Kerner.
 * The Register: "[Google must be Beaming as Apache announces its new top-level projects](https://www.theregister.co.uk/2017/01/10/google_must_be_ibeamiing_as_apache_announces_its_new_top_level_projects/)" by Alexander J. Martin.
 * SiliconANGLE: "[Apache Software Foundation announces two more top-level open source projects](https://siliconangle.com/blog/2017/01/11/apache-software-foundation-announces-2-top-level-projects/)" by Mike Wheatley.
 * SD Times: "[Apache Beam goes top level](https://sdtimes.com/apache-beam-goes-top-level/)" by Alex Handy.

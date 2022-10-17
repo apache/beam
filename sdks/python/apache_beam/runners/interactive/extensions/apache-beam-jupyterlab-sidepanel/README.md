@@ -25,7 +25,7 @@ Includes two different side panels:
 
 | JupyterLab version | Extension version |
 | ------------------ | ----------------- |
-| v3                 | v2.0.0            |
+| v3                 | >=v2.0.0          |
 | v2                 | v1.0.0            |
 
 ## Install

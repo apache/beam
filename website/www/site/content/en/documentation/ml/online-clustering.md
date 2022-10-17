@@ -41,7 +41,7 @@ For the clustering of tweets, we use an incremental clustering algorithm called 
 ## Ingestion to PubSub
 We first ingest the data into [PubSub](https://cloud.google.com/pubsub/docs/overview) so that while clustering we can read the tweets from PubSub. PubSub is a messaging service for exchanging event data among applications and services. It is used for streaming analytics and data integration pipelines to ingest and distribute data.
 
-The full example code for ingesting data to PubSub can be found [here](sdks/python/apache_beam/examples/inference/online_clustering/write_data_to_pubsub_pipeline/)
+The full example code for ingesting data to PubSub can be found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/online_clustering/write_data_to_pubsub_pipeline/)
 
 The file structure for ingestion pipeline is:
 
@@ -83,7 +83,7 @@ The `write_data_to_pubsub_pipeline` contains four different transforms:
 
 After having the data ingested to PubSub, we can now look into the second pipeline, where we read the streaming message from PubSub, convert the text to a embedding using a language model and cluster them using BIRCH.
 
-The full example code for all the steps mentioned above can be found [here](sdks/python/apache_beam/examples/inference/online_clustering/clustering_pipeline/).
+The full example code for all the steps mentioned above can be found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/online_clustering/clustering_pipeline/).
 
 
 The file structure for clustering_pipeline is:

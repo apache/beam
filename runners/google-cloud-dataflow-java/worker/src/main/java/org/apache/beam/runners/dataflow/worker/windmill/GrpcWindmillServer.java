@@ -103,6 +103,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -626,7 +627,12 @@ public class GrpcWindmillServer extends WindmillServerStub {
     private final StreamObserverFactory streamObserverFactory =
         StreamObserverFactory.direct(streamDeadlineSeconds * 2);
     private final Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory;
-    private final Executor executor = Executors.newSingleThreadExecutor();
+    private final Executor executor =
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("WindmillStream-thread")
+                .build());
 
     // The following should be protected by synchronizing on this, except for
     // the atomics which may be read atomically for status pages.
