@@ -473,7 +473,7 @@ packages:
     source: hosted
     version: "1.0.2"
   markdown:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: markdown
       url: "https://pub.dartlang.org"

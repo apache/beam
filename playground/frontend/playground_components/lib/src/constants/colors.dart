@@ -60,6 +60,7 @@ class BeamLightThemeColors {
   static const code1 = Color(0xFFDA2833);
   static const code2 = Color(0xFF5929B4);
   static const codeComment = Color(0xFF4C6B60);
+  static const codeBackground = Color(0xFFFEF6F3);
 }
 
 class BeamDarkThemeColors {
@@ -75,4 +76,5 @@ class BeamDarkThemeColors {
   static const code1 = Color(0xFFDA2833);
   static const code2 = Color(0xFF5929B4);
   static const codeComment = Color(0xFF4C6B60);
+  static const codeBackground = Color(0xFF231B1B);
 }

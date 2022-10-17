@@ -36,6 +36,7 @@ dependencies:
   easy_localization_loader: ^1.0.0
   equatable: ^2.0.5
   flutter: { sdk: flutter }
+  flutter_markdown: ^0.6.12
   flutter_svg: ^1.0.3
   google_fonts: ^3.0.1
   grpc: ^3.0.2
