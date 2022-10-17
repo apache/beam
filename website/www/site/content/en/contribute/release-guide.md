@@ -787,8 +787,9 @@ Here’s an email template; please adjust as you see fit.
     * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
     * Java artifacts were built with Gradle GRADLE_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
     * Python artifacts are deployed along with the source release to the dist.apache.org [2] and PyPI[8].
-    * Validation sheet with a tab for 1.2.3 release to help with validation [9].
-    * Docker images published to Docker Hub [10].
+    * Go artifacts and documentation are available at pkg.go.dev [9]
+    * Validation sheet with a tab for 1.2.3 release to help with validation [10].
+    * Docker images published to Docker Hub [11].
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
@@ -805,8 +806,9 @@ Here’s an email template; please adjust as you see fit.
     [6] https://github.com/apache/beam/pull/...
     [7] https://github.com/apache/beam-site/pull/...
     [8] https://pypi.org/project/apache-beam/1.2.3rc3/
-    [9] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
-    [10] https://hub.docker.com/search?q=apache%2Fbeam&type=image
+    [9] https://pkg.go.dev/github.com/apache/beam/sdks/v2@v1.2.3-RC3/go/pkg/beam
+    [10] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
+    [11] https://hub.docker.com/search?q=apache%2Fbeam&type=image
 
 If there are any issues found in the release candidate, reply on the vote thread to cancel the vote.
 There’s no need to wait 72 hours.
