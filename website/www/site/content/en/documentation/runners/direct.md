@@ -39,6 +39,8 @@ Here are some resources with information about how to test your pipelines.
   <li class="language-py">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam WordCount Walkthrough</a> contains an example of logging and testing a pipeline with <code>assert_that</code>.</li>
 </ul>
 
+The Direct Runner is not designed for production pipelines, because it's optimized for correctness rather than performance. The Direct Runner must fit all user data in memory, whereas the Flink and Spark runners can spill data to disk if it doesn't fit in memory. Consequently, Flink and Spark runners are able to run larger pipelines and are better suited to production workloads.
+
 ## Direct Runner prerequisites and setup
 
 ### Specify your dependency

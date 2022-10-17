@@ -28,4 +28,4 @@ runs:
       shell: bash
       run: |
         JSON=$(cat ./.github/actions/setup-default-test-properties/test-properties.json)
-        echo "::set-output name=test-properties::$(echo $JSON)"
+        echo "test-properties=$(echo $JSON)" >> $GITHUB_OUTPUT
