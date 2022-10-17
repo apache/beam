@@ -140,7 +140,8 @@ tasks.register("ulrValidatesRunner") {
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
     def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
-         "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+         "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}" +
+         " " + "python_transform:${envdir}/bin/python:apache_beam.runners.portability.expansion_service_test"
     ]
     def options = [
         "--runner portable",

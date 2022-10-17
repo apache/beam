@@ -77,7 +77,7 @@ cmd=`eval echo "$BASH_COMMAND" 2>/dev/null` && echo "\$ $cmd"' DEBUG
 CURRENT_DIRECTORY=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # Default test targets.
-TESTS="./test/integration/... ./test/regression"
+TESTS="./test/integration/transforms/xlang/dataframe/... ./test/regression"
 
 # Default runner.
 RUNNER=portable
