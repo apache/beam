@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.42.0"
-date:   2022-10-17 19:00:00 -0700
+date:   2022-10-17 9:00:00 -0700
 categories:
 - blog
 - release
