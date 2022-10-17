@@ -37,7 +37,7 @@ dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
   implementation("gradle.plugin.com.github.johnrengelman:shadow:7.1.1")
-  implementation("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.3")
+  implementation("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.12")
 
   runtimeOnly("com.google.protobuf:protobuf-gradle-plugin:0.8.13")                                          // Enable proto code generation
   runtimeOnly("com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0")                                   // Enable Avro code generation
