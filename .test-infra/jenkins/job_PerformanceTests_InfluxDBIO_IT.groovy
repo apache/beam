@@ -22,7 +22,7 @@ String jobName = "beam_PerformanceTests_InfluxDbIO_IT"
 
 job(jobName) {
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
+  common.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
   common.setAutoJob(delegate,'H H/6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
