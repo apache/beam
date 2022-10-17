@@ -48,7 +48,7 @@ dependencies {
   runtimeOnly("ca.coglinc:javacc-gradle-plugin:2.4.0")                                                     // Enable the JavaCC parser generator
   runtimeOnly("net.linguica.gradle:maven-settings-plugin:0.5")
   runtimeOnly("gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.5.0") // Enable creating an offline repository
-  runtimeOnly("net.ltgt.gradle:gradle-errorprone-plugin:1.2.1")                                           // Enable errorprone Java static analysis
+  runtimeOnly("net.ltgt.gradle:gradle-errorprone-plugin:3.0.1")                                           // Enable errorprone Java static analysis
   runtimeOnly("org.ajoberstar.grgit:grgit-gradle:4.1.1")                                                   // Enable website git publish to asf-site branch
   runtimeOnly("com.avast.gradle:gradle-docker-compose-plugin:0.14.12")                                       // Enable docker compose tasks
   runtimeOnly("ca.cutterslade.gradle:gradle-dependency-analyze:1.8.3")                                     // Enable dep analysis
