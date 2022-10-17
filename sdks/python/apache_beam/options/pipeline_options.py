@@ -134,11 +134,16 @@ class _BeamArgumentParser(argparse.ArgumentParser):
 
 
 class _DictUnionAction(argparse.Action):
+  """
+  argparse Action take union of json loads values. If a key is specified in more
+  than one of the values, the last value takes precedence.
+  """
   def __call__(self, parser, namespace, values, option_string=None):
-    if hasattr(namespace,
-               self.dest) and getattr(namespace, self.dest) is not None:
-      values.update(getattr(namespace, self.dest))
-    setattr(namespace, self.dest, values)
+    if not hasattr(namespace,
+                   self.dest) or getattr(namespace, self.dest) is None:
+      setattr(namespace, self.dest, values)
+    else:
+      getattr(namespace, self.dest).update(values)
 
 
 class PipelineOptions(HasDisplayData):

@@ -170,10 +170,11 @@ class SdkWorkerMainTest(unittest.TestCase):
             }
         ),
         (
-            # multiple overrides
+            # multiple overrides, the last takes precedence
             [
                 '{"fake_module_2a.b":"DEBUG"}',
-                '{"fake_module_2c.d":"ERROR","fake_module_2c.d.e":15}'
+                '{"fake_module_2c.d":"WARNING","fake_module_2c.d.e":15}',
+                '{"fake_module_2c.d":"ERROR"}'
             ],
             {
                 "fake_module_2a.b": logging.DEBUG,
