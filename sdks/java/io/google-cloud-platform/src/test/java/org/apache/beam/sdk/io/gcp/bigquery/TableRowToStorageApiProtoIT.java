@@ -169,6 +169,8 @@ public class TableRowToStorageApiProtoIT {
           .set("bigNumericValue", "23334.4")
           .set("arrayValue", REPEATED_BYTES);
 
+  // https://github.com/apache/beam/issues/23666
+  @SuppressWarnings("FloatingPointLiteralPrecision")
   private static final TableRow BASE_TABLE_ROW_FLOATS =
       new TableRow()
           .set("stringValue", "string")
