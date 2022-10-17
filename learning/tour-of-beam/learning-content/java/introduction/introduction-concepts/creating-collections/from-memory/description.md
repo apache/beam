@@ -17,9 +17,9 @@ Now that you know how to create a Beam pipeline and pass parameters into it, it 
 
 There are several options on how to do that:
 
-&#8594; You can create a PCollection of data stored in an in-memory collection class in your driver program.
+→ You can create a PCollection of data stored in an in-memory collection class in your driver program.
 
-&#8594; You can also read the data from a variety of external sources such as local and cloud-based files, databases, or other sources using Beam-provided I/O adapters
+→ You can also read the data from a variety of external sources such as local and cloud-based files, databases, or other sources using Beam-provided I/O adapters
 
 Through the tour, most of the examples use either `PCollection` created from in-memory data or data read from one of the cloud buckets: beam-examples, dataflow-samples. These buckets contain sample data sets specifically created for educational purposes.
 
