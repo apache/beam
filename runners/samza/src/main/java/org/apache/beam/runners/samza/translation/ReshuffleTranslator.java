@@ -84,7 +84,7 @@ public class ReshuffleTranslator<K, InT, OutT>
             ((KvCoder<K, InT>) windowedInputCoder.getValueCoder()).getKeyCoder(),
             windowedInputCoder,
             "rshfl-" + ctx.getTransformId(),
-            ctx.getSamzaPipelineOptions().getMaxSourceParallelism() > 1);
+            ctx.getPipelineOptions().getMaxSourceParallelism() > 1);
 
     ctx.registerMessageStream(outputId, outputStream);
   }

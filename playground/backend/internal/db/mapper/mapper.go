@@ -16,11 +16,20 @@
 package mapper
 
 import (
+	"beam.apache.org/playground/backend/internal/db/dto"
+
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/db/entity"
 )
 
 type EntityMapper interface {
 	ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet
-	ToFileEntity(info *pb.SaveSnippetRequest, file *pb.SnippetFile) *entity.FileEntity
+	ToFileEntity(info *pb.SaveSnippetRequest, file *pb.SnippetFile) (*entity.FileEntity, error)
+}
+
+type ResponseMapper interface {
+	ToArrayCategories(catalogDTO *dto.CatalogDTO) []*pb.Categories
+	ToObjectInfo(exampleDTO *dto.ExampleDTO) *dto.ObjectInfo
+	ToDefaultPrecompiledObjects(defaultExamplesDTO *dto.DefaultExamplesDTO) map[pb.Sdk]*pb.PrecompiledObject
+	ToPrecompiledObj(exampleDTO *dto.ExampleDTO) *pb.PrecompiledObject
 }

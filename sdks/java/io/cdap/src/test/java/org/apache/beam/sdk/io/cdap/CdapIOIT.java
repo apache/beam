@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.cdap;
 import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
+import static org.junit.Assert.assertNotEquals;
 
 import com.google.cloud.Timestamp;
 import io.cdap.plugin.common.Constants;
@@ -147,11 +148,13 @@ public class CdapIOIT {
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(getExpectedHashForRowCount(numberOfRows));
 
     PipelineResult readResult = readPipeline.run();
-    readResult.waitUntilFinish();
+    PipelineResult.State readState = readResult.waitUntilFinish();
 
     if (!options.isWithTestcontainers()) {
       collectAndPublishMetrics(writeResult, readResult);
     }
+    // Fail the test if pipeline failed.
+    assertNotEquals(readState, PipelineResult.State.FAILED);
   }
 
   private CdapIO.Write<TestRowDBWritable, NullWritable> writeToDB(Map<String, Object> params) {

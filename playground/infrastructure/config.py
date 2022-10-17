@@ -19,6 +19,7 @@ Configuration for CI/CD steps
 
 import os
 from dataclasses import dataclass
+from enum import Enum
 from typing import Literal
 
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
@@ -41,13 +42,9 @@ class Config:
         Sdk.Name(SDK_GO),
         Sdk.Name(SDK_PYTHON),
         Sdk.Name(SDK_SCIO))
-    BUCKET_NAME = "playground-precompiled-objects"
-    TEMP_FOLDER = "temp"
-    DEFAULT_PRECOMPILED_OBJECT = "defaultPrecompiledObject.info"
     SDK_TO_EXTENSION = {
         SDK_JAVA: "java", SDK_GO: "go", SDK_PYTHON: "py", SDK_SCIO: "scala"
     }
-    NO_STORE = "no-store"
     ERROR_STATUSES = [
         STATUS_VALIDATION_ERROR,
         STATUS_ERROR,
@@ -63,6 +60,8 @@ class Config:
     CD_STEP_NAME = "CD"
     CI_CD_LITERAL = Literal["CI", "CD"]
     LINK_PREFIX = "https://github.com/apache/beam/blob/master"
+    GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
+    SDK_CONFIG = os.getenv("SDK_CONFIG", "../../playground/sdks.yaml")
 
 
 @dataclass(frozen=True)
@@ -74,6 +73,8 @@ class TagFields:
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
     context_line: int = "context_line"
+    complexity: str = "complexity"
+    tags: str = "tags"
 
 
 @dataclass(frozen=True)
@@ -96,3 +97,21 @@ class PrecompiledExampleType:
 class OptionalTagFields:
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
+
+
+@dataclass(frozen=True)
+class DatastoreProps:
+    NAMESPACE = "Playground"
+    KEY_NAME_DELIMITER = "_"
+    EXAMPLE_KIND = "pg_examples"
+    SNIPPET_KIND = "pg_snippets"
+    SCHEMA_KIND = "pg_schema_versions"
+    PRECOMPILED_OBJECT_KIND = "pg_pc_objects"
+    FILES_KIND = "pg_files"
+    SDK_KIND = "pg_sdks"
+
+class Origin(str, Enum):
+    PG_EXAMPLES = 'PG_EXAMPLES'
+    PG_USER = 'PG_USER'
+    TB_EXAMPLES = 'TB_EXAMPLES'
+    TB_USER = 'TB_USER'

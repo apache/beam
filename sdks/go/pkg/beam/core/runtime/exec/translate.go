@@ -495,10 +495,21 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							} else if ms := spec.GetMapSpec(); ms != nil {
 								cID = ms.ValueCoderId
 								kcID = ms.KeyCoderId
+							} else if ss := spec.GetSetSpec(); ss != nil {
+								kcID = ss.ElementCoderId
+							} else {
+								return nil, errors.Errorf("Unrecognized state type %v", spec)
 							}
-							c, err := b.coders.Coder(cID)
-							if err != nil {
-								return nil, err
+							if cID != "" {
+								c, err := b.coders.Coder(cID)
+								if err != nil {
+									return nil, err
+								}
+								stateIDToCoder[key] = c
+							} else {
+								// If no value coder is provided, we are in a keyed state with no values (aka a set).
+								// We represent a set as an element mapping to a bool representing if it is present or not.
+								stateIDToCoder[key] = &coder.Coder{Kind: coder.Bool}
 							}
 							if kcID != "" {
 								kc, err := b.coders.Coder(kcID)
@@ -507,7 +518,6 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 								}
 								stateIDToKeyCoder[key] = kc
 							}
-							stateIDToCoder[key] = c
 							sid := StreamID{
 								Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
 								PtransformID: id.to,

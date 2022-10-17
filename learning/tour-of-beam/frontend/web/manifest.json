@@ -1,0 +1,18 @@
+{
+    "name": "frontend",
+    "short_name": "frontend",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0175C2",
+    "theme_color": "#0175C2",
+    "description": "Tour of Beam",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "favicon.ico",
+            "sizes": "256x266",
+            "type": "image/vnd.microsoft.icon"
+        }
+    ]
+}

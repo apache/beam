@@ -149,27 +149,27 @@ func (t *testStateReader) OpenBagUserStateClearer(ctx context.Context, id Stream
 }
 
 // OpenMultimapUserStateReader opens a byte stream for reading user multimap state.
-func (s *testStateReader) OpenMultimapUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.ReadCloser, error) {
+func (t *testStateReader) OpenMultimapUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.ReadCloser, error) {
 	return nil, nil
 }
 
 // OpenMultimapUserStateAppender opens a byte stream for appending user multimap state.
-func (s *testStateReader) OpenMultimapUserStateAppender(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error) {
+func (t *testStateReader) OpenMultimapUserStateAppender(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error) {
 	return nil, nil
 }
 
 // OpenMultimapUserStateClearer opens a byte stream for clearing user multimap state by key.
-func (s *testStateReader) OpenMultimapUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error) {
+func (t *testStateReader) OpenMultimapUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error) {
 	return nil, nil
 }
 
 // OpenMultimapKeysUserStateReader opens a byte stream for reading the keys of user multimap state.
-func (s *testStateReader) OpenMultimapKeysUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error) {
+func (t *testStateReader) OpenMultimapKeysUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error) {
 	return nil, nil
 }
 
 // OpenMultimapKeysUserStateClearer opens a byte stream for clearing all keys of user multimap state.
-func (s *testStateReader) OpenMultimapKeysUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+func (t *testStateReader) OpenMultimapKeysUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
 	return nil, nil
 }
 

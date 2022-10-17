@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"path"
 
@@ -91,7 +90,7 @@ func ReadObject(ctx context.Context, client *storage.Client, bucket, object stri
 	if err != nil {
 		return nil, err
 	}
-	return ioutil.ReadAll(r)
+	return io.ReadAll(r)
 }
 
 // MakeObject creates a object location from bucket and path. For example,

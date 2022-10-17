@@ -123,6 +123,14 @@ class RowTypeConstraint(typehints.TypeConstraint):
         field_options=field_options,
         schema_registry=schema_registry)
 
+  def __call__(self, *args, **kwargs):
+    # We make RowTypeConstraint callable (defers to constructing the user type)
+    # so that Python will recognize it as a type. This allows RowTypeConstraint
+    # to be used in conjunction with native typehints, like Optional.
+    # CPython (prior to 3.11) considers anything callable to be a type:
+    # https://github.com/python/cpython/blob/d348afa15d5a997e7a8e51c0f789f41cb15cc651/Lib/typing.py#L137-L167
+    return self._user_type(*args, **kwargs)
+
   @property
   def user_type(self):
     return self._user_type

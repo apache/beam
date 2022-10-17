@@ -280,6 +280,7 @@ public class FnHarness {
               metricsShortIds,
               executionStateSampler,
               processWideCache);
+      logging.setProcessBundleHandler(processBundleHandler);
 
       BeamFnStatusClient beamFnStatusClient = null;
       if (statusApiServiceDescriptor != null) {

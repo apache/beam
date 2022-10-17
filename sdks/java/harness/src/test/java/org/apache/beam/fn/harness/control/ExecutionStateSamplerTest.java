@@ -110,6 +110,10 @@ public class ExecutionStateSamplerTest {
               }
             });
 
+    // No active PTransform
+    assertNull(tracker1.getCurrentThreadsPTransformId());
+    assertNull(tracker2.getCurrentThreadsPTransformId());
+
     // No tracked thread
     assertNull(tracker1.getStatus());
     assertNull(tracker2.getStatus());
@@ -119,6 +123,10 @@ public class ExecutionStateSamplerTest {
 
     state1.activate();
     state2.activate();
+
+    // Check that the current threads PTransform id is available
+    assertEquals("ptransformId1", tracker1.getCurrentThreadsPTransformId());
+    assertEquals("ptransformId2", tracker2.getCurrentThreadsPTransformId());
 
     // Check that the status returns a value as soon as it is activated.
     ExecutionStateTrackerStatus activeBundleStatus1 = tracker1.getStatus();
@@ -141,6 +149,10 @@ public class ExecutionStateSamplerTest {
 
     waitTillActive.countDown();
     waitForSamples.await();
+
+    // Check that the current threads PTransform id is available
+    assertEquals("ptransformId1", tracker1.getCurrentThreadsPTransformId());
+    assertEquals("ptransformId2", tracker2.getCurrentThreadsPTransformId());
 
     // Check that we get additional data about the active PTransform.
     ExecutionStateTrackerStatus activeStateStatus1 = tracker1.getStatus();
@@ -184,6 +196,10 @@ public class ExecutionStateSamplerTest {
     waitTillStatesDeactivated.countDown();
     waitForEvenMoreSamples.await();
 
+    // Check that the current threads PTransform id is not available
+    assertNull(tracker1.getCurrentThreadsPTransformId());
+    assertNull(tracker2.getCurrentThreadsPTransformId());
+
     // Check the status once the states are deactivated but the bundle is still active
     ExecutionStateTrackerStatus inactiveStateStatus1 = tracker1.getStatus();
     ExecutionStateTrackerStatus inactiveStateStatus2 = tracker2.getStatus();
@@ -221,7 +237,9 @@ public class ExecutionStateSamplerTest {
     tracker1.reset();
     tracker2.reset();
 
-    // Shouldn't have a status returned since there is no active bundle.
+    // Shouldn't have a status or pt ransform id returned since there is no active bundle.
+    assertNull(tracker1.getCurrentThreadsPTransformId());
+    assertNull(tracker2.getCurrentThreadsPTransformId());
     assertNull(tracker1.getStatus());
     assertNull(tracker2.getStatus());
 

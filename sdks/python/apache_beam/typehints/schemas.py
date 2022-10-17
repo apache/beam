@@ -34,6 +34,8 @@ Imposes a mapping between common Python types and Beam portable schemas
   bytes       <-----> BYTES
   ByteString  ------> BYTES
   Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
+  Timestamp   <------ LogicalType(urn="beam:logical_type:millis_instant:v1")
+  Decimal     <-----> LogicalType(urn="beam:logical_type:fixed_decimal:v1")
   Mapping     <-----> MapType
   Sequence    <-----> ArrayType
   NamedTuple  <-----> RowType
@@ -54,6 +56,7 @@ any backwards-compatibility guarantee.
 
 # pytype: skip-file
 
+import decimal
 from typing import Any
 from typing import ByteString
 from typing import Dict
@@ -177,7 +180,7 @@ def option_to_runner_api(
 
 def option_from_runner_api(
     option_proto: schema_pb2.Option,
-    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> type:
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> Tuple[str, Any]:
   return SchemaTranslation(
       schema_registry=schema_registry).option_from_runner_api(option_proto)
 
@@ -266,12 +269,24 @@ class SchemaTranslation(object):
           logical_type=schema_pb2.LogicalType(urn=PYTHON_ANY_URN),
           nullable=True)
     else:
-      # TODO(bhulette): Add support for logical types that require arguments
-      return schema_pb2.FieldType(
-          logical_type=schema_pb2.LogicalType(
-              urn=logical_type.urn(),
-              representation=self.typing_to_runner_api(
-                  logical_type.representation_type())))
+      if logical_type.argument_type() is None:
+        return schema_pb2.FieldType(
+            logical_type=schema_pb2.LogicalType(
+                urn=logical_type.urn(),
+                representation=self.typing_to_runner_api(
+                    logical_type.representation_type())))
+      else:
+        # TODO(https://github.com/apache/beam/issues/23373): Complete support
+        # for logical types that require arguments.
+        # This include implement SchemaTranslation.value_to_runner_api (see Java
+        # SDK's SchemaTranslation.fieldValueToProto)
+        return schema_pb2.FieldType(
+            logical_type=schema_pb2.LogicalType(
+                urn=logical_type.urn(),
+                representation=self.typing_to_runner_api(
+                    logical_type.representation_type()),
+                argument_type=self.typing_to_runner_api(
+                    logical_type.argument_type())))
 
   def option_from_runner_api(
       self, option_proto: schema_pb2.Option) -> Tuple[str, Any]:
@@ -571,13 +586,13 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     """Return the argument for this instance of the LogicalType."""
     raise NotImplementedError()
 
-  def to_representation_type(value):
+  def to_representation_type(self, value):
     # type: (LanguageT) -> RepresentationT
 
     """Convert an instance of LanguageT to RepresentationT."""
     raise NotImplementedError()
 
-  def to_language_type(value):
+  def to_language_type(self, value):
     # type: (RepresentationT) -> LanguageT
 
     """Convert an instance of RepresentationT to LanguageT."""
@@ -587,6 +602,7 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
   def register_logical_type(cls, logical_type_cls):
     """Register an implementation of LogicalType."""
     cls._known_logical_types.add(logical_type_cls.urn(), logical_type_cls)
+    return logical_type_cls
 
   @classmethod
   def from_typing(cls, typ):
@@ -656,8 +672,53 @@ MicrosInstantRepresentation = NamedTuple(
 
 
 @LogicalType.register_logical_type
+class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
+  """Millisecond-precision instant logical type handles values consistent with
+  that encoded by ``InstantCoder`` in the Java SDK.
+
+  This class handles :class:`apache_beam.utils.timestamp.Timestamp` language
+  type as :class:`MicrosInstant`, but it only provides millisecond precision,
+  because it is aimed to handle data encoded by Java sdk's InstantCoder which
+  has same precision level.
+
+  Timestamp is handled by `MicrosInstant` by default. In some scenario, such as
+  read from cross-language transform with rows containing InstantCoder encoded
+  timestamps, one may need to override the mapping of Timetamp to MillisInstant.
+  To do this, re-register this class with
+  :func:`~LogicalType.register_logical_type`.
+  """
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return np.int64
+
+  @classmethod
+  def urn(cls):
+    return common_urns.millis_instant.urn
+
+  @classmethod
+  def language_type(cls):
+    return Timestamp
+
+  def to_language_type(self, value):
+    # type: (np.int64) -> Timestamp
+
+    # value shifted as in apache_beams.coders.coder_impl.TimestampCoderImpl
+    if value < 0:
+      millis = int(value) + (1 << 63)
+    else:
+      millis = int(value) - (1 << 63)
+
+    return Timestamp(micros=millis * 1000)
+
+
+# Make sure MicrosInstant is registered after MillisInstant so that it
+# overwrites the mapping of Timestamp language type representation choice and
+# thus does not lose microsecond precision inside python sdk.
+@LogicalType.register_logical_type
 class MicrosInstant(NoArgumentLogicalType[Timestamp,
                                           MicrosInstantRepresentation]):
+  """Microsecond-precision instant logical type that handles ``Timestamp``."""
   @classmethod
   def urn(cls):
     return common_urns.micros_instant.urn
@@ -683,6 +744,7 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
 
 @LogicalType.register_logical_type
 class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
+  """A logical type for PythonCallableSource objects."""
   @classmethod
   def urn(cls):
     return common_urns.python_callable.urn
@@ -703,3 +765,89 @@ class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
   def to_language_type(self, value):
     # type: (str) -> PythonCallableWithSource
     return PythonCallableWithSource(value)
+
+
+FixedPrecisionDecimalArgumentRepresentation = NamedTuple(
+    'FixedPrecisionDecimalArgumentRepresentation', [('precision', np.int32),
+                                                    ('scale', np.int32)])
+
+
+class DecimalLogicalType(NoArgumentLogicalType[decimal.Decimal, bytes]):
+  """A logical type for decimal objects handling values consistent with that
+  encoded by ``BigDecimalCoder`` in the Java SDK.
+  """
+  @classmethod
+  def urn(cls):
+    return common_urns.decimal.urn
+
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return bytes
+
+  @classmethod
+  def language_type(cls):
+    return decimal.Decimal
+
+  def to_representation_type(self, value):
+    # type: (decimal.Decimal) -> bytes
+    return str(value).encode()
+
+  def to_language_type(self, value):
+    # type: (bytes) -> decimal.Decimal
+    return decimal.Decimal(value.decode())
+
+
+@LogicalType.register_logical_type
+class FixedPrecisionDecimalLogicalType(
+    LogicalType[decimal.Decimal,
+                DecimalLogicalType,
+                FixedPrecisionDecimalArgumentRepresentation]):
+  """A wrapper of DecimalLogicalType that contains the precision value.
+  """
+  def __init__(self, precision=-1, scale=0):
+    self.precision = precision
+    self.scale = scale
+
+  @classmethod
+  def urn(cls):
+    # TODO(https://github.com/apache/beam/issues/23373) promote this URN to
+    # schema.proto once logical types with argument are fully supported and the
+    # implementation of this logical type can thus be considered standardized.
+    return "beam:logical_type:fixed_decimal:v1"
+
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return DecimalLogicalType
+
+  @classmethod
+  def language_type(cls):
+    return decimal.Decimal
+
+  def to_representation_type(self, value):
+    # type: (decimal.Decimal) -> bytes
+
+    return DecimalLogicalType().to_representation_type(value)
+
+  def to_language_type(self, value):
+    # type: (bytes) -> decimal.Decimal
+
+    return DecimalLogicalType().to_language_type(value)
+
+  @classmethod
+  def argument_type(cls):
+    return FixedPrecisionDecimalArgumentRepresentation
+
+  def argument(self):
+    return FixedPrecisionDecimalArgumentRepresentation(
+        precision=self.precision, scale=self.scale)
+
+  @classmethod
+  def _from_typing(cls, typ):
+    return cls()
+
+
+# TODO(yathu,BEAM-10722): Investigate and resolve conflicts in logical type
+# registration when more than one logical types sharing the same language type
+LogicalType.register_logical_type(DecimalLogicalType)

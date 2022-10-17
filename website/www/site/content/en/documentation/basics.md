@@ -261,7 +261,7 @@ as summation, called a `CombineFn`, in which the output is significantly smaller
 than the input. In this case the aggregation is called `CombinePerKey`.
 
 In a real application, you might have millions of keys and/or windows; that is
-why this is still an "embarassingly parallel" computational pattern. In those
+why this is still an "embarrassingly parallel" computational pattern. In those
 cases where you have fewer keys, you can add parallelism by adding a
 supplementary key, splitting each of your problem's natural keys into many
 sub-keys. After these sub-keys are aggregated, the results can be further
@@ -611,7 +611,7 @@ For more information about Splittable `DoFn`, see the following pages:
 
 ### What's next
 
-Take a look at our [other documention](/documentation/) such as the Beam
+Take a look at our [other documentation](/documentation/) such as the Beam
 programming guide, pipeline execution information, and transform reference
 catalogs.
 
