@@ -65,12 +65,18 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -3104,20 +3110,10 @@ public class StreamingDataflowWorkerTest {
   }
 
   private static class SlowDoFn extends DoFn<String, String> {
-    private final Duration sleep;
-
-    SlowDoFn(Duration sleep) {
-      this.sleep = sleep;
-    }
-
-    SlowDoFn() {
-      this(Duration.millis(1000));
-    }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      FakeClock.DEFAULT.sleep(sleep);
-      Uninterruptibles.sleepUninterruptibly(sleep.getMillis(), TimeUnit.MILLISECONDS);
+      Thread.sleep(1000);
       c.output(c.element());
     }
   }
@@ -3147,22 +3143,184 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class FakeClock implements Supplier<Instant> {
-    private static final FakeClock DEFAULT = new FakeClock();
+    static final FakeClock DEFAULT = new FakeClock();
 
+    private class FakeScheduledExecutor implements ScheduledExecutorService {
+      @Override
+      public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+        return true;
+      }
+
+      @Override
+      public void execute(Runnable command) {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)
+          throws InterruptedException {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public <T> List<Future<T>> invokeAll(
+          Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+          throws InterruptedException {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public <T> T invokeAny(Collection<? extends Callable<T>> tasks)
+          throws ExecutionException, InterruptedException {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+          throws ExecutionException, InterruptedException, TimeoutException {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public boolean isShutdown() {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public boolean isTerminated() {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public void shutdown() {}
+
+      @Override
+      public List<Runnable> shutdownNow() {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public <T> Future<T> submit(Callable<T> task) {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public Future<?> submit(Runnable task) {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public <T> Future<T> submit(Runnable task, T result) {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public ScheduledFuture<?> scheduleAtFixedRate(
+          Runnable command, long initialDelay, long period, TimeUnit unit) {
+        throw new UnsupportedOperationException("Not implemented yet");
+      }
+
+      @Override
+      public ScheduledFuture<?> scheduleWithFixedDelay(
+          Runnable command, long initialDelay, long delay, TimeUnit unit) {
+        if (delay <= 0) {
+          throw new UnsupportedOperationException(
+              "Please supply a delay > 0 to scheduleWithFixedDelay");
+        }
+        FakeClock.this.schedule(
+            Duration.millis(unit.toMillis(initialDelay)),
+            new Runnable() {
+              @Override
+              public void run() {
+                command.run();
+                FakeClock.this.schedule(Duration.millis(unit.toMillis(delay)), this);
+              }
+            });
+        FakeClock.this.sleep(Duration.ZERO); // Execute work that has an intial delay of zero.
+        return null;
+      }
+    }
+
+    private static class Job implements Comparable<Job> {
+      final Instant when;
+      final Runnable work;
+
+      Job(Instant when, Runnable work) {
+        this.when = when;
+        this.work = work;
+      }
+
+      @Override
+      public int compareTo(Job job) {
+        return when.compareTo(job.when);
+      }
+    }
+
+    private final PriorityQueue<Job> jobs = new PriorityQueue<>();
     private Instant now = Instant.now();
+
+    public ScheduledExecutorService newFakeScheduledExecutor(String unused) {
+      return new FakeScheduledExecutor();
+    }
 
     @Override
     public synchronized Instant get() {
       return now;
     }
 
-    synchronized void sleep(Duration duration) {
-      this.now = this.now.plus(duration);
+    public synchronized void clear() {
+      jobs.clear();
+    }
+
+    public synchronized void sleep(Duration duration) {
+      if (duration.isShorterThan(Duration.ZERO)) {
+        throw new UnsupportedOperationException("Cannot sleep backwards in time");
+      }
+      Instant endOfSleep = now.plus(duration);
+      while (true) {
+        Job job = jobs.peek();
+        if (job == null || job.when.isAfter(endOfSleep)) {
+          break;
+        }
+        jobs.remove();
+        now = job.when;
+        job.work.run();
+      }
+      now = endOfSleep;
+    }
+
+    private synchronized void schedule(Duration fromNow, Runnable work) {
+      jobs.add(new Job(now.plus(fromNow), work));
+    }
+  }
+
+  private static class FakeSlowDoFn extends DoFn<String, String> {
+    private final Duration sleep;
+
+    FakeSlowDoFn(Duration sleep) {
+      this.sleep = sleep;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      FakeClock.DEFAULT.sleep(sleep);
+      c.output(c.element());
     }
   }
 
   @Test
   public void testLatencyAttributionProtobufsPopulated() throws Exception {
+    FakeClock.DEFAULT.clear();
     StreamingDataflowWorker.Work work =
         new StreamingDataflowWorker.Work(null, FakeClock.DEFAULT) {
           @Override
@@ -3259,12 +3417,13 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testLatencyAttributionToQueuedState() throws Exception {
+    FakeClock.DEFAULT.clear();
     final int workToken = 3232; // A unique id makes it easier to search logs.
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
-            makeDoFnInstruction(new SlowDoFn(Duration.millis(1000)), 0, StringUtf8Coder.of()),
+            makeDoFnInstruction(new FakeSlowDoFn(Duration.millis(1000)), 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
@@ -3279,7 +3438,7 @@ public class StreamingDataflowWorkerTest {
             options,
             false /* publishCounters */,
             FakeClock.DEFAULT,
-            Executors::newSingleThreadScheduledExecutor);
+            FakeClock.DEFAULT::newFakeScheduledExecutor);
     worker.start();
 
     ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
@@ -3304,13 +3463,14 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testLatencyAttributionToActiveState() throws Exception {
+    FakeClock.DEFAULT.clear();
     final int workToken = 4242; // A unique id makes it easier to search logs.
 
     // Inject processing latency on the fake clock in the worker via FakeSlowDoFn.
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
-            makeDoFnInstruction(new SlowDoFn(Duration.millis(1000)), 0, StringUtf8Coder.of()),
+            makeDoFnInstruction(new FakeSlowDoFn(Duration.millis(1000)), 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
@@ -3322,7 +3482,7 @@ public class StreamingDataflowWorkerTest {
             options,
             false /* publishCounters */,
             FakeClock.DEFAULT,
-            Executors::newSingleThreadScheduledExecutor);
+            FakeClock.DEFAULT::newFakeScheduledExecutor);
     worker.start();
 
     ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
@@ -3352,6 +3512,7 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testLatencyAttributionToReadingState() throws Exception {
+    FakeClock.DEFAULT.clear();
     final int workToken = 5454; // A unique id makes it easier to find logs.
 
     List<ParallelInstruction> instructions =
@@ -3369,7 +3530,7 @@ public class StreamingDataflowWorkerTest {
             options,
             false /* publishCounters */,
             FakeClock.DEFAULT,
-            Executors::newSingleThreadScheduledExecutor);
+            FakeClock.DEFAULT::newFakeScheduledExecutor);
     worker.start();
 
     // Inject latency on the fake clock when the server receives a GetData call that isn't
@@ -3378,7 +3539,6 @@ public class StreamingDataflowWorkerTest {
         new ActiveWorkRefreshSink(
             (request) -> {
               FakeClock.DEFAULT.sleep(Duration.millis(1000));
-              Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
               return EMPTY_DATA_RESPONDER.apply(request);
             });
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
@@ -3395,6 +3555,7 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testLatencyAttributionToCommittingState() throws Exception {
+    FakeClock.DEFAULT.clear();
     final int workToken = 6464; // A unique id makes it easier to find logs.
 
     List<ParallelInstruction> instructions =
@@ -3409,7 +3570,6 @@ public class StreamingDataflowWorkerTest {
         .answerByDefault(
             (request) -> {
               FakeClock.DEFAULT.sleep(Duration.millis(1000));
-              Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
               return Windmill.CommitWorkResponse.getDefaultInstance();
             });
     StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
@@ -3420,7 +3580,7 @@ public class StreamingDataflowWorkerTest {
             options,
             false /* publishCounters */,
             FakeClock.DEFAULT,
-            Executors::newSingleThreadScheduledExecutor);
+            FakeClock.DEFAULT::newFakeScheduledExecutor);
     worker.start();
 
     ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
