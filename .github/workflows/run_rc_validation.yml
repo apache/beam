@@ -87,6 +87,9 @@ jobs:
         run: |
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
+      - name: Verify working branch name
+        run:
+          - sh ./ci_check_git_branch.sh $WORKING_BRANCH
       - name: Create Pull Request
         run: |
           git checkout -b ${{env.WORKING_BRANCH}} ${{ env.RC_TAG }} --quiet
