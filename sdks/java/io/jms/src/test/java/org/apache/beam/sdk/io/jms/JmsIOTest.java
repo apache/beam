@@ -32,7 +32,6 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -558,8 +557,7 @@ public class JmsIOTest {
   }
 
   @Test
-  public void testCloseWithTimeout()
-      throws IOException, NoSuchFieldException, IllegalAccessException {
+  public void testCloseWithTimeout() throws IOException {
 
     Duration closeTimeout = Duration.millis(2000L);
     JmsIO.Read spec =
@@ -584,6 +582,16 @@ public class JmsIOTest {
     }
     discarded = getDiscardedValue(reader);
     assertTrue(discarded);
+  }
+
+  private boolean getDiscardedValue(JmsIO.UnboundedJmsReader reader) {
+    JmsCheckpointMark checkpoint = (JmsCheckpointMark) reader.getCheckpointMark();
+    checkpoint.lock.readLock().lock();
+    try {
+      return checkpoint.discarded;
+    } finally {
+      checkpoint.lock.readLock().unlock();
+    }
   }
 
   @Test
@@ -641,15 +649,6 @@ public class JmsIOTest {
     reader.getCheckpointMark().finalizeCheckpoint();
 
     assertEquals(6, count(QUEUE));
-  }
-
-  private boolean getDiscardedValue(JmsIO.UnboundedJmsReader reader)
-      throws NoSuchFieldException, IllegalAccessException {
-    JmsCheckpointMark checkpoint = (JmsCheckpointMark) reader.getCheckpointMark();
-    Field privateField = JmsCheckpointMark.class.getDeclaredField("discarded");
-    privateField.setAccessible(true);
-    boolean discarded = (boolean) privateField.get(checkpoint);
-    return discarded;
   }
 
   private int count(String queue) throws Exception {

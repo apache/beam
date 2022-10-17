@@ -25,6 +25,7 @@ import java.util.Objects;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.jms.Message;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -40,9 +41,10 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
 
   private Instant oldestMessageTimestamp = Instant.now();
   private transient List<Message> messages = new ArrayList<>();
-  private transient boolean discarded = false;
 
-  private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+  @VisibleForTesting transient boolean discarded = false;
+
+  @VisibleForTesting final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
   JmsCheckpointMark() {}
 
