@@ -18,7 +18,7 @@
 # Test for Python Postcommit
 
 
-name: Python Postcommit
+name: Python Postcommit Test Stream and External IT
 on:
   workflow_dispatch:
   schedule:
@@ -49,7 +49,7 @@ jobs:
 
   py_postcommit:
     needs: set-properties
-    name: Python Postcommit Tests
+    name: Python Postcommit Stream and External IT Tests
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: false
