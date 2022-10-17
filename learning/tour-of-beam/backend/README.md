@@ -54,3 +54,63 @@ __Kinds__
   key: `<SDK>_<persistentID>`
 
   parentKey: parent module/group key
+
+
+### Deployment
+Prerequisites:
+ - GCP project with enabled Billing API & Cloud Functions API
+ - set environment variables:
+   * PROJECT_ID: GCP id
+   * REGION: the region, "us-central1" fe
+ - existing setup of Playground backend in a project
+
+1. Deploy Datastore indexes
+```
+gcloud datastore indexes create ./internal/storage/index.yaml
+```
+
+2. Deploy cloud functions
+```
+$ gcloud functions deploy getSdkList --entry-point getSdkList \
+  --region $REGION --runtime go116 --allow-unauthenticated \
+  --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID"
+
+$ gcloud functions deploy getContentTree --entry-point getContentTree \
+  --region $REGION --runtime go116 --allow-unauthenticated \
+  --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID"
+
+$ gcloud functions deploy getUnitContent --entry-point getUnitContent \
+  --region $REGION --runtime go116 --allow-unauthenticated \
+  --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID"
+```
+3. Set environment variables:
+- TOB_MOCK: set to 1 to deliver mock responses from samples/api
+- DATASTORE_PROJECT_ID: Google Cloud PROJECT_ID
+- GOOGLE_APPLICATION_CREDENTIALS: path to json auth key
+- TOB_LEARNING_PATH: path the content tree root
+
+4. Populate datastore
+```
+$ go run cmd/ci_cd/ci_cd.go
+```
+
+### Sample usage
+
+Entry point: list sdk names
+```
+$ curl -X GET https://$REGION-$PROJECT_ID.cloudfunctions.net/getSdkList | json_pp
+```
+[response](./samples/api/get_sdk_list.json)
+
+Get content tree by sdk name (SDK name == SDK id)
+```
+$ curl -X GET 'https://$REGION-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=python'
+```
+[response](./samples/api/get_content_tree.json)
+
+
+Get unit content tree by sdk name and unitId
+```
+$ curl -X GET 'https://$REGION-$PROJECT_ID.cloudfunctions.net/getContentTree?sdk=python&id=challenge1'
+```
+[response](./samples/api/get_unit_content.json)
