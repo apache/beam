@@ -54,7 +54,7 @@ jobs:
         java: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SUPPORTED_VERSIONS}}
         spark: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.SPARK_VERSIONS}}
         exclude:
-          - java: "11"
+          - java: "11" # Skipping Spark v2 with JDK11 due to compatibility issues.
             spark: "2"
           - java: "17" #TODO: Remove exclude and retest once issue https://github.com/apache/beam/issues/23066 gets resolved.
     steps:
