@@ -25,6 +25,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -37,7 +41,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -76,6 +79,8 @@ import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -98,7 +103,7 @@ public class JmsIOTest {
   private ConnectionFactory connectionFactory;
   private ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
 
-  @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Before
   public void startBroker() throws Exception {
@@ -563,7 +568,6 @@ public class JmsIOTest {
   @Test
   public void testCloseWithTimeout() throws IOException {
     Duration closeTimeout = Duration.millis(2000L);
-    long waitTimeout = closeTimeout.getMillis() + 1000L;
     JmsIO.Read spec =
         JmsIO.read()
             .withConnectionFactory(connectionFactory)
@@ -574,26 +578,25 @@ public class JmsIOTest {
 
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
 
-    ExecutorOptions options = createExecutorOptions();
+    ScheduledExecutorService mockScheduledExecutorService =
+        Mockito.mock(ScheduledExecutorService.class);
+    ExecutorOptions options = PipelineOptionsFactory.as(ExecutorOptions.class);
+    options.setScheduledExecutorService(mockScheduledExecutorService);
+    ArgumentCaptor<Runnable> runnableArgumentCaptor = ArgumentCaptor.forClass(Runnable.class);
+    when(mockScheduledExecutorService.schedule(
+            runnableArgumentCaptor.capture(), anyLong(), any(TimeUnit.class)))
+        .thenReturn(null /* unused */);
 
     JmsIO.UnboundedJmsReader reader = source.createReader(options, null);
-
-    reader.start();
-    reader.close();
-
+     reader.start();
     assertFalse(getDiscardedValue(reader));
-    try {
-      options.getScheduledExecutorService().awaitTermination(waitTimeout, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException ignored) {
-    }
+    reader.close();
+    assertFalse(getDiscardedValue(reader));
+    verify(mockScheduledExecutorService)
+        .schedule(any(Runnable.class), eq(closeTimeout.getMillis()), eq(TimeUnit.MILLISECONDS));
+    runnableArgumentCaptor.getValue().run();
     assertTrue(getDiscardedValue(reader));
-  }
-
-  private ExecutorOptions createExecutorOptions() {
-    ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-    ExecutorOptions options = PipelineOptionsFactory.create().as(ExecutorOptions.class);
-    options.setScheduledExecutorService(executorService);
-    return options;
+    verifyNoMoreInteractions(mockScheduledExecutorService);
   }
 
   private boolean getDiscardedValue(JmsIO.UnboundedJmsReader reader) {
