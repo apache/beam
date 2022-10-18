@@ -761,6 +761,11 @@ class PartitionFiles(beam.DoFn):
     files = element[1]
     partitions = []
 
+    if not files:
+      _LOGGER.warning(f'Ignoring a BigQuery batch load partition to {destination} '
+                      'that contains no source URIs.')
+      return
+
     latest_partition = PartitionFiles.Partition(
         self.max_partition_size, self.max_files_per_partition)
 

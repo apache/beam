@@ -400,6 +400,20 @@ class TestPartitionFiles(unittest.TestCase):
 
 
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
+  def test_trigger_load_jobs_with_empty_files(self):
+    destination = "apache-beam-testing:python_load_job_empty_files_no_delete.empty"
+    empty_files = [("gs://ahmedabualsaud-wordcount/myfile", 50)]
+    load_job_prefix = "test_prefix"
+
+    with beam.Pipeline() as p:
+      partitions = (p
+                    | beam.Create([(destination, empty_files)])
+                    | beam.ParDo(bqfl.PartitionFiles(1000, 10)).with_outputs(bqfl.PartitionFiles.MULTIPLE_PARTITIONS_TAG,
+                                                                             bqfl.PartitionFiles.SINGLE_PARTITION_TAG))
+
+      _ = (partitions[bqfl.PartitionFiles.SINGLE_PARTITION_TAG]
+           | beam.ParDo(bqfl.TriggerLoadJobs(), load_job_prefix))
+
   def test_records_traverse_transform_with_mocks(self):
     destination = 'project1:dataset1.table1'
 
