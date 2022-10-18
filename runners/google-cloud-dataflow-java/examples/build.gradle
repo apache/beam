@@ -116,6 +116,17 @@ task verifyFnApiWorker(type: Test) {
   }
 }
 
+task postCommitLegacyWorkerJava8(type: Test) {
+    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+    systemProperty "java.specification.version", "8"
+    with commonConfig(dataflowWorkerJar: dataflowWorkerJar)
+}
+
+task java8PostCommit() {
+    dependsOn postCommitLegacyWorkerJava8
+}
+
 task postCommitLegacyWorkerJava11(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
