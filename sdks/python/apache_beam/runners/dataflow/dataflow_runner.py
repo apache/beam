@@ -420,7 +420,7 @@ class DataflowRunner(PipelineRunner):
     if pipeline_proto or pipeline.contains_external_transforms:
       if debug_options.lookup_experiment('disable_runner_v2'):
         raise ValueError(
-            'This pipeline contains cross language transforms '
+            'This pipeline contains cross language transforms, '
             'which require runner v2.')
       if not apiclient._use_unified_worker(options):
         _LOGGER.info(
