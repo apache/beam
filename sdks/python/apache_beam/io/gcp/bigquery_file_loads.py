@@ -762,8 +762,10 @@ class PartitionFiles(beam.DoFn):
     partitions = []
 
     if not files:
-      _LOGGER.warning(f'Ignoring a BigQuery batch load partition to {destination} '
-                      'that contains no source URIs.')
+      _LOGGER.warning(
+          'Ignoring a BigQuery batch load partition to %s '
+          'that contains no source URIs.',
+          destination)
       return
 
     latest_partition = PartitionFiles.Partition(
