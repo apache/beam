@@ -596,7 +596,6 @@ public class JmsIOTest {
 
   @Test
   public void testDiscardCheckpointMark() throws Exception {
-
     Connection connection =
         connectionFactoryWithSyncAcksAndWithoutPrefetch.createConnection(USERNAME, PASSWORD);
     connection.start();
