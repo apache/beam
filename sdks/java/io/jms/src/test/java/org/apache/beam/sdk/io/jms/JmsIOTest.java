@@ -98,8 +98,7 @@ public class JmsIOTest {
   private ConnectionFactory connectionFactory;
   private ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.fromOptions(createExecutorOptions());
+  @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions();
 
   @Before
   public void startBroker() throws Exception {
@@ -563,7 +562,6 @@ public class JmsIOTest {
 
   @Test
   public void testCloseWithTimeout() throws IOException {
-
     Duration closeTimeout = Duration.millis(2000L);
     long waitTimeout = closeTimeout.getMillis() + 1000L;
     JmsIO.Read spec =
@@ -583,14 +581,12 @@ public class JmsIOTest {
     reader.start();
     reader.close();
 
-    boolean discarded = getDiscardedValue(reader);
-    assertFalse(discarded);
+    assertFalse(getDiscardedValue(reader));
     try {
       options.getScheduledExecutorService().awaitTermination(waitTimeout, TimeUnit.MILLISECONDS);
     } catch (InterruptedException ignored) {
     }
-    discarded = getDiscardedValue(reader);
-    assertTrue(discarded);
+    assertTrue(getDiscardedValue(reader));
   }
 
   private ExecutorOptions createExecutorOptions() {

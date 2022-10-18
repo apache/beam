@@ -379,8 +379,8 @@ public class JmsIO {
     /**
      * Sets the amount of time to wait for callbacks from the runner stating that the output has
      * been durably persisted before closing the connection to the JMS broker. Any callbacks that do
-     * not occur will cause any unacknowledged messages to be returned to the JMS broker and
-     * redelivered to other clients.
+     * not occur will cause unacknowledged messages to be returned to the JMS broker and redelivered
+     * to other clients.
      */
     public Read<T> withCloseTimeout(Duration closeTimeout) {
       checkArgument(closeTimeout != null, "closeTimeout can not be null");
