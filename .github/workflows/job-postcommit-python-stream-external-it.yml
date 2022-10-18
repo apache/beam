@@ -26,8 +26,6 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: ['v*']
-    paths: [ 'sdks/python/apache_beam/testing/test_stream_it_test.py',
-             'sdks/python/apache_beam/transforms/external_it_test.py']
 permissions: read-all
 
 env:
