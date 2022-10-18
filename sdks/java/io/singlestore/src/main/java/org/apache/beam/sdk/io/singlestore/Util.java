@@ -36,10 +36,6 @@ public class Util {
     return "'" + identifier.replace("\\", "\\\\").replace("'", "\\'") + "'";
   }
 
-  public static String getString(ValueProvider<String> provider) {
-    return provider != null ? provider.get() : null;
-  }
-
   public static <OutputT> Coder<OutputT> inferCoder(
       Coder<OutputT> defaultCoder,
       RowMapper<OutputT> rowMapper,
