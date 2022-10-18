@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Dummy ingestion function that fetches data from one file and simply copies it to another."""
+"""Ingestion function that fetches data from one file and simply copies it to another."""
 
 import argparse
 import time
@@ -36,8 +36,8 @@ def parse_args():
   return parser.parse_args()
 
 
-def dummy_ingest_data(ingested_dataset_path: str, base_artifact_path: str):
-  """Dummy data ingestion step that returns an uri
+def ingest_data(ingested_dataset_path: str, base_artifact_path: str):
+  """Data ingestion step that returns an uri
   to the data it has 'ingested' as jsonlines.
 
   Args:
@@ -71,4 +71,4 @@ def dummy_ingest_data(ingested_dataset_path: str, base_artifact_path: str):
 
 if __name__ == "__main__":
   args = parse_args()
-  dummy_ingest_data(**vars(args))
+  ingest_data(**vars(args))

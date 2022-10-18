@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Dummy ingestion function that fetches data from one file and simply copies it to another."""
+"""Functionality for the data preprocessing step."""
 
 import re
 import json

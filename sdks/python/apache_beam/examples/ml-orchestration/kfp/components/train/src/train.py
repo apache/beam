@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Dummy training function that loads a pretrained model from the torch hub and saves it."""
+"""Simple training function that loads a pretrained model from the torch hub and saves it."""
 
 import argparse
 import time
@@ -47,7 +47,7 @@ def train_model(
     preprocessed_dataset_path: str,
     trained_model_path: str,
     base_artifact_path: str):
-  """Dummy to load a model from the torch hub and save it.
+  """Placeholder method to load a model from the torch hub and save it.
 
   Args:
     preprocessed_dataset_path (str): Path to the preprocessed dataset
