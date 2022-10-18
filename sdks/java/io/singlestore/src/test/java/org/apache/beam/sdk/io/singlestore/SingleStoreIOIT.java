@@ -84,10 +84,11 @@ public class SingleStoreIOIT {
     password = options.getSingleStorePassword();
     port = options.getSingleStorePort();
     tableName = DatabaseTestHelper.getTestTableName("IT");
-    dataSourceConfiguration = DataSourceConfiguration.create(serverName + ":" + port)
-        .withDatabase(DATABASE_NAME)
-        .withPassword(password)
-        .withUsername(username);
+    dataSourceConfiguration =
+        DataSourceConfiguration.create(serverName + ":" + port)
+            .withDatabase(DATABASE_NAME)
+            .withPassword(password)
+            .withUsername(username);
   }
 
   void createDatabaseIfNotExists() throws SQLException {
@@ -96,7 +97,8 @@ public class SingleStoreIOIT {
             String.format(
                 "jdbc:singlestore://%s:%d/?user=%s&password=%s&allowLocalInfile=TRUE",
                 serverName, port, username, password));
-    try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
+    try (Connection conn = dataSource.getConnection();
+        Statement stmt = conn.createStatement()) {
       stmt.executeQuery(String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE_NAME));
     }
   }

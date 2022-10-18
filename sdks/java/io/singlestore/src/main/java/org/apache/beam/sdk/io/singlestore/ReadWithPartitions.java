@@ -25,6 +25,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import javax.sql.DataSource;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -37,8 +38,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.sql.DataSource;
 
 @AutoValue
 public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollection<T>> {
@@ -134,11 +133,9 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
     String query = (getQuery() == null) ? null : getQuery().get();
 
     checkArgument(
-        !(table == null && query == null),
-        "One of withTable() or withQuery() is required");
+        !(table == null && query == null), "One of withTable() or withQuery() is required");
     checkArgument(
-        !(table != null && query != null),
-        "withTable() can not be used together with withQuery()");
+        !(table != null && query != null), "withTable() can not be used together with withQuery()");
 
     Coder<T> coder =
         Util.inferCoder(
@@ -148,8 +145,10 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
             input.getPipeline().getSchemaRegistry(),
             LOG);
     query = (query != null) ? query : "SELECT * FROM " + Util.escapeIdentifier(table);
-    int initialNumReaders = (getInitialNumReaders() != null && getInitialNumReaders().get() != null)
-        ? getInitialNumReaders().get() : 1;
+    int initialNumReaders =
+        (getInitialNumReaders() != null && getInitialNumReaders().get() != null)
+            ? getInitialNumReaders().get()
+            : 1;
 
     return input
         .apply(Create.of((Void) null))
@@ -208,10 +207,11 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
       DataSource dataSource = dataSourceConfiguration.getDataSource();
       try (Connection conn = dataSource.getConnection()) {
         try (Statement stmt = conn.createStatement()) {
-          try (ResultSet res = stmt.executeQuery(
-              String.format(
-                  "SELECT num_partitions FROM information_schema.DISTRIBUTED_DATABASES WHERE database_name = %s",
-                  Util.escapeString(dataSourceConfiguration.getDatabase().get())))) {
+          try (ResultSet res =
+              stmt.executeQuery(
+                  String.format(
+                      "SELECT num_partitions FROM information_schema.DISTRIBUTED_DATABASES WHERE database_name = %s",
+                      Util.escapeString(dataSourceConfiguration.getDatabase().get())))) {
             if (!res.next()) {
               throw new Exception("Failed to get number of partitions in the database");
             }

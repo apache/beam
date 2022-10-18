@@ -55,7 +55,7 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
   abstract ValueProvider<Boolean> getOutputParallelization();
 
-  abstract  RowMapper<T> getRowMapper();
+  abstract RowMapper<T> getRowMapper();
 
   abstract Coder<T> getCoder();
 
@@ -139,11 +139,9 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
     String query = (getQuery() == null) ? null : getQuery().get();
 
     checkArgument(
-        !(table == null && query == null),
-        "One of withTable() or withQuery() is required");
+        !(table == null && query == null), "One of withTable() or withQuery() is required");
     checkArgument(
-        !(table != null && query != null),
-        "withTable() can not be used together with withQuery()");
+        !(table != null && query != null), "withTable() can not be used together with withQuery()");
     checkArgument(getRowMapper() != null, "withRowMapper is required");
 
     Coder<T> coder =
@@ -153,9 +151,7 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
             input.getPipeline().getCoderRegistry(),
             input.getPipeline().getSchemaRegistry(),
             LOG);
-    query = (query != null)
-            ? query
-            : "SELECT * FROM " + Util.escapeIdentifier(table);
+    query = (query != null) ? query : "SELECT * FROM " + Util.escapeIdentifier(table);
 
     PCollection<T> output =
         input
@@ -169,9 +165,9 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
                         getRowMapper())))
             .setCoder(coder);
 
-    if (getOutputParallelization() == null ||
-        getOutputParallelization().get() == null ||
-        getOutputParallelization().get()) {
+    if (getOutputParallelization() == null
+        || getOutputParallelization().get() == null
+        || getOutputParallelization().get()) {
       output = output.apply(new Reparallelize<>());
     }
 

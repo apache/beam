@@ -30,6 +30,7 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import javax.sql.DataSource;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -40,8 +41,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.dbcp2.DelegatingStatement;
 import org.joda.time.Instant;
-
-import javax.sql.DataSource;
 
 @AutoValue
 public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
@@ -99,7 +98,10 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
     checkArgument(getTable() != null && getTable().get() != null, "getTable() is required");
     checkArgument(getUserDataMapper() != null, "getUserDataMapper() is required");
 
-    int batchSize = (getBatchSize() != null && getBatchSize().get() != null) ? getBatchSize().get() : DEFAULT_BATCH_SIZE;
+    int batchSize =
+        (getBatchSize() != null && getBatchSize().get() != null)
+            ? getBatchSize().get()
+            : DEFAULT_BATCH_SIZE;
 
     input
         .apply(
@@ -158,9 +160,10 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
 
       try (Connection conn = dataSource.getConnection()) {
         try (Statement stmt = conn.createStatement();
-             PipedOutputStream baseStream = new PipedOutputStream();
-             InputStream inputStream = new PipedInputStream(baseStream, BUFFER_SIZE)) {
-          ((com.singlestore.jdbc.Statement) ((DelegatingStatement) stmt).getInnermostDelegate()).setNextLocalInfileInputStream(inputStream);
+            PipedOutputStream baseStream = new PipedOutputStream();
+            InputStream inputStream = new PipedInputStream(baseStream, BUFFER_SIZE)) {
+          ((com.singlestore.jdbc.Statement) ((DelegatingStatement) stmt).getInnermostDelegate())
+              .setNextLocalInfileInputStream(inputStream);
 
           final Exception[] writeException = new Exception[1];
 
@@ -202,7 +205,8 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
 
           dataWritingThread.start();
           stmt.executeUpdate(
-              String.format("LOAD DATA LOCAL INFILE '###.tsv' INTO TABLE %s", Util.escapeIdentifier(table)));
+              String.format(
+                  "LOAD DATA LOCAL INFILE '###.tsv' INTO TABLE %s", Util.escapeIdentifier(table)));
           dataWritingThread.join();
 
           if (writeException[0] != null) {

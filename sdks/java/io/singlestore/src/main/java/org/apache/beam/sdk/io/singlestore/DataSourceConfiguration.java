@@ -121,9 +121,10 @@ public abstract class DataSourceConfiguration implements Serializable {
 
     String database =
         (getDatabase() != null && getDatabase().get() != null) ? getDatabase().get() : "";
-    String connectionProperties = (getConnectionProperties() != null && getConnectionProperties().get() != null) ?
-        String.format("%s;allowLocalInfile=TRUE", getConnectionProperties().get()) :
-        "allowLocalInfile=TRUE";
+    String connectionProperties =
+        (getConnectionProperties() != null && getConnectionProperties().get() != null)
+            ? String.format("%s;allowLocalInfile=TRUE", getConnectionProperties().get())
+            : "allowLocalInfile=TRUE";
 
     BasicDataSource basicDataSource = new BasicDataSource();
     basicDataSource.setDriverClassName("com.singlestore.jdbc.Driver");
