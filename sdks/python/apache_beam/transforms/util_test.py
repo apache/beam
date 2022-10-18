@@ -195,6 +195,17 @@ class BatchElementsTest(unittest.TestCase):
           | beam.Map(len))
       assert_that(res, equal_to([10, 10, 10, 5]))
 
+  def test_constant_batch_no_metrics(self):
+    # Assumes a single bundle...
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create(range(35))
+          | util.BatchElements(min_batch_size=10, max_batch_size=10,
+                               record_metrics=False)
+          | beam.Map(len))
+      assert_that(res, equal_to([10, 10, 10, 5]))
+
   def test_grows_to_max_batch(self):
     # Assumes a single bundle...
     with TestPipeline() as p:
