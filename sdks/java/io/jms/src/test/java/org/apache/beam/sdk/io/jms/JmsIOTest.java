@@ -588,7 +588,7 @@ public class JmsIOTest {
         .thenReturn(null /* unused */);
 
     JmsIO.UnboundedJmsReader reader = source.createReader(options, null);
-     reader.start();
+    reader.start();
     assertFalse(getDiscardedValue(reader));
     reader.close();
     assertFalse(getDiscardedValue(reader));
