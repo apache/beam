@@ -80,6 +80,8 @@ jobs:
               --manageResources=false 
               --monitorJobs=true
               ${{matrix.querytype}} "
+      - name: Setup environment
+        uses: ./.github/actions/setup-self-hosted-action
       - name:   Run Nexmark in Batch mode with Spark ${{matrix.sparkversion}} structured streaming runner
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
