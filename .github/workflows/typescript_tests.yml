@@ -87,7 +87,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: '3.8'
       - name: Setup Beam Python
         working-directory: ./sdks/python
         run: |

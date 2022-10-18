@@ -107,7 +107,7 @@ jobs:
     if: ${{github.event.inputs.RUN_SQL_TAXI_WITH_DATAFLOW == 'true'}}
     strategy:
       matrix: 
-        py_version: [3.8]
+        py_version: ["3.8"]
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -117,7 +117,7 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v4
       with:
-        python-version: ${{matrix.py_version}}
+        python-version: "${{matrix.py_version}}"
         
 
     - name: Setup Java JDK
@@ -172,7 +172,7 @@ jobs:
     if: ${{github.event.inputs.RUN_PYTHON_CROSS_VALIDATION == 'true'}} 
     strategy:
       matrix: 
-        py_version: [3.8]
+        py_version: ['3.8']
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -196,7 +196,7 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v4
       with:
-        python-version: ${{matrix.py_version}}
+        python-version: "${{matrix.py_version}}"
    
 
     - name: Setting python env
@@ -363,7 +363,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{matrix.py_version}}
+          python-version: "${{matrix.py_version}}"
       
       - name: Setting python env
         uses: ./.github/actions/common-rc-validation
@@ -411,7 +411,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{matrix.py_version}}
+          python-version: "${{matrix.py_version}}"
       
       - name: Setting python env
         uses: ./.github/actions/common-rc-validation
@@ -463,7 +463,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{matrix.py_version}}
+          python-version: "${{matrix.py_version}}"
    
       - name: Setting python env
         uses: ./.github/actions/common-rc-validation
@@ -512,7 +512,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{matrix.py_version}}
+          python-version: "${{matrix.py_version}}"
       
       - name: Setting python env
         uses: ./.github/actions/common-rc-validation
