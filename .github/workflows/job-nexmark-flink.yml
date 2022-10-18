@@ -39,7 +39,7 @@ jobs:
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
-  java-postcommit-nexmark-direct:
+  java-postcommit-nexmark-flink:
     needs: set-properties
     name: Run PostCommit Java Nexmark - Flink Runner
     runs-on: [self-hosted, ubuntu-20.04]
@@ -59,10 +59,10 @@ jobs:
       - name: Run Nexmark with Streaming=${{matrix.streaming}} with Flink runner
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: >
-            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:flink:$FLINKVERSION 
+          gradle-command: >-
+            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:flink:${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.FLINK_VERSION}}
             -Pnexmark.args=" 
-              --runner=FlinkRunner 
+              --runner=FlinkRunner
               --bigQueryTable=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.BIGQUERY_TABLE}}
               --bigQueryDataset=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.BIGQUERY_DATASET}}
               --project=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.PROJECT}}
