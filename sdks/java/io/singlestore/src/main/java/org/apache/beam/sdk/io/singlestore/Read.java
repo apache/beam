@@ -24,6 +24,7 @@ import com.google.auto.value.AutoValue;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import javax.sql.DataSource;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
@@ -40,8 +41,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.sql.DataSource;
 
 @AutoValue
 public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {

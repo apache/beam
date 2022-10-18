@@ -22,57 +22,57 @@ import Kubernetes
 String jobName = "beam_PerformanceTests_SingleStoreIO"
 
 void waitForPodWithLabel(job, Kubernetes k8s, String label) {
-    job.steps {
-        shell("${k8s.KUBERNETES_DIR}/singlestore/wait-for-pod-with-label.sh ${label} 600")
-    }
+  job.steps {
+    shell("${k8s.KUBERNETES_DIR}/singlestore/wait-for-pod-with-label.sh ${label} 600")
+  }
 }
 
 void waitFor(job, Kubernetes k8s, String resource) {
-    job.steps {
-        shell("${k8s.KUBERNETES_DIR}/singlestore/wait-for.sh ${resource} 600")
-    }
+  job.steps {
+    shell("${k8s.KUBERNETES_DIR}/singlestore/wait-for.sh ${resource} 600")
+  }
 }
 
 job(jobName) {
-    common.setTopLevelMainJobProperties(delegate)
-    common.setAutoJob(delegate,'H H/6 * * *')
-    common.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Java SingleStoreIO Performance Test',
-            'Run Java SingleStoreIO Performance Test')
+  common.setTopLevelMainJobProperties(delegate)
+  common.setAutoJob(delegate,'H H/6 * * *')
+  common.enablePhraseTriggeringFromPullRequest(
+          delegate,
+          'Java SingleStoreIO Performance Test',
+          'Run Java SingleStoreIO Performance Test')
 
 
-    String namespace = common.getKubernetesNamespace(jobName)
-    String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)
-    Kubernetes k8s = Kubernetes.create(delegate, kubeconfigPath, namespace)
+  String namespace = common.getKubernetesNamespace(jobName)
+  String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)
+  Kubernetes k8s = Kubernetes.create(delegate, kubeconfigPath, namespace)
 
-    k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/singlestore/sdb-rbac.yaml"))
-    k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/singlestore/sdb-cluster-crd.yaml"))
-    k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/singlestore/sdb-operator.yaml"))
-    waitForPodWithLabel(delegate, k8s, "sdb-operator")
+  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/singlestore/sdb-rbac.yaml"))
+  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/singlestore/sdb-cluster-crd.yaml"))
+  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/singlestore/sdb-operator.yaml"))
+  waitForPodWithLabel(delegate, k8s, "sdb-operator")
 
-    k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/singlestore/sdb-cluster.yaml"))
-    waitFor(delegate, k8s, "memsqlclusters.memsql.com")
+  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/singlestore/sdb-cluster.yaml"))
+  waitFor(delegate, k8s, "memsqlclusters.memsql.com")
 
-    String singlestoreHostName = "LOAD_BALANCER_IP"
-    k8s.loadBalancerIP("svc-sdb-cluster-ddl", singlestoreHostName)
+  String singlestoreHostName = "LOAD_BALANCER_IP"
+  k8s.loadBalancerIP("svc-sdb-cluster-ddl", singlestoreHostName)
 
-    Map pipelineOptions = [
-            singleStoreServerName     : singlestoreHostName,
-            singleStoreUsername : "admin",
-            singleStorePassword : "secretpass",
-            singleStorePort: "3306",
-            numberOfRecords: "100000"
-    ]
+  Map pipelineOptions = [
+          singleStoreServerName     : singlestoreHostName,
+          singleStoreUsername : "admin",
+          singleStorePassword : "secretpass",
+          singleStorePort: "3306",
+          numberOfRecords: "100000"
+  ]
 
-    steps {
-        gradle {
-            rootBuildScriptDir(common.checkoutDir)
-            common.setGradleSwitches(delegate)
-            switches("--info")
-            switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
-            switches("-DintegrationTestRunner=direct")
-            tasks(":sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOIT")
-        }
+  steps {
+    gradle {
+      rootBuildScriptDir(common.checkoutDir)
+      common.setGradleSwitches(delegate)
+      switches("--info")
+      switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
+      switches("-DintegrationTestRunner=direct")
+      tasks(":sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOIT")
     }
+  }
 }

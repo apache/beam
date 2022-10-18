@@ -22,14 +22,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.sql.Connection;
 import java.sql.SQLException;
+import javax.sql.DataSource;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
-
-import javax.sql.DataSource;
 
 @AutoValue
 public abstract class DataSourceConfiguration implements Serializable {
