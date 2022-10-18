@@ -53,10 +53,10 @@ Additionally, you may want to depend on additional SDK modules, such as IO
 connectors or other extensions, and additional runners to execute your pipeline
 at scale.
 
-The Go SDK is accessible via Go Modules and calling `go get` from a module subdirectory: 
+The Go SDK is accessible via Go Modules and calling `go get` from a module subdirectory:
 
      go get github.com/apache/beam/sdks/v2/go/pkg/beam
-     
+
 Specific versions can be depended on similarly:
 
      go get github.com/apache/beam/sdks/v2@v{{< param release_latest >}}/go/pkg/beam
