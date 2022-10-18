@@ -24,7 +24,7 @@
     "BIGQUERY_TABLE": "nexmark",
     "BIGQUERY_DATASET": "nexmark",
     "PROJECT": "apache-beam-testing",
-    "RESOURCE_NAMEMODE": "QUERY_RUNNER_AND_MODE",
+    "RESOURCE_NAMENODE": "QUERY_RUNNER_AND_MODE",
     "EXPORT_SUMMARY_TO_BIGQUERY": true,
     "TEMP_LOCATION": "gs://temp-storage-for-perf-tests/nexmark",
     "INFLUX_DATABASE": "beam_test_metrics",
