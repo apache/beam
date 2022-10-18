@@ -37,6 +37,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
@@ -58,6 +60,7 @@ import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.activemq.util.Callback;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -94,7 +97,8 @@ public class JmsIOTest {
   private ConnectionFactory connectionFactory;
   private ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
 
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.fromOptions(createExecutorOptions());
 
   @Before
   public void startBroker() throws Exception {
@@ -569,7 +573,10 @@ public class JmsIOTest {
             .withCloseTimeout(closeTimeout);
 
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+
+    ExecutorOptions options = createExecutorOptions();
+
+    JmsIO.UnboundedJmsReader reader = source.createReader(options, null);
 
     reader.start();
     reader.close();
@@ -582,6 +589,13 @@ public class JmsIOTest {
     }
     discarded = getDiscardedValue(reader);
     assertTrue(discarded);
+  }
+
+  private ExecutorOptions createExecutorOptions() {
+    ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+    ExecutorOptions options = PipelineOptionsFactory.create().as(ExecutorOptions.class);
+    options.setScheduledExecutorService(executorService);
+    return options;
   }
 
   private boolean getDiscardedValue(JmsIO.UnboundedJmsReader reader) {

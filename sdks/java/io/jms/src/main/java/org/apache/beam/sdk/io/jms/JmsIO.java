@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -48,6 +47,7 @@ import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -470,7 +470,7 @@ public class JmsIO {
     @Override
     public UnboundedJmsReader<T> createReader(
         PipelineOptions options, JmsCheckpointMark checkpointMark) {
-      return new UnboundedJmsReader<T>(this);
+      return new UnboundedJmsReader<T>(this, options);
     }
 
     @Override
@@ -495,11 +495,13 @@ public class JmsIO {
 
     private T currentMessage;
     private Instant currentTimestamp;
+    private PipelineOptions options;
 
-    public UnboundedJmsReader(UnboundedJmsSource<T> source) {
+    public UnboundedJmsReader(UnboundedJmsSource<T> source, PipelineOptions options) {
       this.source = source;
       this.checkpointMark = new JmsCheckpointMark();
       this.currentMessage = null;
+      this.options = options;
     }
 
     @Override
@@ -612,7 +614,8 @@ public class JmsIO {
       try {
         closeAutoscaler();
         closeConsumer();
-        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        ScheduledExecutorService executorService =
+            options.as(ExecutorOptions.class).getScheduledExecutorService();
         executorService.schedule(
             () -> {
               LOG.debug(
