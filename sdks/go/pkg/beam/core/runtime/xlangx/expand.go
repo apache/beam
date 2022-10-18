@@ -110,12 +110,19 @@ func expand(
 	if config != ext.ExpansionAddr {
 		ext.ExpansionAddr = config
 	}
+
+	outputCoderID := make(map[string]string)
+	for tag, id := range edge.External.OutputsMap {
+		outputCoderID[tag] = edge.Output[id].To.Coder.ID
+	}
+
 	return h(ctx, &HandlerParams{
 		Config: config,
 		Req: &jobpb.ExpansionRequest{
-			Components: comps,
-			Transform:  transform,
-			Namespace:  ext.Namespace,
+			Components:          comps,
+			Transform:           transform,
+			Namespace:           ext.Namespace,
+			OutputCoderRequests: outputCoderID,
 		},
 		edge: edge,
 		ext:  ext,

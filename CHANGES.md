@@ -53,8 +53,8 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Python 3.10 support in Apache Beam ([#21458](https://github.com/apache/beam/issues/21458)).
+
 
 ## I/Os
 

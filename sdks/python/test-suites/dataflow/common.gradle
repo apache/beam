@@ -227,6 +227,10 @@ task validatesRunnerBatchTests {
     argMap.put("kms_key_name", "\"\"")
   }
 
+  if (project.hasProperty('disableRunnerV2')) {
+    argMap.put("disable_runner_v2", "true")
+  }
+
   doLast {
     def cmdArgs = mapToArgString(argMap)
     exec {
