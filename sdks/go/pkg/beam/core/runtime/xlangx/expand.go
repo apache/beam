@@ -28,6 +28,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"google.golang.org/grpc"
@@ -226,6 +227,76 @@ func QueryAutomatedExpansionService(ctx context.Context, p *HandlerParams) (*job
 
 	// Restore tag so we know the artifacts have been materialized eagerly down the road.
 	p.edge.External.ExpansionAddr = tag + Separator + target
+
+	// Can return the original response because all of our proto modification afterwards has
+	// been via pointer.
+	return res, nil
+}
+
+func startPythonExpansionService(service, extraPackage string) (stopFunc func() error, address string, err error) {
+	venvPython, err := expansionx.SetUpPythonEnvironment(extraPackage)
+	if err != nil {
+		return nil, "", err
+	}
+	log.Debugf(context.Background(), "path: %v", venvPython)
+
+	serviceRunner, err := expansionx.NewPyExpansionServiceRunner(venvPython, service, "")
+	if err != nil {
+		return nil, "", fmt.Errorf("error in  startAutomatedPythonExpansionService(%s,%s): %w", venvPython, service, err)
+	}
+	err = serviceRunner.StartService()
+	if err != nil {
+		return nil, "", fmt.Errorf("error in starting expansion service, StartService(): %w", err)
+	}
+	stopFunc = serviceRunner.StopService
+	address = serviceRunner.Endpoint()
+	return stopFunc, address, nil
+}
+
+// QueryPythonExpansionService submits an external python transform to be expanded by the
+// expansion service and then eagerly materializes the artifacts for staging. The given
+// transform should be the external transform, and the components are any additional
+// components necessary for the pipeline snippet.
+//
+// The address to be queried is determined by the Config field of the HandlerParams after
+// the prefix tag indicating the automated service is in use.
+func QueryPythonExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.ExpansionResponse, error) {
+	// Strip autoPython: tag to get actual python module
+	tag, module := parseAddr(p.Config)
+	// parse extra-packages from namespace if present
+	module, extraPackages := parseClasspath(module)
+
+	stopFunc, address, err := startPythonExpansionService(module, extraPackages)
+	if err != nil {
+		return nil, err
+	}
+	defer stopFunc()
+
+	p.Config = address
+
+	res, err := QueryExpansionService(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+
+	exp := &graph.ExpandedTransform{
+		Components:   res.GetComponents(),
+		Transform:    res.GetTransform(),
+		Requirements: res.GetRequirements(),
+	}
+
+	p.ext.Expanded = exp
+	// Put correct expansion address into edge
+	p.edge.External.ExpansionAddr = address
+
+	_, err = ResolveArtifactsWithConfig(ctx, []*graph.MultiEdge{p.edge}, ResolveConfig{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Restore tag so we know the artifacts have been materialized eagerly down the road.
+	p.edge.External.ExpansionAddr = tag + Separator + module
 
 	// Can return the original response because all of our proto modification afterwards has
 	// been via pointer.

@@ -69,8 +69,9 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Dask support for the Python SDK (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
+* Dataframe wrapper added in Go SDK via Cross-Language (Need to manually start python expansion service). (Go) ([#23384](https://github.com/apache/beam/issues/23384)).
 * Name all Java threads to aid in debugging ([#23049](https://github.com/apache/beam/issues/23049)).
+* Dask support for the Python SDK (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
 
 ## Breaking Changes
 
@@ -90,7 +91,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 
 
-# [2.42.0] - Unreleased, Cut 2022-09-07
+# [2.42.0] - 2022-10-17
 
 ## Highlights
 
