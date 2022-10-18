@@ -308,7 +308,6 @@ func UseAutomatedJavaExpansionService(gradleTarget string, opts ...ExpansionServ
 // is provided.
 func UseAutomatedPythonExpansionService(service string) string {
 	return autoPythonNamespace + Separator + service
-
 }
 
 // restricted namespaces to prevent some awkward edge cases.
