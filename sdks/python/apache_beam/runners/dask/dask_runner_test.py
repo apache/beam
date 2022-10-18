@@ -49,7 +49,7 @@ class DaskOptionsTest(unittest.TestCase):
 
   def test_parser_destinations__agree_with_dask_client(self):
     options = PipelineOptions(
-        '--dask_client_address localhost:8080 --dask_connection_timeout 7 '
+        '--dask_client_address localhost:8080 --dask_connection_timeout 600 '
         '--dask_scheduler_file foobar.cfg --dask_client_name charlie '
         '--dask_connection_limit 1024'.split())
     dask_options = options.view_as(DaskOptions)
