@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,7 +60,7 @@ public class PulsarIOTest {
 
   private static final String TOPIC = "PULSAR_IO_TEST";
   protected static PulsarContainer pulsarContainer;
-  protected static PulsarClient client;
+  protected PulsarClient client;
 
   private long endExpectedTime = 0;
   private long startTime = 0;
@@ -134,8 +135,12 @@ public class PulsarIOTest {
   }
 
   @BeforeClass
-  public static void setup() throws PulsarClientException {
+  public static void setup() {
     setupPulsarContainer();
+  }
+
+  @Before
+  public void setupTest() throws PulsarClientException {
     client = initClient();
   }
 
@@ -203,7 +208,7 @@ public class PulsarIOTest {
   }
 
   @Test
-  public void testWriteFromTopic() {
+  public void testWriteToTopic() {
     try {
       PulsarIO.Write writer =
           PulsarIO.write().withClientUrl(pulsarContainer.getPulsarBrokerUrl()).withTopic(TOPIC);
