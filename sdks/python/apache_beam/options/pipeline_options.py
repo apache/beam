@@ -133,6 +133,18 @@ class _BeamArgumentParser(argparse.ArgumentParser):
     super().error(message)
 
 
+class _DictUnionAction(argparse.Action):
+  """
+  argparse Action take union of json loads values. If a key is specified in more
+  than one of the values, the last value takes precedence.
+  """
+  def __call__(self, parser, namespace, values, option_string=None):
+    if not hasattr(namespace,
+                   self.dest) or getattr(namespace, self.dest) is None:
+      setattr(namespace, self.dest, {})
+    getattr(namespace, self.dest).update(values)
+
+
 class PipelineOptions(HasDisplayData):
   """This class and subclasses are used as containers for command line options.
 
@@ -997,7 +1009,8 @@ class WorkerOptions(PipelineOptions):
             'Default log level is INFO.'))
     parser.add_argument(
         '--sdk_harness_log_level_overrides',
-        action='append',
+        type=json.loads,
+        action=_DictUnionAction,
         default=None,
         help=(
             'Controls the log levels for specifically named loggers. The '

@@ -74,16 +74,6 @@ public class BeamFnLoggingClient implements AutoCloseable {
           .put(Level.FINEST, BeamFnApi.LogEntry.Severity.Enum.TRACE)
           .build();
 
-  private static final ImmutableMap<SdkHarnessOptions.LogLevel, Level> LEVEL_CONFIGURATION =
-      ImmutableMap.<SdkHarnessOptions.LogLevel, Level>builder()
-          .put(SdkHarnessOptions.LogLevel.OFF, Level.OFF)
-          .put(SdkHarnessOptions.LogLevel.ERROR, Level.SEVERE)
-          .put(SdkHarnessOptions.LogLevel.WARN, Level.WARNING)
-          .put(SdkHarnessOptions.LogLevel.INFO, Level.INFO)
-          .put(SdkHarnessOptions.LogLevel.DEBUG, Level.FINE)
-          .put(SdkHarnessOptions.LogLevel.TRACE, Level.FINEST)
-          .build();
-
   private static final Formatter DEFAULT_FORMATTER = new SimpleFormatter();
 
   /**
@@ -128,14 +118,17 @@ public class BeamFnLoggingClient implements AutoCloseable {
     // Use the passed in logging options to configure the various logger levels.
     SdkHarnessOptions loggingOptions = options.as(SdkHarnessOptions.class);
     if (loggingOptions.getDefaultSdkHarnessLogLevel() != null) {
-      rootLogger.setLevel(LEVEL_CONFIGURATION.get(loggingOptions.getDefaultSdkHarnessLogLevel()));
+      rootLogger.setLevel(
+          SdkHarnessOptions.LogLevel.LEVEL_CONFIGURATION.get(
+              loggingOptions.getDefaultSdkHarnessLogLevel()));
     }
 
     if (loggingOptions.getSdkHarnessLogLevelOverrides() != null) {
       for (Map.Entry<String, SdkHarnessOptions.LogLevel> loggerOverride :
           loggingOptions.getSdkHarnessLogLevelOverrides().entrySet()) {
         Logger logger = Logger.getLogger(loggerOverride.getKey());
-        logger.setLevel(LEVEL_CONFIGURATION.get(loggerOverride.getValue()));
+        logger.setLevel(
+            SdkHarnessOptions.LogLevel.LEVEL_CONFIGURATION.get(loggerOverride.getValue()));
         configuredLoggers.add(logger);
       }
     }
