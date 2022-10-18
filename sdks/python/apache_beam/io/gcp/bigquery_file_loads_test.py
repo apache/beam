@@ -402,7 +402,7 @@ class TestPartitionFiles(unittest.TestCase):
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   def test_trigger_load_jobs_with_empty_files(self):
     destination = "apache-beam-testing:python_load_job_empty_files_no_delete.empty"
-    empty_files = [("gs://ahmedabualsaud-wordcount/myfile", 50)]
+    empty_files = []
     load_job_prefix = "test_prefix"
 
     with beam.Pipeline() as p:
