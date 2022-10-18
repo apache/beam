@@ -1,0 +1,23 @@
+name: Build And Publish to Dockerhub
+on:
+  workflow_dispatch:
+  
+
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install go 
+        uses: actions/setup-go@v3
+        with:
+          go-version: '^1.13.1' # The Go version to download (if necessary) and use.
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with: 
+          distribution: 'temurin'
+          java-version: 8
+
+      - name: Testing gradlew publish
+        run: ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=1rc1 -Pjava11Home=${JAVA_HOME}
