@@ -35,7 +35,7 @@ programming guide, take a look at the
 {{< language-switcher java py go typescript >}}
 
 {{< paragraph class="language-py" >}}
-The Python SDK supports Python 3.7, 3.8, and 3.9.
+The Python SDK supports Python 3.7, 3.8, 3.9, and 3.10.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
