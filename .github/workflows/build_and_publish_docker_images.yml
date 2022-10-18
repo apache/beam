@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-java@v3
         with: 
           distribution: 'temurin'
-          java-version: 11
+          java-version: 8
 
       - name: Testing gradlew publish
         run: ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=1rc1 -Pjava11Home=${JAVA_HOME}
