@@ -21,9 +21,9 @@ backwards compatibility guarantees.
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
+import datetime
 from typing import Optional
 from typing import Sequence
-import datetime
 
 import numpy as np
 
