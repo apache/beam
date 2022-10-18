@@ -131,6 +131,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   public PCollection<Void> expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
     String operationName = input.getName() + "/" + getName();
     BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+    org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument(
+        !options.getUseStorageApiConnectionPool(),
+        "useStorageApiConnectionPool only supported " + "when using STORAGE_API_AT_LEAST_ONCE");
     return input
         .apply(
             "Write Records",
