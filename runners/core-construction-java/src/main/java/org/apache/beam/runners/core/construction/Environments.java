@@ -22,14 +22,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.logging.LogManager;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
@@ -46,7 +44,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.Splittabl
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardProtocols;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -449,39 +446,6 @@ public class Environments {
       return environmentConfig;
     }
     return environmentOption;
-  }
-
-  /**
-   * Configure log manager's default log level and log level overrides from the sdk harness options,
-   * and return the list of configured loggers.
-   */
-  public static List<java.util.logging.Logger> getConfiguredLoggerFromOptions(
-      SdkHarnessOptions loggingOptions) {
-    ArrayList<java.util.logging.Logger> configuredLoggers = new ArrayList<>();
-    LogManager logManager = LogManager.getLogManager();
-    java.util.logging.Logger rootLogger = logManager.getLogger("");
-
-    // Use the passed in logging options to configure the various logger levels.
-    if (loggingOptions.getDefaultSdkHarnessLogLevel() != null) {
-      rootLogger.setLevel(
-          SdkHarnessOptions.LogLevel.LEVEL_CONFIGURATION.get(
-              loggingOptions.getDefaultSdkHarnessLogLevel()));
-    }
-
-    if (loggingOptions.getSdkHarnessLogLevelOverrides() != null) {
-      for (Map.Entry<String, SdkHarnessOptions.LogLevel> loggerOverride :
-          loggingOptions.getSdkHarnessLogLevelOverrides().entrySet()) {
-        java.util.logging.Logger logger = logManager.getLogger(loggerOverride.getKey());
-        if (logger == null) {
-          // create a logger if not exist
-          logger = java.util.logging.Logger.getLogger(loggerOverride.getKey());
-        }
-        logger.setLevel(
-            SdkHarnessOptions.LogLevel.LEVEL_CONFIGURATION.get(loggerOverride.getValue()));
-        configuredLoggers.add(logger);
-      }
-    }
-    return configuredLoggers;
   }
 
   private static File zipDirectory(File directory) throws IOException {

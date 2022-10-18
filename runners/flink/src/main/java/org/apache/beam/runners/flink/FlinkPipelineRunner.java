@@ -26,7 +26,6 @@ import java.util.UUID;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -79,7 +78,7 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     MetricsEnvironment.setMetricsSupported(false);
 
     // Apply log levels settings at the beginning of pipeline run
-    Environments.getConfiguredLoggerFromOptions(pipelineOptions.as(SdkHarnessOptions.class));
+    SdkHarnessOptions.getConfiguredLoggerFromOptions(pipelineOptions.as(SdkHarnessOptions.class));
 
     FlinkPortablePipelineTranslator<?> translator;
     if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {

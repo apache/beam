@@ -46,7 +46,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
@@ -115,7 +114,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     }
     // configure loggers from default sdk harness log level and log level overrides
     this.configuredLoggers =
-        Environments.getConfiguredLoggerFromOptions(options.as(SdkHarnessOptions.class));
+        SdkHarnessOptions.getConfiguredLoggerFromOptions(options.as(SdkHarnessOptions.class));
 
     BeamFnLoggingGrpc.BeamFnLoggingStub stub = BeamFnLoggingGrpc.newStub(channel);
     inboundObserver = new LogControlObserver();

@@ -20,11 +20,14 @@ package org.apache.beam.sdk.options;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -344,4 +347,36 @@ public interface SdkHarnessOptions extends PipelineOptions {
   List<String> getJdkAddOpenModules();
 
   void setJdkAddOpenModules(List<String> options);
+
+  /**
+   * Configure log manager's default log level and log level overrides from the sdk harness options,
+   * and return the list of configured loggers.
+   */
+  static List<Logger> getConfiguredLoggerFromOptions(SdkHarnessOptions loggingOptions) {
+    ArrayList<Logger> configuredLoggers = new ArrayList<>();
+    LogManager logManager = LogManager.getLogManager();
+    Logger rootLogger = logManager.getLogger("");
+
+    // Use the passed in logging options to configure the various logger levels.
+    if (loggingOptions.getDefaultSdkHarnessLogLevel() != null) {
+      rootLogger.setLevel(
+          SdkHarnessOptions.LogLevel.LEVEL_CONFIGURATION.get(
+              loggingOptions.getDefaultSdkHarnessLogLevel()));
+    }
+
+    if (loggingOptions.getSdkHarnessLogLevelOverrides() != null) {
+      for (Map.Entry<String, SdkHarnessOptions.LogLevel> loggerOverride :
+          loggingOptions.getSdkHarnessLogLevelOverrides().entrySet()) {
+        Logger logger = logManager.getLogger(loggerOverride.getKey());
+        if (logger == null) {
+          // create a logger if not exist
+          logger = Logger.getLogger(loggerOverride.getKey());
+        }
+        logger.setLevel(
+            SdkHarnessOptions.LogLevel.LEVEL_CONFIGURATION.get(loggerOverride.getValue()));
+        configuredLoggers.add(logger);
+      }
+    }
+    return configuredLoggers;
+  }
 }
