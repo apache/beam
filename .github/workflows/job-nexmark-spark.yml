@@ -27,7 +27,6 @@ on:
 permissions: read-all
 
 jobs:
-  jobs:
   set-properties:
     runs-on: [self-hosted, ubuntu-20.04]
     outputs:
@@ -41,6 +40,7 @@ jobs:
         uses: ./.github/actions/setup-default-test-properties
     
   java-postcommit-nexmark-spark:
+    needs: set-properties
     name: Run PostCommit Java Nexmark - Spark 
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
@@ -51,7 +51,7 @@ jobs:
     timeout-minutes: 240
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
