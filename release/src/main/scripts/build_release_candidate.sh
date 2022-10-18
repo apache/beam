@@ -77,7 +77,6 @@ RC_NUM=
 SIGNING_KEY=
 USER_GITHUB_ID=
 DEBUG=
-JAVA11_HOME=
 
 while [[ $# -gt 0 ]] ; do
   arg="$1"
@@ -102,10 +101,6 @@ while [[ $# -gt 0 ]] ; do
 
       --github-user)
       shift; USER_GITHUB_ID=$1; shift
-      ;;
-
-      --java11-home)
-      shift; JAVA11_HOME=$1; shift
       ;;
 
       *)
@@ -136,12 +131,6 @@ fi
 
 if [[ -z "$USER_GITHUB_ID" ]] ; then
   echo 'Please provide your github username(ID)'
-  usage
-  exit 1
-fi
-
-if [[ -z "$JAVA11_HOME" ]] ; then
-  echo 'Please provide Java 11 home. Required to build sdks/java/container/agent for Java 11+ containers.'
   usage
   exit 1
 fi
@@ -344,7 +333,7 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   git checkout ${RC_TAG}
 
-  ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}rc${RC_NUM} -Pjava11Home=${JAVA11_HOME}
+  ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}rc${RC_NUM}
 
   wipe_local_clone_dir
 fi

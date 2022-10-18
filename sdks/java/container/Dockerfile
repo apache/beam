@@ -31,9 +31,7 @@ ADD target/beam-sdks-java-io-kafka.jar /opt/apache/beam/jars/
 ADD target/kafka-clients.jar /opt/apache/beam/jars/
 
 # Required to use jamm as a javaagent to get accurate object size measuring
-# COPY fails if file is not found, so use a wildcard for open-module-agent.jar
-# since it is only included in Java 9+ containers
-COPY target/jamm.jar target/open-module-agent*.jar /opt/apache/beam/jars/
+ADD target/jamm.jar /opt/apache/beam/jars/
 
 ADD target/linux_amd64/boot /opt/apache/beam/
 
