@@ -22,7 +22,11 @@ jobs:
         uses: actions/setup-java@v3
         with: 
           distribution: 'temurin'
-          java-version: 8
+          java-version: |
+            8
+            11            
+      - name: Echoing java Home
+        run: echo $JAVA_HOME
 
-      - name: Testing gradlew publish
-        run: ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=1rc1 -Pjava11Home=${JAVA_HOME}
+#      - name: Testing gradlew publish
+#        run: ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=1rc1 -Pjava11Home=${JAVA_HOME}
