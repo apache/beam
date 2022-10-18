@@ -26,14 +26,27 @@ on:
 permissions: read-all
 
 jobs:
+  set-properties:
+    runs-on: self-hosted
+    outputs:
+      properties: ${{ steps.test-properties.outputs.properties }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - id: test-properties
+        uses: ./.github/actions/setup-default-test-properties
+
   java-postcommit-nexmark-dataflow:
+    needs: set-properties
     name: Run PostCommit Java Nexmark - Dataflow 
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: false
       matrix:
         streaming: ["true","false"]
-        querytype: ["","sql","zetasql"]
+        querytype: ["","--queryLanguage=sql","--queryLanguage=zetasql"]
     timeout-minutes: 240
     steps:
       - name: Checkout code
@@ -42,7 +55,7 @@ jobs:
           persist-credentials: false
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
-      - name: Run Nexmark with Batch=${{matrix.streaming}} on Dataflow
+      - name: Run Nexmark with Streaming=${{matrix.streaming}} on Dataflow
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: >
@@ -51,7 +64,7 @@ jobs:
               --bigQueryTable=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.BIGQUERY_TABLE}}
               --bigQueryDataset=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.BIGQUERY_DATASET}}
               --project=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.PROJECT}}
-              --resourceNameMode=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.RESOURCE_NAMENODE}}
+              --resourceNameMode=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.RESOURCE_NAMEMODE}}
               --exportSummaryToBigQuery=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.EXPORT_SUMMARY_TO_BIGQUERY}}
               --tempLocation=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.TEMP_LOCATION}}
               --influxDatabase=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.INFLUX_DATABASE}}
@@ -70,34 +83,5 @@ jobs:
               --manageResources=false 
               --monitorJobs=true 
               --enforceEncodability=true 
-              --enforceImmutability=true "
-      - name: Run Nexmark with ${{matrix.querytype}} Batch ${{matrix.streaming}} on Dataflow
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: >
-            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:google-cloud-dataflow-java
-            -Pnexmark.args="  
-              --bigQueryTable=$BIGQUERYTABLE
-              --bigQueryDataset=$BIGQUERYDATASET
-              --project=$PROJECT
-              --resourceNameMode=$RESOURCENAMEMODE
-              --exportSummaryToBigQuery=$EXPORTSUMMARYTOBIGQUERY
-              --tempLocation=$TEMPLOCATION
-              --influxDatabase=$INFLUXDATABASE
-              --influxHost=$INFLUXHOST
-              --baseInfluxMeasurement=$BASEINFLUXMEASUREMENT
-              --exportSummaryToInfluxDB=$EXPORTSUMMARYTOINFLUXDB
-              --influxRetentionPolicy=$INFLUXRETENTIONPOLICY 
-              --runner=DataflowRunner 
-              --region=us-central1 
-              --numWorkers=4 
-              --maxNumWorkers=4 
-              --autoscalingAlgorithm=NONE 
-              --nexmarkParallel=16 
-              --queryLanguage=${{matrix.querytype}} 
-              --streaming=${{matrix.streaming}} 
-              --suite=STRESS 
-              --manageResources=false 
-              --monitorJobs=true 
-              --enforceEncodability=true 
-              --enforceImmutability=true " 
+              --enforceImmutability=true
+              ${{matrix.querytype}} "
