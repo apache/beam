@@ -645,7 +645,7 @@ public class JmsIOTest {
 
     // But here we discard the checkpoint
     ((JmsCheckpointMark) reader.getCheckpointMark()).discard();
-    // we finalize the checkpoint: no more message in the queue
+    // we finalize the checkpoint: no messages should be acked
     reader.getCheckpointMark().finalizeCheckpoint();
 
     assertEquals(6, count(QUEUE));
