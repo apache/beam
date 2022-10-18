@@ -3143,8 +3143,6 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class FakeClock implements Supplier<Instant> {
-    static final FakeClock DEFAULT = new FakeClock();
-
     private class FakeScheduledExecutor implements ScheduledExecutorService {
       @Override
       public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
@@ -3305,39 +3303,41 @@ public class StreamingDataflowWorkerTest {
   }
 
   private static class FakeSlowDoFn extends DoFn<String, String> {
+    private static FakeClock clock; // A static variable keeps this DoFn serializable.
     private final Duration sleep;
 
-    FakeSlowDoFn(Duration sleep) {
+    FakeSlowDoFn(FakeClock clock, Duration sleep) {
+      FakeSlowDoFn.clock = clock;
       this.sleep = sleep;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      FakeClock.DEFAULT.sleep(sleep);
+      clock.sleep(sleep);
       c.output(c.element());
     }
   }
 
   @Test
   public void testLatencyAttributionProtobufsPopulated() throws Exception {
-    FakeClock.DEFAULT.clear();
+    FakeClock clock = new FakeClock();
     StreamingDataflowWorker.Work work =
-        new StreamingDataflowWorker.Work(null, FakeClock.DEFAULT) {
+        new StreamingDataflowWorker.Work(null, clock) {
           @Override
           public void run() {}
         };
 
-    FakeClock.DEFAULT.sleep(Duration.millis(10));
+    clock.sleep(Duration.millis(10));
     work.setState(StreamingDataflowWorker.Work.State.PROCESSING);
-    FakeClock.DEFAULT.sleep(Duration.millis(20));
+    clock.sleep(Duration.millis(20));
     work.setState(StreamingDataflowWorker.Work.State.READING);
-    FakeClock.DEFAULT.sleep(Duration.millis(30));
+    clock.sleep(Duration.millis(30));
     work.setState(StreamingDataflowWorker.Work.State.PROCESSING);
-    FakeClock.DEFAULT.sleep(Duration.millis(40));
+    clock.sleep(Duration.millis(40));
     work.setState(StreamingDataflowWorker.Work.State.COMMIT_QUEUED);
-    FakeClock.DEFAULT.sleep(Duration.millis(50));
+    clock.sleep(Duration.millis(50));
     work.setState(StreamingDataflowWorker.Work.State.COMMITTING);
-    FakeClock.DEFAULT.sleep(Duration.millis(60));
+    clock.sleep(Duration.millis(60));
 
     Iterator<LatencyAttribution> it = work.getLatencyAttributionList().iterator();
     assertTrue(it.hasNext());
@@ -3417,13 +3417,14 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testLatencyAttributionToQueuedState() throws Exception {
-    FakeClock.DEFAULT.clear();
     final int workToken = 3232; // A unique id makes it easier to search logs.
 
+    FakeClock clock = new FakeClock();
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
-            makeDoFnInstruction(new FakeSlowDoFn(Duration.millis(1000)), 0, StringUtf8Coder.of()),
+            makeDoFnInstruction(
+                new FakeSlowDoFn(clock, Duration.millis(1000)), 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
@@ -3437,8 +3438,8 @@ public class StreamingDataflowWorkerTest {
             instructions,
             options,
             false /* publishCounters */,
-            FakeClock.DEFAULT,
-            FakeClock.DEFAULT::newFakeScheduledExecutor);
+            clock,
+            clock::newFakeScheduledExecutor);
     worker.start();
 
     ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
@@ -3463,14 +3464,15 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testLatencyAttributionToActiveState() throws Exception {
-    FakeClock.DEFAULT.clear();
     final int workToken = 4242; // A unique id makes it easier to search logs.
 
+    FakeClock clock = new FakeClock();
     // Inject processing latency on the fake clock in the worker via FakeSlowDoFn.
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
-            makeDoFnInstruction(new FakeSlowDoFn(Duration.millis(1000)), 0, StringUtf8Coder.of()),
+            makeDoFnInstruction(
+                new FakeSlowDoFn(clock, Duration.millis(1000)), 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
@@ -3481,8 +3483,8 @@ public class StreamingDataflowWorkerTest {
             instructions,
             options,
             false /* publishCounters */,
-            FakeClock.DEFAULT,
-            FakeClock.DEFAULT::newFakeScheduledExecutor);
+            clock,
+            clock::newFakeScheduledExecutor);
     worker.start();
 
     ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
@@ -3512,9 +3514,9 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testLatencyAttributionToReadingState() throws Exception {
-    FakeClock.DEFAULT.clear();
     final int workToken = 5454; // A unique id makes it easier to find logs.
 
+    FakeClock clock = new FakeClock();
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
@@ -3529,8 +3531,8 @@ public class StreamingDataflowWorkerTest {
             instructions,
             options,
             false /* publishCounters */,
-            FakeClock.DEFAULT,
-            FakeClock.DEFAULT::newFakeScheduledExecutor);
+            clock,
+            clock::newFakeScheduledExecutor);
     worker.start();
 
     // Inject latency on the fake clock when the server receives a GetData call that isn't
@@ -3538,7 +3540,7 @@ public class StreamingDataflowWorkerTest {
     ActiveWorkRefreshSink awrSink =
         new ActiveWorkRefreshSink(
             (request) -> {
-              FakeClock.DEFAULT.sleep(Duration.millis(1000));
+              clock.sleep(Duration.millis(1000));
               return EMPTY_DATA_RESPONDER.apply(request);
             });
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
@@ -3555,9 +3557,9 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testLatencyAttributionToCommittingState() throws Exception {
-    FakeClock.DEFAULT.clear();
     final int workToken = 6464; // A unique id makes it easier to find logs.
 
+    FakeClock clock = new FakeClock();
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
@@ -3569,7 +3571,7 @@ public class StreamingDataflowWorkerTest {
         .whenCommitWorkCalled()
         .answerByDefault(
             (request) -> {
-              FakeClock.DEFAULT.sleep(Duration.millis(1000));
+              clock.sleep(Duration.millis(1000));
               return Windmill.CommitWorkResponse.getDefaultInstance();
             });
     StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
@@ -3579,8 +3581,8 @@ public class StreamingDataflowWorkerTest {
             instructions,
             options,
             false /* publishCounters */,
-            FakeClock.DEFAULT,
-            FakeClock.DEFAULT::newFakeScheduledExecutor);
+            clock,
+            clock::newFakeScheduledExecutor);
     worker.start();
 
     ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
