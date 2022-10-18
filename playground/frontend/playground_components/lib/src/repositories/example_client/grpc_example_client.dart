@@ -334,6 +334,7 @@ class GrpcExampleClient implements ExampleClient {
       sdk: sdk,
       name: example.name,
       description: example.description,
+      tags: example.tags,
       type: _exampleTypeFromString(example.type),
       path: example.cloudPath,
       contextLine: example.contextLine,

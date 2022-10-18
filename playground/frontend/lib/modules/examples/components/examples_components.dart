@@ -18,6 +18,7 @@
 
 export 'package:playground/modules/examples/components/example_list/category_expansion_panel.dart';
 export 'package:playground/modules/examples/components/example_list/example_list.dart';
-export 'package:playground/modules/examples/components/filter/category_bubble.dart';
-export 'package:playground/modules/examples/components/filter/type_filter.dart';
+export 'package:playground/modules/examples/components/filter/tag_bubble.dart';
+export 'package:playground/modules/examples/components/filter/type_bubble.dart';
+export 'package:playground/modules/examples/components/filter/filter.dart';
 export 'package:playground/modules/examples/components/search_field/search_field.dart';

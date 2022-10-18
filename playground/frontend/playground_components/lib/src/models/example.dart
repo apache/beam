@@ -27,6 +27,7 @@ class Example extends ExampleBase {
 
   const Example({
     required super.sdk,
+    required super.tags,
     required super.type,
     required super.name,
     required super.path,
@@ -53,6 +54,7 @@ class Example extends ExampleBase {
           name: example.name,
           path: example.path,
           description: example.description,
+          tags: example.tags,
           type: example.type,
           contextLine: example.contextLine,
           isMultiFile: example.isMultiFile,
