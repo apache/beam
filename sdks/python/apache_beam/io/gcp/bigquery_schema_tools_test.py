@@ -77,7 +77,7 @@ class TestBigQueryToSchema(unittest.TestCase):
         {
             'stn': typing.Optional[str],
             'temp': typing.Sequence[np.float64],
-            'times': typing.Any
+            'times': typing.Optional[apache_beam.utils.timestamp.Timestamp]
         })
 
   def test_unsupported_type(self):

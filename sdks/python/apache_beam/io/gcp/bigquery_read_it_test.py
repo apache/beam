@@ -44,6 +44,7 @@ from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils.timestamp import Timestamp
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -204,26 +205,22 @@ class ReadTests(BigQueryReadIntegrationTests):
                   id=1,
                   name='customer1',
                   type='test',
-                  times=datetime.datetime(
-                      2021, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+                  times=Timestamp(1633262400)),
               utype(
                   id=3,
                   name='customer1',
                   type='test',
-                  times=datetime.datetime(
-                      2022, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+                  times=Timestamp(1664798400)),
               utype(
                   id=2,
                   name='customer2',
                   type='test',
-                  times=datetime.datetime(
-                      2020, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+                  times=Timestamp(1601726400)),
               utype(
                   id=4,
                   name='customer2',
                   type='test',
-                  times=datetime.datetime(
-                      2019, 10, 3, 12, 0, tzinfo=datetime.timezone.utc))
+                  times=Timestamp(1570104000))
           ]))
 
   @pytest.mark.it_postcommit
@@ -250,26 +247,22 @@ class ReadTests(BigQueryReadIntegrationTests):
                   id=1,
                   name='customer1',
                   type='test',
-                  times=datetime.datetime(
-                      2021, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+                  times=Timestamp(1633262400)),
               utype(
                   id=3,
                   name='customer1',
                   type='test',
-                  times=datetime.datetime(
-                      2022, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+                  times=Timestamp(1664798400)),
               utype(
                   id=2,
                   name='customer2',
                   type='test',
-                  times=datetime.datetime(
-                      2020, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+                  times=Timestamp(1601726400)),
               utype(
                   id=4,
                   name='customer2',
                   type='test',
-                  times=datetime.datetime(
-                      2019, 10, 3, 12, 0, tzinfo=datetime.timezone.utc))
+                  times=Timestamp(1570104000))
           ]))
 
   @pytest.mark.it_postcommit
@@ -296,26 +289,22 @@ class ReadTests(BigQueryReadIntegrationTests):
                   id=1,
                   name='customer1',
                   type='test',
-                  times=datetime.datetime(
-                      2021, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+                  times=Timestamp(1633262400)),
               utype(
                   id=3,
                   name='customer1',
                   type='test',
-                  times=datetime.datetime(
-                      2022, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+                  times=Timestamp(1664798400)),
               utype(
                   id=2,
                   name='customer2',
                   type='test',
-                  times=datetime.datetime(
-                      2020, 10, 3, 12, 0, tzinfo=datetime.timezone.utc)),
+                  times=Timestamp(1601726400)),
               utype(
                   id=4,
                   name='customer2',
                   type='test',
-                  times=datetime.datetime(
-                      2019, 10, 3, 12, 0, tzinfo=datetime.timezone.utc))
+                  times=Timestamp(1570104000))
           ]))
 
 

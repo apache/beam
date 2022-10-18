@@ -23,6 +23,7 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 
 from typing import Optional
 from typing import Sequence
+import datetime
 
 import numpy as np
 
@@ -42,7 +43,7 @@ BIG_QUERY_TO_PYTHON_TYPES = {
     "FLOAT": np.float64,
     "BOOLEAN": bool,
     "BYTES": bytes,
-    "TIMESTAMP": apache_beam.utils.timestamp.Timestamp.from_utc_datetime
+    "TIMESTAMP": apache_beam.utils.timestamp.Timestamp
     #TODO(https://github.com/apache/beam/issues/20810):
     # Finish mappings for all BQ types
 }
@@ -102,6 +103,9 @@ class BeamSchemaConversionDoFn(beam.DoFn):
     self._pcoll_val_ctor = pcoll_val_ctor
 
   def process(self, dict_of_tuples):
+    for k, v in dict_of_tuples.items():
+      if isinstance(v, datetime.datetime):
+        dict_of_tuples[k] = beam.utils.timestamp.Timestamp.from_utc_datetime(v)
     yield self._pcoll_val_ctor(**dict_of_tuples)
 
   def infer_output_type(self, input_type):
