@@ -271,7 +271,7 @@ func QueryPythonExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.
 	// Strip autoPython: tag to get actual python module
 	tag, module := parseAddr(p.Config)
 	// parse extra-packages from namespace if present
-	module, extraPackages := parseClasspath(module)
+	module, extraPackages := parseExtraPackages(module)
 
 	stopFunc, address, err := startPythonExpansionService(module, extraPackages)
 	if err != nil {
