@@ -77,7 +77,9 @@ func TestSample(t *testing.T) {
 					getExampleNode("intro-unit", tob.SDK_PYTHON),
 					{
 						Type: tob.NODE_GROUP, Group: &tob.Group{
-							Title: "The Group", Nodes: []tob.Node{
+							Id:    "group1",
+							Title: "The Group",
+							Nodes: []tob.Node{
 								getExampleNode("example1", tob.SDK_PYTHON),
 								getTaskNode("challenge1", tob.SDK_PYTHON),
 							},

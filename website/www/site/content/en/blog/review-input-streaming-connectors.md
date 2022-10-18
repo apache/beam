@@ -82,7 +82,7 @@ and <a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/stre
   <tr>
    <td>S3<br>(Using the <code>s3://</code> URI)
    </td>
-    <td><a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/FileIO.html">FileIO</a> + <a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/aws/options/S3Options.html">S3Options</a>
+    <td><a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/FileIO.html">FileIO</a> + <a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/aws2/options/S3Options.html">S3Options</a>
    </td>
   </tr>
   <tr>
