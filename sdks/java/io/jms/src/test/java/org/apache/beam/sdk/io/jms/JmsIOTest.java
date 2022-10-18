@@ -39,6 +39,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
@@ -564,6 +565,7 @@ public class JmsIOTest {
   public void testCloseWithTimeout() throws IOException {
 
     Duration closeTimeout = Duration.millis(2000L);
+    long waitTimeout = closeTimeout.getMillis() + 1000L;
     JmsIO.Read spec =
         JmsIO.read()
             .withConnectionFactory(connectionFactory)
@@ -584,7 +586,7 @@ public class JmsIOTest {
     boolean discarded = getDiscardedValue(reader);
     assertFalse(discarded);
     try {
-      Thread.sleep(closeTimeout.getMillis() + 1000);
+      options.getScheduledExecutorService().awaitTermination(waitTimeout, TimeUnit.MILLISECONDS);
     } catch (InterruptedException ignored) {
     }
     discarded = getDiscardedValue(reader);
