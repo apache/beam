@@ -38,7 +38,6 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,19 +45,19 @@ import org.slf4j.LoggerFactory;
 public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(Read.class);
 
-  abstract @Nullable DataSourceConfiguration getDataSourceConfiguration();
+  abstract DataSourceConfiguration getDataSourceConfiguration();
 
-  abstract @Nullable ValueProvider<String> getQuery();
+  abstract ValueProvider<String> getQuery();
 
-  abstract @Nullable ValueProvider<String> getTable();
+  abstract ValueProvider<String> getTable();
 
-  abstract @Nullable StatementPreparator getStatementPreparator();
+  abstract StatementPreparator getStatementPreparator();
 
-  abstract @Nullable ValueProvider<Boolean> getOutputParallelization();
+  abstract ValueProvider<Boolean> getOutputParallelization();
 
-  abstract @Nullable RowMapper<T> getRowMapper();
+  abstract  RowMapper<T> getRowMapper();
 
-  abstract @Nullable Coder<T> getCoder();
+  abstract Coder<T> getCoder();
 
   abstract Builder<T> toBuilder();
 
@@ -148,7 +147,7 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
     checkArgument(getRowMapper() != null, "withRowMapper is required");
 
     Coder<T> coder =
-        Utils.inferCoder(
+        Util.inferCoder(
             getCoder(),
             getRowMapper(),
             input.getPipeline().getCoderRegistry(),
@@ -156,7 +155,7 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
             LOG);
     query = (query != null)
             ? query
-            : "SELECT * FROM " + Utils.escapeIdentifier(table);
+            : "SELECT * FROM " + Util.escapeIdentifier(table);
 
     PCollection<T> output =
         input

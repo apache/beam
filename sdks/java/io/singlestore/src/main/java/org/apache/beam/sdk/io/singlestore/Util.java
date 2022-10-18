@@ -20,19 +20,24 @@ package org.apache.beam.sdk.io.singlestore;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 
-public class Utils {
+public class Util {
   public static String escapeIdentifier(String identifier) {
     return '`' + identifier.replace("`", "``") + '`';
   }
 
   public static String escapeString(String identifier) {
     return "'" + identifier.replace("\\", "\\\\").replace("'", "\\'") + "'";
+  }
+
+  public static String getString(ValueProvider<String> provider) {
+    return provider != null ? provider.get() : null;
   }
 
   public static <OutputT> Coder<OutputT> inferCoder(

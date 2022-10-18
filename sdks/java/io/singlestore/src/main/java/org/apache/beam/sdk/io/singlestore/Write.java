@@ -39,7 +39,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.dbcp2.DelegatingStatement;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 import javax.sql.DataSource;
@@ -50,13 +49,13 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
   private static final int DEFAULT_BATCH_SIZE = 1000;
   private static final int BUFFER_SIZE = 524288;
 
-  abstract @Nullable DataSourceConfiguration getDataSourceConfiguration();
+  abstract DataSourceConfiguration getDataSourceConfiguration();
 
-  abstract @Nullable ValueProvider<String> getTable();
+  abstract ValueProvider<String> getTable();
 
-  abstract @Nullable ValueProvider<Integer> getBatchSize();
+  abstract ValueProvider<Integer> getBatchSize();
 
-  abstract @Nullable UserDataMapper<T> getUserDataMapper();
+  abstract UserDataMapper<T> getUserDataMapper();
 
   abstract Builder<T> toBuilder();
 
@@ -203,7 +202,7 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
 
           dataWritingThread.start();
           stmt.executeUpdate(
-              String.format("LOAD DATA LOCAL INFILE '###.tsv' INTO TABLE %s", Utils.escapeIdentifier(table)));
+              String.format("LOAD DATA LOCAL INFILE '###.tsv' INTO TABLE %s", Util.escapeIdentifier(table)));
           dataWritingThread.join();
 
           if (writeException[0] != null) {

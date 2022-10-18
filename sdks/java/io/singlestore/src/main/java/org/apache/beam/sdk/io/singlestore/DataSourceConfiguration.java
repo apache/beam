@@ -27,19 +27,18 @@ import javax.sql.DataSource;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.commons.dbcp2.BasicDataSource;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoValue
 public abstract class DataSourceConfiguration implements Serializable {
-  abstract @Nullable ValueProvider<String> getEndpoint();
+  abstract ValueProvider<String> getEndpoint();
 
-  abstract @Nullable ValueProvider<String> getUsername();
+  abstract ValueProvider<String> getUsername();
 
-  abstract @Nullable ValueProvider<String> getPassword();
+  abstract ValueProvider<String> getPassword();
 
-  abstract @Nullable ValueProvider<String> getDatabase();
+  abstract ValueProvider<String> getDatabase();
 
-  abstract @Nullable ValueProvider<String> getConnectionProperties();
+  abstract ValueProvider<String> getConnectionProperties();
 
   abstract DataSourceConfiguration.Builder builder();
 

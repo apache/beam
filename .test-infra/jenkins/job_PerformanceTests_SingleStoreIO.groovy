@@ -37,9 +37,9 @@ job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
   common.setAutoJob(delegate,'H H/6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
-          delegate,
-          'Java SingleStoreIO Performance Test',
-          'Run Java SingleStoreIO Performance Test')
+      delegate,
+      'Java SingleStoreIO Performance Test',
+      'Run Java SingleStoreIO Performance Test')
 
 
   String namespace = common.getKubernetesNamespace(jobName)
@@ -58,11 +58,11 @@ job(jobName) {
   k8s.loadBalancerIP("svc-sdb-cluster-ddl", singlestoreHostName)
 
   Map pipelineOptions = [
-          singleStoreServerName     : singlestoreHostName,
-          singleStoreUsername : "admin",
-          singleStorePassword : "secretpass",
-          singleStorePort: "3306",
-          numberOfRecords: "100000"
+    singleStoreServerName     : singlestoreHostName,
+    singleStoreUsername : "admin",
+    singleStorePassword : "secretpass",
+    singleStorePort: "3306",
+    numberOfRecords: "100000"
   ]
 
   steps {

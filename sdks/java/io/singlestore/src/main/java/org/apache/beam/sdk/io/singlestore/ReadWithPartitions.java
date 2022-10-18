@@ -35,7 +35,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,17 +44,17 @@ import javax.sql.DataSource;
 public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollection<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(ReadWithPartitions.class);
 
-  abstract @Nullable DataSourceConfiguration getDataSourceConfiguration();
+  abstract DataSourceConfiguration getDataSourceConfiguration();
 
-  abstract @Nullable ValueProvider<String> getQuery();
+  abstract ValueProvider<String> getQuery();
 
-  abstract @Nullable ValueProvider<String> getTable();
+  abstract ValueProvider<String> getTable();
 
-  abstract @Nullable RowMapper<T> getRowMapper();
+  abstract RowMapper<T> getRowMapper();
 
-  abstract @Nullable ValueProvider<Integer> getInitialNumReaders();
+  abstract ValueProvider<Integer> getInitialNumReaders();
 
-  abstract @Nullable Coder<T> getCoder();
+  abstract Coder<T> getCoder();
 
   abstract Builder<T> toBuilder();
 
@@ -142,13 +141,13 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
         "withTable() can not be used together with withQuery()");
 
     Coder<T> coder =
-        Utils.inferCoder(
+        Util.inferCoder(
             getCoder(),
             getRowMapper(),
             input.getPipeline().getCoderRegistry(),
             input.getPipeline().getSchemaRegistry(),
             LOG);
-    query = (query != null) ? query : "SELECT * FROM " + Utils.escapeIdentifier(table);
+    query = (query != null) ? query : "SELECT * FROM " + Util.escapeIdentifier(table);
     int initialNumReaders = (getInitialNumReaders() != null && getInitialNumReaders().get() != null)
         ? getInitialNumReaders().get() : 1;
 
@@ -212,7 +211,7 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
           try (ResultSet res = stmt.executeQuery(
               String.format(
                   "SELECT num_partitions FROM information_schema.DISTRIBUTED_DATABASES WHERE database_name = %s",
-                  Utils.escapeString(dataSourceConfiguration.getDatabase().get())))) {
+                  Util.escapeString(dataSourceConfiguration.getDatabase().get())))) {
             if (!res.next()) {
               throw new Exception("Failed to get number of partitions in the database");
             }
