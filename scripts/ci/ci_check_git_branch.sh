@@ -21,13 +21,13 @@ function is_in_remote() {
     local existed_in_remote=$(git ls-remote --heads origin ${branch})
 
     if [[ -z ${existed_in_remote} ]]; then
-        return 0
-    else
         return 1
+    else
+        return 0
     fi
 }
 
-if is_in_remote "$1"; then
+if ! is_in_remote "$1"; then
   echo "Branch [$1] doesn't exist."
   exit 0
 else
