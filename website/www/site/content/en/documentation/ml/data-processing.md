@@ -78,10 +78,9 @@ with beam.Pipeline() as pipeline:
 
   # Clean data
   def filter_missing_data(row):
-    if row['weight']:
-      yield row
+    return row['weight'] is not None
 
-  cleaned_data = input_data | beam.FlatMap(filter_missing_data)
+  cleaned_data = input_data | beam.Filter(filter_missing_data)
 
   # Transform data
   def scale_min_max_data(row):
