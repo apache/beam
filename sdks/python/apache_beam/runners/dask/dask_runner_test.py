@@ -57,8 +57,8 @@ class DaskOptionsTest(unittest.TestCase):
     try:
       client = ddist.Client(**dask_options.get_all_options(drop_default=True))
       client.close()
-    except ValueError:
-      self.fail('parsed args did not match dask Client args.')
+    except ValueError as e:
+      self.fail(f'parsed args did not match dask Client args: {e!s}')
 
 
 class DaskRunnerRunPipelineTest(unittest.TestCase):
