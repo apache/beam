@@ -13,6 +13,11 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: '^1.13.1' # The Go version to download (if necessary) and use.
+      - name: Install python 
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+        
       - name: Setup Java
         uses: actions/setup-java@v3
         with: 
