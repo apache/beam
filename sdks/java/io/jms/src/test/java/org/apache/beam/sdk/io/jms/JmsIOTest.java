@@ -621,7 +621,7 @@ public class JmsIOTest {
     // start the reader and move to the first record
     assertTrue(reader.start());
 
-    // consume 3 messages (NB: start already consumed the first message)
+    // consume 3 more messages (NB: start already consumed the first message)
     for (int i = 0; i < 3; i++) {
       assertTrue(reader.advance());
     }
