@@ -310,7 +310,7 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
             // suppress full __metricscontainers log printed in FlinkPipelineRunner.createPortablePipelineResult
             '\\"org.apache.beam.runners.flink.FlinkPipelineRunner\\":\\"WARN\\",' +
             // suppress metric name collision warning logs
-            '\\"org.apache.flink.runtime.metrics.groups.MetricGroup\\":\\"ERROR\\"}'
+            '\\"org.apache.flink.runtime.metrics.groups\\":\\"ERROR\\"}'
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
