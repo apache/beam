@@ -26,7 +26,7 @@ jobs:
             8
             11            
       - name: Echoing java Home
-        run: echo $JAVA_HOME
+        run: echo $JAVA11_HOME
 
 #      - name: Testing gradlew publish
 #        run: ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=1rc1 -Pjava11Home=${JAVA_HOME}
