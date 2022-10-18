@@ -140,9 +140,9 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 ### PostCommit Workflows
 | Workflow                                                                                                             | Description                      | Requires GCP Credentials |
 |----------------------------------------------------------------------------------------------------------------------|----------------------------------|--------------------------|
-| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml)                                   | Description placeholder          | Yes/No  
-| [job-precommit-python-portable-commit.yml](.github/workflows/job-precommit-python-portable-commit.yml)               | Run Python Portable Commit       | No 
-| [job-precommit-python-validates-runner-flink.yml](.github/workflows/job-precommit-python-validates-runner-flink.yml) | Run Python Validate Runner Flink | No
+| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml)                                   | Description placeholder          | Yes/No                   |
+| [job-precommit-python-portable-commit.yml](.github/workflows/job-precommit-python-portable-commit.yml)               | Run Python Portable Commit       | No                       |
+| [job-precommit-python-validates-runner-flink.yml](.github/workflows/job-precommit-python-validates-runner-flink.yml) | Run Python Validate Runner Flink | No                       |
 
 ### GitHub Action Tips
 * All migrated workflows get executed on **pre-configured self-hosted** runners. For this reason, GCP credentials are **only** needed when running the workflows in a different runner.
