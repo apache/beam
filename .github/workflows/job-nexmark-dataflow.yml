@@ -28,7 +28,7 @@ permissions: read-all
 
 jobs:
   set-properties:
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
@@ -53,7 +53,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          persist-credentials: false        
+          persist-credentials: false 
+      - name: Setup environment
+        uses: ./.github/actions/setup-self-hosted-action       
       - name: Run Nexmark with Straming  Mode=${{matrix.streaming}} with Direct runner
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
