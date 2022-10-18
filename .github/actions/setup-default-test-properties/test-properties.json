@@ -31,6 +31,7 @@
     "INFLUX_HOST": "http://10.128.0.96:8086",
     "BASE_INFLUX_MEASUREMENT": "nexmark",
     "EXPORT_SUMMARY_TO_INFLUXDB": true,
-    "INFLUX_RETENTION_POLICY": "forever"
+    "INFLUX_RETENTION_POLICY": "forever",
+    "FLINK_VERSION": "1.13"
   }
 }
