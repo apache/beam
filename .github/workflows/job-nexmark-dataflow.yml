@@ -26,7 +26,20 @@ on:
 permissions: read-all
 
 jobs:
+  set-properties:
+    runs-on: self-hosted
+    outputs:
+      properties: ${{ steps.test-properties.outputs.properties }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - id: test-properties
+        uses: ./.github/actions/setup-default-test-properties
+
   java-postcommit-nexmark-dataflow:
+    needs: set-properties
     name: Run PostCommit Java Nexmark - Dataflow 
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
@@ -70,4 +83,5 @@ jobs:
               --manageResources=false 
               --monitorJobs=true 
               --enforceEncodability=true 
-              --enforceImmutability=true "
+              --enforceImmutability=true
+              --queryLanguage=${{matrix.querytype}} "
