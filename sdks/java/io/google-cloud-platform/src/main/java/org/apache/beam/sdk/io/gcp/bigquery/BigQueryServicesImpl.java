@@ -1155,6 +1155,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                       sleeper)));
           strideIndices.add(strideIndex);
           retTotalDataSize += dataSize;
+          rows = new ArrayList<>();
         }
 
         try {
