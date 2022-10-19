@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.singlestore;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -27,33 +26,33 @@ import javax.sql.DataSource;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.commons.dbcp2.BasicDataSource;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoValue
 public abstract class DataSourceConfiguration implements Serializable {
-  abstract ValueProvider<String> getEndpoint();
+  abstract @Nullable ValueProvider<String> getEndpoint();
 
-  abstract ValueProvider<String> getUsername();
+  abstract @Nullable ValueProvider<String> getUsername();
 
-  abstract ValueProvider<String> getPassword();
+  abstract @Nullable ValueProvider<String> getPassword();
 
-  abstract ValueProvider<String> getDatabase();
+  abstract @Nullable ValueProvider<String> getDatabase();
 
-  abstract ValueProvider<String> getConnectionProperties();
+  abstract @Nullable ValueProvider<String> getConnectionProperties();
 
-  abstract DataSourceConfiguration.Builder builder();
+  abstract Builder builder();
 
   @AutoValue.Builder
   abstract static class Builder {
-    abstract DataSourceConfiguration.Builder setEndpoint(ValueProvider<String> endpoint);
+    abstract Builder setEndpoint(ValueProvider<String> endpoint);
 
-    abstract DataSourceConfiguration.Builder setUsername(ValueProvider<String> username);
+    abstract Builder setUsername(ValueProvider<String> username);
 
-    abstract DataSourceConfiguration.Builder setPassword(ValueProvider<String> password);
+    abstract Builder setPassword(ValueProvider<String> password);
 
-    abstract DataSourceConfiguration.Builder setDatabase(ValueProvider<String> database);
+    abstract Builder setDatabase(ValueProvider<String> database);
 
-    abstract DataSourceConfiguration.Builder setConnectionProperties(
-        ValueProvider<String> connectionProperties);
+    abstract Builder setConnectionProperties(ValueProvider<String> connectionProperties);
 
     abstract DataSourceConfiguration build();
   }
@@ -117,25 +116,22 @@ public abstract class DataSourceConfiguration implements Serializable {
   }
 
   public DataSource getDataSource() throws SQLException {
-    checkArgument(getEndpoint() != null && getEndpoint().get() != null, "endpoint can not be null");
-
-    String database =
-        (getDatabase() != null && getDatabase().get() != null) ? getDatabase().get() : "";
-    String connectionProperties =
-        (getConnectionProperties() != null && getConnectionProperties().get() != null)
-            ? String.format("%s;allowLocalInfile=TRUE", getConnectionProperties().get())
-            : "allowLocalInfile=TRUE";
+    String endpoint = Util.getRequiredArgument(getEndpoint(), "endpoint can not be null");
+    String database = Util.getArgumentWithDefault(getDatabase(), "");
+    String connectionProperties = Util.getArgumentWithDefault(getConnectionProperties(), "");
+    connectionProperties += (connectionProperties.isEmpty() ? "" : ";") + "allowLocalInfile=TRUE";
+    String username = Util.getArgumentWithDefault(getUsername(), "");
+    String password = Util.getArgumentWithDefault(getPassword(), "");
 
     BasicDataSource basicDataSource = new BasicDataSource();
     basicDataSource.setDriverClassName("com.singlestore.jdbc.Driver");
-    basicDataSource.setUrl(
-        String.format("jdbc:singlestore://%s/%s", getEndpoint().get(), database));
+    basicDataSource.setUrl(String.format("jdbc:singlestore://%s/%s", endpoint, database));
 
-    if (getUsername() != null && getUsername().get() != null) {
-      basicDataSource.setUsername(getUsername().get());
+    if (username != null) {
+      basicDataSource.setUsername(username);
     }
-    if (getPassword() != null && getPassword().get() != null) {
-      basicDataSource.setPassword(getPassword().get());
+    if (password != null) {
+      basicDataSource.setPassword(password);
     }
     basicDataSource.setConnectionProperties(connectionProperties);
 

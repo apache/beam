@@ -61,13 +61,15 @@ public class Util {
       try {
         return registry.getCoder(outputType);
       } catch (CannotProvideCoderException e) {
-        LOG.warn("Unable to infer a coder for type {}", outputType);
-        return null;
+        throw new IllegalArgumentException(
+            String.format("Unable to infer a coder for type %s", outputType));
       }
     }
   }
 
-  public static String getSelectQuery(@Nullable ValueProvider<String> tableProvider, @Nullable ValueProvider<String> queryProvider) {
+  public static String getSelectQuery(
+      @Nullable ValueProvider<String> tableProvider,
+      @Nullable ValueProvider<String> queryProvider) {
     String table = (tableProvider == null) ? null : tableProvider.get();
     String query = (queryProvider == null) ? null : queryProvider.get();
 
@@ -82,32 +84,35 @@ public class Util {
     }
   }
 
-  public static <OutputT> OutputT getRequiredArgument(@Nullable ValueProvider<OutputT> provider, String errorMessage) {
+  public static <OutputT> OutputT getRequiredArgument(
+      @Nullable ValueProvider<OutputT> provider, String errorMessage) {
     if (provider == null) {
       throw new IllegalArgumentException(errorMessage);
     }
     return getRequiredArgument(provider.get(), errorMessage);
   }
 
-  public static <OutputT> OutputT getRequiredArgument(@Nullable OutputT value, String errorMessage) {
+  public static <OutputT> OutputT getRequiredArgument(
+      @Nullable OutputT value, String errorMessage) {
     if (value == null) {
       throw new IllegalArgumentException(errorMessage);
     }
     return value;
   }
 
-  public static <OutputT> OutputT getArgumentWithDefault(@Nullable ValueProvider<OutputT> provider, OutputT defaultValue) {
+  public static <OutputT> OutputT getArgumentWithDefault(
+      @Nullable ValueProvider<OutputT> provider, OutputT defaultValue) {
     if (provider == null) {
       return defaultValue;
     }
     return getArgumentWithDefault(provider.get(), defaultValue);
   }
 
-  public static <OutputT> OutputT getArgumentWithDefault(@Nullable OutputT value, OutputT defaultValue) {
+  public static <OutputT> OutputT getArgumentWithDefault(
+      @Nullable OutputT value, OutputT defaultValue) {
     if (value == null) {
       return defaultValue;
     }
     return value;
   }
-
 }

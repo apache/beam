@@ -132,10 +132,11 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
   @Override
   public PCollection<T> expand(PBegin input) {
-    DataSourceConfiguration dataSourceConfiguration = Util.getRequiredArgument(
-        getDataSourceConfiguration(),
-        "withDataSourceConfiguration() is required");
-    RowMapper<T> rowMapper = Util.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
+    DataSourceConfiguration dataSourceConfiguration =
+        Util.getRequiredArgument(
+            getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
+    RowMapper<T> rowMapper =
+        Util.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
     String actualQuery = Util.getSelectQuery(getTable(), getQuery());
 
     Coder<T> coder =
@@ -152,10 +153,7 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
             .apply(
                 ParDo.of(
                     new ReadFn<>(
-                        dataSourceConfiguration,
-                        actualQuery,
-                        getStatementPreparator(),
-                        rowMapper)))
+                        dataSourceConfiguration, actualQuery, getStatementPreparator(), rowMapper)))
             .setCoder(coder);
 
     if (Util.getArgumentWithDefault(getOutputParallelization(), true)) {

@@ -122,9 +122,15 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
 
   @Override
   public PCollection<T> expand(PBegin input) {
-    DataSourceConfiguration dataSourceConfiguration = Util.getRequiredArgument(getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
-    String database = Util.getRequiredArgument(dataSourceConfiguration.getDatabase(), "withDatabase() is required for DataSourceConfiguration in order to perform readWithPartitions");
-    RowMapper<T> rowMapper = Util.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
+    DataSourceConfiguration dataSourceConfiguration =
+        Util.getRequiredArgument(
+            getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
+    String database =
+        Util.getRequiredArgument(
+            dataSourceConfiguration.getDatabase(),
+            "withDatabase() is required for DataSourceConfiguration in order to perform readWithPartitions");
+    RowMapper<T> rowMapper =
+        Util.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
 
     int initialNumReaders = Util.getArgumentWithDefault(getInitialNumReaders(), 1);
     checkArgument(initialNumReaders < 1, "withInitialNumReaders() can not be less then 1");
@@ -201,12 +207,18 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
         OutputReceiver<OffsetRange> receiver) {
       long numPartitions = range.getTo() - range.getFrom();
       if (initialNumReaders > numPartitions) {
-        throw new IllegalArgumentException("withInitialNumReaders() should not be greater then number of partitions in the database.\n" +
-            String.format("InitialNumReaders is %d, number of partitions in the database is %d", initialNumReaders, range.getTo()));
+        throw new IllegalArgumentException(
+            "withInitialNumReaders() should not be greater then number of partitions in the database.\n"
+                + String.format(
+                    "InitialNumReaders is %d, number of partitions in the database is %d",
+                    initialNumReaders, range.getTo()));
       }
 
       for (int i = 0; i < initialNumReaders; i++) {
-        receiver.output(new OffsetRange(range.getFrom() + numPartitions*i/initialNumReaders, range.getFrom() + numPartitions*(i+1)/initialNumReaders));
+        receiver.output(
+            new OffsetRange(
+                range.getFrom() + numPartitions * i / initialNumReaders,
+                range.getFrom() + numPartitions * (i + 1) / initialNumReaders));
       }
     }
 

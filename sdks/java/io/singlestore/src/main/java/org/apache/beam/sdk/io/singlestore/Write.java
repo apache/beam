@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.singlestore;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -94,9 +93,12 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
 
   @Override
   public PDone expand(PCollection<T> input) {
-    DataSourceConfiguration dataSourceConfiguration = Util.getRequiredArgument(getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
+    DataSourceConfiguration dataSourceConfiguration =
+        Util.getRequiredArgument(
+            getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
     String table = Util.getRequiredArgument(getTable(), "withTable() is required");
-    UserDataMapper<T> userDataMapper = Util.getRequiredArgument(getUserDataMapper(), "withUserDataMapper() is required");
+    UserDataMapper<T> userDataMapper =
+        Util.getRequiredArgument(getUserDataMapper(), "withUserDataMapper() is required");
     int batchSize = Util.getArgumentWithDefault(getBatchSize(), DEFAULT_BATCH_SIZE);
 
     input
