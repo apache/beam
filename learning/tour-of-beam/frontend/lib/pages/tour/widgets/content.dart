@@ -52,12 +52,9 @@ class ContentWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: SingleChildScrollView(
-                  controller: ScrollController(),
-                  child: currentUnitContent == null
-                      ? Container()
-                      : UnitContentWidget(unitContent: currentUnitContent),
-                ),
+                child: currentUnitContent == null
+                    ? Container()
+                    : UnitContentWidget(unitContent: currentUnitContent),
               ),
               const _ContentFooter(),
             ],
