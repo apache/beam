@@ -108,17 +108,13 @@ public abstract class DataSourceConfiguration implements Serializable {
     return builder().setConnectionProperties(connectionProperties).build();
   }
 
-  public void populateDisplayData(DisplayData.Builder builder) {
-    builder.addIfNotNull(DisplayData.item("endpoint", getEndpoint()));
-    builder.addIfNotNull(DisplayData.item("username", getUsername()));
-    builder.addIfNotNull(DisplayData.item("database", getDatabase()));
-    builder.addIfNotNull(DisplayData.item("connectionProperties", getConnectionProperties()));
-  }
-
   public static void populateDisplayData(
       @Nullable DataSourceConfiguration dataSourceConfiguration, DisplayData.Builder builder) {
     if (dataSourceConfiguration != null) {
-      dataSourceConfiguration.populateDisplayData(builder);
+      builder.addIfNotNull(DisplayData.item("endpoint", dataSourceConfiguration.getEndpoint()));
+      builder.addIfNotNull(DisplayData.item("username", dataSourceConfiguration.getUsername()));
+      builder.addIfNotNull(DisplayData.item("database", dataSourceConfiguration.getDatabase()));
+      builder.addIfNotNull(DisplayData.item("connectionProperties", dataSourceConfiguration.getConnectionProperties()));
     }
   }
 
