@@ -19,6 +19,7 @@
 import 'package:app_state/app_state.dart';
 import 'package:get_it/get_it.dart';
 
+import 'auth/notifier.dart';
 import 'cache/content_tree.dart';
 import 'cache/sdk.dart';
 import 'cache/unit_content.dart';
@@ -35,6 +36,7 @@ Future<void> initializeServiceLocator() async {
 void _initializeCaches() {
   final client = CloudFunctionsTobClient();
 
+  GetIt.instance.registerSingleton(AuthNotifier());
   GetIt.instance.registerSingleton(ContentTreeCache(client: client));
   GetIt.instance.registerSingleton(SdkCache(client: client));
   GetIt.instance.registerSingleton(UnitContentCache(client: client));

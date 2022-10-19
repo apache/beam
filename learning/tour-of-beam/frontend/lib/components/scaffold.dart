@@ -17,8 +17,10 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../auth/notifier.dart';
 import 'footer.dart';
 import 'login/login_button.dart';
 import 'logo.dart';
@@ -33,9 +35,6 @@ class TobScaffold extends StatelessWidget {
     required this.child,
   });
 
-  // TODO(nausharipov): get state
-  static const _isAuthorized = true;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,9 +45,7 @@ class TobScaffold extends StatelessWidget {
           SizedBox(width: BeamSizes.size12),
           _ActionVerticalPadding(child: ToggleThemeButton()),
           SizedBox(width: BeamSizes.size6),
-          _ActionVerticalPadding(
-            child: _isAuthorized ? Avatar() : LoginButton(),
-          ),
+          _Profile(),
           SizedBox(width: BeamSizes.size16),
         ],
       ),
@@ -57,6 +54,23 @@ class TobScaffold extends StatelessWidget {
           Expanded(child: child),
           const Footer(),
         ],
+      ),
+    );
+  }
+}
+
+class _Profile extends StatelessWidget {
+  const _Profile();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = GetIt.instance.get<AuthNotifier>();
+
+    return _ActionVerticalPadding(
+      child: AnimatedBuilder(
+        animation: auth,
+        builder: (context, child) =>
+            auth.isAuthenticated ? const Avatar() : const LoginButton(),
       ),
     );
   }

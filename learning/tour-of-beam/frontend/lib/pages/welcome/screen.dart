@@ -20,8 +20,10 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../auth/notifier.dart';
 import '../../components/builders/content_tree.dart';
 import '../../components/builders/sdks.dart';
 import '../../components/filler_text.dart';
@@ -226,8 +228,10 @@ class _IntroText extends StatelessWidget {
                     .bodyLarge!
                     .copyWith(color: Theme.of(context).primaryColor),
                 recognizer: TapGestureRecognizer()
-                  ..onTap = () {
+                  ..onTap = () async {
                     // TODO(nausharipov): sign in
+                    final auth = GetIt.instance.get<AuthNotifier>();
+                    await auth.signIn();
                   },
               ),
               TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),
