@@ -26,7 +26,7 @@ import pytest
 
 import apache_beam as beam
 from apache_beam import Pipeline
-from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import is_empty
@@ -36,7 +36,15 @@ from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.periodicsequence import PeriodicSequence
 
 
+@unittest.skipIf(
+    not TestPipeline().get_pipeline_options().view_as(StandardOptions).streaming,
+    "Watermark tests are only valid for streaming jobs.")
 class PeriodicSequenceIT(unittest.TestCase):
+  def setUp(self):
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.runner_name = type(self.test_pipeline.runner).__name__
+    self.project = self.test_pipeline.get_option('project')
+
   @pytest.mark.it_postcommit
   def test_periodicsequence_outputs_valid_watermarks_it(self):
     class DoFnWithLongGaps(DoFn):
@@ -51,11 +59,8 @@ class PeriodicSequenceIT(unittest.TestCase):
     end_time = start_time + duration
     interval = 10
 
-    pipeline = TestPipeline(
-        is_integration_test=True, options=PipelineOptions(streaming=True))
-
     res = (
-        pipeline
+        self.test_pipeline
         | 'ImpulseElement' >> beam.Create([(start_time, end_time, interval)])
         | 'ImpulseSeqGen' >> PeriodicSequence()
         | 'window_into' >> beam.WindowInto(
@@ -65,9 +70,9 @@ class PeriodicSequenceIT(unittest.TestCase):
         | beam.ParDo(DoFnWithLongGaps()))
     assert_that(res, is_empty())
 
-    proto_pipeline, _ = pipeline.to_runner_api(return_context=True)
+    proto_pipeline, _ = self.test_pipeline.to_runner_api(return_context=True)
     pipeline_from_proto = Pipeline.from_runner_api(
-        proto_pipeline, pipeline.runner, pipeline._options)
+        proto_pipeline, self.test_pipeline.runner, self.test_pipeline._options)
     pipeline_from_proto.run().wait_until_finish()
 
 
