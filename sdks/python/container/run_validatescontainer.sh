@@ -107,7 +107,7 @@ pytest -o junit_suite_name=$IMAGE_NAME \
   -m="it_validatescontainer" \
   --show-capture=no \
   --numprocesses=1 \
-  --timeout=900 \
+  --timeout=1800 \
   --junitxml=$XUNIT_FILE \
   --ignore-glob '.*py3\d?\.py$' \
   --log-cli-level=INFO \
