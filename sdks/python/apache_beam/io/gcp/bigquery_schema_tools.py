@@ -21,12 +21,14 @@ backwards compatibility guarantees.
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
+import datetime
 from typing import Optional
 from typing import Sequence
 
 import numpy as np
 
 import apache_beam as beam
+import apache_beam.utils.timestamp
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.portability.api import schema_pb2
 
@@ -38,8 +40,10 @@ BIG_QUERY_TO_PYTHON_TYPES = {
     "STRING": str,
     "INTEGER": np.int64,
     "FLOAT64": np.float64,
+    "FLOAT": np.float64,
     "BOOLEAN": bool,
     "BYTES": bytes,
+    "TIMESTAMP": apache_beam.utils.timestamp.Timestamp
     #TODO(https://github.com/apache/beam/issues/20810):
     # Finish mappings for all BQ types
 }
@@ -76,11 +80,11 @@ def generate_user_type_from_bq_schema(the_table_schema):
 
 
 def bq_field_to_type(field, mode):
-  if mode == 'NULLABLE':
+  if mode == 'NULLABLE' or mode is None or mode == '':
     return Optional[BIG_QUERY_TO_PYTHON_TYPES[field]]
   elif mode == 'REPEATED':
     return Sequence[BIG_QUERY_TO_PYTHON_TYPES[field]]
-  elif mode is None or mode == '':
+  elif mode == 'REQUIRED':
     return BIG_QUERY_TO_PYTHON_TYPES[field]
   else:
     raise ValueError(f"Encountered an unsupported mode: {mode!r}")
@@ -94,11 +98,13 @@ def convert_to_usertype(table_schema):
 
 
 class BeamSchemaConversionDoFn(beam.DoFn):
-  # Converting a dictionary of tuples to a usertype.
   def __init__(self, pcoll_val_ctor):
     self._pcoll_val_ctor = pcoll_val_ctor
 
   def process(self, dict_of_tuples):
+    for k, v in dict_of_tuples.items():
+      if isinstance(v, datetime.datetime):
+        dict_of_tuples[k] = beam.utils.timestamp.Timestamp.from_utc_datetime(v)
     yield self._pcoll_val_ctor(**dict_of_tuples)
 
   def infer_output_type(self, input_type):
