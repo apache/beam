@@ -369,7 +369,8 @@ from apache_beam.io import range_trackers
 from apache_beam.io.avroio import _create_avro_source as create_avro_source
 from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.io.gcp import bigquery_tools, bigquery_schema_tools
+from apache_beam.io.gcp import bigquery_schema_tools
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.bigquery_read_internal import _BigQueryReadSplit
 from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
