@@ -43,6 +43,7 @@
 
 ## Bugfixes
 
+* Fixed JmsIO acknowledgment issue (https://github.com/apache/beam/issues/20814)
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 ## Known Issues
 
