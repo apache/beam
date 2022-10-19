@@ -13,37 +13,29 @@ jobs:
           username: elink21
           password: ${{secrets.DOCKER_HUB_TOKEN}}
           
-      - name: Generate Simple Docker file
-        run: |
-          echo "FROM ubuntu:20.04" >> Dockerfile
-      - name: Docker build
-        run: docker build . -t elink21/dockerhubtest:latest
-      - name: Push to dockerhub
-        run: docker push elink21/dockerhubtest:latest
-
-      # - name: Checkout
-      #   uses: actions/checkout@v3
-      # - name: Install go 
-      #   uses: actions/setup-go@v3
-      #   with:
-      #     go-version: '^1.13.1' # The Go version to download (if necessary) and use.
-      # - name: Install python 
-      #   uses: actions/setup-python@v4
-      #   with:
-      #     python-version: '3.9'
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install go 
+        uses: actions/setup-go@v3
+        with:
+          go-version: '^1.13.1' # The Go version to download (if necessary) and use.
+      - name: Install python 
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
         
-      # - name: Setup Java
-      #   uses: actions/setup-java@v3
-      #   with: 
-      #     distribution: 'temurin'
-      #     java-version: |
-      #       11
-      #       8            
-      # - name: Echoing java Home
-      #   run: echo $JAVA_HOME_11_X64
-      # - name: Exporting Java_HOME to Java 8
-      #   run: echo "JAVA_HOME=${JAVA_HOME_8_X64}" >> $GITHUB_ENV
-      # - name: Installing ensurepip
-      #   run: sudo apt install -y python3.8-venv
-      # - name: Testing gradlew publish
-      #   run: ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=1rc1 -Pjava11Home=${JAVA_HOME_11_X64}
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with: 
+          distribution: 'temurin'
+          java-version: |
+            11
+            8            
+      - name: Echoing java Home
+        run: echo $JAVA_HOME_11_X64
+      - name: Exporting Java_HOME to Java 8
+        run: echo "JAVA_HOME=${JAVA_HOME_8_X64}" >> $GITHUB_ENV
+      - name: Installing ensurepip
+        run: sudo apt install -y python3.8-venv
+      - name: Testing gradlew publish
+        run: ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=1rc1 -Pjava11Home=${JAVA_HOME_11_X64}
