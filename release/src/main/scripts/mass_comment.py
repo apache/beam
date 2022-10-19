@@ -92,6 +92,7 @@ COMMENTS_TO_ADD = [
     "Run Python 3.7 PostCommit",
     "Run Python 3.8 PostCommit",
     "Run Python 3.9 PostCommit",
+    "Run Python 3.10 PostCommit",
     "Run Python Dataflow V2 ValidatesRunner",
     "Run Python Dataflow ValidatesContainer",
     "Run Python Dataflow ValidatesRunner",
