@@ -16,9 +16,14 @@
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <groupId>com.google.cloud.teleport</groupId>
+
+  <parent>
+    <groupId>com.google.cloud.teleport</groupId>
+    <artifactId>templates</artifactId>
+    <version>1.0-SNAPSHOT</version>
+  </parent>
+
   <artifactId>integration-testing-lib</artifactId>
-  <version>1.0-SNAPSHOT</version>
   <modelVersion>4.0.0</modelVersion>
 
   <properties>
@@ -29,14 +34,12 @@
     <java.version>11</java.version>
     <junit.version>4.13.1</junit.version>
     <guava.version>31.0.1-jre</guava.version>
-    <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
     <maven-compiler-plugin.version>3.6.2</maven-compiler-plugin.version>
     <mockito.version>3.7.7</mockito.version>
     <mockito-inline.version>4.5.1</mockito-inline.version>
     <puppycrawl.version>8.7</puppycrawl.version>
     <re2j.version>1.5</re2j.version>
     <slf4j.version>1.7.25</slf4j.version>
-    <spotless-maven-plugin.version>2.12.1</spotless-maven-plugin.version>
     <surefire.version>2.21.0</surefire.version>
     <truth.version>1.0.1</truth.version>
   </properties>
@@ -146,83 +149,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${surefire.version}</version>
-      </plugin>
-      
-      <!-- Formatting -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>${maven-checkstyle-plugin.version}</version>
-        <dependencies>
-          <dependency>
-            <groupId>com.puppycrawl.tools</groupId>
-            <artifactId>checkstyle</artifactId>
-            <version>${puppycrawl.version}</version>
-          </dependency>
-        </dependencies>
-        <configuration>
-          <configLocation>checkstyle/checkstyle.xml</configLocation>
-          <suppressionsLocation>checkstyle/suppressions.xml</suppressionsLocation>
-          <consoleOutput>true</consoleOutput>
-          <failOnViolation>true</failOnViolation>
-          <includeResources>false</includeResources>
-          <includeTestSourceDirectory>true</includeTestSourceDirectory>
-        </configuration>
-        <executions>
-          <!--
-            Execute checkstyle after compilation but before tests.
-            This ensures that any parsing or type checking errors are from
-            javac, so they look as expected. Beyond that, we want to
-            fail as early as possible.
-          -->
-          <execution>
-            <phase>test-compile</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>com.diffplug.spotless</groupId>
-        <artifactId>spotless-maven-plugin</artifactId>
-        <version>${spotless-maven-plugin.version}</version>
-        <configuration>
-          <formats>
-            <!-- Avoid trailing whitespace and require ending newline. -->
-            <format>
-              <includes>
-                <!-- .gitignore does not need to be included here. -->
-                <include>*.md</include>
-              </includes>
-              <trimTrailingWhitespace/>
-              <endWithNewline/>
-            </format>
-          </formats>
-          <java>
-            <!-- Exclude Beam code from formatting/license headers -->
-            <excludes>
-              <exclude>src/main/java/org/apache/beam/**</exclude>
-              <exclude>src/test/java/org/apache/beam/**</exclude>
-            </excludes>
-            <toggleOffOn />
-            <googleJavaFormat>
-              <version>1.8</version>
-              <style>GOOGLE</style>
-            </googleJavaFormat>
-            <licenseHeader>
-              <file>JAVA_LICENSE_HEADER</file>
-            </licenseHeader>
-          </java>
-        </configuration>
-        <!-- Bind to verify. -->
-        <executions>
-          <execution>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>
