@@ -73,6 +73,8 @@ PCollection<Integer> lessThanEqNumbers = pipeline.apply(Filter.lessThanEq(7));
 PCollection<Integer> equalNumbers = pipeline.apply(Filter.equal(9));
 ```
 
-### Description for example
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
-Given a list of integers , printing even numbers using ```Filter```. The ```applyTransform()``` method implements a filter in which the logic determines the numbers are even.
+`Filter` returns a number if it is divisible by 2 without remainder. You can use other method for filtering.
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

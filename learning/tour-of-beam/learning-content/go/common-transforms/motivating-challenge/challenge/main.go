@@ -47,7 +47,7 @@ func main() {
 	// The [input] filtered with the positiveNumbersFilter()
 	filtered := getPositiveNumbers(s, input)
 
-    // Returns map
+// Returns map
 	numberMap := getMap(s, filtered)
 
 	// Returns numbers count with the countingNumbers()

@@ -50,4 +50,4 @@ with beam.Pipeline() as p:
   (p | beam.Create(range(1, 11))
   # beam.CombineGlobally(sum) to return the sum of numbers from `PCollection`.
    | beam.CombineGlobally(sum)
-   | Output())
+   | Output(prefix='PCollection sum value: '))

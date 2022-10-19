@@ -12,7 +12,7 @@ limitations under the License.
 
 # Count
 
-Count to get the total number of elements in different ways.
+`Count` provides many transformations for calculating the count of values in a `PCollection`, either globally or for each key.
 
 Counts the number of elements within each aggregation. The Count transform has two varieties:
 
@@ -42,6 +42,8 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
-### Description for example
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
-Given a list of integers `PCollection`. The `applyTransform()` function returns the count of numbers from `PCollection`.
+`CountElms` returns the number of integers from the `PCollection`. If you replace `CountElms` but `Count`, you can count the elements by the values of how many times they met.
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

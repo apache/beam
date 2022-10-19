@@ -32,7 +32,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
 func main() {
@@ -40,13 +40,13 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    // List of elements
+// List of elements
 	input := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
-    // The applyTransform() converts [input] to [output]
-    output := applyTransform(s, input)
+// The applyTransform() converts [input] to [output]
+output := applyTransform(s, input)
 
-	debug.Print(s, output)
+	debug.Printf(s, "PCollection mean value: %v", output)
 
 	err := beamx.Run(ctx, p)
 

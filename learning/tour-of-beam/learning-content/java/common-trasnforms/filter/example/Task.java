@@ -50,7 +50,7 @@ public class Task {
         // The [numbers] filtered with the applyTransform()
         PCollection<Integer> output = applyTransform(numbers);
 
-        output.apply("Log", ParDo.of(new LogOutput<Integer>()));
+        output.apply("Log", ParDo.of(new LogOutput<Integer>("PCollection filtered value")));
 
         pipeline.run();
     }

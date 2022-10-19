@@ -12,7 +12,7 @@ limitations under the License.
 
 # Count
 
-Count to get the total number of elements in different ways.
+`Count` provides many transformations for calculating the count of values in a `PCollection`, either globally or for each key.
 
 ### Counting all elements in a PCollection
 
@@ -97,6 +97,24 @@ Output
 ('🌽', 1)
 ```
 
-### Description for example
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
-Created a list of integers ```PCollection```. The ```beam.combiners.Count.Globally()``` function returns the count of numbers from ```PCollection```.
+`Count.globally` returns the number of integers from the `PCollection`. If you replace the `integers input` with this `map input` and replace `beam.combiners.Count.Globally` on `beam.combiners.Count.PerKey` it will output the count numbers by key :
+
+```
+beam.Create([
+    (1, 36),
+    (2, 91),
+    (3, 33),
+    (3, 11),
+    (4, 67),
+]) | beam.combiners.Count.PerKey()
+```
+
+For unique element count use:
+
+```
+beam.combiners.Count.PerElement()
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

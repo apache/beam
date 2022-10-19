@@ -55,7 +55,7 @@ public class Task {
         // The [words] filtered with the applyTransform()
         PCollection<KV<String, String>> output = applyTransform(words);
 
-        output.apply("Log", ParDo.of(new LogOutput<KV<String,String>>()));
+        output.apply("Log", ParDo.of(new LogOutput<KV<String,String>>("PCollection with-keys value")));
 
         pipeline.run();
     }

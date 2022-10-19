@@ -81,7 +81,7 @@ with beam.Pipeline() as pipeline:
           ('🍅', 5),
           ('🍅', 3),
       ])
-      | 'Get mean value per key' >> beam.combiners.Mean.PerKey()
+      | 'Get mean value per key' >> beam.combiners.Mean.Globally()
       | beam.Map(print))
 ```
 
@@ -93,6 +93,18 @@ Output
 ('🍅', 4.0)
 ```
 
-### Description for example
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
-Created a list of integers ```PCollection```. The ```beam.combiners.Mean.Globally()``` to returns the mean of numbers from `PCollection`.
+`beam.combiners.Mean.Globally()` returns mean from `PCCollection`. If you replace the `integers input` with this `map input` and replace `beam.combiners.Mean.Globally()` on `beam.combiners.Mean.PerKey()` it will output the mean by key :
+
+```
+beam.Create([
+    (1, 36),
+    (2, 91),
+    (3, 33),
+    (3, 11),
+    (4, 67),
+]) | beam.combiners.Mean.PerKey()
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

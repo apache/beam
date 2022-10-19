@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.values.KV;
 
 public class Task {
 
@@ -45,12 +46,12 @@ public class Task {
         Pipeline pipeline = Pipeline.create(options);
 
         // List of elements
-        PCollection<Integer> numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+        PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 
-        // The applyTransform() converts [numbers] to [output]
-        PCollection<Integer> output = applyTransform(numbers);
+        // The applyTransform() converts [input] to [output]
+        PCollection<Integer> output = applyTransform(input);
 
-        output.apply("Log", ParDo.of(new LogOutput<Integer>()));
+        output.apply("Log", ParDo.of(new LogOutput<>("PCollection maximum value")));
 
         pipeline.run();
     }

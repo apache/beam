@@ -49,6 +49,30 @@ KV{🥕, 2.5}
 KV{🍅, 4.0}
 ```
 
-### Description for example
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
-Given a list of integers ```PCollection```. The ```applyTransform()``` function returns the mean of number from ```PCollection```.
+`Mean.globally` returns the mean from the `PCollection`. If you replace the `integers input` with this `map input`:
+
+```
+PCollection<KV<Integer, Integer>> input = pipeline.apply(
+    Create.of(KV.of(1, 11),
+    KV.of(1, 36),
+    KV.of(2, 91),
+    KV.of(3, 33),
+    KV.of(3, 11),
+    KV.of(4, 33)));
+```
+
+And replace `Mean.globally` on `Mean.perKey` it will output the means by key. It is also necessary to replace the generic type:
+
+```
+PCollection<KV<Integer, Double>> output = applyTransform(input);
+```
+
+```
+static PCollection<KV<Integer, Double>> applyTransform(PCollection<KV<Integer, Integer>> input) {
+        return input.apply(Mean.perKey());
+    }
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

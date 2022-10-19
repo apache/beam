@@ -40,6 +40,21 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
-### Description for example
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
-Given a list of integers ```PCollection```. The ```applyTransform()``` function returns the sum of numbers from ```PCollection```.
+`Sum` returns the sum from the `PCollection`. If you replace the `integers input` with this `map input`:
+
+```
+input:= beam.ParDo(s, func(_ []byte, emit func(int, int)){
+     emit(1,1)
+     emit(1,4)
+     emit(2,6)
+     emit(2,3)
+     emit(2,-4)
+     emit(3,23)
+  }, beam.Impulse(s))
+```
+
+And replace `stats.Sum` on `stats.SumPerKey` it will output the sum by key.
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

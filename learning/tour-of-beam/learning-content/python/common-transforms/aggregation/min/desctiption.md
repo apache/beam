@@ -65,6 +65,20 @@ Output
 ('🍅', 3)
 ```
 
-### Description for example
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
-Created a list of integers ```PCollection```. The ```beam.combiners.Top.Smallest(5)``` to returns the small number than [5] from `PCollection`.
+`Top.Smallest` returns smaller numbers from `PCollection` than specified in the function argument. If you replace the `integers input` with this `map input` and replace `beam.combiners.Top.Smallest(5)` on `beam.CombinePerKey(min)` it will output the minimum numbers by key :
+
+```
+beam.Create([
+    (1, 36),
+    (2, 91),
+    (3, 33),
+    (3, 11),
+    (4, 67),
+]) | beam.CombinePerKey(min)
+```
+
+
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

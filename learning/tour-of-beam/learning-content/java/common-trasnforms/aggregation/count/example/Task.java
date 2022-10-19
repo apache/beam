@@ -35,6 +35,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.transforms.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.values.KV;
 
 public class Task {
 
@@ -45,18 +46,18 @@ public class Task {
         Pipeline pipeline = Pipeline.create(options);
 
         // List of elements
-        PCollection<Integer> numbers =
+        PCollection<Integer> input =
                 pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 
-        // The applyTransform() converts [numbers] to [output]
-        PCollection<Long> output = applyTransform(numbers);
+        // The applyTransform() converts [input] to [output]
+        PCollection<Long> output = applyTransform(input);
 
-        output.apply("Log", ParDo.of(new LogOutput<Long>()));
+        output.apply("Log", ParDo.of(new LogOutput<>("PCollection count value")));
 
         pipeline.run();
     }
 
-    // Count.globally() to return the globally count from `PCollection
+    // Count.globally() to return the globally count from `PCollection`
     static PCollection<Long> applyTransform(PCollection<Integer> input) {
         return input.apply(Count.globally());
     }

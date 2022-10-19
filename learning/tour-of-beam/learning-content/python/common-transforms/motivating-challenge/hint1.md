@@ -10,7 +10,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-You can solve the challenge with this way:
+To solve this challenge, you may build a pipeline that consists of the following steps:
 1. Filter whether the number is equal to zero or greater than it using `Filter`
 2. Set the "odd" key for odd numbers and "even" for even numbers using `WithKeys`
 3. Count the number of even and odd numbers using the `Count.PerKey()`

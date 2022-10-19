@@ -36,6 +36,8 @@ Output
 ('m', 'melon')
 ```
 
-### Description for example
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
-Given a list of strings, the output consists of a map with a key that is the first letter of the word , and whose value is the word itself.
+The data is returned, which consists of a card with a key, which is the first letter of the word and the meaning of which is the word itself.
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

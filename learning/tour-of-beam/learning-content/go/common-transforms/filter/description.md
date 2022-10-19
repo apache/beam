@@ -29,6 +29,8 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
-### Description for example
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
-Given a list of integers , printing even numbers using ```Filter```. The ```applyTransform()``` function implements a filter in which the logic determines the numbers are even.
+`filter.Exclude` excludes a number if it is divisible by 2 with a remainder. If you make an `filte.Include` filter, it will work the other way around, it will filter elements that satisfy the filter logic
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.
