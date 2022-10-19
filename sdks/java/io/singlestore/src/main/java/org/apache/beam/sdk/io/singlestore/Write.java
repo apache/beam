@@ -94,30 +94,10 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
 
   @Override
   public PDone expand(PCollection<T> input) {
-    DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
-    if (dataSourceConfiguration == null) {
-      throw new IllegalArgumentException("withDataSourceConfiguration() is required");
-    }
-
-    ValueProvider<String> tableProvider = getTable();
-    if ((tableProvider = getTable()) == null) {
-      throw new IllegalArgumentException("withTable() is required");
-    }
-    String table = tableProvider.get();
-    if (table == null) {
-      throw new IllegalArgumentException("withTable() is required");
-    }
-
-    UserDataMapper<T> userDataMapper = getUserDataMapper();
-    if (userDataMapper == null) {
-      throw new IllegalArgumentException("withUserDataMapper() is required");
-    }
-
-    int batchSize = DEFAULT_BATCH_SIZE;
-    ValueProvider<Integer> batchSizeProvider = getBatchSize();
-    if (batchSizeProvider != null && batchSizeProvider.get() != null) {
-      batchSize = batchSizeProvider.get();
-    }
+    DataSourceConfiguration dataSourceConfiguration = Util.getRequiredArgument(getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
+    String table = Util.getRequiredArgument(getTable(), "withTable() is required");
+    UserDataMapper<T> userDataMapper = Util.getRequiredArgument(getUserDataMapper(), "withUserDataMapper() is required");
+    int batchSize = Util.getArgumentWithDefault(getBatchSize(), DEFAULT_BATCH_SIZE);
 
     input
         .apply(

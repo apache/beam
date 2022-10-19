@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.singlestore;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -133,18 +132,10 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
   @Override
   public PCollection<T> expand(PBegin input) {
-    DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
-    if (dataSourceConfiguration == null) {
-      throw new IllegalArgumentException("withDataSourceConfiguration() is required");
-    }
-
-    RowMapper<T> rowMapper = getRowMapper();
-    if (rowMapper == null) {
-      throw new IllegalArgumentException("withRowMapper() is required");
-    }
-
-    StatementPreparator statementPreparator = getStatementPreparator();
-
+    DataSourceConfiguration dataSourceConfiguration = Util.getRequiredArgument(
+        getDataSourceConfiguration(),
+        "withDataSourceConfiguration() is required");
+    RowMapper<T> rowMapper = Util.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
     String actualQuery = Util.getSelectQuery(getTable(), getQuery());
 
     Coder<T> coder =
@@ -163,16 +154,11 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
                     new ReadFn<>(
                         dataSourceConfiguration,
                         actualQuery,
-                        statementPreparator,
+                        getStatementPreparator(),
                         rowMapper)))
             .setCoder(coder);
 
-    boolean outputParallelization = true;
-    ValueProvider<Boolean> outputParallelizationProvider = getOutputParallelization();
-    if (outputParallelizationProvider != null && outputParallelizationProvider.get() != null) {
-      outputParallelization = outputParallelizationProvider.get();
-    }
-    if (outputParallelization) {
+    if (Util.getArgumentWithDefault(getOutputParallelization(), true)) {
       output = output.apply(new Reparallelize<>());
     }
 

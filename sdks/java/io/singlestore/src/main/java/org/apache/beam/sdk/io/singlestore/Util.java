@@ -37,7 +37,7 @@ public class Util {
     return "'" + identifier.replace("\\", "\\\\").replace("'", "\\'") + "'";
   }
 
-  public static <OutputT> Coder<OutputT> inferCoder(
+  public static <OutputT> @Nullable Coder<OutputT> inferCoder(
       @Nullable Coder<OutputT> defaultCoder,
       RowMapper<OutputT> rowMapper,
       CoderRegistry registry,
@@ -81,4 +81,33 @@ public class Util {
       throw new IllegalArgumentException("One of withTable() or withQuery() is required");
     }
   }
+
+  public static <OutputT> OutputT getRequiredArgument(@Nullable ValueProvider<OutputT> provider, String errorMessage) {
+    if (provider == null) {
+      throw new IllegalArgumentException(errorMessage);
+    }
+    return getRequiredArgument(provider.get(), errorMessage);
+  }
+
+  public static <OutputT> OutputT getRequiredArgument(@Nullable OutputT value, String errorMessage) {
+    if (value == null) {
+      throw new IllegalArgumentException(errorMessage);
+    }
+    return value;
+  }
+
+  public static <OutputT> OutputT getArgumentWithDefault(@Nullable ValueProvider<OutputT> provider, OutputT defaultValue) {
+    if (provider == null) {
+      return defaultValue;
+    }
+    return getArgumentWithDefault(provider.get(), defaultValue);
+  }
+
+  public static <OutputT> OutputT getArgumentWithDefault(@Nullable OutputT value, OutputT defaultValue) {
+    if (value == null) {
+      return defaultValue;
+    }
+    return value;
+  }
+
 }

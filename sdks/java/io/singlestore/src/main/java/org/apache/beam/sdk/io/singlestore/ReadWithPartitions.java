@@ -122,31 +122,11 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
 
   @Override
   public PCollection<T> expand(PBegin input) {
-    DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
-    if (dataSourceConfiguration == null) {
-      throw new IllegalArgumentException("withDataSourceConfiguration() is required");
-    }
+    DataSourceConfiguration dataSourceConfiguration = Util.getRequiredArgument(getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
+    String database = Util.getRequiredArgument(dataSourceConfiguration.getDatabase(), "withDatabase() is required for DataSourceConfiguration in order to perform readWithPartitions");
+    RowMapper<T> rowMapper = Util.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
 
-    ValueProvider<String> databaseProvider = dataSourceConfiguration.getDatabase();
-    if (databaseProvider == null) {
-      throw new IllegalArgumentException("withDatabase() is required for DataSourceConfiguration in order to perform readWithPartitions");
-    }
-
-    String database = databaseProvider.get();
-    if (database == null) {
-      throw new IllegalArgumentException("withDatabase() is required for DataSourceConfiguration in order to perform readWithPartitions");
-    }
-
-    RowMapper<T> rowMapper = getRowMapper();
-    if (rowMapper == null) {
-      throw new IllegalArgumentException("withRowMapper() is required");
-    }
-
-    int initialNumReaders = 1;
-    ValueProvider<Integer> initialNumReadersProvider = getInitialNumReaders();
-    if (initialNumReadersProvider != null && initialNumReadersProvider.get() != null) {
-      initialNumReaders = initialNumReadersProvider.get();
-    }
+    int initialNumReaders = Util.getArgumentWithDefault(getInitialNumReaders(), 1);
     checkArgument(initialNumReaders < 1, "withInitialNumReaders() can not be less then 1");
 
     String actualQuery = Util.getSelectQuery(getTable(), getQuery());
@@ -158,7 +138,6 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
             input.getPipeline().getCoderRegistry(),
             input.getPipeline().getSchemaRegistry(),
             LOG);
-
 
     return input
         .apply(Create.of((Void) null))
