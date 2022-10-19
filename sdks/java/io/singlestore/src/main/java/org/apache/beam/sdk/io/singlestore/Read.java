@@ -140,16 +140,26 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
     ValueProvider<Boolean> outputParallelization = getOutputParallelization();
     StatementPreparator statementPreparator = getStatementPreparator();
 
-    checkArgument(
-        dataSourceConfiguration != null, "withDataSourceConfiguration() is required");
-    checkArgument(rowMapper != null, "withRowMapper is required");
+    if (dataSourceConfiguration == null) {
+      throw new IllegalArgumentException("withDataSourceConfiguration() is required");
+    }
+    if (rowMapper == null) {
+      throw new IllegalArgumentException("withRowMapper() is required");
+    }
 
     String table = (tableProvider == null) ? null : tableProvider.get();
     String query = (queryProvider == null) ? null : queryProvider.get();
-    checkArgument(
-        !(table == null && query == null), "One of withTable() or withQuery() is required");
-    checkArgument(
-        !(table != null && query != null), "withTable() can not be used together with withQuery()");
+    String actualQuery = "";
+
+    if (table != null && query != null) {
+      throw new IllegalArgumentException("withTable() can not be used together with withQuery()");
+    } else if (table != null) {
+      actualQuery = "SELECT * FROM " + Util.escapeIdentifier(table);
+    } else if (query != null) {
+      actualQuery = query;
+    } else {
+      throw new IllegalArgumentException("One of withTable() or withQuery() is required");
+    }
 
     Coder<T> coder =
         Util.inferCoder(
@@ -158,7 +168,6 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
             input.getPipeline().getCoderRegistry(),
             input.getPipeline().getSchemaRegistry(),
             LOG);
-    query = (query != null) ? query : "SELECT * FROM " + Util.escapeIdentifier(table);
 
     PCollection<T> output =
         input
@@ -167,7 +176,7 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
                 ParDo.of(
                     new ReadFn<>(
                         dataSourceConfiguration,
-                        query,
+                        actualQuery,
                         statementPreparator,
                         rowMapper)))
             .setCoder(coder);
