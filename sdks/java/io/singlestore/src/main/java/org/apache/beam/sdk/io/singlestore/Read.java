@@ -183,18 +183,27 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @ProcessElement
     public void processElement(ProcessContext context) throws Exception {
       DataSource dataSource = dataSourceConfiguration.getDataSource();
-      try (Connection conn = dataSource.getConnection()) {
-        try (PreparedStatement stmt = conn.prepareStatement(query)) {
+      Connection conn = dataSource.getConnection();
+      try {
+        PreparedStatement stmt = conn.prepareStatement(query);
+        try {
           if (statementPreparator != null) {
             statementPreparator.setParameters(stmt);
           }
 
-          try (ResultSet res = stmt.executeQuery()) {
+          ResultSet res = stmt.executeQuery();
+          try {
             while (res.next()) {
               context.output(rowMapper.mapRow(res));
             }
+          } finally {
+            res.close();
           }
+        } finally {
+          stmt.close();
         }
+      } finally {
+        conn.close();
       }
     }
   }

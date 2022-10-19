@@ -156,8 +156,10 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
     public void processElement(ProcessContext context) throws Exception {
       DataSource dataSource = dataSourceConfiguration.getDataSource();
 
-      try (Connection conn = dataSource.getConnection()) {
-        try (Statement stmt = conn.createStatement();
+      Connection conn = dataSource.getConnection();
+      try {
+        Statement stmt = conn.createStatement();
+        try (
             PipedOutputStream baseStream = new PipedOutputStream();
             InputStream inputStream = new PipedInputStream(baseStream, BUFFER_SIZE)) {
           ((com.singlestore.jdbc.Statement) ((DelegatingStatement) stmt).getInnermostDelegate())
@@ -210,7 +212,11 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
           if (writeException[0] != null) {
             throw writeException[0];
           }
+        } finally {
+          stmt.close();
         }
+      } finally {
+        conn.close();
       }
     }
   }

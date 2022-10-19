@@ -178,20 +178,29 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
     public void processElement(
         ProcessContext context, RestrictionTracker<OffsetRange, Long> tracker) throws Exception {
       DataSource dataSource = dataSourceConfiguration.getDataSource();
-      try (Connection conn = dataSource.getConnection()) {
+      Connection conn = dataSource.getConnection();
+      try {
         for (long partition = tracker.currentRestriction().getFrom();
             tracker.tryClaim(partition);
             partition++) {
-          try (PreparedStatement stmt =
+          PreparedStatement stmt =
               conn.prepareStatement(
-                  String.format("SELECT * FROM (%s) WHERE partition_id()=%d", query, partition))) {
-            try (ResultSet res = stmt.executeQuery()) {
+                  String.format("SELECT * FROM (%s) WHERE partition_id()=%d", query, partition));
+          try {
+            ResultSet res = stmt.executeQuery();
+            try {
               while (res.next()) {
                 context.output(rowMapper.mapRow(res));
               }
+            } finally {
+              res.close();
             }
+          } finally {
+            stmt.close();
           }
         }
+      } finally {
+        conn.close();
       }
     }
 
@@ -224,20 +233,29 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
 
     private int getNumPartitions() throws Exception {
       DataSource dataSource = dataSourceConfiguration.getDataSource();
-      try (Connection conn = dataSource.getConnection()) {
-        try (Statement stmt = conn.createStatement()) {
-          try (ResultSet res =
+      Connection conn = dataSource.getConnection();
+      try {
+        Statement stmt = conn.createStatement();
+        try {
+          ResultSet res =
               stmt.executeQuery(
                   String.format(
                       "SELECT num_partitions FROM information_schema.DISTRIBUTED_DATABASES WHERE database_name = %s",
-                      Util.escapeString(database)))) {
+                      Util.escapeString(database)));
+          try {
             if (!res.next()) {
               throw new Exception("Failed to get number of partitions in the database");
             }
 
             return res.getInt(1);
+          } finally {
+            res.close();
           }
+        } finally {
+          stmt.close();
         }
+      } finally {
+        conn.close();
       }
     }
   }
