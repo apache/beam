@@ -39,7 +39,7 @@ jobs:
           persist-credentials: false          
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action 
-      - name: Run *** RUN TPCDS IN BATCH MODE USING DATAFLOW RUNNER ***
+      - name: Run TPCDS in Batch mode on Dataflow
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: >

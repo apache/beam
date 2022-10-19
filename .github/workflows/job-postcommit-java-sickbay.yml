@@ -17,8 +17,8 @@
 
 name: PostCommit Java Sickbay
 #Disable in original jenkins job
-#on:
-#  workflow_dispatch:
+on:
+  workflow_dispatch:
 #  schedule:
 #    - cron: '0 */6 * * *'
 #  push:
