@@ -23,8 +23,8 @@ jobs:
         with: 
           distribution: 'temurin'
           java-version: |
-            8
-            11            
+            11
+            8            
       - name: Echoing java Home
         run: echo $JAVA_HOME_11_X64
       - name: Exporting Java_HOME to Java 8
