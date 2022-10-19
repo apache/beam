@@ -16,6 +16,7 @@
 package fs_content
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -23,14 +24,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func genUnitNode(id string) tob.Node {
+func getTaskNode(id string, sdk tob.Sdk) tob.Node {
 	return tob.Node{Type: tob.NODE_UNIT, Unit: &tob.Unit{
-		Id: id, Name: "Challenge Name",
-		Description: "## Challenge description\n\nbla bla bla",
+		Id: id, Title: "Challenge Name",
+		Description: "## Challenge description\n\nawesome description\n",
 		Hints: []string{
-			"## Hint 1\n\napply yourself :)",
-			"## Hint 2\n\napply more",
+			"## Hint 1\n\nhint 1",
+			"## Hint 2\n\nhint 2",
 		},
+		TaskSnippetId:     fmt.Sprintf("TB_EXAMPLES_%s_ChallengeTask", sdk.StorageID()),
+		SolutionSnippetId: fmt.Sprintf("TB_EXAMPLES_%s_ChallengeSolution", sdk.StorageID()),
+	}}
+}
+
+func getExampleNode(id string, sdk tob.Sdk) tob.Node {
+	return tob.Node{Type: tob.NODE_UNIT, Unit: &tob.Unit{
+		Id:            id,
+		Title:         "Example Unit Name",
+		TaskSnippetId: fmt.Sprintf("TB_EXAMPLES_%s_ExampleName", sdk.StorageID()),
 	}}
 }
 
@@ -42,17 +53,17 @@ func TestSample(t *testing.T) {
 		Sdk: tob.SDK_JAVA,
 		Modules: []tob.Module{
 			{
-				Id: "module1", Name: "Module One", Complexity: "BASIC",
+				Id: "module1", Title: "Module One", Complexity: "BASIC",
 				Nodes: []tob.Node{
-					{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "example1", Name: "Example Unit Name"}},
-					genUnitNode("challenge1"),
+					getExampleNode("example1", tob.SDK_JAVA),
+					getTaskNode("challenge1", tob.SDK_JAVA),
 				},
 			},
 			{
-				Id: "module2", Name: "Module Two", Complexity: "MEDIUM",
+				Id: "module2", Title: "Module Two", Complexity: "MEDIUM",
 				Nodes: []tob.Node{
-					{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "example21", Name: "Example Unit Name"}},
-					genUnitNode("challenge21"),
+					getExampleNode("example21", tob.SDK_JAVA),
+					getTaskNode("challenge21", tob.SDK_JAVA),
 				},
 			},
 		},
@@ -61,14 +72,16 @@ func TestSample(t *testing.T) {
 		Sdk: tob.SDK_PYTHON,
 		Modules: []tob.Module{
 			{
-				Id: "module1", Name: "Module One", Complexity: "BASIC",
+				Id: "module1", Title: "Module One", Complexity: "BASIC",
 				Nodes: []tob.Node{
-					{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "intro-unit", Name: "Intro Unit Name"}},
+					getExampleNode("intro-unit", tob.SDK_PYTHON),
 					{
 						Type: tob.NODE_GROUP, Group: &tob.Group{
-							Name: "The Group", Nodes: []tob.Node{
-								{Type: tob.NODE_UNIT, Unit: &tob.Unit{Id: "example1", Name: "Example Unit Name"}},
-								genUnitNode("challenge1"),
+							Id:    "group1",
+							Title: "The Group",
+							Nodes: []tob.Node{
+								getExampleNode("example1", tob.SDK_PYTHON),
+								getTaskNode("challenge1", tob.SDK_PYTHON),
 							},
 						},
 					},

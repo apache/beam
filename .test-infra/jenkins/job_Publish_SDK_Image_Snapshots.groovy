@@ -50,6 +50,7 @@ job('beam_Publish_Beam_SDK_Snapshots') {
       }
       switches("-Pdocker-repository-root=${imageRepo}")
       switches("-Pdocker-tag-list=${imageTag},latest")
+      switches("-Pjava11Home=${commonJobProperties.JAVA_11_HOME}")
     }
   }
 }

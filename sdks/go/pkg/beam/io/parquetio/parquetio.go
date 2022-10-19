@@ -18,7 +18,7 @@ package parquetio
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"strings"
 
@@ -100,7 +100,7 @@ func (a *parquetReadFn) ProcessElement(ctx context.Context, filename string, emi
 	}
 	defer fd.Close()
 
-	data, err := ioutil.ReadAll(fd)
+	data, err := io.ReadAll(fd)
 	if err != nil {
 		return err
 	}

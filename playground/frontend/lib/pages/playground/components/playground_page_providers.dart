@@ -17,22 +17,18 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/config.g.dart';
+import 'package:playground/constants/params.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/analytics/google_analytics_service.dart';
-import 'package:playground/modules/editor/repository/code_repository/code_client/grpc_code_client.dart';
-import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
-import 'package:playground/modules/examples/repositories/example_client/grpc_example_client.dart';
-import 'package:playground/modules/examples/repositories/example_repository.dart';
+import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
+import 'package:playground/modules/messages/handlers/messages_debouncer.dart';
+import 'package:playground/modules/messages/handlers/messages_handler.dart';
+import 'package:playground/modules/messages/listeners/messages_listener.dart';
 import 'package:playground/modules/output/models/output_placement_state.dart';
-import 'package:playground/pages/playground/states/example_loaders/examples_loader.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/feedback_state.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
-
-final CodeRepository kCodeRepository = CodeRepository(GrpcCodeClient());
-final ExampleRepository kExampleRepository =
-    ExampleRepository(GrpcExampleClient());
 
 class PlaygroundPageProviders extends StatelessWidget {
   final Widget child;
@@ -46,13 +42,51 @@ class PlaygroundPageProviders extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<AnalyticsService>(create: (context) => GoogleAnalyticsService()),
-        ChangeNotifierProvider<PlaygroundState>(
-          create: (context) => PlaygroundState(
-            examplesLoader: ExamplesLoader(),
-            exampleState: ExampleState(kExampleRepository)..init(),
-            codeRepository: kCodeRepository,
-          ),
+        Provider<AnalyticsService>(
+          create: (context) => GoogleAnalyticsService(),
+        ),
+        ChangeNotifierProvider<PlaygroundController>(
+          create: (context) {
+            final codeRepository = CodeRepository(
+              client: GrpcCodeClient(
+                url: kApiClientURL,
+                runnerUrlsById: {
+                  Sdk.java.id: kApiJavaClientURL,
+                  Sdk.go.id: kApiGoClientURL,
+                  Sdk.python.id: kApiPythonClientURL,
+                  Sdk.scio.id: kApiScioClientURL,
+                },
+              ),
+            );
+
+            final exampleRepository = ExampleRepository(
+              client: GrpcExampleClient(url: kApiClientURL),
+            );
+
+            final exampleCache = ExampleCache(
+              exampleRepository: exampleRepository,
+              hasCatalog: !isEmbedded(),
+            )..init();
+
+            final controller = PlaygroundController(
+              examplesLoader: ExamplesLoader(),
+              exampleCache: exampleCache,
+              codeRepository: codeRepository,
+            );
+
+            final descriptor = ExamplesLoadingDescriptorFactory.fromUriParts(
+              path: Uri.base.path,
+              params: Uri.base.queryParameters,
+            );
+            controller.examplesLoader.load(descriptor);
+
+            final handler = MessagesDebouncer(
+              handler: MessagesHandler(playgroundController: controller),
+            );
+            MessagesListener(handler: handler);
+
+            return controller;
+          },
         ),
         ChangeNotifierProvider<OutputPlacementState>(
           create: (context) => OutputPlacementState(),

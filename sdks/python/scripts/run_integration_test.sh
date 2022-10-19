@@ -145,6 +145,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --disable_runner_v2)
+        DISABLE_RUNNER_V2="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --kms_key_name)
         KMS_KEY_NAME="$2"
         shift # past argument
@@ -263,6 +268,11 @@ if [[ -z $PIPELINE_OPTS ]]; then
       opts+=("--experiments=beam_fn_api")
     fi
 
+  fi
+
+  # Add --disable_runner_v2 if provided
+  if [[ "$DISABLE_RUNNER_V2" = true ]]; then
+    opts+=("--experiments=disable_runner_v2")
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then

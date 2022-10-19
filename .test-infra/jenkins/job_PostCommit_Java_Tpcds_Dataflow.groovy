@@ -17,12 +17,13 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import CommonTestProperties.Runner
-import CommonTestProperties.SDK
-import CommonTestProperties.TriggeringContext
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
+
+import static TpcdsDatabaseProperties.tpcdsBigQueryArgs
+import static TpcdsDatabaseProperties.tpcdsInfluxDBArgs
+import static TpcdsDatabaseProperties.tpcdsQueriesArg
 
 
 // This job runs the suite of Tpcds tests against the Dataflow runner.
@@ -36,7 +37,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Da
 
       // Gradle goals for this job.
       steps {
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING DATAFLOW RUNNER ***"')
+        shell('echo "*** RUN TPC-DS USING DATAFLOW RUNNER ***"')
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:tpcds:run')
@@ -44,18 +45,19 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Da
           switches('-Ptpcds.runner=":runners:google-cloud-dataflow-java"' +
               ' -Ptpcds.args="' +
               [
+                commonJobProperties.mapToArgString(tpcdsBigQueryArgs),
+                commonJobProperties.mapToArgString(tpcdsInfluxDBArgs),
                 '--runner=DataflowRunner',
                 '--region=us-central1',
-                '--project=apache-beam-testing',
                 '--numWorkers=4',
                 '--maxNumWorkers=4',
                 '--autoscalingAlgorithm=NONE',
                 '--dataSize=1GB',
                 '--sourceType=PARQUET',
-                '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
+                '--dataDirectory=gs://beam-tpcds/datasets/parquet/nonpartitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/dataflow/',
                 '--tpcParallel=1',
-                '--queries=3'
+                '--queries=' + tpcdsQueriesArg
               ].join(' '))
         }
       }
@@ -70,7 +72,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Data
 
       // Gradle goals for this job.
       steps {
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING DATAFLOW RUNNER ***"')
+        shell('echo "*** RUN TPC-DS USING DATAFLOW RUNNER ***"')
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:tpcds:run')
@@ -78,18 +80,19 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Data
           switches('-Ptpcds.runner=":runners:google-cloud-dataflow-java"' +
               ' -Ptpcds.args="' +
               [
+                commonJobProperties.mapToArgString(tpcdsBigQueryArgs),
+                commonJobProperties.mapToArgString(tpcdsInfluxDBArgs),
                 '--runner=DataflowRunner',
                 '--region=us-central1',
-                '--project=apache-beam-testing',
                 '--numWorkers=4',
                 '--maxNumWorkers=4',
                 '--autoscalingAlgorithm=NONE',
                 '--dataSize=1GB',
                 '--sourceType=PARQUET',
-                '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
+                '--dataDirectory=gs://beam-tpcds/datasets/parquet/nonpartitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/dataflow/',
                 '--tpcParallel=1',
-                '--queries=3'
+                '--queries=' + tpcdsQueriesArg
               ].join(' '))
         }
       }

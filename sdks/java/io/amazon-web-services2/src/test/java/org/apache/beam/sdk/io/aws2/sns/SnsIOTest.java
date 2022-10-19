@@ -43,6 +43,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
@@ -104,6 +105,7 @@ public class SnsIOTest implements Serializable {
   public void testSkipTopicValidation() {
     PCollection<String> input = mock(PCollection.class);
     when(input.getPipeline()).thenReturn(p);
+    when(input.apply(any(PTransform.class))).thenReturn(mock(PCollection.class));
 
     Write<String> snsWrite =
         SnsIO.<String>write().withPublishRequestBuilder(msg -> requestBuilder(msg, topicArn));

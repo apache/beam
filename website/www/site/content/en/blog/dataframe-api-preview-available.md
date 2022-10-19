@@ -170,7 +170,7 @@ haven't implemented yet that you'd find useful, so that we can prioritize it.
 
 If you'd like to learn more about how the DataFrame API works under the hood and
 get involved with the development we recommend you take a look at the
-[design doc](http://s.apache.org/beam-dataframes)
+[design doc](https://s.apache.org/beam-dataframes)
 and our [Beam summit
 presentation](https://2020.beamsummit.org/sessions/simpler-python-pipelines/).
 From there the best way to help is to knock out some of those not implemented

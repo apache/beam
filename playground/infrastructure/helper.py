@@ -22,6 +22,7 @@ import logging
 import os
 from collections import namedtuple
 from dataclasses import dataclass, fields
+from pathlib import PurePath
 from typing import List, Optional, Dict
 
 from tqdm.asyncio import tqdm
@@ -33,21 +34,23 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
     STATUS_COMPILING, STATUS_EXECUTING, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, \
     PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, \
     PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
-from config import Config, TagFields, PrecompiledExampleType, OptionalTagFields
+from config import Config, Origin, TagFields, PrecompiledExampleType, OptionalTagFields
 from grpc_client import GRPCClient
 
 Tag = namedtuple(
     "Tag",
     [
         TagFields.name,
+        TagFields.complexity,
         TagFields.description,
         TagFields.multifile,
         TagFields.categories,
         TagFields.pipeline_options,
         TagFields.default_example,
-        TagFields.context_line
+        TagFields.context_line,
+        TagFields.tags
     ],
-    defaults=(None, None, False, None, None, False, None))
+    defaults=(None, None, None, False, None, None, False, None, None))
 
 
 @dataclass
@@ -56,6 +59,7 @@ class Example:
     Class which contains all information about beam example
     """
     name: str
+    complexity: str
     sdk: SDK_UNSPECIFIED
     filepath: str
     code: str
@@ -66,6 +70,7 @@ class Example:
     type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
     pipeline_id: str = ""
     output: str = ""
+    compile_output: str = ""
     graph: str = ""
 
 
@@ -77,8 +82,19 @@ class ExampleTag:
     tag_as_dict: Dict[str, str]
     tag_as_string: str
 
+def _check_no_nested(subdirs: List[str]):
+    """
+    Check there're no nested subdirs
 
-def find_examples(work_dir: str, supported_categories: List[str],
+    Sort alphabetically and compare the pairs of adjacent items
+    using pathlib.PurePath: we don't want fs calls in this check
+    """
+    sorted_subdirs = sorted(PurePath(s) for s in subdirs)
+    for dir1, dir2 in zip(sorted_subdirs, sorted_subdirs[1:]):
+        if dir1 in [dir2, *dir2.parents]:
+            raise ValueError(f"{dir2} is a subdirectory of {dir1}")
+
+def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[str],
                   sdk: Sdk) -> List[Example]:
     """
     Find and return beam examples.
@@ -94,10 +110,14 @@ def find_examples(work_dir: str, supported_categories: List[str],
             - category-1
             - category-2
         pipeline_options: --inputFile your_file --outputFile your_output_file
-    If some example contain beam tag with incorrect format raise an error.
+        complexity: MEDIUM
+        tags:
+            - example
+    If some example contains beam tag with incorrect format raise an error.
 
     Args:
-        work_dir: directory where to search examples.
+        root_dir: project root dir
+        subdirs: sub-directories where to search examples.
         supported_categories: list of supported categories.
         sdk: sdk that using to find examples for the specific sdk.
 
@@ -106,16 +126,20 @@ def find_examples(work_dir: str, supported_categories: List[str],
     """
     has_error = False
     examples = []
-    for root, _, files in os.walk(work_dir):
-        for filename in files:
-            filepath = os.path.join(root, filename)
-            error_during_check_file = _check_file(
-                examples=examples,
-                filename=filename,
-                filepath=filepath,
-                supported_categories=supported_categories,
-                sdk=sdk)
-            has_error = has_error or error_during_check_file
+    _check_no_nested(subdirs)
+    for subdir in subdirs:
+        subdir = os.path.join(root_dir, subdir)
+        logging.info("subdir: %s", subdir)
+        for root, _, files in os.walk(subdir):
+            for filename in files:
+                filepath = os.path.join(root, filename)
+                error_during_check_file = _check_file(
+                    examples=examples,
+                    filename=filename,
+                    filepath=filepath,
+                    supported_categories=supported_categories,
+                    sdk=sdk)
+                has_error = has_error or error_during_check_file
     if has_error:
         raise ValueError(
             "Some of the beam examples contain beam playground tag with "
@@ -123,7 +147,7 @@ def find_examples(work_dir: str, supported_categories: List[str],
     return examples
 
 
-async def get_statuses(examples: List[Example]):
+async def get_statuses(client: GRPCClient, examples: List[Example], concurrency: int = 10):
     """
     Receive status and update example.status and example.pipeline_id for
     each example
@@ -133,10 +157,16 @@ async def get_statuses(examples: List[Example]):
         pipeline_id values.
     """
     tasks = []
-    client = GRPCClient()
-    for example in examples:
-        tasks.append(_update_example_status(example, client))
-    await tqdm.gather(*tasks)
+    try:
+        concurrency = int(os.environ["BEAM_CONCURRENCY"])
+        logging.info("override default concurrency: %d", concurrency)
+    except (KeyError, ValueError):
+        pass
+
+    async with asyncio.Semaphore(concurrency):
+        for example in examples:
+            tasks.append(_update_example_status(example, client))
+        await tqdm.gather(*tasks)
 
 
 def get_tag(filepath) -> Optional[ExampleTag]:
@@ -243,6 +273,7 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
         Parsed Example object.
     """
     name = tag.tag_as_dict[TagFields.name]
+    complexity = tag.tag_as_dict[TagFields.complexity]
     sdk = Config.EXTENSION_TO_SDK[filename.split(os.extsep)[-1]]
     object_type = _get_object_type(filename, filepath)
     with open(filepath, encoding="utf-8") as parsed_file:
@@ -256,8 +287,9 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
     else:
         link = "{}/{}".format(Config.LINK_PREFIX, file_path_without_root)
 
-    return Example(
+    example = Example(
         name=name,
+        complexity=complexity,
         sdk=sdk,
         filepath=filepath,
         code=content,
@@ -265,6 +297,9 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
         tag=Tag(**tag.tag_as_dict),
         type=object_type,
         link=link)
+
+    validate_example_fields(example)
+    return example
 
 
 def _validate(tag: dict, supported_categories: List[str]) -> bool:
@@ -433,6 +468,37 @@ def validate_examples_for_duplicates_by_name(examples: List[Example]):
             err_msg = f"Examples have duplicate names.\nDuplicates: \n - path #1: {duplicates[example.name].filepath} \n - path #2: {example.filepath}"
             logging.error(err_msg)
             raise ValidationException(err_msg)
+
+
+def validate_example_fields(example: Example):
+    """
+    Validate example fields to avoid side effects in the next step
+    :param example: example from the repository
+    """
+    if example.filepath == "":
+        err_msg = f"Example doesn't have a file path field. Example: {example}"
+        logging.error(err_msg)
+        raise ValidationException(err_msg)
+    if example.name == "":
+        err_msg = f"Example doesn't have a name field. Path: {example.filepath}"
+        logging.error(err_msg)
+        raise ValidationException(err_msg)
+    if example.sdk == SDK_UNSPECIFIED:
+        err_msg = f"Example doesn't have a sdk field. Path: {example.filepath}"
+        logging.error(err_msg)
+        raise ValidationException(err_msg)
+    if example.code == "":
+        err_msg = f"Example doesn't have a code field. Path: {example.filepath}"
+        logging.error(err_msg)
+        raise ValidationException(err_msg)
+    if example.link == "":
+        err_msg = f"Example doesn't have a link field. Path: {example.filepath}"
+        logging.error(err_msg)
+        raise ValidationException(err_msg)
+    if example.complexity == "":
+        err_msg = f"Example doesn't have a complexity field. Path: {example.filepath}"
+        logging.error(err_msg)
+        raise ValidationException(err_msg)
 
 
 class ValidationException(Exception):
