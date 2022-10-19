@@ -52,7 +52,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/** This transform periodically recalculates the schema for */
+/** This transform periodically recalculates the schema for each destination table. */
 @SuppressWarnings({"unused"})
 class PeriodicallyRefreshTableSchema<DestinationT, ElementT>
     extends PTransform<
@@ -115,9 +115,9 @@ class PeriodicallyRefreshTableSchema<DestinationT, ElementT>
 
   private class RefreshTableSchemaDoFn
       extends DoFn<KV<Void, DestinationT>, TimestampedValue<Map<String, String>>> {
-    private final String DESTINATIONS_TAG = "destinations";
-    private final String DESTINATIONS_TIMER_TIME = "dest_timer_time";
-    private final String DESTINATIONS_TIMER = "destinationsTimer";
+    private static final String DESTINATIONS_TAG = "destinations";
+    private static final String DESTINATIONS_TIMER_TIME = "dest_timer_time";
+    private static final String DESTINATIONS_TIMER = "destinationsTimer";
 
     @StateId(DESTINATIONS_TAG)
     private final StateSpec<ValueState<Set<String>>> destinationsSpec = StateSpecs.value();
