@@ -18,6 +18,7 @@
 
 import CommonJobProperties as common
 import Kubernetes
+import InfluxDBCredentialsHelper
 
 String jobName = "beam_PerformanceTests_SingleStoreIO"
 
@@ -40,6 +41,7 @@ job(jobName) {
       delegate,
       'Java SingleStoreIO Performance Test',
       'Run Java SingleStoreIO Performance Test')
+  InfluxDBCredentialsHelper.useCredentials(delegate)
 
 
   String namespace = common.getKubernetesNamespace(jobName)
@@ -62,7 +64,10 @@ job(jobName) {
     singleStoreUsername : "admin",
     singleStorePassword : "secretpass",
     singleStorePort: "3306",
-    numberOfRecords: "100000"
+    numberOfRecords: "100000",
+    influxMeasurement    : 'singlestoreioit_results',
+    influxDatabase       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influxHost           : InfluxDBCredentialsHelper.InfluxDBHostUrl
   ]
 
   steps {

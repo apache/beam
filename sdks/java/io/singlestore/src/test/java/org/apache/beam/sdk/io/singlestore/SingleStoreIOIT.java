@@ -19,12 +19,18 @@ package org.apache.beam.sdk.io.singlestore;
 
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 
+import com.google.cloud.Timestamp;
 import com.singlestore.jdbc.SingleStoreDataSource;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -34,7 +40,11 @@ import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
+import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -68,6 +78,8 @@ public class SingleStoreIOIT {
 
   private static DataSourceConfiguration dataSourceConfiguration;
 
+  private static InfluxDBSettings settings;
+
   @BeforeClass
   public static void setup() {
     SingleStoreIOTestPipelineOptions options;
@@ -89,6 +101,12 @@ public class SingleStoreIOIT {
             .withDatabase(DATABASE_NAME)
             .withPassword(password)
             .withUsername(username);
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
   }
 
   void createDatabaseIfNotExists() throws SQLException {
@@ -120,9 +138,44 @@ public class SingleStoreIOIT {
       readResult.waitUntilFinish();
       PipelineResult readResultWithPartitions = runReadWithPartitions();
       readResultWithPartitions.waitUntilFinish();
+      gatherAndPublishMetrics(writeResult, readResult, readResultWithPartitions);
     } finally {
       DatabaseTestHelper.deleteTable(dataSource, tableName);
     }
+  }
+
+  private void gatherAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult, PipelineResult readResultWithPartitions) {
+    String uuid = UUID.randomUUID().toString();
+    String timestamp = Timestamp.now().toString();
+
+    IOITMetrics writeMetrics =
+        new IOITMetrics(getMetricSuppliers(uuid, timestamp, "write_time"), writeResult, NAMESPACE, uuid, timestamp);
+    writeMetrics.publishToInflux(settings);
+
+    IOITMetrics readMetrics =
+        new IOITMetrics(
+            getMetricSuppliers(uuid, timestamp, "read_time"), readResult, NAMESPACE, uuid, timestamp);
+    readMetrics.publishToInflux(settings);
+
+    IOITMetrics readMetricsWithPartitions =
+        new IOITMetrics(
+            getMetricSuppliers(uuid, timestamp, "read_with_partitions_time"), readResultWithPartitions, NAMESPACE, uuid, timestamp);
+    readMetricsWithPartitions.publishToInflux(settings);
+  }
+
+  private Set<Function<MetricsReader, NamedTestResult>> getMetricSuppliers(
+      String uuid, String timestamp, String metricName) {
+    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+
+    suppliers.add(
+        reader -> {
+          long writeStart = reader.getStartTimeMetric(metricName);
+          long writeEnd = reader.getEndTimeMetric(metricName);
+          return NamedTestResult.create(
+              uuid, timestamp, metricName, (writeEnd - writeStart) / 1e3);
+        });
+
+    return suppliers;
   }
 
   private static class TestUserDataMapper implements UserDataMapper<TestRow> {
