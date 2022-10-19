@@ -30,6 +30,6 @@ jobs:
       - name: Exporting Java_HOME to Java 8
         run: echo "JAVA_HOME=${JAVA_HOME_8_X64}" >> $GITHUB_ENV
       - name: Installing ensurepip
-        run: sudo apt install python3.8-venv
+        run: sudo apt install -y python3.8-venv
       - name: Testing gradlew publish
         run: ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=1rc1 -Pjava11Home=${JAVA_HOME_11_X64}
