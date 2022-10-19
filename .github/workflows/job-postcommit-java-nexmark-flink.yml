@@ -15,7 +15,6 @@
 
 # Nexmark tests using Flink Runner.
 
-
 name: PostCommit Java Nexmark Flink
 
 on:
@@ -27,165 +26,56 @@ on:
     tags: 'v*'
 permissions: read-all
 
-env:
-  BIGQUERYTABLE: nexmark
-  BIGQUERYDATASET: nexmark
-  PROJECT: apache-beam-testing
-  RESOURCENAMEMODE: QUERY_RUNNER_AND_MODE
-  EXPORTSUMMARYTOBIGQUERY: true
-  TEMPLOCATION: gs://temp-storage-for-perf-tests/nexmark
-  INFLUXDATABASE: beam_test_metrics
-  INFLUXHOST: http://10.128.0.96:8086 
-  BASEINFLUXMEASUREMENT: nexmark
-  EXPORTSUMMARYTOINFLUXDB: true
-  INFLUXRETENTIONPOLICY: forever
-  FLINKVERSION: 1.13
-
 jobs:
-  java-postcommit-nexmark-direct:
+  set-properties:
+    runs-on: [self-hosted, ubuntu-20.04]
+    outputs:
+      properties: ${{ steps.test-properties.outputs.properties }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - id: test-properties
+        uses: ./.github/actions/setup-default-test-properties
+
+  java-postcommit-nexmark-flink:
+    needs: set-properties
     name: Run PostCommit Java Nexmark - Flink Runner
     runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: false
+      matrix:
+        streaming: ["true","false"]
+        querytype: ["","--queryLanguage=sql","--queryLanguage=zetasql"]
     timeout-minutes: 240
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          persist-credentials: false          
-      - name: Run *** RUN NEXMARK IN BATCH MODE USING FLINK RUNNER ***
+          persist-credentials: false     
+      - name: Setup environment
+        uses: ./.github/actions/setup-self-hosted-action     
+      - name: Run Nexmark with Streaming=${{matrix.streaming}} with Flink runner
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: >
-            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:flink:$FLINKVERSION 
+          gradle-command: >-
+            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:flink:${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.FLINK_VERSION}}
             -Pnexmark.args=" 
-              --runner=FlinkRunner 
-              --bigQueryTable=$BIGQUERYTABLE
-              --bigQueryDataset=$BIGQUERYDATASET
-              --project=$PROJECT
-              --resourceNameMode=$RESOURCENAMEMODE
-              --exportSummaryToBigQuery=$EXPORTSUMMARYTOBIGQUERY
-              --tempLocation=$TEMPLOCATION
-              --influxDatabase=$INFLUXDATABASE
-              --influxHost=$INFLUXHOST
-              --baseInfluxMeasurement=$BASEINFLUXMEASUREMENT
-              --exportSummaryToInfluxDB=$EXPORTSUMMARYTOINFLUXDB
-              --influxRetentionPolicy=$INFLUXRETENTIONPOLICY
+              --runner=FlinkRunner
+              --bigQueryTable=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.BIGQUERY_TABLE}}
+              --bigQueryDataset=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.BIGQUERY_DATASET}}
+              --project=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.PROJECT}}
+              --resourceNameMode=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.RESOURCE_NAMEMODE}}
+              --exportSummaryToBigQuery=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.EXPORT_SUMMARY_TO_BIGQUERY}}
+              --tempLocation=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.TEMP_LOCATION}}
+              --influxDatabase=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.INFLUX_DATABASE}}
+              --influxHost=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.INFLUX_HOST}}
+              --baseInfluxMeasurement=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.BASE_INFLUX_MEASUREMENT}}
+              --exportSummaryToInfluxDB=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.EXPORT_SUMMARY_TO_INFLUXDB}}
+              --influxRetentionPolicy=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.INFLUX_RETENTION_POLICY}}
               --streaming=false 
               --suite=SMOKE 
               --manageResources=false 
-              --monitorJobs=true "
-      - name: Run *** RUN NEXMARK IN STREAMING MODE USING FLINK RUNNER ***
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: >
-            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:flink:$FLINKVERSION
-            -Pnexmark.args=" 
-              --runner=FlinkRunner 
-              --bigQueryTable=$BIGQUERYTABLE
-              --bigQueryDataset=$BIGQUERYDATASET
-              --project=$PROJECT
-              --resourceNameMode=$RESOURCENAMEMODE
-              --exportSummaryToBigQuery=$EXPORTSUMMARYTOBIGQUERY
-              --tempLocation=$TEMPLOCATION
-              --influxDatabase=$INFLUXDATABASE
-              --influxHost=$INFLUXHOST
-              --baseInfluxMeasurement=$BASEINFLUXMEASUREMENT
-              --exportSummaryToInfluxDB=$EXPORTSUMMARYTOINFLUXDB
-              --influxRetentionPolicy=$INFLUXRETENTIONPOLICY
-              --streaming=true 
-              --suite=SMOKE 
-              --manageResources=false 
-              --monitorJobs=true "
-      - name: Run *** RUN NEXMARK IN SQL BATCH MODE USING FLINK RUNNER ***
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: >
-            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:flink:$FLINKVERSION 
-            -Pnexmark.args=" 
-              --runner=FlinkRunner 
-              --bigQueryTable=$BIGQUERYTABLE
-              --bigQueryDataset=$BIGQUERYDATASET
-              --project=$PROJECT
-              --resourceNameMode=$RESOURCENAMEMODE
-              --exportSummaryToBigQuery=$EXPORTSUMMARYTOBIGQUERY
-              --tempLocation=$TEMPLOCATION
-              --influxDatabase=$INFLUXDATABASE
-              --influxHost=$INFLUXHOST
-              --baseInfluxMeasurement=$BASEINFLUXMEASUREMENT
-              --exportSummaryToInfluxDB=$EXPORTSUMMARYTOINFLUXDB
-              --influxRetentionPolicy=$INFLUXRETENTIONPOLICY
-              --queryLanguage=sql
-              --streaming=false
-              --suite=SMOKE 
-              --manageResources=false 
-              --monitorJobs=true "
-      - name: Run *** RUN NEXMARK IN SQL STREAMING MODE USING FLINK RUNNER ***
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: >
-            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:flink:$FLINKVERSION 
-            -Pnexmark.args=" 
-              --runner=FlinkRunner 
-              --bigQueryTable=$BIGQUERYTABLE
-              --bigQueryDataset=$BIGQUERYDATASET
-              --project=$PROJECT
-              --resourceNameMode=$RESOURCENAMEMODE
-              --exportSummaryToBigQuery=$EXPORTSUMMARYTOBIGQUERY
-              --tempLocation=$TEMPLOCATION
-              --influxDatabase=$INFLUXDATABASE
-              --influxHost=$INFLUXHOST
-              --baseInfluxMeasurement=$BASEINFLUXMEASUREMENT
-              --exportSummaryToInfluxDB=$EXPORTSUMMARYTOINFLUXDB
-              --influxRetentionPolicy=$INFLUXRETENTIONPOLICY
-              --queryLanguage=sql
-              --streaming=true
-              --suite=SMOKE 
-              --manageResources=false 
-              --monitorJobs=true "
-      - name: Run *** RUN NEXMARK IN ZETASQL BATCH MODE USING FLINK RUNNER ***
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: >
-            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:flink:$FLINKVERSION 
-            -Pnexmark.args=" 
-              --runner=FlinkRunner 
-              --bigQueryTable=$BIGQUERYTABLE
-              --bigQueryDataset=$BIGQUERYDATASET
-              --project=$PROJECT
-              --resourceNameMode=$RESOURCENAMEMODE
-              --exportSummaryToBigQuery=$EXPORTSUMMARYTOBIGQUERY
-              --tempLocation=$TEMPLOCATION
-              --influxDatabase=$INFLUXDATABASE
-              --influxHost=$INFLUXHOST
-              --baseInfluxMeasurement=$BASEINFLUXMEASUREMENT
-              --exportSummaryToInfluxDB=$EXPORTSUMMARYTOINFLUXDB
-              --influxRetentionPolicy=$INFLUXRETENTIONPOLICY
-              --queryLanguage=zetasql
-              --streaming=false
-              --suite=SMOKE 
-              --manageResources=false 
-              --monitorJobs=true "
-      - name: Run *** RUN NEXMARK IN ZETASQL STREAMING MODE USING FLINK RUNNER ***
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: >
-            :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:flink:$FLINKVERSION 
-            -Pnexmark.args=" 
-              --runner=FlinkRunner 
-              --bigQueryTable=$BIGQUERYTABLE
-              --bigQueryDataset=$BIGQUERYDATASET
-              --project=$PROJECT
-              --resourceNameMode=$RESOURCENAMEMODE
-              --exportSummaryToBigQuery=$EXPORTSUMMARYTOBIGQUERY
-              --tempLocation=$TEMPLOCATION
-              --influxDatabase=$INFLUXDATABASE
-              --influxHost=$INFLUXHOST
-              --baseInfluxMeasurement=$BASEINFLUXMEASUREMENT
-              --exportSummaryToInfluxDB=$EXPORTSUMMARYTOINFLUXDB
-              --influxRetentionPolicy=$INFLUXRETENTIONPOLICY
-              --queryLanguage=zetasql
-              --streaming=true
-              --suite=SMOKE 
-              --manageResources=false 
-              --monitorJobs=true "
+              --monitorJobs=true 
+              ${{matrix.queryType}} "
