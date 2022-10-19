@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -241,5 +242,19 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
                   .withSideInputs(empty));
       return materialized.apply(Reshuffle.viaRandomKey());
     }
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+
+    DataSourceConfiguration.populateDisplayData(getDataSourceConfiguration(), builder);
+    builder.addIfNotNull(DisplayData.item("query", getQuery()));
+    builder.addIfNotNull(DisplayData.item("table", getTable()));
+    builder.addIfNotNull(
+        DisplayData.item("statementPreparator", Util.getClassNameOrNull(getStatementPreparator())));
+    builder.addIfNotNull(DisplayData.item("outputParallelization", getOutputParallelization()));
+    builder.addIfNotNull(DisplayData.item("rowMapper", Util.getClassNameOrNull(getRowMapper())));
+    builder.addIfNotNull(DisplayData.item("coder", Util.getClassNameOrNull(getCoder())));
   }
 }

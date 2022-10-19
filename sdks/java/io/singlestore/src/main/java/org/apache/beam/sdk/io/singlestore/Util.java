@@ -115,4 +115,11 @@ public class Util {
     }
     return value;
   }
+
+  public static <T> @Nullable String getClassNameOrNull(@Nullable T value) {
+    if (value != null) {
+      return value.getClass().getName();
+    }
+    return null;
+  }
 }

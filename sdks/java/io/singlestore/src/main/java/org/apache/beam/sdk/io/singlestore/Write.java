@@ -35,6 +35,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -159,8 +160,7 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
       Connection conn = dataSource.getConnection();
       try {
         Statement stmt = conn.createStatement();
-        try (
-            PipedOutputStream baseStream = new PipedOutputStream();
+        try (PipedOutputStream baseStream = new PipedOutputStream();
             InputStream inputStream = new PipedInputStream(baseStream, BUFFER_SIZE)) {
           ((com.singlestore.jdbc.Statement) ((DelegatingStatement) stmt).getInnermostDelegate())
               .setNextLocalInfileInputStream(inputStream);
@@ -219,5 +219,16 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
         conn.close();
       }
     }
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+
+    DataSourceConfiguration.populateDisplayData(getDataSourceConfiguration(), builder);
+    builder.addIfNotNull(DisplayData.item("table", getTable()));
+    builder.addIfNotNull(DisplayData.item("batchSize", getBatchSize()));
+    builder.addIfNotNull(
+        DisplayData.item("userDataMapper", Util.getClassNameOrNull(getUserDataMapper())));
   }
 }

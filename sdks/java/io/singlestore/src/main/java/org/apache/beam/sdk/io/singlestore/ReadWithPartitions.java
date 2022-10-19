@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -258,5 +259,17 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
         conn.close();
       }
     }
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+
+    DataSourceConfiguration.populateDisplayData(getDataSourceConfiguration(), builder);
+    builder.addIfNotNull(DisplayData.item("query", getQuery()));
+    builder.addIfNotNull(DisplayData.item("table", getTable()));
+    builder.addIfNotNull(DisplayData.item("rowMapper", Util.getClassNameOrNull(getRowMapper())));
+    builder.addIfNotNull(DisplayData.item("initialNumReaders", getInitialNumReaders()));
+    builder.addIfNotNull(DisplayData.item("coder", Util.getClassNameOrNull(getCoder())));
   }
 }

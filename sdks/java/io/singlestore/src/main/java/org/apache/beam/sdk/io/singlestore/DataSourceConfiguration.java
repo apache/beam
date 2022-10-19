@@ -115,6 +115,13 @@ public abstract class DataSourceConfiguration implements Serializable {
     builder.addIfNotNull(DisplayData.item("connectionProperties", getConnectionProperties()));
   }
 
+  public static void populateDisplayData(
+      @Nullable DataSourceConfiguration dataSourceConfiguration, DisplayData.Builder builder) {
+    if (dataSourceConfiguration != null) {
+      dataSourceConfiguration.populateDisplayData(builder);
+    }
+  }
+
   public DataSource getDataSource() throws SQLException {
     String endpoint = Util.getRequiredArgument(getEndpoint(), "endpoint can not be null");
     String database = Util.getArgumentWithDefault(getDatabase(), "");
