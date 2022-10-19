@@ -59,7 +59,7 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
 
   @staticmethod
   def _pick_unused_ports(num_ports):
-    """Not perfect, but we have to provide a port to the subprocess."""
+    """Returns a list of available ports for subprocesses."""
     # TODO(robertwb): Consider letting the subprocess communicate a choice of
     # port back.
     sockets = []
@@ -82,10 +82,9 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
     # TODO(robertwb): Consider letting the subprocess pick one and
     # communicate it back...
     # pylint: disable=unbalanced-tuple-unpacking
-    job_port, expansion_port = cls._pick_unused_ports(num_ports=2)
+    job_port = cls._pick_unused_port()
     _LOGGER.info('Starting server on port %d.', job_port)
-    cls._subprocess = subprocess.Popen(
-        cls._subprocess_command(job_port, expansion_port))
+    cls._subprocess = subprocess.Popen(cls._subprocess_command(job_port))
     address = 'localhost:%d' % job_port
     job_service = beam_job_api_pb2_grpc.JobServiceStub(
         GRPCChannelFactory.insecure_channel(address))
@@ -280,7 +279,7 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
     return options
 
   @classmethod
-  def _subprocess_command(cls, job_port, _):
+  def _subprocess_command(cls, job_port):
     return [
         sys.executable,
         '-m',
