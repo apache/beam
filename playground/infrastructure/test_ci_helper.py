@@ -34,14 +34,12 @@ async def test_verify_examples(mock_get_statuses, mock_verify_examples):
     helper = CIHelper()
     await helper.verify_examples([], Origin.PG_EXAMPLES)
 
-    mock_get_statuses.assert_called_once_with([])
-    mock_verify_examples.assert_called_once_with([], Origin.PG_EXAMPLES)
+    mock_get_statuses.assert_called_once_with(mock.ANY, [])
+    mock_verify_examples.assert_called_once_with(mock.ANY, [], Origin.PG_EXAMPLES)
 
 
 @pytest.mark.asyncio
-@mock.patch("grpc_client.GRPCClient.get_run_error")
-@mock.patch("grpc_client.GRPCClient.get_compile_output")
-async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
+async def test__verify_examples():
     helper = CIHelper()
     object_meta = {
         "name": "name",
@@ -167,11 +165,11 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             tag=Tag(**object_meta),
             link="link"),
     ]
-
+    client = mock.AsyncMock()
     with pytest.raises(VerifyException):
-        await helper._verify_examples(examples_with_errors, Origin.PG_EXAMPLES)
+        await helper._verify_examples(client, examples_with_errors, Origin.PG_EXAMPLES)
     with pytest.raises(VerifyException):
-        await helper._verify_examples(examples_without_def_ex, Origin.PG_EXAMPLES)
+        await helper._verify_examples(client, examples_without_def_ex, Origin.PG_EXAMPLES)
     with pytest.raises(VerifyException):
-        await helper._verify_examples(examples_with_several_def_ex, Origin.PG_EXAMPLES)
-    await helper._verify_examples(examples_without_errors, Origin.PG_EXAMPLES)
+        await helper._verify_examples(client, examples_with_several_def_ex, Origin.PG_EXAMPLES)
+    await helper._verify_examples(client, examples_without_errors, Origin.PG_EXAMPLES)

@@ -55,10 +55,11 @@ class CIHelper:
         """
         single_file_examples = list(filter(
             lambda example: example.tag.multifile is False, examples))
-        await get_statuses(single_file_examples)
-        await self._verify_examples(single_file_examples, origin)
+        async with GRPCClient() as client:
+            await get_statuses(client, single_file_examples)
+            await self._verify_examples(client, single_file_examples, origin)
 
-    async def _verify_examples(self, examples: List[Example], origin: Origin):
+    async def _verify_examples(self, client: any,  examples: List[Example], origin: Origin):
         """
         Verify statuses of beam examples and the number of found default examples.
 
@@ -74,7 +75,6 @@ class CIHelper:
             examples: beam examples that should be verified
         """
         count_of_verified = 0
-        client = GRPCClient()
         verify_status_failed = False
         default_examples = []
 

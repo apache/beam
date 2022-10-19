@@ -13,35 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Tour Of Beam Examples CI
+name: Playground Examples CD
 
 on:
-  push:
-    paths:
-     - ./.github/workflows/playground_examples_ci_reusable.yml
-     - ./.github/workflows/tour_of_beam_examples_ci.yml
-     - playground/backend/**
-     - playground/infrastructure/**
-     - learning/tour-of-beam/learning-content/**
-# This allows a subsequently queued workflow run to interrupt previous runs
-concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
-  cancel-in-progress: true
+  workflow_dispatch:
+# Concurrency group for all deployment ops
+concurrency: playground_production
 jobs:
-  check_examples:
+  deploy_examples:
     strategy:
       matrix:
         sdk: ["python", "go", "java"]
       # run sequentially
       max-parallel: 1
-    uses: ./.github/workflows/playground_examples_ci_reusable.yml
+    uses: ./.github/workflows/playground_examples_cd_reusable.yml
     with:
       sdk: ${{ matrix.sdk }}
-      step: CI
-      origin: TB_EXAMPLES
-      subdirs: "./learning/tour-of-beam/learning-content"
-      allowlist: |
-        .github/workflows/playground_examples_ci_reusable.yml \
-        .github/workflows/tour_of_beam_examples_ci.yml \
-        playground/backend \
-        playground/infrastructure \
+      origin: PG_EXAMPLES
+      subdirs: "./learning/katas ./examples ./sdks"
+    secrets:
+      project_id: ${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+      sa_key_content: ${{ secrets.GCP_PLAYGROUND_SA_KEY }}

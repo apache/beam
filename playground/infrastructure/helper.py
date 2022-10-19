@@ -70,6 +70,7 @@ class Example:
     type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
     pipeline_id: str = ""
     output: str = ""
+    compile_output: str = ""
     graph: str = ""
 
 
@@ -146,7 +147,7 @@ def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[
     return examples
 
 
-async def get_statuses(examples: List[Example], concurrency: int = 10):
+async def get_statuses(client: GRPCClient, examples: List[Example], concurrency: int = 10):
     """
     Receive status and update example.status and example.pipeline_id for
     each example
@@ -156,8 +157,6 @@ async def get_statuses(examples: List[Example], concurrency: int = 10):
         pipeline_id values.
     """
     tasks = []
-    client = GRPCClient()
-
     try:
         concurrency = int(os.environ["BEAM_CONCURRENCY"])
         logging.info("override default concurrency: %d", concurrency)
