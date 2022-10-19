@@ -43,8 +43,8 @@ func main() {
         // List of elements
 	input := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
-    // The applyTransform() converts [input] to [output]
-    output := applyTransform(s,input)
+        // The applyTransform() converts [input] to [output]
+        output := applyTransform(s,input)
 
 	debug.Printf(s, "PCollection maximum value: %v", output)
 
