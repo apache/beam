@@ -61,7 +61,7 @@ def parse_arguments(argv):
 def run():
   """
     Runs the interjector pipeline which loads the training data,
-    assigns an unique ID to each document, converts it to a PubSub message, and
+    assigns a unique ID to each document, converts it to a PubSub message, and
     writes it to PubSub
     """
   args = parse_arguments(sys.argv)

@@ -17,7 +17,7 @@
 
 """The file defines global variables."""
 
-PROJECT_ID = "apache-beam-testing"
+PROJECT_ID = ""
 REGION = "us-central1"
 # Subscription for PubSub Topic
 SUBSCRIPTION_ID = f"projects/{PROJECT_ID}/subscriptions/newsgroup-dataset-subscription"
