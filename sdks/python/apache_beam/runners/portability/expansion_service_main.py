@@ -23,7 +23,9 @@ import sys
 
 import grpc
 
-from apache_beam.pipeline import PipelineOptions
+from apache_beam.internal import pickler
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.runners.portability import artifact_service
@@ -42,6 +44,10 @@ def main(argv):
   known_args, pipeline_args = parser.parse_known_args(argv)
   pipeline_options = PipelineOptions(
       pipeline_args + ["--experiments=beam_fn_api", "--sdk_location=container"])
+
+  # Set this before any pipeline construction occurs.
+  # See https://github.com/apache/beam/issues/21615
+  pickler.set_library(pipeline_options.view_as(SetupOptions).pickle_library)
 
   with fully_qualified_named_transform.FullyQualifiedNamedTransform.with_filter(
       known_args.fully_qualified_name_glob):

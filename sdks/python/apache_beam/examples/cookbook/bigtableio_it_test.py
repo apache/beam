@@ -141,7 +141,7 @@ class BigtableIOWriteTest(unittest.TestCase):
           self.LOCATION_ID,
           default_storage_type=self.STORAGE_TYPE)
       operation = self.instance.create(clusters=[cluster])
-      operation.result(timeout=10)
+      operation.result(timeout=300)  # Wait up to 5 min.
 
     self.table = self.instance.table(self.table_id)
 

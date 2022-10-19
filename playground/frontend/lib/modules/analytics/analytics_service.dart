@@ -17,8 +17,7 @@
  */
 
 import 'package:flutter/widgets.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 abstract class AnalyticsService {
@@ -26,8 +25,8 @@ abstract class AnalyticsService {
     return Provider.of<AnalyticsService>(context, listen: false);
   }
 
-  void trackSelectSdk(SDK? oldSdk, SDK newSdk);
-  void trackSelectExample(ExampleModel newExample);
+  void trackSelectSdk(Sdk? oldSdk, Sdk newSdk);
+  void trackSelectExample(ExampleBase newExample);
   void trackClickNewExample();
   void trackReset();
   void trackClickToggleTheme(bool isDark);

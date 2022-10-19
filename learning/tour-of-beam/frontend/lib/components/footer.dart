@@ -18,10 +18,9 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../config/theme/colors_provider.dart';
-import '../constants/links.dart';
 import '../constants/sizes.dart';
 
 class Footer extends StatelessWidget {
@@ -31,12 +30,25 @@ class Footer extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Body(
       child: Wrap(
-        spacing: TobSizes.size16,
+        alignment: WrapAlignment.spaceBetween,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          const _ReportIssueButton(),
-          const _PrivacyPolicyButton(),
-          const Text('ui.copyright').tr(),
+          Wrap(
+            spacing: BeamSizes.size16,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const _ReportIssueButton(),
+              const _PrivacyPolicyButton(),
+              const Text('ui.copyright').tr(),
+            ],
+          ),
+          // TODO(nausharipov): get version, https://github.com/apache/beam/issues/23038
+          Text(
+            '${'ui.builtWith'.tr()} (TODO: Version)',
+            style: const TextStyle(
+              color: BeamColors.grey3,
+            ),
+          ),
         ],
       ),
     );
@@ -49,19 +61,22 @@ class _Body extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+    final ext = themeData.extension<BeamThemeExtension>()!;
+
     return Container(
+      width: double.infinity,
+      height: TobSizes.footerHeight,
       padding: const EdgeInsets.symmetric(
-        vertical: TobSizes.size4,
-        horizontal: TobSizes.size16,
+        vertical: BeamSizes.size4,
+        horizontal: BeamSizes.size16,
       ),
       decoration: BoxDecoration(
-        color: ThemeColors.of(context).secondaryBackground,
+        color: ext.secondaryBackgroundColor,
         border: Border(
-          top: BorderSide(color: ThemeColors.of(context).divider),
+          top: BorderSide(color: themeData.dividerColor),
         ),
       ),
-      height: TobSizes.footerHeight,
-      width: double.infinity,
       child: child,
     );
   }
@@ -75,7 +90,7 @@ class _ReportIssueButton extends StatelessWidget {
     return TextButton(
       style: _linkButtonStyle,
       onPressed: () {
-        launchUrl(Uri.parse(TobLinks.reportIssue));
+        launchUrl(Uri.parse(BeamLinks.reportIssue));
       },
       child: const Text('ui.reportIssue').tr(),
     );
@@ -90,7 +105,7 @@ class _PrivacyPolicyButton extends StatelessWidget {
     return TextButton(
       style: _linkButtonStyle,
       onPressed: () {
-        launchUrl(Uri.parse(TobLinks.privacyPolicy));
+        launchUrl(Uri.parse(BeamLinks.privacyPolicy));
       },
       child: const Text('ui.privacyPolicy').tr(),
     );

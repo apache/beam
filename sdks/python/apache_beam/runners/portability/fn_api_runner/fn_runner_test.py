@@ -191,7 +191,8 @@ class FnApiRunnerTest(unittest.TestCase):
     # - The output batch type of the producer
     # - The input batch type of the consumer
     with self.assertWarnsRegex(InefficientExecutionWarning,
-                               r'ListPlusOneDoFn.*NumpyArray.*List\[int64\]'):
+                               (r'ListPlusOneDoFn.*NumpyArray.*List\[<class '
+                                r'\'numpy.int64\'>\]')):
       with self.create_pipeline() as p:
         res = (
             p

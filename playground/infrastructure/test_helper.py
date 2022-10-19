@@ -25,56 +25,79 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, \
     PRECOMPILED_OBJECT_TYPE_UNIT_TEST
 from grpc_client import GRPCClient
 from helper import find_examples, Example, _get_example, _get_name, get_tag, \
-    _validate, Tag, get_statuses, \
+    _validate, Tag, get_statuses, _check_no_nested, \
     _update_example_status, get_supported_categories, _check_file, \
-    _get_object_type, ExampleTag, validate_examples_for_duplicates_by_name, ValidationException
+    _get_object_type, ExampleTag, validate_examples_for_duplicates_by_name, ValidationException, validate_example_fields
 
 
+def test_check_for_nested():
+    _check_no_nested([])
+    _check_no_nested(["sub"])
+    _check_no_nested(["sub", "subsub"])
+    _check_no_nested(["sub1", "sub2"])
+    with pytest.raises(ValueError, match="sub1/sub2 is a subdirectory of sub1"):
+        _check_no_nested(["sub3", "sub1", "sub1/sub2"])
+    with pytest.raises(ValueError):
+        _check_no_nested([".", "sub"])
+    with pytest.raises(ValueError):
+        _check_no_nested(["./sub1", "sub1"])
+
+
+@pytest.mark.parametrize(
+    "is_valid", [True, False]
+)
+@mock.patch("helper._check_no_nested")
 @mock.patch("helper._check_file")
 @mock.patch("helper.os.walk")
-def test_find_examples_with_valid_tag(mock_os_walk, mock_check_file):
-    mock_os_walk.return_value = [("/root", (), ("file.java",))]
-    mock_check_file.return_value = False
+def test_find_examples(mock_os_walk, mock_check_file, mock_check_no_nested, is_valid):
+    mock_os_walk.return_value = [
+        ("/root/sub1", (), ("file.java",)),
+        ("/root/sub2", (), ("file2.java",)),
+    ]
+    mock_check_file.return_value = not is_valid
     sdk = SDK_UNSPECIFIED
-    result = find_examples(work_dir="", supported_categories=[], sdk=sdk)
+    if is_valid:
+        result = find_examples(root_dir="/root", subdirs=["sub1", "sub2"],
+            supported_categories=[], sdk=sdk)
+        assert not result
+    else:
+        with pytest.raises(
+            ValueError,
+            match="Some of the beam examples contain beam playground tag with "
+                    "an incorrect format"):
+            find_examples("/root", ["sub1", "sub2"], [], sdk=sdk)
 
-    assert not result
-    mock_os_walk.assert_called_once_with("")
-    mock_check_file.assert_called_once_with(
-        examples=[],
-        filename="file.java",
-        filepath="/root/file.java",
-        supported_categories=[],
-        sdk=sdk)
-
-
-@mock.patch("helper._check_file")
-@mock.patch("helper.os.walk")
-def test_find_examples_with_invalid_tag(mock_os_walk, mock_check_file):
-    mock_os_walk.return_value = [("/root", (), ("file.java",))]
-    mock_check_file.return_value = True
-    sdk = SDK_UNSPECIFIED
-    with pytest.raises(
-          ValueError,
-          match="Some of the beam examples contain beam playground tag with "
-                "an incorrect format"):
-        find_examples("", [], sdk=sdk)
-
-    mock_os_walk.assert_called_once_with("")
-    mock_check_file.assert_called_once_with(
-        examples=[],
-        filename="file.java",
-        filepath="/root/file.java",
-        supported_categories=[],
-        sdk=sdk)
+    mock_check_no_nested.assert_called_once_with(
+        ["sub1", "sub2"]
+    )
+    mock_os_walk.assert_has_calls([
+        mock.call("/root/sub1"),
+        mock.call("/root/sub2"),
+    ])
+    mock_check_file.assert_has_calls([
+        mock.call(
+            examples=[],
+            filename="file.java",
+            filepath="/root/sub1/file.java",
+            supported_categories=[],
+            sdk=sdk
+        ),
+        mock.call(
+            examples=[],
+            filename="file2.java",
+            filepath="/root/sub2/file2.java",
+            supported_categories=[],
+            sdk=sdk
+        ),
+    ])
 
 
 @pytest.mark.asyncio
-@mock.patch("helper.GRPCClient")
 @mock.patch("helper._update_example_status")
-async def test_get_statuses(mock_update_example_status, mock_grpc_client):
+async def test_get_statuses(mock_update_example_status):
     example = Example(
         name="file",
+        complexity="MEDIUM",
         pipeline_id="pipeline_id",
         sdk=SDK_UNSPECIFIED,
         filepath="root/file.extension",
@@ -83,11 +106,8 @@ async def test_get_statuses(mock_update_example_status, mock_grpc_client):
         status=STATUS_UNSPECIFIED,
         tag={"name": "Name"},
         link="link")
-    client = None
-
-    mock_grpc_client.return_value = client
-
-    await get_statuses([example])
+    client = mock.sentinel
+    await get_statuses(client, [example])
 
     mock_update_example_status.assert_called_once_with(example, client)
 
@@ -118,6 +138,7 @@ def test__check_file_with_correct_tag(
     tag = ExampleTag({"name": "Name"}, "")
     example = Example(
         name="filename",
+        complexity="MEDIUM",
         sdk=SDK_JAVA,
         filepath="/root/filename.java",
         code="data",
@@ -176,7 +197,8 @@ def test__get_example():
         "multifile": "False",
         "categories": [""],
         "pipeline_options": "--option option",
-        "context_line": 1
+        "context_line": 1,
+        "complexity": "MEDIUM"
     },
         "")
 
@@ -189,8 +211,9 @@ def test__get_example():
         code="data",
         status=STATUS_UNSPECIFIED,
         tag=Tag(
-            "Name", "Description", "False", [""], "--option option", False, 1),
-        link="https://github.com/apache/beam/blob/master/root/filepath.java")
+            "Name", "MEDIUM", "Description", "False", [""], "--option option", False, 1),
+        link="https://github.com/apache/beam/blob/master/root/filepath.java",
+        complexity="MEDIUM")
 
 
 def test__validate_without_name_field():
@@ -245,7 +268,9 @@ def test__validate_with_all_fields():
         "multifile": "true",
         "categories": ["category"],
         "pipeline_options": "--option option",
-        "context_line": 1
+        "context_line": 1,
+        "complexity": "MEDIUM",
+        "tags": ["tag"]
     }
     assert _validate(tag, ["category"]) is True
 
@@ -263,6 +288,7 @@ async def test__update_example_status(
       mock_grpc_client_run_code, mock_grpc_client_check_status):
     example = Example(
         name="file",
+        complexity="MEDIUM",
         pipeline_id="pipeline_id",
         sdk=SDK_UNSPECIFIED,
         filepath="root/file.extension",
@@ -315,6 +341,47 @@ def test_validate_examples_for_duplicates_by_name_when_examples_have_duplicates(
         validate_examples_for_duplicates_by_name(examples)
 
 
+def test_validate_example_fields_when_filepath_is_invalid():
+    example = _create_example("MOCK_NAME")
+    example.filepath = ""
+    with pytest.raises(ValidationException, match="Example doesn't have a file path field. Example: "):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_name_is_invalid():
+    example = _create_example("")
+    with pytest.raises(ValidationException, match="Example doesn't have a name field. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_sdk_is_invalid():
+    example = _create_example("MOCK_NAME")
+    example.sdk = SDK_UNSPECIFIED
+    with pytest.raises(ValidationException, match="Example doesn't have a sdk field. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_code_is_invalid():
+    example = _create_example("MOCK_NAME")
+    example.code = ""
+    with pytest.raises(ValidationException, match="Example doesn't have a code field. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_link_is_invalid():
+    example = _create_example("MOCK_NAME")
+    example.link = ""
+    with pytest.raises(ValidationException, match="Example doesn't have a link field. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_complexity_is_invalid():
+    example = _create_example("MOCK_NAME")
+    example.complexity = ""
+    with pytest.raises(ValidationException, match="Example doesn't have a complexity field. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
 def _create_example(name: str) -> Example:
     object_meta = {
         "name": "MOCK_NAME",
@@ -332,5 +399,6 @@ def _create_example(name: str) -> Example:
         output="MOCK_OUTPUT",
         status=STATUS_UNSPECIFIED,
         tag=Tag(**object_meta),
-        link="MOCK_LINK")
+        link="MOCK_LINK",
+        complexity="MOCK_COMPLEXITY")
     return example

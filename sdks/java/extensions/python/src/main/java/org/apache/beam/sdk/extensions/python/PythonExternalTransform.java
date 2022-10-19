@@ -286,6 +286,9 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
    * @return updated wrapper for the cross-language transform.
    */
   public PythonExternalTransform<InputT, OutputT> withExtraPackages(List<String> extraPackages) {
+    if (extraPackages.isEmpty()) {
+      return this;
+    }
     Preconditions.checkState(
         Strings.isNullOrEmpty(expansionService),
         "Extra packages only apply to auto-started expansion service.");
@@ -446,7 +449,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       } else {
         int port = PythonService.findAvailablePort();
         ImmutableList.Builder<String> args = ImmutableList.builder();
-        args.add("--port", "" + port, "--fully_qualified_name_glob", "*");
+        args.add("--port=" + port, "--fully_qualified_name_glob=*", "--pickle_library=cloudpickle");
         if (!extraPackages.isEmpty()) {
           File requirementsFile = File.createTempFile("requirements", ".txt");
           requirementsFile.deleteOnExit();

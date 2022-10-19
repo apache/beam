@@ -25,6 +25,6 @@ For example, given a DoFn with a ProcessElement function that takes 4 inputs and
 register.DoFn4x3[input1 type, input2 type, input3 type, input4 type, output1 type, output2 type, output3 type](&doFn{}) during pipeline construction. This will
 register your DoFn and produce optimized callers for your DoFn to significantly speed up execution at runtime.
 
-See DoFn2x1 for a full example.
+See DoFn3x1 for a full example.
 */
 package register

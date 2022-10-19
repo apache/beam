@@ -22,6 +22,7 @@ import logging
 import time
 import typing
 import unittest
+from decimal import Decimal
 from typing import Callable
 from typing import Union
 
@@ -59,14 +60,14 @@ ROW_COUNT = 10
 
 JdbcReadTestRow = typing.NamedTuple(
     "JdbcReadTestRow",
-    [("f_int", int), ("f_timestamp", Timestamp)],
+    [("f_int", int), ("f_timestamp", Timestamp), ("f_decimal", Decimal)],
 )
 coders.registry.register_coder(JdbcReadTestRow, coders.RowCoder)
 
 JdbcWriteTestRow = typing.NamedTuple(
     "JdbcWriteTestRow",
     [("f_id", int), ("f_real", float), ("f_string", str),
-     ("f_timestamp", Timestamp)],
+     ("f_timestamp", Timestamp), ("f_decimal", Decimal)],
 )
 coders.registry.register_coder(JdbcWriteTestRow, coders.RowCoder)
 
@@ -128,7 +129,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
     self._setUpTestCase(container_init, db_string, driver)
     table_name = 'jdbc_external_test_write'
     self.engine.execute(
-        "CREATE TABLE {}(f_id INTEGER, f_real FLOAT, f_string VARCHAR(100), f_timestamp TIMESTAMP(3))"  # pylint: disable=line-too-long
+        "CREATE TABLE {}(f_id INTEGER, f_real FLOAT, f_string VARCHAR(100), f_timestamp TIMESTAMP(3), f_decimal DECIMAL(10, 2))"  # pylint: disable=line-too-long
         .format(table_name))
     inserted_rows = [
         JdbcWriteTestRow(
@@ -136,8 +137,8 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
             i + 0.1,
             'Test{}'.format(i),
             # In alignment with Java Instant which supports milli precision.
-            Timestamp.of(seconds=round(time.time(), 3)))
-        for i in range(ROW_COUNT)
+            Timestamp.of(seconds=round(time.time(), 3)),
+            Decimal(f'{i-1}.23')) for i in range(ROW_COUNT)
     ]
 
     with TestPipeline() as p:
@@ -162,8 +163,8 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
             int(row[0]),
             float(row[1]),
             str(row[2]),
-            Timestamp.from_utc_datetime(row[3].replace(tzinfo=pytz.UTC)))
-        for row in fetched_data
+            Timestamp.from_utc_datetime(row[3].replace(tzinfo=pytz.UTC)),
+            Decimal(row[4])) for row in fetched_data
     ]
 
     self.assertEqual(
@@ -179,8 +180,8 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
     self._setUpTestCase(container_init, db_string, driver)
     table_name = 'jdbc_external_test_read'
     self.engine.execute(
-        "CREATE TABLE {}(f_int INTEGER, f_timestamp TIMESTAMP)".format(
-            table_name))
+        "CREATE TABLE {}(f_int INTEGER, f_timestamp TIMESTAMP, f_decimal DECIMAL(10,2))"  # pylint: disable=line-too-long
+        .format(table_name))
 
     all_timestamps = []
     for i in range(ROW_COUNT):
@@ -189,10 +190,12 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       dttime = datetime.datetime.strptime(
           strtime, '%Y-%m-%dT%H:%M:%S').replace(tzinfo=pytz.UTC)
       all_timestamps.append(Timestamp.from_utc_datetime(dttime))
+      decimal_value = Decimal(f'{i-1}.23')
 
       # write records using sqlalchemy engine
       self.engine.execute(
-          "INSERT INTO {} VALUES({},'{}')".format(table_name, i, strtime))
+          "INSERT INTO {} VALUES({},'{}','{}')".format(
+              table_name, i, strtime, decimal_value))
 
     # Register MillisInstant logical type to override the mapping from Timestamp
     # originally handled by MicrosInstant.
@@ -215,7 +218,8 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       assert_that(
           result,
           equal_to([
-              JdbcReadTestRow(i, all_timestamps[i]) for i in range(ROW_COUNT)
+              JdbcReadTestRow(i, all_timestamps[i], Decimal(f'{i-1}.23'))
+              for i in range(ROW_COUNT)
           ]))
 
   # Creating a container with testcontainers sometimes raises ReadTimeout

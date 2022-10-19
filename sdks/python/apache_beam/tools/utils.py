@@ -24,8 +24,13 @@ import gc
 import importlib
 import os
 import time
+from typing import Callable
+from typing import NamedTuple
 
 import numpy
+
+BenchmarkFn = Callable[[], None]
+BenchmarkFactoryFn = Callable[[int], BenchmarkFn]
 
 
 def check_compiled(module):
@@ -42,9 +47,7 @@ def check_compiled(module):
         "'pip install Cython; python setup.py build_ext --inplace'")
 
 
-class BenchmarkConfig(collections.namedtuple("BenchmarkConfig",
-                                             ["benchmark", "size", "num_runs"])
-                      ):
+class BenchmarkConfig(NamedTuple):
   """
   Attributes:
     benchmark: a callable that takes an int argument - benchmark size,
@@ -63,15 +66,17 @@ class BenchmarkConfig(collections.namedtuple("BenchmarkConfig",
       are counted based on the size of the input.
     num_runs: int, number of times to run each benchmark.
   """
+  benchmark: BenchmarkFactoryFn
+  size: int
+  num_runs: int
+
   def __str__(self):
     return "%s, %s element(s)" % (
         getattr(self.benchmark, '__name__', str(self.benchmark)),
         str(self.size))
 
 
-class LinearRegressionBenchmarkConfig(collections.namedtuple(
-    "LinearRegressionBenchmarkConfig",
-    ["benchmark", "starting_point", "increment", "num_runs"])):
+class LinearRegressionBenchmarkConfig(NamedTuple):
   """
   Attributes:
     benchmark: a callable that takes an int argument - benchmark size,
@@ -92,6 +97,11 @@ class LinearRegressionBenchmarkConfig(collections.namedtuple(
       benchmark.
     num_runs: int, number of times to run each benchmark.
   """
+  benchmark: Callable[[int], BenchmarkFn]
+  starting_point: int
+  increment: int
+  num_runs: int
+
   def __str__(self):
     return "%s, %s element(s) at start, %s growth per run" % (
         getattr(self.benchmark, '__name__', str(self.benchmark)),
@@ -113,10 +123,10 @@ def run_benchmarks(benchmark_suite, verbose=True):
     A dictionary of the form string -> list of floats. Keys of the dictionary
     are benchmark names, values are execution times in seconds for each run.
   """
-  def run(benchmark_fn, size):
+  def run(benchmark: BenchmarkFactoryFn, size: int):
     # Contain each run of a benchmark inside a function so that any temporary
     # objects can be garbage-collected after the run.
-    benchmark_instance_callable = benchmark_fn(size)
+    benchmark_instance_callable = benchmark(size)
     start = time.time()
     _ = benchmark_instance_callable()
     return time.time() - start

@@ -26,7 +26,7 @@ limitations under the License.
 
 <div class="case-study-opinion">
     <div class="case-study-opinion-img">
-        <img src="/images/logos/powered-by/hop.svg"/>
+        <img class="case-study-opinion-img-center" src="/images/logos/powered-by/hop.svg"/>
     </div>
     <blockquote class="case-study-quote-block">
       <p class="case-study-quote-text">
