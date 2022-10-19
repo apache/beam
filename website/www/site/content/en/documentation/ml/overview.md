@@ -63,3 +63,4 @@ In order to automate and track the AI/ML workflows throughout your project, you 
 You can find examples of end-to-end AI/ML pipelines for several use cases:
 * [Multi model pipelines in Beam](/documentation/ml/multi-model-pipelines)
 * [Online Clustering in Beam](/documentation/ml/online-clustering)
+* [Anomaly Detection in Beam](/documentation/ml/anomaly-detection)
