@@ -466,11 +466,11 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.6"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.23.3"
+    def google_cloud_spanner_version = "6.23.4"
     def google_code_gson_version = "2.9.0"
     def google_oauth_clients_version = "1.33.3"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.45.1"
+    def grpc_version = "1.45.2"
     def guava_version = "31.1-jre"
     def hadoop_version = "2.10.1"
     def hamcrest_version = "2.1"
@@ -486,7 +486,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
-    def protobuf_version = "3.19.4"
+    def protobuf_version = "3.19.6"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
     def slf4j_version = "1.7.30"
@@ -577,8 +577,8 @@ class BeamModulePlugin implements Plugin<Project> {
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
-        google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage", // google_cloud_platform_libraries_bom sets version
-        google_cloud_bigtable                       : "com.google.cloud:google-cloud-bigtable", // google_cloud_platform_libraries_bom sets version
+        google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:2.12.3", // google_cloud_platform_libraries_bom sets version
+        google_cloud_bigtable                       : "com.google.cloud:google-cloud-bigtable:2.6.3", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.26.3",
         google_cloud_bigtable_emulator              : "com.google.cloud:google-cloud-bigtable-emulator:0.137.1",
         google_cloud_core                           : "com.google.cloud:google-cloud-core", // google_cloud_platform_libraries_bom sets version
@@ -587,13 +587,13 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.2.10",
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
-        google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
+        google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub:1.117.1", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
         // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/25.2.0/artifact_details.html
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:25.2.0",
-        google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
+        google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:6.23.4", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
@@ -686,7 +686,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_spanner_v1               : "com.google.api.grpc:proto-google-cloud-spanner-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1", // google_cloud_platform_libraries_bom sets version
-        proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
+        proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos:2.8.4", // google_cloud_platform_libraries_bom sets version
         sbe_tool                                    : "uk.co.real-logic:sbe-tool:$sbe_tool_version",
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
         slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
