@@ -98,7 +98,6 @@ def convert_to_usertype(table_schema):
 
 
 class BeamSchemaConversionDoFn(beam.DoFn):
-  # Converting a dictionary of tuples to a usertype.
   def __init__(self, pcoll_val_ctor):
     self._pcoll_val_ctor = pcoll_val_ctor
 
