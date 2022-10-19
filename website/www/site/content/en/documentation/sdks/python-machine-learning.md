@@ -119,7 +119,7 @@ with pipeline as p:
 Note: A model handler that is created with `CreateModelHander()` is always unkeyed.
 
 ### Keyed Model Handlers
-To make a keyed model handler, wrap the any model handler in the keyed model handler. For example:
+To make a keyed model handler, wrap any unkeyed model handler in the keyed model handler. For example:
 
 ```
 from apache_beam.ml.inference.base import RunInference
