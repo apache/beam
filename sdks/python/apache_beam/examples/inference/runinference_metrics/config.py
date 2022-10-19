@@ -17,7 +17,7 @@
 
 """The file defines global variables."""
 
-PROJECT_ID = "apache-beam-testing"
+PROJECT_ID = ""
 REGION = "us-central1"
 JOB_NAME = "benchmarking-runinference"
 NUM_WORKERS = 1

@@ -120,7 +120,6 @@ def run():
         RunInference(model_handler=KeyedModelHandler(model_handler))
         | "Decode Predictions" >> beam.ParDo(PostProcessor()))
   metrics = pipeline.result.metrics().query(beam.metrics.MetricsFilter())
-  print("\n\n\n\n")
   logging.info(metrics)
 
 
