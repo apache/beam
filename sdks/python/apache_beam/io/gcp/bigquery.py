@@ -369,6 +369,7 @@ from apache_beam.io.avroio import _create_avro_source as create_avro_source
 from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.bigquery_read_internal import _BigQueryReadSplit
 from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
@@ -2761,7 +2762,7 @@ class ReadFromBigQuery(PTransform):
         raise TypeError(
             '%s: table must be of type string'
             '; got a callable instead' % self.__class__.__name__)
-      return output_pcollection | beam.io.gcp.bigquery_schema_tools.\
+      return output_pcollection | bigquery_schema_tools.\
             convert_to_usertype(
             beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
                 project_id=table_details.projectId,
