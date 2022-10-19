@@ -89,6 +89,8 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:tox:py${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cloud
           arguments: "-Pposargs=${{env.tests}}"
+      - name: Setup environment
+        uses: ./.github/actions/setup-self-hosted-action
       - name: Run :sdks:python:test-suites:tox:y${{ env.PYTHON_VERSION }}:testPy${{ env.PYTHON_VERSION }}Cython
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
