@@ -109,6 +109,11 @@ public interface BigQueryOptions
 
   void setNumStorageWriteApiStreamAppendClients(Integer value);
 
+  @Default.Boolean(false)
+  Boolean getUseStorageApiConnectionPool();
+
+  void setUseStorageApiConnectionPool(Boolean value);
+
   @Description(
       "If set, then BigQueryIO.Write will default to triggering the Storage Write API writes this often.")
   Integer getStorageWriteApiTriggeringFrequencySec();

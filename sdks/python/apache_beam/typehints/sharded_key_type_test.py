@@ -37,7 +37,7 @@ class ShardedKeyTypeConstraintTest(TypeHintTestCase):
 
   def test_repr(self):
     constraint = ShardedKeyType[int]
-    self.assertEqual('ShardedKey[int]', repr(constraint))
+    self.assertEqual('ShardedKey[<class \'int\'>]', repr(constraint))
 
   def test_type_check_not_sharded_key(self):
     constraint = ShardedKeyType[int]
@@ -55,9 +55,9 @@ class ShardedKeyTypeConstraintTest(TypeHintTestCase):
     with self.assertRaises((TypeError, TypeError)) as e:
       constraint.type_check(obj)
     self.assertEqual(
-        "ShardedKey[int] type-constraint violated. The type of key in "
-        "'ShardedKey' is incorrect. Expected an instance of type 'int', "
-        "instead received an instance of type 'str'.",
+        "ShardedKey[<class \'int\'>] type-constraint violated. The type of key "
+        "in 'ShardedKey' is incorrect. Expected an instance of type \'<class "
+        "\'int\'>\', instead received an instance of type 'str'.",
         e.exception.args[0])
 
   def test_type_check_valid_simple_type(self):

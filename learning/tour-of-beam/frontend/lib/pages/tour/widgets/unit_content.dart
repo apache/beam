@@ -16,38 +16,20 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/pages/playground/states/example_selector_state.dart';
-import 'package:playground_components/playground_components.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
-class CategoryBubble extends StatelessWidget {
-  final ExampleType type;
-  final String name;
+import '../../../models/unit_content.dart';
 
-  const CategoryBubble({
-    Key? key,
-    required this.type,
-    required this.name,
-  }) : super(key: key);
+class UnitContentWidget extends StatelessWidget {
+  final UnitContentModel unitContent;
+
+  const UnitContentWidget({
+    required this.unitContent,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ExampleSelectorState>(
-      builder: (context, state, child) {
-        final isSelected = type == state.selectedFilterType;
-
-        return BubbleWidget(
-          isSelected: isSelected,
-          title: name,
-          onTap: () {
-            if (!isSelected) {
-              state.setSelectedFilterType(type);
-              state.sortCategories();
-            }
-          },
-        );
-      },
-    );
+    return MarkdownBody(data: unitContent.description);
   }
 }

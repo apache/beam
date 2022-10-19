@@ -49,7 +49,6 @@ import org.apache.beam.sdk.values.Row;
  * ./gradlew :examples:multi-language:pythonDataframeWordCount --args=" \
  * --runner=DataflowRunner \
  * --output=gs://{$OUTPUT_BUCKET}/count \
- * --experiments=use_runner_v2 \
  * --sdkHarnessContainerImageOverrides=.*python.*,gcr.io/apache-beam-testing/beam-sdk/beam_python{$PYTHON_VERSION}_sdk:latest"
  * }</pre>
  */
