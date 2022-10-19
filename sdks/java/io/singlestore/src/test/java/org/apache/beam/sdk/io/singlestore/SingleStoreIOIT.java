@@ -27,7 +27,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -144,22 +143,38 @@ public class SingleStoreIOIT {
     }
   }
 
-  private void gatherAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult, PipelineResult readResultWithPartitions) {
+  private void gatherAndPublishMetrics(
+      PipelineResult writeResult,
+      PipelineResult readResult,
+      PipelineResult readResultWithPartitions) {
     String uuid = UUID.randomUUID().toString();
     String timestamp = Timestamp.now().toString();
 
     IOITMetrics writeMetrics =
-        new IOITMetrics(getMetricSuppliers(uuid, timestamp, "write_time"), writeResult, NAMESPACE, uuid, timestamp);
+        new IOITMetrics(
+            getMetricSuppliers(uuid, timestamp, "write_time"),
+            writeResult,
+            NAMESPACE,
+            uuid,
+            timestamp);
     writeMetrics.publishToInflux(settings);
 
     IOITMetrics readMetrics =
         new IOITMetrics(
-            getMetricSuppliers(uuid, timestamp, "read_time"), readResult, NAMESPACE, uuid, timestamp);
+            getMetricSuppliers(uuid, timestamp, "read_time"),
+            readResult,
+            NAMESPACE,
+            uuid,
+            timestamp);
     readMetrics.publishToInflux(settings);
 
     IOITMetrics readMetricsWithPartitions =
         new IOITMetrics(
-            getMetricSuppliers(uuid, timestamp, "read_with_partitions_time"), readResultWithPartitions, NAMESPACE, uuid, timestamp);
+            getMetricSuppliers(uuid, timestamp, "read_with_partitions_time"),
+            readResultWithPartitions,
+            NAMESPACE,
+            uuid,
+            timestamp);
     readMetricsWithPartitions.publishToInflux(settings);
   }
 
@@ -171,8 +186,7 @@ public class SingleStoreIOIT {
         reader -> {
           long writeStart = reader.getStartTimeMetric(metricName);
           long writeEnd = reader.getEndTimeMetric(metricName);
-          return NamedTestResult.create(
-              uuid, timestamp, metricName, (writeEnd - writeStart) / 1e3);
+          return NamedTestResult.create(uuid, timestamp, metricName, (writeEnd - writeStart) / 1e3);
         });
 
     return suppliers;
