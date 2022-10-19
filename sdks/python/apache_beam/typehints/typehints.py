@@ -67,6 +67,7 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 import copy
 import logging
+import sys
 import typing
 from collections import abc
 
@@ -409,7 +410,8 @@ def _unified_repr(o):
   Returns:
     A qualified name for the passed Python object fit for string formatting.
   """
-  if isinstance(o, (TypeConstraint, type(None))) or not hasattr(o, '__name__'):
+  if isinstance(o, (TypeConstraint, type(None))) or not hasattr(
+      o, '__name__') or (sys.version_info >= (3, 10)):
     return repr(o)
   else:
     return o.__name__
