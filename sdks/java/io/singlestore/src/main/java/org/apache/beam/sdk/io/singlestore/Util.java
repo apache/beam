@@ -37,7 +37,7 @@ public class Util {
     return "'" + identifier.replace("\\", "\\\\").replace("'", "\\'") + "'";
   }
 
-  public static <OutputT> @Nullable Coder<OutputT> inferCoder(
+  public static <OutputT> Coder<OutputT> inferCoder(
       @Nullable Coder<OutputT> defaultCoder,
       RowMapper<OutputT> rowMapper,
       CoderRegistry registry,
