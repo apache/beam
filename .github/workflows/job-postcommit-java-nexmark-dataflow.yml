@@ -58,7 +58,7 @@ jobs:
       - name: Run Nexmark with Streaming=${{matrix.streaming}} on Dataflow
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: >
+          gradle-command: >-
             :sdks:java:testing:nexmark:run -Pnexmark.runner=:runners:google-cloud-dataflow-java
             -Pnexmark.args="  
               --bigQueryTable=${{fromJson(needs.set-properties.outputs.properties).NexmarkTestsProperties.BIGQUERY_TABLE}}
