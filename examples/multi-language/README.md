@@ -166,3 +166,12 @@ of the digit. The second item is the predicted label of the digit.
 ```
 gsutil cat gs://$GCP_BUCKET/multi-language-beam/output*
 ```
+
+### Python Dataframe Wordcount
+
+This is covered by the quick-start guide. Please see
+[here](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/multilanguage/PythonDataframeWordCount.java)
+for the pipeline and please see
+[here](https://beam.apache.org/documentation/sdks/java-multi-language-pipelines/)
+for the instructions for executing the pipeline.
+```
