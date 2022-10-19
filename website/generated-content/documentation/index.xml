@@ -344,6 +344,336 @@ score: 0.8999999761581421
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Getting&lt;/span> &lt;span class="n">predictions&lt;/span> &lt;span class="n">is&lt;/span> &lt;span class="n">not&lt;/span> &lt;span class="n">yet&lt;/span> &lt;span class="n">available&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">Java&lt;/span>&lt;span class="o">.&lt;/span> &lt;span class="o">[&lt;/span>&lt;span class="n">https&lt;/span>&lt;span class="o">://&lt;/span>&lt;span class="n">github&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">20001&lt;/span>&lt;span class="o">]&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;/div></description></item><item><title>Documentation: Anomaly Detection</title><link>/documentation/ml/anomaly-detection/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/ml/anomaly-detection/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="anomaly-detection-example">Anomaly Detection Example&lt;/h1>
+&lt;p>The AnomalyDetection example demonstrates how to setup an anomaly detection pipeline that reads text from PubSub in real-time, and then detects anomaly using a trained HDBSCAN clustering model.&lt;/p>
+&lt;h3 id="dataset-for-anomaly-detection">Dataset for Anomaly Detection&lt;/h3>
+&lt;p>For the example, we use a dataset called &lt;a href="https://huggingface.co/datasets/emotion">emotion&lt;/a>. It comprises of 20,000 English Twitter messages with 6 basic emotions: anger, fear, joy, love, sadness, and surprise. The dataset has three splits: train (for training), validation and test (for performance evaluation). It is a supervised dataset as it contains the text and the category (class) of the dataset. This dataset can easily be accessed using &lt;a href="https://huggingface.co/docs/datasets/index">HuggingFace Datasets&lt;/a>.&lt;/p>
+&lt;p>To have a better understanding of the dataset, here are some examples from the train split of the dataset:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th align="left">Text&lt;/th>
+&lt;th align="center">Type of emotion&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td align="left">im grabbing a minute to post i feel greedy wrong&lt;/td>
+&lt;td align="center">Anger&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td align="left">i am ever feeling nostalgic about the fireplace i will know that it is still on the property&lt;/td>
+&lt;td align="center">Love&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td align="left">ive been taking or milligrams or times recommended amount and ive fallen asleep a lot faster but i also feel like so funny&lt;/td>
+&lt;td align="center">Fear&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td align="left">on a boat trip to denmark&lt;/td>
+&lt;td align="center">Joy&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td align="left">i feel you know basically like a fake in the realm of science fiction&lt;/td>
+&lt;td align="center">Sadness&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td align="left">i began having them several times a week feeling tortured by the hallucinations moving people and figures sounds and vibrations&lt;/td>
+&lt;td align="center">Fear&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="anomaly-detection-algorithm">Anomaly Detection Algorithm&lt;/h3>
+&lt;p>&lt;a href="https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html">HDBSCAN&lt;/a> is a clustering algorithm which extends DBSCAN by converting it into a hierarchical clustering algorithm, and then using a technique to extract a flat clustering based in the stability of clusters. Once trained, the model will predict -1 if a new data point is an outlier, otherwise it will predict one of the existing clusters.&lt;/p>
+&lt;h2 id="ingestion-to-pubsub">Ingestion to PubSub&lt;/h2>
+&lt;p>We first ingest the data into &lt;a href="https://cloud.google.com/pubsub/docs/overview">PubSub&lt;/a> so that while clustering we can read the tweets from PubSub. PubSub is a messaging service for exchanging event data among applications and services. It is used for streaming analytics and data integration pipelines to ingest and distribute data.&lt;/p>
+&lt;p>The full example code for ingesting data to PubSub can be found &lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/anomaly_detection/write_data_to_pubsub_pipeline/">here&lt;/a>&lt;/p>
+&lt;p>The file structure for ingestion pipeline is:&lt;/p>
+&lt;pre>&lt;code>write_data_to_pubsub_pipeline/
+├── pipeline/
+│ ├── __init__.py
+│ ├── options.py
+│ └── utils.py
+├── __init__.py
+├── config.py
+├── main.py
+└── setup.py
+&lt;/code>&lt;/pre>
+&lt;p>&lt;code>pipeline/utils.py&lt;/code> contains the code for loading the emotion dataset and two &lt;code>beam.DoFn&lt;/code> that are used for data transformation&lt;/p>
+&lt;p>&lt;code>pipeline/options.py&lt;/code> contains the pipeline options to configure the Dataflow pipeline&lt;/p>
+&lt;p>&lt;code>config.py&lt;/code> defines some variables like GCP PROJECT_ID, NUM_WORKERS that are used multiple times&lt;/p>
+&lt;p>&lt;code>setup.py&lt;/code> defines the packages/requirements for the pipeline to run&lt;/p>
+&lt;p>&lt;code>main.py&lt;/code> contains the pipeline code and some additional functions used for running the pipeline&lt;/p>
+&lt;h3 id="how-to-run-the-pipeline-">How to Run the Pipeline ?&lt;/h3>
+&lt;p>First, make sure you have installed the required packages. One should have access to a Google Cloud Project and then correctly configure the GCP variables like &lt;code>PROJECT_ID&lt;/code>, &lt;code>REGION&lt;/code>, &lt;code>PubSub TOPIC_ID&lt;/code> and others in &lt;code>config.py&lt;/code>.&lt;/p>
+&lt;ol>
+&lt;li>Locally on your machine: &lt;code>python main.py&lt;/code>&lt;/li>
+&lt;li>On GCP for Dataflow: &lt;code>python main.py --mode cloud&lt;/code>&lt;/li>
+&lt;/ol>
+&lt;p>The &lt;code>write_data_to_pubsub_pipeline&lt;/code> contains four different transforms:&lt;/p>
+&lt;ol>
+&lt;li>Load emotion dataset using HuggingFace Datasets (we take samples from 3 classes instead of 6 for simplicity)&lt;/li>
+&lt;li>Associate each text with a unique identifier (UID)&lt;/li>
+&lt;li>Convert the text into a format PubSub is expecting&lt;/li>
+&lt;li>Write the formatted message to PubSub&lt;/li>
+&lt;/ol>
+&lt;h2 id="anomaly-detection-on-streaming-data">Anomaly Detection on Streaming Data&lt;/h2>
+&lt;p>After having the data ingested to PubSub, we can run the anomaly detection pipeline. This pipeline reads the streaming message from PubSub, converts the text to an embedding using a language model, and feeds the embedding to an already trained clustering model to predict if the message is anomaly or not. One prerequisite for this pipeline is to have a HDBSCAN clustering model trained on the training split of the dataset.&lt;/p>
+&lt;p>The full example code for anomaly detection can be found &lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/anomaly_detection/anomaly_detection_pipeline/">here&lt;/a>&lt;/p>
+&lt;p>The file structure for anomaly_detection pipeline is:&lt;/p>
+&lt;pre>&lt;code>anomaly_detection_pipeline/
+├── pipeline/
+│ ├── __init__.py
+│ ├── options.py
+│ └── transformations.py
+├── __init__.py
+├── config.py
+├── main.py
+└── setup.py
+&lt;/code>&lt;/pre>
+&lt;p>&lt;code>pipeline/transformations.py&lt;/code> contains the code for different &lt;code>beam.DoFn&lt;/code> and additional functions that are used in pipeline&lt;/p>
+&lt;p>&lt;code>pipeline/options.py&lt;/code> contains the pipeline options to configure the Dataflow pipeline&lt;/p>
+&lt;p>&lt;code>config.py&lt;/code> defines some variables like GCP PROJECT_ID, NUM_WORKERS that are used multiple times&lt;/p>
+&lt;p>&lt;code>setup.py&lt;/code> defines the packages/requirements for the pipeline to run&lt;/p>
+&lt;p>&lt;code>main.py&lt;/code> contains the pipeline code and some additional functions used for running the pipeline&lt;/p>
+&lt;h3 id="how-to-run-the-pipeline--1">How to Run the Pipeline ?&lt;/h3>
+&lt;p>First, make sure you have installed the required packages and you have pushed data to PubSub. One should have access to a Google Cloud Project and then correctly configure the GCP variables like &lt;code>PROJECT_ID&lt;/code>, &lt;code>REGION&lt;/code>, &lt;code>PubSub SUBSCRIPTION_ID&lt;/code> and others in &lt;code>config.py&lt;/code>.&lt;/p>
+&lt;ol>
+&lt;li>Locally on your machine: &lt;code>python main.py&lt;/code>&lt;/li>
+&lt;li>On GCP for Dataflow: &lt;code>python main.py --mode cloud&lt;/code>&lt;/li>
+&lt;/ol>
+&lt;p>The pipeline can be broken down into few simple steps:&lt;/p>
+&lt;ol>
+&lt;li>Reading the message from PubSub&lt;/li>
+&lt;li>Converting the PubSub message into a PCollection of dictionaries where the key is the UID and the value is the twitter text&lt;/li>
+&lt;li>Encoding the text into transformer-readable token ID integers using a tokenizer&lt;/li>
+&lt;li>Using RunInference to get the vector embedding from a Transformer based Language Model&lt;/li>
+&lt;li>Normalizing the embedding&lt;/li>
+&lt;li>Using RunInference to get anomaly prediction from a trained HDBSCAN clustering model&lt;/li>
+&lt;li>Writing the prediction to BQ, so that clustering model can be retrained when needed&lt;/li>
+&lt;li>Sending an email alert if anomaly is detected&lt;/li>
+&lt;/ol>
+&lt;p>The code snippet for the first two steps of the pipeline:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code> docs = (
+pipeline
+| &amp;#34;Read from PubSub&amp;#34;
+&amp;gt;&amp;gt; ReadFromPubSub(subscription=cfg.SUBSCRIPTION_ID, with_attributes=True)
+| &amp;#34;Decode PubSubMessage&amp;#34; &amp;gt;&amp;gt; beam.ParDo(Decode())
+)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>We will now focus on important steps of pipeline: tokenizing the text, getting embedding using RunInference and finally getting prediction from HDBSCAN model.&lt;/p>
+&lt;h3 id="getting-embedding-from-a-language-model">Getting Embedding from a Language Model&lt;/h3>
+&lt;p>In order to do clustering with text data, we first need to map the text into vectors of numerical values suitable for statistical analysis. We use a transformer based language model called &lt;a href="https://huggingface.co/sentence-transformers/stsb-distilbert-base">sentence-transformers/stsb-distilbert-base/stsb-distilbert-base&lt;/a>. It maps sentences &amp;amp; paragraphs to a 768 dimensional dense vector space and can be used for tasks like clustering or semantic search. But, we first need to tokenize the text as the language model is expecting a tokenized input instead of raw text.&lt;/p>
+&lt;p>Tokenization is a preprocessing task that transforms text so that it can be fed into the model for getting predictions.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code> normalized_embedding = (
+docs
+| &amp;#34;Tokenize Text&amp;#34; &amp;gt;&amp;gt; beam.Map(tokenize_sentence)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>Here, &lt;code>tokenize_sentence&lt;/code> is a function that takes a dictionary with a text and an id, tokenizes the text, and returns a tuple of the text and id and the tokenized output.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>Tokenizer = AutoTokenizer.from_pretrained(cfg.TOKENIZER_NAME)
+def tokenize_sentence(input_dict):
+&amp;#34;&amp;#34;&amp;#34;
+Takes a dictionary with a text and an id, tokenizes the text, and
+returns a tuple of the text and id and the tokenized text
+Args:
+input_dict: a dictionary with the text and id of the sentence
+Returns:
+A tuple of the text and id, and a dictionary of the tokens.
+&amp;#34;&amp;#34;&amp;#34;
+text, uid = input_dict[&amp;#34;text&amp;#34;], input_dict[&amp;#34;id&amp;#34;]
+tokens = Tokenizer([text], padding=True, truncation=True, return_tensors=&amp;#34;pt&amp;#34;)
+tokens = {key: torch.squeeze(val) for key, val in tokens.items()}
+return (text, uid), tokens&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>Tokenized output is then passed to the language model for getting the embeddings. For getting embeddings from language model, we use &lt;code>RunInference()&lt;/code> from beam.&lt;/p>
+&lt;p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code> | &amp;#34;Get Embedding&amp;#34; &amp;gt;&amp;gt; RunInference(KeyedModelHandler(embedding_model_handler))&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+where &lt;code>embedding_model_handler&lt;/code> is,&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code> embedding_model_handler = PytorchNoBatchModelHandler(
+state_dict_path=cfg.MODEL_STATE_DICT_PATH,
+model_class=ModelWrapper,
+model_params={&amp;#34;config&amp;#34;: AutoConfig.from_pretrained(cfg.MODEL_CONFIG_PATH)},
+device=&amp;#34;cpu&amp;#34;,
+)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>We defined &lt;code>PytorchNoBatchModelHandler&lt;/code> as a wrapper to &lt;code>PytorchModelHandler&lt;/code> to limit batch size to 1.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code># Can be removed once: https://github.com/apache/beam/issues/21863 is fixed
+class PytorchNoBatchModelHandler(PytorchModelHandlerKeyedTensor):
+&amp;#34;&amp;#34;&amp;#34;Wrapper to PytorchModelHandler to limit batch size to 1.
+The tokenized strings generated from BertTokenizer may have different
+lengths, which doesn&amp;#39;t work with torch.stack() in current RunInference
+implementation since stack() requires tensors to be the same size.
+Restricting max_batch_size to 1 means there is only 1 example per `batch`
+in the run_inference() call.
+&amp;#34;&amp;#34;&amp;#34;
+def batch_elements_kwargs(self):
+return {&amp;#34;max_batch_size&amp;#34;: 1}&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>We custom defined the model_class &lt;code>ModelWrapper&lt;/code> to get the vector embedding as the &lt;code>forward()&lt;/code> for &lt;code>DistilBertModel&lt;/code> doesn&amp;rsquo;t return the embeddings.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>class ModelWrapper(DistilBertModel):
+&amp;#34;&amp;#34;&amp;#34;Wrapper to DistilBertModel to get embeddings when calling
+forward function.&amp;#34;&amp;#34;&amp;#34;
+def forward(self, **kwargs):
+output = super().forward(**kwargs)
+sentence_embedding = (
+self.mean_pooling(output,
+kwargs[&amp;#34;attention_mask&amp;#34;]).detach().cpu().numpy())
+return sentence_embedding
+# Mean Pooling - Take attention mask into account for correct averaging
+def mean_pooling(self, model_output, attention_mask):
+&amp;#34;&amp;#34;&amp;#34;
+Calculates the mean of token embeddings
+Args:
+model_output: The output of the model.
+attention_mask: This is a tensor that contains 1s for all input tokens and
+0s for all padding tokens.
+Returns:
+The mean of the token embeddings.
+&amp;#34;&amp;#34;&amp;#34;
+token_embeddings = model_output[
+0] # First element of model_output contains all token embeddings
+input_mask_expanded = (
+attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float())
+return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(
+input_mask_expanded.sum(1), min=1e-9)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>After getting the embedding for each twitter text, the embeddings are normalized as the trained model is expecting normalized embeddings.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code> | &amp;#34;Normalize Embedding&amp;#34; &amp;gt;&amp;gt; beam.ParDo(NormalizeEmbedding())&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="getting-prediction">Getting Prediction&lt;/h3>
+&lt;p>The normalized embeddings are then forwarded to the trained HDBSCAN model for getting the predictions.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code> predictions = (
+normalized_embedding
+| &amp;#34;Get Prediction from Clustering Model&amp;#34;
+&amp;gt;&amp;gt; RunInference(model_handler=clustering_model_handler)
+)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>where &lt;code>clustering_model_handler&lt;/code> is&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code> clustering_model_handler = KeyedModelHandler(
+CustomSklearnModelHandlerNumpy(
+model_uri=cfg.CLUSTERING_MODEL_PATH, model_file_type=ModelFileType.JOBLIB
+)
+)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>We defined &lt;code>CustomSklearnModelHandlerNumpy&lt;/code> as a wrapper to &lt;code>SklearnModelHandlerNumpy&lt;/code> to limit batch size to 1 and to override the &lt;code>run_inference&lt;/code> so that &lt;code>hdbscan.approximate_predict()&lt;/code> is used for getting anomaly predictions.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>class CustomSklearnModelHandlerNumpy(SklearnModelHandlerNumpy):
+# limit batch size to 1 can be removed once: https://github.com/apache/beam/issues/21863 is fixed
+def batch_elements_kwargs(self):
+&amp;#34;&amp;#34;&amp;#34;Limit batch size to 1 for inference&amp;#34;&amp;#34;&amp;#34;
+return {&amp;#34;max_batch_size&amp;#34;: 1}
+# run_inference can be removed once: https://github.com/apache/beam/issues/22572 is fixed
+def run_inference(self, batch, model, inference_args=None):
+&amp;#34;&amp;#34;&amp;#34;Runs inferences on a batch of numpy arrays.
+Args:
+batch: A sequence of examples as numpy arrays. They should
+be single examples.
+model: A numpy model or pipeline. Must implement predict(X).
+Where the parameter X is a numpy array.
+inference_args: Any additional arguments for an inference.
+Returns:
+An Iterable of type PredictionResult.
+&amp;#34;&amp;#34;&amp;#34;
+_validate_inference_args(inference_args)
+vectorized_batch = np.vstack(batch)
+predictions = hdbscan.approximate_predict(model, vectorized_batch)
+return [PredictionResult(x, y) for x, y in zip(batch, predictions)]&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>After getting the model predictions, we first the decode the output from &lt;code>RunInference&lt;/code> into a dictionary. Afterwards, we take two different actions: i) store the prediction in a BigQuery table for analysis and updating HDBSCAN model and ii) send email alert if prediction is an anomaly.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code> _ = (
+predictions
+| &amp;#34;Decode Prediction&amp;#34; &amp;gt;&amp;gt; beam.ParDo(DecodePrediction())
+| &amp;#34;Write to BQ&amp;#34; &amp;gt;&amp;gt; beam.io.WriteToBigQuery(
+table=cfg.TABLE_URI,
+schema=cfg.TABLE_SCHEMA,
+write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+))
+_ = predictions | &amp;#34;Alert by Email&amp;#34; &amp;gt;&amp;gt; beam.ParDo(TriggerEmailAlert())&lt;/code>&lt;/pre>
+&lt;/div>
 &lt;/div></description></item><item><title>Documentation: Apache Beam: Developing I/O connectors for Java</title><link>/documentation/io/developing-io-java/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/io/developing-io-java/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -19947,102 +20277,4 @@ to the output collection.&lt;/p>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/transforms/java/aggregation/groupbykey">GroupByKey&lt;/a> takes one input collection.&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: GroupIntoBatches</title><link>/documentation/transforms/python/aggregation/groupintobatches/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/aggregation/groupintobatches/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="groupintobatches">GroupIntoBatches&lt;/h1>
-&lt;script type="text/javascript">
-localStorage.setItem("language", "language-py")
-&lt;/script>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.GroupIntoBatches"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
-&lt;p>Batches the input into desired batch size.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>In the following example, we create a pipeline with a &lt;code>PCollection&lt;/code> of produce by season.&lt;/p>
-&lt;p>We use &lt;code>GroupIntoBatches&lt;/code> to get fixed-sized batches for every key, which outputs a list of elements for every key.&lt;/p>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupintobatches.py">
-&lt;img src="/images/code-icon.svg"/>
-&lt;/a>
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
-&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">batches_with_keys&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">pipeline&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create produce&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍓&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🌽&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;winter&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">])&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Group into batches&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupIntoBatches&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>(&amp;#39;spring&amp;#39;, [&amp;#39;🍓&amp;#39;, &amp;#39;🥕&amp;#39;, &amp;#39;🍆&amp;#39;])
-(&amp;#39;summer&amp;#39;, [&amp;#39;🥕&amp;#39;, &amp;#39;🍅&amp;#39;, &amp;#39;🌽&amp;#39;])
-(&amp;#39;spring&amp;#39;, [&amp;#39;🍅&amp;#39;])
-(&amp;#39;fall&amp;#39;, [&amp;#39;🥕&amp;#39;, &amp;#39;🍅&amp;#39;])
-(&amp;#39;winter&amp;#39;, [&amp;#39;🍆&amp;#39;])&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;!-- TODO(BEAM-10889): Create a page for BatchElements and link to it here. //-->
-&lt;p>For unkeyed data and dynamic batch sizes, one may want to use
-&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.BatchElements">BatchElements&lt;/a>.&lt;/p>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.GroupIntoBatches"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item></channel></rss>
+&lt;/ul></description></item></channel></rss>
