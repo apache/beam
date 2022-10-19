@@ -20,7 +20,9 @@ limitations under the License.
 
 {{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
 
-You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation.
+You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through tfx-bsl.
+
+You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation.
 
 ## Why use the RunInference API?
 
@@ -62,6 +64,7 @@ from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerPandas
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
+from tfx_bsl.public.beam.run_inference import CreateModelHandler
 ```
 ### Use pre-trained models
 
@@ -113,12 +116,21 @@ with pipeline as p:
         )
 ```
 
-The model handler that is created with `CreateModelHander()` is always unkeyed. To make a keyed model handler, wrap the unkeyed model handler in the keyed model handler, which would then take the `tfx-bsl` model handler as a parameter. For example:
+Note: A model handler that is created with `CreateModelHander()` is always unkeyed.
+
+### Keyed Model Handlers
+To make a keyed model handler, wrap the any model handler in the keyed model handler. For example:
 
 ```
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.base import KeyedModelHandler
-RunInference(KeyedModelHandler(tf_handler))
+model_handler = <Instantiate your model handler>
+keyed_model_handler = KeyedModelHandler(model_handler)
+
+with pipeline as p:
+     p | ( <Your Pipeline>
+       RunInference(keyed_model_handler)
+     )
 ```
 
 If you are unsure if your data is keyed, you can also use `MaybeKeyedModelHandler`.
@@ -132,7 +144,6 @@ You only need to create your own `ModelHandler` or `KeyedModelHandler` with logi
 
 A simple example can be found in [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb).
 The `load_model` method shows how to load the model using a popular `spaCy` package while `run_inference` shows how to run the inference on a batch of examples.
-
 
 ### Use multiple models
 
