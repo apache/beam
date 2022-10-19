@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaTooNarrowException;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -115,8 +116,11 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
         }
         lastSchemaUpdateTime = Instant.now();
         schemaInformation =
-            TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
-        descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
+            TableRowToStorageApiProto.SchemaInformation.fromTableSchema(
+                Preconditions.checkStateNotNull(tableSchema));
+        descriptor =
+            TableRowToStorageApiProto.getDescriptorFromTableSchema(
+                Preconditions.checkStateNotNull(tableSchema));
         descriptorHash = BigQueryUtils.hashSchemaDescriptorDeterministic(descriptor);
       }
 
@@ -144,7 +148,8 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
         TableReference tableReference = getTable(destination).getTableReference();
         TableSchema newSchema;
         if (refreshSchemaEvery.isLongerThan(Duration.ZERO)) {
-          if (lastSchemaUpdateTime.plus(refreshSchemaEvery).isBefore(Instant.now())) {
+          if (lastSchemaUpdateTime != null
+              && lastSchemaUpdateTime.plus(refreshSchemaEvery).isBefore(Instant.now())) {
             // No need to update the schema.
             return;
           }

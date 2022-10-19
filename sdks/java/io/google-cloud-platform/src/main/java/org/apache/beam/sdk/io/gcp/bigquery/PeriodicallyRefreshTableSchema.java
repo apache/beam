@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -128,8 +129,8 @@ class PeriodicallyRefreshTableSchema<DestinationT, ElementT>
     @TimerId(DESTINATIONS_TIMER)
     private final TimerSpec destinationsTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-    private Map<String, String> currentOutput;
-    private Instant currentOutputTs;
+    private @Nullable Map<String, String> currentOutput;
+    private @Nullable Instant currentOutputTs;
 
     private transient @Nullable BigQueryServices.DatasetService datasetServiceInternal = null;
 
@@ -161,7 +162,7 @@ class PeriodicallyRefreshTableSchema<DestinationT, ElementT>
         destinations.write(newSet);
         if (timerTime.read() == null) {
           timerTime.write(destinationsTimer.getCurrentRelativeTime().plus(refreshDuration));
-          destinationsTimer.set(timerTime.read());
+          destinationsTimer.set(Preconditions.checkStateNotNull(timerTime.read()));
         }
       }
     }
@@ -174,7 +175,7 @@ class PeriodicallyRefreshTableSchema<DestinationT, ElementT>
         OnTimerContext onTimerContext,
         PipelineOptions pipelineOptions)
         throws IOException, InterruptedException {
-      initOutputMap();
+      Map<String, String> outputMap = Preconditions.checkStateNotNull(currentOutput);
       currentOutputTs = timerTime.read();
 
       Set<String> allDestinations = destinations.read();
@@ -183,7 +184,7 @@ class PeriodicallyRefreshTableSchema<DestinationT, ElementT>
         TableReference tableReference = BigQueryHelpers.parseTableSpec(tableSpec);
         Table table = datasetService.getTable(tableReference);
         if (table != null) {
-          currentOutput.put(tableSpec, BigQueryHelpers.toJsonString(table.getSchema()));
+          outputMap.put(tableSpec, BigQueryHelpers.toJsonString(table.getSchema()));
         }
       }
 
@@ -193,9 +194,10 @@ class PeriodicallyRefreshTableSchema<DestinationT, ElementT>
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) {
-      if (!currentOutput.isEmpty()) {
+      Map<String, String> outputMap = Preconditions.checkStateNotNull(currentOutput);
+      if (!outputMap.isEmpty()) {
         c.output(
-            TimestampedValue.of(currentOutput, currentOutputTs),
+            TimestampedValue.of(outputMap, Preconditions.checkStateNotNull(currentOutputTs)),
             GlobalWindow.INSTANCE.maxTimestamp(),
             GlobalWindow.INSTANCE);
       }

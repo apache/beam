@@ -317,7 +317,7 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public TableSchema getSchema(DestinationT destination) {
+    public @Nullable TableSchema getSchema(DestinationT destination) {
       List<TimestampedValue<Map<String, String>>> mapValues = sideInput(schemaView);
       Optional<Map<String, String>> mapValue =
           mapValues.stream()
@@ -368,7 +368,7 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public TableSchema getSchema(DestinationT destination) {
+    public @Nullable TableSchema getSchema(DestinationT destination) {
       Map<String, String> mapValue = sideInput(schemaView);
       TableDestination tableDestination = inner.getTable(destination);
       @Nullable String schema = mapValue.get(tableDestination.getTableSpec());
