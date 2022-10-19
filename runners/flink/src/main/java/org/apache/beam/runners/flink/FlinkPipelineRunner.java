@@ -69,15 +69,16 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
    * Setup a flink pipeline runner.
    *
    * @param pipelineOptions pipeline options configuring the flink pipeline runner.
-   * @param confDir flink configuration directory. If not null, it takes precedence against pipeline
-   *     option's flinkConfDir
+   * @param confDir flink configuration directory. Note that pipeline option's flinkConfDir, If not
+   *     null, takes precedence against this parameter.
    * @param filesToStage a list of file names to stage.
    */
   public FlinkPipelineRunner(
       FlinkPipelineOptions pipelineOptions, @Nullable String confDir, List<String> filesToStage) {
     this.pipelineOptions = pipelineOptions;
-    // confDir takes precedence than pipelineOptions.getFlinkConfDir
-    this.confDir = confDir != null ? confDir : pipelineOptions.getFlinkConfDir();
+    // pipelineOptions.getFlinkConfDir takes precedence than confDir
+    this.confDir =
+        pipelineOptions.getFlinkConfDir() != null ? pipelineOptions.getFlinkConfDir() : confDir;
     this.filesToStage = filesToStage;
   }
 
