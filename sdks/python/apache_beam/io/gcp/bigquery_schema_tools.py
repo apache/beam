@@ -28,13 +28,12 @@ from typing import Sequence
 import numpy as np
 
 import apache_beam as beam
+import apache_beam.io.gcp.bigquery_tools
 import apache_beam.typehints.schemas
 import apache_beam.utils.proto_utils
 import apache_beam.utils.timestamp
-import apache_beam.io.gcp.bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.portability.api import schema_pb2
-
 from apache_beam.transforms import DoFn
 
 # BigQuery types as listed in
