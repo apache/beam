@@ -24,6 +24,7 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 
 public class Util {
@@ -36,7 +37,7 @@ public class Util {
   }
 
   public static <OutputT> Coder<OutputT> inferCoder(
-      Coder<OutputT> defaultCoder,
+      @Nullable Coder<OutputT> defaultCoder,
       RowMapper<OutputT> rowMapper,
       CoderRegistry registry,
       SchemaRegistry schemaRegistry,

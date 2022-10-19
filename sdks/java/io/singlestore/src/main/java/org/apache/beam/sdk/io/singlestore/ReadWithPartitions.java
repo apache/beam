@@ -144,7 +144,7 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
             input.getPipeline().getCoderRegistry(),
             input.getPipeline().getSchemaRegistry(),
             LOG);
-    query = (query != null) ? query : "SELECT * FROM " + Util.escapeIdentifier(table);
+    query = (table != null) ? "SELECT * FROM " + Util.escapeIdentifier(table): query;
     int initialNumReaders =
         (getInitialNumReaders() != null && getInitialNumReaders().get() != null)
             ? getInitialNumReaders().get()

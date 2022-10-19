@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,19 +46,19 @@ import org.slf4j.LoggerFactory;
 public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(Read.class);
 
-  abstract DataSourceConfiguration getDataSourceConfiguration();
+  abstract @Nullable DataSourceConfiguration getDataSourceConfiguration();
 
-  abstract ValueProvider<String> getQuery();
+  abstract @Nullable ValueProvider<String> getQuery();
 
-  abstract ValueProvider<String> getTable();
+  abstract @Nullable ValueProvider<String> getTable();
 
-  abstract StatementPreparator getStatementPreparator();
+  abstract @Nullable StatementPreparator getStatementPreparator();
 
-  abstract ValueProvider<Boolean> getOutputParallelization();
+  abstract @Nullable ValueProvider<Boolean> getOutputParallelization();
 
-  abstract RowMapper<T> getRowMapper();
+  abstract @Nullable RowMapper<T> getRowMapper();
 
-  abstract Coder<T> getCoder();
+  abstract @Nullable Coder<T> getCoder();
 
   abstract Builder<T> toBuilder();
 
@@ -132,22 +133,28 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
   @Override
   public PCollection<T> expand(PBegin input) {
+    DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
+    ValueProvider<String> tableProvider = getTable();
+    ValueProvider<String> queryProvider = getQuery();
+    RowMapper<T> rowMapper = getRowMapper();
+    ValueProvider<Boolean> outputParallelization = getOutputParallelization();
+    StatementPreparator statementPreparator = getStatementPreparator();
+
     checkArgument(
-        getDataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
+        dataSourceConfiguration != null, "withDataSourceConfiguration() is required");
+    checkArgument(rowMapper != null, "withRowMapper is required");
 
-    String table = (getTable() == null) ? null : getTable().get();
-    String query = (getQuery() == null) ? null : getQuery().get();
-
+    String table = (tableProvider == null) ? null : tableProvider.get();
+    String query = (queryProvider == null) ? null : queryProvider.get();
     checkArgument(
         !(table == null && query == null), "One of withTable() or withQuery() is required");
     checkArgument(
         !(table != null && query != null), "withTable() can not be used together with withQuery()");
-    checkArgument(getRowMapper() != null, "withRowMapper is required");
 
     Coder<T> coder =
         Util.inferCoder(
             getCoder(),
-            getRowMapper(),
+            rowMapper,
             input.getPipeline().getCoderRegistry(),
             input.getPipeline().getSchemaRegistry(),
             LOG);
@@ -159,15 +166,15 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
             .apply(
                 ParDo.of(
                     new ReadFn<>(
-                        getDataSourceConfiguration(),
+                        dataSourceConfiguration,
                         query,
-                        getStatementPreparator(),
-                        getRowMapper())))
+                        statementPreparator,
+                        rowMapper)))
             .setCoder(coder);
 
-    if (getOutputParallelization() == null
-        || getOutputParallelization().get() == null
-        || getOutputParallelization().get()) {
+    if (outputParallelization == null
+        || outputParallelization.get() == null
+        || outputParallelization.get()) {
       output = output.apply(new Reparallelize<>());
     }
 
@@ -177,13 +184,13 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
   private static class ReadFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
     DataSourceConfiguration dataSourceConfiguration;
     String query;
-    StatementPreparator statementPreparator;
+    @Nullable StatementPreparator statementPreparator;
     RowMapper<OutputT> rowMapper;
 
     ReadFn(
         DataSourceConfiguration dataSourceConfiguration,
         String query,
-        StatementPreparator statementPreparator,
+        @Nullable StatementPreparator statementPreparator,
         RowMapper<OutputT> rowMapper) {
       this.dataSourceConfiguration = dataSourceConfiguration;
       this.query = query;
