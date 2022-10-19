@@ -463,7 +463,10 @@ class SchemaTranslation(object):
 
     # Define a reduce function, otherwise these types can't be pickled
     # (See BEAM-9574)
-    setattr(user_type, '__reduce__', _named_tuple_reduce)
+    setattr(
+        user_type,
+        '__reduce__',
+        _named_tuple_reduce_method(schema.SerializeToString()))
 
     self.schema_registry.add(user_type, schema)
     coders.registry.register_coder(user_type, coders.RowCoder)
@@ -471,10 +474,11 @@ class SchemaTranslation(object):
     return user_type
 
 
-def _named_tuple_reduce(self):
-    return (
-        _hydrate_namedtuple_instance,
-        (schema.SerializeToString(), tuple(self)))
+def _named_tuple_reduce_method(serialized_schema):
+  def __reduce__(self):
+    return _hydrate_namedtuple_instance, (serialized_schema, tuple(self))
+
+  return __reduce__
 
 
 def _hydrate_namedtuple_instance(encoded_schema, values):
