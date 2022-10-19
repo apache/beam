@@ -19,18 +19,25 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../auth/method.dart';
+import '../../auth/notifier.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
 
 class LoginContent extends StatelessWidget {
-  const LoginContent();
+  final VoidCallback onLoggedIn;
+  const LoginContent({
+    required this.onLoggedIn,
+  });
 
   @override
   Widget build(BuildContext context) {
     return _Body(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             'ui.signIn',
@@ -42,7 +49,9 @@ class LoginContent extends StatelessWidget {
             textAlign: TextAlign.center,
           ).tr(),
           const _Divider(),
-          const _BrandedLoginButtons(),
+          _BrandedLoginButtons(
+            onLoggedIn: onLoggedIn,
+          ),
         ],
       ),
     );
@@ -82,10 +91,15 @@ class _Divider extends StatelessWidget {
 }
 
 class _BrandedLoginButtons extends StatelessWidget {
-  const _BrandedLoginButtons();
+  final VoidCallback onLoggedIn;
+  const _BrandedLoginButtons({
+    required this.onLoggedIn,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final auth = GetIt.instance.get<AuthNotifier>();
+
     final isLightTheme = Theme.of(context).brightness == Brightness.light;
     final textStyle =
         MaterialStatePropertyAll(Theme.of(context).textTheme.bodyMedium);
@@ -129,7 +143,10 @@ class _BrandedLoginButtons extends StatelessWidget {
         ),
         const SizedBox(height: BeamSizes.size16),
         ElevatedButton.icon(
-          onPressed: () {},
+          onPressed: () async {
+            await auth.logIn(AuthMethod.google);
+            onLoggedIn();
+          },
           style: isLightTheme ? googleLightButtonStyle : darkButtonStyle,
           icon: SvgPicture.asset(Assets.svg.googleLogo),
           label: const Text('ui.continueGoogle').tr(),

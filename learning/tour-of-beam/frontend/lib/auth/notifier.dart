@@ -16,19 +16,34 @@
  * limitations under the License.
  */
 
-import '../../models/content_tree.dart';
-import '../../models/unit_content.dart';
-import '../../models/user_progress.dart';
-import '../models/get_sdks_response.dart';
+import 'dart:async';
 
-abstract class TobClient {
-  Future<ContentTreeModel> getContentTree(String sdkId);
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'method.dart';
 
-  Future<GetSdksResponse> getSdks();
+class AuthNotifier extends ChangeNotifier {
+  final _firebase = FirebaseAuth.instance;
+  final _authProviders = UnmodifiableAuthMethodMap(
+    google: GoogleAuthProvider(),
+    github: GithubAuthProvider(),
+  );
 
-  Future<UnitContentModel> getUnitContent(String sdkId, String unitId);
+  AuthNotifier() {
+    _firebase.authStateChanges().listen((user) async {
+      notifyListeners();
+    });
+  }
 
-  Future<List<UserProgressModel>?> getUserProgress(String sdkId);
+  bool get isAuthenticated => _firebase.currentUser != null;
 
-  Future<void> postUnitComplete(String sdkId, String id);
+  Future<String?> get token async => await _firebase.currentUser?.getIdToken();
+
+  Future<void> logIn(AuthMethod authMethod) async {
+    await _firebase.signInWithPopup(_authProviders.get(authMethod));
+  }
+
+  Future<void> logOut() async {
+    await _firebase.signOut();
+  }
 }

@@ -17,12 +17,13 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../generated/assets.gen.dart';
+import '../../../cache/user_progress.dart';
 import '../../../models/unit.dart';
 import '../controllers/content_tree.dart';
-import 'tour_progress_indicator.dart';
+import 'unit_progress_indicator.dart';
 
 class UnitWidget extends StatelessWidget {
   final UnitModel unit;
@@ -35,15 +36,39 @@ class UnitWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClickableWidget(
-      onTap: () => contentTreeController.onNodeTap(unit),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
-        child: Row(
-          children: [
-            TourProgressIndicator(assetPath: Assets.svg.unitProgress0),
-            Expanded(child: Text(unit.title)),
-          ],
+    final cache = GetIt.instance.get<UserProgressCache>();
+
+    return AnimatedBuilder(
+      animation: contentTreeController,
+      builder: (context, child) {
+        final isSelected = contentTreeController.currentNode?.id == unit.id;
+        // TODO(nausharipov): get sdk
+        final isCompleted = cache.getCompletedUnits('go').contains(unit.id);
+
+        return ClickableWidget(
+          onTap: () => contentTreeController.openNode(unit),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isSelected ? Theme.of(context).selectedRowColor : null,
+              borderRadius: BorderRadius.circular(BeamSizes.size3),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
+            child: Row(
+              children: [
+                // TODO(nausharipov): finish
+                AnimatedBuilder(
+                  animation: cache,
+                  builder: (context, child) => UnitProgressIndicator(
+                    isCompleted: isCompleted,
+                    isSelected: isSelected,
+                  ),
+                ),
+                Expanded(
+                  child: Text(unit.title),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

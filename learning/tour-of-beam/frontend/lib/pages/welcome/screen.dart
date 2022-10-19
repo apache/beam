@@ -20,11 +20,13 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../auth/notifier.dart';
 import '../../components/builders/content_tree.dart';
 import '../../components/builders/sdks.dart';
-import '../../components/filler_text.dart';
+import '../../components/login/content.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
@@ -212,13 +214,32 @@ class _IntroText extends StatelessWidget {
           color: BeamColors.grey2,
           constraints: const BoxConstraints(maxWidth: _dividerMaxWidth),
         ),
-        RichText(
-          text: TextSpan(
-            style: Theme.of(context).textTheme.bodyLarge,
-            children: [
+        const _IntroTextBody(),
+      ],
+    );
+  }
+}
+
+class _IntroTextBody extends StatelessWidget {
+  const _IntroTextBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = GetIt.instance.get<AuthNotifier>();
+    return AnimatedBuilder(
+      animation: auth,
+      builder: (context, child) => RichText(
+        text: TextSpan(
+          style: Theme.of(context).textTheme.bodyLarge,
+          children: [
+            TextSpan(
+              text: 'pages.welcome.ifSaveProgress'.tr(),
+            ),
+            if (auth.isAuthenticated)
               TextSpan(
-                text: 'pages.welcome.ifSaveProgress'.tr(),
-              ),
+                text: 'pages.welcome.signIn'.tr(),
+              )
+            else
               TextSpan(
                 text: 'pages.welcome.signIn'.tr(),
                 style: Theme.of(context)
@@ -227,14 +248,26 @@ class _IntroText extends StatelessWidget {
                     .copyWith(color: Theme.of(context).primaryColor),
                 recognizer: TapGestureRecognizer()
                   ..onTap = () {
-                    // TODO(nausharipov): sign in
+                    _openLoginDialog(context);
                   },
               ),
-              TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),
-            ],
-          ),
+            TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+  void _openLoginDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: LoginContent(
+          onLoggedIn: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
     );
   }
 }

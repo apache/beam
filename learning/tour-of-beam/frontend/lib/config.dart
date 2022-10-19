@@ -18,8 +18,8 @@
 
 // TODO(alexeyinkin): Generate this file on deployment.
 
-const _cloudFunctionsProjectRegion = 'us-central1';
-const _cloudFunctionsProjectId = 'tour-of-beam-2';
+const _cloudFunctionsProjectRegion = 'us-east1';
+const _cloudFunctionsProjectId = 'sandbox-playground-002';
 const cloudFunctionsBaseUrl = 'https://'
     '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId'
     '.cloudfunctions.net';

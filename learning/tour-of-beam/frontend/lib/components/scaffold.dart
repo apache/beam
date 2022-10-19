@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
 import 'footer.dart';
-import 'login/login_button.dart';
+import 'login/button.dart';
 import 'logo.dart';
 import 'profile/avatar.dart';
 import 'sdk_dropdown.dart';
@@ -33,9 +34,6 @@ class TobScaffold extends StatelessWidget {
     required this.child,
   });
 
-  // TODO(nausharipov): get state
-  static const _isAuthorized = true;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,9 +44,7 @@ class TobScaffold extends StatelessWidget {
           SizedBox(width: BeamSizes.size12),
           _ActionVerticalPadding(child: ToggleThemeButton()),
           SizedBox(width: BeamSizes.size6),
-          _ActionVerticalPadding(
-            child: _isAuthorized ? Avatar() : LoginButton(),
-          ),
+          _Profile(),
           SizedBox(width: BeamSizes.size16),
         ],
       ),
@@ -57,6 +53,21 @@ class TobScaffold extends StatelessWidget {
           Expanded(child: child),
           const Footer(),
         ],
+      ),
+    );
+  }
+}
+
+class _Profile extends StatelessWidget {
+  const _Profile();
+
+  @override
+  Widget build(BuildContext context) {
+    return _ActionVerticalPadding(
+      child: StreamBuilder(
+        stream: FirebaseAuth.instance.userChanges(),
+        builder: (context, user) =>
+            user.hasData ? Avatar(user: user.data!) : const LoginButton(),
       ),
     );
   }

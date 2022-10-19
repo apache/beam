@@ -17,25 +17,36 @@
  */
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../auth/notifier.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
 
-class ProfileContent extends StatelessWidget {
-  const ProfileContent();
+class UserMenu extends StatelessWidget {
+  final VoidCallback onLoggedOut;
+  final User user;
+
+  const UserMenu({
+    required this.onLoggedOut,
+    required this.user,
+  });
 
   @override
   Widget build(BuildContext context) {
     return _Body(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _Info(),
-          BeamDivider(),
-          _Buttons(),
+        children: [
+          _Info(user: user),
+          const BeamDivider(),
+          _Buttons(
+            closeOverlay: onLoggedOut,
+          ),
         ],
       ),
     );
@@ -61,23 +72,32 @@ class _Body extends StatelessWidget {
 }
 
 class _Info extends StatelessWidget {
-  const _Info();
+  final User user;
+
+  const _Info({
+    required this.user,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final displayName = user.displayName;
+    final email = user.email;
+
     return Padding(
       padding: const EdgeInsets.all(BeamSizes.size16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Name Surname',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          Text(
-            'email@mail.com',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          if (displayName != null)
+            Text(
+              displayName,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          if (email != null)
+            Text(
+              email,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
         ],
       ),
     );
@@ -85,10 +105,15 @@ class _Info extends StatelessWidget {
 }
 
 class _Buttons extends StatelessWidget {
-  const _Buttons();
+  final VoidCallback closeOverlay;
+  const _Buttons({
+    required this.closeOverlay,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final auth = GetIt.instance.get<AuthNotifier>();
+
     return Column(
       children: [
         _IconLabel(
@@ -105,7 +130,10 @@ class _Buttons extends StatelessWidget {
         ),
         const BeamDivider(),
         _IconLabel(
-          onTap: () {},
+          onTap: () async {
+            await auth.logOut();
+            closeOverlay();
+          },
           iconPath: Assets.svg.profileLogout,
           label: 'ui.signOut'.tr(),
         ),
@@ -123,7 +151,7 @@ class _Buttons extends StatelessWidget {
 class _IconLabel extends StatelessWidget {
   final String iconPath;
   final String label;
-  final void Function()? onTap;
+  final VoidCallback? onTap;
 
   // TODO(alexeyinkin): Auto-determine.
   final bool isSvg;

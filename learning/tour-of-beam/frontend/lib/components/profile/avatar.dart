@@ -16,41 +16,52 @@
  * limitations under the License.
  */
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../generated/assets.gen.dart';
-import 'profile_content.dart';
+import 'user_menu.dart';
 
 class Avatar extends StatelessWidget {
-  const Avatar();
+  final User user;
+  const Avatar({required this.user});
 
   @override
   Widget build(BuildContext context) {
+    final photoUrl = user.photoURL;
     return GestureDetector(
       onTap: () {
         _openOverlay(context);
       },
       child: CircleAvatar(
         backgroundColor: BeamColors.white,
-        foregroundImage: AssetImage(Assets.png.laptopLight.path),
+        foregroundImage: photoUrl == null
+            // TODO(nausharipov): placeholder avatar asset
+            ? AssetImage(Assets.png.laptopLight.path) as ImageProvider
+            : NetworkImage(photoUrl),
       ),
     );
   }
 
   void _openOverlay(BuildContext context) {
+    final overlayCloser = PublicNotifier();
     OverlayEntry? overlay;
     overlay = OverlayEntry(
-      builder: (context) => DismissibleOverlay(
-        close: () {
-          overlay?.remove();
-        },
-        child: const Positioned(
-          right: BeamSizes.size10,
-          top: BeamSizes.appBarHeight,
-          child: ProfileContent(),
-        ),
-      ),
+      builder: (context) {
+        overlayCloser.addListener(overlay!.remove);
+        return DismissibleOverlay(
+          close: overlayCloser.notifyPublic,
+          child: Positioned(
+            right: BeamSizes.size10,
+            top: BeamSizes.appBarHeight,
+            child: UserMenu(
+              onLoggedOut: overlayCloser.notifyPublic,
+              user: user,
+            ),
+          ),
+        );
+      },
     );
     Overlay.of(context)?.insert(overlay);
   }

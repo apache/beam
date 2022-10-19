@@ -16,19 +16,20 @@
  * limitations under the License.
  */
 
-import '../../models/content_tree.dart';
-import '../../models/unit_content.dart';
-import '../../models/user_progress.dart';
-import '../models/get_sdks_response.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-abstract class TobClient {
-  Future<ContentTreeModel> getContentTree(String sdkId);
+part 'user_progress.g.dart';
 
-  Future<GetSdksResponse> getSdks();
+@JsonSerializable(createToJson: false)
+class UserProgressModel {
+  final String id;
+  final bool isCompleted;
 
-  Future<UnitContentModel> getUnitContent(String sdkId, String unitId);
+  const UserProgressModel({
+    required this.id,
+    required this.isCompleted,
+  });
 
-  Future<List<UserProgressModel>?> getUserProgress(String sdkId);
-
-  Future<void> postUnitComplete(String sdkId, String id);
+  factory UserProgressModel.fromJson(Map<String, dynamic> json) =>
+      _$UserProgressModelFromJson(json);
 }

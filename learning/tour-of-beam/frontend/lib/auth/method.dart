@@ -16,19 +16,12 @@
  * limitations under the License.
  */
 
-import '../../models/content_tree.dart';
-import '../../models/unit_content.dart';
-import '../../models/user_progress.dart';
-import '../models/get_sdks_response.dart';
+import 'package:enum_map/enum_map.dart';
 
-abstract class TobClient {
-  Future<ContentTreeModel> getContentTree(String sdkId);
+part 'method.g.dart';
 
-  Future<GetSdksResponse> getSdks();
-
-  Future<UnitContentModel> getUnitContent(String sdkId, String unitId);
-
-  Future<List<UserProgressModel>?> getUserProgress(String sdkId);
-
-  Future<void> postUnitComplete(String sdkId, String id);
+@unmodifiableEnumMap
+enum AuthMethod {
+  google,
+  github,
 }

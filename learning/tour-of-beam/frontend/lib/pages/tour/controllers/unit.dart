@@ -16,19 +16,25 @@
  * limitations under the License.
  */
 
-import '../../models/content_tree.dart';
-import '../../models/unit_content.dart';
-import '../../models/user_progress.dart';
-import '../models/get_sdks_response.dart';
+import 'package:flutter/widgets.dart';
+import 'package:get_it/get_it.dart';
 
-abstract class TobClient {
-  Future<ContentTreeModel> getContentTree(String sdkId);
+import '../../../cache/user_progress.dart';
+import '../../../repositories/client/client.dart';
 
-  Future<GetSdksResponse> getSdks();
+class UnitController extends ChangeNotifier {
+  // TODO(nausharipov): finish
+  // final String unitId;
+  // final String sdkId;
 
-  Future<UnitContentModel> getUnitContent(String sdkId, String unitId);
+  // UnitController({
+  //   required this.unitId,
+  //   required this.sdkId,
+  // });
 
-  Future<List<UserProgressModel>?> getUserProgress(String sdkId);
-
-  Future<void> postUnitComplete(String sdkId, String id);
+  Future<void> completeUnit(String sdkId, String unitId) async {
+    final client = GetIt.instance.get<TobClient>();
+    await client.postUnitComplete(sdkId, unitId);
+    GetIt.instance.get<UserProgressCache>().updateCompletedUnits(sdkId);
+  }
 }

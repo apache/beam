@@ -26,11 +26,13 @@ import '../../config.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
 import 'controllers/content_tree.dart';
+import 'controllers/unit.dart';
 import 'path.dart';
 
 class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
+  final UnitController unitController;
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
   UnitContentModel? _currentUnitContent;
 
@@ -41,6 +43,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
           initialSdkId: initialSdkId,
           initialTreeIds: initialTreeIds,
         ),
+        unitController = UnitController(
+            // TODO(nausharipov): finish
+            // unitId: contentTreeController.currentNode.id,
+            // sdkId: initialSdkId,
+            ),
         playgroundController = _createPlaygroundController(initialSdkId) {
     contentTreeController.addListener(_onChanged);
     _unitContentCache.addListener(_onChanged);

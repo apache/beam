@@ -17,9 +17,12 @@
  */
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../../cache/user_progress.dart';
 import '../../../constants/sizes.dart';
 import '../state.dart';
 import 'unit_content.dart';
@@ -56,7 +59,7 @@ class ContentWidget extends StatelessWidget {
                     ? Container()
                     : UnitContentWidget(unitContent: currentUnitContent),
               ),
-              const _ContentFooter(),
+              _ContentFooter(notifier),
             ],
           );
         },
@@ -66,7 +69,8 @@ class ContentWidget extends StatelessWidget {
 }
 
 class _ContentFooter extends StatelessWidget {
-  const _ContentFooter();
+  final TourNotifier notifier;
+  const _ContentFooter(this.notifier);
 
   @override
   Widget build(BuildContext context) {
@@ -85,28 +89,65 @@ class _ContentFooter extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Flexible(
-            child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: themeData.primaryColor,
-                side: BorderSide(color: themeData.primaryColor),
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(
-                    Radius.circular(BeamSizes.size4),
-                  ),
-                ),
-              ),
-              child: const Text(
-                'pages.tour.completeUnit',
-                overflow: TextOverflow.ellipsis,
-              ).tr(),
-              onPressed: () {
-                // TODO(nausharipov): complete unit
-              },
-            ),
-          ),
+          _CompleteUnitButton(notifier),
         ],
       ),
+    );
+  }
+}
+
+class _CompleteUnitButton extends StatelessWidget {
+  final TourNotifier notifier;
+  const _CompleteUnitButton(this.notifier);
+
+  @override
+  Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+    final cache = GetIt.instance.get<UserProgressCache>();
+
+    return AnimatedBuilder(
+      animation: cache,
+      builder: (context, child) {
+        // TODO(nausharipov): finish
+        // TODO(nausharipov): get sdk
+        final isDisabled = cache.getCompletedUnits('go').contains(
+                  notifier.contentTreeController.currentNode?.id,
+                ) ||
+            FirebaseAuth.instance.currentUser == null;
+
+        return Flexible(
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: themeData.primaryColor,
+              side: BorderSide(
+                color: isDisabled
+                    ? themeData.disabledColor
+                    : themeData.primaryColor,
+              ),
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(
+                  Radius.circular(BeamSizes.size4),
+                ),
+              ),
+            ),
+            // TODO(nausharipov): get sdk
+            onPressed: isDisabled ? null : _completeUnit,
+            child: const Text(
+              'pages.tour.completeUnit',
+              overflow: TextOverflow.ellipsis,
+            ).tr(),
+          ),
+        );
+      },
+    );
+  }
+
+  void _completeUnit() {
+    // TODO(nausharipov): finish
+    // TODO(nausharipov): get sdk
+    notifier.unitController.completeUnit(
+      'go',
+      notifier.contentTreeController.currentNode!.id,
     );
   }
 }
