@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.dbcp2.DelegatingStatement;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 @AutoValue
@@ -48,13 +49,13 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
   private static final int DEFAULT_BATCH_SIZE = 1000;
   private static final int BUFFER_SIZE = 524288;
 
-  abstract DataSourceConfiguration getDataSourceConfiguration();
+  abstract @Nullable DataSourceConfiguration getDataSourceConfiguration();
 
-  abstract ValueProvider<String> getTable();
+  abstract @Nullable ValueProvider<String> getTable();
 
-  abstract ValueProvider<Integer> getBatchSize();
+  abstract @Nullable ValueProvider<Integer> getBatchSize();
 
-  abstract UserDataMapper<T> getUserDataMapper();
+  abstract @Nullable UserDataMapper<T> getUserDataMapper();
 
   abstract Builder<T> toBuilder();
 
@@ -93,15 +94,30 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
 
   @Override
   public PDone expand(PCollection<T> input) {
-    checkArgument(
-        getDataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
-    checkArgument(getTable() != null && getTable().get() != null, "getTable() is required");
-    checkArgument(getUserDataMapper() != null, "getUserDataMapper() is required");
+    DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
+    if (dataSourceConfiguration == null) {
+      throw new IllegalArgumentException("withDataSourceConfiguration() is required");
+    }
 
-    int batchSize =
-        (getBatchSize() != null && getBatchSize().get() != null)
-            ? getBatchSize().get()
-            : DEFAULT_BATCH_SIZE;
+    ValueProvider<String> tableProvider = getTable();
+    if ((tableProvider = getTable()) == null) {
+      throw new IllegalArgumentException("withTable() is required");
+    }
+    String table = tableProvider.get();
+    if (table == null) {
+      throw new IllegalArgumentException("withTable() is required");
+    }
+
+    UserDataMapper<T> userDataMapper = getUserDataMapper();
+    if (userDataMapper == null) {
+      throw new IllegalArgumentException("withUserDataMapper() is required");
+    }
+
+    int batchSize = DEFAULT_BATCH_SIZE;
+    ValueProvider<Integer> batchSizeProvider = getBatchSize();
+    if (batchSizeProvider != null && batchSizeProvider.get() != null) {
+      batchSize = batchSizeProvider.get();
+    }
 
     input
         .apply(
@@ -109,11 +125,11 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
                 new DoFn<T, String[]>() {
                   @ProcessElement
                   public void processElement(ProcessContext context) throws Exception {
-                    context.output(getUserDataMapper().mapRow(context.element()));
+                    context.output(userDataMapper.mapRow(context.element()));
                   }
                 }))
         .apply(ParDo.of(new BatchFn<>(batchSize)))
-        .apply(ParDo.of(new WriteFn<Void>(getDataSourceConfiguration(), getTable().get())))
+        .apply(ParDo.of(new WriteFn<Void>(dataSourceConfiguration, table)))
         .setCoder(VoidCoder.of());
 
     return PDone.in(input.getPipeline());

@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,17 +44,17 @@ import org.slf4j.LoggerFactory;
 public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollection<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(ReadWithPartitions.class);
 
-  abstract DataSourceConfiguration getDataSourceConfiguration();
+  abstract @Nullable DataSourceConfiguration getDataSourceConfiguration();
 
-  abstract ValueProvider<String> getQuery();
+  abstract @Nullable ValueProvider<String> getQuery();
 
-  abstract ValueProvider<String> getTable();
+  abstract @Nullable ValueProvider<String> getTable();
 
-  abstract RowMapper<T> getRowMapper();
+  abstract @Nullable RowMapper<T> getRowMapper();
 
-  abstract ValueProvider<Integer> getInitialNumReaders();
+  abstract @Nullable ValueProvider<Integer> getInitialNumReaders();
 
-  abstract Coder<T> getCoder();
+  abstract @Nullable Coder<T> getCoder();
 
   abstract Builder<T> toBuilder();
 
@@ -121,57 +122,69 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
 
   @Override
   public PCollection<T> expand(PBegin input) {
-    checkArgument(
-        getDataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
-    checkArgument(
-        getDataSourceConfiguration().getDatabase() != null
-            && getDataSourceConfiguration().getDatabase().get() != null,
-        "withDatabase() is required for DataSourceConfiguration in order to perform readWithPartitions");
-    checkArgument(getRowMapper() != null, "withRowMapper() is required");
+    DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
+    if (dataSourceConfiguration == null) {
+      throw new IllegalArgumentException("withDataSourceConfiguration() is required");
+    }
 
-    String table = (getTable() == null) ? null : getTable().get();
-    String query = (getQuery() == null) ? null : getQuery().get();
+    ValueProvider<String> databaseProvider = dataSourceConfiguration.getDatabase();
+    if (databaseProvider == null) {
+      throw new IllegalArgumentException("withDatabase() is required for DataSourceConfiguration in order to perform readWithPartitions");
+    }
 
-    checkArgument(
-        !(table == null && query == null), "One of withTable() or withQuery() is required");
-    checkArgument(
-        !(table != null && query != null), "withTable() can not be used together with withQuery()");
+    String database = databaseProvider.get();
+    if (database == null) {
+      throw new IllegalArgumentException("withDatabase() is required for DataSourceConfiguration in order to perform readWithPartitions");
+    }
+
+    RowMapper<T> rowMapper = getRowMapper();
+    if (rowMapper == null) {
+      throw new IllegalArgumentException("withRowMapper() is required");
+    }
+
+    int initialNumReaders = 1;
+    ValueProvider<Integer> initialNumReadersProvider = getInitialNumReaders();
+    if (initialNumReadersProvider != null && initialNumReadersProvider.get() != null) {
+      initialNumReaders = initialNumReadersProvider.get();
+    }
+    checkArgument(initialNumReaders < 1, "withInitialNumReaders() can not be less then 1");
+
+    String actualQuery = Util.getSelectQuery(getTable(), getQuery());
 
     Coder<T> coder =
         Util.inferCoder(
             getCoder(),
-            getRowMapper(),
+            rowMapper,
             input.getPipeline().getCoderRegistry(),
             input.getPipeline().getSchemaRegistry(),
             LOG);
-    query = (table != null) ? "SELECT * FROM " + Util.escapeIdentifier(table): query;
-    int initialNumReaders =
-        (getInitialNumReaders() != null && getInitialNumReaders().get() != null)
-            ? getInitialNumReaders().get()
-            : 1;
+
 
     return input
         .apply(Create.of((Void) null))
         .apply(
             ParDo.of(
                 new ReadWithPartitions.ReadWithPartitionsFn<>(
-                    getDataSourceConfiguration(), query, getRowMapper(), initialNumReaders)))
+                    dataSourceConfiguration, actualQuery, database, rowMapper, initialNumReaders)))
         .setCoder(coder);
   }
 
   private static class ReadWithPartitionsFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
     DataSourceConfiguration dataSourceConfiguration;
     String query;
+    String database;
     RowMapper<OutputT> rowMapper;
     int initialNumReaders;
 
     ReadWithPartitionsFn(
         DataSourceConfiguration dataSourceConfiguration,
         String query,
+        String database,
         RowMapper<OutputT> rowMapper,
         int initialNumReaders) {
       this.dataSourceConfiguration = dataSourceConfiguration;
       this.query = query;
+      this.database = database;
       this.rowMapper = rowMapper;
       this.initialNumReaders = initialNumReaders;
     }
@@ -181,7 +194,6 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
         ProcessContext context, RestrictionTracker<OffsetRange, Long> tracker) throws Exception {
       DataSource dataSource = dataSourceConfiguration.getDataSource();
       try (Connection conn = dataSource.getConnection()) {
-        System.out.println("READING PARTITION : " + tracker.currentRestriction().getFrom());
         for (long partition = tracker.currentRestriction().getFrom();
             tracker.tryClaim(partition);
             partition++) {
@@ -203,6 +215,22 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
       return new OffsetRange(0L, getNumPartitions());
     }
 
+    @SplitRestriction
+    public void splitRange(
+        @Element String element,
+        @Restriction OffsetRange range,
+        OutputReceiver<OffsetRange> receiver) {
+      long numPartitions = range.getTo() - range.getFrom();
+      if (initialNumReaders > numPartitions) {
+        throw new IllegalArgumentException("withInitialNumReaders() should not be greater then number of partitions in the database.\n" +
+            String.format("InitialNumReaders is %d, number of partitions in the database is %d", initialNumReaders, range.getTo()));
+      }
+
+      for (int i = 0; i < initialNumReaders; i++) {
+        receiver.output(new OffsetRange(range.getFrom() + numPartitions*i/initialNumReaders, range.getFrom() + numPartitions*(i+1)/initialNumReaders));
+      }
+    }
+
     private int getNumPartitions() throws Exception {
       DataSource dataSource = dataSourceConfiguration.getDataSource();
       try (Connection conn = dataSource.getConnection()) {
@@ -211,7 +239,7 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
               stmt.executeQuery(
                   String.format(
                       "SELECT num_partitions FROM information_schema.DISTRIBUTED_DATABASES WHERE database_name = %s",
-                      Util.escapeString(dataSourceConfiguration.getDatabase().get())))) {
+                      Util.escapeString(database)))) {
             if (!res.next()) {
               throw new Exception("Failed to get number of partitions in the database");
             }

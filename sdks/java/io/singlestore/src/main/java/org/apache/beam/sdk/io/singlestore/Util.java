@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.singlestore;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -63,6 +64,21 @@ public class Util {
         LOG.warn("Unable to infer a coder for type {}", outputType);
         return null;
       }
+    }
+  }
+
+  public static String getSelectQuery(@Nullable ValueProvider<String> tableProvider, @Nullable ValueProvider<String> queryProvider) {
+    String table = (tableProvider == null) ? null : tableProvider.get();
+    String query = (queryProvider == null) ? null : queryProvider.get();
+
+    if (table != null && query != null) {
+      throw new IllegalArgumentException("withTable() can not be used together with withQuery()");
+    } else if (table != null) {
+      return "SELECT * FROM " + Util.escapeIdentifier(table);
+    } else if (query != null) {
+      return query;
+    } else {
+      throw new IllegalArgumentException("One of withTable() or withQuery() is required");
     }
   }
 }

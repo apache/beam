@@ -134,32 +134,18 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
   @Override
   public PCollection<T> expand(PBegin input) {
     DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
-    ValueProvider<String> tableProvider = getTable();
-    ValueProvider<String> queryProvider = getQuery();
-    RowMapper<T> rowMapper = getRowMapper();
-    ValueProvider<Boolean> outputParallelization = getOutputParallelization();
-    StatementPreparator statementPreparator = getStatementPreparator();
-
     if (dataSourceConfiguration == null) {
       throw new IllegalArgumentException("withDataSourceConfiguration() is required");
     }
+
+    RowMapper<T> rowMapper = getRowMapper();
     if (rowMapper == null) {
       throw new IllegalArgumentException("withRowMapper() is required");
     }
 
-    String table = (tableProvider == null) ? null : tableProvider.get();
-    String query = (queryProvider == null) ? null : queryProvider.get();
-    String actualQuery = "";
+    StatementPreparator statementPreparator = getStatementPreparator();
 
-    if (table != null && query != null) {
-      throw new IllegalArgumentException("withTable() can not be used together with withQuery()");
-    } else if (table != null) {
-      actualQuery = "SELECT * FROM " + Util.escapeIdentifier(table);
-    } else if (query != null) {
-      actualQuery = query;
-    } else {
-      throw new IllegalArgumentException("One of withTable() or withQuery() is required");
-    }
+    String actualQuery = Util.getSelectQuery(getTable(), getQuery());
 
     Coder<T> coder =
         Util.inferCoder(
@@ -181,9 +167,12 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
                         rowMapper)))
             .setCoder(coder);
 
-    if (outputParallelization == null
-        || outputParallelization.get() == null
-        || outputParallelization.get()) {
+    boolean outputParallelization = true;
+    ValueProvider<Boolean> outputParallelizationProvider = getOutputParallelization();
+    if (outputParallelizationProvider != null && outputParallelizationProvider.get() != null) {
+      outputParallelization = outputParallelizationProvider.get();
+    }
+    if (outputParallelization) {
       output = output.apply(new Reparallelize<>());
     }
 
