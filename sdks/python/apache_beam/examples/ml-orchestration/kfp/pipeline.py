@@ -61,7 +61,8 @@ def parse_args():
 
 # arguments are parsed as a global variable so
 # they can be used in the pipeline decorator below
-ARGS = vars(parse_args())
+ARGS = parse_args()
+PIPELINE_ROOT = vars(ARGS)['pipeline_root']
 
 # [START load_kfp_components]
 # load the kfp components from their yaml files
@@ -74,7 +75,7 @@ TrainModelOp = comp.load_component('components/train/component.yaml')
 
 # [START define_kfp_pipeline]
 @dsl.pipeline(
-    pipeline_root=ARGS['pipeline_root'],
+    pipeline_root=PIPELINE_ROOT,
     name="beam-preprocessing-kfp-example",
     description="Pipeline to show an apache beam preprocessing example in KFP")
 def pipeline(
@@ -117,7 +118,7 @@ if __name__ == "__main__":
   Compiler().compile(pipeline_func=pipeline, package_path="pipeline.json")
   # [END compile_kfp_pipeline]
 
-  run_arguments = ARGS
+  run_arguments = vars(ARGS)
   del run_arguments['pipeline_root']
 
   # [START execute_kfp_pipeline]
@@ -128,4 +129,4 @@ if __name__ == "__main__":
       job_name="KFP orchestration job",
       pipeline_package_path="pipeline.json",
       params=run_arguments)
-  # [STOP execute_kfp_pipeline]
+  # [END execute_kfp_pipeline]

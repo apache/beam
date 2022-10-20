@@ -1,0 +1,247 @@
+{
+  "pipelineSpec": {
+    "components": {
+      "comp-ingestion": {
+        "executorLabel": "exec-ingestion",
+        "inputDefinitions": {
+          "parameters": {
+            "base_artifact_path": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "parameters": {
+            "ingested_dataset_path": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
+      "comp-model-training": {
+        "executorLabel": "exec-model-training",
+        "inputDefinitions": {
+          "parameters": {
+            "base_artifact_path": {
+              "type": "STRING"
+            },
+            "preprocessed_dataset_path": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "parameters": {
+            "trained_model_path": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
+      "comp-preprocessing": {
+        "executorLabel": "exec-preprocessing",
+        "inputDefinitions": {
+          "parameters": {
+            "base_artifact_path": {
+              "type": "STRING"
+            },
+            "beam_runner": {
+              "type": "STRING"
+            },
+            "dataflow_staging_root": {
+              "type": "STRING"
+            },
+            "gcp_project_id": {
+              "type": "STRING"
+            },
+            "ingested_dataset_path": {
+              "type": "STRING"
+            },
+            "region": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "parameters": {
+            "preprocessed_dataset_path": {
+              "type": "STRING"
+            }
+          }
+        }
+      }
+    },
+    "deploymentSpec": {
+      "executors": {
+        "exec-ingestion": {
+          "container": {
+            "command": [
+              "python3",
+              "ingest.py",
+              "--base-artifact-path",
+              "{{$.inputs.parameters['base_artifact_path']}}",
+              "--ingested-dataset-path",
+              "{{$.outputs.parameters['ingested_dataset_path'].output_file}}"
+            ],
+            "image": "<your-docker-registry/ingestion-image-name:latest>"
+          }
+        },
+        "exec-model-training": {
+          "container": {
+            "command": [
+              "python3",
+              "train.py",
+              "--preprocessed-dataset-path",
+              "{{$.inputs.parameters['preprocessed_dataset_path']}}",
+              "--base-artifact-path",
+              "{{$.inputs.parameters['base_artifact_path']}}",
+              "--trained-model-path",
+              "{{$.outputs.parameters['trained_model_path'].output_file}}"
+            ],
+            "image": "<your-docker-registry/train-image-name:latest>"
+          }
+        },
+        "exec-preprocessing": {
+          "container": {
+            "command": [
+              "python3",
+              "preprocess.py",
+              "--ingested-dataset-path",
+              "{{$.inputs.parameters['ingested_dataset_path']}}",
+              "--base-artifact-path",
+              "{{$.inputs.parameters['base_artifact_path']}}",
+              "--preprocessed-dataset-path",
+              "{{$.outputs.parameters['preprocessed_dataset_path'].output_file}}",
+              "--gcp-project-id",
+              "{{$.inputs.parameters['gcp_project_id']}}",
+              "--region",
+              "{{$.inputs.parameters['region']}}",
+              "--dataflow-staging-root",
+              "{{$.inputs.parameters['dataflow_staging_root']}}",
+              "--beam-runner",
+              "{{$.inputs.parameters['beam_runner']}}"
+            ],
+            "image": "<your-docker-registry/preprocessing-image-name:latest>"
+          }
+        }
+      }
+    },
+    "pipelineInfo": {
+      "name": "beam-preprocessing-kfp-example"
+    },
+    "root": {
+      "dag": {
+        "tasks": {
+          "ingestion": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-ingestion"
+            },
+            "inputs": {
+              "parameters": {
+                "base_artifact_path": {
+                  "componentInputParameter": "component_artifact_root"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "ingestion"
+            }
+          },
+          "model-training": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-model-training"
+            },
+            "dependentTasks": [
+              "preprocessing"
+            ],
+            "inputs": {
+              "parameters": {
+                "base_artifact_path": {
+                  "componentInputParameter": "component_artifact_root"
+                },
+                "preprocessed_dataset_path": {
+                  "taskOutputParameter": {
+                    "outputParameterKey": "preprocessed_dataset_path",
+                    "producerTask": "preprocessing"
+                  }
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "model-training"
+            }
+          },
+          "preprocessing": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-preprocessing"
+            },
+            "dependentTasks": [
+              "ingestion"
+            ],
+            "inputs": {
+              "parameters": {
+                "base_artifact_path": {
+                  "componentInputParameter": "component_artifact_root"
+                },
+                "beam_runner": {
+                  "componentInputParameter": "beam_runner"
+                },
+                "dataflow_staging_root": {
+                  "componentInputParameter": "dataflow_staging_root"
+                },
+                "gcp_project_id": {
+                  "componentInputParameter": "gcp_project_id"
+                },
+                "ingested_dataset_path": {
+                  "taskOutputParameter": {
+                    "outputParameterKey": "ingested_dataset_path",
+                    "producerTask": "ingestion"
+                  }
+                },
+                "region": {
+                  "componentInputParameter": "region"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "preprocessing"
+            }
+          }
+        }
+      },
+      "inputDefinitions": {
+        "parameters": {
+          "beam_runner": {
+            "type": "STRING"
+          },
+          "component_artifact_root": {
+            "type": "STRING"
+          },
+          "dataflow_staging_root": {
+            "type": "STRING"
+          },
+          "gcp_project_id": {
+            "type": "STRING"
+          },
+          "region": {
+            "type": "STRING"
+          }
+        }
+      }
+    },
+    "schemaVersion": "2.0.0",
+    "sdkVersion": "kfp-1.8.14"
+  },
+  "runtimeConfig": {
+    "gcsOutputDirectory": "gs://test/test"
+  }
+}

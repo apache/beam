@@ -42,18 +42,13 @@ def parse_args():
   parser.add_argument(
       "--pipeline-root",
       type=str,
-      help="Path to artifact repository where Kubeflow Pipelines stores a pipeline’s artifacts.",
+      help=
+      "Path to artifact repository where TFX stores a pipeline’s artifacts.",
       required=True)
   parser.add_argument(
-      "--csv-file",
-      type=str,
-      help="Path to the csv input file.",
-      required=True)
+      "--csv-file", type=str, help="Path to the csv input file.", required=True)
   parser.add_argument(
-      "--csv-file",
-      type=str,
-      help="Path to the csv input file.",
-      required=True)
+      "--csv-file", type=str, help="Path to the csv input file.", required=True)
   parser.add_argument(
       "--module-file",
       type=str,
@@ -71,26 +66,24 @@ def parse_args():
       default="metadata.db")
   return parser.parse_args()
 
-PROJECT_ID = "<project id>"
-PROJECT_REGION = "<project region>"
-PIPELINE_NAME = "<pipeline_name>"
-PIPELINE_ROOT = "<path to pipeline root>"
-INPUT_DATA_PATH = "<path to csv input file>"
-MODULE_FILE = "<path to module file containing preprocessing_fn and run_fn>"
-BEAM_RUNNER = "<Beam runner: DataflowRunner or DirectRunner>"
-METADATA_FILE = "<path to store a metadata file as a mock metadata database>"
-
 
 # [START tfx_pipeline]
-def create_pipeline(gcp_project_id, region, pipeline_name, pipeline_root,
-                    csv_file, module_file, beam_runner, metadata_file):
+def create_pipeline(
+    gcp_project_id,
+    region,
+    pipeline_name,
+    pipeline_root,
+    csv_file,
+    module_file,
+    beam_runner,
+    metadata_file):
   """Create the TFX pipeline.
 
   Args:
       gcp_project_id (str): ID for the google cloud project to deploy the pipeline to.
       region (str): Region in which to deploy the pipeline.
       pipeline_name (str): Name for the Beam pipeline
-      pipeline_root (str): Path to artifact repository where Kubeflow Pipelines
+      pipeline_root (str): Path to artifact repository where TFX
         stores a pipeline’s artifacts.
       csv_file (str): Path to the csv input file.
       module_file (str): Path to module file containing the preprocessing_fn and run_fn.
@@ -109,7 +102,7 @@ def create_pipeline(gcp_project_id, region, pipeline_name, pipeline_root,
   transform = tfx.components.Transform(
       examples=example_gen.outputs['examples'],
       schema=schema_gen.outputs['schema'],
-      module_file=MODULE_FILE)
+      module_file=module_file)
 
   trainer = tfx.components.Trainer(
       module_file=module_file,
@@ -119,13 +112,13 @@ def create_pipeline(gcp_project_id, region, pipeline_name, pipeline_root,
   components = [example_gen, statistics_gen, schema_gen, transform, trainer]
 
   beam_pipeline_args_by_runner = {
-    'DirectRunner': [],
-    'DataflowRunner': [
-        '--runner=DataflowRunner',
-        '--project=' + gcp_project_id,
-        '--temp_location=' + os.path.join(pipeline_root, 'tmp'),
-        '--region=' + region,
-    ]
+      'DirectRunner': [],
+      'DataflowRunner': [
+          '--runner=DataflowRunner',
+          '--project=' + gcp_project_id,
+          '--temp_location=' + os.path.join(pipeline_root, 'tmp'),
+          '--region=' + region,
+      ]
   }
 
   return tfx.dsl.Pipeline(
