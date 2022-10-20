@@ -34,7 +34,7 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['sdks/java/**', 'model/**', 'runners/samza/**',
-            'release/**', 'buildSrc/**']
+            'release/**', 'buildSrc/**', '.github/workflows/samza_precommit_tests.yml']
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
