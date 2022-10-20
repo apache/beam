@@ -21,7 +21,6 @@ import uuid
 
 import pytest
 
-import tensorflow as tf
 from apache_beam.examples.inference.tfx_bsl.build_tensorflow_model import save_tf_model_with_signature
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -29,6 +28,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=ungrouped-imports
 try:
   import tfx_bsl
+  import tensorflow as tf
   from apache_beam.examples.inference.tfx_bsl import tensorflow_image_classification
 except ImportError as e:
   tfx_bsl = None
