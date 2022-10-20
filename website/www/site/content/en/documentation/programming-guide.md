@@ -4206,9 +4206,9 @@ purchases.apply(Group.byFieldNames("userId")
 {{< highlight py >}}
 input_pc = ... # {"user_id": ...,"item_Id": ..., "cost_cents": ...}
 output_pc = input_pc | beam.GroupBy("user_id")
-	.aggregate_field("cost_cents",max,"max_purchase")
-	.aggregate_field("cost_cents",min,"min_purchase")
+	.aggregate_field("item_id",CountCombineFn,"num_purchases")
 	.aggregate_field("cost_cents",sum,"total_spendcents")
+	.aggregate_field("cost_cents",TopCombineFn,"top_purchases")	
 {{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
@@ -4254,7 +4254,7 @@ The result of this aggregation will have the following schema:
     </tr>
     <tr>
       <td>value</td>
-      <td>ROW{num_purchases: INT64, max_purchase: INT64, min_purchase: INT64}</td>
+      <td>ROW{num_purchases: INT64, total_spendcents: INT64, top_pdghurchases: ARRAY[INT64]}</td>
     </tr>
   </tbody>
 </table>
