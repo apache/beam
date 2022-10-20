@@ -81,7 +81,7 @@ metrics = pipeline.result.metrics().query(beam.metrics.MetricsFilter())
 
 A snapshot of different metrics from GCP UI when using Dataflow on GPU:
 
-  ![runinference-GPU-metrics.png](https://drive.google.com/uc?id=1YIwrFXa3XNxzQWAgm_MiEXaSFymcACmV)
+  ![runinference-GPU-metrics.png](https://github.com/apache/beam/tree/master/website/www/site/static/images/runinference_metrics_snapshot.svg)
 
 Some metrics commonly used for benchmarking are:
 
