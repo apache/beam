@@ -140,9 +140,9 @@ before running your pipeline.
 
 ### Run with Dataflow runner at HEAD (Beam 2.41.0 and later)
 
-> **Note:** Due to [issue#23717](https://github.com/apache/beam/issues/23717)
-> Beam 2.42.0 requires manually starting up an expansion service according to instructions
-> [here](https://beam.apache.org/documentation/sdks/java-multi-language-pipelines/#advanced-start-an-expansion-service)
+> **Note:** Due to [issue#23717](https://github.com/apache/beam/issues/23717),
+> Beam 2.42.0 requires manually starting up an expansion service (see
+> [these instructions](https://beam.apache.org/documentation/sdks/java-multi-language-pipelines/#advanced-start-an-expansion-service))
 > and using the additional pipeline option `--expansionService=localhost:<PORT>`
 > when executing the pipeline.
 
@@ -193,9 +193,9 @@ python -m apache_beam.runners.portability.local_job_service_main -p $JOB_SERVER_
 
 5. Run the pipeline.
 
-> **Note:** Due to [issue#23717](https://github.com/apache/beam/issues/23717)
-> Beam 2.42.0 requires manually starting up an expansion service according to instructions
-> [here](https://beam.apache.org/documentation/sdks/java-multi-language-pipelines/#advanced-start-an-expansion-service)
+> **Note:** Due to [issue#23717](https://github.com/apache/beam/issues/23717),
+> Beam 2.42.0 requires manually starting up an expansion service (see
+> [these instructions](https://beam.apache.org/documentation/sdks/java-multi-language-pipelines/#advanced-start-an-expansion-service))
 > and using the additional pipeline option `--expansionService=localhost:<PORT>`
 > when executing the pipeline.
 
@@ -232,14 +232,8 @@ For example, to start the standard expansion service for a Python transform,
 [ExpansionServiceServicer](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service.py),
 follow these steps:
 
-1. Activate a new virtual environment. See [here](https://beam.apache.org/get-started/quickstart-py/#create-and-activate-a-virtual-environment)
-for additional instructions.
-
-```
-mkdir venv_dir
-python -m venv venv_dir
-. venv_dir/bin/activate
-```
+1. Activate a new virtual environment following
+[these instructions](https://beam.apache.org/get-started/quickstart-py/#create-and-activate-a-virtual-environment).
 
 2. Install Apache Beam with `gcp` and `dataframe` packages.
 
@@ -260,13 +254,13 @@ Gradle to run your Java pipeline, you can specify the expansion service with the
 
 ### Run with Dataflow runner using a Beam release (Beam 2.43.0 and later)
 
-> **Note:** Due to [issue#23717](https://github.com/apache/beam/issues/23717)
-> Beam 2.42.0 requires manually starting up an expansion service according to instructions
-> [here](https://beam.apache.org/documentation/sdks/java-multi-language-pipelines/#advanced-start-an-expansion-service)
+> **Note:** Due to [issue#23717](https://github.com/apache/beam/issues/23717),
+> Beam 2.42.0 requires manually starting up an expansion service (see
+> [these instructions](https://beam.apache.org/documentation/sdks/java-multi-language-pipelines/#advanced-start-an-expansion-service))
 > and using the additional pipeline option `--expansionService=localhost:<PORT>`
 > when executing the pipeline.
 
-* Checkout the Beam examples Maven archetype for the relevant Beam version.
+* Check out the Beam examples Maven archetype for the relevant Beam version.
 
 ```
 export BEAM_VERSION=<Beam version>
