@@ -418,8 +418,8 @@ tasks.register("typescriptPreCommit") {
 }
 
 tasks.register("pushAllDockerImages") {
-  dependsOn(":runners:spark:2:job-server:container:dockerPush")
-  dependsOn(":runners:spark:3:job-server:container:dockerPush")
+//  dependsOn(":runners:spark:2:job-server:container:dockerPush")
+//  dependsOn(":runners:spark:3:job-server:container:dockerPush")
   dependsOn(":sdks:java:container:pushAll")
   dependsOn(":sdks:python:container:pushAll")
   dependsOn(":sdks:go:container:pushAll")
