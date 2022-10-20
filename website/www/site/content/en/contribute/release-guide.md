@@ -33,7 +33,7 @@ This document describes the process that the Release Manager follows to perform 
 Any changes to this process should be discussed and adopted on the [dev@ mailing list](/get-started/support/).
 
 Please remember that publishing software has legal consequences.
-This guide complements the foundation-wide [Product Release Policy](http://www.apache.org/dev/release.html) and [Release Distribution Policy](http://www.apache.org/dev/release-distribution).
+This guide complements the foundation-wide [Product Release Policy](https://www.apache.org/dev/release.html) and [Release Distribution Policy](https://www.apache.org/dev/release-distribution).
 
 ### Overview
 
@@ -500,6 +500,7 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 * Originating branch has the version information updated to the new version;
 * Nightly snapshot is in progress (do revisit it continually);
 * Set `JAVA_HOME` to JDK 8 (Example: `export JAVA_HOME=/example/path/to/java/jdk8`).
+* Have Java 11 installed.
 
 The core of the release process is the build-vote-fix cycle.
 Each cycle produces one release candidate.
@@ -543,7 +544,7 @@ See the source of the script for more details, or to run commands manually in ca
 
 * **Usage**
 
-      ./beam/release/src/main/scripts/build_release_candidate.sh --release "${RELEASE_VERSION}" --rc "${RC_NUM}" --github-user "${GITHUB_USER}"
+      ./beam/release/src/main/scripts/build_release_candidate.sh --release "${RELEASE_VERSION}" --rc "${RC_NUM}" --github-user "${GITHUB_USER}" --java11-home "${JAVA11_HOME}"
 
 * **The script will:**
   1. Clone the repo at the selected RC tag.
@@ -760,7 +761,7 @@ docker pull apache/beam_python3.7_sdk:2.39.0_rc1
 ## 10. Vote and validate release candidate
 
 Once you have built and individually reviewed the release candidate, please share it for the community-wide review.
-Please review foundation-wide [voting guidelines](http://www.apache.org/foundation/voting.html) for more information.
+Please review foundation-wide [voting guidelines](https://www.apache.org/foundation/voting.html) for more information.
 
 Start the review-and-vote thread on the dev@ mailing list.
 Here’s an email template; please adjust as you see fit.

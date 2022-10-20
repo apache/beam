@@ -932,11 +932,12 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     bq_matcher = BigqueryFullResultStreamingMatcher(
         project=self.project,
         query="SELECT Integr FROM %s" % output_table,
-        data=[(i, ) for i in range(100)],
-        timeout=30)
+        data=[(i, ) for i in range(100)])
 
     args = self.test_pipeline.get_full_options_as_args(
-        streaming=True, allow_unsafe_triggers=True)
+        on_success_matcher=bq_matcher,
+        streaming=True,
+        allow_unsafe_triggers=True)
     with beam.Pipeline(argv=args) as p:
       stream_source = (
           TestStream().advance_watermark_to(0).advance_processing_time(
@@ -973,7 +974,9 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         data=[(i, ) for i in range(100)])
 
     args = self.test_pipeline.get_full_options_as_args(
-        streaming=True, allow_unsafe_triggers=True)
+        on_success_matcher=bq_matcher,
+        streaming=True,
+        allow_unsafe_triggers=True)
 
     # Override these parameters to induce copy jobs
     bqfl._DEFAULT_MAX_FILE_SIZE = 100
@@ -1025,7 +1028,9 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        streaming=True, allow_unsafe_triggers=True)
+        on_success_matcher=all_of(*pipeline_verifiers),
+        streaming=True,
+        allow_unsafe_triggers=True)
 
     with beam.Pipeline(argv=args) as p:
       stream_source = (

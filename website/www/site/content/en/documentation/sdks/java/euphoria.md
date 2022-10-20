@@ -399,9 +399,9 @@ Following example shows basic usage of `ReduceByKey` operator including value ex
 {{< highlight java >}}
 //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
 PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
-  ReduceByKey.named("to-letters-couts")
+  ReduceByKey.named("to-letters-counts")
     .of(animals)
-    .keyBy(String::length) // length of animal name will be used as groupping key
+    .keyBy(String::length) // length of animal name will be used as grouping key
     // we need to count each animal name once, so why not to optimize each string to 1
     .valueBy(e -> 1)
     .reduceBy(Stream::count)
@@ -412,7 +412,7 @@ PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
 Now suppose that we want to track our `ReduceByKey` internals using counter.
 {{< highlight java >}}
 //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
-PCollection<KV<Integer, Long>> countOfAnimalNamesByLenght =
+PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
   ReduceByKey.named("to-letters-couts")
     .of(animals)
     .keyBy(String::length) // length of animal name will be used as grouping key
@@ -430,7 +430,7 @@ PCollection<KV<Integer, Long>> countOfAnimalNamesByLenght =
 Again the same example with optimized combinable output.
 {{< highlight java >}}
 //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
-PCollection<KV<Integer, Long>> countOfAnimalNamesByLenght =
+PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
   ReduceByKey.named("to-letters-couts")
     .of(animals)
     .keyBy(String::length) // length of animal name will e used as grouping key
@@ -490,7 +490,7 @@ PCollection<KV<Integer, Long>> output =
 Merge of at least two datasets of the same type without any guarantee about elements ordering.
 {{< highlight java >}}
 //suppose cats contains: [ "cheetah", "cat", "lynx", "jaguar" ]
-//suppose rodents conains: [ "squirrel", "mouse", "rat", "lemming", "beaver" ]
+//suppose rodents contains: [ "squirrel", "mouse", "rat", "lemming", "beaver" ]
 PCollection<String> animals =
   Union.named("to-animals")
     .of(cats, rodents)
@@ -518,7 +518,7 @@ Euphoria needs to know how to extract time-stamp from elements when [windowing](
 {{< highlight java >}}
 // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp
 PCollection<SomeEventObject> timeStampedEvents =
-  AssignEventTime.named("extract-event-tyme")
+  AssignEventTime.named("extract-event-time")
     .of(events)
     .using(SomeEventObject::getEventTimeInMillis)
     .output();

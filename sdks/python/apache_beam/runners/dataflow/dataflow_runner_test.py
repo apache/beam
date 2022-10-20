@@ -29,7 +29,6 @@ from parameterized import parameterized
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
-from apache_beam.coders import BytesCoder
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
@@ -270,20 +269,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(job_dict[u'steps'][1][u'kind'], u'ParallelDo')
     self.assertEqual(job_dict[u'steps'][2][u'kind'], u'ParallelDo')
 
-  def test_biqquery_read_fn_api_fail(self):
-    remote_runner = DataflowRunner()
-    for flag in ['beam_fn_api', 'use_unified_worker', 'use_runner_v2']:
-      self.default_properties.append("--experiments=%s" % flag)
-      with self.assertRaisesRegex(
-          ValueError,
-          'The Read.BigQuerySource.*is not supported.*'
-          'apache_beam.io.gcp.bigquery.ReadFromBigQuery.*'):
-        with Pipeline(remote_runner,
-                      PipelineOptions(self.default_properties)) as p:
-          _ = p | beam.io.Read(
-              beam.io.BigQuerySource(
-                  'some.table', use_dataflow_native_source=True))
-
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
     p = Pipeline(
@@ -326,20 +311,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                          'key': 'dofn_value'
                      }]
     self.assertUnhashableCountEqual(disp_data, expected_data)
-
-  def test_no_group_by_key_directly_after_bigquery(self):
-    remote_runner = DataflowRunner()
-    with self.assertRaises(ValueError,
-                           msg=('Coder for the GroupByKey operation'
-                                '"GroupByKey" is not a key-value coder: '
-                                'RowAsDictJsonCoder')):
-      with beam.Pipeline(runner=remote_runner,
-                         options=PipelineOptions(self.default_properties)) as p:
-        # pylint: disable=expression-not-assigned
-        p | beam.io.Read(
-            beam.io.BigQuerySource(
-                'dataset.faketable',
-                use_dataflow_native_source=True)) | beam.GroupByKey()
 
   def test_group_by_key_input_visitor_with_valid_inputs(self):
     p = TestPipeline()
@@ -624,19 +595,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
     self.expect_correct_override(runner.job, u'Create/Read', u'ParallelRead')
 
-  def test_read_bigquery_translation(self):
-    runner = DataflowRunner()
-
-    with beam.Pipeline(runner=runner,
-                       options=PipelineOptions(self.default_properties)) as p:
-      # pylint: disable=expression-not-assigned
-      p | beam.io.Read(
-          beam.io.BigQuerySource(
-              'some.table', coder=BytesCoder(),
-              use_dataflow_native_source=True))
-
-    self.expect_correct_override(runner.job, u'Read', u'ParallelRead')
-
   def test_read_pubsub_translation(self):
     runner = DataflowRunner()
 
@@ -686,69 +644,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(gbk_step[u'kind'], u'GroupByKey')
     self.assertEqual(
         gbk_step[u'properties']['output_info'], expected_output_info)
-
-  def test_write_bigquery_translation(self):
-    runner = DataflowRunner()
-
-    self.default_properties.append('--experiments=use_legacy_bq_sink')
-    with beam.Pipeline(runner=runner,
-                       options=PipelineOptions(self.default_properties)) as p:
-      # pylint: disable=expression-not-assigned
-      p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
-
-    job_dict = json.loads(str(runner.job))
-
-    expected_step = {
-        "kind": "ParallelWrite",
-        "name": "s2",
-        "properties": {
-            "create_disposition": "CREATE_IF_NEEDED",
-            "dataset": "some",
-            "display_data": [],
-            "encoding": {
-                "@type": "kind:windowed_value",
-                "component_encodings": [{
-                    "component_encodings": [],
-                    "pipeline_proto_coder_id": "ref_Coder_RowAsDictJsonCoder_4"
-                }, {
-                    "@type": "kind:global_window"
-                }],
-                "is_wrapper": True
-            },
-            "format": "bigquery",
-            "parallel_input": {
-                "@type": "OutputReference",
-                "output_name": "out",
-                "step_name": "s1"
-            },
-            "table": "table",
-            "user_name": "WriteToBigQuery/Write/NativeWrite",
-            "write_disposition": "WRITE_APPEND"
-        }
-    }
-    job_dict = json.loads(str(runner.job))
-    write_step = [
-        s for s in job_dict[u'steps']
-        if s[u'properties'][u'user_name'].startswith('WriteToBigQuery')
-    ][0]
-
-    # Delete the @type field because in this case it is a hash which may change
-    # depending on the pickling version.
-    step_encoding = write_step[u'properties'][u'encoding']
-    del step_encoding[u'component_encodings'][0][u'@type']
-    self.assertEqual(expected_step, write_step)
-
-  def test_write_bigquery_failed_translation(self):
-    """Tests that WriteToBigQuery cannot have any consumers if replaced."""
-    runner = DataflowRunner()
-
-    self.default_properties.append('--experiments=use_legacy_bq_sink')
-    with self.assertRaises(Exception):
-      with beam.Pipeline(runner=runner,
-                         options=PipelineOptions(self.default_properties)) as p:
-        # pylint: disable=expression-not-assigned
-        out = p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
-        out['destination_file_pairs'] | 'MyTransform' >> beam.Map(lambda _: _)
 
   @unittest.skip(
       'https://github.com/apache/beam/issues/18716: enable once '

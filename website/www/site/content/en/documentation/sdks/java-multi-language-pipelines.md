@@ -142,7 +142,7 @@ Here we've provided commands for running the example pipeline using
 Gradle on a [Beam HEAD Git clone](https://github.com/apache/beam).
 If you need a more stable environment, please
 [setup a Java project](/get-started/quickstart-java/) that uses the latest
-releaesed Beam version and include the necessary dependencies.
+released Beam version and include the necessary dependencies.
 
 ### Run with Dataflow runner
 
@@ -205,7 +205,7 @@ export PYTHON_VERSION=<version>
 
 > **Note** This output gets written to the local file system of a Python Docker
 > container. To verify the output by writing to GCS, you need to specify a
-> publicly acessible
+> publicly accessible
 > GCS path for the `output` option since portable DirectRunner is currently
 > unable to correctly forward local credentials for accessing GCS.
 

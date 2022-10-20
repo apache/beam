@@ -41,7 +41,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
-  private int depth = 0;
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslator.class);
   protected TranslationContext translationContext;
 
@@ -109,20 +108,6 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
   //  Pipeline utility methods
   // --------------------------------------------------------------------------------------------
 
-  /**
-   * Utility formatting method.
-   *
-   * @param n number of spaces to generate
-   * @return String with "|" followed by n spaces
-   */
-  private static String genSpaces(int n) {
-    StringBuilder builder = new StringBuilder();
-    for (int i = 0; i < n; i++) {
-      builder.append("|   ");
-    }
-    return builder.toString();
-  }
-
   /** Get a {@link TransformTranslator} for the given {@link TransformHierarchy.Node}. */
   protected abstract @Nullable <
           InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>>
@@ -165,16 +150,13 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
 
   @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-    LOG.debug("{} enterCompositeTransform- {}", genSpaces(depth), node.getFullName());
-    depth++;
-
     PTransform<PInput, POutput> transform = (PTransform<PInput, POutput>) node.getTransform();
     TransformTranslator<PInput, POutput, PTransform<PInput, POutput>> transformTranslator =
         getTransformTranslator(transform);
 
     if (transformTranslator != null) {
+      LOG.info("Translating composite: {}", node.getFullName());
       applyTransformTranslator(node, transform, transformTranslator);
-      LOG.debug("{} translated- {}", genSpaces(depth), node.getFullName());
       return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
     } else {
       return CompositeBehavior.ENTER_TRANSFORM;
@@ -182,15 +164,8 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
   }
 
   @Override
-  public void leaveCompositeTransform(TransformHierarchy.Node node) {
-    depth--;
-    LOG.debug("{} leaveCompositeTransform- {}", genSpaces(depth), node.getFullName());
-  }
-
-  @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    LOG.debug("{} visitPrimitiveTransform- {}", genSpaces(depth), node.getFullName());
-
+    LOG.info("Translating primitive: {}", node.getFullName());
     // get the transformation corresponding to the node we are
     // currently visiting and translate it into its Spark alternative.
     PTransform<PInput, POutput> transform = (PTransform<PInput, POutput>) node.getTransform();

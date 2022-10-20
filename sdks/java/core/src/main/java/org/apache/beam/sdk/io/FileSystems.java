@@ -442,6 +442,7 @@ public class FileSystems {
         continue;
       }
       if (matchDestResults != null
+          && matchSrcResults != null
           && matchDestResults.get(i).status().equals(Status.OK)
           && checksumMatch(
               matchDestResults.get(i).metadata().get(0),

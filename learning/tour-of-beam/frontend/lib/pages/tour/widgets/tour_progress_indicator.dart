@@ -17,43 +17,22 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/examples/components/examples_components.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
-class TypeFilter extends StatelessWidget {
-  const TypeFilter({Key? key}) : super(key: key);
+class TourProgressIndicator extends StatelessWidget {
+  final String assetPath;
+
+  const TourProgressIndicator({required this.assetPath});
 
   @override
   Widget build(BuildContext context) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
-
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: kLgSpacing,
-        vertical: kMdSpacing,
+      padding: const EdgeInsets.only(
+        left: BeamSizes.size4,
+        right: BeamSizes.size8,
       ),
-      child: Row(
-        children: <CategoryBubble>[
-          CategoryBubble(
-            type: ExampleType.all,
-            name: appLocale.all,
-          ),
-          CategoryBubble(
-            type: ExampleType.example,
-            name: appLocale.examples,
-          ),
-          CategoryBubble(
-            type: ExampleType.kata,
-            name: appLocale.katas,
-          ),
-          CategoryBubble(
-            type: ExampleType.test,
-            name: appLocale.unitTests,
-          ),
-        ],
-      ),
+      child: SvgPicture.asset(assetPath),
     );
   }
 }

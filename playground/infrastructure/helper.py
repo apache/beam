@@ -22,6 +22,7 @@ import logging
 import os
 from collections import namedtuple
 from dataclasses import dataclass, fields
+from pathlib import PurePath
 from typing import List, Optional, Dict
 
 from tqdm.asyncio import tqdm
@@ -33,7 +34,7 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
     STATUS_COMPILING, STATUS_EXECUTING, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, \
     PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, \
     PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
-from config import Config, TagFields, PrecompiledExampleType, OptionalTagFields
+from config import Config, Origin, TagFields, PrecompiledExampleType, OptionalTagFields
 from grpc_client import GRPCClient
 
 Tag = namedtuple(
@@ -69,6 +70,7 @@ class Example:
     type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
     pipeline_id: str = ""
     output: str = ""
+    compile_output: str = ""
     graph: str = ""
 
 
@@ -80,8 +82,19 @@ class ExampleTag:
     tag_as_dict: Dict[str, str]
     tag_as_string: str
 
+def _check_no_nested(subdirs: List[str]):
+    """
+    Check there're no nested subdirs
 
-def find_examples(work_dir: str, supported_categories: List[str],
+    Sort alphabetically and compare the pairs of adjacent items
+    using pathlib.PurePath: we don't want fs calls in this check
+    """
+    sorted_subdirs = sorted(PurePath(s) for s in subdirs)
+    for dir1, dir2 in zip(sorted_subdirs, sorted_subdirs[1:]):
+        if dir1 in [dir2, *dir2.parents]:
+            raise ValueError(f"{dir2} is a subdirectory of {dir1}")
+
+def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[str],
                   sdk: Sdk) -> List[Example]:
     """
     Find and return beam examples.
@@ -103,7 +116,8 @@ def find_examples(work_dir: str, supported_categories: List[str],
     If some example contains beam tag with incorrect format raise an error.
 
     Args:
-        work_dir: directory where to search examples.
+        root_dir: project root dir
+        subdirs: sub-directories where to search examples.
         supported_categories: list of supported categories.
         sdk: sdk that using to find examples for the specific sdk.
 
@@ -112,16 +126,20 @@ def find_examples(work_dir: str, supported_categories: List[str],
     """
     has_error = False
     examples = []
-    for root, _, files in os.walk(work_dir):
-        for filename in files:
-            filepath = os.path.join(root, filename)
-            error_during_check_file = _check_file(
-                examples=examples,
-                filename=filename,
-                filepath=filepath,
-                supported_categories=supported_categories,
-                sdk=sdk)
-            has_error = has_error or error_during_check_file
+    _check_no_nested(subdirs)
+    for subdir in subdirs:
+        subdir = os.path.join(root_dir, subdir)
+        logging.info("subdir: %s", subdir)
+        for root, _, files in os.walk(subdir):
+            for filename in files:
+                filepath = os.path.join(root, filename)
+                error_during_check_file = _check_file(
+                    examples=examples,
+                    filename=filename,
+                    filepath=filepath,
+                    supported_categories=supported_categories,
+                    sdk=sdk)
+                has_error = has_error or error_during_check_file
     if has_error:
         raise ValueError(
             "Some of the beam examples contain beam playground tag with "
@@ -129,7 +147,7 @@ def find_examples(work_dir: str, supported_categories: List[str],
     return examples
 
 
-async def get_statuses(examples: List[Example]):
+async def get_statuses(client: GRPCClient, examples: List[Example], concurrency: int = 10):
     """
     Receive status and update example.status and example.pipeline_id for
     each example
@@ -139,10 +157,16 @@ async def get_statuses(examples: List[Example]):
         pipeline_id values.
     """
     tasks = []
-    client = GRPCClient()
-    for example in examples:
-        tasks.append(_update_example_status(example, client))
-    await tqdm.gather(*tasks)
+    try:
+        concurrency = int(os.environ["BEAM_CONCURRENCY"])
+        logging.info("override default concurrency: %d", concurrency)
+    except (KeyError, ValueError):
+        pass
+
+    async with asyncio.Semaphore(concurrency):
+        for example in examples:
+            tasks.append(_update_example_status(example, client))
+        await tqdm.gather(*tasks)
 
 
 def get_tag(filepath) -> Optional[ExampleTag]:

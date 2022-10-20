@@ -25,54 +25,76 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, \
     PRECOMPILED_OBJECT_TYPE_UNIT_TEST
 from grpc_client import GRPCClient
 from helper import find_examples, Example, _get_example, _get_name, get_tag, \
-    _validate, Tag, get_statuses, \
+    _validate, Tag, get_statuses, _check_no_nested, \
     _update_example_status, get_supported_categories, _check_file, \
     _get_object_type, ExampleTag, validate_examples_for_duplicates_by_name, ValidationException, validate_example_fields
 
 
+def test_check_for_nested():
+    _check_no_nested([])
+    _check_no_nested(["sub"])
+    _check_no_nested(["sub", "subsub"])
+    _check_no_nested(["sub1", "sub2"])
+    with pytest.raises(ValueError, match="sub1/sub2 is a subdirectory of sub1"):
+        _check_no_nested(["sub3", "sub1", "sub1/sub2"])
+    with pytest.raises(ValueError):
+        _check_no_nested([".", "sub"])
+    with pytest.raises(ValueError):
+        _check_no_nested(["./sub1", "sub1"])
+
+
+@pytest.mark.parametrize(
+    "is_valid", [True, False]
+)
+@mock.patch("helper._check_no_nested")
 @mock.patch("helper._check_file")
 @mock.patch("helper.os.walk")
-def test_find_examples_with_valid_tag(mock_os_walk, mock_check_file):
-    mock_os_walk.return_value = [("/root", (), ("file.java",))]
-    mock_check_file.return_value = False
+def test_find_examples(mock_os_walk, mock_check_file, mock_check_no_nested, is_valid):
+    mock_os_walk.return_value = [
+        ("/root/sub1", (), ("file.java",)),
+        ("/root/sub2", (), ("file2.java",)),
+    ]
+    mock_check_file.return_value = not is_valid
     sdk = SDK_UNSPECIFIED
-    result = find_examples(work_dir="", supported_categories=[], sdk=sdk)
+    if is_valid:
+        result = find_examples(root_dir="/root", subdirs=["sub1", "sub2"],
+            supported_categories=[], sdk=sdk)
+        assert not result
+    else:
+        with pytest.raises(
+            ValueError,
+            match="Some of the beam examples contain beam playground tag with "
+                    "an incorrect format"):
+            find_examples("/root", ["sub1", "sub2"], [], sdk=sdk)
 
-    assert not result
-    mock_os_walk.assert_called_once_with("")
-    mock_check_file.assert_called_once_with(
-        examples=[],
-        filename="file.java",
-        filepath="/root/file.java",
-        supported_categories=[],
-        sdk=sdk)
-
-
-@mock.patch("helper._check_file")
-@mock.patch("helper.os.walk")
-def test_find_examples_with_invalid_tag(mock_os_walk, mock_check_file):
-    mock_os_walk.return_value = [("/root", (), ("file.java",))]
-    mock_check_file.return_value = True
-    sdk = SDK_UNSPECIFIED
-    with pytest.raises(
-          ValueError,
-          match="Some of the beam examples contain beam playground tag with "
-                "an incorrect format"):
-        find_examples("", [], sdk=sdk)
-
-    mock_os_walk.assert_called_once_with("")
-    mock_check_file.assert_called_once_with(
-        examples=[],
-        filename="file.java",
-        filepath="/root/file.java",
-        supported_categories=[],
-        sdk=sdk)
+    mock_check_no_nested.assert_called_once_with(
+        ["sub1", "sub2"]
+    )
+    mock_os_walk.assert_has_calls([
+        mock.call("/root/sub1"),
+        mock.call("/root/sub2"),
+    ])
+    mock_check_file.assert_has_calls([
+        mock.call(
+            examples=[],
+            filename="file.java",
+            filepath="/root/sub1/file.java",
+            supported_categories=[],
+            sdk=sdk
+        ),
+        mock.call(
+            examples=[],
+            filename="file2.java",
+            filepath="/root/sub2/file2.java",
+            supported_categories=[],
+            sdk=sdk
+        ),
+    ])
 
 
 @pytest.mark.asyncio
-@mock.patch("helper.GRPCClient")
 @mock.patch("helper._update_example_status")
-async def test_get_statuses(mock_update_example_status, mock_grpc_client):
+async def test_get_statuses(mock_update_example_status):
     example = Example(
         name="file",
         complexity="MEDIUM",
@@ -84,11 +106,8 @@ async def test_get_statuses(mock_update_example_status, mock_grpc_client):
         status=STATUS_UNSPECIFIED,
         tag={"name": "Name"},
         link="link")
-    client = None
-
-    mock_grpc_client.return_value = client
-
-    await get_statuses([example])
+    client = mock.sentinel
+    await get_statuses(client, [example])
 
     mock_update_example_status.assert_called_once_with(example, client)
 

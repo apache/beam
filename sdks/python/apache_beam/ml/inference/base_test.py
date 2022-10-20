@@ -19,7 +19,11 @@
 
 import pickle
 import unittest
+from typing import Any
+from typing import Dict
 from typing import Iterable
+from typing import Mapping
+from typing import Optional
 from typing import Sequence
 
 import apache_beam as beam
@@ -250,6 +254,59 @@ class RunInferenceBaseTest(unittest.TestCase):
           pipeline | 'keyed' >> beam.Create(keyed_examples)
           | 'RunKeyed' >> base.RunInference(model_handler))
       pipeline.run()
+
+  def test_model_handler_compatibility(self):
+    # ** IMPORTANT ** Do not change this test to make your PR pass without
+    # first reading below.
+    # Be certain that the modification will not break third party
+    # implementations of ModelHandler.
+    # See issue https://github.com/apache/beam/issues/23484
+    # If this test fails, likely third party implementations of
+    # ModelHandler will break.
+    class ThirdPartyHandler(base.ModelHandler[int, int, FakeModel]):
+      def __init__(self, custom_parameter=None):
+        pass
+
+      def load_model(self) -> FakeModel:
+        return FakeModel()
+
+      def run_inference(
+          self,
+          batch: Sequence[int],
+          model: FakeModel,
+          inference_args: Optional[Dict[str, Any]] = None) -> Iterable[int]:
+        yield 0
+
+      def get_num_bytes(self, batch: Sequence[int]) -> int:
+        return 1
+
+      def get_metrics_namespace(self) -> str:
+        return 'ThirdParty'
+
+      def get_resource_hints(self) -> dict:
+        return {}
+
+      def batch_elements_kwargs(self) -> Mapping[str, Any]:
+        return {}
+
+      def validate_inference_args(
+          self, inference_args: Optional[Dict[str, Any]]):
+        pass
+
+    # This test passes if calling these methods does not cause
+    # any runtime exceptions.
+    third_party_model_handler = ThirdPartyHandler(custom_parameter=0)
+    fake_model = third_party_model_handler.load_model()
+    third_party_model_handler.run_inference([], fake_model)
+    fake_inference_args = {'some_arg': 1}
+    third_party_model_handler.run_inference([],
+                                            fake_model,
+                                            inference_args=fake_inference_args)
+    third_party_model_handler.get_num_bytes([1, 2, 3])
+    third_party_model_handler.get_metrics_namespace()
+    third_party_model_handler.get_resource_hints()
+    third_party_model_handler.batch_elements_kwargs()
+    third_party_model_handler.validate_inference_args({})
 
 
 if __name__ == '__main__':

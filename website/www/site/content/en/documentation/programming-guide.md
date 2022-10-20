@@ -35,7 +35,7 @@ programming guide, take a look at the
 {{< language-switcher java py go typescript >}}
 
 {{< paragraph class="language-py" >}}
-The Python SDK supports Python 3.7, 3.8, and 3.9.
+The Python SDK supports Python 3.7, 3.8, 3.9, and 3.10.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
@@ -276,7 +276,7 @@ public interface MyOptions extends PipelineOptions {
 You can also specify a description, which appears when a user passes `--help` as
 a command-line argument, and a default value.
 
-{{< paragraph class="language-java language-py langauge-go" >}}
+{{< paragraph class="language-java language-py language-go" >}}
 You set the description and default value using annotations, as follows:
 {{< /paragraph >}}
 
@@ -1840,7 +1840,7 @@ PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< /highlight >}}
 
 {{< highlight typescript >}}
-// Flatten takem an array of PCollection objects, wrapped in beam.P(...)
+// Flatten taken an array of PCollection objects, wrapped in beam.P(...)
 // Returns a single PCollection that contains a union of all of the elements in all input PCollections.
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" model_multiple_pcollections_flatten >}}
 {{< /highlight >}}
@@ -1995,7 +1995,7 @@ value must be registered if used.</span>
 
 Some other serializability factors you should keep in mind are:
 
-* <span class="language-java language-py">Transient</span><span class="langauage-go">Unexported</span>
+* <span class="language-java language-py">Transient</span><span class="language-go">Unexported</span>
   fields in your function object are *not* transmitted to worker
   instances, because they are not automatically serialized.
 * Avoid loading a field with a large amount of data before serialization.
@@ -2555,7 +2555,11 @@ Timers and States are explained in more detail in the
 
 {{< paragraph class="language-go" >}}
 **Timer and State:**
-This feature isn't implemented in the Go SDK; see more at [Issue 20510](https://github.com/apache/beam/issues/20510). Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.
+User defined State parameters can be used in a stateful DoFn. Timers aren't implemented in the Go SDK yet;
+see more at [Issue 22737](https://github.com/apache/beam/issues/22737). Once implemented, user defined Timer
+parameters can be used in a stateful DoFn.
+Timers and States are explained in more detail in the
+[Timely (and Stateful) Processing with Apache Beam](/blog/2017/08/28/timely-processing.html) blog post.
 {{< /paragraph >}}
 
 {{< paragraph class="language-typescript" >}}
@@ -2625,9 +2629,7 @@ class StatefulDoFn(beam.DoFn):
 {{< /highlight >}}
 
 {{< highlight go >}}
-// State and Timers are yet implemented in the Go SDK.
-// See https://github.com/apache/beam/issues/20510 for info
-// on contributing State and Timers.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" state_and_timers >}}
 {{< /highlight >}}
 
 {{< highlight typescript >}}
@@ -3088,7 +3090,7 @@ Beam will automatically infer the schema based on the fields and field tags of t
 {{< paragraph class="language-typescript" >}}
 In Typescript, JSON objects are used to represent schema'd data.
 Unfortunately type information in Typescript is not propagated to the runtime layer,
-so it needs to be manually specified in some places (e.g. when using cross-langauge pipelines).
+so it needs to be manually specified in some places (e.g. when using cross-language pipelines).
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -3733,7 +3735,7 @@ type Transaction struct{
 {{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
-Unexported fields are ignored, and cannot be automatically infered as part of the schema.
+Unexported fields are ignored, and cannot be automatically inferred as part of the schema.
 Fields of type  func, channel, unsafe.Pointer, or uintptr will be ignored by inference.
 Fields of interface types are ignored, unless a schema provider
 is registered for them.
@@ -4308,7 +4310,7 @@ If there were no schema, then the applied `DoFn` would have to accept an element
 since there is a schema, you could apply the following DoFn:
 
 {{< highlight java >}}
-purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
+purchases.apply(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
   @ProcessElement public void process(@Element PurchaseBean purchase) {
       ...
   }
@@ -4649,7 +4651,7 @@ to register a new `Coder` for the target type.
 
 {{< paragraph class="language-go" >}}
 To set the default Coder for a Go type you use the function `beam.RegisterCoder` to register a encoder and decoder functions for the target type.
-However, built in types like `int`, `string`, `float64`, etc cannot have their coders overridde.
+However, built in types like `int`, `string`, `float64`, etc cannot have their coders override.
 {{< /paragraph >}}
 
 {{< paragraph class="language-java language-py" >}}
@@ -5416,7 +5418,7 @@ The following diagram shows data events for key X as they arrive in the
 PCollection and are assigned to windows. To keep the diagram a bit simpler,
 we'll assume that the events all arrive in the pipeline in order.
 
-![Diagram of data events for acculumating mode example](/images/trigger-accumulation.png)
+![Diagram of data events for accumulating mode example](/images/trigger-accumulation.png)
 
 ##### 9.4.1.1. Accumulating mode {#accumulating-mode}
 
@@ -5657,7 +5659,7 @@ var distribution = beam.NewDistribution("namespace", "distribution1")
 
 func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
     // create a distribution (histogram) of the values
-	distribution.Inc(ctx, v)
+	distribution.Update(ctx, v)
 	...
 }
 {{< /highlight >}}
@@ -5814,16 +5816,17 @@ In Python, DoFn declares states to be accessed by creating `StateSpec` class mem
 to other nodes in the graph. A `DoFn` can declare multiple state variables.
 {{< /paragraph >}}
 
-<span class="language-go">
-
-> **Note:** The Beam SDK for Go does not yet support a State and Timer API. See [Issue 20510](https://github.com/apache/beam/issues/20510) to contribute.
-
-</span>
+{{< paragraph class="language-go" >}}
+In Go, DoFn declares states to be accessed by creating state struct member variables representing each state. Each
+state variable is initialized with a key, this key is unique to a ParDo in the graph and has no relation
+to other nodes in the graph. If no name is supplied, the key defaults to the member variable's name.
+A `DoFn` can declare multiple state variables.
+{{< /paragraph >}}
 
 <span class="language-typescript">
 
 > **Note:** The Beam SDK for Typescript does not yet support a State and Timer API,
-but it is possible to use these features from cross-langauge pipelines (see below).
+but it is possible to use these features from cross-language pipelines (see below).
 
 </span>
 
@@ -5856,6 +5859,10 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" value_state >}}
+{{< /highlight >}}
+
 Beam also allows explicitly specifying a coder for `ValueState` values. For example:
 
 {{< highlight java >}}
@@ -5881,10 +5888,10 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" value_state_coder >}}
 {{< /highlight >}}
 
-{{< highlight typscript >}}
+{{< highlight typescript >}}
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" stateful_dofn >}}
 {{< /highlight >}}
 
@@ -5917,7 +5924,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combining_state >}}
 {{< /highlight >}}
 
 #### BagState
@@ -5963,7 +5970,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" state_and_timers >}}
 {{< /highlight >}}
 
 ### 11.2. Deferred state reads {#deferred-state-reads}
@@ -5996,7 +6003,7 @@ This is not supported yet, see https://github.com/apache/beam/issues/20739.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22964.
 {{< /highlight >}}
 
 If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
@@ -6086,7 +6093,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 #### 11.3.2. Processing-time timers {#processing-time-timers}
@@ -6138,7 +6145,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 #### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
@@ -6199,7 +6206,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 #### 11.3.4. Timer output timestamps {#timer-output-timestamps}
@@ -6310,7 +6317,7 @@ Timer output timestamps is not yet supported in Python SDK. See https://github.c
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
@@ -6356,7 +6363,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" windowed_state >}}
 {{< /highlight >}}
 
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
@@ -6440,7 +6447,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 ### 11.5. State and timers examples {#state-timers-examples}
@@ -6742,7 +6749,7 @@ based on how the amount of work is represented:
 * Bounded DoFns are those where the work represented by an element is well-known beforehand and has
 an end. Examples of bounded elements include a file or group of files.
 * Unbounded DoFns are those where the amount of work does not have a specific end or the
-amount of work is not known befrehand. Examples of unbounded elements include a Kafka or a PubSub
+amount of work is not known beforehand. Examples of unbounded elements include a Kafka or a PubSub
 topic.
 
 In Java, you can use [@UnboundedPerElement](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/DoFn.UnboundedPerElement.html)
@@ -7584,7 +7591,7 @@ that make it easier to invoke transforms from specific languages:
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" python_map >}}
 ```
 
-Cross-langauge transforms can also be defined in line, which can be useful
+Cross-language transforms can also be defined in line, which can be useful
 for accessing features or libraries not available in the calling SDK
 
 ```

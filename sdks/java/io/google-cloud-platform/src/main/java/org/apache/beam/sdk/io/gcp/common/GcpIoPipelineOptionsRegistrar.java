@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.common;
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
@@ -34,6 +35,7 @@ public class GcpIoPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
     return ImmutableList.<Class<? extends PipelineOptions>>builder()
         .add(BigQueryOptions.class)
         .add(PubsubOptions.class)
+        .add(FirestoreOptions.class)
         .build();
   }
 }
