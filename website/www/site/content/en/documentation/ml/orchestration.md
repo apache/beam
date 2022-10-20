@@ -92,7 +92,7 @@ This is our target file structure:
         │           └── train.py
         └── requirements.txt
 
-Let’s start with the component specifications. The full preprocessing component specification is illustrated below. The inputs are the path where the ingested dataset was saved by the ingest component and a path to a directory where the component can store artifacts. The specifications for the ingestion and train component are similar and can be found here  and here, respectively.
+Let’s start with the component specifications. The full preprocessing component specification is illustrated below. The inputs are the path where the ingested dataset was saved by the ingest component and a path to a directory where the component can store artifacts. Additionally, there are some inputs that specify how and where the Beam pipeline should run. The specifications for the ingestion and train component are similar and can be found here and here, respectively.
 
 >Note: we are using the KFP v1 SDK, because v2 is still in [beta](https://www.kubeflow.org/docs/started/support/#application-status). The v2 SDK introduces some new options for specifying the component interface with more native support for input and output artifacts. To see how to migrate components from v1 to v2, consult the [KFP docs](https://www.kubeflow.org/docs/components/pipelines/sdk-v2/v2-component-io/).
 
@@ -152,19 +152,10 @@ Finally, the defined pipeline is compiled and a `pipeline.json` specification fi
 
 #### Execute the KFP pipeline
 
-Using the specification file and the snippet below with the necessary [requirements](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/ml-orchestration/kfp/requirements.txt) installed, the pipeline can now be executed. Consult the [docs](https://kubeflow-pipelines.readthedocs.io/en/latest/source/kfp.client.html#kfp.Client.run_pipeline) for more information.
-{{< highlight >}}
-# create the kfp client and experiment
-client = kfp.Client()
-experiment = client.create_experiment(EXPERIMENT_NAME)
+Using the specification file and the snippet below with the necessary [requirements](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/ml-orchestration/kfp/requirements.txt) installed, the pipeline can now be executed. Consult the [docs](https://kubeflow-pipelines.readthedocs.io/en/latest/source/kfp.client.html#kfp.Client.run_pipeline) for more information. Note that, before executing the pipeline, a container for each component must be built and pushed to a container registry that can be accessed by your pipeline execution. Also make sure that the component specification `.yaml` files are updated to point to the correct container image.
 
-# add optional keyword arguments
-arguments = {}
-
-run_result = client.run_pipeline(experiment.id,
-                                 RUN_NAME,
-                                 PIPELINE_FILENAME,
-                                 arguments)
+{{< highlight file="sdks/python/apache_beam/examples/ml-orchestration/kfp/pipeline.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/kfp/pipeline.py" execute_kfp_pipeline >}}
 {{< /highlight >}}
 
 
