@@ -155,7 +155,6 @@ def preprocess_dataset(
 
 class DownloadImageFromURL(beam.DoFn):
   """DoFn to download the images from their uri."""
-
   def process(self, element):
     response = requests.get(element['image_url'])
     try:
@@ -169,7 +168,6 @@ class DownloadImageFromURL(beam.DoFn):
 
 class ResizeImage(beam.DoFn):
   "DoFn to resize the elememt's PIL image to the target resolution."
-
   def process(self, element, size=(256, 256)):
     element['image'] = TF.resize(element['image'], size)
     return [element]
@@ -180,7 +178,6 @@ class CleanText(beam.DoFn):
 
   def process(self, element):
     text = element['caption']
-
     text = text.lower()  # lower case
     text = re.sub(r"http\S+", "", text)  # remove urls
     text = re.sub("\s+", " ", text)  # remove extra spaces (including \n and \t)
@@ -204,7 +201,6 @@ def valid_license(element):
 
 class SerializeExample(beam.DoFn):
   """DoFn to serialize an elements image."""
-
   def process(self, element):
     buffer = io.BytesIO()
     torch.save(element['image'], buffer)

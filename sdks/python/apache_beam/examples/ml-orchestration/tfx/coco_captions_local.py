@@ -15,8 +15,8 @@
 
 """Preprocessing example with TFX with the LocalDagRunner and
 either the beam DirectRunner or DataflowRunner"""
-import os
 import argparse
+import os
 
 from tfx import v1 as tfx
 
