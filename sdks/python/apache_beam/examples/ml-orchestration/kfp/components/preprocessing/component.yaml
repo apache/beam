@@ -23,6 +23,18 @@ inputs:
   - name: base_artifact_path
     description: base path to store data
     type: String
+  - name: gcp_project_id
+    description: ID for the google cloud project to deploy the pipeline to.
+    type: String
+  - name: region
+    description: Region in which to deploy the Dataflow pipeline.
+    type: String
+  - name: dataflow_staging_root
+    description: Path to staging directory for the dataflow runner.
+    type: String
+  - name: beam_runner
+    description: Beam runner, DataflowRunner or DirectRunner.
+    type: String
 outputs:
   - name: preprocessed_dataset_path
     description: target uri for the ingested dataset
@@ -38,7 +50,15 @@ implementation:
       --base-artifact-path,
       {inputValue: base_artifact_path},
       --preprocessed-dataset-path,
-      {outputPath: preprocessed_dataset_path}
+      {outputPath: preprocessed_dataset_path},
+      --gcp-project-id,
+      {inputValue: gcp_project_id},
+      --region,
+      {inputValue: region},
+      --dataflow-staging-root,
+      {inputValue: dataflow_staging_root},
+      --beam-runner,
+      {inputValue: beam_runner},
     ]
 # [END preprocessing_component_definition]
 

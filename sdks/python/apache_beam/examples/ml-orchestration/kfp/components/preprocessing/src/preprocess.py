@@ -31,11 +31,6 @@ import torchvision.transforms.functional as TF
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
-PROJECT_ID = "<project-id>"
-LOCATION = "<project-location>"
-STAGING_DIR = "<uri-to-data-flow-staging-dir>"
-BEAM_RUNNER = "<beam-runner>"
-
 
 # [START preprocess_component_argparse]
 def parse_args():
@@ -56,6 +51,27 @@ def parse_args():
       type=str,
       help="Base path to store pipeline artifacts.",
       required=True)
+  parser.add_argument(
+      "--gcp-project-id",
+      type=str,
+      help="ID for the google cloud project to deploy the pipeline to.",
+      required=True)
+  parser.add_argument(
+      "--region",
+      type=str,
+      help="Region in which to deploy the pipeline.",
+      required=True)
+  parser.add_argument(
+      "--dataflow-staging-root",
+      type=str,
+      help="Path to staging directory for dataflow.",
+      required=True)
+  parser.add_argument(
+      "--beam-runner",
+      type=str,
+      help="Beam runner: DataflowRunner or DirectRunner.",
+      default="DirectRunner")
+
   return parser.parse_args()
 
 
@@ -65,7 +81,11 @@ def parse_args():
 def preprocess_dataset(
     ingested_dataset_path: str,
     preprocessed_dataset_path: str,
-    base_artifact_path: str):
+    base_artifact_path: str,
+    gcp_project_id: str,
+    region: str,
+    dataflow_staging_root: str,
+    beam_runner: str):
   """Preprocess the ingested raw dataset and write the result to avro format.
 
   Args:
@@ -73,6 +93,10 @@ def preprocess_dataset(
     preprocessed_dataset_path (str): Path to where the preprocessed dataset will be saved
     base_artifact_path (str): path to the base directory of where artifacts can be stored for
       this component.
+    gcp_project_id (str): ID for the google cloud project to deploy the pipeline to.
+    region (str): Region in which to deploy the pipeline.
+    dataflow_staging_root (str): Path to staging directory for the dataflow runner.
+    beam_runner (str): Beam runner: DataflowRunner or DirectRunner.
   """
   # [START kfp_component_input_output]
   timestamp = time.time()
@@ -89,11 +113,11 @@ def preprocess_dataset(
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(
-      runner=BEAM_RUNNER,
-      project=PROJECT_ID,
+      runner=beam_runner,
+      project=gcp_project_id,
       job_name=f'preprocessing-{int(time.time())}',
-      temp_location=STAGING_DIR,
-      region=LOCATION,
+      temp_location=dataflow_staging_root,
+      region=region,
       requirements_file="/requirements.txt",
       save_main_session=True,
   )
@@ -131,6 +155,7 @@ def preprocess_dataset(
 
 class DownloadImageFromURL(beam.DoFn):
   """DoFn to download the images from their uri."""
+
   def process(self, element):
     response = requests.get(element['image_url'])
     try:
@@ -152,6 +177,7 @@ class ResizeImage(beam.DoFn):
 
 class CleanText(beam.DoFn):
   """Dofn to perform a series of string cleaning operations."""
+
   def process(self, element):
     text = element['caption']
 
@@ -178,6 +204,7 @@ def valid_license(element):
 
 class SerializeExample(beam.DoFn):
   """DoFn to serialize an elements image."""
+
   def process(self, element):
     buffer = io.BytesIO()
     torch.save(element['image'], buffer)
