@@ -418,14 +418,14 @@ tasks.register("typescriptPreCommit") {
 }
 
 tasks.register("pushAllDockerImages") {
-//  dependsOn(":runners:spark:2:job-server:container:dockerPush")
-//  dependsOn(":runners:spark:3:job-server:container:dockerPush")
+  dependsOn(":runners:spark:2:job-server:container:dockerPush")
+  dependsOn(":runners:spark:3:job-server:container:dockerPush")
   dependsOn(":sdks:java:container:pushAll")
   dependsOn(":sdks:python:container:pushAll")
   dependsOn(":sdks:go:container:pushAll")
-//  for (version in project.ext.get("allFlinkVersions") as Array<*>) {
-//    dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
-//  }
+  for (version in project.ext.get("allFlinkVersions") as Array<*>) {
+    dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
+  }
 }
 
 // Use this task to validate the environment set up for Go, Python and Java
