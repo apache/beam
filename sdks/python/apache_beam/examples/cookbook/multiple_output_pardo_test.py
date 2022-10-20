@@ -28,7 +28,8 @@ import pytest
 
 from apache_beam.examples.cookbook import multiple_output_pardo
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.test_utils import create_file, read_gcs_output_file
+from apache_beam.testing.test_utils import create_file
+from apache_beam.testing.test_utils import read_gcs_output_file
 
 
 class MultipleOutputParDo(unittest.TestCase):

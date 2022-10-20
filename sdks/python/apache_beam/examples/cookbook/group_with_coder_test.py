@@ -26,10 +26,9 @@ import uuid
 import pytest
 
 from apache_beam.examples.cookbook import group_with_coder
+from apache_beam.io.gcp import gcsio
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import read_gcs_output_file
-
-from apache_beam.io.gcp import gcsio
 
 # Patch group_with_coder.PlayerCoder.decode(). To test that the PlayerCoder was
 # used, we do not strip the prepended 'x:' string when decoding a Player object.

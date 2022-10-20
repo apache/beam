@@ -28,8 +28,8 @@ import pytest
 
 from apache_beam.examples.complete import tfidf
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.test_utils import create_file, read_gcs_output_file
-
+from apache_beam.testing.test_utils import create_file
+from apache_beam.testing.test_utils import read_gcs_output_file
 EXPECTED_RESULTS = set([
     ('ghi', '1.txt', 0.3662040962227032), ('abc', '1.txt', 0.0),
     ('abc', '3.txt', 0.0), ('abc', '2.txt', 0.0),

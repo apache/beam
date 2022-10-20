@@ -30,14 +30,8 @@ from mock import MagicMock
 from mock import patch
 
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.test_utils import create_file, read_gcs_output_file
-
-
-
-
-
-
-
+from apache_beam.testing.test_utils import create_file
+from apache_beam.testing.test_utils import read_gcs_output_file
 
 FILE_CONTENTS = 'OP01,8,12,0,12\n' \
                 'OP02,30,14,3,12\n' \

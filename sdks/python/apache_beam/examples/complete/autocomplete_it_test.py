@@ -27,7 +27,8 @@ import pytest
 
 from apache_beam.examples.complete import autocomplete
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.test_utils import create_file, read_gcs_output_file
+from apache_beam.testing.test_utils import create_file
+from apache_beam.testing.test_utils import read_gcs_output_file
 
 
 def format_output_file(output_string):
