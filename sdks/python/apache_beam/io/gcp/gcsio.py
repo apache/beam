@@ -38,6 +38,8 @@ import threading
 import time
 import traceback
 from itertools import islice
+from typing import Optional
+from typing import Union
 
 import apache_beam
 from apache_beam.internal.http_client import get_new_http
@@ -49,6 +51,7 @@ from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import monitoring_infos
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
 
 __all__ = ['GcsIO']
@@ -158,7 +161,12 @@ class GcsIOError(IOError, retry.PermanentException):
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
   def __init__(self, storage_client=None, pipeline_options=None):
+    # type: (Optional[storage.StorageV1], Optional[Union[dict, PipelineOptions]]) -> None
     if storage_client is None:
+      if not pipeline_options:
+        pipeline_options = PipelineOptions()
+      elif isinstance(pipeline_options, dict):
+        pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
       storage_client = storage.StorageV1(
           credentials=auth.get_service_credentials(pipeline_options),
           get_credentials=False,
