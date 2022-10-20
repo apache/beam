@@ -29,14 +29,18 @@ import 'router/page_factory.dart';
 import 'router/route_information_parser.dart';
 
 Future<void> initializeServiceLocator() async {
+  _initializeAuth();
   _initializeCaches();
   _initializeState();
+}
+
+void _initializeAuth() {
+  GetIt.instance.registerSingleton(AuthNotifier());
 }
 
 void _initializeCaches() {
   final client = CloudFunctionsTobClient();
 
-  GetIt.instance.registerSingleton(AuthNotifier());
   GetIt.instance.registerSingleton(ContentTreeCache(client: client));
   GetIt.instance.registerSingleton(SdkCache(client: client));
   GetIt.instance.registerSingleton(UnitContentCache(client: client));

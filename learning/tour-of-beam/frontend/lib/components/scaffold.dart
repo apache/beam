@@ -21,6 +21,7 @@ import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../auth/notifier.dart';
+import '../auth/stages.dart';
 import 'footer.dart';
 import 'login/login_button.dart';
 import 'logo.dart';
@@ -64,13 +65,15 @@ class _Profile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = GetIt.instance.get<AuthNotifier>();
+    final notifier = GetIt.instance.get<AuthNotifier>();
 
     return _ActionVerticalPadding(
       child: AnimatedBuilder(
-        animation: auth,
+        animation: notifier,
         builder: (context, child) =>
-            auth.isAuthenticated ? const Avatar() : const LoginButton(),
+            notifier.authStage == AuthStage.authenticated
+                ? const Avatar()
+                : const LoginButton(),
       ),
     );
   }
