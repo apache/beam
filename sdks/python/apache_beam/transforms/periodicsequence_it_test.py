@@ -51,7 +51,7 @@ class PeriodicSequenceIT(unittest.TestCase):
   @pytest.mark.sickbay_spark
   @pytest.mark.sickbay_flink
   @pytest.mark.timeout(
-      900) # Timeout after 15 minutes to give Dataflow some extra time
+      900)  # Timeout after 15 minutes to give Dataflow some extra time
   def test_periodicsequence_outputs_valid_watermarks_it(self):
     """Tests periodic sequence with watermarks on dataflow.
     For testing that watermarks are being correctly emitted,
