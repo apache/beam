@@ -168,6 +168,7 @@ class DownloadImageFromURL(beam.DoFn):
 
 class ResizeImage(beam.DoFn):
   "DoFn to resize the elememt's PIL image to the target resolution."
+
   def process(self, element, size=(256, 256)):
     element['image'] = TF.resize(element['image'], size)
     return [element]
@@ -175,7 +176,6 @@ class ResizeImage(beam.DoFn):
 
 class CleanText(beam.DoFn):
   """Dofn to perform a series of string cleaning operations."""
-
   def process(self, element):
     text = element['caption']
     text = text.lower()  # lower case
