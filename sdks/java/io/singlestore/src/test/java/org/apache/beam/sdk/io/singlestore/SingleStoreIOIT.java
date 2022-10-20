@@ -208,6 +208,7 @@ public class SingleStoreIOIT {
 
   @Rule public TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public TestPipeline pipelineRead = TestPipeline.create();
+  @Rule public TestPipeline pipelineReadWithPartitions = TestPipeline.create();
 
   private PipelineResult runWrite() {
     pipelineWrite
@@ -240,7 +241,7 @@ public class SingleStoreIOIT {
 
   private PipelineResult runReadWithPartitions() {
     PCollection<TestRow> namesAndIds =
-        pipelineRead
+        pipelineReadWithPartitions
             .apply(
                 SingleStoreIO.<TestRow>readWithPartitions()
                     .withDataSourceConfiguration(dataSourceConfiguration)
@@ -250,7 +251,7 @@ public class SingleStoreIOIT {
 
     testReadResult(namesAndIds);
 
-    return pipelineRead.run();
+    return pipelineReadWithPartitions.run();
   }
 
   private void testReadResult(PCollection<TestRow> namesAndIds) {
