@@ -125,8 +125,7 @@ def parse_known_args(argv):
       '--output',
       dest='output',
       required=True,
-      help='Path where to save output predictions.'
-      ' text file.')
+      help='Path to save output predictions text file.')
   parser.add_argument(
       '--model_path',
       dest='model_path',
