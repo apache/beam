@@ -21,6 +21,9 @@ setuptools
 wheel>=0.36.0
 
 grpcio-tools==1.37.0
+# TODO(https://github.com/apache/beam/issues/23734): the sdist for grpcio==1.50.0 is failing on GH workers
+# pin grpcio to the previous version.
+grpcio==1.49.1;sys_platform=="darwin"
 mypy-protobuf==1.18
 protobuf==3.19.4;python_version=="3.10" and sys_platform=="darwin"
 
