@@ -28,29 +28,7 @@ import pytest
 
 from apache_beam.examples.complete import tfidf
 from apache_beam.testing.test_pipeline import TestPipeline
-
-# Protect against environments where gcsio library is not available.
-try:
-  from apache_beam.io.gcp import gcsio
-except ImportError:
-  gcsio = None
-
-
-def read_gcs_output_file(file_pattern):
-  gcs = gcsio.GcsIO()
-  file_names = gcs.list_prefix(file_pattern).keys()
-  output = []
-  for file_name in file_names:
-    output.append(gcs.open(file_name).read().decode('utf-8').strip())
-  return '\n'.join(output)
-
-
-def create_content_input_file(path, contents):
-  logging.info('Creating file: %s', path)
-  gcs = gcsio.GcsIO()
-  with gcs.open(path, 'w') as f:
-    f.write(str.encode(contents, 'utf-8'))
-
+from apache_beam.testing.test_utils import create_file, read_gcs_output_file
 
 EXPECTED_RESULTS = set([
     ('ghi', '1.txt', 0.3662040962227032), ('abc', '1.txt', 0.0),
@@ -69,9 +47,9 @@ class TfIdfIT(unittest.TestCase):
     # Setup the files with expected content.
     temp_location = test_pipeline.get_option('temp_location')
     input_folder = '/'.join([temp_location, str(uuid.uuid4())])
-    create_content_input_file('/'.join([input_folder, '1.txt']), 'abc def ghi')
-    create_content_input_file('/'.join([input_folder, '2.txt']), 'abc def')
-    create_content_input_file('/'.join([input_folder, '3.txt']), 'abc')
+    create_file('/'.join([input_folder, '1.txt']), 'abc def ghi')
+    create_file('/'.join([input_folder, '2.txt']), 'abc def')
+    create_file('/'.join([input_folder, '3.txt']), 'abc')
     output = '/'.join([temp_location, str(uuid.uuid4()), 'result'])
 
     extra_opts = {'uris': input_folder, 'output': output}

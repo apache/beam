@@ -26,28 +26,7 @@ import pytest
 
 from apache_beam.examples.cookbook import custom_ptransform
 from apache_beam.testing.test_pipeline import TestPipeline
-
-# Protect against environments where gcsio library is not available.
-try:
-  from apache_beam.io.gcp import gcsio
-except ImportError:
-  gcsio = None
-
-
-def read_gcs_output_file(file_pattern):
-  gcs = gcsio.GcsIO()
-  file_names = gcs.list_prefix(file_pattern).keys()
-  output = []
-  for file_name in file_names:
-    output.append(gcs.open(file_name).read().decode('utf-8').strip())
-  return ''.join(output)
-
-
-def create_content_input_file(path, contents):
-  logging.info('Creating file: %s', path)
-  gcs = gcsio.GcsIO()
-  with gcs.open(path, 'w') as f:
-    f.write(str.encode(contents, 'utf-8'))
+from apache_beam.testing.test_utils import create_file, read_gcs_output_file
 
 
 def format_result(result_string):
@@ -76,7 +55,7 @@ class CustomPTransformIT(unittest.TestCase):
     temp_location = test_pipeline.get_option('temp_location')
     input = '/'.join([temp_location, str(uuid.uuid4()), 'input.txt'])
     output = '/'.join([temp_location, str(uuid.uuid4()), 'result'])
-    create_content_input_file(input, ' '.join(self.WORDS))
+    create_file(input, ' '.join(self.WORDS))
     extra_opts = {'input': input, 'output': output}
     custom_ptransform.run(test_pipeline.get_full_options_as_args(**extra_opts))
 

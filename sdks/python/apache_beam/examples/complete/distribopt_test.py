@@ -30,28 +30,14 @@ from mock import MagicMock
 from mock import patch
 
 from apache_beam.testing.test_pipeline import TestPipeline
-
-# Protect against environments where gcsio library is not available.
-try:
-  from apache_beam.io.gcp import gcsio
-except ImportError:
-  gcsio = None
+from apache_beam.testing.test_utils import create_file, read_gcs_output_file
 
 
-def read_gcs_output_file(file_pattern):
-  gcs = gcsio.GcsIO()
-  file_names = gcs.list_prefix(file_pattern).keys()
-  output = []
-  for file_name in file_names:
-    output.append(gcs.open(file_name).read().decode('utf-8').strip())
-  return '\n'.join(output)
 
 
-def create_content_input_file(path, contents):
-  logging.info('Creating file: %s', path)
-  gcs = gcsio.GcsIO()
-  with gcs.open(path, 'w') as f:
-    f.write(str.encode(contents, 'utf-8'))
+
+
+
 
 FILE_CONTENTS = 'OP01,8,12,0,12\n' \
                 'OP02,30,14,3,12\n' \
@@ -75,7 +61,7 @@ class DistribOptimizationTest(unittest.TestCase):
     temp_location = test_pipeline.get_option('temp_location')
     input = '/'.join([temp_location, str(uuid.uuid4()), 'input.txt'])
     output = '/'.join([temp_location, str(uuid.uuid4()), 'result'])
-    create_content_input_file(input, FILE_CONTENTS)
+    create_file(input, FILE_CONTENTS)
     extra_opts = {'input': input, 'output': output}
 
     # Run pipeline

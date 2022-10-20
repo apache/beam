@@ -27,28 +27,7 @@ import pytest
 
 from apache_beam.examples.cookbook import coders
 from apache_beam.testing.test_pipeline import TestPipeline
-
-# Protect against environments where gcsio library is not available.
-try:
-  from apache_beam.io.gcp import gcsio
-except ImportError:
-  gcsio = None
-
-
-def read_gcs_output_file(file_pattern):
-  gcs = gcsio.GcsIO()
-  file_names = gcs.list_prefix(file_pattern).keys()
-  output = []
-  for file_name in file_names:
-    output.append(gcs.open(file_name).read().decode('utf-8').strip())
-  return '\n'.join(output)
-
-
-def create_content_input_file(path, contents):
-  logging.info('Creating file: %s', path)
-  gcs = gcsio.GcsIO()
-  with gcs.open(path, 'w') as f:
-    f.write(str.encode(contents, 'utf-8'))
+from apache_beam.testing.test_utils import create_file, read_gcs_output_file
 
 
 def format_result(result_string):
@@ -87,8 +66,7 @@ class CodersIT(unittest.TestCase):
     INPUT_FILE_DIR = \
         'gs://temp-storage-for-end-to-end-tests/py-it-cloud/input'
     input = '/'.join([INPUT_FILE_DIR, str(uuid.uuid4()), 'input.txt'])
-    create_content_input_file(
-        input, '\n'.join(map(json.dumps, self.SAMPLE_RECORDS)))
+    create_file(input, '\n'.join(map(json.dumps, self.SAMPLE_RECORDS)))
     extra_opts = {'input': input, 'output': output}
     coders.run(test_pipeline.get_full_options_as_args(**extra_opts))
 

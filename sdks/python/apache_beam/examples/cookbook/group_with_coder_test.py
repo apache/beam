@@ -27,12 +27,9 @@ import pytest
 
 from apache_beam.examples.cookbook import group_with_coder
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import read_gcs_output_file
 
-# Protect against environments where gcsio library is not available.
-try:
-  from apache_beam.io.gcp import gcsio
-except ImportError:
-  gcsio = None
+from apache_beam.io.gcp import gcsio
 
 # Patch group_with_coder.PlayerCoder.decode(). To test that the PlayerCoder was
 # used, we do not strip the prepended 'x:' string when decoding a Player object.
@@ -47,15 +44,6 @@ def create_content_input_file(path, records):
     for record in records:
       f.write(b'%s\n' % record.encode('utf-8'))
   return path
-
-
-def read_gcs_output_file(file_pattern):
-  gcs = gcsio.GcsIO()
-  file_names = gcs.list_prefix(file_pattern).keys()
-  output = []
-  for file_name in file_names:
-    output.append(gcs.open(file_name).read().decode('utf-8').strip())
-  return '\n'.join(output)
 
 
 @pytest.mark.examples_postcommit

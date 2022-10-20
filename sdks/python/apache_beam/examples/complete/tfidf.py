@@ -34,11 +34,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.pvalue import AsSingleton
 
-# Protect against environments where gcsio library is not available.
-try:
-  from apache_beam.io.gcp import gcsio
-except ImportError:
-  gcsio = None
+from apache_beam.io.gcp import gcsio
 
 
 def read_documents(pipeline, uris):

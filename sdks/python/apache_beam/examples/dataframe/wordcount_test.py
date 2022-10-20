@@ -30,29 +30,7 @@ import pytest
 
 from apache_beam.examples.dataframe import wordcount
 from apache_beam.testing.test_pipeline import TestPipeline
-
-# Protect against environments where gcsio library is not available.
-try:
-  from apache_beam.io.gcp import gcsio
-except ImportError:
-  gcsio = None
-
-
-def read_gcs_output_file(file_pattern):
-  gcs = gcsio.GcsIO()
-  file_names = gcs.list_prefix(file_pattern).keys()
-  output = []
-  for file_name in file_names:
-    output.append(gcs.open(file_name).read().decode('utf-8').strip())
-  return '\n'.join(output)
-
-
-def create_content_input_file(path, contents):
-  logging.info('Creating file: %s', path)
-  gcs = gcsio.GcsIO()
-  with gcs.open(path, 'w') as f:
-    f.write(str.encode(contents, 'utf-8'))
-  return path
+from apache_beam.testing.test_utils import create_file, read_gcs_output_file
 
 
 class WordCountTest(unittest.TestCase):
@@ -70,8 +48,7 @@ class WordCountTest(unittest.TestCase):
     # Setup the files with expected content.
     temp_location = test_pipeline.get_option('temp_location')
     temp_path = '/'.join([temp_location, str(uuid.uuid4())])
-    input = create_content_input_file(
-        '/'.join([temp_path, 'input.txt']), self.SAMPLE_TEXT)
+    input = create_file('/'.join([temp_path, 'input.txt']), self.SAMPLE_TEXT)
     expected_words = collections.defaultdict(int)
     for word in re.findall(r'[\w]+', self.SAMPLE_TEXT):
       expected_words[word] += 1

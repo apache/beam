@@ -206,3 +206,22 @@ def create_pull_response(responses):
     res.received_messages.append(received_message)
 
   return res
+
+
+def create_file(path, contents):
+  """Create a file to use as input to test pipelines"""
+  with FileSystems.create(path) as f:
+    f.write(str.encode(contents, 'utf-8'))
+  return path
+
+
+def read_gcs_output_file(file_pattern):
+  """Reads the gcs output file of a pipeline by prefix"""
+  from apache_beam.io.gcp import gcsio
+  gcs = gcsio.GcsIO()
+  file_names = gcs.list_prefix(file_pattern).keys()
+  output = []
+  for file_name in file_names:
+    with FileSystems.open(file_name) as f:
+      output.append(f.read().decode('utf-8').strip())
+  return '\n'.join(output)
