@@ -26,9 +26,14 @@ import uuid
 import pytest
 
 from apache_beam.examples.cookbook import group_with_coder
-from apache_beam.io.gcp import gcsio
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import read_gcs_output_file
+
+# Protect against environments where gcsio library is not available.
+try:
+  from apache_beam.io.gcp import gcsio
+except ImportError:
+  gcsio = None
 
 # Patch group_with_coder.PlayerCoder.decode(). To test that the PlayerCoder was
 # used, we do not strip the prepended 'x:' string when decoding a Player object.
@@ -45,6 +50,7 @@ def create_content_input_file(path, records):
   return path
 
 
+@unittest.skipIf(gcsio is None, 'GCP dependencies are not installed')
 @pytest.mark.examples_postcommit
 class GroupWithCoderTest(unittest.TestCase):
 

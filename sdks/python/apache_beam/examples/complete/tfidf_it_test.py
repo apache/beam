@@ -30,6 +30,13 @@ from apache_beam.examples.complete import tfidf
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import create_file
 from apache_beam.testing.test_utils import read_gcs_output_file
+
+# Protect against environments where gcsio library is not available.
+try:
+  from apache_beam.io.gcp import gcsio
+except ImportError:
+  gcsio = None
+
 EXPECTED_RESULTS = set([
     ('ghi', '1.txt', 0.3662040962227032), ('abc', '1.txt', 0.0),
     ('abc', '3.txt', 0.0), ('abc', '2.txt', 0.0),
@@ -39,6 +46,7 @@ EXPECTED_RESULTS = set([
 EXPECTED_LINE_RE = r'\(u?\'([a-z]*)\', \(\'.*([0-9]\.txt)\', (.*)\)\)'
 
 
+@unittest.skipIf(gcsio is None, 'GCP dependencies are not installed')
 class TfIdfIT(unittest.TestCase):
   @pytest.mark.examples_postcommit
   def test_basics(self):
