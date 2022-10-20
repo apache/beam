@@ -21,6 +21,8 @@ import uuid
 
 import pytest
 
+import tensorflow as tf
+from apache_beam.examples.inference.tfx_bsl.build_tensorflow_model import save_tf_model_with_signature
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -57,19 +59,27 @@ def process_outputs(filepath):
 @unittest.skipIf(
     tfx_bsl is None, 'Missing dependencies. '
     'Test depends on tfx_bsl')
-class TFXInference(unittest.TestCase):
+class TFXRunInferenceTests(unittest.TestCase):
   @pytest.mark.uses_tensorflow
   @pytest.mark.it_postcommit
   def test_tfx_run_inference_mobilenetv2(self):
     test_pipeline = TestPipeline(is_integration_test=True)
-    file_of_image_names = 'gs://apache-beam-ml/testing/inputs/it_mobilenetv2_imagenet_validation_inputs.txt'  # pylint: disable=line-too-long
+    # Save the Tensorflow model with TF Signature
+    model = tf.keras.applications.MobileNetV2(weights='imagenet')
+    preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
+    path_to_save_model = 'gs://apache-beam-ml/models/tensorflow_models/mobilenet_v2'
+    save_tf_model_with_signature(
+        path_to_save_model, model, preprocess_input, training=False)
+    # Use the saved model to run the test
+    file_of_image_names = (
+        'gs://apache-beam-ml/testing/inputs/it_mobilenetv2_imagenet_validation_inputs.txt'
+    )
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
-    model_path = 'gs://apache-beam-ml/models/tensorflow/mobilenet_v2'
     extra_opts = {
         'input': file_of_image_names,
         'output': output_file,
-        'model_path': model_path,
+        'model_path': path_to_save_model,
     }
 
     tensorflow_image_classification.run(

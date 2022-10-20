@@ -20,10 +20,10 @@ A pipeline that uses TFX RunInference API to perform image classification.
 Please look at https://github.com/tensorflow/tfx-bsl/tree/master/tfx_bsl/beam.
 
 Note: A Tensorflow Model needs to be updated with a @tf.function
-      Signature in order to accept bytes as inputs, and should have logic to decode
-      bytes to data that is acceptable by the TensorFlow model.
+      signature in order to accept bytes as inputs, and should have logic
+      to decode bytes to Tensors that is acceptable by the TensorFlow model.
       Please take a look at build_tensorflow_model.py on how to modify
-      TF Model's signature.
+      TF Model's signature and the logic to decode the tensor.
 """
 
 import argparse
@@ -70,7 +70,7 @@ def read_and_process_image(
   return image_file_name, image
 
 
-def convert_image_to_example_proto(tensor):
+def convert_image_to_example_proto(tensor: tf.Tensor) -> tf.train.Example:
   """
   This method performs the following:
   1. Accepts the tensor as input
@@ -140,8 +140,7 @@ def parse_known_args(argv):
   return parser.parse_known_args(argv)
 
 
-def run(
-    argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
+def run(argv=None, save_main_session=True, pipeline=None) -> PipelineResult:
   """
   Args:
     argv: Command line arguments defined for this example.
@@ -160,8 +159,7 @@ def run(
   # create a KeyedModelHandler to accommodate image names as keys.
   keyed_model_handler = KeyedModelHandler(model_handler)
 
-  pipeline = test_pipeline
-  if not test_pipeline:
+  if not pipeline:
     pipeline = beam.Pipeline(options=pipeline_options)
 
   filename_value_pair = (
