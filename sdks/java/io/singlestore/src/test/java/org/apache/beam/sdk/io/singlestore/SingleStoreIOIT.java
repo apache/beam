@@ -25,6 +25,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -194,8 +195,11 @@ public class SingleStoreIOIT {
 
   private static class TestUserDataMapper implements UserDataMapper<TestRow> {
     @Override
-    public String[] mapRow(TestRow element) {
-      return new String[] {element.id().toString(), element.name()};
+    public List<String> mapRow(TestRow element) {
+      List<String> res = new ArrayList<>();
+      res.add(element.id().toString());
+      res.add(element.name());
+      return res;
     }
   }
 

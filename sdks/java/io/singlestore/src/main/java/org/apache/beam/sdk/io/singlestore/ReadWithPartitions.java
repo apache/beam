@@ -134,7 +134,8 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
         Util.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
 
     int initialNumReaders = Util.getArgumentWithDefault(getInitialNumReaders(), 1);
-    checkArgument(initialNumReaders >= 1, "withInitialNumReaders() should be greater or equal to 1");
+    checkArgument(
+        initialNumReaders >= 1, "withInitialNumReaders() should be greater or equal to 1");
 
     String actualQuery = Util.getSelectQuery(getTable(), getQuery());
 
@@ -216,11 +217,12 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
         @Restriction OffsetRange range,
         OutputReceiver<OffsetRange> receiver) {
       long numPartitions = range.getTo() - range.getFrom();
-      checkArgument(initialNumReaders <= numPartitions,
+      checkArgument(
+          initialNumReaders <= numPartitions,
           "withInitialNumReaders() should not be greater then number of partitions in the database.\n"
-          + String.format(
-          "InitialNumReaders is %d, number of partitions in the database is %d",
-          initialNumReaders, range.getTo()));
+              + String.format(
+                  "InitialNumReaders is %d, number of partitions in the database is %d",
+                  initialNumReaders, range.getTo()));
 
       for (int i = 0; i < initialNumReaders; i++) {
         receiver.output(

@@ -30,6 +30,8 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -46,7 +48,7 @@ import org.joda.time.Instant;
 @AutoValue
 public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
 
-  private static final int DEFAULT_BATCH_SIZE = 1000;
+  private static final int DEFAULT_BATCH_SIZE = 100000;
   private static final int BUFFER_SIZE = 524288;
 
   abstract @Nullable DataSourceConfiguration getDataSourceConfiguration();
@@ -105,12 +107,13 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
     input
         .apply(
             ParDo.of(
-                new DoFn<T, String[]>() {
+                new DoFn<T, List<String>>() {
                   @ProcessElement
                   public void processElement(ProcessContext context) throws Exception {
                     context.output(userDataMapper.mapRow(context.element()));
                   }
                 }))
+        .setCoder(ListCoder.of(StringUtf8Coder.of()))
         .apply(ParDo.of(new BatchFn<>(batchSize)))
         .apply(ParDo.of(new WriteFn<Void>(dataSourceConfiguration, table)))
         .setCoder(VoidCoder.of());
@@ -144,7 +147,7 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
     }
   }
 
-  private static class WriteFn<OutputT> extends DoFn<Iterable<String[]>, OutputT> {
+  private static class WriteFn<OutputT> extends DoFn<Iterable<List<String>>, OutputT> {
     DataSourceConfiguration dataSourceConfiguration;
     String table;
 
@@ -173,10 +176,10 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
                     @Override
                     public void run() {
                       try {
-                        Iterable<String[]> rows = context.element();
-                        for (String[] row : rows) {
-                          for (int i = 0; i < row.length; i++) {
-                            String cell = row[i];
+                        Iterable<List<String>> rows = context.element();
+                        for (List<String> row : rows) {
+                          for (int i = 0; i < row.size(); i++) {
+                            String cell = row.get(i);
                             if (cell.indexOf('\\') != -1) {
                               cell = cell.replace("\\", "\\\\");
                             }
@@ -188,7 +191,7 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
                             }
 
                             baseStream.write(cell.getBytes(StandardCharsets.UTF_8));
-                            if (i + 1 == row.length) {
+                            if (i + 1 == row.size()) {
                               baseStream.write('\n');
                             } else {
                               baseStream.write('\t');

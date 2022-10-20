@@ -18,8 +18,9 @@
 package org.apache.beam.sdk.io.singlestore;
 
 import java.io.Serializable;
+import java.util.List;
 
 @FunctionalInterface
 public interface UserDataMapper<T> extends Serializable {
-  String[] mapRow(T element);
+  List<String> mapRow(T element);
 }
