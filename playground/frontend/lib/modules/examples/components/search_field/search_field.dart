@@ -89,8 +89,8 @@ class SearchField extends StatelessWidget {
     );
   }
 
-  _onChange(ExampleSelectorState state, String filterText) {
-    state.setFilterText(filterText);
-    state.sortCategories();
+  _onChange(ExampleSelectorState state, String searchText) {
+    state.setSearchText(searchText);
+    state.filterCategoriesWithExamples();
   }
 }

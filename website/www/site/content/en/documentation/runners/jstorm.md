@@ -108,4 +108,4 @@ When executing your pipeline with the JStorm Runner, you should consider the fol
 
 ### Monitoring your job
 You can monitor your job with the JStorm UI, which displays all JStorm system metrics and Beam metrics.
-For testing on local mode, you can retreive the Beam metrics with the metrics method of PipelineResult.
+For testing on local mode, you can retrieve the Beam metrics with the metrics method of PipelineResult.

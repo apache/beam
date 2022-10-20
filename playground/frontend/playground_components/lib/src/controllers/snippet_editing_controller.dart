@@ -19,6 +19,7 @@
 import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/widgets.dart';
 
+import '../enums/complexity.dart';
 import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
@@ -83,6 +84,7 @@ class SnippetEditingController extends ChangeNotifier {
     return ContentExampleLoadingDescriptor(
       content: codeController.text,
       name: _selectedExample?.name,
+      complexity: _selectedExample?.complexity ?? Complexity.unspecified,
       sdk: sdk,
     );
   }

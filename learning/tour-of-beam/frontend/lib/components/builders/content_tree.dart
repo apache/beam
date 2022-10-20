@@ -23,9 +23,11 @@ import '../../cache/content_tree.dart';
 import '../../models/content_tree.dart';
 
 class ContentTreeBuilder extends StatelessWidget {
+  final String sdkId;
   final ValueWidgetBuilder<ContentTreeModel?> builder;
 
   const ContentTreeBuilder({
+    required this.sdkId,
     required this.builder,
   });
 
@@ -37,7 +39,7 @@ class ContentTreeBuilder extends StatelessWidget {
       animation: cache,
       builder: (context, child) => builder(
         context,
-        cache.getContentTree(),
+        cache.getContentTree(sdkId),
         child,
       ),
     );

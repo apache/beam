@@ -595,20 +595,17 @@ public class BigQueryIO {
     private final Supplier<TableSchema> tableSchema;
     private GenericDatumReader<T> reader;
     private org.apache.avro.Schema writerSchema;
-    private org.apache.avro.Schema readerSchema;
 
     public GenericDatumTransformer(
         SerializableFunction<SchemaAndRecord, T> parseFn,
         String tableSchema,
-        org.apache.avro.Schema writer,
-        org.apache.avro.Schema reader) {
+        org.apache.avro.Schema writer) {
       this.parseFn = parseFn;
       this.tableSchema =
           Suppliers.memoize(
               Suppliers.compose(new TableSchemaFunction(), Suppliers.ofInstance(tableSchema)));
       this.writerSchema = writer;
-      this.readerSchema = reader;
-      this.reader = new GenericDatumReader<>(this.writerSchema, this.readerSchema);
+      this.reader = new GenericDatumReader<>(this.writerSchema);
     }
 
     @Override
@@ -618,11 +615,7 @@ public class BigQueryIO {
       }
 
       this.writerSchema = schema;
-      if (this.readerSchema == null) {
-        this.readerSchema = schema;
-      }
-
-      this.reader = new GenericDatumReader<>(this.writerSchema, this.readerSchema);
+      this.reader = new GenericDatumReader<>(this.writerSchema);
     }
 
     @Override
@@ -664,7 +657,7 @@ public class BigQueryIO {
                     String jsonTableSchema = BigQueryIO.JSON_FACTORY.toString(input);
                     return (AvroSource.DatumReaderFactory<T>)
                         (writer, reader) ->
-                            new GenericDatumTransformer<>(parseFn, jsonTableSchema, writer, reader);
+                            new GenericDatumTransformer<>(parseFn, jsonTableSchema, writer);
                   } catch (IOException e) {
                     LOG.warn(
                         String.format("Error while converting table schema %s to JSON!", input), e);

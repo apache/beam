@@ -143,7 +143,7 @@ public class BigQueryIOReadTest implements Serializable {
                   return (AvroSource.DatumReaderFactory<TableRow>)
                       (writer, reader) ->
                           new BigQueryIO.GenericDatumTransformer<>(
-                              BigQueryIO.TableRowParser.INSTANCE, jsonSchema, writer, reader);
+                              BigQueryIO.TableRowParser.INSTANCE, jsonSchema, writer);
                 } catch (IOException e) {
                   return null;
                 }

@@ -61,7 +61,7 @@ sales channels: stores, catalogs, and the Internet. The schema includes seven fa
 - **customer_demographics** - The customer demographics table contains one row for each unique combination of customer demographic information.
 - **date_dim** - Every row represents one calendar day. The surrogate key (d_date_sk) for a given row is derived from the julian date being described by the row.
 - **household_demographics** - Every row defines a household demographic profile.
-- **item** - Every row represents a unique product formulation (e.g., size, color, manufactuer, etc.).
+- **item** - Every row represents a unique product formulation (e.g., size, color, manufacturer, etc.).
 - **income_band** - Every row represents details of an income range.
 - **promotion** - Every row represents details of a specific product promotion (e.g., advertising, sales, PR).
 - **reason** - Every row represents a reason why an item was returned.
@@ -112,7 +112,7 @@ All TPC-DS table schemas are stored in the provided artifacts.
 CSV and Parquet input data has been pre-generated and staged in the Google Cloud Storage bucket `gs://beam-tpcds`.
 
 #### CSV datasets
-Staged in `gs://beam-tpcds/datasets/text/*` bucket, spreaded by different data scale factors.
+Staged in `gs://beam-tpcds/datasets/text/*` bucket, spread by different data scale factors.
 
 #### Parquet datasets
 Staged in `gs://beam-tpcds/datasets/parquet/nonpartitioned/` and `gs://beam-tpcds/datasets/parquet/partitioned/`, spreaded by different data scale factors.

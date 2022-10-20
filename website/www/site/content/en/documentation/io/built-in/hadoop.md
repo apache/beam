@@ -19,7 +19,7 @@ limitations under the License.
 
 > **IMPORTANT!** Previous implementation of Hadoop Input Format IO, called `HadoopInputFormatIO`, is deprecated starting from *Apache Beam 2.10*. Please, use current `HadoopFormatIO` which supports both `InputFormat` and `OutputFormat`.
 
-A `HadoopFormatIO` is a transform for reading data from any source or writing data to any sink that implements Hadoop's `InputFormat` or `OurputFormat` accordingly. For example, Cassandra, Elasticsearch, HBase, Redis, Postgres, etc.
+A `HadoopFormatIO` is a transform for reading data from any source or writing data to any sink that implements Hadoop's `InputFormat` or `OutputFormat` accordingly. For example, Cassandra, Elasticsearch, HBase, Redis, Postgres, etc.
 
 `HadoopFormatIO` allows you to connect to many data sources/sinks that do not yet have a Beam IO transform. However, `HadoopFormatIO` has to make several performance trade-offs in connecting to `InputFormat` or `OutputFormat`. So, if there is another Beam IO transform for connecting specifically to your data source/sink of choice, we recommend you use that one.
 
@@ -360,7 +360,7 @@ You will need to pass a Hadoop `Configuration` with parameters specifying how th
 - `mapreduce.job.outputformat.class` - The `OutputFormat` class used to connect to your data sink of choice.
 - `mapreduce.job.output.key.class` - The key class passed to the `OutputFormat` in `mapreduce.job.outputformat.class`.
 - `mapreduce.job.output.value.class` - The value class passed to the `OutputFormat` in `mapreduce.job.outputformat.class`.
-- `mapreduce.job.reduces` - Number of reduce tasks. Value is equal to number of write tasks which will be genarated. This property is not required for `Write.PartitionedWriterBuilder#withoutPartitioning()` write.
+- `mapreduce.job.reduces` - Number of reduce tasks. Value is equal to number of write tasks which will be generated. This property is not required for `Write.PartitionedWriterBuilder#withoutPartitioning()` write.
 - `mapreduce.job.partitioner.class` - Hadoop partitioner class which will be used for distributing of records among partitions. This property is not required for `Write.PartitionedWriterBuilder#withoutPartitioning()` write.
 
 _Note_: All mentioned values have appropriate constants. E.g.: `HadoopFormatIO.OUTPUT_FORMAT_CLASS_ATTR`.

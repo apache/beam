@@ -17,17 +17,21 @@
  */
 
 import '../repositories/models/group.dart';
-import 'abstract_node.dart';
+import 'node.dart';
+import 'parent_node.dart';
 
-class GroupModel extends NodeModel {
-  final List<NodeModel> nodes;
-
+class GroupModel extends ParentNodeModel {
   const GroupModel({
+    required super.id,
     required super.title,
-    required this.nodes,
+    required super.nodes,
   });
 
   GroupModel.fromResponse(GroupResponseModel group)
-      : nodes = group.nodes.map(NodeModel.fromResponse).toList(growable: false),
-        super(title: group.title);
+      : super(
+          id: group.id,
+          title: group.title,
+          nodes:
+              group.nodes.map(NodeModel.fromResponse).toList(growable: false),
+        );
 }

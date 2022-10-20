@@ -17,12 +17,9 @@
  */
 
 import '../repositories/models/unit.dart';
-import 'abstract_node.dart';
+import 'node.dart';
 
 class UnitModel extends NodeModel {
-  final String id;
-
   UnitModel.fromResponse(UnitResponseModel unit)
-      : id = unit.id,
-        super(title: unit.title);
+      : super(id: unit.id, title: unit.title);
 }

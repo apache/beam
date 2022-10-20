@@ -39,6 +39,7 @@ import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
+import org.gradle.api.tasks.compile.CompileOptions
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
@@ -499,6 +500,10 @@ class BeamModulePlugin implements Plugin<Project> {
     def arrow_version = "5.0.0"
     def jmh_version = "1.34"
 
+    // Export Spark versions, so they are defined in a single place only
+    project.ext.spark2_version = spark2_version
+    project.ext.spark3_version = spark3_version
+
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
     //   compile library.java.slf4j_api
@@ -575,12 +580,12 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20220827-$google_clients_version",
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20220924-$google_clients_version",
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20220318-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20220828-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220812-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220920-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20220818-$google_clients_version",
-        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220829-$google_clients_version",
+        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20220705-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
@@ -753,6 +758,29 @@ class BeamModulePlugin implements Plugin<Project> {
           + project.name.replace("-", "_")
           + "."
           + suffix)
+    }
+
+    project.ext.setJava17Options = { CompileOptions options ->
+      def java17Home = project.findProperty("java17Home")
+      options.fork = true
+      options.forkOptions.javaHome = java17Home as File
+      options.compilerArgs += ['-Xlint:-path']
+      // Error prone requires some packages to be exported/opened for Java 17
+      // Disabling checks since this property is only used for Jenkins tests
+      // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
+      options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+      options.forkOptions.jvmArgs += [
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+        "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+        "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+      ]
     }
 
     project.ext.repositories = {
@@ -1240,26 +1268,8 @@ class BeamModulePlugin implements Plugin<Project> {
       if (project.hasProperty("compileAndRunTestsWithJava17")) {
         def java17Home = project.findProperty("java17Home")
         project.tasks.compileTestJava {
-          options.fork = true
-          options.forkOptions.javaHome = java17Home as File
-          options.compilerArgs += ['-Xlint:-path']
           options.compilerArgs.addAll(['--release', '17'])
-          // Error prone requires some packages to be exported/opened for Java 17
-          // Disabling checks since this property is only used for Jenkins tests
-          // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
-          options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
-          options.forkOptions.jvmArgs += [
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-            "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-            "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
-          ]
+          project.ext.setJava17Options(options)
         }
         project.tasks.withType(Test) {
           useJUnit()
@@ -2591,7 +2601,8 @@ class BeamModulePlugin implements Plugin<Project> {
             // We should use double quote around the arg value if it contains series
             // of flags joined with space. Otherwise, commandline parsing of the
             // shell script will be broken.
-            v = "\"${v.replace('"', '')}\""
+            // Remove all double quotes except those followed with a backslash.
+            v = "\"${v.replaceAll('(?<!\\\\)"', '')}\""
           }
           argList.add("--$k $v")
         }
@@ -2672,6 +2683,7 @@ class BeamModulePlugin implements Plugin<Project> {
             ':sdks:python:container:py37:docker',
             ':sdks:python:container:py38:docker',
             ':sdks:python:container:py39:docker',
+            ':sdks:python:container:py310:docker',
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.

@@ -376,6 +376,14 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   inst_size = 2
   opt_arg_size = 0
 
+  # Python 3.10: bpo-27129 changes jump offsets to use instruction offsets,
+  # not byte offsets. The offsets were halved (16 bits fro instructions vs 8
+  # bits for bytes), so we have to double the value of arg.
+  if (sys.version_info.major, sys.version_info.minor) == (3, 10):
+    jump_multiplier = 2
+  else:
+    jump_multiplier = 1
+
   last_pc = -1
   while pc < end:  # pylint: disable=too-many-nested-blocks
     start = pc
@@ -495,23 +503,23 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     elif opname == 'YIELD_VALUE':
       yields.add(state.stack[-1])
     elif opname == 'JUMP_FORWARD':
-      jmp = pc + arg
+      jmp = pc + arg * jump_multiplier
       jmp_state = state
       state = None
     elif opname == 'JUMP_ABSOLUTE':
-      jmp = arg
+      jmp = arg * jump_multiplier
       jmp_state = state
       state = None
     elif opname in ('POP_JUMP_IF_TRUE', 'POP_JUMP_IF_FALSE'):
       state.stack.pop()
-      jmp = arg
+      jmp = arg * jump_multiplier
       jmp_state = state.copy()
     elif opname in ('JUMP_IF_TRUE_OR_POP', 'JUMP_IF_FALSE_OR_POP'):
-      jmp = arg
+      jmp = arg * jump_multiplier
       jmp_state = state.copy()
       state.stack.pop()
     elif opname == 'FOR_ITER':
-      jmp = pc + arg
+      jmp = pc + arg * jump_multiplier
       jmp_state = state.copy()
       jmp_state.stack.pop()
       state.stack.append(element_type(state.stack[-1]))

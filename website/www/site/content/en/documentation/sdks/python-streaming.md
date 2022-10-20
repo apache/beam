@@ -25,7 +25,7 @@ Python streaming pipeline execution became available (with some
 ## Why use streaming execution?
 
 Beam creates an unbounded PCollection if your pipeline reads from a streaming or
-continously-updating data source (such as Cloud Pub/Sub). A runner must
+continuously-updating data source (such as Cloud Pub/Sub). A runner must
 process an unbounded PCollection using a streaming job that runs continuously,
 as the entire collection is never available for processing at any one time.
 [Size and boundedness](/documentation/programming-guide/#size-and-boundedness)

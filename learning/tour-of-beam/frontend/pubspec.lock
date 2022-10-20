@@ -22,6 +22,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "4.6.0"
+  app_state:
+    dependency: "direct main"
+    description:
+      name: app_state
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.8.1"
   archive:
     dependency: transitive
     description:
@@ -286,11 +293,25 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.7.0"
+  flutter_issue_108697_workaround:
+    dependency: transitive
+    description:
+      name: flutter_issue_108697_workaround
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.1.2"
   flutter_localizations:
     dependency: transitive
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_markdown:
+    dependency: "direct main"
+    description:
+      name: flutter_markdown
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.6.12"
   flutter_svg:
     dependency: "direct main"
     description:
@@ -436,7 +457,7 @@ packages:
       name: json_serializable
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "6.4.0"
+    version: "6.4.1"
   linked_scroll_controller:
     dependency: transitive
     description:
@@ -451,6 +472,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.0.2"
+  markdown:
+    dependency: "direct main"
+    description:
+      name: markdown
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "6.0.1"
   matcher:
     dependency: transitive
     description:
@@ -633,6 +661,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.2.1"
+  rxdart:
+    dependency: transitive
+    description:
+      name: rxdart
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.27.5"
   shared_preferences:
     dependency: "direct main"
     description:
