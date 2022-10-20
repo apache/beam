@@ -38,4 +38,4 @@ jobs:
       - name: Installing ensurepip
         run: sudo apt install -y python3.8-venv
       - name: Testing gradlew publish
-        run: ./gradlew :pushAllDockerImages -P -Pdocker-pull-licenses -Pdocker-tag="1rc1" -Pdocker-repository-root="elink21" -Pjava11Home=${JAVA_HOME_11_X64} 
+        run: ./gradlew :pushAllDockerImages  -Pdocker-pull-licenses -Pdocker-tag="1rc1" -Pdocker-repository-root="elink21" -Pjava11Home=${JAVA_HOME_11_X64} 
