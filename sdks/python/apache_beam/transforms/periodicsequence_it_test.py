@@ -37,7 +37,8 @@ from apache_beam.transforms.periodicsequence import PeriodicSequence
 
 
 @unittest.skipIf(
-    not TestPipeline().get_pipeline_options().view_as(StandardOptions).streaming,
+    not TestPipeline().get_pipeline_options().view_as(
+        StandardOptions).streaming,
     "Watermark tests are only valid for streaming jobs.")
 class PeriodicSequenceIT(unittest.TestCase):
   def setUp(self):
@@ -49,6 +50,7 @@ class PeriodicSequenceIT(unittest.TestCase):
   @pytest.mark.sickbay_direct
   @pytest.mark.sickbay_spark
   @pytest.mark.sickbay_flink
+  @pytest.mark.timeout(900) # Timeout after 15 minutes to give Dataflow some extra time
   def test_periodicsequence_outputs_valid_watermarks_it(self):
     """Tests periodic sequence with watermarks on dataflow.
     For testing that watermarks are being correctly emitted,
@@ -56,21 +58,21 @@ class PeriodicSequenceIT(unittest.TestCase):
     emitted and being correctly aggregated.
     """
     class DoFnWithLongGaps(DoFn):
-      def process(self, element, timestamp=beam.DoFn.TimestampParam):
+      def process(self, element):
         now = time.time()
-        if now - timestamp.seconds() > 25:
-          return (element, now, timestamp)
+        if now - element[0] > 25:
+          yield (element[0], now)
 
-    start_offset = 60
-    start_time = time.time() + start_offset
-    duration = 150
+    start_time = time.time()
+    duration = 540 # Run periodic impulse for 9 minutes from now so that Dataflow has a chance to start up
     end_time = start_time + duration
-    interval = 10
+    interval = 1
 
     res = (
         self.test_pipeline
         | 'ImpulseElement' >> beam.Create([(start_time, end_time, interval)])
         | 'ImpulseSeqGen' >> PeriodicSequence()
+        | 'MapToCurrentTime' >> beam.Map(lambda element: time.time())
         | 'window_into' >> beam.WindowInto(
             window.FixedWindows(2),
             accumulation_mode=trigger.AccumulationMode.DISCARDING)
