@@ -18,7 +18,8 @@ name: Playground Examples CI
 on:
   push:
     paths:
-     - .github/workflows/playground*
+     - .github/workflows/playground_examples_ci_reusable.yml
+     - .github/workflows/playground_examples_ci.yml
      - playground/backend/**
      - playground/infrastructure/**
      - learning/katas/**
@@ -35,7 +36,7 @@ jobs:
         sdk: ["python", "go", "java"]
       # run sequentially
       max-parallel: 1
-    uses: ./.github/workflows/playground_examples_reusable.yml
+    uses: ./.github/workflows/playground_examples_ci_reusable.yml
     with:
       sdk: ${{ matrix.sdk }}
       step: CI
@@ -43,7 +44,7 @@ jobs:
       subdirs: ./learning/katas ./examples ./sdks
       # unfortunately, there's no input type for list
       allowlist: |
-        .github/workflows/playground_examples_reusable.yml \
+        .github/workflows/playground_examples_ci_reusable.yml \
         .github/workflows/playground_examples_ci.yml \
         playground/backend \
-        playground/infrastructure
+        playground/infrastructure \

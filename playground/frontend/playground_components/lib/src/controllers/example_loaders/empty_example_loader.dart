@@ -38,6 +38,7 @@ class EmptyExampleLoader extends ExampleLoader {
         name: 'Embedded_Example',
         path: '',
         description: '',
+        tags: [],
         type: ExampleType.example,
         source: '',
         pipelineOptions: '',
