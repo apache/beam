@@ -49,7 +49,7 @@ class ImpulseSeqGenRestrictionProvider(core.RestrictionProvider):
 
   def restriction_size(self, unused_element, restriction):
     return restriction.size()
-  
+
   # On drain, immediately stop emitting new elements
   def truncate(self, unused_element, unused_restriction):
     return None
