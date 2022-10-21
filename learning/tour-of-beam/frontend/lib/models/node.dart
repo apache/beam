@@ -58,4 +58,8 @@ abstract class NodeModel {
         return UnitModel.fromResponse(node.unit!, parent);
     }
   }
+
+  NodeModel getFirstUnit();
+
+  NodeModel? getNodeByTreeIds(List<String> treeIds);
 }

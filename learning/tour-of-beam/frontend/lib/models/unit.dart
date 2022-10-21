@@ -27,4 +27,10 @@ class UnitModel extends NodeModel {
           parent: parent,
           title: unit.title,
         );
+
+  @override
+  NodeModel getFirstUnit() => this;
+
+  @override
+  NodeModel? getNodeByTreeIds(List<String> treeIds) => this;
 }

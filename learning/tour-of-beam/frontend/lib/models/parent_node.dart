@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'package:collection/collection.dart';
+
 import 'node.dart';
 
 abstract class ParentNodeModel extends NodeModel {
@@ -27,4 +29,19 @@ abstract class ParentNodeModel extends NodeModel {
     required super.title,
     required this.nodes,
   });
+
+  @override
+  NodeModel getFirstUnit() => nodes[0].getFirstUnit();
+
+  @override
+  NodeModel? getNodeByTreeIds(List<String> treeIds) {
+    final firstId = treeIds.firstOrNull;
+    final child = nodes.firstWhereOrNull((node) => node.id == firstId);
+
+    if (child == null) {
+      return null;
+    }
+
+    return child.getNodeByTreeIds(treeIds.sublist(1));
+  }
 }
