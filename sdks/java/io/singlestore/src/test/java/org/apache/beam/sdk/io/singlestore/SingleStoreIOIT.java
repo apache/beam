@@ -22,10 +22,8 @@ import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions
 import com.google.cloud.Timestamp;
 import com.singlestore.jdbc.SingleStoreDataSource;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -193,23 +191,6 @@ public class SingleStoreIOIT {
     return suppliers;
   }
 
-  private static class TestUserDataMapper implements UserDataMapper<TestRow> {
-    @Override
-    public List<String> mapRow(TestRow element) {
-      List<String> res = new ArrayList<>();
-      res.add(element.id().toString());
-      res.add(element.name());
-      return res;
-    }
-  }
-
-  private static class TestRowMapper implements RowMapper<TestRow> {
-    @Override
-    public TestRow mapRow(ResultSet resultSet) throws Exception {
-      return TestRow.create(resultSet.getInt(1), resultSet.getString(2));
-    }
-  }
-
   @Rule public TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public TestPipeline pipelineRead = TestPipeline.create();
   @Rule public TestPipeline pipelineReadWithPartitions = TestPipeline.create();
@@ -223,7 +204,7 @@ public class SingleStoreIOIT {
             SingleStoreIO.<TestRow>write()
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .withTable(tableName)
-                .withUserDataMapper(new TestUserDataMapper()));
+                .withUserDataMapper(new TestHelper.TestUserDataMapper()));
 
     return pipelineWrite.run();
   }
@@ -235,7 +216,7 @@ public class SingleStoreIOIT {
                 SingleStoreIO.<TestRow>read()
                     .withDataSourceConfiguration(dataSourceConfiguration)
                     .withTable(tableName)
-                    .withRowMapper(new TestRowMapper()))
+                    .withRowMapper(new TestHelper.TestRowMapper()))
             .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
 
     testReadResult(namesAndIds);
@@ -250,7 +231,7 @@ public class SingleStoreIOIT {
                 SingleStoreIO.<TestRow>readWithPartitions()
                     .withDataSourceConfiguration(dataSourceConfiguration)
                     .withTable(tableName)
-                    .withRowMapper(new TestRowMapper()))
+                    .withRowMapper(new TestHelper.TestRowMapper()))
             .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_with_partitions_time")));
 
     testReadResult(namesAndIds);

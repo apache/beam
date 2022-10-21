@@ -42,7 +42,7 @@ public class Util {
       RowMapper<OutputT> rowMapper,
       CoderRegistry registry,
       SchemaRegistry schemaRegistry,
-      Logger LOG) {
+      Logger log) {
     if (defaultCoder != null) {
       return defaultCoder;
     } else {
@@ -54,7 +54,7 @@ public class Util {
       try {
         return schemaRegistry.getSchemaCoder(outputType);
       } catch (NoSuchSchemaException e) {
-        LOG.warn(
+        log.warn(
             "Unable to infer a schema for type {}. Attempting to infer a coder without a schema.",
             outputType);
       }
