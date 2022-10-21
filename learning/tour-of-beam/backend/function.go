@@ -20,6 +20,7 @@ package tob
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -93,12 +94,10 @@ func getSdkList(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Get the content tree for a given SDK and user
-// Merges info from the default tree and per-user information:
-// user code snippets and progress
+// Get the content tree for a given SDK
 // Required to be wrapped into ParseSdkParam middleware.
 func getContentTree(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
-	tree, err := svc.GetContentTree(r.Context(), sdk, nil /*TODO userId*/)
+	tree, err := svc.GetContentTree(r.Context(), sdk)
 	if err != nil {
 		log.Println("Get content tree error:", err)
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
@@ -120,8 +119,8 @@ func getContentTree(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 func getUnitContent(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 	unitId := r.URL.Query().Get("id")
 
-	unit, err := svc.GetUnitContent(r.Context(), sdk, unitId, nil /*TODO userId*/)
-	if err == service.ErrNoUnit {
+	unit, err := svc.GetUnitContent(r.Context(), sdk, unitId)
+	if errors.Is(err, service.ErrNoUnit) {
 		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
 		return
 	}

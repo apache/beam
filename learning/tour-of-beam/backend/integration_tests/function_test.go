@@ -129,7 +129,7 @@ func TestNegative(t *testing.T) {
 			// TODO: actually here should be a NOT_FOUND error
 			ErrorResponse{Code: "INTERNAL_ERROR", Message: "storage error"},
 		},
-		{PORT_GET_UNIT_CONTENT, map[string]string{"sdk": "python", "unitId": "unknown_unitId"},
+		{PORT_GET_UNIT_CONTENT, map[string]string{"sdk": "python", "id": "unknown_unitId"},
 			nil,
 			ErrorResponse{
 				Code:    "NOT_FOUND",

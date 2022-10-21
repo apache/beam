@@ -18,9 +18,12 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
+	"log"
 	"path"
 	"runtime"
+	"strings"
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 )
@@ -35,13 +38,21 @@ type Mock struct{}
 // check if the interface is implemented.
 var _ IContent = &Mock{}
 
-func (d *Mock) GetContentTree(_ context.Context, sdk tob.Sdk, userId *string) (ct tob.ContentTree, err error) {
+func (d *Mock) GetContentTree(_ context.Context, sdk tob.Sdk) (ct tob.ContentTree, err error) {
+	// this sdk is special: we use it as an empty learning path
+	if sdk == tob.SDK_SCIO {
+		return ct, errors.New("empty sdk tree")
+	}
 	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_content_tree.json"))
 	_ = json.Unmarshal(content, &ct)
 	return ct, nil
 }
 
-func (d *Mock) GetUnitContent(_ context.Context, sdk tob.Sdk, unitId string, userId *string) (u tob.Unit, err error) {
+func (d *Mock) GetUnitContent(_ context.Context, sdk tob.Sdk, unitId string) (u tob.Unit, err error) {
+	log.Println("unitId:", unitId)
+	if strings.HasPrefix(unitId, "unknown_") {
+		return u, ErrNoUnit
+	}
 	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_unit_content.json"))
 	err = json.Unmarshal(content, &u)
 	return u, err

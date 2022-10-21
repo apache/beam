@@ -26,8 +26,8 @@ import (
 var ErrNoUnit = errors.New("unit not found")
 
 type IContent interface {
-	GetContentTree(ctx context.Context, sdk tob.Sdk, userId *string) (tob.ContentTree, error)
-	GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string, userId *string) (tob.Unit, error)
+	GetContentTree(ctx context.Context, sdk tob.Sdk) (tob.ContentTree, error)
+	GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (tob.Unit, error)
 	GetUserProgress(ctx context.Context, sdk tob.Sdk, userId string) (tob.SdkProgress, error)
 }
 
@@ -35,12 +35,12 @@ type Svc struct {
 	Repo storage.Iface
 }
 
-func (s *Svc) GetContentTree(ctx context.Context, sdk tob.Sdk, userId *string) (ct tob.ContentTree, err error) {
+func (s *Svc) GetContentTree(ctx context.Context, sdk tob.Sdk) (ct tob.ContentTree, err error) {
 	// TODO enrich tree with user-specific state (isCompleted)
 	return s.Repo.GetContentTree(ctx, sdk)
 }
 
-func (s *Svc) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string, userId *string) (tob.Unit, error) {
+func (s *Svc) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (tob.Unit, error) {
 	// TODO enrich unit with user-specific state: isCompleted, userSnippetId
 	unit, err := s.Repo.GetUnitContent(ctx, sdk, unitId)
 	if err != nil {
