@@ -28,7 +28,7 @@ import pytest
 from apache_beam.examples.complete import top_wikipedia_sessions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import create_file
-from apache_beam.testing.test_utils import read_gcs_output_file
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 
 class ComputeTopSessionsIT(unittest.TestCase):
@@ -88,7 +88,7 @@ class ComputeTopSessionsIT(unittest.TestCase):
         test_pipeline.get_full_options_as_args(**extra_opts))
 
     # Load result file and compare.
-    result = read_gcs_output_file(output).strip().splitlines()
+    result = read_files_from_pattern('%s*' % output).strip().splitlines()
 
     self.assertEqual(self.EXPECTED, sorted(result, key=lambda x: x.split()[0]))
 

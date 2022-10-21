@@ -29,7 +29,7 @@ import pytest
 from apache_beam.examples import wordcount_debugging
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import create_file
-from apache_beam.testing.test_utils import read_gcs_output_file
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 
 @pytest.mark.examples_postcommit
@@ -39,7 +39,7 @@ class WordCountDebuggingTest(unittest.TestCase):
 
   def get_results(self, temp_path):
     results = []
-    lines = read_gcs_output_file(temp_path + '.result-').splitlines()
+    lines = read_files_from_pattern(temp_path + '.result*').splitlines()
     for line in lines:
       match = re.search(r'([A-Za-z]+): ([0-9]+)', line)
       if match is not None:

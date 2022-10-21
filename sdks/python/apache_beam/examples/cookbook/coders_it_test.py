@@ -28,7 +28,7 @@ import pytest
 from apache_beam.examples.cookbook import coders
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import create_file
-from apache_beam.testing.test_utils import read_gcs_output_file
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 
 def format_result(result_string):
@@ -72,7 +72,7 @@ class CodersIT(unittest.TestCase):
     coders.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
     # Load result file and compare.
-    result = read_gcs_output_file(output).strip()
+    result = read_files_from_pattern('%s*' % output).strip()
 
     self.assertEqual(
         sorted(self.EXPECTED_RESULT), sorted(format_result(result)))

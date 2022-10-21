@@ -29,7 +29,7 @@ import pytest
 from apache_beam.examples.cookbook import multiple_output_pardo
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import create_file
-from apache_beam.testing.test_utils import read_gcs_output_file
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 
 class MultipleOutputParDo(unittest.TestCase):
@@ -41,7 +41,7 @@ class MultipleOutputParDo(unittest.TestCase):
 
   def get_wordcount_results(self, result_path):
     results = []
-    lines = read_gcs_output_file(result_path).splitlines()
+    lines = read_files_from_pattern(result_path).splitlines()
     for line in lines:
       match = re.search(r'([A-Za-z]+): ([0-9]+)', line)
       if match is not None:
@@ -64,13 +64,13 @@ class MultipleOutputParDo(unittest.TestCase):
         save_main_session=False)
 
     expected_char_count = len(''.join(self.SAMPLE_TEXT.split('\n')))
-    contents = read_gcs_output_file(result_prefix + '-chars-')
+    contents = read_files_from_pattern(result_prefix + '-chars*')
     self.assertEqual(expected_char_count, int(contents))
 
-    short_words = self.get_wordcount_results(result_prefix + '-short-words-')
+    short_words = self.get_wordcount_results(result_prefix + '-short-words*')
     self.assertEqual(sorted(short_words), sorted(self.EXPECTED_SHORT_WORDS))
 
-    words = self.get_wordcount_results(result_prefix + '-words-')
+    words = self.get_wordcount_results(result_prefix + '-words*')
     self.assertEqual(sorted(words), sorted(self.EXPECTED_WORDS))
 
 

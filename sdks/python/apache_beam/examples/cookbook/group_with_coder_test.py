@@ -27,7 +27,7 @@ import pytest
 
 from apache_beam.examples.cookbook import group_with_coder
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.test_utils import read_gcs_output_file
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 # Protect against environments where gcsio library is not available.
 try:
@@ -88,7 +88,7 @@ class GroupWithCoderTest(unittest.TestCase):
         save_main_session=False)
     # Parse result file and compare.
     results = []
-    lines = read_gcs_output_file(output).splitlines()
+    lines = read_files_from_pattern('%s*' % output).splitlines()
     for line in lines:
       name, points = line.split(',')
       results.append((name, int(points)))

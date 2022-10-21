@@ -215,13 +215,11 @@ def create_file(path, contents):
   return path
 
 
-def read_gcs_output_file(file_pattern):
-  """Reads the gcs output file of a pipeline by prefix"""
-  from apache_beam.io.gcp import gcsio
-  gcs = gcsio.GcsIO()
-  file_names = gcs.list_prefix(file_pattern).keys()
+def read_files_from_pattern(file_pattern):
+  """Reads the files that match a pattern"""
+  metadata_list = FileSystems.match([file_pattern])[0].metadata_list
   output = []
-  for file_name in file_names:
-    with FileSystems.open(file_name) as f:
+  for metadata in metadata_list:
+    with FileSystems.open(metadata.path) as f:
       output.append(f.read().decode('utf-8').strip())
   return '\n'.join(output)

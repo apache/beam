@@ -28,7 +28,7 @@ import pytest
 from apache_beam.examples.complete import autocomplete
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import create_file
-from apache_beam.testing.test_utils import read_gcs_output_file
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 
 def format_output_file(output_string):
@@ -85,7 +85,7 @@ class AutocompleteIT(unittest.TestCase):
     autocomplete.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
     # Load result file and compare.
-    result = read_gcs_output_file(output).strip()
+    result = read_files_from_pattern('%s*' % output).strip()
 
     self.assertEqual(
         sorted(self.EXPECTED_PREFIXES), sorted(format_output_file(result)))

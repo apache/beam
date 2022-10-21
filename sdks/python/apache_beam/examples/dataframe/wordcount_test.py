@@ -31,7 +31,7 @@ import pytest
 from apache_beam.examples.dataframe import wordcount
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import create_file
-from apache_beam.testing.test_utils import read_gcs_output_file
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 
 class WordCountTest(unittest.TestCase):
@@ -57,7 +57,7 @@ class WordCountTest(unittest.TestCase):
     wordcount.run(test_pipeline.get_full_options_as_args(**extra_opts))
     # Parse result file and compare.
     results = []
-    lines = read_gcs_output_file(temp_path + '.result-').splitlines()
+    lines = read_files_from_pattern(temp_path + '.result*').splitlines()
     for line in lines:
       match = re.search(r'(\S+),([0-9]+)', line)
       if match is not None:

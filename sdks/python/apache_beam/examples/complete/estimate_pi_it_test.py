@@ -27,7 +27,7 @@ import pytest
 
 from apache_beam.examples.complete import estimate_pi
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.test_utils import read_gcs_output_file
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 
 class EstimatePiIT(unittest.TestCase):
@@ -41,7 +41,7 @@ class EstimatePiIT(unittest.TestCase):
     extra_opts = {'output': output}
     estimate_pi.run(test_pipeline.get_full_options_as_args(**extra_opts))
     # Load result file and compare.
-    result = read_gcs_output_file(output)
+    result = read_files_from_pattern('%s*' % output)
     [_, _, estimated_pi] = json.loads(result.strip())
     # Note: Probabilistically speaking this test can fail with a probability
     # that is very small (VERY) given that we run at least 100 thousand

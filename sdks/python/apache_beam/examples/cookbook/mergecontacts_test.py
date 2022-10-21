@@ -28,7 +28,7 @@ import pytest
 from apache_beam.examples.cookbook import mergecontacts
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import create_file
-from apache_beam.testing.test_utils import read_gcs_output_file
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 
 class MergeContactsTest(unittest.TestCase):
@@ -167,7 +167,7 @@ class MergeContactsTest(unittest.TestCase):
     mergecontacts.run(
         pipeline_opts, assert_results=(2, 1, 3), save_main_session=False)
 
-    contents = read_gcs_output_file('%s.tsv' % result_prefix)
+    contents = read_files_from_pattern('%s*' % result_prefix)
     self.assertEqual(self.EXPECTED_TSV, self.normalize_tsv_results(contents))
 
 

@@ -29,13 +29,7 @@ import pytest
 from apache_beam.examples.complete import tfidf
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import create_file
-from apache_beam.testing.test_utils import read_gcs_output_file
-
-# Protect against environments where gcsio library is not available.
-try:
-  from apache_beam.io.gcp import gcsio
-except ImportError:
-  gcsio = None
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 EXPECTED_RESULTS = set([
     ('ghi', '1.txt', 0.3662040962227032), ('abc', '1.txt', 0.0),
@@ -46,7 +40,6 @@ EXPECTED_RESULTS = set([
 EXPECTED_LINE_RE = r'\(u?\'([a-z]*)\', \(\'.*([0-9]\.txt)\', (.*)\)\)'
 
 
-@unittest.skipIf(gcsio is None, 'GCP dependencies are not installed')
 class TfIdfIT(unittest.TestCase):
   @pytest.mark.examples_postcommit
   def test_basics(self):
@@ -60,14 +53,14 @@ class TfIdfIT(unittest.TestCase):
     create_file('/'.join([input_folder, '3.txt']), 'abc')
     output = '/'.join([temp_location, str(uuid.uuid4()), 'result'])
 
-    extra_opts = {'uris': input_folder, 'output': output}
+    extra_opts = {'uris': '%s/**' % input_folder, 'output': output}
     tfidf.run(
         test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
 
     # Parse result file and compare.
     results = []
-    lines = read_gcs_output_file(output).splitlines()
+    lines = read_files_from_pattern('%s*' % output).splitlines()
     for line in lines:
       match = re.search(EXPECTED_LINE_RE, line)
       logging.info('Result line: %s', line)
