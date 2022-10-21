@@ -1207,8 +1207,6 @@ class DataflowRunner(PipelineRunner):
             traceback.format_exc())
 
       step.add_property(PropertyNames.SOURCE_STEP_INPUT, source_dict)
-    elif transform.source.format == 'text':
-      step.add_property(PropertyNames.FILE_PATTERN, transform.source.path)
     elif transform.source.format == 'pubsub':
       if not standard_options.streaming:
         raise ValueError(
@@ -1274,29 +1272,7 @@ class DataflowRunner(PipelineRunner):
         TransformNames.WRITE, transform_node.full_label, transform_node)
     # TODO(mairbek): refactor if-else tree to use registerable functions.
     # Initialize the sink specific properties.
-    if transform.sink.format == 'text':
-      # Note that it is important to use typed properties (@type/value dicts)
-      # for non-string properties and also for empty strings. For example,
-      # in the code below the num_shards must have type and also
-      # file_name_suffix and shard_name_template (could be empty strings).
-      step.add_property(
-          PropertyNames.FILE_NAME_PREFIX,
-          transform.sink.file_name_prefix,
-          with_type=True)
-      step.add_property(
-          PropertyNames.FILE_NAME_SUFFIX,
-          transform.sink.file_name_suffix,
-          with_type=True)
-      step.add_property(
-          PropertyNames.SHARD_NAME_TEMPLATE,
-          transform.sink.shard_name_template,
-          with_type=True)
-      if transform.sink.num_shards > 0:
-        step.add_property(
-            PropertyNames.NUM_SHARDS, transform.sink.num_shards, with_type=True)
-      # TODO(silviuc): Implement sink validation.
-      step.add_property(PropertyNames.VALIDATE_SINK, False, with_type=True)
-    elif transform.sink.format == 'bigquery':
+    if transform.sink.format == 'bigquery':
       # TODO(silviuc): Add table validation if transform.sink.validate.
       step.add_property(
           PropertyNames.BIGQUERY_DATASET,
