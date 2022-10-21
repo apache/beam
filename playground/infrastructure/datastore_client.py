@@ -31,6 +31,7 @@ from config import Config, Origin, PrecompiledExample, DatastoreProps
 from helper import Example
 
 from api.v1.api_pb2 import Sdk, PrecompiledObjectType
+from storage_client import StorageClient
 
 
 class DatastoreException(Exception):
@@ -46,6 +47,7 @@ class DatastoreException(Exception):
 class DatastoreClient:
     """DatastoreClient is a datastore client for sending a request to the Google."""
     _datastore_client: datastore.Client
+    _storage_client: StorageClient
 
     def __init__(self):
         self._check_envs()
@@ -53,6 +55,7 @@ class DatastoreClient:
             namespace=DatastoreProps.NAMESPACE,
             project=Config.GOOGLE_CLOUD_PROJECT
         )
+        self._storage_client = StorageClient()
 
     def _check_envs(self):
         if Config.GOOGLE_CLOUD_PROJECT is None:
@@ -74,6 +77,7 @@ class DatastoreClient:
         pc_objects = []
         files = []
         updated_example_ids = []
+        datasets = []
         now = datetime.today()
 
         # retrieve the last schema version
@@ -91,16 +95,26 @@ class DatastoreClient:
                 examples.append(
                     self._to_example_entity(example, example_id, sdk_key, actual_schema_version_key, origin)
                 )
-                snippets.append(
-                    self._to_snippet_entity(example, example_id, sdk_key, now, actual_schema_version_key, origin)
-                )
+                snippet = self._to_snippet_entity(example, example_id, sdk_key, now, actual_schema_version_key, origin)
                 pc_objects.extend(self._pc_object_entities(example, example_id))
                 files.append(self._to_file_entity(example, example_id))
+                if example.tag.dataset is not None and len(example.tag.dataset) != 0:
+                    link = self._upload_dataset_to_bucket(example.tag.dataset)
+                    dataset = self._to_dataset_entity(example.tag.dataset, link, example.tag.emulator)
+                    datasets.append(dataset)
+                    snippet.update(
+                        {
+                            "dataset": dataset.key
+                        }
+                    )
+                snippets.append(snippet)
 
             self._datastore_client.put_multi(examples)
             self._datastore_client.put_multi(snippets)
             self._datastore_client.put_multi(pc_objects)
             self._datastore_client.put_multi(files)
+            if len(datasets) != 0:
+                self._datastore_client.put_multi(datasets)
 
             # delete examples from the Cloud Datastore that are not in the repository
             examples_ids_for_removing = list(filter(lambda key: key not in updated_example_ids, examples_ids_before_updating))
@@ -194,13 +208,16 @@ class DatastoreClient:
 
     def _get_key(self, kind: str, identifier: str) -> datastore.Key:
         return self._datastore_client.key(kind, identifier)
-    
+
     def _get_snippet_key(self, snippet_id: str):
         return self._get_key(DatastoreProps.SNIPPET_KIND, snippet_id)
 
     def _get_example_key(self, example_id: str):
         return self._get_key(DatastoreProps.EXAMPLE_KIND, example_id)
-    
+
+    def _get_dataset_key(self, dataset_id: str):
+        return self._get_key(DatastoreProps.DATASET_KIND, dataset_id)
+
     def _make_example_id(self, origin: Origin, sdk: Sdk, name: str):
         # ToB examples (and other related entities: snippets, files, pc_objects)
         # have origin prefix in a key
@@ -216,16 +233,16 @@ class DatastoreClient:
         ])
 
 
-    def _get_files_key(self, snippet_id: str):
+    def _get_files_key(self, file_id: str):
         name = config.DatastoreProps.KEY_NAME_DELIMITER.join(
-            [snippet_id, '0']
+            [file_id, '0']
         )
         return self._get_key(DatastoreProps.FILES_KIND, name)
 
-    def _get_pc_objects_key(self, snp_id: str, pc_obj_type: str):
+    def _get_pc_objects_key(self, obj_id: str, pc_obj_type: str):
         return self._get_key(
             DatastoreProps.PRECOMPILED_OBJECT_KIND,
-            config.DatastoreProps.KEY_NAME_DELIMITER.join([snp_id, pc_obj_type])
+            config.DatastoreProps.KEY_NAME_DELIMITER.join([obj_id, pc_obj_type])
         )
 
     def _to_snippet_entity(self,
@@ -303,9 +320,9 @@ class DatastoreClient:
         pc_obj_entity.update({"content": content})
         return pc_obj_entity
 
-    def _to_file_entity(self, example: Example, snp_id: str):
+    def _to_file_entity(self, example: Example, file_id: str):
         file_entity = datastore.Entity(
-            self._get_files_key(snp_id),
+            self._get_files_key(file_id),
             exclude_from_indexes=('content',)
         )
         file_entity.update(
@@ -318,9 +335,22 @@ class DatastoreClient:
         )
         return file_entity
 
+    def _to_dataset_entity(self, dataset_id: str, link: str, emulator: str):
+        dataset_entity = datastore.Entity(self._get_dataset_key(dataset_id))
+        dataset_entity.update(
+            {
+                "link": link,
+                "emulator": emulator
+            }
+        )
+        return dataset_entity
+
     def _get_file_name_with_extension(self, name: str, sdk: Sdk) -> str:
         filename, file_extension = os.path.splitext(name)
         if len(file_extension) == 0:
             extension = Config.SDK_TO_EXTENSION[sdk]
             return f"{filename}.{extension}"
         return name
+
+    def _upload_dataset_to_bucket(self, dataset_file_name: str) -> str:
+        return self._storage_client.upload_dataset(dataset_file_name)

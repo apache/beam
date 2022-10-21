@@ -62,7 +62,6 @@ class CDHelper:
         """
         Save beam examples to the Google Cloud Datastore
         :param examples: beam examples from the repository
-        :param sdk: specific sdk that needs to filter examples
         """
         datastore_client = DatastoreClient()
         datastore_client.save_catalogs()

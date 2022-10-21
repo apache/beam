@@ -75,6 +75,8 @@ class TagFields:
     context_line: int = "context_line"
     complexity: str = "complexity"
     tags: str = "tags"
+    emulator: str = "emulator"
+    dataset: str = "dataset"
 
 
 @dataclass(frozen=True)
@@ -97,6 +99,8 @@ class PrecompiledExampleType:
 class OptionalTagFields:
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
+    emulator: str = "emulator"
+    dataset: str = "dataset"
 
 
 @dataclass(frozen=True)
@@ -109,6 +113,15 @@ class DatastoreProps:
     PRECOMPILED_OBJECT_KIND = "pg_pc_objects"
     FILES_KIND = "pg_files"
     SDK_KIND = "pg_sdks"
+    DATASET_KIND = "pg_datasets"
+
+
+@dataclass(frozen=True)
+class StorageProps:
+    DATASET_BUCKET_NAME = os.getenv("DATASET_BUCKET_NAME")
+    DATASET_GCS_ROOT = "datasets"
+    DATASET_REP_ROOT = "../backend/datasets"
+
 
 class Origin(str, Enum):
     PG_EXAMPLES = 'PG_EXAMPLES'

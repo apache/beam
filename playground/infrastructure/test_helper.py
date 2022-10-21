@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+from typing import Dict, Union, List
 from unittest.mock import mock_open
 
 import mock
@@ -58,12 +58,12 @@ def test_find_examples(mock_os_walk, mock_check_file, mock_check_no_nested, is_v
     sdk = SDK_UNSPECIFIED
     if is_valid:
         result = find_examples(root_dir="/root", subdirs=["sub1", "sub2"],
-            supported_categories=[], sdk=sdk)
+                               supported_categories=[], sdk=sdk)
         assert not result
     else:
         with pytest.raises(
-            ValueError,
-            match="Some of the beam examples contain beam playground tag with "
+              ValueError,
+              match="Some of the beam examples contain beam playground tag with "
                     "an incorrect format"):
             find_examples("/root", ["sub1", "sub2"], [], sdk=sdk)
 
@@ -198,7 +198,9 @@ def test__get_example():
         "categories": [""],
         "pipeline_options": "--option option",
         "context_line": 1,
-        "complexity": "MEDIUM"
+        "complexity": "MEDIUM",
+        "emulator": "KAFKA",
+        "dataset": "dataset.json"
     },
         "")
 
@@ -211,7 +213,7 @@ def test__get_example():
         code="data",
         status=STATUS_UNSPECIFIED,
         tag=Tag(
-            "Name", "MEDIUM", "Description", "False", [""], "--option option", False, 1),
+            "Name", "MEDIUM", "KAFKA", "dataset.json", "Description", "False", [""], "--option option", False, 1),
         link="https://github.com/apache/beam/blob/master/root/filepath.java",
         complexity="MEDIUM")
 
@@ -270,7 +272,9 @@ def test__validate_with_all_fields():
         "pipeline_options": "--option option",
         "context_line": 1,
         "complexity": "MEDIUM",
-        "tags": ["tag"]
+        "tags": ["tag"],
+        "emulator": "KAFKA",
+        "dataset": "dataset.json"
     }
     assert _validate(tag, ["category"]) is True
 
@@ -382,6 +386,20 @@ def test_validate_example_fields_when_complexity_is_invalid():
         validate_example_fields(example)
 
 
+def test_validate_example_fields_when_dataset_not_set_but_emulator_set():
+    object_meta = {
+        "name": "MOCK_NAME",
+        "description": "MOCK_DESCRIPTION",
+        "multifile": False,
+        "categories": ["MOCK_CATEGORY_1", "MOCK_CATEGORY_2"],
+        "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE",
+        "emulator": "KAFKA"
+    }
+    example = _create_example_with_meta("MOCK_NAME", object_meta)
+    with pytest.raises(ValidationException, match="Example has an emulator field but a dataset field not found. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
 def _create_example(name: str) -> Example:
     object_meta = {
         "name": "MOCK_NAME",
@@ -390,6 +408,10 @@ def _create_example(name: str) -> Example:
         "categories": ["MOCK_CATEGORY_1", "MOCK_CATEGORY_2"],
         "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE"
     }
+    return _create_example_with_meta(name, object_meta)
+
+
+def _create_example_with_meta(name: str, object_meta: Dict[str, Union[str, bool, List[str]]]) -> Example:
     example = Example(
         name=name,
         pipeline_id="MOCK_PIPELINE_ID",
