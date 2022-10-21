@@ -21,7 +21,7 @@ import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../auth/notifier.dart';
-import '../auth/stages.dart';
+import '../auth/stage_enum.dart';
 import 'footer.dart';
 import 'login/login_button.dart';
 import 'logo.dart';

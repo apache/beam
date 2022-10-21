@@ -16,4 +16,9 @@
  * limitations under the License.
  */
 
-enum AuthStage { loading, unauthenticated, verifying, authenticated }
+enum AuthStage {
+  loading,
+  unauthenticated,
+  verifying,
+  authenticated,
+}

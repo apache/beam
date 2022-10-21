@@ -20,15 +20,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'stages.dart';
+import 'stage_enum.dart';
 
 class AuthNotifier extends ChangeNotifier {
   // TODO(nausharipov): discuss HTTP Strict Forward Secrecy & proper headers
   // https://pub.dev/packages/flutter_secure_storage#configure-web-version
   AuthStage _authStage = AuthStage.loading;
   static const _storage = FlutterSecureStorage();
-  String? _token;
   static const _tokenStorageKey = 'token';
+  String? _token;
 
   AuthNotifier() {
     unawaited(_read());
@@ -42,6 +42,7 @@ class AuthNotifier extends ChangeNotifier {
       _authStage = AuthStage.unauthenticated;
     } else {
       _authStage = AuthStage.verifying;
+      await dummyDelay();
       _authStage = AuthStage.authenticated;
     }
     notifyListeners();
@@ -49,12 +50,8 @@ class AuthNotifier extends ChangeNotifier {
 
   Future<void> signIn() async {
     if (_authStage == AuthStage.unauthenticated) {
-      await Future.delayed(
-        const Duration(seconds: 2),
-        () {
-          _token = 'value';
-        },
-      );
+      _token = 'value';
+      await dummyDelay();
       await _storage.write(
         key: _tokenStorageKey,
         value: _token,
@@ -62,5 +59,9 @@ class AuthNotifier extends ChangeNotifier {
       await _read();
       notifyListeners();
     }
+  }
+
+  Future<void> dummyDelay() async {
+    await Future.delayed(const Duration(seconds: 2));
   }
 }
