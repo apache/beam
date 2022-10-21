@@ -18,7 +18,6 @@
 # cython: profile=True
 
 cimport cython
-cimport numpy as np
 
 cimport cpython.ref
 cimport cpython.tuple
@@ -107,6 +106,10 @@ cdef class BytesCoderImpl(CoderImpl):
 
 
 cdef class BooleanCoderImpl(CoderImpl):
+  pass
+
+
+cdef class SinglePrecisionFloatCoderImpl(StreamCoderImpl):
   pass
 
 
@@ -278,8 +281,9 @@ cdef class RowCoderImpl(StreamCoderImpl):
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
 
   @cython.locals(i=int, k=size_t, n=size_t,
-                 null_flags=np.uint8_t[:,::1], null_bits=np.uint8_t[:,::1],
-                 has_null_bits=np.uint8_t[::1])
+                 null_flags=libc.stdint.uint8_t[:,::1],
+                 null_bits=libc.stdint.uint8_t[:,::1],
+                 has_null_bits=libc.stdint.uint8_t[::1])
   cpdef encode_batch_to_stream(self, dict values, OutputStream stream)
 
 
@@ -289,3 +293,11 @@ cdef class LogicalTypeCoderImpl(StreamCoderImpl):
 
   cpdef decode_from_stream(self, InputStream stream, bint nested)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
+
+
+cdef class BigIntegerCoderImpl(StreamCoderImpl):
+  pass
+
+
+cdef class DecimalCoderImpl(StreamCoderImpl):
+  pass

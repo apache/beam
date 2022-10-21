@@ -30,7 +30,6 @@ package filter_test
 //     - strings
 //     - numbers
 
-
 import (
 	"testing"
 

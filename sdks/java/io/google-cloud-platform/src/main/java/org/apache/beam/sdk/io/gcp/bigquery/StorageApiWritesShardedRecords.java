@@ -389,7 +389,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                       stream,
                       () ->
                           datasetService.getStreamAppendClient(
-                              stream, descriptor.get().descriptor));
+                              stream, descriptor.get().descriptor, false));
               for (AppendRowsContext context : contexts) {
                 context.streamName = stream;
                 appendClient.pin();
@@ -430,7 +430,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                         context.streamName,
                         () ->
                             datasetService.getStreamAppendClient(
-                                context.streamName, descriptor.get().descriptor));
+                                context.streamName, descriptor.get().descriptor, false));
                 return appendClient.appendRows(context.offset, protoRows);
               } catch (Exception e) {
                 throw new RuntimeException(e);

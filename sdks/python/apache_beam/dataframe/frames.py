@@ -642,7 +642,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           "memory-sharing semantics that are not compatible with the Beam "
           "model.")
 
-    if dtype == 'category':
+    # An instance of CategoricalDtype is actualy considered equal to the string
+    # 'category', so we have to explicitly check if dtype is an instance of
+    # CategoricalDtype, and allow it.
+    # See https://github.com/apache/beam/issues/23276
+    if dtype == 'category' and not isinstance(dtype, pd.CategoricalDtype):
       raise frame_base.WontImplementError(
           "astype(dtype='category') is not supported because the type of the "
           "output column depends on the data. Please use pd.CategoricalDtype "
@@ -989,7 +993,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     if self._expr.proxy().index.nlevels == 1:
       if PD_VERSION < (1, 2):
         raise frame_base.WontImplementError(
-            "unstack() is not supported when using pandas < 1.2.0"
+            "unstack() is not supported when using pandas < 1.2.0\n"
             "Please upgrade to pandas 1.2.0 or higher to use this operation.")
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(

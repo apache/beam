@@ -21,7 +21,8 @@ import * as runnerApi from "../proto/beam_runner_api";
 export const TYPESCRIPT_DEFAULT_ENVIRONMENT_URN = "js_default";
 
 function javascriptCapabilities(): string[] {
-  return []; // TODO: Cleanup. Actually populate.
+  // XXX This is needed for sessions to work...
+  return ["beam:coder:interval_window:v1"]; // TODO: Cleanup. Actually populate.
 }
 
 export function defaultJsEnvironment() {

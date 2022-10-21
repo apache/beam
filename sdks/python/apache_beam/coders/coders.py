@@ -37,6 +37,7 @@ encoded.
 # pytype: skip-file
 
 import base64
+import decimal
 import pickle
 from functools import lru_cache
 from typing import TYPE_CHECKING
@@ -110,7 +111,9 @@ __all__ = [
     'TupleSequenceCoder',
     'VarIntCoder',
     'WindowedValueCoder',
-    'ParamWindowedValueCoder'
+    'ParamWindowedValueCoder',
+    'BigIntegerCoder',
+    'DecimalCoder'
 ]
 
 T = TypeVar('T')
@@ -1737,3 +1740,39 @@ class TimestampPrefixingWindowCoder(FastCoder):
 
 Coder.register_structured_urn(
     common_urns.coders.CUSTOM_WINDOW.urn, TimestampPrefixingWindowCoder)
+
+
+class BigIntegerCoder(FastCoder):
+  def _create_impl(self):
+    return coder_impl.BigIntegerCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
+class DecimalCoder(FastCoder):
+  def _create_impl(self):
+    return coder_impl.DecimalCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return decimal.Decimal
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))

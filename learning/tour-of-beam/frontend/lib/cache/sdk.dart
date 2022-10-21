@@ -16,38 +16,38 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/pages/playground/states/example_selector_state.dart';
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:provider/provider.dart';
 
-class CategoryBubble extends StatelessWidget {
-  final ExampleType type;
-  final String name;
+import '../repositories/client/client.dart';
+import '../repositories/models/get_sdks_response.dart';
 
-  const CategoryBubble({
-    Key? key,
-    required this.type,
-    required this.name,
-  }) : super(key: key);
+class SdkCache extends ChangeNotifier {
+  final TobClient client;
 
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<ExampleSelectorState>(
-      builder: (context, state, child) {
-        final isSelected = type == state.selectedFilterType;
+  final _sdks = <Sdk>[];
+  Future<GetSdksResponse>? _future;
 
-        return BubbleWidget(
-          isSelected: isSelected,
-          title: name,
-          onTap: () {
-            if (!isSelected) {
-              state.setSelectedFilterType(type);
-              state.sortCategories();
-            }
-          },
-        );
-      },
-    );
+  SdkCache({
+    required this.client,
+  });
+
+  List<Sdk> getSdks() {
+    if (_future == null) {
+      unawaited(_loadSdks());
+    }
+
+    return _sdks;
+  }
+
+  Future<List<Sdk>> _loadSdks() async {
+    _future = client.getSdks();
+    final result = await _future!;
+
+    _sdks.addAll(result.sdks);
+    notifyListeners();
+    return _sdks;
   }
 }

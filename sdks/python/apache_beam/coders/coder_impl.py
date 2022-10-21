@@ -32,6 +32,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
+import decimal
 import enum
 import itertools
 import json
@@ -1865,3 +1866,47 @@ class LogicalTypeCoderImpl(StreamCoderImpl):
   def decode_from_stream(self, in_stream, nested):
     return self.logical_type.to_language_type(
         self.representation_coder.decode_from_stream(in_stream, nested))
+
+
+class BigIntegerCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  For interoperability with Java SDK, encoding needs to match that of the Java
+  SDK BigIntegerCoder."""
+  def encode_to_stream(self, value, out, nested):
+    # type: (int, create_OutputStream, bool) -> None
+    if value < 0:
+      byte_length = ((value + 1).bit_length() + 8) // 8
+    else:
+      byte_length = (value.bit_length() + 8) // 8
+    encoded_value = value.to_bytes(
+        length=byte_length, byteorder='big', signed=True)
+    out.write(encoded_value, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> int
+    encoded_value = in_stream.read_all(nested)
+    return int.from_bytes(encoded_value, byteorder='big', signed=True)
+
+
+class DecimalCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  For interoperability with Java SDK, encoding needs to match that of the Java
+  SDK BigDecimalCoder."""
+
+  BIG_INT_CODER_IMPL = BigIntegerCoderImpl()
+
+  def encode_to_stream(self, value, out, nested):
+    # type: (decimal.Decimal, create_OutputStream, bool) -> None
+    scale = -value.as_tuple().exponent
+    int_value = int(value.scaleb(scale))
+    out.write_var_int64(scale)
+    self.BIG_INT_CODER_IMPL.encode_to_stream(int_value, out, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> decimal.Decimal
+    scale = in_stream.read_var_int64()
+    int_value = self.BIG_INT_CODER_IMPL.decode_from_stream(in_stream, nested)
+    value = decimal.Decimal(int_value).scaleb(-scale)
+    return value

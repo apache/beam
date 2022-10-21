@@ -35,7 +35,7 @@ programming guide, take a look at the
 {{< language-switcher java py go typescript >}}
 
 {{< paragraph class="language-py" >}}
-The Python SDK supports Python 3.7, 3.8, and 3.9.
+The Python SDK supports Python 3.7, 3.8, 3.9, and 3.10.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
@@ -276,7 +276,7 @@ public interface MyOptions extends PipelineOptions {
 You can also specify a description, which appears when a user passes `--help` as
 a command-line argument, and a default value.
 
-{{< paragraph class="language-java language-py langauge-go" >}}
+{{< paragraph class="language-java language-py language-go" >}}
 You set the description and default value using annotations, as follows:
 {{< /paragraph >}}
 
@@ -1537,6 +1537,14 @@ public static class SumInts implements SerializableFunction<Iterable<Integer>, I
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_bounded_sum >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_simple_sum >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_simple_sum >}}
+{{< /highlight >}}
+
 {{< paragraph class="language-go" >}}
 All Combiners should be registered using a generic `register.CombinerX[...]`
 function. This allows the Go SDK to infer an encoding from any inputs/outputs,
@@ -1556,14 +1564,6 @@ types. It can be called with `register.Combiner3[T1, T2, T3](&CustomCombiner{})`
 where `T1` is the type of the accumulator, `T2` is the type of the input, and `T3` is
 the type of the output.
 {{< /paragraph >}}
-
-{{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_simple_sum >}}
-{{< /highlight >}}
-
-{{< highlight typescript >}}
-{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_simple_sum >}}
-{{< /highlight >}}
 
 ##### 4.2.4.2. Advanced combinations using CombineFn {#advanced-combines}
 
@@ -1715,6 +1715,10 @@ sum = pc | beam.CombineGlobally(sum).without_defaults()
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_global_with_default >}}
 {{< /highlight >}}
 
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" combine_globally >}}
+{{< /highlight >}}
+
 ##### 4.2.4.5. Combine and non-global windowing {#combine-non-global-windowing}
 
 <span class="language-java language-py">
@@ -1836,7 +1840,7 @@ PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< /highlight >}}
 
 {{< highlight typescript >}}
-// Flatten takem an array of PCollection objects, wrapped in beam.P(...)
+// Flatten taken an array of PCollection objects, wrapped in beam.P(...)
 // Returns a single PCollection that contains a union of all of the elements in all input PCollections.
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" model_multiple_pcollections_flatten >}}
 {{< /highlight >}}
@@ -1991,7 +1995,7 @@ value must be registered if used.</span>
 
 Some other serializability factors you should keep in mind are:
 
-* <span class="language-java language-py">Transient</span><span class="langauage-go">Unexported</span>
+* <span class="language-java language-py">Transient</span><span class="language-go">Unexported</span>
   fields in your function object are *not* transmitted to worker
   instances, because they are not automatically serialized.
 * Avoid loading a field with a large amount of data before serialization.
@@ -2551,13 +2555,19 @@ Timers and States are explained in more detail in the
 
 {{< paragraph class="language-go" >}}
 **Timer and State:**
-This feature isn't implemented in the Go SDK; see more at [Issue 20510](https://github.com/apache/beam/issues/20510). Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.
+User defined State parameters can be used in a stateful DoFn. Timers aren't implemented in the Go SDK yet;
+see more at [Issue 22737](https://github.com/apache/beam/issues/22737). Once implemented, user defined Timer
+parameters can be used in a stateful DoFn.
+Timers and States are explained in more detail in the
+[Timely (and Stateful) Processing with Apache Beam](/blog/2017/08/28/timely-processing.html) blog post.
 {{< /paragraph >}}
 
 {{< paragraph class="language-typescript" >}}
 **Timer and State:**
-This feature isn't implemented in the Typescript SDK yet,
-but can be used from a cross-language transform.
+This feature isn't yet implemented in the Typescript SDK,
+but we welcome [contributions](https://beam.apache.org/contribute/).
+In the meantime, Typescript pipelines wishing to use state and timers can do so
+using [cross-language transforms](#use-x-lang-transforms).
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -2619,9 +2629,11 @@ class StatefulDoFn(beam.DoFn):
 {{< /highlight >}}
 
 {{< highlight go >}}
-// State and Timers are yet implemented in the Go SDK.
-// See https://github.com/apache/beam/issues/20510 for info
-// on contributing State and Timers.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" state_and_timers >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+// Not yet implemented.
 {{< /highlight >}}
 
 ### 4.6. Composite transforms {#composite-transforms}
@@ -3075,6 +3087,12 @@ In Go, schema encoding is used by default for struct types, with Exported fields
 Beam will automatically infer the schema based on the fields and field tags of the struct, and their order.
 {{< /paragraph >}}
 
+{{< paragraph class="language-typescript" >}}
+In Typescript, JSON objects are used to represent schema'd data.
+Unfortunately type information in Typescript is not propagated to the runtime layer,
+so it needs to be manually specified in some places (e.g. when using cross-language pipelines).
+{{< /paragraph >}}
+
 {{< highlight java >}}
 @DefaultSchema(JavaBeanSchema.class)
 public class Purchase {
@@ -3142,6 +3160,10 @@ class Transaction(typing.NamedTuple):
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/06schemas.go" schema_define >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" schema_def >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -3307,6 +3329,12 @@ For example, the logical type provider representing nanosecond timestamps
 might be implemented as follows
 {{< /paragraph >}}
 
+{{< paragraph class="language-typescript" >}}
+In Typescript, a logical type defined by the [LogicalTypeInfo](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/coders/row_coder.ts)
+interface which associates a logical type's URN with its representation
+and its conversion to and from this representation.
+{{< /paragraph >}}
+
 {{< highlight java >}}
 // A Logical type using java.time.Instant to represent the logical type.
 public class TimestampNanos implements LogicalType<Instant, Row> {
@@ -3335,6 +3363,14 @@ public class TimestampNanos implements LogicalType<Instant, Row> {
 
 // Register it like so:
 {{< code_sample "sdks/go/examples/snippets/06schemas.go" schema_logical_register >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+// Register a logical type:
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" schema_logical_register >}}
+
+// And use it as follows:
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" schema_logical_use >}}
 {{< /highlight >}}
 
 #### 6.4.2. Useful logical types {#built-in-logical-types}
@@ -3459,7 +3495,14 @@ In addition, often Beam pipelines have intermediate stages and types, and those 
 
 #### 6.5.1. Inferring schemas {#inferring-schemas}
 
-{{< language-switcher java py go >}}
+{{< language-switcher java py go typescript >}}
+
+{{< paragraph class="language-typescript" >}}
+Unfortunately, Beam is unable to access Typescript's type information at runtime.
+Schemas must be manually declared with `beam.withRowCoder`.
+On the other hand, schema-aware operations such as `GroupBy` can be used
+without an explicit schema declared.
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 Beam is able to infer schemas from a variety of common Java types.
@@ -3692,7 +3735,7 @@ type Transaction struct{
 {{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
-Unexported fields are ignored, and cannot be automatically infered as part of the schema.
+Unexported fields are ignored, and cannot be automatically inferred as part of the schema.
 Fields of type  func, channel, unsafe.Pointer, or uintptr will be ignored by inference.
 Fields of interface types are ignored, unless a schema provider
 is registered for them.
@@ -4267,7 +4310,7 @@ If there were no schema, then the applied `DoFn` would have to accept an element
 since there is a schema, you could apply the following DoFn:
 
 {{< highlight java >}}
-purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
+purchases.apply(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
   @ProcessElement public void process(@Element PurchaseBean purchase) {
       ...
   }
@@ -4321,7 +4364,7 @@ automatically convert to any matching schema type, just like when reading the en
 
 ## 7. Data encoding and type safety {#data-encoding-and-type-safety}
 
-{{< language-switcher java py go >}}
+{{< language-switcher java py go typescript >}}
 
 When Beam runners execute your pipeline, they often need to materialize the
 intermediate data in your `PCollection`s, which requires converting elements to
@@ -4358,6 +4401,14 @@ However, users can build and register custom coders with `beam.RegisterCoder`.
 You can find available Coder functions in the
 [coder](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder)
 package.
+{{< /paragraph >}}
+
+{{< paragraph class="language-typescript" >}}
+Standard Typescript types like `number`, `UInt8Array` and `string` and more are coded using builtin coders.
+Json objects and arrays are encoded via a BSON encoding.
+For these types, coders need not be specified unless interacting with cross-language transforms.
+Users can build custom coders by extending `beam.coders.Coder`
+for use with `withCoderInternal`, but generally logical types are preferred for this case.
 {{< /paragraph >}}
 
 > Note that coders do not necessarily have a 1:1 relationship with types. For
@@ -4600,7 +4651,7 @@ to register a new `Coder` for the target type.
 
 {{< paragraph class="language-go" >}}
 To set the default Coder for a Go type you use the function `beam.RegisterCoder` to register a encoder and decoder functions for the target type.
-However, built in types like `int`, `string`, `float64`, etc cannot have their coders overridde.
+However, built in types like `int`, `string`, `float64`, etc cannot have their coders override.
 {{< /paragraph >}}
 
 {{< paragraph class="language-java language-py" >}}
@@ -4929,6 +4980,10 @@ into fixed windows, each 60 seconds in length:
 {{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_fixed_windows >}}
 {{< /highlight >}}
 
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" setting_fixed_windows >}}
+{{< /highlight >}}
+
 #### 8.3.2. Sliding time windows {#using-sliding-time-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
@@ -4949,6 +5004,10 @@ begins every five seconds:
 {{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_sliding_windows >}}
 {{< /highlight >}}
 
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" setting_sliding_windows >}}
+{{< /highlight >}}
+
 #### 8.3.3. Session windows {#using-session-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
@@ -4967,6 +5026,10 @@ least 10 minutes (600 seconds):
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_session_windows >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" setting_session_windows >}}
 {{< /highlight >}}
 
 Note that the sessions are per-key — each key in the collection will have its
@@ -4990,6 +5053,10 @@ a single global window for a `PCollection`:
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_global_window >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" setting_global_window >}}
 {{< /highlight >}}
 
 ### 8.4. Watermarks and late data {#watermarks-and-late-data}
@@ -5351,7 +5418,7 @@ The following diagram shows data events for key X as they arrive in the
 PCollection and are assigned to windows. To keep the diagram a bit simpler,
 we'll assume that the events all arrive in the pipeline in order.
 
-![Diagram of data events for acculumating mode example](/images/trigger-accumulation.png)
+![Diagram of data events for accumulating mode example](/images/trigger-accumulation.png)
 
 ##### 9.4.1.1. Accumulating mode {#accumulating-mode}
 
@@ -5592,7 +5659,7 @@ var distribution = beam.NewDistribution("namespace", "distribution1")
 
 func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
     // create a distribution (histogram) of the values
-	distribution.Inc(ctx, v)
+	distribution.Update(ctx, v)
 	...
 }
 {{< /highlight >}}
@@ -5749,9 +5816,17 @@ In Python, DoFn declares states to be accessed by creating `StateSpec` class mem
 to other nodes in the graph. A `DoFn` can declare multiple state variables.
 {{< /paragraph >}}
 
-<span class="language-go">
+{{< paragraph class="language-go" >}}
+In Go, DoFn declares states to be accessed by creating state struct member variables representing each state. Each
+state variable is initialized with a key, this key is unique to a ParDo in the graph and has no relation
+to other nodes in the graph. If no name is supplied, the key defaults to the member variable's name.
+A `DoFn` can declare multiple state variables.
+{{< /paragraph >}}
 
-> **Note:** The Beam SDK for Go does not yet support a State and Timer API. See [Issue 20510](https://github.com/apache/beam/issues/20510) to contribute.
+<span class="language-typescript">
+
+> **Note:** The Beam SDK for Typescript does not yet support a State and Timer API,
+but it is possible to use these features from cross-language pipelines (see below).
 
 </span>
 
@@ -5784,6 +5859,10 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" value_state >}}
+{{< /highlight >}}
+
 Beam also allows explicitly specifying a coder for `ValueState` values. For example:
 
 {{< highlight java >}}
@@ -5809,7 +5888,11 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" value_state_coder >}}
+{{< /highlight >}}
+
+{{< highlight typescript >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" stateful_dofn >}}
 {{< /highlight >}}
 
 #### CombiningState
@@ -5841,7 +5924,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combining_state >}}
 {{< /highlight >}}
 
 #### BagState
@@ -5887,7 +5970,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" state_and_timers >}}
 {{< /highlight >}}
 
 ### 11.2. Deferred state reads {#deferred-state-reads}
@@ -5920,7 +6003,7 @@ This is not supported yet, see https://github.com/apache/beam/issues/20739.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22964.
 {{< /highlight >}}
 
 If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
@@ -6010,7 +6093,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 #### 11.3.2. Processing-time timers {#processing-time-timers}
@@ -6062,7 +6145,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 #### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
@@ -6123,7 +6206,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 #### 11.3.4. Timer output timestamps {#timer-output-timestamps}
@@ -6234,7 +6317,7 @@ Timer output timestamps is not yet supported in Python SDK. See https://github.c
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
@@ -6280,7 +6363,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" windowed_state >}}
 {{< /highlight >}}
 
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
@@ -6364,7 +6447,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/20510.
+This is not supported yet, see https://github.com/apache/beam/issues/22737.
 {{< /highlight >}}
 
 ### 11.5. State and timers examples {#state-timers-examples}
@@ -6666,7 +6749,7 @@ based on how the amount of work is represented:
 * Bounded DoFns are those where the work represented by an element is well-known beforehand and has
 an end. Examples of bounded elements include a file or group of files.
 * Unbounded DoFns are those where the amount of work does not have a specific end or the
-amount of work is not known befrehand. Examples of unbounded elements include a Kafka or a PubSub
+amount of work is not known beforehand. Examples of unbounded elements include a Kafka or a PubSub
 topic.
 
 In Java, you can use [@UnboundedPerElement](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/DoFn.UnboundedPerElement.html)
@@ -7463,6 +7546,58 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
 
 4. After the job has been submitted to the Beam runner, shutdown the expansion service by
    terminating the expansion service process.
+
+#### 13.2.4. Using cross-language transforms in a Typescript pipeline
+
+Using a Typescript wrapper for a cross-language pipeline is similar to using any
+other transform, provided the dependencies (e.g. a recent Python interpreter or
+a Java JRE) is available.  For example, most of the Typescript IOs are simply
+wrappers around Beam transforms from other languages.
+
+If a wrapper is not already available, one can use it explicitly using
+[apache_beam.transforms.external.rawExternalTransform](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/external.ts).
+which takes a `urn` (a string identifying the transform),
+a `payload` (a binary or json object parameterizing the transform),
+and a `expansionService` which can either be an address of a pre-started service
+or a callable returning an auto-started expansion service object.
+
+For example, one could write
+
+```
+pcoll.applyAsync(
+    rawExternalTransform(
+        "beam:registered:urn",
+        {arg: value},
+        "localhost:expansion_service_port"
+    )
+);
+```
+
+Note that `pcoll` must have a cross-language compatible coder coder such as `SchemaCoder`.
+This can be ensured with the [withCoderInternal](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/internal.ts)
+or [withRowCoder](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/internal.ts)
+transforms, e.g.
+
+```
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" with_row_coder >}}
+```
+
+Coder can also be specified on the output if it cannot be inferred, e.g.
+
+In addition, there are several utilities such as [pythonTransform](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/python.ts)
+that make it easier to invoke transforms from specific languages:
+
+```
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" python_map >}}
+```
+
+Cross-language transforms can also be defined in line, which can be useful
+for accessing features or libraries not available in the calling SDK
+
+```
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" cross_lang_transform >}}
+```
+
 
 ### 13.3. Runner Support {#x-lang-transform-runner-support}
 

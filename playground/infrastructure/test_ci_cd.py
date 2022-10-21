@@ -18,18 +18,19 @@ import pytest
 
 from api.v1.api_pb2 import SDK_JAVA
 from ci_cd import _ci_step, _cd_step, _check_envs
+from config import Origin
 
 
 @mock.patch("ci_helper.CIHelper.verify_examples")
 def test_ci_step(mock_verify_examples):
-    _ci_step([])
-    mock_verify_examples.assert_called_once_with([])
+    _ci_step([], Origin.PG_EXAMPLES)
+    mock_verify_examples.assert_called_once_with([], Origin.PG_EXAMPLES)
 
 
 @mock.patch("cd_helper.CDHelper.save_examples")
 def test_cd_step(mock_save_examples):
-    _cd_step([], SDK_JAVA)
-    mock_save_examples.assert_called_once_with([], SDK_JAVA)
+    _cd_step([], SDK_JAVA, Origin.PG_EXAMPLES)
+    mock_save_examples.assert_called_once_with([])
 
 
 def test__check_envs():

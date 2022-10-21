@@ -19,30 +19,40 @@
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
+import 'builders/sdks.dart';
+
 class SdkDropdown extends StatelessWidget {
   const SdkDropdown();
 
   @override
   Widget build(BuildContext context) {
-    return _DropdownWrapper(
-      child: DropdownButton(
-        value: 'Java',
-        onChanged: (sdk) {
-          // TODO(nausharipov): change SDK
-        },
-        items: const ['Java', 'Python', 'Go']
-            .map(
-              (sdk) => DropdownMenuItem(
-                value: sdk,
-                child: Text(sdk),
-              ),
-            )
-            .toList(growable: false),
-        isDense: true,
-        alignment: Alignment.center,
-        focusColor: BeamColors.transparent,
-        borderRadius: BorderRadius.circular(BeamSizes.size6),
-      ),
+    return SdksBuilder(
+      builder: (context, sdks, _) {
+        if (sdks.isEmpty) {
+          return Container();
+        }
+
+        return _DropdownWrapper(
+          child: DropdownButton(
+            value: sdks.first.id,
+            onChanged: (sdk) {
+              // TODO(nausharipov): change SDK
+            },
+            items: sdks
+                .map(
+                  (sdk) => DropdownMenuItem(
+                    value: sdk.id,
+                    child: Text(sdk.title),
+                  ),
+                )
+                .toList(growable: false),
+            isDense: true,
+            alignment: Alignment.center,
+            focusColor: BeamColors.transparent,
+            borderRadius: BorderRadius.circular(BeamSizes.size6),
+          ),
+        );
+      },
     );
   }
 }

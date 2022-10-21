@@ -107,7 +107,7 @@ public class PythonService {
     int result = bootstrap.waitFor();
     if (result != 0) {
       throw new RuntimeException(
-          "Python boostrap failed with error " + result + ", " + lastNonEmptyLine);
+          "Python bootstrap failed with error " + result + ", " + lastNonEmptyLine);
     }
     String pythonExecutable = lastNonEmptyLine;
     List<String> command = new ArrayList<>();

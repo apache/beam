@@ -82,24 +82,6 @@ def _to_microseconds(time_ns: int) -> int:
   return int(time_ns / _NANOSECOND_TO_MICROSECOND)
 
 
-def _convert_to_result(
-    batch: Iterable,
-    predictions: Union[Iterable, Dict[Any, Iterable]],
-    drop_example: Optional[bool] = False) -> Iterable[PredictionResult]:
-  if isinstance(predictions, dict):
-    # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
-    # key_type2: Iterable<val_type2>, ...} where each Iterable is of
-    # length batch_size, to a list of dictionaries:
-    # [{key_type1: value_type1, key_type2: value_type2}]
-    predictions = [
-        dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
-    ]
-  if drop_example:
-    return [PredictionResult(None, y) for x, y in zip(batch, predictions)]
-
-  return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
-
-
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   """Has the ability to load and apply an ML model."""
   def load_model(self) -> ModelT:
@@ -110,8 +92,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       self,
       batch: Sequence[ExampleT],
       model: ModelT,
-      inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: Optional[bool] = False) -> Iterable[PredictionT]:
+      inference_args: Optional[Dict[str, Any]] = None) -> Iterable[PredictionT]:
     """Runs inferences on a batch of examples.
 
     Args:
@@ -119,8 +100,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       model: The model used to make inferences.
       inference_args: Extra arguments for models whose inference call requires
         extra parameters.
-      drop_example: Boolean flag indicating whether to
-        drop the example from PredictionResult
+
     Returns:
       An Iterable of Predictions.
     """
@@ -190,8 +170,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       self,
       batch: Sequence[Tuple[KeyT, ExampleT]],
       model: ModelT,
-      inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: Optional[bool] = False
+      inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[Tuple[KeyT, PredictionT]]:
     keys, unkeyed_batch = zip(*batch)
     return zip(
@@ -246,8 +225,7 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       self,
       batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]],
       model: ModelT,
-      inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: Optional[bool] = False
+      inference_args: Optional[Dict[str, Any]] = None
   ) -> Union[Iterable[PredictionT], Iterable[Tuple[KeyT, PredictionT]]]:
     # Really the input should be
     #    Union[Sequence[ExampleT], Sequence[Tuple[KeyT, ExampleT]]]
@@ -295,9 +273,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock=time,
       inference_args: Optional[Dict[str, Any]] = None,
-      metrics_namespace: Optional[str] = None,
-      drop_example: Optional[bool] = False,
-  ):
+      metrics_namespace: Optional[str] = None):
     """A transform that takes a PCollection of examples (or features) to be used
     on an ML model. It will then output inferences (or predictions) for those
     examples in a PCollection of PredictionResults, containing the input
@@ -315,13 +291,11 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
         metrics_namespace: Namespace of the transform to collect metrics.
-        drop_example: Boolean flag indicating whether to
-          drop the example from PredictionResult    """
+    """
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
     self._metrics_namespace = metrics_namespace
-    self._drop_example = drop_example
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -353,10 +327,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         | 'BeamML_RunInference' >> (
             beam.ParDo(
                 _RunInferenceDoFn(
-                    model_handler=self._model_handler,
-                    clock=self._clock,
-                    metrics_namespace=self._metrics_namespace,
-                    drop_example=self._drop_example),
+                    self._model_handler, self._clock, self._metrics_namespace),
                 self._inference_args).with_resource_hints(**resource_hints)))
 
 
@@ -414,22 +385,19 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       self,
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock,
-      metrics_namespace: Optional[str],
-      drop_example: Optional[bool] = False):
+      metrics_namespace):
     """A DoFn implementation generic to frameworks.
 
       Args:
         model_handler: An implementation of ModelHandler.
         clock: A clock implementing time_ns. *Used for unit testing.*
         metrics_namespace: Namespace of the transform to collect metrics.
-        drop_example: Boolean flag indicating whether to
-          drop the example from PredictionResult    """
+    """
     self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
     self._clock = clock
     self._model = None
     self._metrics_namespace = metrics_namespace
-    self._drop_example = drop_example
 
   def _load_model(self):
     def load():
@@ -459,7 +427,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def process(self, batch, inference_args):
     start_time = _to_microseconds(self._clock.time_ns())
     result_generator = self._model_handler.run_inference(
-        batch, self._model, inference_args, self._drop_example)
+        batch, self._model, inference_args)
     predictions = list(result_generator)
 
     end_time = _to_microseconds(self._clock.time_ns())

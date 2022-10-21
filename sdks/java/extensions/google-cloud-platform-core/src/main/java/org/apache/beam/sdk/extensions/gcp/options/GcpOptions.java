@@ -37,6 +37,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -139,6 +141,43 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   String getWorkerZone();
 
   void setWorkerZone(String workerZone);
+
+  /**
+   * Controls the OAuth scopes that will be requested when creating {@link Credentials} with the
+   * {@link GcpCredentialFactory} (which is the default {@link CredentialFactory}). If the {@link
+   * #setGcpCredential credential} or {@link #setCredentialFactoryClass credential factory} have
+   * been set then this field may do nothing.
+   */
+  @Default.InstanceFactory(GcpOAuthScopesFactory.class)
+  @Description(
+      "Controls the OAuth scopes that will be requested when creating credentials with the GcpCredentialFactory (which is the default credential factory). If the GCP credential or credential factory have been set then this property may do nothing.")
+  List<String> getGcpOauthScopes();
+
+  void setGcpOauthScopes(List<String> oauthScopes);
+
+  /** Returns the default set of OAuth scopes. */
+  class GcpOAuthScopesFactory implements DefaultValueFactory<List<String>> {
+
+    @Override
+    public List<String> create(PipelineOptions options) {
+      /**
+       * The scope cloud-platform provides access to all Cloud Platform resources. cloud-platform
+       * isn't sufficient yet for talking to datastore so we request those resources separately.
+       *
+       * <p>Note that trusted scope relationships don't apply to OAuth tokens, so for services we
+       * access directly (GCS) as opposed to through the backend (BigQuery, GCE), we need to
+       * explicitly request that scope.
+       */
+      return Arrays.asList(
+          "https://www.googleapis.com/auth/cloud-platform",
+          "https://www.googleapis.com/auth/devstorage.full_control",
+          "https://www.googleapis.com/auth/userinfo.email",
+          "https://www.googleapis.com/auth/datastore",
+          "https://www.googleapis.com/auth/bigquery",
+          "https://www.googleapis.com/auth/bigquery.insertdata",
+          "https://www.googleapis.com/auth/pubsub");
+    }
+  }
 
   /**
    * The class of the credential factory that should be created and used to create credentials. If
@@ -291,7 +330,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     }
   }
 
-  /** EneableStreamingEngine defaults to false unless one of the two experiments is set. */
+  /** EnableStreamingEngine defaults to false unless one of the two experiments is set. */
   class EnableStreamingEngineFactory implements DefaultValueFactory<Boolean> {
     @Override
     public Boolean create(PipelineOptions options) {

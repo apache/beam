@@ -77,7 +77,7 @@ class UtilsTest(unittest.TestCase):
 
   def test_pformat_namedtuple(self):
     actual = pformat_namedtuple(ANamedTuple)
-    self.assertEqual('ANamedTuple(a: int, b: str)', actual)
+    self.assertEqual("ANamedTuple(a: <class 'int'>, b: <class 'str'>)", actual)
 
   def test_pformat_namedtuple_with_unnamed_fields(self):
     actual = pformat_namedtuple(OptionalUnionType)

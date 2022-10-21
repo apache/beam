@@ -22,12 +22,14 @@ import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,6 +68,8 @@ public class DataChangeRecordAction {
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
    * @param watermarkEstimator the watermark estimator of the {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
+   * @param throughputEstimator an estimator to calculate local throughput of the {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn}.
    * @return {@link Optional#empty()} if the caller can continue processing more records. A non
    *     empty {@link Optional} with {@link ProcessContinuation#stop()} if this function was unable
    *     to claim the {@link ChildPartitionsRecord} timestamp
@@ -76,7 +80,8 @@ public class DataChangeRecordAction {
       DataChangeRecord record,
       RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<DataChangeRecord> outputReceiver,
-      ManualWatermarkEstimator<Instant> watermarkEstimator) {
+      ManualWatermarkEstimator<Instant> watermarkEstimator,
+      ThroughputEstimator throughputEstimator) {
 
     final String token = partition.getPartitionToken();
     LOG.debug("[" + token + "] Processing data record " + record.getCommitTimestamp());
@@ -90,6 +95,11 @@ public class DataChangeRecordAction {
     }
     outputReceiver.outputWithTimestamp(record, commitInstant);
     watermarkEstimator.setWatermark(commitInstant);
+
+    // The size of a record is represented by the number of bytes needed for the
+    // string representation of the record. Here, we only try to achieve an estimate
+    // instead of an accurate throughput.
+    throughputEstimator.update(Timestamp.now(), Utf8.encodedLength(record.toString()));
 
     LOG.debug("[" + token + "] Data record action completed successfully");
     return Optional.empty();

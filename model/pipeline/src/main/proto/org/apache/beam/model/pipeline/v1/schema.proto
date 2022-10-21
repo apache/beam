@@ -139,6 +139,14 @@ message LogicalTypes {
     //     corresponds to chronological order.
     MILLIS_INSTANT = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:logical_type:millis_instant:v1"];
+
+    // A URN for Decimal type
+    //   - Representation type: BYTES
+    //   - A decimal number with variable scale. Its BYTES
+    //     representation consists of an integer (INT32) scale followed by a
+    //     two's complement encoded big integer.
+    DECIMAL = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:decimal:v1"];
   }
 }
 

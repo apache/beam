@@ -508,7 +508,7 @@ test and can make the `ParDo` code more readable.
 When using `ParDo` transforms, you need to specify the processing operation that
 gets applied to each element in the input `PCollection`. This processing
 operation is either a named function or a struct with specially-named methods. You
-can use anomynous functions (but not closures). However, it's often a good
+can use anonymous functions (but not closures). However, it's often a good
 idea to define the `DoFn` at the global level, which makes it easier to unit
 test and can make the `ParDo` code more readable.
 {{< /paragraph >}}

@@ -33,7 +33,6 @@ import numpy as np
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.ml.inference.base import _convert_to_result
 from apache_beam.utils.annotations import experimental
 
 LOGGER = logging.getLogger("TensorRTEngineHandlerNumPy")
@@ -226,8 +225,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       self,
       batch: Sequence[np.ndarray],
       engine: TensorRTEngine,
-      inference_args: Optional[Dict[str, Any]] = None,
-      drop_example: Optional[bool] = False,
+      inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
@@ -272,11 +270,11 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
                 stream))
       _assign_or_fail(cuda.cuStreamSynchronize(stream))
 
-      predictions = []
-      for idx in range(len(batch)):
-        predictions.append([prediction[idx] for prediction in cpu_allocations])
-
-      return _convert_to_result(batch, predictions, drop_example=drop_example)
+      return [
+          PredictionResult(
+              x, [prediction[idx] for prediction in cpu_allocations]) for idx,
+          x in enumerate(batch)
+      ]
 
   def get_num_bytes(self, batch: Sequence[np.ndarray]) -> int:
     """
@@ -289,4 +287,4 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     """
     Returns a namespace for metrics collected by the RunInference transform.
     """
-    return 'BeamML_TensorRT'
+    return 'RunInferenceTensorRT'
