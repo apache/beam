@@ -20,6 +20,7 @@ Common helper module for CI/CD Steps
 import asyncio
 import logging
 import os
+import pathlib
 from collections import namedtuple
 from dataclasses import dataclass, fields
 from pathlib import PurePath
@@ -42,6 +43,8 @@ Tag = namedtuple(
     [
         TagFields.name,
         TagFields.complexity,
+        TagFields.emulator,
+        TagFields.dataset,
         TagFields.description,
         TagFields.multifile,
         TagFields.categories,
@@ -50,7 +53,7 @@ Tag = namedtuple(
         TagFields.context_line,
         TagFields.tags
     ],
-    defaults=(None, None, None, False, None, None, False, None, None))
+    defaults=(None, None, None, None, None, False, None, None, False, None, None))
 
 
 @dataclass
@@ -82,6 +85,7 @@ class ExampleTag:
     tag_as_dict: Dict[str, str]
     tag_as_string: str
 
+
 def _check_no_nested(subdirs: List[str]):
     """
     Check there're no nested subdirs
@@ -93,6 +97,7 @@ def _check_no_nested(subdirs: List[str]):
     for dir1, dir2 in zip(sorted_subdirs, sorted_subdirs[1:]):
         if dir1 in [dir2, *dir2.parents]:
             raise ValueError(f"{dir2} is a subdirectory of {dir1}")
+
 
 def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[str],
                   sdk: Sdk) -> List[Example]:
@@ -476,29 +481,32 @@ def validate_example_fields(example: Example):
     :param example: example from the repository
     """
     if example.filepath == "":
-        err_msg = f"Example doesn't have a file path field. Example: {example}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
+        _log_and_rise_validation_err(f"Example doesn't have a file path field. Example: {example}")
     if example.name == "":
-        err_msg = f"Example doesn't have a name field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
+        _log_and_rise_validation_err(f"Example doesn't have a name field. Path: {example.filepath}")
     if example.sdk == SDK_UNSPECIFIED:
-        err_msg = f"Example doesn't have a sdk field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
+        _log_and_rise_validation_err(f"Example doesn't have a sdk field. Path: {example.filepath}")
     if example.code == "":
-        err_msg = f"Example doesn't have a code field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
+        _log_and_rise_validation_err(f"Example doesn't have a code field. Path: {example.filepath}")
     if example.link == "":
-        err_msg = f"Example doesn't have a link field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
+        _log_and_rise_validation_err(f"Example doesn't have a link field. Path: {example.filepath}")
     if example.complexity == "":
-        err_msg = f"Example doesn't have a complexity field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
+        _log_and_rise_validation_err(f"Example doesn't have a complexity field. Path: {example.filepath}")
+    dataset = getattr(example.tag, TagFields.dataset)
+    emulator = getattr(example.tag, TagFields.emulator)
+    if dataset is not None and len(dataset) != 0 and (emulator is None or len(emulator) == 0):
+        _log_and_rise_validation_err(f"Example has a dataset field but an emulator field not found. Path: {example.filepath}")
+    if emulator is not None and len(emulator) != 0 and (dataset is None or len(dataset) == 0):
+        _log_and_rise_validation_err(f"Example has an emulator field but a dataset field not found. Path: {example.filepath}")
+    if dataset is not None and len(dataset) != 0 and len(pathlib.Path(dataset).suffix) == 0:
+        _log_and_rise_validation_err(f"Example has invalid dataset value. Path: {example.filepath}")
+    if emulator is not None and len(emulator) != 0 and emulator not in ["KAFKA"]:
+        _log_and_rise_validation_err(f"Example has invalid emulator value. Path: {example.filepath}")
+
+
+def _log_and_rise_validation_err(msg: str):
+    logging.error(msg)
+    raise ValidationException(msg)
 
 
 class ValidationException(Exception):

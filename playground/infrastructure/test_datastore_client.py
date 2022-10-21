@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 from unittest.mock import MagicMock, ANY
 
 import mock
@@ -30,13 +29,16 @@ Unit tests for the Cloud Datastore client
 """
 
 
+@mock.patch("config.StorageProps.DATASET_BUCKET_NAME")
 @mock.patch("config.Config.GOOGLE_CLOUD_PROJECT")
 @mock.patch("google.cloud.datastore.Client")
-def test_save_to_cloud_datastore_when_schema_version_not_found(_, mock_config_project):
+@mock.patch("google.cloud.storage.Client")
+def test_save_to_cloud_datastore_when_schema_version_not_found(mock_storage_client, mock_datastore_client, mock_config_project, mock_dataset_bucket_name):
     """
     Test saving examples to the cloud datastore when the schema version not found
     """
     mock_config_project.return_value = "MOCK_PROJECT_ID"
+    mock_dataset_bucket_name.return_value = "MOCK_BUCKET"
     with pytest.raises(DatastoreException, match="Schema versions not found. Schema versions must be downloaded during application startup"):
         examples = _get_examples(1)
         client = DatastoreClient()
@@ -59,11 +61,15 @@ def test_save_to_cloud_datastore_when_google_cloud_project_id_not_set():
 )
 @mock.patch("datastore_client.DatastoreClient._get_all_examples")
 @mock.patch("datastore_client.DatastoreClient._get_actual_schema_version_key")
+@mock.patch("config.StorageProps.DATASET_BUCKET_NAME")
 @mock.patch("config.Config.GOOGLE_CLOUD_PROJECT")
 @mock.patch("google.cloud.datastore.Client")
+@mock.patch("google.cloud.storage.Client")
 def test_save_to_cloud_datastore_in_the_usual_case(
+    mock_storage_client,
     mock_client,
     mock_config_project,
+    mock_dataset_bucket_name,
     mock_get_schema,
     mock_get_examples,
     origin,
@@ -77,6 +83,7 @@ def test_save_to_cloud_datastore_in_the_usual_case(
     mock_examples = MagicMock()
     mock_get_examples.return_value = mock_examples
     mock_config_project.return_value = "MOCK_PROJECT_ID"
+    mock_dataset_bucket_name.return_value = "MOCK_BUCKET"
 
     examples = _get_examples(1)
     client = DatastoreClient()
