@@ -41,9 +41,17 @@ class _UnitWidgetState extends State<UnitWidget> {
   @override
   void initState() {
     super.initState();
-    widget.contentTreeController.addListener(() {
-      setState(() {});
-    });
+    widget.contentTreeController.addListener(_rebuild);
+  }
+
+  @override
+  void dispose() {
+    widget.contentTreeController.removeListener(_rebuild);
+    super.dispose();
+  }
+
+  void _rebuild() {
+    setState(() {});
   }
 
   @override
