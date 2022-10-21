@@ -21,9 +21,14 @@ import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
 class TourProgressIndicator extends StatelessWidget {
+  // TODO(nausharipov): replace assetPath with progress enum
   final String assetPath;
+  final bool isSelected;
 
-  const TourProgressIndicator({required this.assetPath});
+  const TourProgressIndicator({
+    required this.assetPath,
+    required this.isSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +37,16 @@ class TourProgressIndicator extends StatelessWidget {
         left: BeamSizes.size4,
         right: BeamSizes.size8,
       ),
-      child: SvgPicture.asset(assetPath),
+      child: SvgPicture.asset(
+        assetPath,
+        color: isSelected
+            ? Theme.of(context)
+                .extension<BeamThemeExtension>()!
+                .selectedProgressColor
+            : Theme.of(context)
+                .extension<BeamThemeExtension>()!
+                .unselectedProgressColor,
+      ),
     );
   }
 }

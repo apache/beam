@@ -17,33 +17,82 @@
  */
 
 import 'package:flutter/widgets.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../../cache/content_tree.dart';
+import '../../../models/group.dart';
 import '../../../models/node.dart';
+import '../../../models/unit.dart';
 
 class ContentTreeController extends ChangeNotifier {
   String _sdkId;
   List<String> _treeIds;
   NodeModel? _currentNode;
+  final _contentTreeCache = GetIt.instance.get<ContentTreeCache>();
+  final expandedIds = <String>{};
 
   ContentTreeController({
     required String initialSdkId,
     List<String> initialTreeIds = const [],
   })  : _sdkId = initialSdkId,
-        _treeIds = initialTreeIds;
+        _treeIds = initialTreeIds {
+    expandedIds.addAll(initialTreeIds);
+    _contentTreeCache.addListener(_onContentTreeCacheChange);
+    _onContentTreeCacheChange();
+  }
 
   Sdk get sdk => Sdk.parseOrCreate(_sdkId);
   String get sdkId => _sdkId;
   List<String> get treeIds => _treeIds;
   NodeModel? get currentNode => _currentNode;
 
-  void onNodeTap(NodeModel node) {
+  void openNode(NodeModel node) {
+    if (!expandedIds.contains(node.id)) {
+      expandedIds.add(node.id);
+    }
+
     if (node == _currentNode) {
       return;
     }
 
-    _currentNode = node;
-    // TODO(alexeyinkin): Set _treeIds from node.
+    if (node is GroupModel) {
+      openNode(node.nodes.first);
+    } else if (node is UnitModel) {
+      _currentNode = node;
+    }
+
+    if (_currentNode != null) {
+      _treeIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
+    }
     notifyListeners();
+  }
+
+  List<String> _getNodeAncestors(NodeModel node, List<String> ancestors) {
+    if (node.parent != null) {
+      ancestors.add(node.parent!.id);
+      return _getNodeAncestors(node.parent!, ancestors);
+    } else {
+      return ancestors.reversed.toList();
+    }
+  }
+
+  void _onContentTreeCacheChange() {
+    final contentTree = _contentTreeCache.getContentTree(_sdkId);
+    if (contentTree == null) {
+      return;
+    }
+
+    openNode(
+      contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.getFirstUnit(),
+    );
+
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _contentTreeCache.removeListener(_onContentTreeCacheChange);
+    super.dispose();
   }
 }
