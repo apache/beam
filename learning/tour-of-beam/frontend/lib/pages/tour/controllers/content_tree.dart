@@ -19,6 +19,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../../models/group.dart';
 import '../../../models/node.dart';
 
 class ContentTreeController extends ChangeNotifier {
@@ -42,8 +43,14 @@ class ContentTreeController extends ChangeNotifier {
       return;
     }
 
-    _currentNode = node;
-    _treeIds = _getNodeAncestors(node, [node.id]);
+    if (node is GroupModel) {
+      _currentNode = node.nodes.first;
+    } else {
+      _currentNode = node;
+    }
+    if (_currentNode != null) {
+      _treeIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
+    }
     notifyListeners();
   }
 

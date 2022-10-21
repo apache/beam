@@ -25,7 +25,7 @@ import '../controllers/content_tree.dart';
 import 'group_nodes.dart';
 import 'group_title.dart';
 
-class GroupWidget extends StatelessWidget {
+class GroupWidget extends StatefulWidget {
   final GroupModel group;
   final ContentTreeController contentTreeController;
 
@@ -35,21 +35,35 @@ class GroupWidget extends StatelessWidget {
   });
 
   @override
+  State<GroupWidget> createState() => _GroupWidgetState();
+}
+
+class _GroupWidgetState extends State<GroupWidget> {
+  bool _isExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
     return ExpansionTileWrapper(
       ExpansionTile(
+        key: Key('${widget.group.id}$_isExpanded'),
+        initiallyExpanded: _isExpanded,
         tilePadding: EdgeInsets.zero,
         title: GroupTitleWidget(
-          group: group,
-          onTap: () => contentTreeController.onNodeTap(group),
+          group: widget.group,
+          onTap: () {
+            widget.contentTreeController.onNodeTap(widget.group);
+            setState(() {
+              _isExpanded = !_isExpanded;
+            });
+          },
         ),
         childrenPadding: const EdgeInsets.only(
           left: BeamSizes.size24,
         ),
         children: [
           GroupNodesWidget(
-            nodes: group.nodes,
-            contentTreeController: contentTreeController,
+            nodes: widget.group.nodes,
+            contentTreeController: widget.contentTreeController,
           ),
         ],
       ),
