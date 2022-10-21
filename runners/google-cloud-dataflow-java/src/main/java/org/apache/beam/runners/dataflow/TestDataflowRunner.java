@@ -113,6 +113,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     ErrorMonitorMessagesHandler messageHandler =
         new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler());
 
+    LOG.warn("isStreaming : " + options.isStreaming());
+    LOG.warn("isBlockOnRun : " + options.isBlockOnRun());
     if (options.isStreaming()) {
       if (options.isBlockOnRun()) {
         jobSuccess = waitForStreamingJobTermination(job, messageHandler);
@@ -173,6 +175,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // Getting the final state may have timed out; it may not indicate a failure.
     // This cancellation may be the second
+
     if (finalState == null || !finalState.isTerminal()) {
       LOG.info(
           "Dataflow job {} took longer than {} seconds to complete, cancelling.",
@@ -185,6 +188,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       return false;
     } else {
+      LOG.warn("TestDataflowRunner finalState : " + finalState);
+      LOG.warn("TestDataflowRunner messageHandler " + messageHandler.toString());
       return finalState == State.DONE && !messageHandler.hasSeenError();
     }
   }

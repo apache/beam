@@ -324,6 +324,7 @@ public class DataflowPipelineJob implements PipelineResult {
             getStateWithRetries(
                 BackOffAdapter.toGcpBackOff(STATUS_BACKOFF_FACTORY.withMaxRetries(0).backoff()),
                 sleeper);
+        LOG.warn("DataflowPipelineJob state : " + state);
       } catch (IOException e) {
         exception = e;
         LOG.warn("Failed to get job state: {}", e.getMessage());
