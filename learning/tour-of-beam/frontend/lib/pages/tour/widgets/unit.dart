@@ -24,7 +24,7 @@ import '../../../models/unit.dart';
 import '../controllers/content_tree.dart';
 import 'tour_progress_indicator.dart';
 
-class UnitWidget extends StatelessWidget {
+class UnitWidget extends StatefulWidget {
   final UnitModel unit;
   final ContentTreeController contentTreeController;
 
@@ -34,15 +34,38 @@ class UnitWidget extends StatelessWidget {
   });
 
   @override
+  State<UnitWidget> createState() => _UnitWidgetState();
+}
+
+class _UnitWidgetState extends State<UnitWidget> {
+  @override
+  void initState() {
+    super.initState();
+    widget.contentTreeController.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ClickableWidget(
-      onTap: () => contentTreeController.onNodeTap(unit),
+      onTap: () => widget.contentTreeController.onNodeTap(widget.unit),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
         child: Row(
           children: [
             TourProgressIndicator(assetPath: Assets.svg.unitProgress0),
-            Expanded(child: Text(unit.title)),
+            Expanded(
+              child: Text(
+                widget.unit.title,
+                style: TextStyle(
+                  color: widget.contentTreeController.currentNode?.id ==
+                          widget.unit.id
+                      ? Theme.of(context).primaryColor
+                      : null,
+                ),
+              ),
+            ),
           ],
         ),
       ),
