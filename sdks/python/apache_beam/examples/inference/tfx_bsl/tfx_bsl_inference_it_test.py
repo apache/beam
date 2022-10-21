@@ -21,7 +21,6 @@ import uuid
 
 import pytest
 
-from apache_beam.examples.inference.tfx_bsl.build_tensorflow_model import save_tf_model_with_signature
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -30,6 +29,7 @@ try:
   import tfx_bsl
   import tensorflow as tf
   from apache_beam.examples.inference.tfx_bsl import tensorflow_image_classification
+  from apache_beam.examples.inference.tfx_bsl.build_tensorflow_model import save_tf_model_with_signature
 except ImportError as e:
   tfx_bsl = None
 # pylint: disable=line-too-long
