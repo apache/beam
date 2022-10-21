@@ -1,6 +1,6 @@
 ---
 title: "Wizeline"
-icon: images/logos/powered-by/Wizeline.png
+icon: /images/logos/powered-by/Wizeline.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
