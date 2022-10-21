@@ -368,12 +368,6 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([6, 12, 12, 18, 18, 18]))
 
   def test_pardo_large_input(self):
-    try:
-      utils.check_compiled('apache_beam.coders.coder_impl')
-    except RuntimeError:
-      self.skipTest(
-          'https://github.com/apache/beam/issues/21643: FnRunnerTest with '
-          'non-trivial inputs flakes in non-cython environments')
     with self.create_pipeline() as p:
       res = (
           p
