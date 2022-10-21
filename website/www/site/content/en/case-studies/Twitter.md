@@ -1,6 +1,6 @@
 ---
 title: "Twitter"
-icon: images/logos/powered-by/Twitter.png
+icon: /images/logos/powered-by/Twitter.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
