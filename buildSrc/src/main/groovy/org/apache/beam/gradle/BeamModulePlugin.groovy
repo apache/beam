@@ -913,6 +913,11 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
+        // Use --release 8 when targeting Java 8 and running on JDK > 8
+        if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
+        && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
+          options.compilerArgs.addAll(['--release', '8'])
+        }
         // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
         // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
         options.compilerArgs -= [
