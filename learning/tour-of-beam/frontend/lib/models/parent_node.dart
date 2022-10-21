@@ -23,6 +23,7 @@ abstract class ParentNodeModel extends NodeModel {
 
   const ParentNodeModel({
     required super.id,
+    required super.parent,
     required super.title,
     required this.nodes,
   });

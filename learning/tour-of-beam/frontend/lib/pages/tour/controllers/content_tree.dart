@@ -43,7 +43,16 @@ class ContentTreeController extends ChangeNotifier {
     }
 
     _currentNode = node;
-    // TODO(alexeyinkin): Set _treeIds from node.
+    _treeIds = _getNodeAncestors(node, [node.id]);
     notifyListeners();
+  }
+
+  List<String> _getNodeAncestors(NodeModel node, List<String> ancestors) {
+    if (node.parent != null) {
+      ancestors.add(node.parent!.id);
+      return _getNodeAncestors(node.parent!, ancestors);
+    } else {
+      return ancestors.reversed.toList();
+    }
   }
 }
