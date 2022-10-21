@@ -54,6 +54,7 @@
 ## Highlights
 
 * Python 3.10 support in Apache Beam ([#21458](https://github.com/apache/beam/issues/21458)).
+* An initial implementation of a runner that allows us to run Beam pipelines on Dask. Try it out and give us feedback! (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
 
 
 ## I/Os
@@ -71,7 +72,7 @@
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Dataframe wrapper added in Go SDK via Cross-Language (Need to manually start python expansion service). (Go) ([#23384](https://github.com/apache/beam/issues/23384)).
 * Name all Java threads to aid in debugging ([#23049](https://github.com/apache/beam/issues/23049)).
-* Dask support for the Python SDK (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
+* An initial implementation of a runner that allows us to run Beam pipelines on Dask. (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
 
 ## Breaking Changes
 
