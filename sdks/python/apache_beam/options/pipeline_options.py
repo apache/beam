@@ -1497,9 +1497,10 @@ class SparkRunnerOptions(PipelineOptions):
         'For example, http://hostname:6066')
     parser.add_argument(
         '--spark_version',
-        default='2',
-        choices=['2', '3'],
-        help='Spark major version to use.')
+        default='3',
+        choices=['3', '2'],
+        help='Spark major version to use. '
+        'Note, Spark 2 support is deprecated')
 
 
 class TestOptions(PipelineOptions):

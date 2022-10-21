@@ -390,7 +390,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.43.0'
+    project.version = '2.44.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -467,7 +467,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
     def gax_version = "2.19.2"
     def google_clients_version = "2.0.0"
-    def google_cloud_bigdataoss_version = "2.2.8"
+    def google_cloud_bigdataoss_version = "2.2.6"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
     def google_cloud_spanner_version = "6.31.2"
     def google_code_gson_version = "2.9.1"
@@ -546,6 +546,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_http_client_spi               : "software.amazon.awssdk:http-client-spi:$aws_java_sdk2_version",
         aws_java_sdk2_regions                       : "software.amazon.awssdk:regions:$aws_java_sdk2_version",
         aws_java_sdk2_utils                         : "software.amazon.awssdk:utils:$aws_java_sdk2_version",
+        aws_java_sdk2_profiles                      : "software.amazon.awssdk:profiles:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         byte_buddy                                  : "net.bytebuddy:byte-buddy:1.12.14",
@@ -603,7 +604,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
-        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/25.2.0/artifact_details.html
+        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/26.1.3/artifact_details.html
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.1.3",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
@@ -1919,9 +1920,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testRuntimeOnly it.project(path: ":runners:spark:2", configuration: "testRuntimeMigration")
-          testRuntimeOnly project.library.java.spark_core
-          testRuntimeOnly project.library.java.spark_streaming
+          testRuntimeOnly it.project(path: ":runners:spark:3", configuration: "testRuntimeMigration")
 
           // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
           project.configurations.testRuntimeClasspath {
@@ -2679,7 +2678,7 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn = [installGcpTest]
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
-            ':runners:spark:2:job-server:shadowJar',
+            ':runners:spark:3:job-server:shadowJar',
             ':sdks:python:container:py37:docker',
             ':sdks:python:container:py38:docker',
             ':sdks:python:container:py39:docker',
@@ -2695,7 +2694,7 @@ class BeamModulePlugin implements Plugin<Project> {
               "--parallelism=2",
               "--sdk_worker_parallelism=1",
               "--flink_job_server_jar=${project.project(flinkJobServerProject).shadowJar.archivePath}",
-              "--spark_job_server_jar=${project.project(':runners:spark:2:job-server').shadowJar.archivePath}",
+              "--spark_job_server_jar=${project.project(':runners:spark:3:job-server').shadowJar.archivePath}",
             ]
             if (isStreaming)
               options += [

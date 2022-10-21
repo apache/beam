@@ -220,15 +220,11 @@
 
     <profile>
       <id>spark-runner</id>
-      <!-- Makes the SparkRunner available when running a pipeline. Additionally,
-           overrides some Spark dependencies to Beam-compatible versions. -->
-      <properties>
-        <netty.version>4.1.17.Final</netty.version>
-      </properties>
+      <!-- Makes the SparkRunner available when running a pipeline. -->
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-spark</artifactId>
+          <artifactId>beam-runners-spark-3</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
           <exclusions>
@@ -246,7 +242,7 @@
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
-          <artifactId>spark-streaming_2.11</artifactId>
+          <artifactId>spark-streaming_2.12</artifactId>
           <version>${spark.version}</version>
           <scope>runtime</scope>
           <exclusions>
@@ -258,25 +254,9 @@
         </dependency>
         <dependency>
           <groupId>com.fasterxml.jackson.module</groupId>
-          <artifactId>jackson-module-scala_2.11</artifactId>
+          <artifactId>jackson-module-scala_2.12</artifactId>
           <version>${jackson.version}</version>
           <scope>runtime</scope>
-        </dependency>
-        <!-- [BEAM-3519] GCP IO exposes netty on its API surface, causing conflicts with runners -->
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
-          <version>${beam.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>io.grpc</groupId>
-              <artifactId>grpc-netty</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-handler</artifactId>
-            </exclusion>
-          </exclusions>
         </dependency>
       </dependencies>
     </profile>

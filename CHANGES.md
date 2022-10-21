@@ -50,6 +50,15 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
+# [2.44.0] - Unreleased
+
+## New Features / Improvements
+
+* Local packages can now be used as dependencies in the requirements.txt file, rather
+  than requiring them to be passed separately via the `--extra_package` option.
+  ([#23684](https://github.com/apache/beam/pull/23684))
+
+
 # [2.43.0] - Unreleased
 
 ## Highlights
@@ -76,6 +85,8 @@
 ## Breaking Changes
 
 * Python SDK CoGroupByKey outputs an iterable allowing for arbitrarily large results. [#21556](https://github.com/apache/beam/issues/21556) Beam users may see an error on transforms downstream from CoGroupByKey. Users must change methods expecting a List to expect an Iterable going forward. See [document](https://docs.google.com/document/d/1RIzm8-g-0CyVsPb6yasjwokJQFoKHG4NjRUcKHKINu0) for information and fixes.
+* The PortableRunner for Spark assumes Spark 3 as default Spark major version unless configured otherwise using `--spark_version`.
+  Spark 2 support is deprecated and will be removed soon ([#23728](https://github.com/apache/beam/issues/23728)).
 
 ## Deprecations
 
