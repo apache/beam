@@ -1,6 +1,6 @@
 ---
 title: "ML6"
-icon: images/logos/powered-by/ML6.jpg
+icon: /images/logos/powered-by/ML6.jpg
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
