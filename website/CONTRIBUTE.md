@@ -30,14 +30,15 @@ This guide consists of:
   - [Define TableOfContents](#define-tableofcontents)
   - [Language switching](#language-switching)
   - [Code highlighting](#code-highlighting)
-  - [Adding class to markdown text](#paragraph)
+  - [Adding class to markdown text](#adding-class-to-markdown-text)
   - [Table](#table)
   - [Github sample](#github-sample)
   - [Others](#others)
+  - [How to add relative links to js or css](#how-to-add-relative-links-to-js-or-css)
 - [What to be replaced in Jekyll](#what-to-be-replaced-in-jekyll)
 - [Translation guide](#translation-guide)
-- [How to add new case study](#how-to-add-new-case-study)
-- [How to add new logo](#how-to-add-new-logo)
+- [How to add new case study](#how-to-add-a-new-apache-beam-case-study)
+- [How to add new logo](#how-to-add-a-new-logo-to-case-studies-page)
 
 ## Project structure
 
@@ -47,7 +48,7 @@ www/
 ├── site
 │   ├── archetypes                        # frontmatter template
 │   ├── assets
-│   │         ├── icons                         # svg icons         
+│   │         ├── icons                         # svg icons
 │   │         ├── js                            # scripts
 │   │         ├── scss                          # styles
 │   ├── content                           # pages
@@ -166,7 +167,7 @@ $ hugo new about/_index.md
 $ hugo new -c content/pl about/_index.md
 ```
 
-## How to write in Hugo
+## How to write in Hugo way
 
 This section will guide you how to use Hugo shortcodes in Apache Beam website. Please refer to the [Hugo documentation](https://gohugo.io/content-management/shortcodes/) for more details of usage.
 
@@ -284,7 +285,7 @@ A table markdown here.
 {{< /table >}}
 ```
 
-### Code sample
+### Github sample
 
 To retrieve a piece of code from Beam project.
 
@@ -315,6 +316,15 @@ To get branch of the repository in markdown:
 ```
 
 To render capability matrix, please take a look at [this example](/www/site/content/en/documentation/runners/capability-matrix/#beam-capability-matrix).
+
+### How to add relative links to js or css
+Please take a note that relative links should be added with relative paths to js or css files with using hugo syntax, so that they are able to form correct absolute links on localhost, staging and production. Examples:
+```
+/themes/docsy/assets/js/search.js        # var searchPage = "{{ "search/" | absURL }}?q=" + query;
+/assets/js/page-nav.js                   # img.src = "{{ "images/arrow-expandable.svg" | absURL }}";
+/assets/js/copy-to-clipboard.js          # <img src="{{ "images/copy-icon.svg" | absURL }}"/>
+/assets/scss/_case_study.scss            # background-image: url('{{ "images/open-quote.svg" | absURL }}');
+```
 
 ## What to be replaced in Jekyll
 
@@ -428,5 +438,5 @@ Similar to markdown content translation, there are two separated section menus `
 ## How to add a new Apache Beam case study
 Please follow this guide to [add a new case study](https://github.com/apache/beam/tree/master/website/ADD_CASE_STUDY.md)
 
-## How to add a new logo to [case studies](https://beam.apache.org/case-studies/) page
-Please follow this guide to add[a new logo](https://github.com/apache/beam/tree/master/website/ADD_LOGO.md) to the [case studies](https://beam.apache.org/case-studies/) page.
+## How to add a new logo to case studies page
+Please follow this guide to add [a new logo](https://github.com/apache/beam/tree/master/website/ADD_LOGO.md) to the [case studies](https://beam.apache.org/case-studies/) page.

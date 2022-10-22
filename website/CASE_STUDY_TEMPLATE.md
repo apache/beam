@@ -1,11 +1,11 @@
 ---
-title: "Case study title" 
+title: "Case study title"
 name: "Company/project name"
 icon: /images/logos/powered-by/company_name.png
 hasNav: true
 category: study
-cardTitle: "Case study title (if need different for for Case Studies page listing)"
-cardDescription: "Case study descriptionf for Case Studies page listing"
+cardTitle: "Case study title (different for the Case Studies page listing)"
+cardDescription: "Case study description for Case Studies page listing"
 authorName: "Name LastName"
 authorPosition: "Software Engineer @ companyName"
 authorImg: /images/case-study/company/authorImg.png

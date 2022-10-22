@@ -40,7 +40,7 @@ Following properties determine how your case-study will looks on [Apache Beam ca
 | `authorImg`       | Relative path for case study author photo, e.g. "/images/case-study/company/authorImg.png"              |
 | `publishDate`     | Case study publish date for sorting at [case studies](https://beam.apache.org/case-studies/), e.g. `2022-10-14T01:56:00+00:00` |
 
-Other sections of the [case study md template](https://github.com/apache/beam/blob/master/website/CASE_STUDY_TEMPLATE.md) are organized to present the case study content. 
+Other sections of the [case study md template](https://github.com/apache/beam/blob/master/website/CASE_STUDY_TEMPLATE.md) are organized to present the case study content.
 
 ## Case study images recommendations
 
@@ -56,7 +56,7 @@ To add a new case study card to the Apache Beam website homepage, add the new ca
 
 | Field             | Description                                                                                             |
 |-------------------|---------------------------------------------------------------------------------------------------------|
-| `text`            | Homepage case study text, recommeded up to 215 charachters or so                                        |
+| `text`            | Homepage case study text, recommended up to 215 characters or so                                        |
 | `icon`            | Relative path to quotation marks logo, by default `icons/quote-icon.svg`                                |
 | `logoUrl`         | Relative path for company/project logo, e.g. `images/logos/powered-by/company_name.png`                 |
 | `linkUrl`         | Relative path to the case study web page, e.g., `case-studies/YOUR_CASE_STUDY_NAME/index.html`          |
@@ -64,7 +64,7 @@ To add a new case study card to the Apache Beam website homepage, add the new ca
 
 Example:
 ```
-  text: Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s. // recomendation to use no more than 215 symbols in the text
+  text: Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s. // recommendation to use no more than 215 symbols in the text
   icon: icons/quote-icon.svg
   logoUrl: images/logos/powered-by/company_name.png
   linkUrl: case-studies/YOUR_CASE_STUDY_NAME/index.html
