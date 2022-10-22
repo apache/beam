@@ -138,7 +138,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1320,7 +1319,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           StreamWriter.newBuilder(streamName)
               .setWriterSchema(protoSchema)
               .setChannelProvider(transportChannelProvider)
-           //   .setEnableConnectionPool(useConnectionPool)
+              .setEnableConnectionPool(useConnectionPool)
               .setTraceId(
                   "Dataflow:"
                       + (bqIOMetadata.getBeamJobId() != null
@@ -1409,10 +1408,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void close() throws Exception {
       this.newWriteClient.shutdownNow();
-      Instant now = Instant.now();
-      System.err.println("AWAITING TERMINATION");
       this.newWriteClient.awaitTermination(60, TimeUnit.SECONDS);
-      System.err.println("TERMINATION TOOK " + new Duration(now, Instant.now()));
       this.newWriteClient.close();
     }
   }
