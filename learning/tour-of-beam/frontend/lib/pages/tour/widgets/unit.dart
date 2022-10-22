@@ -56,23 +56,23 @@ class _UnitWidgetState extends State<UnitWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isSelected =
+        widget.contentTreeController.currentNode?.id == widget.unit.id;
     return ClickableWidget(
       onTap: () => widget.contentTreeController.onNodeTap(widget.unit),
-      child: Padding(
+      child: Container(
+        color: isSelected ? Theme.of(context).selectedRowColor : null,
         padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
         child: Row(
           children: [
-            TourProgressIndicator(assetPath: Assets.svg.unitProgress0),
+            TourProgressIndicator(
+              // TODO(nausharipov): fix indicator colors in mockups
+              assetPath: isSelected
+                  ? Assets.svg.unitProgressSelected0
+                  : Assets.svg.unitProgress0,
+            ),
             Expanded(
-              child: Text(
-                widget.unit.title,
-                style: TextStyle(
-                  color: widget.contentTreeController.currentNode?.id ==
-                          widget.unit.id
-                      ? Theme.of(context).primaryColor
-                      : null,
-                ),
-              ),
+              child: Text(widget.unit.title),
             ),
           ],
         ),
