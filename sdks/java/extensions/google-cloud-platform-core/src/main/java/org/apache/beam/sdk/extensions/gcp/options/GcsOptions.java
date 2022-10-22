@@ -29,10 +29,10 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.UnboundedScheduledExecutorService;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options used to configure Google Cloud Storage. */
@@ -48,22 +48,20 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   /**
    * The ExecutorService instance to use to create threads, can be overridden to specify an
-   * ExecutorService that is compatible with the user's environment. If unset, the default is to use
-   * {@link ExecutorOptions#getScheduledExecutorService()}.
-   *
-   * @deprecated use {@link ExecutorOptions#getScheduledExecutorService()} instead
+   * ExecutorService that is compatible with the user's environment. If unset, the default is to
+   * create an ExecutorService with an unbounded number of threads; this is compatible with Google
+   * AppEngine.
    */
   @JsonIgnore
+  @Description(
+      "The ExecutorService instance to use to create multiple threads. Can be overridden "
+          + "to specify an ExecutorService that is compatible with the user's environment. If unset, "
+          + "the default is to create an ExecutorService with an unbounded number of threads; this "
+          + "is compatible with Google AppEngine.")
   @Default.InstanceFactory(ExecutorServiceFactory.class)
   @Hidden
-  @Deprecated
   ExecutorService getExecutorService();
 
-  /**
-   * @deprecated use {@link ExecutorOptions#setScheduledExecutorService} instead. If set, it may
-   *     result in multiple ExecutorServices, and therefore thread pools, in the runtime.
-   */
-  @Deprecated
   void setExecutorService(ExecutorService value);
 
   /** GCS endpoint to use. If unspecified, uses the default endpoint. */
@@ -134,7 +132,14 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   class ExecutorServiceFactory implements DefaultValueFactory<ExecutorService> {
     @Override
     public ExecutorService create(PipelineOptions options) {
-      return options.as(ExecutorOptions.class).getScheduledExecutorService();
+      /* The SDK requires an unbounded thread pool because a step may create X writers
+       * each requiring their own thread to perform the writes otherwise a writer may
+       * block causing deadlock for the step because the writers buffer is full.
+       * Also, the MapTaskExecutor launches the steps in reverse order and completes
+       * them in forward order thus requiring enough threads so that each step's writers
+       * can be active.
+       */
+      return new UnboundedScheduledExecutorService();
     }
   }
 
