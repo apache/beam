@@ -33,7 +33,7 @@ Following properties determine how your case-study will looks on [Apache Beam ca
 | `name`            | Company or project name                                                                                 |
 | `icon`            | Relative path to the company/project logo e.g. "/images/logos/powered-by/company_name.png"              |
 | `category`        | `study` for case studies                                                                                |
-| `cardTitle`       | Case study card title for [Apache Beam Case Studies](https://beam.apache.org/case-studies/) page        |
+| `cardTitle`       | Case study card title for Apache Beam [case studies](https://beam.apache.org/case-studies/) page        |
 | `cardDescription` | Description for [case studies](https://beam.apache.org/case-studies/) page, usually 30-40 words         |
 | `authorName`      | Case study author                                                                                       |
 | `authorPosition`  | Case study author role                                                                                  |
@@ -61,7 +61,6 @@ To add a new case study card to the Apache Beam website homepage, add the new ca
 | `logoUrl`         | Relative path for company/project logo, e.g. `images/logos/powered-by/company_name.png`                 |
 | `linkUrl`         | Relative path to the case study web page, e.g., `case-studies/YOUR_CASE_STUDY_NAME/index.html`          |
 | `linkText`        | Link text, by default using `Learn more`                                                                |
-
 
 Example:
 ```

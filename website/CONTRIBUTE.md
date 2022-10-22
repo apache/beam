@@ -425,8 +425,8 @@ Similar to markdown content translation, there are two separated section menus `
 
 **Note**: if you get stuck at adding translation, please refer to [our example](https://github.com/PolideaInternal/beam/tree/example/i18n/).
 
-## How to add new case study
-See [case study md template](https://github.com/apache/beam/tree/master/website/ADD_CASE_STUDY.md) for guidelines
+## How to add a new Apache Beam case study
+Please follow this guide to [add a new case study](https://github.com/apache/beam/tree/master/website/ADD_CASE_STUDY.md)
 
-## How to add new logo
-See [logo md template](https://github.com/apache/beam/tree/master/website/ADD_LOGO.md) for guidelines
+## How to add a new logo to [case studies](https://beam.apache.org/case-studies/) page
+Please follow this guide to add[a new logo](https://github.com/apache/beam/tree/master/website/ADD_LOGO.md) to the [case studies](https://beam.apache.org/case-studies/) page.

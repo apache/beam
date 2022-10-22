@@ -18,7 +18,7 @@
 -->
 
 # How to add your logo
-
+Please follow these steps to add your company or project logo to Apache Beam [case studies](https://beam.apache.org/case-studies/) page:
 1. Fork [Apache Beam](https://github.com/apache/beam) repository
 2. Add file with company or project name to
    the [case-studies](https://github.com/apache/beam/tree/master/website/www/site/content/en/case-studies) folder
