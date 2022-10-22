@@ -32,12 +32,12 @@ import tensorflow as tf
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import KeyedModelHandler
-from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from PIL import Image
 from tfx_bsl.public.beam.run_inference import CreateModelHandler
+from tfx_bsl.public.beam.run_inference import prediction_log_pb2
 from tfx_bsl.public.proto import model_spec_pb2
 
 COCO_OBJ_DET_CLASSES = [
@@ -155,37 +155,69 @@ def preprocess_image(image: Image.Image) -> np.ndarray:
   ssd_mobilenet_v2_320x320_input_dims = (300, 300)
   image = image.resize(
       ssd_mobilenet_v2_320x320_input_dims, resample=Image.BILINEAR)
-  image = np.expand_dims(np.asarray(image, dtype=np.float32), axis=0)
+  image = np.asarray(image, dtype=np.uint8)
   return image
 
 
-class PostProcessor(beam.DoFn):
-  """Processes the PredictionResult that consists of
-  number of detections per image, box coordinates, scores and classes.
-
-  We loop over all detections to organize attributes on a per
-  detection basis. Box coordinates are normalized, hence we have to scale them
-  according to original image dimensions. Score is a floating point number
-  that provides probability percentage of a particular object. Class is
-  an integer that we can transform into actual string class using
-  COCO_OBJ_DET_CLASSES as reference.
+def convert_image_to_example_proto(tensor):
   """
-  def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
-    key, prediction_result = element
+  This method performs the following:
+  1. Accepts the tensor as input
+  2. Serializes the tensor into bytes and pass it through
+        tf.train.Feature
+  3. Pass the serialized tensor feature using tf.train.Example
+      Proto to the RunInference transform.
+  Args:
+    tensor: A TF tensor.
+  Returns:
+    example_proto: A tf.train.Example containing serialized tensor.
+  """
+  serialized_non_scalar = tf.io.serialize_tensor(tensor)
+  feature_of_bytes = tf.train.Feature(
+      bytes_list=tf.train.BytesList(value=[serialized_non_scalar.numpy()]))
+  features_for_example = {'image': feature_of_bytes}
+  example_proto = tf.train.Example(
+      features=tf.train.Features(feature=features_for_example))
+  return example_proto
+
+
+class ProcessInferenceToString(beam.DoFn):
+  def process(
+      self, element: Tuple[str,
+                           prediction_log_pb2.PredictionLog]) -> Iterable[str]:
+    """
+    Args:
+      element: Tuple of str, and PredictionLog. Inference can be parsed
+        from prediction_log
+    returns:
+      str of filename and inference.
+    """
+    key, predict_log = element[0], element[1].predict_log
     filename, im_width, im_height = key
-    num_detections = prediction_result.inference[0]
-    boxes = prediction_result.inference[1]
-    scores = prediction_result.inference[2]
-    classes = prediction_result.inference[3]
+
+    output_value = predict_log.response.outputs
+    num_detections = (output_value['num_detections'].float_val[0])
+    boxes = (
+        tf.io.decode_raw(
+            output_value['detection_boxes'].tensor_content,
+            out_type=tf.float32).numpy())
+    scores = (
+        tf.io.decode_raw(
+            output_value['detection_scores'].tensor_content,
+            out_type=tf.float32).numpy())
+    # classes = (
+    #     tf.io.decode_raw(
+    #         output_value['detection_classes'].tensor_content,
+    #         out_type=tf.int8).numpy())
     detections = []
-    for i in range(int(num_detections[0])):
+    for i in range(int(num_detections)):
       detections.append({
-          'ymin': str(boxes[i][0] * im_height),
-          'xmin': str(boxes[i][1] * im_width),
-          'ymax': str(boxes[i][2] * im_height),
-          'xmax': str(boxes[i][3] * im_width),
+          'ymin': str(boxes[i] * im_height),
+          'xmin': str(boxes[i + 1] * im_width),
+          'ymax': str(boxes[i + 2] * im_height),
+          'xmax': str(boxes[i + 3] * im_width),
           'score': str(scores[i]),
-          'class': COCO_OBJ_DET_CLASSES[int(classes[i])]
+          # 'class': COCO_OBJ_DET_CLASSES[int(classes[i])]
       })
     yield filename + ',' + str(detections)
 
@@ -242,12 +274,13 @@ def run(argv=None, save_main_session=True):
                 image_file_name=image_name, path_to_dir=known_args.images_dir))
         | 'AttachImageSizeToKey' >> beam.Map(attach_im_size_to_key)
         | 'PreprocessImages' >> beam.MapTuple(
-            lambda file_name, data: (file_name, preprocess_image(data)))
-        | 'ConvertToTensor' >> beam.Map(lambda img: tf.convert_to_tensor(img)))
+            lambda file_name, data: (file_name, preprocess_image(data))))
     predictions = (
         filename_value_pair
+        | 'ConvertToExampleProto' >>
+        beam.Map(lambda x: (x[0], convert_image_to_example_proto(x[1])))
         | 'TensorFlowRunInference' >> RunInference(tf_keyed_model_handler)
-        | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
+        | 'PostProcess' >> beam.ParDo(ProcessInferenceToString()))
 
     _ = (
         predictions | "WriteOutputToGCS" >> beam.io.WriteToText(
