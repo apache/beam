@@ -12,44 +12,62 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# How to add new case study card
+# How to add a new case study
 
 1. Fork [Apache Beam](https://github.com/apache/beam) repository
-2. Copy a [case study draft template](https://docs.google.com/document/d/1qRpXW-WM4jtlcy5VaqDaXgYap9KI1ii27Uwp641UOBM/edit#heading=h.l6lphj20eacs) that provides some helpful tips, questions and ideas to organize your case study.
-3. Copy file [case study md template](https://github.com/apache/beam/tree/master/website/CASE_STUDY_TEMPLATE.md)
-4. Rename file with case study or project name to the case-studies folder e.g., /beam/website/www/site/content/en/case-studies/YOUR_CASE_STUDY_NAME.md
-5. Add Images to the image folder beam/website/www/site/static/images according to [images instructions](#adding-images-recommendations)
-6. Change the template according to your description. See [case study instructions](#filling-out-new-case-study-recommendations)
-7. Add case study quote card to the main page. See [main page case study instructions](#filling-out-mainPage-case-study-card-recommendations)
-8. Create pull request to the apache beam repository with your changes
+2. This [case study draft template](https://docs.google.com/document/d/1qRpXW-WM4jtlcy5VaqDaXgYap9KI1ii27Uwp641UOBM/edit#heading=h.l6lphj20eacs) provides some helpful tips, questions and ideas to prepare and organize your case study content
+3. Copy [case study md template](https://github.com/apache/beam/tree/master/website/CASE_STUDY_TEMPLATE.md) to the `case-studies` folder and name your file with company or project name  e.g., `beam/website/www/site/content/en/case-studies/YOUR_CASE_STUDY_NAME.md`
+4. Add your case study content to the md file you just created. See [Case study md file recommendations](#case-study-md-file-recommendations)
+5. Add images to the image folder [beam/website/www/site/static/images/case-study](https://github.com/apache/beam/tree/master/website/www/site/static/images/case-study)/company-name according to [Case study images recommendations](#case-study-images-recommendations)
+6. Add case study quote card for the [Apache Beam](https://beam.apache.org/) website homepage `Case Studies Powered by Apache Beam` section. See [Add case study card to the Apache Beam website homepage](#Add-case-study-card-to-the-Apache-Beam-website-homepage)
+7. Create pull request to the apache beam repository with your changes
 
-## Adding Images Recommendations
 
-- Add project/case study logo to the beam/website/www/site/static/images/logos/powered-by/ folder. Please use your case study/project name e.g. YOUR_CASE_STUDY.png
-- Add author image to the beam/website/www/site/static/images/authorImage.png
-- If you need to add a picture that doesn't suite in any of above-mentioned cases, add it to the folder beam/website/www/site/static/images/
+## Case study md file recommendations
 
-## Filling Out New Case Study Recommendations
-- `title`: "Case study title" <!-- required property, short case study title, usually from 4 to 12 words --!>
-- `name`: "Case study Name" <!-- required property, short case study title, usually from 5-6 to 12 words --!>
-- `icon`: `/images/logos/powered-by/templateIcon.png`
-- `category`: study <!-- optional property, for case-studies use study, for `also used by` just skip it--!>
-- `cardTitle`: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." <!-- optional property, usually from 5-6 same as title, for `also used by` just skip it--!>
-- `cardDescription`: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book." <!-- required property, usually from 30 to 40 words --!>
-- `authorName`: "Name LastName" <!-- optional property, for `also used by` just skip it--!>
-- `authorPosition`: "Software Engineer @ companyName" <!-- optional property, for `also used by` just skip it--!>
-- `authorImg`: `/images/authorImage.png` <!-- optional property, for `also used by` just skip it--!>
-- `publishDate`: 2022-10-14T01:56:00+00:00 <!-- optional property, for `also used by` just skip it--!>
+Following properties determine how your case-study will looks on [Apache Beam case studies](https://beam.apache.org/case-studies/) listing and the case study page itself.
 
-Above-mentioned properties determines how your case-study looks on page with all case-studies `https://beam.apache.org/case-studies/`. You also need to fill in the information for a separate page like `https://beam.apache.org/case-studies/lyft/`. Generally a case-study page consists of multiple text sections, 1-2 blocks with images, couple of quotes. All sections should be titled. Exemplary structure of the card is given in [case study md template](https://github.com/apache/beam/blob/master/website/CASE_STUDY_TEMPLATE.md). 
+| Field             | Description                                                                                             |
+|-------------------|---------------------------------------------------------------------------------------------------------|
+| `title`           | Case study title, usually 4-12 words                                                                    |
+| `name`            | Company or project name                                                                                 |
+| `icon`            | Relative path to the company/project logo e.g. "/images/logos/powered-by/company_name.png"              |
+| `category`        | `study` for case studies                                                                                |
+| `cardTitle`       | Case study card title for [Apache Beam Case Studies](https://beam.apache.org/case-studies/) page        |
+| `cardDescription` | Description for [case studies](https://beam.apache.org/case-studies/) page, usually 30-40 words         |
+| `authorName`      | Case study author                                                                                       |
+| `authorPosition`  | Case study author role                                                                                  |
+| `authorImg`       | Relative path for case study author photo, e.g. "/images/case-study/company/authorImg.png"              |
+| `publishDate`     | Case study publish date for sorting at [case studies](https://beam.apache.org/case-studies/), e.g. `2022-10-14T01:56:00+00:00` |
 
-## Filling Out MainPage Case Study Card Recommendations
-- add new case study quote card to (quotes.yaml)[https://github.com/apache/beam/blob/master/website/www/site/data/en/quotes.yaml]
-- use template below
+Other sections of the [case study md template](https://github.com/apache/beam/blob/master/website/CASE_STUDY_TEMPLATE.md) are organized to present the case study content. 
+
+## Case study images recommendations
+
+1. Add case study company/project logo to the [images/logos/powered-by](https://github.com/apache/beam/tree/master/website/www/site/static/images/logos/powered-by) folder. Please use your company/project name e.g. `ricardo.png`
+2. Create your company/project folder to group images used in your case study e.g., `beam/website/www/site/static/images/case-study/company-name` folder
+3. Add author photo to `beam/website/www/site/static/images/case-study/company-name` folder
+4. Add other images that your case study is using to `beam/website/www/site/static/images/case-study/company-name` folder
+
+
+## Add case study card to the Apache Beam website homepage
+
+To add a new case study card to the Apache Beam website homepage, add the new case study entry to the [quotes.yaml](https://github.com/apache/beam/blob/master/website/www/site/data/en/quotes.yaml) using the following format:
+
+| Field             | Description                                                                                             |
+|-------------------|---------------------------------------------------------------------------------------------------------|
+| `text`            | Homepage case study text, recommeded up to 215 charachters or so                                        |
+| `icon`            | Relative path to quotation marks logo, by default `icons/quote-icon.svg`                                |
+| `logoUrl`         | Relative path for company/project logo, e.g. `images/logos/powered-by/company_name.png`                 |
+| `linkUrl`         | Relative path to the case study web page, e.g., `case-studies/YOUR_CASE_STUDY_NAME/index.html`          |
+| `linkText`        | Link text, by default using `Learn more`                                                                |
+
+
+Example:
 ```
   text: Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s. // recomendation to use no more than 215 symbols in the text
   icon: icons/quote-icon.svg
-  logoUrl: images/logos/powered-by/YOUR_CASE_STUDY_NAME.svg
+  logoUrl: images/logos/powered-by/company_name.png
   linkUrl: case-studies/YOUR_CASE_STUDY_NAME/index.html
   linkText: Learn more
 ```

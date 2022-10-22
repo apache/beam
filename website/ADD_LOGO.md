@@ -28,13 +28,13 @@
    folder. Please use your company/project name e.g. `ricardo.png`
 4. Copy template below to the created file and replace next fields with your data
 
-| Field           | Name                                                                                                    |
-|-----------------|---------------------------------------------------------------------------------------------------------|
-| title           | Company/project name                                                                                    |
-| icon            | Path to the logo e.g. "/images/logos/powered-by/company_name.png"                                       |
-| hasNav          | Specified logo page has space for left & right nav menu                                                 |
-| hasLink         | Links logo image to the company/project website instead of displaying cardDescription, optional         |
-| cardDescription | Company or project description, optional                                                                |
+| Field             | Description                                                                                             |
+|-------------------|---------------------------------------------------------------------------------------------------------|
+| `title`           | Company/project name                                                                                    |
+| `icon`            | Path to the company/project logo e.g. "/images/logos/powered-by/company_name.png"                       |
+| `hasNav`          | Specified logo page has space for left & right nav menu                                                 |
+| `hasLink`         | Links logo image to the company/project website instead of displaying cardDescription, optional         |
+| `cardDescription` | Company or project description, optional                                                                |
 
 ```
 ---

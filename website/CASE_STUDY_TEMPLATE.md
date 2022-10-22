@@ -1,15 +1,14 @@
 ---
 title: "Case study title" 
-icon: /images/logos/powered-by/templateIcon.png
+name: "Company/project name"
+icon: /images/logos/powered-by/company_name.png
 hasNav: true
-cardDescription: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard."
-name: "Case Study Name"
 category: study
-cardTitle: "Lorem Ipsum is simply dummy text of the printing and typesetting industry."
-cardDescription: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book."
+cardTitle: "Case study title (if need different for for Case Studies page listing)"
+cardDescription: "Case study descriptionf for Case Studies page listing"
 authorName: "Name LastName"
 authorPosition: "Software Engineer @ companyName"
-authorImg: /images/authorImage.png
+authorImg: /images/case-study/company/authorImg.png
 publishDate: 2022-02-15T01:56:00+00:00
 ---
 <!--
@@ -25,10 +24,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<!-- div with class case-study-opinion above represents left nav menu -->
+<!-- div with class case-study-opinion is displayed at the top left area of the case study page -->
 <div class="case-study-opinion">
     <div class="case-study-opinion-img">
-        <img src="/images/logos/powered-by/templateIcon.png"/>
+        <img src="/images/logos/powered-by/company_name.png"/>
     </div>
     <blockquote class="case-study-quote-block">
       <p class="case-study-quote-text">
@@ -36,7 +35,7 @@ limitations under the License.
       </p>
       <div class="case-study-quote-author">
         <div class="case-study-quote-author-img">
-            <img src="/images/authorImage.png">
+            <img src="/images/case-study/company/authorImg.png">
         </div>
         <div class="case-study-quote-author-info">
             <div class="case-study-quote-author-name">
@@ -49,9 +48,11 @@ limitations under the License.
       </div>
     </blockquote>
 </div>
+
+<!-- div with class case-study-post is the case study page main content -->
 <div class="case-study-post">
 
-# Insert Your title Here
+# Case Study Title
 
 ## Background
 
@@ -65,7 +66,7 @@ limitations under the License.
   </p>
   <div class="case-study-quote-author">
     <div class="case-study-quote-author-img">
-        <img src="/images/authorImage.png">
+        <img src="/images/case-study/company/authorImg.png">
     </div>
     <div class="case-study-quote-author-info">
         <div class="case-study-quote-author-name">
@@ -78,19 +79,19 @@ limitations under the License.
   </div>
 </blockquote>
 
-## Image Section
+## Content Section
 
 Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source.
 
 <div class="post-scheme">
-    <img src="/images/templateImage">
+    <img src="/images/case-study/company/case-study-image.png">
 </div>
 
-## Text Section
+## Results
 
 Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source.
 
-
+<!-- case_study_feedback adds feedback buttons -->
 {{< case_study_feedback Template >}}
 </div>
 <div class="clear-nav"></div>
