@@ -61,7 +61,10 @@ class _UnitWidgetState extends State<UnitWidget> {
     return ClickableWidget(
       onTap: () => widget.contentTreeController.onNodeTap(widget.unit),
       child: Container(
-        color: isSelected ? Theme.of(context).selectedRowColor : null,
+        decoration: BoxDecoration(
+          color: isSelected ? Theme.of(context).selectedRowColor : null,
+          borderRadius: BorderRadius.circular(BeamSizes.size3),
+        ),
         padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
         child: Row(
           children: [
