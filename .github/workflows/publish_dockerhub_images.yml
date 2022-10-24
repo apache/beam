@@ -12,7 +12,11 @@ on:
         description: Release Candidate Number
         required: true
         default: "1"
-      
+      LATEST_TAG:
+        type: boolean
+        description: Tag current images as latest too?
+        required: true
+        default: false
 
 jobs:
   build:
@@ -51,4 +55,7 @@ jobs:
       - name: Installing ensurepip
         run: sudo apt install -y python3.8-venv
       - name: Publish images
+        run: ./gradlew :pushAllDockerImages  -Pdocker-pull-licenses -Pdocker-tag="${{env.RC_TAG}}" -Pdocker-repository-root="elink21" -Pjava11Home=${JAVA_HOME_11_X64} 
+      - name: Publish as latest 
+        if: ${{github.event.inputs.LATEST_TAG}}
         run: ./gradlew :pushAllDockerImages  -Pdocker-pull-licenses -Pdocker-tag="${{env.RC_TAG}}" -Pdocker-repository-root="elink21" -Pjava11Home=${JAVA_HOME_11_X64} 
