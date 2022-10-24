@@ -19,22 +19,6 @@
 plugins {
     id 'org.apache.beam.module'
 }
-applyJavaNature(
-    exportJavadoc: false,
-    publish: false
-)
-
-description = "Apache Beam :: SDKs :: Java :: Container :: Agent"
-
-jar {
-    manifest {
-        attributes("Agent-Class": "org.apache.beam.agent.OpenModuleAgent",
-                "Can-Redefine-Classes": true,
-                "Can-Retransform-Classes": true,
-                "Premain-Class": "org.apache.beam.agent.OpenModuleAgent")
-    }
-}
-
 
 if (project.hasProperty('java11Home')) {
     javaVersion = "1.11"
@@ -55,11 +39,26 @@ if (project.hasProperty('java11Home')) {
     }
 }
 
+applyJavaNature(
+    exportJavadoc: false,
+    publish: false
+)
+
+description = "Apache Beam :: SDKs :: Java :: Container :: Agent"
+
+jar {
+    manifest {
+        attributes("Agent-Class": "org.apache.beam.agent.OpenModuleAgent",
+                "Can-Redefine-Classes": true,
+                "Can-Retransform-Classes": true,
+                "Premain-Class": "org.apache.beam.agent.OpenModuleAgent")
+    }
+}
+
 // Module classes requires JDK > 8
 project.tasks.each {
     it.onlyIf {
         project.hasProperty('java11Home') || project.hasProperty('java17Home')
-                || (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
-                && JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) < 0)
+                || JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
     }
 }

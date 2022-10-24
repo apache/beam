@@ -134,7 +134,6 @@ plugins.withType(JavaPlugin).configureEach{
 project.tasks.each {
   it.onlyIf {
     project.hasProperty("compileAndRunTestsWithJava17")
-            || (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
-            && JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) < 0)
+            || JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
   }
 }
