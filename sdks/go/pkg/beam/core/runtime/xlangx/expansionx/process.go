@@ -58,7 +58,7 @@ func NewExpansionServiceRunner(jarPath, servicePort string) (*ExpansionServiceRu
 	return &ExpansionServiceRunner{execPath: jarPath, servicePort: servicePort, serviceCommand: serviceCommand}, nil
 }
 
-// NewExpansionServiceRunner builds an ExpansionServiceRunner struct for a given python module and
+// NewPyExpansionServiceRunner builds an ExpansionServiceRunner struct for a given python module and
 // Beam version and returns a pointer to it. Passing an empty string as servicePort will request an
 // open port to be assigned to the service.
 func NewPyExpansionServiceRunner(pythonExec, module, servicePort string) (*ExpansionServiceRunner, error) {

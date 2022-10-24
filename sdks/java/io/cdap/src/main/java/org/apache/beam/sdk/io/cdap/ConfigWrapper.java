@@ -41,6 +41,7 @@ public class ConfigWrapper<T extends PluginConfig> {
     this.configClass = configClass;
   }
 
+  /** Gets {@link ConfigWrapper} by JSON string. */
   public ConfigWrapper<T> fromJsonString(String jsonString) throws IOException {
     TypeReference<HashMap<String, Object>> typeRef =
         new TypeReference<HashMap<String, Object>>() {};
@@ -53,6 +54,7 @@ public class ConfigWrapper<T extends PluginConfig> {
     return this;
   }
 
+  /** Gets {@link ConfigWrapper} by JSON file. */
   public ConfigWrapper<T> fromJsonFile(File jsonFile) throws IOException {
     TypeReference<HashMap<String, Object>> typeRef =
         new TypeReference<HashMap<String, Object>>() {};
@@ -65,11 +67,13 @@ public class ConfigWrapper<T extends PluginConfig> {
     return this;
   }
 
+  /** Sets a {@link Plugin} parameters {@link Map}. */
   public ConfigWrapper<T> withParams(Map<String, Object> paramsMap) {
     this.paramsMap = new HashMap<>(paramsMap);
     return this;
   }
 
+  /** Sets a {@link Plugin} single parameter. */
   public ConfigWrapper<T> setParam(String paramName, Object param) {
     getParamsMap().put(paramName, param);
     return this;

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cdap;
+package org.apache.beam.sdk.io.cdap.batch;
 
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -32,6 +32,8 @@ import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.common.LineageRecorder;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.io.cdap.CdapIO;
+import org.apache.beam.sdk.io.cdap.EmployeeConfig;
 
 /** Imitation of CDAP {@link BatchSource} plugin. Used to test {@link CdapIO#read()}. */
 @Plugin(type = BatchSource.PLUGIN_TYPE)
@@ -41,7 +43,7 @@ public class EmployeeBatchSource extends BatchSource<String, String, StructuredR
 
   private final EmployeeConfig config;
 
-  public static final String NAME = "EmployeeSource";
+  public static final String NAME = "EmployeeBatchSource";
 
   public EmployeeBatchSource(EmployeeConfig config) {
     this.config = config;
