@@ -59,7 +59,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	pipelineLifeCycleCtx, finishCtxFunc := context.WithTimeout(ctx, appEnv.PipelineExecuteTimeout())
 	defer func(lc *fs_tool.LifeCycle) {
 		finishCtxFunc()
-		DeleteFolders(pipelineId, lc)
+		//DeleteFolders(pipelineId, lc)
 	}(lc)
 
 	cancelChannel := make(chan bool, 1)

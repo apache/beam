@@ -49,33 +49,34 @@ public class Task {
         PCollection<Integer> numbers =
                 pipeline.apply(Create.of(12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15));
 
-        // The [numbers] filtered with the positiveNumberFilter()
-        PCollection<Integer> filtered = getPositiveNumbers(numbers);
+        // // The [numbers] filtered with the positiveNumberFilter()
+        // PCollection<Integer> filtered = getPositiveNumbers(numbers);
 
-        // Set key for each number
-        PCollection<KV<String,Integer>> getCollectionWithKey = setKeyForNumbers(filtered);
+        // // Set key for each number
+        // PCollection<KV<String,Integer>> getCollectionWithKey = setKeyForNumbers(filtered);
 
-        // Return count numbers
-        PCollection<KV<String,Long>> countPerKey = getCountPerKey(getCollectionWithKey);
+        // // Return count numbers
+        // PCollection<KV<String,Long>> countPerKey = getCountPerKey(getCollectionWithKey);
 
-        countPerKey.apply("Log", ParDo.of(new LogOutput<KV<String,Long>>()));
+        //countPerKey.apply("Log", ParDo.of(new LogOutput<KV<String,Long>>()));
 
         pipeline.run();
     }
 
-    // Write a method that returns positive numbers
+    // //Write a method that returns positive numbers
     // static PCollection<Integer> getPositiveNumbers(PCollection<Integer> input) {
-    //
+    //     return new PCollection<Integer>();
+    
     // }
 
-    // Returns a map with a key that will not be odd or even , and the value will be the number itself at the input
+    // //Returns a map with a key that will not be odd or even , and the value will be the number itself at the input
     // static PCollection<KV<String, Integer>> setKeyForNumbers(PCollection<Integer> input) {
-    //
+    //     return new PCollection<KV<String, Integer>>();
     // }
 
-    // Returns the count of numbers
+    // //Returns the count of numbers
     // static PCollection<KV<String,Long>> getCountPerKey(PCollection<KV<String, Integer>> input) {
-    //
+    //     return new PCollection<KV<String, Long>>();
     // }
 
     static class LogOutput<T> extends DoFn<T, T> {

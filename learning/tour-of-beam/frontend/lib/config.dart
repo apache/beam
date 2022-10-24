@@ -18,8 +18,8 @@
 
 // TODO(alexeyinkin): Generate this file on deployment.
 
-const _cloudFunctionsProjectRegion = 'us-central1';
-const _cloudFunctionsProjectId = 'tour-of-beam-2';
+const _cloudFunctionsProjectRegion = 'us-east1';
+const _cloudFunctionsProjectId = 'tob-demo-env1';
 const cloudFunctionsBaseUrl = 'https://'
     '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId'
     '.cloudfunctions.net';
@@ -28,12 +28,12 @@ const cloudFunctionsBaseUrl = 'https://'
 
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
-    'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
+    'https://router.34.120.66.174.nip.io/';
 const String kApiJavaClientURL =
-    'https://backend-java-beta-dot-apache-beam-testing.appspot.com';
+    'https://java.34.120.66.174.nip.io/';
 const String kApiGoClientURL =
-    'https://backend-go-beta-dot-apache-beam-testing.appspot.com';
+    'https://go.34.120.66.174.nip.io/';
 const String kApiPythonClientURL =
-    'https://backend-python-beta-dot-apache-beam-testing.appspot.com';
+    'https://python.34.120.66.174.nip.io/';
 const String kApiScioClientURL =
-    'https://backend-scio-beta-dot-apache-beam-testing.appspot.com';
+    'https://scio.34.120.66.174.nip.io/';

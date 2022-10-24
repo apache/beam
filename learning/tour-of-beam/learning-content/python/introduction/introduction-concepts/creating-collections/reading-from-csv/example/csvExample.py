@@ -15,7 +15,7 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: csv-example
+#   name: csv
 #   description: Csv file example.
 #   multifile: false
 #   context_line: 43

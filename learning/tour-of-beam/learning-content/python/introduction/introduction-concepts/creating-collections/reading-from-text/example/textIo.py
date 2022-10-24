@@ -15,7 +15,7 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: textIO-example
+#   name: textIO
 #   description: TextIO example.
 #   multifile: false
 #   context_line: 43
