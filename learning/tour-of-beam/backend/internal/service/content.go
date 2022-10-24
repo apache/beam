@@ -23,8 +23,6 @@ import (
 	"beam.apache.org/learning/tour-of-beam/backend/internal/storage"
 )
 
-var ErrNoUnit = errors.New("unit not found")
-
 type IContent interface {
 	GetContentTree(ctx context.Context, sdk tob.Sdk) (tob.ContentTree, error)
 	GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (tob.Unit, error)
@@ -41,18 +39,28 @@ func (s *Svc) GetContentTree(ctx context.Context, sdk tob.Sdk) (ct tob.ContentTr
 }
 
 func (s *Svc) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (tob.Unit, error) {
-	// TODO enrich unit with user-specific state: isCompleted, userSnippetId
 	unit, err := s.Repo.GetUnitContent(ctx, sdk, unitId)
 	if err != nil {
 		return tob.Unit{}, err
 	}
 	if unit == nil {
-		return tob.Unit{}, ErrNoUnit
+		return tob.Unit{}, tob.ErrNoUnit
 	}
 	return *unit, nil
 }
 
 func (s *Svc) GetUserProgress(ctx context.Context, sdk tob.Sdk, userId string) (tob.SdkProgress, error) {
-	// TODO implement
-	return tob.SdkProgress{}, nil
+	progress, err := s.Repo.GetUserProgress(ctx, sdk, userId)
+	if errors.Is(err, tob.ErrNoUser) {
+		// make an empty list a default response
+		return tob.SdkProgress{Units: make([]tob.UnitProgress, 0)}, nil
+	}
+	if err != nil {
+		return tob.SdkProgress{}, err
+	}
+	if progress == nil {
+		panic("progress is nil, no err")
+	}
+
+	return *progress, nil
 }

@@ -16,7 +16,8 @@
 export GOOGLE_CLOUD_PROJECT=demo-test-proj
 export FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
 
-export TOB_MOCK=1
+# Enable TOB_MOCK to mock out datastore
+#export TOB_MOCK=1
 export DATASTORE_PROJECT_ID=demo-test-proj
 export DATASTORE_EMULATOR_HOST=localhost:8081
 export DATASTORE_EMULATOR_DATADIR=./datadir-$(date '+%H-%M-%S')
@@ -43,8 +44,8 @@ sleep 5
 
 go run cmd/ci_cd/ci_cd.go
 
-
-go test -v --tags integration ./integration_tests/...
+# -count=1 is an idiomatic way to disable test caching
+go test -v -count=1 --tags integration ./integration_tests/...
 
 pkill -P $$
 

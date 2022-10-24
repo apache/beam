@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -55,6 +56,7 @@ func MakeService(ctx context.Context) service.IContent {
 	// optional:
 	// * DATASTORE_EMULATOR_HOST: emulator host/port (ex. 0.0.0.0:8888)
 	if os.Getenv("TOB_MOCK") > "" {
+		fmt.Println("Initialize mock service")
 		return &service.Mock{}
 	} else {
 		// consumes DATASTORE_* env variables
@@ -120,7 +122,7 @@ func getUnitContent(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 	unitId := r.URL.Query().Get("id")
 
 	unit, err := svc.GetUnitContent(r.Context(), sdk, unitId)
-	if errors.Is(err, service.ErrNoUnit) {
+	if errors.Is(err, tob.ErrNoUnit) {
 		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
 		return
 	}

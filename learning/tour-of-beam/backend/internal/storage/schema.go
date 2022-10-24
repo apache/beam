@@ -16,6 +16,8 @@
 package storage
 
 import (
+	"time"
+
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 	"cloud.google.com/go/datastore"
 )
@@ -33,6 +35,8 @@ const (
 	TbLearningPathKind   = "tb_learning_path"
 	TbLearningModuleKind = "tb_learning_module"
 	TbLearningNodeKind   = "tb_learning_node"
+	TbUserKind           = "tb_user"
+	TbUserProgressKind   = "tb_user_progress"
 
 	PgSnippetsKind = "pg_snippets"
 	PgSdksKind     = "pg_sdks"
@@ -93,6 +97,20 @@ type TbLearningNode struct {
 	Key   *datastore.Key `datastore:"__key__"`
 	Order int            `datastore:"order"`
 	Level int            `datastore:"level"`
+}
+
+type TbUser struct {
+	Key         *datastore.Key `datastore:"__key__"`
+	UID         string         `datastore:"uid"`
+	LastVisitAt time.Time      `datastore:"lastVisitAt"`
+}
+
+type TbUnitProgress struct {
+	Key *datastore.Key `datastore:"__key__"`
+	Sdk *datastore.Key `datastore:"sdk"`
+
+	UnitID      string `datastore:"unitId"`
+	IsCompleted bool   `datastore:"isCompleted"`
 }
 
 type PgSnippets struct {

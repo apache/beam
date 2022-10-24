@@ -15,6 +15,13 @@
 
 package internal
 
+import "errors"
+
+var (
+	ErrNoUnit = errors.New("unit not found")
+	ErrNoUser = errors.New("user not found")
+)
+
 type SdkItem struct {
 	Id    string `json:"id"`
 	Title string `json:"title"`

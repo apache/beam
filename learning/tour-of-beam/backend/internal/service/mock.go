@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"log"
 	"path"
 	"runtime"
 	"strings"
@@ -49,9 +48,8 @@ func (d *Mock) GetContentTree(_ context.Context, sdk tob.Sdk) (ct tob.ContentTre
 }
 
 func (d *Mock) GetUnitContent(_ context.Context, sdk tob.Sdk, unitId string) (u tob.Unit, err error) {
-	log.Println("unitId:", unitId)
 	if strings.HasPrefix(unitId, "unknown_") {
-		return u, ErrNoUnit
+		return u, tob.ErrNoUnit
 	}
 	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_unit_content.json"))
 	err = json.Unmarshal(content, &u)
