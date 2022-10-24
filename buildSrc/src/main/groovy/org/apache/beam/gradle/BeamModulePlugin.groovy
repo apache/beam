@@ -1919,9 +1919,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testRuntimeOnly it.project(path: ":runners:spark:2", configuration: "testRuntimeMigration")
-          testRuntimeOnly project.library.java.spark_core
-          testRuntimeOnly project.library.java.spark_streaming
+          testRuntimeOnly it.project(path: ":runners:spark:3", configuration: "testRuntimeMigration")
 
           // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
           project.configurations.testRuntimeClasspath {
@@ -2679,7 +2677,7 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn = [installGcpTest]
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
-            ':runners:spark:2:job-server:shadowJar',
+            ':runners:spark:3:job-server:shadowJar',
             ':sdks:python:container:py37:docker',
             ':sdks:python:container:py38:docker',
             ':sdks:python:container:py39:docker',
@@ -2695,7 +2693,7 @@ class BeamModulePlugin implements Plugin<Project> {
               "--parallelism=2",
               "--sdk_worker_parallelism=1",
               "--flink_job_server_jar=${project.project(flinkJobServerProject).shadowJar.archivePath}",
-              "--spark_job_server_jar=${project.project(':runners:spark:2:job-server').shadowJar.archivePath}",
+              "--spark_job_server_jar=${project.project(':runners:spark:3:job-server').shadowJar.archivePath}",
             ]
             if (isStreaming)
               options += [
