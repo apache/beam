@@ -47,7 +47,6 @@ class DaskOptionsTest(unittest.TestCase):
     dask_err_options = err_options.view_as(DaskOptions)
     self.assertEqual(dask.config.no_default, dask_err_options.timeout)
 
-  @unittest.skip("Buggy test. TODO(alxmrs): Fix")
   def test_parser_destinations__agree_with_dask_client(self):
     options = PipelineOptions(
         '--dask_client_address localhost:8080 --dask_connection_timeout 600 '
@@ -55,11 +54,12 @@ class DaskOptionsTest(unittest.TestCase):
         '--dask_connection_limit 1024'.split())
     dask_options = options.view_as(DaskOptions)
 
-    try:
-      client = ddist.Client(**dask_options.get_all_options(drop_default=True))
-      client.close()
-    except ValueError as e:
-      self.fail(f'parsed args did not match dask Client args: {e!s}')
+    # Get the argument names for the constructor.
+    client_args = ddist.Client.__init__.__code__.co_varnames
+
+    for opt_name in dask_options.get_all_options(drop_default=True).keys():
+      with self.subTest(f'{opt_name} in dask.distributed.Client constructor'):
+        self.assertIn(opt_name, client_args)
 
 
 class DaskRunnerRunPipelineTest(unittest.TestCase):
