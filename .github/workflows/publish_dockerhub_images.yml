@@ -33,7 +33,7 @@ on:
         default: "1"
       FINAL_PUBLISH:
         type: boolean
-        description: Publish as RELEASE and LATEST?
+        description: Publish as RELEASE_VERSION and LATEST?
         required: true
         default: false
 
