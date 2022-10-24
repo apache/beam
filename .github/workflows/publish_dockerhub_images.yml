@@ -12,14 +12,16 @@ on:
         description: Release Candidate Number
         required: true
         default: "1"
-      LATEST_TAG:
+      FINAL_PUBLISH:
         type: boolean
-        description: Tag current images as latest too?
+        description: Publish as RELEASE and LATEST?
         required: true
         default: false
 
 jobs:
   build:
+    env:
+      RELEASE_VERSION: ${{github.event.inputs.RELEASE_VERSION}}
     runs-on: ubuntu-latest
     steps:
       - name: Login to Docker Hub
@@ -28,7 +30,7 @@ jobs:
           username: ${{secrets.DOCKER_HUB_USER}}
           password: ${{secrets.DOCKER_HUB_TOKEN}}
       - name: Setting Release Branch
-        run: echo "RC_TAG=v${{github.event.inputs.RELEASE_VERSION}}-RC${{github.event.inputs.RC_NUM}}" >> $GITHUB_ENV    
+        run: echo "RC_TAG=v${{env.RELEASE_VERSION}}-RC${{github.event.inputs.RC_NUM}}" >> $GITHUB_ENV    
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -56,6 +58,20 @@ jobs:
         run: sudo apt install -y python3.8-venv
       - name: Publish images
         run: ./gradlew :pushAllDockerImages  -Pdocker-pull-licenses -Pdocker-tag="${{env.RC_TAG}}" -Pdocker-repository-root="elink21" -Pjava11Home=${JAVA_HOME_11_X64} 
-      - name: Publish as latest 
-        if: ${{github.event.inputs.LATEST_TAG}}
-        run: ./gradlew :pushAllDockerImages  -Pdocker-pull-licenses -Pdocker-tag="${{env.RC_TAG}}" -Pdocker-repository-root="elink21" -Pjava11Home=${JAVA_HOME_11_X64} 
+      - name: Publish as LATEST and RELEASE
+        if: ${{github.event.inputs.FINAL_PUBLISH}}
+        run: >
+          IMAGES=$(docker images --filter "reference=elink21/beam_*:${RC_TAG}" --format "{{.Repository}}")
+          echo "${IMAGES}" | while read IMAGE; do
+            # Pull verified RC from dockerhub.
+            docker pull "${IMAGE}:${RC_TAG}"
+
+            # Tag with ${RELEASE} and push to dockerhub.
+            docker tag "${IMAGE}:${RC_TAG}" "${IMAGE}:${RELEASE_VERSION}"
+            docker push "${IMAGE}:${RELEASE_VERSION}"
+
+            # Tag with latest and push to dockerhub.
+            docker tag "${IMAGE}:{RC_TAG}" "${IMAGE}:latest"
+            docker push "${IMAGE}:latest"
+          done
+     
