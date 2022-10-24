@@ -784,15 +784,10 @@ class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
         trigger in enumerate(self.triggers))
 
   def on_fire(self, watermark, window, context):
-    finished = []
     for ix, trigger in enumerate(self.triggers):
       nested_context = self._sub_context(context, ix)
-      if trigger.should_fire(TimeDomain.WATERMARK,
-                             watermark,
-                             window,
-                             nested_context):
-        finished.append(trigger.on_fire(watermark, window, nested_context))
-    return self.combine_op(finished)
+      trigger.on_fire(watermark, window, nested_context)
+    return True
 
   def may_lose_data(self, windowing):
     may_finish = self.combine_op(
