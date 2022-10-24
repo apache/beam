@@ -1545,7 +1545,7 @@ versions to run all of the tests. See Python installation tips in &lt;a href="ht
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 &lt;/code>&lt;/pre>&lt;p>&lt;strong>Spark Local Runner&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>./gradlew :runners:spark:2:runQuickstartJavaSpark \
+&lt;pre>&lt;code>./gradlew :runners:spark:3:runQuickstartJavaSpark \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 &lt;/code>&lt;/pre>&lt;p>&lt;strong>Dataflow Runner&lt;/strong>&lt;/p>
