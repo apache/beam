@@ -400,6 +400,50 @@ def test_validate_example_fields_when_dataset_not_set_but_emulator_set():
         validate_example_fields(example)
 
 
+def test_validate_example_fields_when_emulator_not_set_but_dataset_set():
+    object_meta = {
+        "name": "MOCK_NAME",
+        "description": "MOCK_DESCRIPTION",
+        "multifile": False,
+        "categories": ["MOCK_CATEGORY_1", "MOCK_CATEGORY_2"],
+        "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE",
+        "dataset": "dataset.json"
+    }
+    example = _create_example_with_meta("MOCK_NAME", object_meta)
+    with pytest.raises(ValidationException, match="Example has a dataset field but an emulator field not found. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_dataset_is_invalid():
+    object_meta = {
+        "name": "MOCK_NAME",
+        "description": "MOCK_DESCRIPTION",
+        "multifile": False,
+        "categories": ["MOCK_CATEGORY_1", "MOCK_CATEGORY_2"],
+        "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE",
+        "dataset": "dataset",
+        "emulator": "KAFKA"
+    }
+    example = _create_example_with_meta("MOCK_NAME", object_meta)
+    with pytest.raises(ValidationException, match="Example has invalid dataset value. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_emulator_is_invalid():
+    object_meta = {
+        "name": "MOCK_NAME",
+        "description": "MOCK_DESCRIPTION",
+        "multifile": False,
+        "categories": ["MOCK_CATEGORY_1", "MOCK_CATEGORY_2"],
+        "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE",
+        "dataset": "dataset.json",
+        "emulator": "MOCK_VALUE"
+    }
+    example = _create_example_with_meta("MOCK_NAME", object_meta)
+    with pytest.raises(ValidationException, match="Example has invalid emulator value. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
 def _create_example(name: str) -> Example:
     object_meta = {
         "name": "MOCK_NAME",
