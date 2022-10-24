@@ -385,9 +385,6 @@ tasks.register("validatesRunner") {
   //dependsOn validatesStructuredStreamingRunnerBatch
 }
 
-// Generates :runners:spark:*:runQuickstartJavaSpark task
-createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
-
 tasks.register("hadoopVersionsTest") {
   group = "Verification"
   dependsOn hadoopVersions.collect{k,v -> "hadoopVersion${k}Test"}
