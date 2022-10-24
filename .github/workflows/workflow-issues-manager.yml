@@ -1,0 +1,84 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Flaky Workflows Validation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */12 * * *'
+  push:
+    branches: ['issues-workflow']
+#  pull_request:
+#    branches: ['master']
+#    types: ['closed']
+
+jobs:
+  issues_validation:
+    name: Flaky Workflows Validation
+    permissions:
+      issues: write
+    if: github.repository == 'apache/beam'
+    runs-on: [self-hosted, ubuntu-20.04]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Get repo workflows
+        uses: actions/github-script@v6
+        id: workflows-result
+        with:
+          script: |
+            const { getRepoWorkflows } = require('./.github/scripts/workflow-issues-manager.js');
+            const workflows = await getRepoWorkflows({github, context});
+            
+            const output = workflows.map(({id, name}) => `${id} | ${name}`);
+            console.log('REPO WORKFLOW');
+            console.log(output);
+             
+            return workflows;
+
+      - name: Identify flaky workflows and create issues
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { splitWorkflows } = require('./.github/scripts/workflow-issues-manager.js');
+            const { createIssuesForWorkflows, closeIssuesForWorkflows } = require('./.github/scripts/workflow-issues-manager.js');
+            
+            const workflows = ${{ steps.workflows-result.outputs.result }};
+            const { unstable, stable, permared } = await splitWorkflows({github, context}, workflows);
+            
+            const outputUnstable = unstable.map(({workflow}) => `${workflow.id} | ${workflow.name}`);
+            console.log('UNSTABLE WORKFLOWS');
+            console.log(outputUnstable);
+            
+            const outputStable = stable.map(({workflow}) => `${workflow.id} | ${workflow.name}`);
+            console.log('STABLE WORKFLOWS');
+            console.log(outputStable);
+            
+            const outputPermared = permared.map(({workflow}) => `${workflow.id} | ${workflow.name}`);
+            console.log('PERMARED WORKFLOWS');
+            console.log(outputPermared);
+            
+            const resultUnstable = await createIssuesForWorkflows({github, context}, unstable);
+            const resultPermared = await createIssuesForWorkflows({github, context}, permared);
+            const resultStable = await closeIssuesForWorkflows({github, context}, stable);
+            
+            console.log('UNSTABLE RESULT', resultUnstable); 
+            console.log('PERMARED RESULT', resultPermared);
+            console.log('STABLE RESULT', resultStable);
