@@ -24,7 +24,7 @@ jobs:
           username: ${{secrets.DOCKER_HUB_USER}}
           password: ${{secrets.DOCKER_HUB_TOKEN}}
       - name: Setting Release Branch
-        run: echo "RC_TAG=v${{github.events.inputs.RELEASE_VERSION}}-RC${{github.event.inputs.RC_NUM}}" >> $GITHUB_ENV    
+        run: echo "RC_TAG=v${{github.event.inputs.RELEASE_VERSION}}-RC${{github.event.inputs.RC_NUM}}" >> $GITHUB_ENV    
       - name: Checkout
         uses: actions/checkout@v3
         with:
