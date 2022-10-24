@@ -337,6 +337,7 @@ class _MetricsCollector:
     # Metrics
     self._inference_counter = beam.metrics.Metrics.counter(
         namespace, 'num_inferences')
+    self._num_failed_inferences = 0
     self._inference_request_batch_size = beam.metrics.Metrics.distribution(
         namespace, 'inference_request_batch_size')
     self._inference_request_batch_byte_size = (
@@ -373,11 +374,15 @@ class _MetricsCollector:
       self,
       examples_count: int,
       examples_byte_size: int,
-      latency_micro_secs: int):
+      latency_micro_secs: int,
+      success: bool):
     self._inference_batch_latency_micro_secs.update(latency_micro_secs)
-    self._inference_counter.inc(examples_count)
+    self._inference_counter.inc(examples_count) # !!! should this increment even if inference fails?
+                                                # or should it increment by the full batch size, even if not all examples ran?
     self._inference_request_batch_size.update(examples_count)
     self._inference_request_batch_byte_size.update(examples_byte_size)
+    if not success:
+      self._num_failed_inferences.inc()
 
 
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
@@ -426,15 +431,20 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
   def process(self, batch, inference_args):
     start_time = _to_microseconds(self._clock.time_ns())
-    result_generator = self._model_handler.run_inference(
+    try:
+      result_generator = self._model_handler.run_inference(
         batch, self._model, inference_args)
+      success = True
+    except BaseException: # !!! may need "as err" here
+      success = False
+      raise
     predictions = list(result_generator)
 
     end_time = _to_microseconds(self._clock.time_ns())
     inference_latency = end_time - start_time
     num_bytes = self._model_handler.get_num_bytes(batch)
     num_elements = len(batch)
-    self._metrics_collector.update(num_elements, num_bytes, inference_latency)
+    self._metrics_collector.update(num_elements, num_bytes, inference_latency, success) #!!! how should update run if inference fails
 
     return predictions
 
