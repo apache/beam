@@ -56,14 +56,8 @@ jobs:
         run: echo "JAVA_HOME=${JAVA_HOME_8_X64}" >> $GITHUB_ENV
       - name: Installing ensurepip
         run: sudo apt install -y python3.8-venv
-      #- name: Publish images
-      #  run: ./gradlew :pushAllDockerImages  -Pdocker-pull-licenses -Pdocker-tag="${{env.RC_TAG}}" -Pdocker-repository-root="elink21" -Pjava11Home=${JAVA_HOME_11_X64} 
-      - name: Mockup test for Final Publish
-        run: echo "FROM ubuntu:20.04" >> Dockerfile
-      - name: Building
-        run: docker build . -t elink21/beam_test:${{env.RC_TAG}}
-      - name: Pushing
-        run: docker push elink21/beam_test:${{env.RC_TAG}}
+      - name: Publish images
+        run: ./gradlew :pushAllDockerImages  -Pdocker-pull-licenses -Pdocker-tag="${{env.RC_TAG}}" -Pdocker-repository-root="elink21" -Pjava11Home=${JAVA_HOME_11_X64} 
       - name: Publish as LATEST and RELEASE
         if: ${{ github.event.inputs.FINAL_PUBLISH == 'true' }}
         run: |
@@ -81,4 +75,4 @@ jobs:
             docker tag "$IMAGE:${{env.RC_TAG}}" "$IMAGE:latest"
             docker push "$IMAGE:latest"
           done
-     
+          
