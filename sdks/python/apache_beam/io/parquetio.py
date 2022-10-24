@@ -376,7 +376,10 @@ class WriteToParquet(PTransform):
       file_name_suffix='',
       num_shards=0,
       shard_name_template=None,
-      mime_type='application/x-parquet'):
+      mime_type='application/x-parquet',
+      *,
+      max_records_per_shard=None,
+      max_bytes_per_shard=None):
     """Initialize a WriteToParquet transform.
 
     Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
@@ -448,6 +451,14 @@ class WriteToParquet(PTransform):
         is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
       mime_type: The MIME type to use for the produced files, if the filesystem
         supports specifying MIME types.
+      max_records_per_shard: Maximum number of records to write to any
+        individual shard.
+      max_bytes_per_shard: Target maximum number of bytes to write to any
+        individual shard. This may be exceeded slightly, as a new shard is
+        created once this limit is hit, but the remainder of a given record, a
+        subsequent newline, and a footer may cause the actual shard size
+        to exceed this value.  This also tracks the uncompressed,
+        not compressed, size of the shard.
 
     Returns:
       A WriteToParquet transform usable for writing.
@@ -465,7 +476,9 @@ class WriteToParquet(PTransform):
           file_name_suffix,
           num_shards,
           shard_name_template,
-          mime_type
+          mime_type,
+          max_records_per_shard=max_records_per_shard,
+          max_bytes_per_shard=max_bytes_per_shard
       )
 
   def expand(self, pcoll):
@@ -486,7 +499,9 @@ def _create_parquet_sink(
     file_name_suffix,
     num_shards,
     shard_name_template,
-    mime_type):
+    mime_type,
+    max_records_per_shard,
+    max_bytes_per_shard):
   return \
     _ParquetSink(
         file_path_prefix,
@@ -499,7 +514,9 @@ def _create_parquet_sink(
         file_name_suffix,
         num_shards,
         shard_name_template,
-        mime_type
+        mime_type,
+        max_records_per_shard=max_records_per_shard,
+        max_bytes_per_shard=max_bytes_per_shard
     )
 
 
@@ -517,7 +534,9 @@ class _ParquetSink(filebasedsink.FileBasedSink):
       file_name_suffix,
       num_shards,
       shard_name_template,
-      mime_type):
+      mime_type
+      max_records_per_shard,
+      max_bytes_per_shard):
     super().__init__(
         file_path_prefix,
         file_name_suffix=file_name_suffix,
@@ -527,7 +546,9 @@ class _ParquetSink(filebasedsink.FileBasedSink):
         mime_type=mime_type,
         # Compression happens at the block level using the supplied codec, and
         # not at the file level.
-        compression_type=CompressionTypes.UNCOMPRESSED)
+        compression_type=CompressionTypes.UNCOMPRESSED,
+        max_records_per_shard=max_records_per_shard,
+        max_bytes_per_shard=max_bytes_per_shard)
     self._schema = schema
     self._codec = codec
     if ARROW_MAJOR_VERSION == 1 and self._codec.lower() == "lz4":
