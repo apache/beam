@@ -2349,14 +2349,12 @@ public class JdbcIO {
               .withMaxRetries(retryConfiguration.getMaxAttempts());
     }
 
-    @StartBundle
-    public void startBundle() throws SQLException{
-      connection = dataSource.getConnection();
-      connection.setAutoCommit(false);
-      preparedStatement = connection.prepareStatement(spec.getStatement().get());
-    }
-
     private Connection getConnection() throws SQLException {
+      if (connection == null) {
+        connection = dataSource.getConnection();
+        connection.setAutoCommit(false);
+        preparedStatement = connection.prepareStatement(spec.getStatement().get());
+      }
       return connection;
     }
 
