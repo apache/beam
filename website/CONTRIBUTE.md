@@ -34,7 +34,7 @@ This guide consists of:
   - [Table](#table)
   - [Github sample](#github-sample)
   - [Others](#others)
-  - [How to add relative links to js or css](#how-to-add-relative-links-to-js-or-css)
+  - [How to add relative links to JavaScript or CSS](#how-to-add-relative-links-to-javascript-or-css)
 - [What to be replaced in Jekyll](#what-to-be-replaced-in-jekyll)
 - [Translation guide](#translation-guide)
 - [How to add new case study](#how-to-add-a-new-apache-beam-case-study)
@@ -317,8 +317,8 @@ To get branch of the repository in markdown:
 
 To render capability matrix, please take a look at [this example](/www/site/content/en/documentation/runners/capability-matrix/#beam-capability-matrix).
 
-### How to add relative links to js or css
-Please take a note that relative links should be added with relative paths to js or css files with using hugo syntax, so that they are able to form correct absolute links on localhost, staging and production. Examples:
+### How to add relative links to JavaScript or CSS
+Please take a note that relative links should be added with relative paths to JavaScript or CSS files with using Hugo syntax, so that they are able to form correct absolute links on localhost, staging and production. Examples:
 ```
 /themes/docsy/assets/js/search.js        # var searchPage = "{{ "search/" | absURL }}?q=" + query;
 /assets/js/page-nav.js                   # img.src = "{{ "images/arrow-expandable.svg" | absURL }}";
