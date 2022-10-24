@@ -920,7 +920,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
         if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
         && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-          options.compilerArgs.addAll(['--release', '8'])
+          options.compilerArgs += ['--release', '8']
         }
         // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
         // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
