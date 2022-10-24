@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Transform Beam PTransforms into Dask Bag operations.
 
 A minimum set of operation substitutions, to adap Beam's PTransform model
@@ -196,7 +197,7 @@ class Flatten(DaskBagOp):
 
 
 TRANSLATIONS = {
-  _Create: Create,
+    _Create: Create,
   apache_beam.ParDo: ParDo,
   apache_beam.Map: Map,
   _GroupByKeyOnly: GroupByKey,

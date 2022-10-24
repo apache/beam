@@ -42,6 +42,9 @@ Beam can be used for data validation, data preprocessing and model deployment/in
 
 Data validation and preprocessing can be done in Beam by setting up data pipelines that transform your data and output metrics computed from your data. Beam has a rich set of [IO connectors](https://beam.apache.org/documentation/io/built-in/) for ingesting and writing data, which means you can easily integrate it with your existing filesystem, database or messaging queue. When developing your ML model, you can also first explore your data with the [Beam DataFrame API](https://beam.apache.org/documentation/dsls/dataframes/overview/) so that you can identify and implement the required preprocessing steps allowing you to iterate faster towards production. Another common pattern is that the steps executed during preprocessing need to also be applied before running inference, in which case you can use the same Beam implementation twice. Lastly, if you need to do post-processing after running inference, this can also be done as part of your model inference pipeline.
 
+Further reading:
+* [AI/ML pipelines in Beam: data processing](/documentation/ml/data-processing)
+
 ## Inference
 
 There are several ways to use and deploy your model:

@@ -14,18 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """DaskRunner, executing remote jobs on Dask.distributed.
 
 The DaskRunner is a runner implementation that executes a graph of
 transformations across processes and workers via Dask distributed's
 scheduler.
 """
-import dataclasses
-
 import argparse
+import dataclasses
 import typing as t
 
-from apache_beam import pvalue, TaggedOutput
+from apache_beam import pvalue
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PipelineVisitor
@@ -35,7 +35,9 @@ from apache_beam.runners.dask.transform_evaluator import NoOp
 from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineState
-from apache_beam.transforms.window import WindowFn, TimestampedValue, GlobalWindow
+from apache_beam.transforms.window import WindowFn
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.interactive_utils import is_in_notebook
 from apache_beam.utils.windowed_value import WindowedValue
 
@@ -52,26 +54,39 @@ class DaskOptions(PipelineOptions):
 
   @classmethod
   def _add_argparse_args(cls, parser: argparse.ArgumentParser) -> None:
-    parser.add_argument('--dask_client_address', dest='address', type=str, default=None,
-                        help='Address of a dask Scheduler server. Will '
-                             'default to a `dask.LocalCluster()`.')
-    parser.add_argument('--dask_connection_timeout', dest='timeout',
-                        type=DaskOptions._parse_timeout,
-                        help='Timeout duration for initial connection to the '
-                             'scheduler.')
-    parser.add_argument('--dask_scheduler_file', type=str, default=None,
-                        help='Path to a file with scheduler information if '
-                             'available.')
+    parser.add_argument(
+        '--dask_client_address',
+        dest='address',
+        type=str,
+        default=None,
+        help='Address of a dask Scheduler server. Will default to a '
+        '`dask.LocalCluster()`.')
+    parser.add_argument(
+        '--dask_connection_timeout',
+        dest='timeout',
+        type=DaskOptions._parse_timeout,
+        help='Timeout duration for initial connection to the scheduler.')
+    parser.add_argument(
+        '--dask_scheduler_file',
+        dest='scheduler_file',
+        type=str,
+        default=None,
+        help='Path to a file with scheduler information if available.')
     # TODO(alxr): Add options for security.
-    parser.add_argument('--dask_client_name', dest='name', type=str,
-                        default=None,
-                        help='Gives the client a name that will be included '
-                             'in logs generated on the scheduler for matters '
-                             'relating to this client.')
-    parser.add_argument('--dask_connection_limit', dest='connection_limit',
-                        type=int, default=512,
-                        help='The number of open comms to maintain at once in '
-                             'the connection pool.')
+    parser.add_argument(
+        '--dask_client_name',
+        dest='name',
+        type=str,
+        default=None,
+        help='Gives the client a name that will be included in logs generated '
+        'on the scheduler for matters relating to this client.')
+    parser.add_argument(
+        '--dask_connection_limit',
+        dest='connection_limit',
+        type=int,
+        default=512,
+        help='The number of open comms to maintain at once in the connection '
+        'pool.')
 
 
 @dataclasses.dataclass
@@ -84,7 +99,7 @@ class DaskRunnerResult(PipelineResult):
   def __post_init__(self):
     super().__init__(PipelineState.RUNNING)
 
-  def wait_until_finish(self, duration=None) -> PipelineState:
+  def wait_until_finish(self, duration=None) -> str:
     try:
       if duration is not None:
         # Convert milliseconds to seconds
@@ -97,7 +112,7 @@ class DaskRunnerResult(PipelineResult):
       raise
     return self._state
 
-  def cancel(self) -> PipelineState:
+  def cancel(self) -> str:
     self._state = PipelineState.CANCELLING
     self.client.cancel(self.futures)
     self._state = PipelineState.CANCELLED
@@ -110,15 +125,14 @@ class DaskRunnerResult(PipelineResult):
 
 class DaskRunner(BundleBasedDirectRunner):
   """Executes a pipeline on a Dask distributed client."""
-
   @staticmethod
   def to_dask_bag_visitor() -> PipelineVisitor:
     from dask import bag as db
 
     @dataclasses.dataclass
     class DaskBagVisitor(PipelineVisitor):
-      bags: t.Dict[AppliedPTransform, db.Bag] = dataclasses.field(
-        default_factory=dict)
+      bags: t.Dict[AppliedPTransform,
+                   db.Bag] = dataclasses.field(default_factory=dict)
 
       def visit_transform(self, transform_node: AppliedPTransform) -> None:
         op_class = TRANSLATIONS.get(transform_node.transform.__class__, NoOp)
@@ -158,10 +172,10 @@ class DaskRunner(BundleBasedDirectRunner):
       import dask.distributed as ddist
     except ImportError:
       raise ImportError(
-        'DaskRunner is not available. Please install apache_beam[dask].')
+          'DaskRunner is not available. Please install apache_beam[dask].')
 
     dask_options = options.view_as(DaskOptions).get_all_options(
-      drop_default=True)
+        drop_default=True)
     client = ddist.Client(**dask_options)
 
     pipeline.replace_all(dask_overrides())
