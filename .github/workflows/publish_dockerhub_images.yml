@@ -6,11 +6,12 @@ on:
         type: string
         description: Release Version
         required: true
-        default: "2.42.1"
+        default: "2.41.2"
       RC_NUM:
         type: string
         description: Release Candidate Number
         required: true
+        default: "1"
       
 
 jobs:
