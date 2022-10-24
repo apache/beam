@@ -17,7 +17,7 @@
 # under the License.
 #
 
-sdk: Java
-content:
-  - introduction
-  - common-transforms
+id: motivating-challenge
+name: Motivating Challenge for Common Transforms unit
+taskName: CommonTransformsChallenge
+solutionName: CommonTransformsSolution

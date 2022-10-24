@@ -17,7 +17,13 @@
 # under the License.
 #
 
-sdk: Java
+id: aggregation
+name: Aggregation
 content:
-  - introduction
-  - common-transforms
+- count
+- sum
+- mean
+- min
+- max
+
+
