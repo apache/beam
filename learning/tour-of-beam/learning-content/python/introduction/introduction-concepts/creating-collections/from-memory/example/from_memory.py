@@ -15,7 +15,7 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: pardo-example
+#   name: ParDo
 #   description: ParDo example.
 #   multifile: false
 #   context_line: 48
