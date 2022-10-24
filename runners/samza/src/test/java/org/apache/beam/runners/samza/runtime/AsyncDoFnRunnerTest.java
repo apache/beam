@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -180,8 +181,10 @@ public class AsyncDoFnRunnerTest implements Serializable {
     // We test the scenario that two elements of the same key needs to be processed in order.
     final DoFnRunner<KV<String, Integer>, Void> doFnRunner = mock(DoFnRunner.class);
     final AtomicInteger prev = new AtomicInteger(0);
+    final CountDownLatch latch = new CountDownLatch(1);
     doAnswer(
             invocation -> {
+              latch.await();
               WindowedValue<KV<String, Integer>> wv = invocation.getArgument(0);
               Integer val = wv.getValue().getValue();
 
@@ -214,6 +217,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
 
     asyncDoFnRunner.processElement(input1);
     asyncDoFnRunner.processElement(input2);
+    latch.countDown();
 
     // Waiting for the futures to be resolved
     try {
