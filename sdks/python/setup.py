@@ -324,7 +324,7 @@ if __name__ == '__main__':
             'ipython>=7,<8;python_version<="3.7"',
             'ipython>=8,<9;python_version>"3.7"',
             'ipykernel>=6,<7',
-            'ipywidgets>=7.6.5,<8',
+            'ipywidgets>=8,<9',
             # Skip version 6.1.13 due to
             # https://github.com/jupyter/jupyter_client/issues/637
             'jupyter-client>=6.1.11,<6.1.13',
