@@ -27,7 +27,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{secrets.DOCKER_HUB_USER}}
+          username: elink21
           password: ${{secrets.DOCKER_HUB_TOKEN}}
       - name: Setting Release Branch
         run: echo "RC_TAG=v${{env.RELEASE_VERSION}}-RC${{github.event.inputs.RC_NUM}}" >> $GITHUB_ENV    
@@ -67,7 +67,7 @@ jobs:
       - name: Publish as LATEST and RELEASE
         if: ${{ github.event.inputs.FINAL_PUBLISH == 'true' }}
         run: >
-          docker images --filter "reference=*/beam_*:${{env.RC_TAG}}" --format "{{.Repository}}"
+          docker images --filter "reference=elink21/beam_*:${{env.RC_TAG}}" --format "{{.Repository}}"
           
           echo "${IMAGES}" | while read IMAGE; do
             # Pull verified RC from dockerhub.
