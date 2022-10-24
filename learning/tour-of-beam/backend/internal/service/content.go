@@ -34,7 +34,6 @@ type Svc struct {
 }
 
 func (s *Svc) GetContentTree(ctx context.Context, sdk tob.Sdk) (ct tob.ContentTree, err error) {
-	// TODO enrich tree with user-specific state (isCompleted)
 	return s.Repo.GetContentTree(ctx, sdk)
 }
 

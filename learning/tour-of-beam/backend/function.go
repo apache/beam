@@ -55,9 +55,10 @@ func MakeService(ctx context.Context) service.IContent {
 	// * DATASTORE_PROJECT_ID: cloud project id
 	// optional:
 	// * DATASTORE_EMULATOR_HOST: emulator host/port (ex. 0.0.0.0:8888)
+	var repo storage.Iface
 	if os.Getenv("TOB_MOCK") > "" {
 		fmt.Println("Initialize mock service")
-		return &service.Mock{}
+		repo = &storage.Mock{}
 	} else {
 		// consumes DATASTORE_* env variables
 		client, err := datastore.NewClient(ctx, "")
@@ -65,8 +66,10 @@ func MakeService(ctx context.Context) service.IContent {
 			log.Fatalf("new datastore client: %v", err)
 		}
 
-		return &service.Svc{Repo: &storage.DatastoreDb{Client: client}}
+		repo = &storage.DatastoreDb{Client: client}
 	}
+
+	return &service.Svc{Repo: repo}
 }
 
 func init() {
