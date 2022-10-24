@@ -534,7 +534,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
       file_name_suffix,
       num_shards,
       shard_name_template,
-      mime_type
+      mime_type,
       max_records_per_shard,
       max_bytes_per_shard):
     super().__init__(
