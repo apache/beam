@@ -65,7 +65,7 @@ jobs:
       - name: Pushing
         run: docker push elink21/beam_test:${RC_TAG}
       - name: Publish as LATEST and RELEASE
-        if: ${{github.event.inputs.FINAL_PUBLISH}} == 'true'
+        if: ${{github.event.inputs.FINAL_PUBLISH}} == true
         run: >
           IMAGES=$(docker images --filter "reference=elink21/beam_*:$RC_TAG" --format "{{.Repository}}")
           echo "${IMAGES}"
