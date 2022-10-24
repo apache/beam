@@ -77,6 +77,11 @@ public class ExpansionServiceSchemaTransformProvider implements TransformProvide
     return transformProvider;
   }
 
+  /**
+   * Currently {@link PCollectionRowTuple} is a Java only concept. We may get a different input type
+   * when other SDKs use a Java schema-aware transform in a pipeline, hence we use this transform to
+   * convert input/output types.
+   */
   static class RowTransform extends PTransform {
 
     private PTransform<PCollectionRowTuple, PCollectionRowTuple> rowTuplePTransform;
@@ -117,6 +122,11 @@ public class ExpansionServiceSchemaTransformProvider implements TransformProvide
       } else {
         return PDone.in(input.getPipeline());
       }
+    }
+
+    @Override
+    public String getName() {
+      return "RowTransform_of_" + this.rowTuplePTransform.getName();
     }
   }
 
