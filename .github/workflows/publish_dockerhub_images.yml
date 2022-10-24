@@ -67,8 +67,8 @@ jobs:
       - name: Publish as LATEST and RELEASE
         if: ${{ github.event.inputs.FINAL_PUBLISH == 'true' }}
         run: >
-          IMAGES=$(docker images --filter "reference=elink21/beam_*:$RC_TAG" --format "{{.Repository}}")
-          echo "${IMAGES}"
+          docker images --filter "reference=elink21/beam_*:$RC_TAG" --format "{{.Repository}}"
+          
           echo "${IMAGES}" | while read IMAGE; do
             # Pull verified RC from dockerhub.
             docker pull "${IMAGE}:${RC_TAG}"
