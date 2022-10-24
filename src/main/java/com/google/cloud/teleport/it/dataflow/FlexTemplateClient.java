@@ -74,6 +74,13 @@ public final class FlexTemplateClient extends AbstractDataflowTemplateClient {
     LOG.info("Received response:\n{}", formatForLogging(response));
 
     Job job = response.getJob();
+
+    LOG.info(
+        "Dataflow Console: https://console.cloud.google.com/dataflow/jobs/{}/{}?project={}",
+        job.getLocation(),
+        job.getId(),
+        job.getProjectId());
+
     // The initial response will not return the state, so need to explicitly get it
     JobState state = getJobStatus(project, region, job.getId());
     return JobInfo.builder().setJobId(job.getId()).setState(state).build();
