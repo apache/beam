@@ -61,9 +61,9 @@ jobs:
       - name: Mockup test for Final Publish
         run: echo "FROM ubuntu:20.04" >> Dockerfile
       - name: Building
-        run: docker build . -t elink21/beam_test:${RC_TAG}
+        run: docker build . -t elink21/beam_test:${{env.RC_TAG}}
       - name: Pushing
-        run: docker push elink21/beam_test:${RC_TAG}
+        run: docker push elink21/beam_test:${{env.RC_TAG}}
       - name: Publish as LATEST and RELEASE
         if: ${{ github.event.inputs.FINAL_PUBLISH == 'true' }}
         run: >
