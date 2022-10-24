@@ -17,7 +17,7 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: Build And Publish Dockerhub images
+name: Build And Publish DockerHub images
 on:
   workflow_dispatch:
     inputs:
