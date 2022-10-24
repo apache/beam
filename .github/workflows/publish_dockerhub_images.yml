@@ -58,11 +58,10 @@ jobs:
         run: sudo apt install -y python3.8-venv
       - name: Publish images
         run: ./gradlew :pushAllDockerImages  -Pdocker-pull-licenses -Pdocker-tag="${{env.RC_TAG}}" -Pdocker-repository-root="${{secrets.DOCKER_HUB_REPO}}" -Pjava11Home=${JAVA_HOME_11_X64} 
-      - name: Publish as LATEST and RELEASE
+      - name: Publish as LATEST and RELEASE_VERSION
         if: ${{ github.event.inputs.FINAL_PUBLISH == 'true' }}
         run: |
-          IMAGES=$(docker images --filter "reference=${{secrets.DOCKER_HUB_REPO}}/beam_*:${{env.RC_TAG}}" --format "{{.Repository}}")
-          
+          IMAGES=$(docker images --filter "reference=${{secrets.DOCKER_HUB_REPO}}/beam_*:${{env.RC_TAG}}" --format "{{.Repository}}")          
           echo "$IMAGES" | while read IMAGE; do
             # Pull verified RC from dockerhub.
             docker pull "$IMAGE:${{env.RC_TAG}}"
