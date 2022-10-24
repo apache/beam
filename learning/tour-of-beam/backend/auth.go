@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
+	"beam.apache.org/learning/tour-of-beam/backend/internal/storage"
 	firebase "firebase.google.com/go/v4"
 )
 
@@ -34,9 +35,10 @@ const BEARER_SCHEMA = "Bearer "
 
 type Authorizer struct {
 	fbApp *firebase.App
+	repo  storage.Iface
 }
 
-func MakeAuthorizer(ctx context.Context) *Authorizer {
+func MakeAuthorizer(ctx context.Context, repo storage.Iface) *Authorizer {
 	// setup authorizer
 	// consumes:
 	// GOOGLE_PROJECT_ID
@@ -47,12 +49,13 @@ func MakeAuthorizer(ctx context.Context) *Authorizer {
 	if err != nil {
 		log.Fatalf("error initializing firebase: %v", err)
 	}
-	return &Authorizer{fbApp}
+	return &Authorizer{fbApp, repo}
 }
 
 // middleware to parse authorization header, verify the ID token and extract uid.
 func (a *Authorizer) ParseAuthHeader(next HandlerFuncAuthWithSdk) HandlerFuncWithSdk {
 	return func(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
+		ctx := r.Context()
 		header := r.Header.Get("authorization") // returns "" if no header
 		if !strings.HasPrefix(header, BEARER_SCHEMA) {
 			log.Printf("Bad authorization header")
@@ -60,7 +63,7 @@ func (a *Authorizer) ParseAuthHeader(next HandlerFuncAuthWithSdk) HandlerFuncWit
 			return
 		}
 
-		client, err := a.fbApp.Auth(r.Context())
+		client, err := a.fbApp.Auth(ctx)
 		if err != nil {
 			log.Println("Failed to get auth client:", err)
 			finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "auth client failed")
@@ -68,13 +71,20 @@ func (a *Authorizer) ParseAuthHeader(next HandlerFuncAuthWithSdk) HandlerFuncWit
 		}
 
 		tokenEncoded := header[len(BEARER_SCHEMA):]
-		token, err := client.VerifyIDTokenAndCheckRevoked(r.Context(), tokenEncoded)
+		token, err := client.VerifyIDTokenAndCheckRevoked(ctx, tokenEncoded)
 		if err != nil {
 			log.Println("Failed to verify token:", err)
 			finalizeErrResponse(w, http.StatusUnauthorized, UNAUTHORIZED, "failed to verify token")
 			return
 		}
 
-		next(w, r, sdk, token.UID)
+		uid := token.UID
+		if err = a.repo.SaveUser(ctx, uid); err != nil {
+			log.Println("Failed to store user info:", err)
+			finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "failed to store user")
+			return
+		}
+
+		next(w, r, sdk, uid)
 	}
 }

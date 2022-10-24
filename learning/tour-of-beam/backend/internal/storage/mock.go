@@ -60,6 +60,10 @@ func (d *Mock) GetUnitContent(_ context.Context, sdk tob.Sdk, unitId string) (u 
 	return u, err
 }
 
+func (d *Mock) SaveUser(ctx context.Context, uid string) error {
+	return nil
+}
+
 func (d *Mock) GetUserProgress(_ context.Context, sdk tob.Sdk, userId string) (sp *tob.SdkProgress, err error) {
 	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_user_progress.json"))
 	_ = json.Unmarshal(content, &sp)

@@ -46,7 +46,7 @@ func finalizeErrResponse(w http.ResponseWriter, status int, code, message string
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-func MakeService(ctx context.Context) service.IContent {
+func MakeRepo(ctx context.Context) storage.Iface {
 	// dependencies
 	// required:
 	// * TOB_MOCK: respond with static samples
@@ -55,10 +55,9 @@ func MakeService(ctx context.Context) service.IContent {
 	// * DATASTORE_PROJECT_ID: cloud project id
 	// optional:
 	// * DATASTORE_EMULATOR_HOST: emulator host/port (ex. 0.0.0.0:8888)
-	var repo storage.Iface
 	if os.Getenv("TOB_MOCK") > "" {
-		fmt.Println("Initialize mock service")
-		repo = &storage.Mock{}
+		fmt.Println("Initialize mock storage")
+		return &storage.Mock{}
 	} else {
 		// consumes DATASTORE_* env variables
 		client, err := datastore.NewClient(ctx, "")
@@ -66,17 +65,16 @@ func MakeService(ctx context.Context) service.IContent {
 			log.Fatalf("new datastore client: %v", err)
 		}
 
-		repo = &storage.DatastoreDb{Client: client}
+		return &storage.DatastoreDb{Client: client}
 	}
-
-	return &service.Svc{Repo: repo}
 }
 
 func init() {
 	ctx := context.Background()
 
-	svc = MakeService(ctx)
-	auth = MakeAuthorizer(ctx)
+	repo := MakeRepo(ctx)
+	svc = &service.Svc{Repo: repo}
+	auth = MakeAuthorizer(ctx, repo)
 
 	// functions framework
 	functions.HTTP("getSdkList", Common(getSdkList))

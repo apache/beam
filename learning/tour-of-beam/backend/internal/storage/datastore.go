@@ -258,6 +258,17 @@ func (d *DatastoreDb) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId st
 	return node.Unit, nil
 }
 
+func (d *DatastoreDb) SaveUser(ctx context.Context, uid string) error {
+	userKey := pgNameKey(TbUserKind, uid, nil)
+
+	_, err := d.Client.Put(ctx, userKey, &TbUser{UID: uid, LastVisitAt: time.Now()})
+	if err != nil {
+		return fmt.Errorf("failed to create tb_user: %w", err)
+	}
+
+	return nil
+}
+
 func (d *DatastoreDb) GetUserProgress(ctx context.Context, sdk tob.Sdk, uid string) (*tob.SdkProgress, error) {
 	userKey := pgNameKey(TbUserKind, uid, nil)
 	err := d.Client.Get(ctx, userKey, &TbUser{})
@@ -289,12 +300,6 @@ func (d *DatastoreDb) GetUserProgress(ctx context.Context, sdk tob.Sdk, uid stri
 
 func (d *DatastoreDb) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error {
 	userKey := pgNameKey(TbUserKind, uid, nil)
-
-	_, err := d.Client.Put(ctx, userKey, TbUser{UID: uid, LastVisitAt: time.Now()})
-	if err != nil {
-		return fmt.Errorf("failed to create tb_user: %w", err)
-	}
-
 	progressKey := datastoreKey(TbUserProgressKind, sdk, unitId, userKey)
 	progress := TbUnitProgress{
 		Sdk:         rootSdkKey(sdk),
@@ -302,8 +307,7 @@ func (d *DatastoreDb) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, 
 		IsCompleted: true,
 	}
 
-	_, err = d.Client.Put(ctx, progressKey, progress)
-	if err != nil {
+	if _, err := d.Client.Put(ctx, progressKey, progress); err != nil {
 		return fmt.Errorf("failed to create tb_user_progress: %w", err)
 	}
 	return nil
