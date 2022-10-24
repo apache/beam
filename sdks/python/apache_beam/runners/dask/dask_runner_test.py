@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import inspect
 import unittest
 
 import apache_beam as beam
@@ -55,7 +56,7 @@ class DaskOptionsTest(unittest.TestCase):
     dask_options = options.view_as(DaskOptions)
 
     # Get the argument names for the constructor.
-    client_args = ddist.Client.__init__.__code__.co_varnames
+    client_args = list(inspect.signature(ddist.Client).parameters)
 
     for opt_name in dask_options.get_all_options(drop_default=True).keys():
       with self.subTest(f'{opt_name} in dask.distributed.Client constructor'):
