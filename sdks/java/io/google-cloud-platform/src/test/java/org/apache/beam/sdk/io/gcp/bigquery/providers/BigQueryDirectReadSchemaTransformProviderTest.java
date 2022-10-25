@@ -60,7 +60,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -241,8 +240,10 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
     BigQueryDirectReadSchemaTransformConfiguration config =
-        BigQueryDirectReadSchemaTransformConfiguration.builder().setTableSpec(TABLE_SPEC)
-            .setBigQueryServices(fakeBigQueryServices.withStorageClient(fakeStorageClient)).build();
+        BigQueryDirectReadSchemaTransformConfiguration.builder()
+            .setTableSpec(TABLE_SPEC)
+            .setBigQueryServices(fakeBigQueryServices.withStorageClient(fakeStorageClient))
+            .build();
     BigQueryDirectReadSchemaTransformProvider provider =
         new BigQueryDirectReadSchemaTransformProvider();
     DirectReadPCollectionRowTupleTransform readTransform =
