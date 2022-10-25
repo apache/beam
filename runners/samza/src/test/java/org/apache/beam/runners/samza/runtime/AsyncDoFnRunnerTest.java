@@ -159,7 +159,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
                 KV.of("banana", 5L)));
 
     // TODO: remove after SAMZA-2761 fix
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 50; i++) {
       input.add(KV.of("*", 0L));
     }
 
