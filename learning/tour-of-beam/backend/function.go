@@ -173,5 +173,5 @@ func postUnitComplete(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid s
 		return
 	}
 
-	w.Write([]byte("{}"))
+	fmt.Fprint(w, "{}")
 }
