@@ -40,8 +40,8 @@ The following example shows how to add `input` and `output` custom options:
 ```
 // Use standard Go flags to define pipeline options.
 var (
-	input  = flag.String("input", "", "")
-	output = flag.String("output", "", "")
+  input  = flag.String("input", "", "")
+  output = flag.String("output", "", "")
 )
 ```
 
@@ -49,7 +49,7 @@ You can also specify a description, which appears when a user passes `--help` as
 
 ```
 var (
-	input  = flag.String("input", "gs://my-bucket/input", "Input for the pipeline")
-	output = flag.String("output", "gs://my-bucket/output", "Output for the pipeline")
+  input  = flag.String("input", "gs://my-bucket/input", "Input for the pipeline")
+  output = flag.String("output", "gs://my-bucket/output", "Output for the pipeline")
 )
 ```

@@ -33,16 +33,16 @@ The following example code shows how to do this:
 
 ```
 func main() {
-	ctx := context.Background()
+    ctx := context.Background()
 
     // First create pipline
-	p, s := beam.NewPipelineWithRoot()
+    p, s := beam.NewPipelineWithRoot()
 
     //Now create the PCollection using list of strings
-	numbers := beam.Create(s, "To", "be", "or", "not", "to", "be","that", "is", "the", "question")
+    numbers := beam.Create(s, "To", "be", "or", "not", "to", "be","that", "is", "the", "question")
 
     //Create a numerical PCollection
-	numbers := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+    numbers := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
 }
 ```

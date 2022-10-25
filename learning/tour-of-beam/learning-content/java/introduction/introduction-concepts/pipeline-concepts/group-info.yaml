@@ -20,5 +20,6 @@
 id: pipeline-concepts
 name: Pipeline concepts
 content:
+- overview-pipeline
 - creating-pipeline
 - setting-pipeline

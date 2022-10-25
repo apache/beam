@@ -17,9 +17,5 @@
 # under the License.
 #
 
-id: pipeline-concepts
-name: Pipeline concepts
-content:
-- overview-pipeline
-- creating-pipeline
-- setting-pipeline
+id: overview-pipeline
+name: Pipeline overview
