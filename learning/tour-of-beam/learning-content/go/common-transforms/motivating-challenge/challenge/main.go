@@ -39,16 +39,16 @@ func main() {
 
     p, s := beam.NewPipelineWithRoot()
 
-	// List of elements
+    // List of elements
     input := beam.Create(s, 12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15)
 
-	// The [input] filtered with the positiveNumbersFilter()
+    // The [input] filtered with the positiveNumbersFilter()
     //filtered := getPositiveNumbers(s, input)
 
     // Returns map
     //numberMap := getMap(s, filtered)
 
-	// Returns numbers count with the countingNumbers()
+    // Returns numbers count with the countingNumbers()
     //count := getCountingNumbersByKey(s, numberMap)
 
     debug.Print(s, input)
