@@ -2779,14 +2779,20 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
 
     cold, hot = pcoll | ParDo(SplitHotCold()).with_outputs('hot', main='cold')
     cold.element_type = typehints.Any  # No multi-output type hints.
+    precombined_hot = hot
+    if pcoll.windowing.accumulation_mode == AccumulationMode.ACCUMULATING:
+      # Avoid double-counting that may happen with stacked accumulating mode.
+      precombined_hot |= 'WindowIntoDiscarding' >> WindowInto(
+          pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
+
     precombined_hot = (
-        hot
-        # Avoid double counting that may happen with stacked accumulating mode.
-        | 'WindowIntoDiscarding' >> WindowInto(
-            pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
+        precombined_hot
         | CombinePerKey(PreCombineFn())
-        | Map(StripNonce)
-        | 'WindowIntoOriginal' >> WindowInto(pcoll.windowing))
+        | Map(StripNonce))
+    if pcoll.windowing.accumulation_mode == AccumulationMode.ACCUMULATING:
+      # Restore original windowing strategy.
+      precombined_hot |= 'WindowIntoOriginal' >> WindowInto(pcoll.windowing)
+
     return ((cold, precombined_hot)
             | Flatten()
             | CombinePerKey(PostCombineFn()))

@@ -88,6 +88,23 @@ class SortedConcatWithCounters(beam.CombineFn):
     return ''.join(sorted(acc))
 
 
+class ListCombineFn(beam.CombineFn):
+  def create_accumulator(self):
+    return []
+
+  def add_input(self, mutable_accumulator, element):
+    return mutable_accumulator + [element]
+
+  def merge_accumulators(self, accumulators):
+    res = []
+    for accu in accumulators:
+      res = res + accu
+    return res
+
+  def extract_output(self, accumulator):
+    return accumulator
+
+
 class CombineTest(unittest.TestCase):
   def test_builtin_combines(self):
     with TestPipeline() as pipeline:
@@ -560,6 +577,71 @@ class CombineTest(unittest.TestCase):
         # Different runners have different number of 15s, but there should
         # be at least one 15.
         hamcrest_assert(ordered[4:], only_contains(15))
+
+      assert_that(result, has_expected_values)
+
+  def test_combining_with_sliding_windows_and_fanout(self):
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+
+      def has_expected_values(actual):
+        from hamcrest.core import assert_that as hamcrest_assert
+        from hamcrest.library.collection import contains_exactly
+        ordered = sorted(actual)
+
+        hamcrest_assert(
+            ordered,
+            contains_exactly([0, 1, 2, 3], [0, 1, 2, 3, 5, 6, 7, 8],
+                             [5, 6, 7, 8]))
+
+      result = (
+          p
+          | beam.Create([
+              window.TimestampedValue(0, Timestamp(seconds=1666707510)),
+              window.TimestampedValue(1, Timestamp(seconds=1666707511)),
+              window.TimestampedValue(2, Timestamp(seconds=1666707512)),
+              window.TimestampedValue(3, Timestamp(seconds=1666707513)),
+              window.TimestampedValue(5, Timestamp(seconds=1666707515)),
+              window.TimestampedValue(6, Timestamp(seconds=1666707516)),
+              window.TimestampedValue(7, Timestamp(seconds=1666707517)),
+              window.TimestampedValue(8, Timestamp(seconds=1666707518))
+          ])
+          | beam.WindowInto(window.SlidingWindows(10, 5))
+          | beam.CombineGlobally(
+              ListCombineFn()).without_defaults().with_fanout(5))
+
+      assert_that(result, has_expected_values)
+
+  def test_combining_with_session_windows_and_fanout(self):
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+
+      def has_expected_values(actual):
+        from hamcrest.core import assert_that as hamcrest_assert
+        from hamcrest.library.collection import contains_exactly
+        ordered = sorted(actual)
+
+        hamcrest_assert(ordered, contains_exactly([0, 1, 2, 3], [5, 6, 7, 8]))
+        # Different runners have different number of 15s, but there should
+        # be at least one 15.
+
+      result = (
+          p
+          | beam.Create([
+              window.TimestampedValue(0, Timestamp(seconds=1666707510)),
+              window.TimestampedValue(1, Timestamp(seconds=1666707511)),
+              window.TimestampedValue(2, Timestamp(seconds=1666707512)),
+              window.TimestampedValue(3, Timestamp(seconds=1666707513)),
+              window.TimestampedValue(5, Timestamp(seconds=1666707515)),
+              window.TimestampedValue(6, Timestamp(seconds=1666707516)),
+              window.TimestampedValue(7, Timestamp(seconds=1666707517)),
+              window.TimestampedValue(8, Timestamp(seconds=1666707518))
+          ])
+          | beam.WindowInto(window.Sessions(2))
+          | beam.CombineGlobally(
+              ListCombineFn()).without_defaults().with_fanout(5))
 
       assert_that(result, has_expected_values)
 
