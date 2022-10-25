@@ -290,6 +290,10 @@ if [[ -z $PIPELINE_OPTS ]]; then
 
 fi
 
+# Handle double quotes in PIPELINE_OPTS
+# add a backslash before `"` to keep it in command line options
+PIPELINE_OPTS=${PIPELINE_OPTS//\"/\\\"}
+
 ###########################################################################
 # Run tests and validate that jobs finish successfully.
 

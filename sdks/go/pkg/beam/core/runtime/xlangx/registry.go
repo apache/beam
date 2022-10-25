@@ -283,6 +283,15 @@ func AddClasspaths(classpaths []string) ExpansionServiceOption {
 	}
 }
 
+// AddExtraPackages is an expansion service option for xlangx.UseAutomatedPythonExpansionService
+// that accepts a extra packages slice and creates a tagged  expansion address string
+// suffixed with classpath separator and service module provided.
+func AddExtraPackages(packages []string) ExpansionServiceOption {
+	return func(expansionAddress *string) {
+		*expansionAddress += ClasspathSeparator + strings.Join(packages, " ")
+	}
+}
+
 // UseAutomatedJavaExpansionService takes a gradle target and creates a
 // tagged string to indicate that it should be used to start up an
 // automated expansion service for a cross-language expansion.
@@ -306,8 +315,13 @@ func UseAutomatedJavaExpansionService(gradleTarget string, opts ...ExpansionServ
 // Intended for use by cross language wrappers to permit spinning
 // up an expansion service for a user if no expansion service address
 // is provided.
-func UseAutomatedPythonExpansionService(service string) string {
-	return autoPythonNamespace + Separator + service
+func UseAutomatedPythonExpansionService(service string, opts ...ExpansionServiceOption) string {
+	expansionAddress := autoPythonNamespace + Separator + service
+
+	for _, opt := range opts {
+		opt(&expansionAddress)
+	}
+	return expansionAddress
 }
 
 // restricted namespaces to prevent some awkward edge cases.
@@ -337,4 +351,8 @@ func parseClasspath(expansionAddr string) (string, string) {
 		return expansionAddr, ""
 	}
 	return split[0], split[1]
+}
+
+func parseExtraPackages(expansionAddr string) (string, string) {
+	return parseClasspath(expansionAddr)
 }

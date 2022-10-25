@@ -18,7 +18,7 @@ name: Tour Of Beam Examples CI
 on:
   push:
     paths:
-     - ./.github/workflows/playground_examples_reusable.yml
+     - ./.github/workflows/playground_examples_ci_reusable.yml
      - ./.github/workflows/tour_of_beam_examples_ci.yml
      - playground/backend/**
      - playground/infrastructure/**
@@ -34,14 +34,14 @@ jobs:
         sdk: ["python", "go", "java"]
       # run sequentially
       max-parallel: 1
-    uses: ./.github/workflows/playground_examples_reusable.yml
+    uses: ./.github/workflows/playground_examples_ci_reusable.yml
     with:
       sdk: ${{ matrix.sdk }}
       step: CI
       origin: TB_EXAMPLES
       subdirs: "./learning/tour-of-beam/learning-content"
       allowlist: |
-        .github/workflows/playground_examples_reusable.yml \
+        .github/workflows/playground_examples_ci_reusable.yml \
         .github/workflows/tour_of_beam_examples_ci.yml \
         playground/backend \
-        playground/infrastructure
+        playground/infrastructure \

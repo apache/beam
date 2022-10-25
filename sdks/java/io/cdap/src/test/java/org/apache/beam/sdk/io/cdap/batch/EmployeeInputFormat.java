@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cdap;
+package org.apache.beam.sdk.io.cdap.batch;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.io.cdap.CdapIO;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;

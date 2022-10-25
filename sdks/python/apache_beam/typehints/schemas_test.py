@@ -633,8 +633,10 @@ class PickleTest(unittest.TestCase):
 
     self.assertEqual(instance, self.pickler.loads(self.pickler.dumps(instance)))
 
-  @unittest.skip("https://github.com/apache/beam/issues/22714")
   def test_generated_class_pickle(self):
+    if self.pickler in [pickle, dill]:
+      self.skipTest('https://github.com/apache/beam/issues/22714')
+
     schema = schema_pb2.Schema(
         id="some-uuid",
         fields=[

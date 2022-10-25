@@ -198,7 +198,7 @@ class Flatten(DaskBagOp):
 
 TRANSLATIONS = {
     _Create: Create,
-  apache_beam.ParDo: ParDo,
+    apache_beam.ParDo: ParDo,
   apache_beam.Map: Map,
   _GroupByKeyOnly: GroupByKey,
   _Flatten: Flatten,
