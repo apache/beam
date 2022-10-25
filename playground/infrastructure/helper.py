@@ -16,13 +16,12 @@
 """
 Common helper module for CI/CD Steps
 """
-
+import ast
 import asyncio
 import logging
 import os
-import pathlib
 from collections import namedtuple
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
 from pathlib import PurePath
 from typing import List, Optional, Dict
 
@@ -35,7 +34,7 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
     STATUS_COMPILING, STATUS_EXECUTING, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, \
     PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, \
     PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
-from config import Config, Origin, TagFields, PrecompiledExampleType, OptionalTagFields
+from config import Config, TagFields, PrecompiledExampleType, OptionalTagFields, Dataset, Emulator
 from grpc_client import GRPCClient
 
 Tag = namedtuple(
@@ -43,8 +42,8 @@ Tag = namedtuple(
     [
         TagFields.name,
         TagFields.complexity,
-        TagFields.emulator,
-        TagFields.dataset,
+        TagFields.emulators,
+        TagFields.datasets,
         TagFields.description,
         TagFields.multifile,
         TagFields.categories,
@@ -75,6 +74,8 @@ class Example:
     output: str = ""
     compile_output: str = ""
     graph: str = ""
+    datasets: List[Dataset] = field(default_factory=list)
+    emulators: List[Emulator] = field(default_factory=list)
 
 
 @dataclass
@@ -303,8 +304,32 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
         type=object_type,
         link=link)
 
+    datasets_as_dict: Dict[str, str] = _get_dict_by_field(tag, TagFields.datasets)
+    if datasets_as_dict:
+        datasets = []
+        for key in datasets_as_dict:
+            dataset = Dataset.from_dict(datasets_as_dict.get(key))
+            dataset.name = key
+            datasets.append(dataset)
+        example.datasets = datasets
+
+    emulators_as_dict: Dict[str, str] = _get_dict_by_field(tag, TagFields.emulators)
+    if emulators_as_dict:
+        emulators = []
+        for key in emulators_as_dict:
+            emulator = Emulator.from_dict(emulators_as_dict.get(key))
+            emulator.name = key
+            emulators.append(emulator)
+        example.emulators = emulators
+
     validate_example_fields(example)
     return example
+
+
+def _get_dict_by_field(tag: ExampleTag, field: str) -> Dict[str, str]:
+    if tag.tag_as_dict.get(field):
+        return ast.literal_eval(str(tag.tag_as_dict[field]))
+    return {}
 
 
 def _validate(tag: dict, supported_categories: List[str]) -> bool:
@@ -492,16 +517,27 @@ def validate_example_fields(example: Example):
         _log_and_rise_validation_err(f"Example doesn't have a link field. Path: {example.filepath}")
     if example.complexity == "":
         _log_and_rise_validation_err(f"Example doesn't have a complexity field. Path: {example.filepath}")
-    dataset = getattr(example.tag, TagFields.dataset)
-    emulator = getattr(example.tag, TagFields.emulator)
-    if dataset is not None and len(dataset) != 0 and (emulator is None or len(emulator) == 0):
-        _log_and_rise_validation_err(f"Example has a dataset field but an emulator field not found. Path: {example.filepath}")
-    if emulator is not None and len(emulator) != 0 and (dataset is None or len(dataset) == 0):
-        _log_and_rise_validation_err(f"Example has an emulator field but a dataset field not found. Path: {example.filepath}")
-    if dataset is not None and len(dataset) != 0 and len(pathlib.Path(dataset).suffix) == 0:
-        _log_and_rise_validation_err(f"Example has invalid dataset value. Path: {example.filepath}")
-    if emulator is not None and len(emulator) != 0 and emulator not in ["KAFKA"]:
-        _log_and_rise_validation_err(f"Example has invalid emulator value. Path: {example.filepath}")
+    datasets = example.datasets
+    emulators = example.emulators
+
+    if datasets and not emulators:
+        _log_and_rise_validation_err(f"Example has a datasets field but an emulators field not found. Path: {example.filepath}")
+    if emulators and not datasets:
+        _log_and_rise_validation_err(f"Example has an emulators field but a datasets field not found. Path: {example.filepath}")
+
+    dataset_names = []
+    if datasets:
+        for dataset in datasets:
+            location = dataset.location
+            dataset_format = dataset.format
+            if not location or not dataset_format or location not in ["GCS"] or dataset_format not in ["json", "avro"]:
+                _log_and_rise_validation_err(f"Example has invalid dataset value. Path: {example.filepath}")
+            dataset_names.append(dataset.name)
+
+    if emulators:
+        for emulator in emulators:
+            if emulator.name not in ["kafka"] or not emulator.topic or emulator.topic.dataset not in dataset_names or not emulator.topic.id:
+                _log_and_rise_validation_err(f"Example has invalid emulator value. Path: {example.filepath}")
 
 
 def _log_and_rise_validation_err(msg: str):

@@ -31,8 +31,15 @@ package org.apache.beam.examples;
 //     - filter
 //     - strings
 //     - emulator
-//   emulator: KAFKA
-//   dataset: dataset.json
+//   emulators:
+//      kafka:
+//          topic:
+//              id: dataset
+//              dataset: dataset
+//   datasets:
+//      dataset:
+//          location: GCS
+//          format: json
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -65,8 +72,8 @@ public class KafkaConsumerExample {
         consumerConfig.put("auto.offset.reset", "earliest");
 
         p.apply(KafkaIO.<Long, String>read()
-                        .withBootstrapServers("kafka_address") // it's forbidden to change the bootstrap server value
-                        .withTopicPartitions(Collections.singletonList(new TopicPartition("dataset", 0))) // it's forbidden to change the topic name
+                        .withBootstrapServers("kafka_server:9092") // The argument is predefined to a correct value. Do not change it manually.
+                        .withTopicPartitions(Collections.singletonList(new TopicPartition("dataset", 0))) // The argument is predefined to a correct value. Do not change it manually.
                         .withKeyDeserializer(LongDeserializer.class)
                         .withValueDeserializer(StringDeserializer.class)
                         .withConsumerConfigUpdates(consumerConfig)

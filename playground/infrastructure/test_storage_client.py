@@ -12,12 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from unittest.mock import MagicMock, call
+import os
+from unittest.mock import call
 
 import pytest
 import mock
 
-from config import StorageProps
 from storage_client import StorageClient
 
 """
@@ -25,24 +25,25 @@ Unit tests for the Cloud Storage client
 """
 
 
-def test_upload_dataset_when_dataset_bucket_name_not_set():
+@mock.patch("google.cloud.storage.Client")
+def test_upload_dataset_when_dataset_bucket_name_not_set(mock_storage_client):
     """
     Test uploading a dataset to the cloud storage when the Dataset bucket name is not set
     """
     with pytest.raises(KeyError, match="DATASET_BUCKET_NAME environment variable should be specified in os"):
-        StorageClient()
+        client = StorageClient()
+        client.upload_dataset("MOCK_FILE_NAME")
 
 
+@mock.patch.dict(os.environ, {"DATASET_BUCKET_NAME": "MOCK_BUCKET"}, clear=True)
 @mock.patch("google.cloud.storage.Client")
-@mock.patch("config.StorageProps.DATASET_BUCKET_NAME")
-def test_upload_dataset_in_the_usual_case(mock_dataset_bucket_name, mock_storage_client):
+def test_upload_dataset_in_the_usual_case(mock_storage_client):
     """
     Test uploading a dataset to the cloud storage in the usual case
     """
-    mock_dataset_bucket_name.return_value = "MOCK_BUCKET"
 
     client = StorageClient()
     url = client.upload_dataset("MOCK_FILE_NAME")
     assert url is not None
-    calls = [call().bucket(StorageProps.DATASET_BUCKET_NAME)]
+    calls = [call().bucket("MOCK_BUCKET")]
     mock_storage_client.assert_has_calls(calls, any_order=False)
