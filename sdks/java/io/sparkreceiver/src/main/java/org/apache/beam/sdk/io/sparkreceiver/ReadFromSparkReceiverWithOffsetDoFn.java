@@ -112,7 +112,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
   }
 
   /**
-   * {@link OffsetRangeTracker} that performs split only before {@link
+   * {@link OffsetRangeTracker} that performs basic split only in {@link
    * OffsetRangeTracker#checkDone}. This behavior allows reading from primary range until resume,
    * and then split to {alreadyReadRange, residualRange}.
    */
@@ -122,6 +122,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
       super(range);
     }
 
+    @SuppressWarnings("nullness") // Base method can return null
     @Override
     public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
       if (lastAttemptedOffset != null) {
