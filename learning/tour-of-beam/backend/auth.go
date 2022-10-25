@@ -79,6 +79,8 @@ func (a *Authorizer) ParseAuthHeader(next HandlerFuncAuthWithSdk) HandlerFuncWit
 		}
 
 		uid := token.UID
+		// store in tb_user
+		// TODO: implement IDToken caching in tb_user to optimize calls to Firebase API
 		if err = a.repo.SaveUser(ctx, uid); err != nil {
 			log.Println("Failed to store user info:", err)
 			finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "failed to store user")
