@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
+import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
 import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
@@ -43,6 +44,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Timestamp;
+import com.google.rpc.Code;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -50,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
@@ -148,6 +151,8 @@ public class FakeDatasetService implements DatasetService, Serializable {
     }
   }
 
+  Function<TableRow, Boolean> shouldFailRow =
+      (Function<TableRow, Boolean> & Serializable) tr -> false;
   Map<String, List<String>> insertErrors = Maps.newHashMap();
 
   // The counter for the number of insertions performed.
@@ -160,6 +165,10 @@ public class FakeDatasetService implements DatasetService, Serializable {
       writeStreams = Maps.newHashMap();
       FakeJobService.setUp();
     }
+  }
+
+  public void setShouldFailRow(Function<TableRow, Boolean> shouldFailRow) {
+    this.shouldFailRow = shouldFailRow;
   }
 
   @Override
@@ -492,7 +501,8 @@ public class FakeDatasetService implements DatasetService, Serializable {
   }
 
   @Override
-  public StreamAppendClient getStreamAppendClient(String streamName, Descriptor descriptor) {
+  public StreamAppendClient getStreamAppendClient(
+      String streamName, Descriptor descriptor, boolean useConnectionPool) {
     return new StreamAppendClient() {
       private Descriptor protoDescriptor;
 
@@ -503,6 +513,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
       @Override
       public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
           throws Exception {
+        AppendRowsResponse.Builder responseBuilder = AppendRowsResponse.newBuilder();
         synchronized (FakeDatasetService.class) {
           Stream stream = writeStreams.get(streamName);
           if (stream == null) {
@@ -510,18 +521,32 @@ public class FakeDatasetService implements DatasetService, Serializable {
           }
           List<TableRow> tableRows =
               Lists.newArrayListWithExpectedSize(rows.getSerializedRowsCount());
-          for (ByteString bytes : rows.getSerializedRowsList()) {
+          Map<Integer, String> rowIndexToErrorMessage = Maps.newHashMap();
+          for (int i = 0; i < rows.getSerializedRowsCount(); ++i) {
+            ByteString bytes = rows.getSerializedRows(i);
             DynamicMessage msg = DynamicMessage.parseFrom(protoDescriptor, bytes);
             if (msg.getUnknownFields() != null && !msg.getUnknownFields().asMap().isEmpty()) {
               throw new RuntimeException("Unknown fields set in append! " + msg.getUnknownFields());
             }
-            tableRows.add(
+            TableRow tableRow =
                 TableRowToStorageApiProto.tableRowFromMessage(
-                    DynamicMessage.parseFrom(protoDescriptor, bytes)));
+                    DynamicMessage.parseFrom(protoDescriptor, bytes));
+            if (shouldFailRow.apply(tableRow)) {
+              rowIndexToErrorMessage.put(i, "Failing row " + tableRow.toPrettyString());
+            }
+            tableRows.add(tableRow);
+          }
+          if (!rowIndexToErrorMessage.isEmpty()) {
+            return ApiFutures.immediateFailedFuture(
+                new Exceptions.AppendSerializtionError(
+                    Code.INVALID_ARGUMENT.getNumber(),
+                    "Append serialization failed for writer: " + streamName,
+                    stream.streamName,
+                    rowIndexToErrorMessage));
           }
           stream.appendRows(offset, tableRows);
         }
-        return ApiFutures.immediateFuture(AppendRowsResponse.newBuilder().build());
+        return ApiFutures.immediateFuture(responseBuilder.build());
       }
 
       @Override

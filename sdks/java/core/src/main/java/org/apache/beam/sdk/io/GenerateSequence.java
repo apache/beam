@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -70,22 +72,26 @@ import org.joda.time.Instant;
  * will be present in the resulting {@link PCollection}.
  */
 @AutoValue
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Long>> {
+  @Pure
   abstract long getFrom();
 
+  @Pure
   abstract long getTo();
 
+  @Pure
   abstract @Nullable SerializableFunction<Long, Instant> getTimestampFn();
 
+  @Pure
   abstract long getElementsPerPeriod();
 
+  @Pure
   abstract @Nullable Duration getPeriod();
 
+  @Pure
   abstract @Nullable Duration getMaxReadTime();
 
+  @Pure
   abstract Builder toBuilder();
 
   @AutoValue.Builder
@@ -97,14 +103,15 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
 
     abstract Builder setTo(long to);
 
-    abstract Builder setTimestampFn(SerializableFunction<Long, Instant> timestampFn);
+    abstract Builder setTimestampFn(@Nullable SerializableFunction<Long, Instant> timestampFn);
 
     abstract Builder setElementsPerPeriod(long elementsPerPeriod);
 
-    abstract Builder setPeriod(Duration period);
+    abstract Builder setPeriod(@Nullable Duration period);
 
-    abstract Builder setMaxReadTime(Duration maxReadTime);
+    abstract Builder setMaxReadTime(@Nullable Duration maxReadTime);
 
+    @Pure
     abstract GenerateSequence build();
 
     @Override
@@ -144,7 +151,7 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
     /** Parameters class to expose the transform to an external SDK. */
     @Experimental
     public static class ExternalConfiguration {
-      private Long start;
+      private Long start = 0L;
       private @Nullable Long stop;
       private @Nullable Long period;
       private @Nullable Long maxReadTime;
@@ -223,8 +230,13 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
     if (getTimestampFn() != null) {
       source = source.withTimestampFn(getTimestampFn());
     }
-    if (getElementsPerPeriod() > 0) {
-      source = source.withRate(getElementsPerPeriod(), getPeriod());
+    if (getPeriod() != null || getElementsPerPeriod() > 0) {
+      Duration period =
+          checkArgumentNotNull(
+              getPeriod(), "elements per period specified, but no period specified");
+      checkArgument(
+          getElementsPerPeriod() > 0, "elements per period not specified, but period specified");
+      source = source.withRate(getElementsPerPeriod(), period);
     }
 
     Read.Unbounded<Long> readUnbounded = Read.from(source);

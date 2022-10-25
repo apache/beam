@@ -43,18 +43,28 @@
 
 ## Bugfixes
 
+* Fixed JmsIO acknowledgment issue (https://github.com/apache/beam/issues/20814)
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
+# [2.44.0] - Unreleased
+
+## New Features / Improvements
+
+* Local packages can now be used as dependencies in the requirements.txt file, rather
+  than requiring them to be passed separately via the `--extra_package` option.
+  ([#23684](https://github.com/apache/beam/pull/23684))
+
+
 # [2.43.0] - Unreleased
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Python 3.10 support in Apache Beam ([#21458](https://github.com/apache/beam/issues/21458)).
+
 
 ## I/Os
 
@@ -69,11 +79,14 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Dataframe wrapper added in Go SDK via Cross-Language (with automatic expansion service). (Go) ([#23384](https://github.com/apache/beam/issues/23384)).
 * Name all Java threads to aid in debugging ([#23049](https://github.com/apache/beam/issues/23049)).
 
 ## Breaking Changes
 
 * Python SDK CoGroupByKey outputs an iterable allowing for arbitrarily large results. [#21556](https://github.com/apache/beam/issues/21556) Beam users may see an error on transforms downstream from CoGroupByKey. Users must change methods expecting a List to expect an Iterable going forward. See [document](https://docs.google.com/document/d/1RIzm8-g-0CyVsPb6yasjwokJQFoKHG4NjRUcKHKINu0) for information and fixes.
+* The PortableRunner for Spark assumes Spark 3 as default Spark major version unless configured otherwise using `--spark_version`.
+  Spark 2 support is deprecated and will be removed soon ([#23728](https://github.com/apache/beam/issues/23728)).
 
 ## Deprecations
 
@@ -89,7 +102,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 
 
-# [2.42.0] - Unreleased, Cut 2022-09-07
+# [2.42.0] - 2022-10-17
 
 ## Highlights
 

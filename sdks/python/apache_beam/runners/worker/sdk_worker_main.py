@@ -280,23 +280,13 @@ def _set_log_level_overrides(options_dict: dict) -> None:
   """Set module log level overrides from options dict's entry
   `sdk_harness_log_level_overrides`.
   """
-  option_raw = options_dict.get('sdk_harness_log_level_overrides', None)
+  parsed_overrides = options_dict.get('sdk_harness_log_level_overrides', None)
 
-  if option_raw is None:
-    return
-
-  parsed_overrides = {}
-
-  try:
-    # parsing and flatten the appended option
-    deserialized = [json.loads(line) for line in option_raw]
-    for line in deserialized:
-      parsed_overrides.update(line)
-  except Exception:
-    _LOGGER.error(
-        "Unable to parse sdk_harness_log_level_overrides %s. "
-        "Log level overrides won't take effect.",
-        option_raw)
+  if not isinstance(parsed_overrides, dict):
+    if parsed_overrides is not None:
+      _LOGGER.error(
+          "Unable to parse sdk_harness_log_level_overrides: %s",
+          parsed_overrides)
     return
 
   for module_name, log_level in parsed_overrides.items():
