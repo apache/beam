@@ -244,10 +244,10 @@ class DatastoreClient:
         )
         return self._get_key(DatastoreProps.FILES_KIND, name)
 
-    def _get_pc_objects_key(self, obj_id: str, pc_obj_type: str):
+    def _get_pc_objects_key(self, example_id: str, pc_obj_type: str):
         return self._get_key(
             DatastoreProps.PRECOMPILED_OBJECT_KIND,
-            config.DatastoreProps.KEY_NAME_DELIMITER.join([obj_id, pc_obj_type])
+            config.DatastoreProps.KEY_NAME_DELIMITER.join([example_id, pc_obj_type])
         )
 
     def _to_snippet_entity(self,

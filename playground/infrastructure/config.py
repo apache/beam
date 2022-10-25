@@ -101,8 +101,8 @@ class PrecompiledExampleType:
 class OptionalTagFields:
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
-    emulator: str = "emulators"
-    dataset: str = "datasets"
+    emulators: str = "emulators"
+    datasets: str = "datasets"
 
 
 @dataclass(frozen=True)
