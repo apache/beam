@@ -217,6 +217,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
 
     asyncDoFnRunner.processElement(input1);
     asyncDoFnRunner.processElement(input2);
+    // Resume input1 process afterwards
     latch.countDown();
 
     // Waiting for the futures to be resolved
