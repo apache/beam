@@ -1,0 +1,75 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+name: kuber-bkend
+on:
+  workflow_dispatch:
+  
+env:
+  BEAM_ROOT_DIR: ../../
+  BEAM_EXAMPLE_CATEGORIES: ../categories.yaml
+  BEAM_VERSION: 2.40.0
+  DOCKERTAG: beta
+jobs:
+  deployBackend:
+    name: init
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+      - name: Install kubectl
+        run: |
+             curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" &&\
+             chmod +x kubectl &&\
+             mv kubectl /usr/local/bin/
+      - name: Install helm
+        run: |
+             curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 &&\
+             chmod 700 get_helm.sh &&\
+             ./get_helm.sh
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+      - name: Setup GCP account
+        run: |
+             echo "${{ secrets.GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
+             which gcloud
+             gcloud auth activate-service-account --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }} --key-file=/tmp/gcp_access.json
+      - name: Update variables
+        run: |
+             echo "redis_ip: $(gcloud redis instances list --region us-central1 --format="value(host)"):6379" >> playground/infrastructure/helm-backend/values.yaml
+             echo "project_id: "${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}"" >> playground/infrastructure/helm-backend/values.yaml
+             echo "registry: "${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository"" >> playground/infrastructure/helm-backend/values.yaml
+             echo "static_ip: $(gcloud compute addresses list --filter "NAME:${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}-static" --format="value(address)")" >> playground/infrastructure/helm-backend/values.yaml
+             echo "static_ip_name: ${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}-static" >> playground/infrastructure/helm-backend/values.yaml
+             cat playground/infrastructure/helm-backend/values.yaml
+      - name: Get K8s Config
+        run: gcloud container clusters get-credentials --region us-central1-a playground-examples
+      - name: Login to Docker Registry
+        run: |
+              cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://us-central1-docker.pkg.dev
+      - name: Build And Push Backend
+        run: ./gradlew playground:backend:containers:java:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}' -Pdocker-tag=${{ env.DOCKERTAG }}
+      - name: Build And Push Go Backend
+        run: ./gradlew playground:backend:containers:go:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
+      - name: Build And Push Python Backend
+        run: ./gradlew playground:backend:containers:python:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
+      - name: Build And Push Scio Backend
+        run: ./gradlew playground:backend:containers:scio:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
+      - name: Build And Push Router Backend
+        run: ./gradlew playground:backend:containers:router:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
+      - name: Index creation
+        run: |
+              gcloud app deploy playground/index.yaml --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+      - name: Backend setup
+        run: helm install backend playground/infrastructure/helm-backend
