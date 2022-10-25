@@ -28,7 +28,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_DataflowV1', 'Run PostC
       description('Dataflow Java Post Commit Tests')
 
       // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 360)
 
       // Publish all test results to Jenkins
       publishers {
@@ -43,6 +43,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_DataflowV1', 'Run PostC
           commonJobProperties.setGradleSwitches(delegate)
           // Specify maven home on Jenkins, needed by Maven archetype integration tests.
           switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')
+          switches('--info')
         }
       }
     }
