@@ -21,7 +21,7 @@ services:
     volumes:
       - ${DATASTORE_EMULATOR_DATADIR}:/opt/data
     environment:
-      - DATASTORE_PROJECT_ID=demo-test-proj
+      - DATASTORE_PROJECT_ID
       - DATASTORE_LISTEN_ADDRESS=0.0.0.0:8081
     ports:
       - "8081:8081"
@@ -30,6 +30,6 @@ services:
   firebase_auth:
     build: integration_tests/emulators/firebase 
     environment:
-      - PROJECT_ID=demo-test-proj
+      - PROJECT_ID=${GOOGLE_CLOUD_PROJECT}
     ports:
       - "9099:9099"

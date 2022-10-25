@@ -75,13 +75,16 @@ func init() {
 	repo := MakeRepo(ctx)
 	svc = &service.Svc{Repo: repo}
 	auth = MakeAuthorizer(ctx, repo)
+	commonGet := Common(http.MethodGet)
+	commonPost := Common(http.MethodPost)
 
 	// functions framework
-	functions.HTTP("getSdkList", Common(getSdkList))
-	functions.HTTP("getContentTree", Common(ParseSdkParam(getContentTree)))
-	functions.HTTP("getUnitContent", Common(ParseSdkParam(getUnitContent)))
+	functions.HTTP("getSdkList", commonGet(getSdkList))
+	functions.HTTP("getContentTree", commonGet(ParseSdkParam(getContentTree)))
+	functions.HTTP("getUnitContent", commonGet(ParseSdkParam(getUnitContent)))
 
-	functions.HTTP("getUserProgress", Common(ParseSdkParam(auth.ParseAuthHeader(getUserProgress))))
+	functions.HTTP("getUserProgress", commonGet(ParseSdkParam(auth.ParseAuthHeader(getUserProgress))))
+	functions.HTTP("postUnitComplete", commonPost(ParseSdkParam(auth.ParseAuthHeader(postUnitComplete))))
 }
 
 // Get list of SDK names
@@ -157,4 +160,18 @@ func getUserProgress(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid st
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format user progress content")
 		return
 	}
+}
+
+// Mark unit completed
+func postUnitComplete(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid string) {
+	unitId := r.URL.Query().Get("id")
+
+	err := svc.SetUnitComplete(r.Context(), sdk, unitId, uid)
+	if err != nil {
+		log.Println("Set unit complete error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
+		return
+	}
+
+	w.Write([]byte("{}"))
 }

@@ -62,13 +62,24 @@ func GetUserProgress(url, sdk, token string) (SdkProgress, error) {
 	return result, err
 }
 
+func PostUnitComplete(url, sdk, unitId, token string) error {
+	var result struct{}
+	err := Do(&result, http.MethodPost, url, map[string]string{"sdk": sdk, "id": unitId},
+		map[string]string{"Authorization": "Bearer " + token}, nil)
+	return err
+}
+
+func Get(dst interface{}, url string, queryParams, headers map[string]string) error {
+	return Do(dst, http.MethodGet, url, queryParams, headers, nil)
+}
+
 // Generic HTTP call wrapper
 // params:
 // * dst: response struct pointer
 // * url: request  url
 // * query_params: url query params, as a map (we don't use multiple-valued params)
-func Get(dst interface{}, url string, queryParams, headers map[string]string) error {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func Do(dst interface{}, method, url string, queryParams, headers map[string]string, body io.Reader) error {
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return err
 	}

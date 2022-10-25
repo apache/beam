@@ -27,6 +27,7 @@ type IContent interface {
 	GetContentTree(ctx context.Context, sdk tob.Sdk) (tob.ContentTree, error)
 	GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (tob.Unit, error)
 	GetUserProgress(ctx context.Context, sdk tob.Sdk, userId string) (tob.SdkProgress, error)
+	SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error
 }
 
 type Svc struct {
@@ -62,4 +63,8 @@ func (s *Svc) GetUserProgress(ctx context.Context, sdk tob.Sdk, userId string) (
 	}
 
 	return *progress, nil
+}
+
+func (s *Svc) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error {
+	return s.Repo.SetUnitComplete(ctx, sdk, unitId, uid)
 }

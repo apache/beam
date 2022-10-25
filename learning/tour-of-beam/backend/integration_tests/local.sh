@@ -18,7 +18,7 @@ export FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
 
 # Enable TOB_MOCK to mock out datastore
 #export TOB_MOCK=1
-export DATASTORE_PROJECT_ID=demo-test-proj
+export DATASTORE_PROJECT_ID=$GOOGLE_CLOUD_PROJECT
 export DATASTORE_EMULATOR_HOST=localhost:8081
 export DATASTORE_EMULATOR_DATADIR=./datadir-$(date '+%H-%M-%S')
 export TOB_LEARNING_ROOT=./samples/learning-content
@@ -27,6 +27,7 @@ export PORT_SDK_LIST=8801
 export PORT_GET_CONTENT_TREE=8802
 export PORT_GET_UNIT_CONTENT=8803
 export PORT_GET_USER_PROGRESS=8804
+export PORT_POST_UNIT_COMPLETE=8805
 
 mkdir "$DATASTORE_EMULATOR_DATADIR"
 
@@ -38,6 +39,7 @@ PORT=$PORT_SDK_LIST FUNCTION_TARGET=getSdkList         ./tob_function &
 PORT=$PORT_GET_CONTENT_TREE FUNCTION_TARGET=getContentTree  ./tob_function &
 PORT=$PORT_GET_UNIT_CONTENT FUNCTION_TARGET=getUnitContent  ./tob_function &
 PORT=$PORT_GET_USER_PROGRESS FUNCTION_TARGET=getUserProgress ./tob_function &
+PORT=$PORT_POST_UNIT_COMPLETE FUNCTION_TARGET=postUnitComplete ./tob_function &
 
 sleep 5
 

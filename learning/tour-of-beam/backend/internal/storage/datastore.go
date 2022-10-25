@@ -307,7 +307,7 @@ func (d *DatastoreDb) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, 
 		IsCompleted: true,
 	}
 
-	if _, err := d.Client.Put(ctx, progressKey, progress); err != nil {
+	if _, err := d.Client.Put(ctx, progressKey, &progress); err != nil {
 		return fmt.Errorf("failed to create tb_user_progress: %w", err)
 	}
 	return nil

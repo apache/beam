@@ -149,24 +149,38 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestGetUserProgress(t *testing.T) {
-	port := os.Getenv(PORT_GET_USER_PROGRESS)
-	if port == "" {
-		t.Fatal(PORT_GET_USER_PROGRESS, "env not set")
-	}
-	url := "http://localhost:" + port
-
-	mock_path := filepath.Join("..", "samples", "api", "get_user_progress.json")
-	var exp SdkProgress
-	if err := loadJson(mock_path, &exp); err != nil {
-		t.Fatal(err)
-	}
-
+func TestSaveGetProgress(t *testing.T) {
 	idToken := emulator.getIDToken()
 
-	resp, err := GetUserProgress(url, "python", idToken)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, exp, resp)
+	t.Run("save", func(t *testing.T) {
+		port := os.Getenv(PORT_POST_UNIT_COMPLETE)
+		if port == "" {
+			t.Fatal(PORT_POST_UNIT_COMPLETE, "env not set")
+		}
+		url := "http://localhost:" + port
+
+		err := PostUnitComplete(url, "python", "unit_id_1", idToken)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("get", func(t *testing.T) {
+		port := os.Getenv(PORT_GET_USER_PROGRESS)
+		if port == "" {
+			t.Fatal(PORT_GET_USER_PROGRESS, "env not set")
+		}
+		url := "http://localhost:" + port
+
+		mock_path := filepath.Join("..", "samples", "api", "get_user_progress.json")
+		var exp SdkProgress
+		if err := loadJson(mock_path, &exp); err != nil {
+			t.Fatal(err)
+		}
+
+		resp, err := GetUserProgress(url, "python", idToken)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, exp, resp)
+	})
 }
