@@ -15,7 +15,7 @@
 
 // beam-playground:
 //   name: CommonTransformsChallenge
-//   description: Common Transforms motivating challenge solution.
+//   description: Common Transforms motivating challenge.
 //   multifile: false
 //   context_line: 39
 //   categories:
@@ -27,11 +27,11 @@
 package main
 
 import (
-	"context"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+    "context"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
 
 func main() {
@@ -43,13 +43,13 @@ func main() {
     input := beam.Create(s, 12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15)
 
 	// The [input] filtered with the positiveNumbersFilter()
-	//filtered := getPositiveNumbers(s, input)
+    //filtered := getPositiveNumbers(s, input)
 
     // Returns map
-	//numberMap := getMap(s, filtered)
+    //numberMap := getMap(s, filtered)
 
 	// Returns numbers count with the countingNumbers()
-	//count := getCountingNumbersByKey(s, numberMap)
+    //count := getCountingNumbersByKey(s, numberMap)
 
     debug.Print(s, input)
 
@@ -60,11 +60,8 @@ func main() {
     }
 }
 
-// Returns positive numbers
+// Write here getPositiveNumbers function
 
-// Returns a map with a key that will not be odd or even , and the value will be the number itself at the input
+// Write here getMap function
 
-// Returns the count of numbers
-func getCountingNumbersByKey(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return input
-}
+// Write here getCountingNumbersByKey function
