@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.client.util.Strings;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import java.util.Collections;
@@ -41,6 +40,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 @Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
@@ -91,7 +91,7 @@ public class BigQueryDirectReadSchemaTransformProvider
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
     private final BigQueryDirectReadSchemaTransformConfiguration configuration;
 
-    private BigQueryServices testBigQueryServices = null;
+    private BigQueryServices testBigQueryServices;
 
     @VisibleForTesting
     void setTestBigQueryServices(BigQueryServices testBigQueryServices) {
