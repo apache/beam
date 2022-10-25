@@ -23,6 +23,7 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, \
     STATUS_FINISHED, SDK_JAVA, \
     PRECOMPILED_OBJECT_TYPE_EXAMPLE, PRECOMPILED_OBJECT_TYPE_KATA, \
     PRECOMPILED_OBJECT_TYPE_UNIT_TEST
+from config import Emulator, Topic, Dataset
 from grpc_client import GRPCClient
 from helper import find_examples, Example, _get_example, _get_name, get_tag, \
     _validate, Tag, get_statuses, _check_no_nested, \
@@ -199,8 +200,8 @@ def test__get_example():
         "pipeline_options": "--option option",
         "context_line": 1,
         "complexity": "MEDIUM",
-        "emulator": "KAFKA",
-        "dataset": "dataset.json"
+        "emulators": "{'kafka': {'topic': {'id': 'dataset', 'dataset': 'dataset'}}}",
+        "datasets": "{'dataset': {'location': 'GCS', 'format': 'json'}}"
     },
         "")
 
@@ -213,9 +214,23 @@ def test__get_example():
         code="data",
         status=STATUS_UNSPECIFIED,
         tag=Tag(
-            "Name", "MEDIUM", "KAFKA", "dataset.json", "Description", "False", [""], "--option option", False, 1),
+            "Name", "MEDIUM", "{'kafka': {'topic': {'id': 'dataset', 'dataset': 'dataset'}}}", "{'dataset': {'location': 'GCS', 'format': 'json'}}", "Description", "False", [""], "--option option",
+            False, 1),
         link="https://github.com/apache/beam/blob/master/root/filepath.java",
-        complexity="MEDIUM")
+        complexity="MEDIUM",
+        emulators=[Emulator(
+            topic=Topic(
+                id="dataset",
+                dataset="dataset"
+            ),
+            name="kafka"
+        )],
+        datasets=[Dataset(
+            format="json",
+            location="GCS",
+            name="dataset"
+        )]
+    )
 
 
 def test__validate_without_name_field():
@@ -387,60 +402,148 @@ def test_validate_example_fields_when_complexity_is_invalid():
 
 
 def test_validate_example_fields_when_dataset_not_set_but_emulator_set():
-    object_meta = {
-        "name": "MOCK_NAME",
-        "description": "MOCK_DESCRIPTION",
-        "multifile": False,
-        "categories": ["MOCK_CATEGORY_1", "MOCK_CATEGORY_2"],
-        "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE",
-        "emulator": "KAFKA"
-    }
-    example = _create_example_with_meta("MOCK_NAME", object_meta)
-    with pytest.raises(ValidationException, match="Example has an emulator field but a dataset field not found. Path: MOCK_FILEPATH"):
+    example = _create_example("MOCK_NAME")
+    emulator = Emulator(
+        topic=Topic(
+            id="MOCK_ID",
+            dataset="dataset"
+        ),
+        name="kafka"
+    )
+    example.emulators.append(emulator)
+    with pytest.raises(ValidationException, match="Example has an emulators field but a datasets field not found. Path: MOCK_FILEPATH"):
         validate_example_fields(example)
 
 
 def test_validate_example_fields_when_emulator_not_set_but_dataset_set():
-    object_meta = {
-        "name": "MOCK_NAME",
-        "description": "MOCK_DESCRIPTION",
-        "multifile": False,
-        "categories": ["MOCK_CATEGORY_1", "MOCK_CATEGORY_2"],
-        "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE",
-        "dataset": "dataset.json"
-    }
-    example = _create_example_with_meta("MOCK_NAME", object_meta)
-    with pytest.raises(ValidationException, match="Example has a dataset field but an emulator field not found. Path: MOCK_FILEPATH"):
+    example = _create_example("MOCK_NAME")
+    dataset = Dataset(
+        format="json",
+        location="GCS",
+        name="dataset"
+    )
+    example.datasets.append(dataset)
+    with pytest.raises(ValidationException, match="Example has a datasets field but an emulators field not found. Path: MOCK_FILEPATH"):
         validate_example_fields(example)
 
 
-def test_validate_example_fields_when_dataset_is_invalid():
-    object_meta = {
-        "name": "MOCK_NAME",
-        "description": "MOCK_DESCRIPTION",
-        "multifile": False,
-        "categories": ["MOCK_CATEGORY_1", "MOCK_CATEGORY_2"],
-        "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE",
-        "dataset": "dataset",
-        "emulator": "KAFKA"
-    }
-    example = _create_example_with_meta("MOCK_NAME", object_meta)
+def test_validate_example_fields_when_topic_id_is_invalid():
+    example = _create_example("MOCK_NAME")
+    emulator = Emulator(
+        topic=Topic(
+            id="",
+            dataset="dataset"
+        ),
+        name="kafka"
+    )
+    dataset = Dataset(
+        format="json",
+        location="GCS",
+        name="dataset"
+    )
+    example.datasets.append(dataset)
+    example.emulators.append(emulator)
+    with pytest.raises(ValidationException, match="Example has invalid emulator value. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_topic_dataset_is_invalid():
+    example = _create_example("MOCK_NAME")
+    emulator = Emulator(
+        topic=Topic(
+            id="MOCK_ID",
+            dataset="MOCK_DATASET"
+        ),
+        name="kafka"
+    )
+    dataset = Dataset(
+        format="json",
+        location="GCS",
+        name="dataset"
+    )
+    example.datasets.append(dataset)
+    example.emulators.append(emulator)
+    with pytest.raises(ValidationException, match="Example has invalid emulator value. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_emulator_name_is_invalid():
+    example = _create_example("MOCK_NAME")
+    emulator = Emulator(
+        topic=Topic(
+            id="MOCK_ID",
+            dataset="dataset"
+        ),
+        name="MOCK_NAME"
+    )
+    dataset = Dataset(
+        format="json",
+        location="GCS",
+        name="dataset"
+    )
+    example.datasets.append(dataset)
+    example.emulators.append(emulator)
+    with pytest.raises(ValidationException, match="Example has invalid emulator value. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_dataset_format_is_invalid():
+    example = _create_example("MOCK_NAME")
+    emulator = Emulator(
+        topic=Topic(
+            id="MOCK_ID",
+            dataset="dataset"
+        ),
+        name="dataset"
+    )
+    dataset = Dataset(
+        format="MOCK_FORMAT",
+        location="GCS",
+        name="dataset"
+    )
+    example.datasets.append(dataset)
+    example.emulators.append(emulator)
     with pytest.raises(ValidationException, match="Example has invalid dataset value. Path: MOCK_FILEPATH"):
         validate_example_fields(example)
 
 
-def test_validate_example_fields_when_emulator_is_invalid():
-    object_meta = {
-        "name": "MOCK_NAME",
-        "description": "MOCK_DESCRIPTION",
-        "multifile": False,
-        "categories": ["MOCK_CATEGORY_1", "MOCK_CATEGORY_2"],
-        "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE",
-        "dataset": "dataset.json",
-        "emulator": "MOCK_VALUE"
-    }
-    example = _create_example_with_meta("MOCK_NAME", object_meta)
-    with pytest.raises(ValidationException, match="Example has invalid emulator value. Path: MOCK_FILEPATH"):
+def test_validate_example_fields_when_dataset_location_is_invalid():
+    example = _create_example("MOCK_NAME")
+    emulator = Emulator(
+        topic=Topic(
+            id="MOCK_ID",
+            dataset="dataset"
+        ),
+        name="dataset"
+    )
+    dataset = Dataset(
+        format="avro",
+        location="MOCK_LOCATION",
+        name="dataset"
+    )
+    example.datasets.append(dataset)
+    example.emulators.append(emulator)
+    with pytest.raises(ValidationException, match="Example has invalid dataset value. Path: MOCK_FILEPATH"):
+        validate_example_fields(example)
+
+
+def test_validate_example_fields_when_dataset_name_is_invalid():
+    example = _create_example("MOCK_NAME")
+    emulator = Emulator(
+        topic=Topic(
+            id="MOCK_ID",
+            dataset="dataset"
+        ),
+        name="dataset"
+    )
+    dataset = Dataset(
+        format="avro",
+        location="MOCK_LOCATION",
+        name=""
+    )
+    example.datasets.append(dataset)
+    example.emulators.append(emulator)
+    with pytest.raises(ValidationException, match="Example has invalid dataset value. Path: MOCK_FILEPATH"):
         validate_example_fields(example)
 
 

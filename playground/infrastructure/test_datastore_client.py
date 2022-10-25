@@ -29,20 +29,19 @@ Unit tests for the Cloud Datastore client
 """
 
 
-@mock.patch("config.StorageProps.DATASET_BUCKET_NAME")
 @mock.patch("config.Config.GOOGLE_CLOUD_PROJECT")
 @mock.patch("google.cloud.datastore.Client")
 @mock.patch("google.cloud.storage.Client")
-def test_save_to_cloud_datastore_when_schema_version_not_found(mock_storage_client, mock_datastore_client, mock_config_project, mock_dataset_bucket_name):
+def test_save_to_cloud_datastore_when_schema_version_not_found(mock_storage_client, mock_datastore_client, mock_config_project):
     """
     Test saving examples to the cloud datastore when the schema version not found
     """
     mock_config_project.return_value = "MOCK_PROJECT_ID"
-    mock_dataset_bucket_name.return_value = "MOCK_BUCKET"
     with pytest.raises(DatastoreException, match="Schema versions not found. Schema versions must be downloaded during application startup"):
         examples = _get_examples(1)
         client = DatastoreClient()
         client.save_to_cloud_datastore(examples, SDK_JAVA, Origin.PG_EXAMPLES)
+
 
 def test_save_to_cloud_datastore_when_google_cloud_project_id_not_set():
     """
@@ -61,20 +60,18 @@ def test_save_to_cloud_datastore_when_google_cloud_project_id_not_set():
 )
 @mock.patch("datastore_client.DatastoreClient._get_all_examples")
 @mock.patch("datastore_client.DatastoreClient._get_actual_schema_version_key")
-@mock.patch("config.StorageProps.DATASET_BUCKET_NAME")
 @mock.patch("config.Config.GOOGLE_CLOUD_PROJECT")
 @mock.patch("google.cloud.datastore.Client")
 @mock.patch("google.cloud.storage.Client")
 def test_save_to_cloud_datastore_in_the_usual_case(
-    mock_storage_client,
-    mock_client,
-    mock_config_project,
-    mock_dataset_bucket_name,
-    mock_get_schema,
-    mock_get_examples,
-    origin,
-    key_prefix,
-    ):
+      mock_storage_client,
+      mock_client,
+      mock_config_project,
+      mock_get_schema,
+      mock_get_examples,
+      origin,
+      key_prefix,
+):
     """
     Test saving examples to the cloud datastore in the usual case
     """
@@ -83,7 +80,6 @@ def test_save_to_cloud_datastore_in_the_usual_case(
     mock_examples = MagicMock()
     mock_get_examples.return_value = mock_examples
     mock_config_project.return_value = "MOCK_PROJECT_ID"
-    mock_dataset_bucket_name.return_value = "MOCK_BUCKET"
 
     examples = _get_examples(1)
     client = DatastoreClient()
@@ -92,13 +88,13 @@ def test_save_to_cloud_datastore_in_the_usual_case(
     mock_get_schema.assert_called_once()
     mock_get_examples.assert_called_once()
     calls = [call().key('pg_sdks', 'SDK_JAVA'),
-                call().key('pg_examples', key_prefix + 'SDK_JAVA_MOCK_NAME_0'),
-                call().key('pg_snippets', key_prefix + 'SDK_JAVA_MOCK_NAME_0'),
-                call().key('pg_pc_objects', key_prefix + 'SDK_JAVA_MOCK_NAME_0_OUTPUT'),
-                call().key('pg_files', key_prefix + 'SDK_JAVA_MOCK_NAME_0_0'),
-                call().put_multi(ANY),
-                call().put_multi(ANY),
-                call().put_multi(ANY),
-                call().put_multi(ANY)]
+             call().key('pg_examples', key_prefix + 'SDK_JAVA_MOCK_NAME_0'),
+             call().key('pg_snippets', key_prefix + 'SDK_JAVA_MOCK_NAME_0'),
+             call().key('pg_pc_objects', key_prefix + 'SDK_JAVA_MOCK_NAME_0_OUTPUT'),
+             call().key('pg_files', key_prefix + 'SDK_JAVA_MOCK_NAME_0_0'),
+             call().put_multi(ANY),
+             call().put_multi(ANY),
+             call().put_multi(ANY),
+             call().put_multi(ANY)]
     mock_client.assert_has_calls(calls, any_order=False)
     mock_client.delete_multi.assert_not_called()

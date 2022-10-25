@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Literal
 
+from dataclasses_json import dataclass_json
+
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
     STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
     STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON, \
@@ -75,8 +77,8 @@ class TagFields:
     context_line: int = "context_line"
     complexity: str = "complexity"
     tags: str = "tags"
-    emulator: str = "emulator"
-    dataset: str = "dataset"
+    emulators: str = "emulators"
+    datasets: str = "datasets"
 
 
 @dataclass(frozen=True)
@@ -99,8 +101,8 @@ class PrecompiledExampleType:
 class OptionalTagFields:
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
-    emulator: str = "emulator"
-    dataset: str = "dataset"
+    emulator: str = "emulators"
+    dataset: str = "datasets"
 
 
 @dataclass(frozen=True)
@@ -114,11 +116,11 @@ class DatastoreProps:
     FILES_KIND = "pg_files"
     SDK_KIND = "pg_sdks"
     DATASET_KIND = "pg_datasets"
+    DATASET_SNIPPET_KIND = "pg_datasets_snippets"
 
 
 @dataclass(frozen=True)
 class StorageProps:
-    DATASET_BUCKET_NAME = os.getenv("DATASET_BUCKET_NAME")
     DATASET_GCS_ROOT = "datasets"
     DATASET_REP_ROOT = "../backend/datasets"
 
@@ -128,3 +130,25 @@ class Origin(str, Enum):
     PG_USER = 'PG_USER'
     TB_EXAMPLES = 'TB_EXAMPLES'
     TB_USER = 'TB_USER'
+
+
+@dataclass_json
+@dataclass
+class Dataset:
+    format: str
+    location: str
+    name: str = ""
+
+
+@dataclass_json
+@dataclass
+class Topic:
+    id: str
+    dataset: str
+
+
+@dataclass_json
+@dataclass
+class Emulator:
+    topic: Topic
+    name: str = ""

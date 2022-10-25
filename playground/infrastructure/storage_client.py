@@ -17,6 +17,7 @@
 Module contains the client to communicate with Google Cloud Storage
 """
 import logging
+import os
 
 from google.cloud import storage
 
@@ -29,16 +30,14 @@ class StorageClient:
     _storage_client: storage.Client
 
     def __init__(self):
-        self._check_envs()
         self._storage_client = storage.Client()
 
-    def _check_envs(self):
-        if StorageProps.DATASET_BUCKET_NAME is None:
-            raise KeyError("DATASET_BUCKET_NAME environment variable should be specified in os")
-
     def upload_dataset(self, dataset_file_name: str) -> str:
-        bucket = self._storage_client.bucket(StorageProps.DATASET_BUCKET_NAME)
+        bucket_name = os.getenv("DATASET_BUCKET_NAME")
+        if not bucket_name:
+            raise KeyError("DATASET_BUCKET_NAME environment variable should be specified in os")
+        bucket = self._storage_client.bucket(bucket_name)
         blob = bucket.blob(f"{StorageProps.DATASET_GCS_ROOT}/{dataset_file_name}")
         blob.upload_from_filename(f"{StorageProps.DATASET_REP_ROOT}/{dataset_file_name}")
-        logging.info("Dataset uploaded to %s bucket", StorageProps.DATASET_BUCKET_NAME)
+        logging.info("Dataset uploaded to %s bucket", bucket_name)
         return blob.public_url
