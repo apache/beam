@@ -241,14 +241,12 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
     BigQueryDirectReadSchemaTransformConfiguration config =
-        BigQueryDirectReadSchemaTransformConfiguration.builder().setTableSpec(TABLE_SPEC).build();
+        BigQueryDirectReadSchemaTransformConfiguration.builder().setTableSpec(TABLE_SPEC)
+            .setBigQueryServices(fakeBigQueryServices.withStorageClient(fakeStorageClient)).build();
     BigQueryDirectReadSchemaTransformProvider provider =
         new BigQueryDirectReadSchemaTransformProvider();
-    SchemaTransform schemaTransform = provider.from(config);
     DirectReadPCollectionRowTupleTransform readTransform =
-        (DirectReadPCollectionRowTupleTransform) schemaTransform.buildTransform();
-    readTransform.setTestBigQueryServices(
-        fakeBigQueryServices.withStorageClient(fakeStorageClient));
+        (DirectReadPCollectionRowTupleTransform) provider.from(config).buildTransform();
     PCollectionRowTuple input = PCollectionRowTuple.empty(p);
     String tag = provider.outputCollectionNames().get(0);
 
@@ -307,14 +305,12 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
             .setTableSpec(TABLE_SPEC)
             .setSelectedFields(Arrays.asList("str"))
             .setRowRestriction("num > 1")
+            .setBigQueryServices(fakeBigQueryServices.withStorageClient(fakeStorageClient))
             .build();
     BigQueryDirectReadSchemaTransformProvider provider =
         new BigQueryDirectReadSchemaTransformProvider();
-    SchemaTransform schemaTransform = provider.from(config);
     DirectReadPCollectionRowTupleTransform readTransform =
-        (DirectReadPCollectionRowTupleTransform) schemaTransform.buildTransform();
-    readTransform.setTestBigQueryServices(
-        fakeBigQueryServices.withStorageClient(fakeStorageClient));
+        (DirectReadPCollectionRowTupleTransform) provider.from(config).buildTransform();
     PCollectionRowTuple input = PCollectionRowTuple.empty(p);
     String tag = provider.outputCollectionNames().get(0);
 

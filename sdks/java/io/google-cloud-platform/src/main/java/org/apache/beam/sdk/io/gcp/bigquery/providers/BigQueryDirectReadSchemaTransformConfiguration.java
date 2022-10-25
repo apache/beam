@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
@@ -46,6 +47,9 @@ public abstract class BigQueryDirectReadSchemaTransformConfiguration {
   @Nullable
   public abstract List<String> getSelectedFields();
 
+  @Nullable
+  public abstract BigQueryServices getBigQueryServices();
+
   /** Builder for the {@link BigQueryDirectReadSchemaTransformConfiguration}. */
   @AutoValue.Builder
   public abstract static class Builder {
@@ -56,6 +60,8 @@ public abstract class BigQueryDirectReadSchemaTransformConfiguration {
     public abstract Builder setRowRestriction(String rowRestriction);
 
     public abstract Builder setSelectedFields(List<String> selectedFields);
+
+    public abstract Builder setBigQueryServices(BigQueryServices bigQueryServices);
 
     /** Builds a {@link BigQueryDirectReadSchemaTransformConfiguration} instance. */
     public abstract BigQueryDirectReadSchemaTransformConfiguration build();

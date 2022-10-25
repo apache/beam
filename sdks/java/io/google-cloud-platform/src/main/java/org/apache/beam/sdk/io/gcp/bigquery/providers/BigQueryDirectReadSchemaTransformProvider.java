@@ -91,13 +91,6 @@ public class BigQueryDirectReadSchemaTransformProvider
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
     private final BigQueryDirectReadSchemaTransformConfiguration configuration;
 
-    private BigQueryServices testBigQueryServices;
-
-    @VisibleForTesting
-    void setTestBigQueryServices(BigQueryServices testBigQueryServices) {
-      this.testBigQueryServices = testBigQueryServices;
-    }
-
     DirectReadPCollectionRowTupleTransform(
         BigQueryDirectReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
@@ -138,8 +131,8 @@ public class BigQueryDirectReadSchemaTransformProvider
       if (configuration.getSelectedFields() != null) {
         read = read.withSelectedFields(configuration.getSelectedFields());
       }
-      if (testBigQueryServices != null) {
-        read = read.withTestServices(testBigQueryServices).withoutValidation();
+      if (configuration.getBigQueryServices() != null) {
+        read = read.withTestServices(configuration.getBigQueryServices());
       }
 
       return read;
