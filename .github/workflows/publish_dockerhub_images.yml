@@ -69,6 +69,7 @@ jobs:
           distribution: 'temurin'
           java-version: |
             8
+            17
             11
       - name: Exporting Java_HOME to Java 8
         run: echo "JAVA_HOME=${JAVA_HOME_8_X64}" >> $GITHUB_ENV
