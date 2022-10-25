@@ -165,12 +165,12 @@ def _arrow_field_from_beam_field(beam_field: schema_pb2.Field) -> pa.Field:
 
 
 _ARROW_PRIMITIVE_MAPPING = [
-    # TODO: Unsigned ints
+    # TODO(https://github.com/apache/beam/issues/23816): Support unsigned ints
+    # and float16
     (schema_pb2.BYTE, pa.int8()),
     (schema_pb2.INT16, pa.int16()),
     (schema_pb2.INT32, pa.int32()),
     (schema_pb2.INT64, pa.int64()),
-    # TODO: float16
     (schema_pb2.FLOAT, pa.float32()),
     (schema_pb2.DOUBLE, pa.float64()),
     (schema_pb2.BOOLEAN, pa.bool_()),
@@ -228,10 +228,6 @@ if PYARROW_VERSION < (6, 0):
   # Here we define a custom arrow map conversion function to handle these cases
   # and error as appropriate.
 
-  OPTIONS_WARNING = (
-      "Beam options will not be propagated to arrow schema. If options must be "
-      "propagated please use pyarrow>=6.0.0. Dropped options\n:{option}")
-
   def _make_arrow_map(beam_map_type: schema_pb2.MapType):
     if beam_map_type.key_type.nullable:
       raise TypeError('Arrow map key field cannot be nullable')
@@ -287,7 +283,11 @@ def _arrow_type_from_beam_fieldtype(
     output_arrow_type = pa.struct(
         [_arrow_field_from_beam_field(field) for field in schema.fields])
   elif type_info == "logical_type":
-    raise NotImplementedError()
+    # TODO(https://github.com/apache/beam/issues/23817): Add support for logical
+    # types.
+    raise NotImplementedError(
+        "Beam logical types are not currently supported "
+        "in arrow_type_compatibility.")
   else:
     raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
@@ -318,10 +318,6 @@ class PyarrowBatchConverter(BatchConverter):
         _ in self._element_type._fields
     ]
     return pa.Table.from_arrays(arrays, schema=self._arrow_schema)
-    #return pa.Table.from_pylist(
-    #    # TODO: Assumes el is a NamedTuple
-    #    [el._asdict() for el in elements],
-    #    schema=self._arrow_schema)
 
   def explode_batch(self, batch: pa.Table):
     """Convert an instance of B to Generator[E]."""

@@ -15,6 +15,12 @@
 # limitations under the License.
 #
 
+"""A microbenchmark for pyarrow batch creation.
+
+This microbenchmark exercises the PyarrowBatchConverter.produce_batch method
+for different batch sizes.
+"""
+
 import argparse
 import logging
 
@@ -57,7 +63,6 @@ def run_benchmark(
 
 if __name__ == '__main__':
   logging.basicConfig()
-  #utils.check_compiled('apache_beam.runners.common')
 
   parser = argparse.ArgumentParser()
   parser.add_argument('--num_runs', default=10, type=int)
