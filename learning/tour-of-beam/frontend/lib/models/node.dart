@@ -19,15 +19,18 @@
 import '../repositories/models/node.dart';
 import '../repositories/models/node_type_enum.dart';
 import 'group.dart';
+import 'parent_node.dart';
 import 'unit.dart';
 
 abstract class NodeModel {
   final String id;
   final String title;
+  final NodeModel? parent;
 
   const NodeModel({
     required this.id,
     required this.title,
+    required this.parent,
   });
 
   /// Constructs nodes from the response data.
@@ -36,20 +39,27 @@ abstract class NodeModel {
   /// because they come from a golang backend which does not
   /// support inheritance, and so they use an extra layer of composition
   /// which is inconvenient in Flutter.
-  static List<NodeModel> fromMaps(List json) {
+  static List<NodeModel> fromMaps(List json, ParentNodeModel parent) {
     return json
         .cast<Map<String, dynamic>>()
         .map<NodeResponseModel>(NodeResponseModel.fromJson)
-        .map(fromResponse)
+        .map((nodeResponse) => fromResponse(nodeResponse, parent))
         .toList();
   }
 
-  static NodeModel fromResponse(NodeResponseModel node) {
+  static NodeModel fromResponse(
+    NodeResponseModel node,
+    ParentNodeModel parent,
+  ) {
     switch (node.type) {
       case NodeType.group:
-        return GroupModel.fromResponse(node.group!);
+        return GroupModel.fromResponse(node.group!, parent);
       case NodeType.unit:
-        return UnitModel.fromResponse(node.unit!);
+        return UnitModel.fromResponse(node.unit!, parent);
     }
   }
+
+  NodeModel getFirstUnit();
+
+  NodeModel? getNodeByTreeIds(List<String> treeIds);
 }

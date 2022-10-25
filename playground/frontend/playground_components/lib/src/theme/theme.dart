@@ -121,6 +121,7 @@ final kLightTheme = ThemeData(
   ),
   primaryColor: BeamLightThemeColors.primary,
   scaffoldBackgroundColor: BeamLightThemeColors.secondaryBackground,
+  selectedRowColor: BeamLightThemeColors.selectedUnitColor,
   tabBarTheme: _getTabBarTheme(
     textColor: BeamLightThemeColors.text,
     indicatorColor: BeamLightThemeColors.primary,
@@ -195,6 +196,7 @@ final kDarkTheme = ThemeData(
   ),
   primaryColor: BeamDarkThemeColors.primary,
   scaffoldBackgroundColor: BeamDarkThemeColors.secondaryBackground,
+  selectedRowColor: BeamDarkThemeColors.selectedUnitColor,
   tabBarTheme: _getTabBarTheme(
     textColor: BeamDarkThemeColors.text,
     indicatorColor: BeamDarkThemeColors.primary,

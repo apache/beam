@@ -36,8 +36,12 @@ class GroupWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isExpanded = contentTreeController.expandedIds.contains(group.id);
+
     return ExpansionTileWrapper(
       ExpansionTile(
+        key: Key('${group.id}$isExpanded'),
+        initiallyExpanded: isExpanded,
         tilePadding: EdgeInsets.zero,
         title: GroupTitleWidget(
           group: group,
