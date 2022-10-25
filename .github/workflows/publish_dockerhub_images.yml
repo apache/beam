@@ -54,7 +54,9 @@ jobs:
         with:
           ref: ${{env.RC_TAG}}
       - name: Setup Go 
-        uses: actions/setup-go@v3 
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.19' 
       - name: Setup python 
         uses: actions/setup-python@v4
         with:
