@@ -68,6 +68,6 @@ func main() {
   err := beamx.Run(ctx, p)
 
   if err != nil {
-  		log.Exitf(ctx, "Failed to execute job: %v", err)
-  	}
+    log.Exitf(ctx, "Failed to execute job: %v", err)
+  }
 }

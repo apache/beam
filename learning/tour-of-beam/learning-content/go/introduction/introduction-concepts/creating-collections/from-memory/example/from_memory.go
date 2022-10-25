@@ -48,7 +48,7 @@ func main() {
 }
 
 func output(s beam.Scope, input beam.PCollection) {
-	 beam.ParDo0(s, func(element interface{}) {
-			fmt.Println(element)
-		}, input)
+  beam.ParDo0(s, func(element interface{}) {
+    fmt.Println(element)
+    }, input)
 }
