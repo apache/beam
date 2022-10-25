@@ -1,6 +1,6 @@
 ---
 title: "Overview"
-redirect_from:
+aliases:
   - /documentation/sdks/python-machine-learning
   - /documentation/sdks/python-machine-learning/index.html
 ---
