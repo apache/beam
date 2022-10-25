@@ -88,23 +88,6 @@ class SortedConcatWithCounters(beam.CombineFn):
     return ''.join(sorted(acc))
 
 
-class ListCombineFn(beam.CombineFn):
-  def create_accumulator(self):
-    return []
-
-  def add_input(self, mutable_accumulator, element):
-    return mutable_accumulator + [element]
-
-  def merge_accumulators(self, accumulators):
-    res = []
-    for accu in accumulators:
-      res = res + accu
-    return res
-
-  def extract_output(self, accumulator):
-    return accumulator
-
-
 class CombineTest(unittest.TestCase):
   def test_builtin_combines(self):
     with TestPipeline() as pipeline:
@@ -608,9 +591,8 @@ class CombineTest(unittest.TestCase):
               window.TimestampedValue(8, Timestamp(seconds=1666707518))
           ])
           | beam.WindowInto(window.SlidingWindows(10, 5))
-          | beam.CombineGlobally(
-              ListCombineFn()).without_defaults().with_fanout(5))
-
+          | beam.CombineGlobally(beam.combiners.ToListCombineFn()).
+          without_defaults().with_fanout(2))
       assert_that(result, has_expected_values)
 
   def test_combining_with_session_windows_and_fanout(self):
@@ -640,8 +622,8 @@ class CombineTest(unittest.TestCase):
               window.TimestampedValue(8, Timestamp(seconds=1666707518))
           ])
           | beam.WindowInto(window.Sessions(2))
-          | beam.CombineGlobally(
-              ListCombineFn()).without_defaults().with_fanout(5))
+          | beam.CombineGlobally(beam.combiners.ToListCombineFn()).
+          without_defaults().with_fanout(2))
 
       assert_that(result, has_expected_values)
 
