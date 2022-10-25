@@ -36,36 +36,29 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
+    ctx := context.Background()
 
-	p, s := beam.NewPipelineWithRoot()
+    p, s := beam.NewPipelineWithRoot()
 
 	// List of elements
-	input := beam.Create(s, 12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15)
+    input := beam.Create(s, 12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15)
 
-	debug.Print(s, input)
-	filtered := filter.Exclude(s, input, func(element int) bool {
-		return element < 0
-	})
+	// The [input] filtered with the positiveNumbersFilter()
+	//filtered := getPositiveNumbers(s, input)
 
-	tagged := beam.ParDo(s, func(input int) (string, int) {
-		if input%2 == 0 {
-			return "even", input
-		} else {
-			return "odd", input
-		}
-	}, filtered)
+    // Returns map
+	//numberMap := getMap(s, filtered)
 
 	// Returns numbers count with the countingNumbers()
-	count := getCountingNumbersByKey(s, tagged)
+	//count := getCountingNumbersByKey(s, numberMap)
 
-	debug.Print(s, count)
+    debug.Print(s, input)
 
-	err := beamx.Run(ctx, p)
+    err := beamx.Run(ctx, p)
 
-	if err != nil {
-		log.Exitf(context.Background(), "Failed to execute job: %v", err)
-	}
+    if err != nil {
+        log.Exitf(context.Background(), "Failed to execute job: %v", err)
+    }
 }
 
 // Returns positive numbers
