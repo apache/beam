@@ -350,7 +350,11 @@ if __name__ == '__main__':
         # This can be removed once dill is updated to version > 0.3.5.1
         # Issue: https://github.com/apache/beam/issues/23566
           'dataframe': ['pandas>=1.0,<1.5;python_version<"3.10"',
-                        'pandas>=1.4.3,<1.5;python_version>="3.10"']
+                        'pandas>=1.4.3,<1.5;python_version>="3.10"'],
+          'dask': [
+            'dask >= 2022.6',
+            'distributed >= 2022.6',
+          ],
       },
       zip_safe=False,
       # PyPI package information.
