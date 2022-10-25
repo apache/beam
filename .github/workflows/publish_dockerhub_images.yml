@@ -16,8 +16,7 @@
 # under the License.
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
-
-name: Build And Publish DockerHub images
+name: Build And Publish Dockerhub images
 on:
   workflow_dispatch:
     inputs:
@@ -33,7 +32,7 @@ on:
         default: "1"
       FINAL_PUBLISH:
         type: boolean
-        description: Publish as RELEASE_VERSION and LATEST?
+        description: Publish as RELEASE and LATEST?
         required: true
         default: false
 
@@ -55,9 +54,9 @@ jobs:
         with:
           ref: ${{env.RC_TAG}}
       - name: Setup Go 
-        uses: ./.github/actions/setup-self-hosted-action
+        uses: actions/setup-go@v3
         with:
-          requires-go-18: true  
+          go-version: '^1.13.1' 
       - name: Setup python 
         uses: actions/setup-python@v4
         with:
