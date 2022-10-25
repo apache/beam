@@ -7282,7 +7282,16 @@ To create an SDK wrapper for use in a Python pipeline, do the following:
 
 #### 13.1.2. Creating cross-language Python transforms
 
-To make your Python transform usable with different SDK languages, you must create a Python module that registers an existing Python transform as a cross-language transform for use with the Python expansion service and calls into that existing transform to perform its intended operation.
+Any Python transforms defined in the scope of the expansion service should be accessible by specifying their fully qualified names. For example, you could use Python's `ReadFromText` transform in a Java pipeline with its fully qualified name `apache_beam.io.ReadFromText`:
+
+```java
+p.apply("Read",
+    PythonExternalTransform.<PBegin, PCollection<String>>from("apache_beam.io.ReadFromText")
+    .withKwarg("file_pattern", options.getInputFile())
+    .withKwarg("validate", false))
+```
+
+Alternatively, you may want to create a Python module that registers an existing Python transform as a cross-language transform for use with the Python expansion service and calls into that existing transform to perform its intended operation. A registered URN can be used later in an expansion request for indicating an expansion target.
 
 **Defining the Python module**
 
@@ -7393,7 +7402,29 @@ Depending on the SDK language of the pipeline, you can use a high-level SDK-wrap
 
 #### 13.2.1. Using cross-language transforms in a Java pipeline
 
-Currently, to access cross-language transforms from the Java SDK, you have to use the lower-level [External](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) class.
+Users have three options to use cross-language transforms in a Java pipeline. At the highest level of abstraction, some popular Python transforms are accessible through dedicated Java wrapper transforms. For example, Java SDK has `DataframeTransform` class which uses Python SDK's `DataframeTransform` and `RunInference` class in Java SDK for `RunInference` in Python SDK and so on. When a SDK-specific wrapper transform is not available for a target Python transform, you could use the lower-level [PythonExternalTransform](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java) class instead by specifying the fully qualified name of the Python transform. If you want to try external transforms from the SDKS other than Python, you may also use the lowest-level [External](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) class.
+
+**Using an SDK wrapper**
+
+To use a cross-language transform through an SDK wrapper, import the module for the SDK wrapper and call it from your pipeline, as shown in the example:
+
+```java
+import org.apache.beam.sdk.extensions.python.transforms.DataframeTransform;
+
+input.apply(DataframeTransform.of("lambda df: df.groupby('a').sum()").withIndexes())
+```
+
+**Using the PythonExternalTransform class**
+
+When an SDK-specific wrapper is not available, you cound access the Python cross-language transform through the `PythonExternalTransform` class by specifying the fully qualified name and the constructor arguments of the target Python transform.
+
+```java
+input.apply(
+    PythonExternalTransform.<PCollection<Row>, PCollection<Row>>from(
+        "apache_beam.dataframe.transforms.DataframeTransform")
+    .withKwarg("func", PythonCallableSource.of("lambda df: df.groupby('a').sum()"))
+    .withKwarg("include_indexes", true))
+```
 
 **Using the External class**
 
