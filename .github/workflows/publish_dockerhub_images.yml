@@ -56,7 +56,7 @@ jobs:
       - name: Setup Go 
         uses: actions/setup-go@v3
         with:
-          go-version: '^1.13.1' 
+          go-version: '1.19' 
       - name: Setup python 
         uses: actions/setup-python@v4
         with:
@@ -68,7 +68,6 @@ jobs:
           distribution: 'temurin'
           java-version: |
             8
-            17
             11
       - name: Exporting Java_HOME to Java 8
         run: echo "JAVA_HOME=${JAVA_HOME_8_X64}" >> $GITHUB_ENV
