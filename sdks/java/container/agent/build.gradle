@@ -22,21 +22,8 @@ plugins {
 
 if (project.hasProperty('java11Home')) {
     javaVersion = "1.11"
-    def java11Home = project.findProperty('java11Home')
-    project.tasks.withType(JavaCompile) {
-        options.fork = true
-        options.forkOptions.javaHome = java11Home as File
-        options.compilerArgs += ['-Xlint:-path']
-    }
 } else if (project.hasProperty('java17Home')) {
     javaVersion = "1.17"
-    project.tasks.withType(JavaCompile) {
-        setJava17Options(options)
-
-        checkerFramework {
-            skipCheckerFramework = true
-        }
-    }
 }
 
 applyJavaNature(
@@ -52,6 +39,23 @@ jar {
                 "Can-Redefine-Classes": true,
                 "Can-Retransform-Classes": true,
                 "Premain-Class": "org.apache.beam.agent.OpenModuleAgent")
+    }
+}
+
+if (project.hasProperty('java11Home')) {
+    def java11Home = project.findProperty('java11Home')
+    project.tasks.withType(JavaCompile) {
+        options.fork = true
+        options.forkOptions.javaHome = java11Home as File
+        options.compilerArgs += ['-Xlint:-path']
+    }
+} else if (project.hasProperty('java17Home')) {
+    project.tasks.withType(JavaCompile) {
+        setJava17Options(options)
+
+        checkerFramework {
+            skipCheckerFramework = true
+        }
     }
 }
 
