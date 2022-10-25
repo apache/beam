@@ -2,6 +2,7 @@
 title: "Overview"
 redirect_from:
   - /documentation/sdks/python-machine-learning
+  - /documentation/sdks/python-machine-learning/index.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
