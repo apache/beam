@@ -17,15 +17,22 @@
 # under the License.
 #
 
-resource "google_project_service" "required_services" {
-  for_each = toset([
-    "artifactregistry",
-    "compute",
-    "container",
-    "redis",
-  ])
-  service            = "${each.key}.googleapis.com"
-  disable_on_destroy = false
+variable "project_id" {
+  description = "The GCP Project ID where Playground Applications will be created"
 }
 
+variable "region" {
+  description = "Location of App"
+  default = "us-central"
+}
 
+variable "create_default_service" {
+  description = "Whether or not to create a default app engine service"
+  type        = bool
+  default     = true
+}
+
+variable "location_id_us" {
+  description = "Location of App"
+  default = "us-central"
+}

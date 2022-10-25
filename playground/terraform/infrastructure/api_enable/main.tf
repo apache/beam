@@ -17,10 +17,13 @@
 # under the License.
 #
 
-output "gke_name" {
-  value = google_container_cluster.playground-gke.name
-}
-
-output "playground_gke_project" {
-  value = google_container_cluster.playground-gke.project
+resource "google_project_service" "api_enable" {
+  project = var.project_id
+  for_each = toset(var.services)
+  service = each.value
+  timeouts {
+    create = "30m"
+    update = "40m"
+  }
+  disable_dependent_services = true
 }

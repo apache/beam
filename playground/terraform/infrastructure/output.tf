@@ -53,3 +53,14 @@ output "docker-repository-root" {
   value = "${module.artifact_registry.registry_location}${var.repository_domain}/${var.project_id}/${module.artifact_registry.registry_name}"
 }
 
+output "playground_static_ip_address" {
+ value = module.ip_address.playground_static_ip_address
+}
+
+output "playground_gke_project" {
+ value = module.gke.playground_gke_project
+}
+
+output "playground_static_ip_address_name" {
+ value = module.ip_address.playground_static_ip_address_name
+}

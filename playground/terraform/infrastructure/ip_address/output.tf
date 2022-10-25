@@ -17,10 +17,10 @@
 # under the License.
 #
 
-output "gke_name" {
-  value = google_container_cluster.playground-gke.name
+output "playground_static_ip_address" {
+ value = google_compute_global_address.pg-ip.address
 }
 
-output "playground_gke_project" {
-  value = google_container_cluster.playground-gke.project
+output "playground_static_ip_address_name" {
+ value = google_compute_global_address.pg-ip.name
 }
