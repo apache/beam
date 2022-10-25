@@ -27,46 +27,46 @@
 package main
 
 import (
-	"context"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+    "context"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
 
 func main() {
-	ctx := context.Background()
+    ctx := context.Background()
 
-	p, s := beam.NewPipelineWithRoot()
+    p, s := beam.NewPipelineWithRoot()
 
-	// List of elements
-	input := beam.Create(s, 12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15)
+    // List of elements
+    input := beam.Create(s, 12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15)
 
-	debug.Print(s, input)
-	filtered := filter.Exclude(s, input, func(element int) bool {
-		return element < 0
-	})
+    debug.Print(s, input)
+    filtered := filter.Exclude(s, input, func(element int) bool {
+        return element < 0
+    })
 
-	tagged := beam.ParDo(s, func(input int) (string, int) {
-		if input%2 == 0 {
-			return "even", input
-		} else {
-			return "odd", input
-		}
-	}, filtered)
+    tagged := beam.ParDo(s, func(input int) (string, int) {
+        if input%2 == 0 {
+            return "even", input
+        } else {
+            return "odd", input
+        }
+    }, filtered)
 
-	// Returns numbers count with the countingNumbers()
-	count := getCountingNumbersByKey(s, tagged)
+    // Returns numbers count with the countingNumbers()
+    count := getCountingNumbersByKey(s, tagged)
 
-	debug.Print(s, count)
+    debug.Print(s, count)
 
-	err := beamx.Run(ctx, p)
+    err := beamx.Run(ctx, p)
 
-	if err != nil {
-		log.Exitf(context.Background(), "Failed to execute job: %v", err)
-	}
+    if err != nil {
+        log.Exitf(context.Background(), "Failed to execute job: %v", err)
+    }
 }
 
 // Returns positive numbers
@@ -75,8 +75,8 @@ func main() {
 
 // Returns the count of numbers
 func getCountingNumbersByKey(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return stats.Count(s,
-		beam.ParDo(s, func(key string, value int) string {
-			return key
-		}, input))
+    return stats.Count(s,
+        beam.ParDo(s, func(key string, value int) string {
+            return key
+        }, input))
 }

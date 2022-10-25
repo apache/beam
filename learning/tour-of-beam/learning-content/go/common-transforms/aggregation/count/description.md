@@ -20,12 +20,12 @@ You can count the number of elements in ```PCollection``` with ```CountElms()```
 
 ```
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+    "github.com/apache/beam/sdks/go/pkg/beam"
+    "github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return stats.CountElms(s, input)
+    return stats.CountElms(s, input)
 }
 ```
 
@@ -33,12 +33,12 @@ You can use ```Count()``` to count how many elements are associated with a parti
 
 ```
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+    "github.com/apache/beam/sdks/go/pkg/beam"
+    "github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return stats.Count(s, input)
+    return stats.Count(s, input)
 }
 ```
 
