@@ -87,7 +87,7 @@ public class DatabaseTestHelper {
             .map(kv -> kv.getKey() + " " + kv.getValue())
             .collect(Collectors.joining(", "));
     SQLException exception = null;
-    for (int i = 0; i < 4; i++){
+    for (int i = 0; i < 4; i++) {
       try (Connection connection = dataSource.getConnection()) {
         try (Statement statement = connection.createStatement()) {
           statement.execute(String.format("create table %s (%s)", tableName, fieldsList));
