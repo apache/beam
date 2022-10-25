@@ -263,6 +263,12 @@ def run(argv=None, save_main_session=True):
   inference_spec_type = model_spec_pb2.InferenceSpecType(
       saved_model_spec=saved_model_spec)
   tf_model_handler = CreateModelHandler(inference_spec_type)
+
+  def set_batch_size(min_batch_size=1, max_batch_size=1):
+    return {'min_batch_size': min_batch_size, 'max_batch_size': max_batch_size}
+
+  # set the batch size until tfx adds **kwargs passed to the CreateModelHandler
+  tf_model_handler.batch_elements_kwargs = set_batch_size
   tf_keyed_model_handler = KeyedModelHandler(tf_model_handler)
 
   with beam.Pipeline(options=pipeline_options) as p:
