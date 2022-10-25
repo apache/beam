@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_code_editor/flutter_code_editor.dart';
 
 import '../enums/complexity.dart';
 import '../models/example.dart';
