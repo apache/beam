@@ -54,5 +54,5 @@ dependencies {
     testImplementation project(":sdks:java:io:synthetic")
     testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
     testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
-    testImplementation "com.rabbitmq:amqp-client:5.7.3"
+    testImplementation "com.rabbitmq:amqp-client:5.16.0"
 }

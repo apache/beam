@@ -25,11 +25,7 @@ import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -51,7 +47,7 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
   private final String streamName;
   private final long totalMessagesNumber;
   private long startOffset;
-  private static final int READ_TIMEOUT_IN_SECONDS = 1;
+  private static final int READ_TIMEOUT_IN_MS = 100;
 
   RabbitMqReceiverWithOffset(
       final String uri, final String streamName, final long totalMessagesNumber) {
@@ -88,7 +84,7 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
     final Channel channel;
 
     try {
-      LOG.info("Starting receiver");
+      LOG.info("Starting receiver with offset {}", currentOffset);
       final ConnectionFactory connectionFactory = new ConnectionFactory();
       connectionFactory.setUri(rabbitmqUrl);
       connectionFactory.setAutomaticRecoveryEnabled(true);
@@ -100,24 +96,25 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
       connectionFactory.setRequestedFrameMax(0);
       connection = connectionFactory.newConnection();
 
-      final Map<String, Object> arguments = new HashMap<>();
-      arguments.put("x-queue-type", "stream");
-      arguments.put("x-stream-offset", currentOffset);
-
       channel = connection.createChannel();
-      channel.queueDeclare(streamName, true, false, false, arguments);
+      channel.queueDeclare(
+          streamName, true, false, false, Collections.singletonMap("x-queue-type", "stream"));
       channel.basicQos((int) totalMessagesNumber);
-      testConsumer = new TestConsumer(channel, this::store);
+      testConsumer = new TestConsumer(this, channel, this::store);
 
-      channel.basicConsume(streamName, false, arguments, testConsumer);
+      channel.basicConsume(
+          streamName,
+          false,
+          Collections.singletonMap("x-stream-offset", currentOffset),
+          testConsumer);
     } catch (Exception e) {
       LOG.error("Can not basic consume", e);
       throw new RuntimeException(e);
     }
 
-    while (!isStopped() && testConsumer.getReceived().size() < totalMessagesNumber) {
+    while (!isStopped()) {
       try {
-        TimeUnit.SECONDS.sleep(READ_TIMEOUT_IN_SECONDS);
+        TimeUnit.MILLISECONDS.sleep(READ_TIMEOUT_IN_MS);
       } catch (InterruptedException e) {
         LOG.error("Interrupted", e);
       }
@@ -132,15 +129,18 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
     }
   }
 
-  /** A simple RabbitMQ {@code Consumer} that stores all received messages. */
+  /** A simple RabbitMQ {@code Consumer}. */
   static class TestConsumer extends DefaultConsumer {
 
-    private final List<String> received;
     private final java.util.function.Consumer<String> messageConsumer;
+    private final Receiver<String> receiver;
 
-    public TestConsumer(Channel channel, java.util.function.Consumer<String> messageConsumer) {
+    public TestConsumer(
+        Receiver<String> receiver,
+        Channel channel,
+        java.util.function.Consumer<String> messageConsumer) {
       super(channel);
-      this.received = Collections.synchronizedList(new ArrayList<>());
+      this.receiver = receiver;
       this.messageConsumer = messageConsumer;
     }
 
@@ -151,17 +151,12 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
         final String sMessage = new String(body, StandardCharsets.UTF_8);
         LOG.info("Adding message to consumer: {}", sMessage);
         messageConsumer.accept(sMessage);
-        received.add(sMessage);
-
-        getChannel().basicAck(envelope.getDeliveryTag(), false);
+        if (getChannel().isOpen() && !receiver.isStopped()) {
+          getChannel().basicAck(envelope.getDeliveryTag(), false);
+        }
       } catch (Exception e) {
-        LOG.debug("Can't read from RabbitMQ: {}", e.getMessage());
+        LOG.error("Can't read from RabbitMQ: {}", e.getMessage());
       }
-    }
-
-    /** Returns a thread safe unmodifiable view of received messages. */
-    public List<String> getReceived() {
-      return Collections.unmodifiableList(received);
     }
   }
 }
