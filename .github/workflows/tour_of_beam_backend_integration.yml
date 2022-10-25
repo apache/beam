@@ -36,9 +36,14 @@ concurrency:
 
 env:
   TOB_LEARNING_ROOT: ./samples/learning-content
+  # firebase
+  GOOGLE_CLOUD_PROJECT: demo-test-proj
+  FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
+  # datastore
   DATASTORE_PROJECT_ID: demo-test-proj
   DATASTORE_EMULATOR_HOST: localhost:8081
   DATASTORE_EMULATOR_DATADIR: ./datadir
+  # GCF
   PORT_SDK_LIST: 8801
   PORT_GET_CONTENT_TREE: 8802
   PORT_GET_UNIT_CONTENT: 8803
