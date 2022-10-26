@@ -40,13 +40,13 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-        // List of elements
+        // Create input PCollection
 	input := beam.Create(s, 1, 2, 31, 4, -5, 16, 2, 7, 8, 9, -5, 10, 11)
 
         // The applyTransform() converts [input] to [output]
 	output := applyTransform(s, input)
 
-	debug.Printf(s, "PCollection count value: %v", output)
+	debug.Printf(s, "Input has %v elements", output)
 
 	err := beamx.Run(ctx, p)
 

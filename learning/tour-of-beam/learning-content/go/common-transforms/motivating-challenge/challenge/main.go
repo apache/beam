@@ -30,8 +30,6 @@ import (
 	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
@@ -41,13 +39,13 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-	// List of elements
+	// Create input PCollection
 	input := beam.Create(s, 12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15)
 
 	// The [input] filtered with the positiveNumbersFilter()
 	filtered := getPositiveNumbers(s, input)
 
-// Returns map
+    // Returns map
 	numberMap := getMap(s, filtered)
 
 	// Returns numbers count with the countingNumbers()
@@ -63,7 +61,15 @@ func main() {
 }
 
 // Write here getPositiveNumbers function
-
+func getPositiveNumbers(s beam.Scope, input beam.PCollection) beam.PCollection{
+  return input
+}
 // Write here getMap function
+func getMap(s beam.Scope, input beam.PCollection) beam.PCollection{
+  return input
 
+}
 // Write here getCountingNumbersByKey function
+func getCountingNumbersByKey(s beam.Scope, input beam.PCollection) beam.PCollection{
+  return input
+}

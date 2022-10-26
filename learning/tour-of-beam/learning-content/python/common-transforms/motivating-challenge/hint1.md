@@ -11,6 +11,7 @@ limitations under the License.
 -->
 
 To solve this challenge, you may build a pipeline that consists of the following steps:
-1. Filter whether the number is equal to zero or greater than it using `Filter`
-2. Set the "odd" key for odd numbers and "even" for even numbers using `WithKeys`
-3. Count the number of even and odd numbers using the `Count.PerKey()`
+1. You need to find the average value using `Mean`.
+2. Filter so that the numbers are below average and above. Use `Filter`.
+3. Sum up prices that are below average also for prices that are higher. Use `Sum`.
+4. Make a map(key-value) using `WithKeys`. The key that will be the number of orders is the value of their sum.

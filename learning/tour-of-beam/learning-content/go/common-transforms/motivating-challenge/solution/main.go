@@ -34,6 +34,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 )
 
 func main() {
@@ -41,23 +42,14 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-	// List of elements
-	input := beam.Create(s, 12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15)
+    file := Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 
-	debug.Print(s, input)
-	filtered := filter.Exclude(s, input, func(element int) bool {
-		return element < 0
-	})
+    input := applyTransform(s, file)
 
-	tagged := beam.ParDo(s, func(input int) (string, int) {
-		if input%2 == 0 {
-			return "even", input
-		} else {
-			return "odd", input
-		}
-	}, filtered)
+	filtered := getPositiveNumbers(s,input)
 
-	// Returns numbers count with the countingNumbers()
+	tagged := getMap(s,filtered)
+
 	count := getCountingNumbersByKey(s, tagged)
 
 	debug.Print(s, count)
@@ -69,10 +61,34 @@ func main() {
 	}
 }
 
+func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+    return beam.ParDo(s, func(line string) float64 {
+        taxi := strings.Split(strings.TrimSpace(line), ",")
+        if len(taxi) > 16 {
+            cost, _ := strconv.ParseFloat(taxi[16],64)
+            return cost
+        }
+        return 0.0
+    }, input)
+}
+
 // Returns positive numbers
+func getPositiveNumbers(s beam.Scope, input beam.PCollection) beam.PCollection{
+  return filter.Include(s, input, func(element int) bool {
+         		return element >= 0
+            })
+}
+// Write here getMap function
+func getMap(s beam.Scope, input beam.PCollection) beam.PCollection{
+  return beam.ParDo(s, func(in int) (string, int) {
+         		if in%2 == 0 {
+         			return "even", in
+         		} else {
+         			return "odd", in
+         		}
+         	}, input)
 
-// Returns a map with a key that will not be odd or even , and the value will be the number itself at the input
-
+}
 // Returns the count of numbers
 func getCountingNumbersByKey(s beam.Scope, input beam.PCollection) beam.PCollection {
 	return stats.Count(s,

@@ -40,7 +40,7 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-        // List of elements
+        // Create input PCollection
         input := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
         // The [input] filtered with the applyTransform()
