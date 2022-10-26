@@ -73,7 +73,7 @@ PCollection<Integer> lessThanEqNumbers = pipeline.apply(Filter.lessThanEq(7));
 PCollection<Integer> equalNumbers = pipeline.apply(Filter.equal(9));
 ```
 
-### Playground exercise 
+### Playground exercise
 
 You can find the complete code of the above example using 'Filter' in the playground window, which you can run and experiment with.
 

@@ -27,23 +27,23 @@
 package main
 
 import (
-	"context"
+    "context"
     "strings"
     "strconv"
     "strings"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+    _ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
+    _ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 )
 
 func main() {
-	ctx := context.Background()
+    ctx := context.Background()
 
-	p, s := beam.NewPipelineWithRoot()
+    p, s := beam.NewPipelineWithRoot()
 
     file := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
@@ -69,11 +69,11 @@ func main() {
     debug.Printf(s, "Above pCollection output", aboveKV)
     debug.Printf(s, "Below pCollection output", belowKV)
 
-	err := beamx.Run(ctx, p)
+    err := beamx.Run(ctx, p)
 
-	if err != nil {
-		log.Exitf(context.Background(), "Failed to execute job: %v", err)
-	}
+    if err != nil {
+        log.Exitf(context.Background(), "Failed to execute job: %v", err)
+    }
 }
 
 func ExtractCostFromFile(s beam.Scope, input beam.PCollection) beam.PCollection {
@@ -88,17 +88,17 @@ func ExtractCostFromFile(s beam.Scope, input beam.PCollection) beam.PCollection 
 }
 
 func getSum(s beam.Scope, input beam.PCollection) beam.PCollection {
-  return input
+    return input
 }
 
 func getAboveCosts(s beam.Scope, input beam.PCollection) beam.PCollection{
-  return input
+    return input
 }
 
 func getBelowCosts(s beam.Scope, input beam.PCollection) beam.PCollection{
-  return input
+    return input
 }
 
 func getMap(s beam.Scope, input beam.PCollection,key string) beam.PCollection{
-  return input
+    return input
 }
