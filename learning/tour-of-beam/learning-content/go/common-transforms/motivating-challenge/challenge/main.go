@@ -66,8 +66,8 @@ func main() {
 
     belowKV := getMap(s, belowCostsSum, "below")
 
-    debug.Print(s,aboveKV)
-    debug.Print(s, belowKV)
+    debug.Printf(s, "Above pCollection output", aboveKV)
+    debug.Printf(s, "Below pCollection output", belowKV)
 
 	err := beamx.Run(ctx, p)
 

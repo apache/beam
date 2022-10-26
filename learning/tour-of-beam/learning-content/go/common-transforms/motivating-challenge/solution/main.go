@@ -62,12 +62,14 @@ func main() {
     // Summing up the price above the fixed price
     belowCostsSum := getSum(s, belowCosts)
 
+    // Create map[key,value]
     aboveKV := getMap(s, aboveCostsSum, "above")
 
+    // Create map[key,value]
     belowKV := getMap(s, belowCostsSum, "below")
 
-    debug.Print(s,aboveKV)
-    debug.Print(s, belowKV)
+    debug.Printf(s, "Above pCollection output", aboveKV)
+        debug.Printf(s, "Below pCollection output", belowKV)
 
 	err := beamx.Run(ctx, p)
 
