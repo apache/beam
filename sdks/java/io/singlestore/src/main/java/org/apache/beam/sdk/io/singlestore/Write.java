@@ -95,11 +95,17 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
     return toBuilder().setUserDataMapper(userDataMapper).build();
   }
 
+  /**
+   * Provide a maximum number of rows that is written by one SQL statement. Default is 100000.
+   *
+   * @param batchSize maximum number of rows that is written by one SQL statement
+   */
   public Write<T> withBatchSize(Integer batchSize) {
     checkNotNull(batchSize, "batchSize can not be null");
     return withBatchSize(ValueProvider.StaticValueProvider.of(batchSize));
   }
 
+  /** Same as {@link #withBatchSize(Integer)} but accepting a ValueProvider. */
   public Write<T> withBatchSize(ValueProvider<Integer> batchSize) {
     checkNotNull(batchSize, "batchSize can not be null");
     return toBuilder().setBatchSize(batchSize).build();

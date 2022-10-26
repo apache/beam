@@ -20,6 +20,10 @@ package org.apache.beam.sdk.io.singlestore;
 import java.io.Serializable;
 import java.util.List;
 
+/**
+ * An interface used by the SingleStoreIO {@link Write} to map a data from each element of {@link org.apache.beam.sdk.values.PCollection}
+ * to a List of Strings. Returned values are used to send LOAD DATA SQL queries to the database.
+ */
 @FunctionalInterface
 public interface UserDataMapper<T> extends Serializable {
   List<String> mapRow(T element);

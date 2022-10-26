@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.sql.SQLException;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -135,7 +134,7 @@ public abstract class DataSourceConfiguration implements Serializable {
     }
   }
 
-  public DataSource getDataSource() throws SQLException {
+  public DataSource getDataSource() {
     String endpoint = Util.getRequiredArgument(getEndpoint(), "endpoint can not be null");
     String database = Util.getArgumentWithDefault(getDatabase(), "");
     String connectionProperties = Util.getArgumentWithDefault(getConnectionProperties(), "");
