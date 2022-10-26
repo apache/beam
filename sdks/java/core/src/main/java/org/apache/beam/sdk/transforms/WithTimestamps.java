@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -68,58 +70,109 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * }</pre>
    */
   public static <T> WithTimestamps<T> of(SerializableFunction<T, Instant> fn) {
-    return new WithTimestamps<>(fn, Duration.ZERO);
+    return new WithTimestamps<>(fn, null, null);
   }
 
   ///////////////////////////////////////////////////////////////////
 
   private final SerializableFunction<T, Instant> fn;
-  private final Duration allowedTimestampSkew;
+  // If allowedTimestampSkew is not null, use the deprecated behavior which emits data as late.
+  private final @Nullable Duration allowedTimestampSkew;
+  // If watermarkDelay is not null, emit data within the watermark delay bound as on time.
+  private final @Nullable Duration watermarkDelay;
 
-  private WithTimestamps(SerializableFunction<T, Instant> fn, Duration allowedTimestampSkew) {
+  private WithTimestamps(
+      SerializableFunction<T, Instant> fn,
+      @Nullable Duration allowedTimestampSkew,
+      @Nullable Duration watermarkDelay) {
+    checkArgument(
+        allowedTimestampSkew == null || watermarkDelay == null, "Both delays cannot be non-null.");
     this.fn = checkNotNull(fn, "WithTimestamps fn cannot be null");
     this.allowedTimestampSkew = allowedTimestampSkew;
+    this.watermarkDelay = watermarkDelay;
   }
 
   /**
-   * Return a new WithTimestamps like this one with updated allowed timestamp skew, which is the
+   * DO NOT USE
+   *
+   * <p>This method results in data within the allowed timestamp skew being late. Use {@link
+   * withWatermarkDelay} instead which results in data within the allowed timestamp skew being on
+   * time.
+   *
+   * <p>Return a new WithTimestamps like this one with updated allowed timestamp skew, which is the
    * maximum duration that timestamps can be shifted backward. Does not modify this object.
    *
    * <p>The default value is {@code Duration.ZERO}, allowing timestamps to only be shifted into the
    * future. For infinite skew, use {@code new Duration(Long.MAX_VALUE)}.
    *
-   * @deprecated This method permits a to elements to be emitted behind the watermark. These
-   *     elements are considered late, and if behind the {@link Window#withAllowedLateness(Duration)
-   *     allowed lateness} of a downstream {@link PCollection} may be silently dropped. See
-   *     https://github.com/apache/beam/issues/18065 for details on a replacement.
+   * <p>
+   *
+   * @deprecated This method permits elements to be emitted behind the watermark. These elements are
+   *     considered late, and if behind the {@link Window#withAllowedLateness(Duration) allowed
+   *     lateness} of a downstream {@link PCollection} may be silently dropped.
    */
   @Deprecated
   public WithTimestamps<T> withAllowedTimestampSkew(Duration allowedTimestampSkew) {
-    return new WithTimestamps<>(this.fn, allowedTimestampSkew);
+    return new WithTimestamps<>(this.fn, allowedTimestampSkew, null);
   }
 
   /**
-   * Returns the allowed timestamp skew duration, which is the maximum duration that timestamps can
-   * be shifted backwards from the timestamp of the input element.
+   * DO NOT USE
+   *
+   * <p>This method results in data within the allowed timestamp skew being late. Use {@link
+   * withWatermarkDelay} instead which results in data within the allowed timestamp skew being on
+   * time.
+   *
+   * <p>Returns the allowed timestamp skew duration, which is the maximum duration that timestamps
+   * can be shifted backwards from the timestamp of the input element.
    *
    * @see DoFn#getAllowedTimestampSkew()
-   * @deprecated This method permits a to elements to be emitted behind the watermark. These
-   *     elements are considered late, and if behind the {@link Window#withAllowedLateness(Duration)
-   *     allowed lateness} of a downstream {@link PCollection} may be silently dropped. See
-   *     https://github.com/apache/beam/issues/18065 for details on a replacement.
+   * @deprecated This method permits elements to be emitted behind the watermark. These elements are
+   *     considered late, and if behind the {@link Window#withAllowedLateness(Duration) allowed
+   *     lateness} of a downstream {@link PCollection} may be silently dropped.
    */
   @Deprecated
   public Duration getAllowedTimestampSkew() {
-    return allowedTimestampSkew;
+    return allowedTimestampSkew == null ? Duration.ZERO : allowedTimestampSkew;
+  }
+
+  /**
+   * Return a new WithTimestamps like this one with updated watermark delay, which is the amount of
+   * time behind the newest timestamp extracted from the PCollection to advance the watermark to.
+   *
+   * <p>This method allows you to remap from the source timestamp domain (usually a system-generated
+   * ingestion timestamp) to a user-specified timestamp domain, assuming that your extracted
+   * timestamp is generally before the timestamp of the same element in the source PCollection. The
+   * watermark will not be allowed to advance past the watermark of the source PCollection. If an
+   * element's timestamp is more than the watermark delay before the timestamp of any previous
+   * element, it will be considered late.
+   *
+   * <p>Note that this will prevent the watermark from advancing to the latest element. You must
+   * continue to see new data to advance the watermark.
+   */
+  public WithTimestamps<T> withWatermarkDelay(Duration watermarkDelay) {
+    return new WithTimestamps<>(this.fn, null, watermarkDelay);
+  }
+
+  /**
+   * Returns the allowed watermark delay duration, which is the maximum duration that watermarks can
+   * be delayed to allow for clock skew relative to the source watermark.
+   */
+  public @Nullable Duration getWatermarkDelay() {
+    return watermarkDelay;
   }
 
   @Override
   public PCollection<T> expand(PCollection<T> input) {
+    if (watermarkDelay != null) {
+      return input.apply("AddTimestamps", ParDo.of(new WithWatermarkDelayFn<>(fn, watermarkDelay)));
+    }
     return input.apply(
-        "AddTimestamps", ParDo.of(new AddTimestampsDoFn<>(fn, allowedTimestampSkew)));
+        "AddTimestamps", ParDo.of(new AddTimestampsDoFn<>(fn, getAllowedTimestampSkew())));
   }
 
   private static class AddTimestampsDoFn<T> extends DoFn<T, T> {
+
     private final SerializableFunction<T, Instant> fn;
     private final Duration allowedTimestampSkew;
 

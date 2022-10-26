@@ -21,12 +21,18 @@ import static org.hamcrest.Matchers.isA;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -204,5 +210,107 @@ public class WithTimestampsTest implements Serializable {
             KV.of(yearTwoThousand, new Instant(Long.valueOf(yearTwoThousand))));
 
     p.run();
+  }
+
+  @Test
+  public void withWatermarkDelay_delaysWatermark() {
+    Duration delay = Duration.standardMinutes(5);
+    Instant now = Instant.EPOCH.plus(Duration.standardDays(1000));
+    long ts = now.plus(delay).getMillis();
+    TestStream<Long> stream =
+        TestStream.create(VarLongCoder.of())
+            .addElements(TimestampedValue.of(ts, now))
+            .advanceWatermarkTo(now)
+            .advanceWatermarkToInfinity();
+    PCollection<Long> timestamped =
+        p.apply(stream).apply(WithTimestamps.of(Instant::ofEpochMilli).withWatermarkDelay(delay));
+    PCollection<KV<Long, Instant>> timestampedVals =
+        timestamped.apply(
+            ParDo.of(
+                new DoFn<Long, KV<Long, Instant>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) throws Exception {
+                    c.output(KV.of(c.element(), c.timestamp()));
+                  }
+                }));
+    PCollection<KV<Long, Instant>> windowed =
+        timestampedVals.apply(Window.into(FixedWindows.of(Duration.standardSeconds(2))));
+    PAssert.that(windowed)
+        .inOnTimePane(
+            new IntervalWindow(
+                now.plus(delay).minus(Duration.millis(1)),
+                now.plus(delay).plus(Duration.millis(1))))
+        .containsInAnyOrder(KV.of(ts, Instant.ofEpochMilli(ts)));
+  }
+
+  @Test
+  public void withWatermarkDelay_lateDataIfWatermarkAdvanced() {
+    Duration delay = Duration.standardMinutes(5);
+    Instant now = Instant.EPOCH.plus(Duration.standardDays(1000));
+    long ts = now.plus(delay).getMillis();
+    long lateTs = now.minus(Duration.millis(1)).getMillis();
+    TestStream<Long> stream =
+        TestStream.create(VarLongCoder.of())
+            .addElements(TimestampedValue.of(ts, now))
+            .advanceWatermarkTo(now)
+            .addElements(TimestampedValue.of(lateTs, now))
+            .advanceWatermarkToInfinity();
+    PCollection<Long> timestamped =
+        p.apply(stream).apply(WithTimestamps.of(Instant::ofEpochMilli).withWatermarkDelay(delay));
+    PCollection<KV<Long, Instant>> timestampedVals =
+        timestamped.apply(
+            ParDo.of(
+                new DoFn<Long, KV<Long, Instant>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) throws Exception {
+                    c.output(KV.of(c.element(), c.timestamp()));
+                  }
+                }));
+    PCollection<KV<Long, Instant>> windowed =
+        timestampedVals.apply(Window.into(FixedWindows.of(Duration.standardSeconds(2))));
+    PAssert.that(windowed)
+        .inOnTimePane(
+            new IntervalWindow(
+                now.plus(delay).minus(Duration.millis(1)),
+                now.plus(delay).plus(Duration.millis(1))))
+        .containsInAnyOrder(KV.of(ts, Instant.ofEpochMilli(ts)))
+        .inLatePane(new IntervalWindow(now.minus(Duration.millis(2)), now))
+        .containsInAnyOrder(KV.of(lateTs, Instant.ofEpochMilli(lateTs)));
+  }
+
+  @Test
+  public void withWatermarkDelay_watermarkAdvanceConstrainedBySourceTimestamp() {
+    Duration delay = Duration.standardMinutes(5);
+    Instant now = Instant.EPOCH.plus(Duration.standardDays(1000));
+    long ts = now.plus(delay).plus(delay).getMillis();
+    TestStream<Long> stream =
+        TestStream.create(VarLongCoder.of())
+            // Can't advance watermark past source time (now)
+            .addElements(TimestampedValue.of(ts, now))
+            .advanceWatermarkTo(now)
+            .addElements(TimestampedValue.of(now.getMillis(), now))
+            .advanceWatermarkToInfinity();
+    PCollection<Long> timestamped =
+        p.apply(stream).apply(WithTimestamps.of(Instant::ofEpochMilli).withWatermarkDelay(delay));
+    PCollection<KV<Long, Instant>> timestampedVals =
+        timestamped.apply(
+            ParDo.of(
+                new DoFn<Long, KV<Long, Instant>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) throws Exception {
+                    c.output(KV.of(c.element(), c.timestamp()));
+                  }
+                }));
+    PCollection<KV<Long, Instant>> windowed =
+        timestampedVals.apply(Window.into(FixedWindows.of(Duration.standardSeconds(2))));
+    PAssert.that(windowed)
+        .inOnTimePane(
+            new IntervalWindow(
+                now.plus(delay).minus(Duration.millis(1)),
+                now.plus(delay).plus(Duration.millis(1))))
+        .containsInAnyOrder(KV.of(ts, Instant.ofEpochMilli(ts)))
+        .inOnTimePane(
+            new IntervalWindow(now.plus(Duration.millis(1)), now.minus(Duration.millis(1))))
+        .containsInAnyOrder(KV.of(now.getMillis(), now));
   }
 }
