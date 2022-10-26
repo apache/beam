@@ -12,10 +12,10 @@ limitations under the License.
 
 ### Common Transforms motivating challenge
 
-You are provided with a `PCollection` from the taxi order price array in a csv file. Your task is to find the average value and calculate how many orders are below average and above average. Return as a map(key-value) structure, make the number of orders a key, and the sum of all orders a value.Although there are many ways to do this, try using another transformation presented in this module.
+You are provided with a `PCollection` from the array of taxi order prices in a csv file. Your task is to find how many orders are below $15 and above. Return it as a map structure (key-value), make `above` or `below` the key, and the sum of all orders - the value.Although there are many ways to do this, try using another transformation presented in this module.
 
-Taxi csv consists of 16 columns:
+Taxi.csv consists of 16 columns:
 
 `VendorID,tpep_pickup_datetime,tpep_dropoff_datetime,passenger_count,trip_distance,RatecodeID,store_and_fwd_flag,PULocationID,DOLocationID,payment_type,fare_amount,extra,mta_tax,tip_amount,tolls_amount,improvement_surcharge,total_amount`
 
-Required columns number: **4-number of passengers** , **16 - order price**.
+Required number of columns:**16 - order price**.

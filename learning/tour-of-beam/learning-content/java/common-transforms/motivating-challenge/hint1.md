@@ -11,6 +11,6 @@ limitations under the License.
 -->
 
 To solve this challenge, you may build a pipeline that consists of the following steps:
-1. Filter whether the number is equal to zero or greater than it using `Filter`
-2. Set the "odd" key for odd numbers and "even" for even numbers using `WithKeys`
-3. Count the number of even and odd numbers using the `CountPerKey`
+1. Filter so that the price is more than 15 or less using the `Filter.by`.
+2. Summarize each `PCollection` using `Sum.doublesGlobally`.
+3. Return `KV` using the `WithKeys` key, which will be `above` or `below`. Instead of a `wildcard(<?>)` write `<KV<String,Double>>` .And create a `setCoder(KvCoder.of(StringUtf8Coder.of(),DoubleCoder.of()))` so that the pipeline knows what types of objects it is working with.

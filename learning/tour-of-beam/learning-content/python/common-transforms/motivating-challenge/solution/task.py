@@ -45,10 +45,36 @@ class Output(beam.PTransform):
     def expand(self, input):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
+class ExtractTaxiRideCostFn(beam.DoFn):
+
+    def process(self, element):
+        line = element.split(',')
+        return tryParseTaxiRideCost(line,16)
+
+
+def tryParseTaxiRideCost(line,index):
+    if(len(line) > index):
+      try:
+        yield float(line[index])
+      except:
+        yield float(0)
+    else:
+        yield float(0)
+
+
 with beam.Pipeline() as p:
-    # List of elements
-  (p | beam.Create([12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15])
-   | beam.Filter(lambda num: num >= 0)
-   | beam.WithKeys(lambda num: 'Yes' if num % 2 == 0 else 'No')
-   | beam.combiners.Count.PerKey()
-   | Output())
+
+  lines = (p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv')
+   | beam.ParDo(ExtractTaxiRideCostFn()))
+
+  (lines
+  | 'Filter above cost' >> beam.Filter(lambda cost: cost >= 15.0)
+  | 'Sum above cost' >> beam.CombineGlobally(sum)
+  | 'WithKeys above' >> beam.WithKeys(lambda cost: 'above')
+  | 'Log above cost' >> Output())
+
+  (lines
+  | 'Filter below cost' >> beam.Filter(lambda cost: cost < 15.0)
+  | 'Sum below cost' >> beam.CombineGlobally(sum)
+  | 'WithKeys below cost' >> beam.WithKeys(lambda cost: 'below')
+  | 'Log below cost' >> Output())

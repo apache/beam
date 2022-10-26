@@ -28,6 +28,7 @@
 //     - hellobeam
 
 
+import org.apache.beam.sdk.coders.*;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -38,9 +39,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 public class Task {
 
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
+    private static final Double FIXED_COST = 15d;
+    private static final String ABOVE_KEY = "above";
+    private static final String BELOW_KEY = "below";
 
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
@@ -49,54 +55,45 @@ public class Task {
         // Create input PCollection
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv"));
 
+        // Extract cost from PCollection
         PCollection<Double> rideTotalAmounts = rides.apply(ParDo.of(new ExtractTaxiRideCostFn()));
 
+        // Filtering with fixed cost
         PCollection<Double> aboveCosts = getAboveCost(rideTotalAmounts);
-
         PCollection<Double> belowCosts = getBelowCost(rideTotalAmounts);
 
-        aboveCosts.apply(Sum.doublesGlobally());
-        belowCosts.apply(Sum.doublesGlobally());
+        // Summing up the price above the fixed price
+        PCollection<Double> aboveCostsSum = getSum(aboveCosts, "Sum above cost");
 
-        aboveCosts.apply(Count.globally());
-        belowCosts.apply(Count.globally());
+        // Summing up the price below the fixed price
+        PCollection<Double> belowCostsSum = getSum(belowCosts, "Sum below cost");
 
-        System.out.println(mean);
+        // Create map[key,value] and output
+        PCollection<KV<String,Double>> aboveKV = setKeyForCost(aboveCostsSum, ABOVE_KEY)
+                .apply("Log above cost",ParDo.of(new LogOutput<>("Above pCollection output")));
+
+        // Create map[key,value] and output
+        PCollection<KV<String,Double>> belowKV = setKeyForCost(belowCostsSum, BELOW_KEY)
+                .apply("Log below cost",ParDo.of(new LogOutput<>("Below pCollection output")));
+
 
         pipeline.run();
     }
 
-
-    static PCollection<Long> applyTransform(PCollection<Double> input) {
-        return input.apply(Count.globally());
+    static PCollection<Double> getSum(PCollection<Double> input, String name) {
+        return input.apply(name, Sum.doublesGlobally());
     }
 
-
-    static PCollection<KV<String, String>> applyTransform(PCollection<String> input) {
-        return input.apply(WithKeys.of(number -> "Above count"));
+    static PCollection<Double> getAboveCost(PCollection<Double> input) {
+        return input.apply("Filter above cost", Filter.by(number -> number >= FIXED_COST));
     }
 
-    static PCollection<Double> getAboveCost(PCollection<Double> input,double fixedCost){
-        return input.apply(Filter.by(number -> number >= fixedCost));
+    static PCollection<Double> getBelowCost(PCollection<Double> input) {
+        return input.apply("Filter below cost", Filter.by(number -> number < FIXED_COST));
     }
 
-    static PCollection<Double> getBelowCost(PCollection<Double> input,double fixedCost){
-        return input.apply(Filter.by(number -> number < fixedCost));
-    }
-
-    static PCollection<KV<String, Integer>> setKeyForNumbers(PCollection<Integer> input) {
-        return input
-                .apply(WithKeys.of(new SerializableFunction<Integer, String>() {
-                    @Override
-                    public String apply(Integer number) {
-                        if (number % 2 == 0) {
-                            return "even";
-                        }
-                        else {
-                            return "odd";
-                        }
-                    }
-                }));
+    static PCollection<KV<String, Double>> setKeyForCost(PCollection<Double> input,String key) {
+        return input.apply(WithKeys.of(number -> key)).setCoder(KvCoder.of(StringUtf8Coder.of(),DoubleCoder.of()));
     }
 
     static class ExtractTaxiRideCostFn extends DoFn<String, Double> {
@@ -111,6 +108,7 @@ public class Task {
     private static String tryParseString(String[] inputItems, int index) {
         return inputItems.length > index ? inputItems[index] : null;
     }
+
     private static Double tryParseTaxiRideCost(String[] inputItems) {
         try {
             return Double.parseDouble(tryParseString(inputItems, 16));

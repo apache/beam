@@ -28,6 +28,9 @@ package main
 
 import (
 	"context"
+    "strings"
+    "strconv"
+    "strings"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
@@ -42,17 +45,29 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    file := Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
+    file := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
-    input := applyTransform(s, file)
+    // Extract cost from PCollection
+    input := ExtractCostFromFile(s, file)
 
-	filtered := getPositiveNumbers(s,input)
+    // Filtering with fixed cost
+    aboveCosts := getAboveCosts(s, input)
 
-	tagged := getMap(s,filtered)
+    // Filtering with fixed cost
+    belowCosts := getBelowCosts(s, input)
 
-	count := getCountingNumbersByKey(s, tagged)
+    // Summing up the price above the fixed price
+    aboveCostsSum := getSum(s, aboveCosts)
 
-	debug.Print(s, count)
+    // Summing up the price above the fixed price
+    belowCostsSum := getSum(s, belowCosts)
+
+    aboveKV := getMap(s, aboveCostsSum, "above")
+
+    belowKV := getMap(s, belowCostsSum, "below")
+
+    debug.Print(s,aboveKV)
+    debug.Print(s, belowKV)
 
 	err := beamx.Run(ctx, p)
 
@@ -61,7 +76,7 @@ func main() {
 	}
 }
 
-func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+func ExtractCostFromFile(s beam.Scope, input beam.PCollection) beam.PCollection {
     return beam.ParDo(s, func(line string) float64 {
         taxi := strings.Split(strings.TrimSpace(line), ",")
         if len(taxi) > 16 {
@@ -72,27 +87,25 @@ func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
     }, input)
 }
 
-// Returns positive numbers
-func getPositiveNumbers(s beam.Scope, input beam.PCollection) beam.PCollection{
-  return filter.Include(s, input, func(element int) bool {
-         		return element >= 0
-            })
+func getSum(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return stats.Sum(s, input)
 }
-// Write here getMap function
-func getMap(s beam.Scope, input beam.PCollection) beam.PCollection{
-  return beam.ParDo(s, func(in int) (string, int) {
-         		if in%2 == 0 {
-         			return "even", in
-         		} else {
-         			return "odd", in
-         		}
-         	}, input)
 
+func getAboveCosts(s beam.Scope, input beam.PCollection) beam.PCollection{
+  return filter.Include(s, input, func(element float64) bool {
+         		return element >= 15
+  })
 }
-// Returns the count of numbers
-func getCountingNumbersByKey(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return stats.Count(s,
-		beam.ParDo(s, func(key string, value int) string {
-			return key
-		}, input))
+
+func getBelowCosts(s beam.Scope, input beam.PCollection) beam.PCollection{
+  return filter.Include(s, input, func(element float64) bool {
+         		return element < 15
+  })
+}
+
+func getMap(s beam.Scope, input beam.PCollection,key string) beam.PCollection{
+  return beam.ParDo(s, func(number float64) (string, float64) {
+        return key,number
+       }, input)
+
 }

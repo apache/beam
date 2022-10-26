@@ -28,6 +28,8 @@
 //     - hellobeam
 
 
+import org.apache.beam.sdk.coders.*;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -37,46 +39,86 @@ import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 public class Task {
 
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
+    private static final Double FIXED_COST = 15d;
+    private static final String ABOVE_KEY = "above";
+    private static final String BELOW_KEY = "below";
 
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
         // Create input PCollection
-        PCollection<Integer> numbers =
-                pipeline.apply(Create.of(12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15));
+        PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv"));
 
-        // The [numbers] filtered with the positiveNumberFilter()
-        PCollection<Integer> filtered = getPositiveNumbers(numbers);
+        // Extract cost from PCollection
+        PCollection<Double> rideTotalAmounts = rides.apply(ParDo.of(new ExtractTaxiRideCostFn()));
 
-        // Set key for each number
-        PCollection<KV<String,Integer>> getCollectionWithKey = setKeyForNumbers(filtered);
+        // Filtering with fixed cost
+        PCollection<Double> aboveCosts = getAboveCost(rideTotalAmounts);
+        PCollection<Double> belowCosts = getBelowCost(rideTotalAmounts);
 
-        // Return count numbers
-        PCollection<KV<String,Long>> countPerKey = getCountPerKey(getCollectionWithKey);
+        // Summing up the price above the fixed price
+        PCollection<Double> aboveCostsSum = getSum(aboveCosts, "Sum above cost");
 
-        countPerKey.apply("Log", ParDo.of(new LogOutput<KV<String,Long>>()));
+        // Summing up the price below the fixed price
+        PCollection<Double> belowCostsSum = getSum(belowCosts, "Sum below cost");
+
+        // Create map[key,value] and output
+        // Define the type PCollection<?>
+        PCollection<?> aboveKV = setKeyForCost(aboveCostsSum, ABOVE_KEY)
+                .apply("Log above cost", ParDo.of(new LogOutput<>("Above pCollection output")));
+
+        // Create map[key,value] and output
+        // Define the type PCollection<?>
+        PCollection<?> belowKV = setKeyForCost(belowCostsSum, BELOW_KEY)
+                .apply("Log below cost", ParDo.of(new LogOutput<>("Below pCollection output")));
+
 
         pipeline.run();
     }
 
-    // Write a method that returns positive numbers
-    // static PCollection<Integer> getPositiveNumbers(PCollection<Integer> input) {
-    //
-    // }
+    static PCollection<Double> getSum(PCollection<Double> input, String name) {
+        return input;
+    }
 
-    // Returns a map with a key that will not be odd or even , and the value will be the number itself at the input
-    // static PCollection<KV<String, Integer>> setKeyForNumbers(PCollection<Integer> input) {
-    //
-    // }
+    static PCollection<Double> getAboveCost(PCollection<Double> input) {
+        return input;
+    }
 
-    // Returns the count of numbers
-    // static PCollection<KV<String,Long>> getCountPerKey(PCollection<KV<String, Integer>> input) {
-    //
-    // }
+    static PCollection<Double> getBelowCost(PCollection<Double> input) {
+        return input;
+    }
+
+    // Define the type PCollection<?>
+    static PCollection<?> setKeyForCost(PCollection<Double> input, String key) {
+        return input;
+    }
+
+    static class ExtractTaxiRideCostFn extends DoFn<String, Double> {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+            String[] items = c.element().split(",");
+            Double totalAmount = tryParseTaxiRideCost(items);
+            c.output(totalAmount);
+        }
+    }
+
+    private static String tryParseString(String[] inputItems, int index) {
+        return inputItems.length > index ? inputItems[index] : null;
+    }
+
+    private static Double tryParseTaxiRideCost(String[] inputItems) {
+        try {
+            return Double.parseDouble(tryParseString(inputItems, 16));
+        } catch (NumberFormatException | NullPointerException e) {
+            return 0.0;
+        }
+    }
 
     static class LogOutput<T> extends DoFn<T, T> {
         private String prefix;

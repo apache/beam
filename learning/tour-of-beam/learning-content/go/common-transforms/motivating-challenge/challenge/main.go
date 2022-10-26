@@ -28,10 +28,16 @@ package main
 
 import (
 	"context"
+    "strings"
+    "strconv"
+    "strings"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 )
 
 func main() {
@@ -39,19 +45,29 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-	// Create input PCollection
-	input := beam.Create(s, 12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15)
+    file := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
-	// The [input] filtered with the positiveNumbersFilter()
-	filtered := getPositiveNumbers(s, input)
+    // Extract cost from PCollection
+    input := ExtractCostFromFile(s, file)
 
-    // Returns map
-	numberMap := getMap(s, filtered)
+    // Filtering with fixed cost
+    aboveCosts := getAboveCosts(s, input)
 
-	// Returns numbers count with the countingNumbers()
-	count := getCountingNumbersByKey(s, numberMap)
+    // Filtering with fixed cost
+    belowCosts := getBelowCosts(s, input)
 
-	debug.Print(s, count)
+    // Summing up the price above the fixed price
+    aboveCostsSum := getSum(s, aboveCosts)
+
+    // Summing up the price above the fixed price
+    belowCostsSum := getSum(s, belowCosts)
+
+    aboveKV := getMap(s, aboveCostsSum, "above")
+
+    belowKV := getMap(s, belowCostsSum, "below")
+
+    debug.Print(s,aboveKV)
+    debug.Print(s, belowKV)
 
 	err := beamx.Run(ctx, p)
 
@@ -60,16 +76,29 @@ func main() {
 	}
 }
 
-// Write here getPositiveNumbers function
-func getPositiveNumbers(s beam.Scope, input beam.PCollection) beam.PCollection{
-  return input
+func ExtractCostFromFile(s beam.Scope, input beam.PCollection) beam.PCollection {
+    return beam.ParDo(s, func(line string) float64 {
+        taxi := strings.Split(strings.TrimSpace(line), ",")
+        if len(taxi) > 16 {
+            cost, _ := strconv.ParseFloat(taxi[16],64)
+            return cost
+        }
+        return 0.0
+    }, input)
 }
-// Write here getMap function
-func getMap(s beam.Scope, input beam.PCollection) beam.PCollection{
-  return input
 
+func getSum(s beam.Scope, input beam.PCollection) beam.PCollection {
+  return input
 }
-// Write here getCountingNumbersByKey function
-func getCountingNumbersByKey(s beam.Scope, input beam.PCollection) beam.PCollection{
+
+func getAboveCosts(s beam.Scope, input beam.PCollection) beam.PCollection{
+  return input
+}
+
+func getBelowCosts(s beam.Scope, input beam.PCollection) beam.PCollection{
+  return input
+}
+
+func getMap(s beam.Scope, input beam.PCollection,key string) beam.PCollection{
   return input
 }
