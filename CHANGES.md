@@ -58,6 +58,9 @@
   than requiring them to be passed separately via the `--extra_package` option.
   ([#23684](https://github.com/apache/beam/pull/23684))
 
+## Breaking Changes
+
+* `ParquetIO.withSplit` was removed ([#23832](https://github.com/apache/beam/issues/23832)).
 
 # [2.43.0] - Unreleased
 
