@@ -134,7 +134,7 @@ public class MappingUtils {
           checkArgumentNotNull(json, "Can not get JSON from Hubspot input string");
           Object id = json.get(HUBSPOT_ID_FIELD);
           checkArgumentNotNull(id, "Can not get ID from Hubspot input string");
-          return ((Integer) id).longValue();
+          return ((Double) id).longValue();
         } catch (Exception e) {
           LOG.error("Can not get offset from json", e);
         }

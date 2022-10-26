@@ -69,7 +69,9 @@ dependencies {
   implementation library.java.cdap_api_commons
   implementation library.java.cdap_etl_api
   implementation library.java.cdap_hydrator_common
-  implementation library.java.cdap_plugin_hubspot
+  //TODO: modify to 'implementation library.java.cdap_plugin_hubspot',
+  // when new release with HasOffset interface will be published
+  implementation "io.github.akvelon:cdap-hubspot-plugins:1.0.2"
   implementation library.java.cdap_plugin_service_now
   implementation library.java.cdap_plugin_zendesk
   implementation library.java.cdap_plugin_salesforce
