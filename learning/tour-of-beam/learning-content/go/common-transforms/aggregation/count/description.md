@@ -44,6 +44,6 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
-`CountElms` returns the number of integers from the `PCollection`. If you replace `CountElms` but `Count`, you can count the elements by the values of how many times they met.
+`CountElms` returns the number of integers from the `PCollection`. If you replace `CountElms` with `Count` you can count the elements by the values of how many times they met.
 
 Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.
