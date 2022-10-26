@@ -26,60 +26,60 @@ metadata:
      app: playground-go
 spec:
   rules:
-  - host: "go.{{ .Values.static_ip }}.nip.io"
+  - host: "beam-playgroundtest.net"
     http:
       paths:
-      - path: "/*"
-        pathType: ImplementationSpecific
+      - path: "/go"
+        pathType: Prefix
         backend:
           service:
             name: playground-go
             port:
               number: {{ .Values.service.port }}
-  - host: "java.{{ .Values.static_ip }}.nip.io"
+  - host: "beam-playgroundtest.net"
     http:
       paths:
-      - path: "/*"
-        pathType: ImplementationSpecific
+      - path: "/java"
+        pathType: Prefix
         backend:
           service:
             name: playground-java
             port:
               number: {{ .Values.service.port }}
-  - host: "python.{{ .Values.static_ip }}.nip.io"
+  - host: "beam-playgroundtest.net"
     http:
       paths:
-      - path: "/*"
-        pathType: ImplementationSpecific
+      - path: "/python"
+        pathType: Prefix
         backend:
           service:
             name: playground-python
             port:
               number: {{ .Values.service.port }}
-  - host: "router.{{ .Values.static_ip }}.nip.io"
+  - host: "beam-playgroundtest.net"
     http:
       paths:
-      - path: "/*"
-        pathType: ImplementationSpecific
+      - path: "/router"
+        pathType: Prefix
         backend:
           service:
             name: playground-router
             port:
               number: {{ .Values.service.port }}
-  - host: "scio.{{ .Values.static_ip }}.nip.io"
+  - host: "beam-playgroundtest.net"
     http:
       paths:
-      - path: "/*"
-        pathType: ImplementationSpecific
+      - path: "/scio"
+        pathType: Prefix
         backend:
           service:
             name: playground-scio
             port:
               number: {{ .Values.service.port }}
-  - host: "frontend.{{ .Values.static_ip }}.nip.io"
+  - host: "beam-playgroundtest.net"
     http:
       paths:
-      - path: "/*"
+      - path: "/frontend"
         pathType: ImplementationSpecific
         backend:
           service:

@@ -31,10 +31,10 @@ autoscaling:
    maxReplicas: 4
    targetCPUUtilizationPercentage: 80
 
-static_ip: 34.120.92.139
-redis_ip: 10.228.103.4:6379
-project_id: pg-front
-registry: us-east1-docker.pkg.dev/pg-front/playground-repository
+static_ip: 34.149.77.235
+redis_ip: 10.172.83.5:6379
+project_id: draft-pg
+registry: us-east1-docker.pkg.dev/draft-pg/playground-repository
 static_ip_name: pg-static-ip
 tag: delta
     

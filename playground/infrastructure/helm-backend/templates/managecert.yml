@@ -19,9 +19,4 @@ metadata:
   name: {{ .Values.project_id }}
 spec:
   domains:
-    - go.{{ .Values.static_ip }}.nip.io
-    - java.{{ .Values.static_ip }}.nip.io
-    - python.{{ .Values.static_ip }}.nip.io
-    - router.{{ .Values.static_ip }}.nip.io
-    - scio.{{ .Values.static_ip }}.nip.io
-    - frontend.{{ .Values.static_ip }}.nip.io
+    - beam-playgroundtest.net
