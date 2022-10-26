@@ -177,7 +177,6 @@ public class SqlTransformRunner {
         "Read " + tableName + " (parquet)",
         ParquetIO.read(schema)
             .from(filepattern)
-            .withSplit()
             .withProjection(schemaProjected, schemaProjected)
             .withBeamSchemas(true));
   }
