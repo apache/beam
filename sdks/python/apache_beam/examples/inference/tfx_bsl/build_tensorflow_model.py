@@ -90,20 +90,19 @@ class TFModelWrapperWithSignature(tf.keras.Model):
     # Initialize a TensorArray to store the deserialized values.
     # For more details, please look at
     # https://github.com/tensorflow/tensorflow/issues/39323#issuecomment-627586602
-    batch = len(features['image'])
+    num_batches = len(features['image'])
     deserialized_vectors = tf.TensorArray(
-        self.input_dtype, size=batch, dynamic_size=True)
+        self.input_dtype, size=num_batches, dynamic_size=True)
     # Vectorized version of tf.io.parse_tensor is not available.
     # Use for loop to vectorize the tensor. For more details, refer
     # https://github.com/tensorflow/tensorflow/issues/43706
-    for i in range(batch):
+    for i in range(num_batches):
       deserialized_value = tf.io.parse_tensor(
           features['image'][i], out_type=self.input_dtype)
-      # http://github.com/tensorflow/tensorflow/issues/30409#issuecomment-508962873
       # In Graph mode, return value must get assigned in order to
-      # update the array
+      # update the array. More details at
+      # http://github.com/tensorflow/tensorflow/issues/30409#issuecomment-508962873
       deserialized_vectors = deserialized_vectors.write(i, deserialized_value)
-
     deserialized_tensor = deserialized_vectors.stack()
     if self.preprocess_input:
       deserialized_tensor = self.preprocess_input(deserialized_tensor)

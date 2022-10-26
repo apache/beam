@@ -16,14 +16,16 @@
 #
 
 """
-A pipeline that uses TFX RunInference API to perform image classification.
-Please look at https://github.com/tensorflow/tfx-bsl/tree/master/tfx_bsl/beam.
+A sample pipeline illustrating how to use Apache Beam RunInference
+with TFX_BSL CreateModelHandler API. For more details, please look at
+https://www.tensorflow.org/tfx/tfx_bsl/api_docs/python/tfx_bsl/public/beam/run_inference/CreateModelHandler.
 
 Note: A Tensorflow Model needs to be updated with a @tf.function
       signature in order to accept bytes as inputs, and should have logic
       to decode bytes to Tensors that is acceptable by the TensorFlow model.
-      Please take a look at build_tensorflow_model.py on how to modify
-      TF Model's signature and the logic to decode the tensor.
+      Please take a look at TFModelWrapperWithSignature class in
+      build_tensorflow_model.py on how to modify TF Model's signature
+      and the logic to decode the image tensor.
 """
 
 import argparse
