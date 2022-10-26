@@ -25,12 +25,12 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * <h3>Reading from SingleStoreDB datasource</h3>
  *
- * <p>SingleStoreIO source returns a bounded collection of {@code T} as a {@code PCollection<T>}. T is the
- * type returned by the provided {@link RowMapper}.
+ * <p>SingleStoreIO source returns a bounded collection of {@code T} as a {@code PCollection<T>}. T
+ * is the type returned by the provided {@link RowMapper}.
  *
- * <p>To configure the SingleStoreDB source, you have to provide a {@link DataSourceConfiguration} using
- * {@link DataSourceConfiguration#create(String)}(endpoint).
- * Optionally, {@link DataSourceConfiguration#withUsername(String)} and {@link
+ * <p>To configure the SingleStoreDB source, you have to provide a {@link DataSourceConfiguration}
+ * using {@link DataSourceConfiguration#create(String)}(endpoint). Optionally, {@link
+ * DataSourceConfiguration#withUsername(String)} and {@link
  * DataSourceConfiguration#withPassword(String)} allows you to define username and password.
  *
  * <p>For example:
@@ -71,8 +71,8 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * <h4>Parallel reading from a SingleStoreDB datasource</h4>
  *
- * <p>SingleStoreIO supports partitioned reading of all data from a query.
- * To enable this, use {@link SingleStoreIO#readWithPartitions()}.
+ * <p>SingleStoreIO supports partitioned reading of all data from a query. To enable this, use
+ * {@link SingleStoreIO#readWithPartitions()}.
  *
  * <p>The partitioning scheme depends on these parameters, which can be user-provided, or
  * automatically inferred by Beam (for the supported types):
@@ -119,7 +119,6 @@ import org.apache.beam.sdk.values.PCollection;
  *      })
  *    );
  * }</pre>
- *
  */
 public class SingleStoreIO {
   /**

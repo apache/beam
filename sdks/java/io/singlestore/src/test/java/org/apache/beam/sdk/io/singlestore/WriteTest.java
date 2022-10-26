@@ -141,25 +141,20 @@ public class WriteTest {
   private static class GetDataSource implements Serializable, Answer<DataSource> {
     @Override
     public DataSource answer(InvocationOnMock invocation) throws SQLException {
-      com.singlestore.jdbc.Statement stmt =
-          Mockito.mock(com.singlestore.jdbc.Statement.class);
+      com.singlestore.jdbc.Statement stmt = Mockito.mock(com.singlestore.jdbc.Statement.class);
       SetInputStream inputStreamSetter = new SetInputStream();
       Mockito.doAnswer(inputStreamSetter).when(stmt).setNextLocalInfileInputStream(Mockito.any());
 
-      DelegatingStatement delStmt =
-          Mockito.mock(
-              DelegatingStatement.class);
+      DelegatingStatement delStmt = Mockito.mock(DelegatingStatement.class);
       Mockito.when(delStmt.getInnermostDelegate()).thenReturn(stmt);
       Mockito.doAnswer(new ExecuteUpdate(inputStreamSetter))
           .when(delStmt)
           .executeUpdate("LOAD DATA LOCAL INFILE '###.tsv' INTO TABLE `t`");
 
-      Connection conn =
-          Mockito.mock(Connection.class);
+      Connection conn = Mockito.mock(Connection.class);
       Mockito.when(conn.createStatement()).thenReturn(delStmt);
 
-      DataSource dataSource =
-          Mockito.mock(DataSource.class);
+      DataSource dataSource = Mockito.mock(DataSource.class);
       Mockito.when(dataSource.getConnection()).thenReturn(conn);
 
       return dataSource;

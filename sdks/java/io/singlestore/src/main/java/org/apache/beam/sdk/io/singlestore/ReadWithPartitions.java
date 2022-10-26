@@ -102,9 +102,7 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
     return toBuilder().setRowMapper(rowMapper).build();
   }
 
-  /**
-   * Pre-split initial restriction and start initialNumReaders reading at the very beginning.
-   */
+  /** Pre-split initial restriction and start initialNumReaders reading at the very beginning. */
   public ReadWithPartitions<T> withInitialNumReaders(Integer initialNumReaders) {
     checkNotNull(initialNumReaders, "initialNumReaders can not be null");
     return withInitialNumReaders(ValueProvider.StaticValueProvider.of(initialNumReaders));
