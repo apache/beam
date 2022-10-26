@@ -20,12 +20,12 @@ You can count the number of elements in ```PCollection``` with ```CountElms()```
 
 ```
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+    "github.com/apache/beam/sdks/go/pkg/beam"
+    "github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return stats.CountElms(s, input)
+    return stats.CountElms(s, input)
 }
 ```
 
@@ -33,12 +33,12 @@ You can use ```Count()``` to count how many elements are associated with a parti
 
 ```
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+    "github.com/apache/beam/sdks/go/pkg/beam"
+    "github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return stats.Count(s, input)
+    return stats.Count(s, input)
 }
 ```
 
@@ -46,7 +46,7 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
-`CountElms` returns the number of integers from the `PCollection`. If you replace `CountElms` but `Count`, you can count the elements by the values of how many times they met.
+`CountElms` returns the number of integers from the `PCollection`. If you replace `CountElms` with `Count` you can count the elements by the values of how many times they met.
 
 And Count transforms work with strings too! Can you change the example to count the number of words in a given sentence and how often each word occurs?
 

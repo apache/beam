@@ -18,12 +18,12 @@ You can use Mean transforms to compute the arithmetic mean of the elements in a 
 
 ```
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+  "github.com/apache/beam/sdks/go/pkg/beam"
+  "github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return stats.Mean(s, input)
+  return stats.Mean(s, input)
 }
 ```
 
@@ -31,12 +31,12 @@ You can use ```MeanPerKey()``` to calculate the mean of the elements associated 
 
 ```
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+  "github.com/apache/beam/sdks/go/pkg/beam"
+  "github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return stats.MeanPerKey(s, input)
+  return stats.MeanPerKey(s, input)
 }
 ```
 
@@ -48,13 +48,13 @@ You can find the full code of this example in the playground window, which you c
 
 ```
 input:= beam.ParDo(s, func(_ []byte, emit func(int, int)){
-     emit(1,1)
-     emit(1,4)
-     emit(2,6)
-     emit(2,3)
-     emit(2,-4)
-     emit(3,23)
-  }, beam.Impulse(s))
+  emit(1,1)
+  emit(1,4)
+  emit(2,6)
+  emit(2,3)
+  emit(2,-4)
+  emit(3,23)
+}, beam.Impulse(s))
 ```
 
 And replace `stats.Mean` on `stats.MeanPerKey` it will output the mean by key.
