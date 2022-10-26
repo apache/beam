@@ -1576,6 +1576,12 @@ with &lt;code>DirectRunner&lt;/code>, add the following requirement to your &lt;
 &lt;p>Additionally, you may want to depend on additional SDK modules, such as IO
 connectors or other extensions, and additional runners to execute your pipeline
 at scale.&lt;/p>
+&lt;p>The Go SDK is accessible via Go Modules and calling &lt;code>go get&lt;/code> from a module subdirectory:&lt;/p>
+&lt;pre>&lt;code> go get github.com/apache/beam/sdks/v2/go/pkg/beam
+&lt;/code>&lt;/pre>
+&lt;p>Specific versions can be depended on similarly:&lt;/p>
+&lt;pre>&lt;code> go get github.com/apache/beam/sdks/v2@v2.42.0/go/pkg/beam
+&lt;/code>&lt;/pre>
 &lt;h2 id="downloading-source-code">Downloading source code&lt;/h2>
 &lt;p>You can download the source code package for a release from the links in the
 &lt;a href="#releases">Releases&lt;/a> section.&lt;/p>

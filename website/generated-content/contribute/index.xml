@@ -1250,7 +1250,7 @@ is perfectly safe since the script does not depend on the current working tree.&
 &lt;ol>
 &lt;li>Visit &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">https://hub.docker.com/u/apache&lt;/a>&lt;/li>
 &lt;li>Visit each repository and navigate to &lt;em>tags&lt;/em> tab.&lt;/li>
-&lt;li>Verify images are pushed with tags: ${RELEASE}_rc{RC_NUM}&lt;/li>
+&lt;li>Verify images are pushed with tags: ${RELEASE_VERSION}_rc{RC_NUM}&lt;/li>
 &lt;/ol>
 &lt;/li>
 &lt;li>Verify that third party licenses are included in Docker containers by logging in to the images.
@@ -1259,12 +1259,12 @@ is perfectly safe since the script does not depend on the current working tree.&
 Please note that dependencies for the SDKs with different Python versions vary.
 Need to verify all Python images by replacing &lt;code>${ver}&lt;/code> with each supported Python version &lt;code>X.Y&lt;/code>.&lt;/li>
 &lt;/ul>
-&lt;pre>&lt;code>docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
+&lt;pre>&lt;code>docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE_VERSION}_rc{RC_NUM}
 ls -al /opt/apache/beam/third_party_licenses/ | wc -l
 &lt;/code>&lt;/pre>&lt;ul>
 &lt;li>For Java SDK images, there should be around 200 dependencies.&lt;/li>
 &lt;/ul>
-&lt;pre>&lt;code>docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
+&lt;pre>&lt;code>docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE_VERSION}_rc{RC_NUM}
 ls -al /opt/apache/beam/third_party_licenses/ | wc -l
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;/ol>
@@ -1413,7 +1413,7 @@ ${CONTRIBUTORS}
 &lt;li>Maven artifacts deployed to the staging repository of &lt;a href="https://repository.apache.org/content/repositories/">repository.apache.org&lt;/a>&lt;/li>
 &lt;li>Source distribution deployed to the dev repository of &lt;a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org&lt;/a>&lt;/li>
 &lt;li>Website pull request proposed to list the &lt;a href="https://beam.apache.org/get-started/downloads/">release&lt;/a>, publish the &lt;a href="https://beam.apache.org/releases/javadoc/">Java API reference manual&lt;/a>, and publish the &lt;a href="https://beam.apache.org/releases/pydoc/">Python API reference manual&lt;/a>.&lt;/li>
-&lt;li>Docker images are published to &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">DockerHub&lt;/a> with tags: {RELEASE}_rc{RC_NUM}.&lt;/li>
+&lt;li>Docker images are published to &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">DockerHub&lt;/a> with tags: {RELEASE_VERSION}_rc{RC_NUM}.&lt;/li>
 &lt;/ol>
 &lt;p>You can (optionally) also do additional verification by:&lt;/p>
 &lt;ol>
@@ -1449,8 +1449,9 @@ The complete staging area is available for your review, which includes:
 * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
 * Java artifacts were built with Gradle GRADLE_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
 * Python artifacts are deployed along with the source release to the dist.apache.org [2] and PyPI[8].
-* Validation sheet with a tab for 1.2.3 release to help with validation [9].
-* Docker images published to Docker Hub [10].
+* Go artifacts and documentation are available at pkg.go.dev [9]
+* Validation sheet with a tab for 1.2.3 release to help with validation [10].
+* Docker images published to Docker Hub [11].
 The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 For guidelines on how to try the release in your projects, check out our blog post at https://beam.apache.org/blog/validate-beam-release/.
 Thanks,
@@ -1463,8 +1464,9 @@ Release Manager
 [6] https://github.com/apache/beam/pull/...
 [7] https://github.com/apache/beam-site/pull/...
 [8] https://pypi.org/project/apache-beam/1.2.3rc3/
-[9] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
-[10] https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image
+[9] https://pkg.go.dev/github.com/apache/beam/sdks/v2@v1.2.3-RC3/go/pkg/beam
+[10] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
+[11] https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image
 &lt;/code>&lt;/pre>
 &lt;p>If there are any issues found in the release candidate, reply on the vote thread to cancel the vote.
 There’s no need to wait 72 hours.
@@ -1792,8 +1794,8 @@ All wheels should be published, in addition to the zip of the release source.
 &lt;/code>&lt;/pre>&lt;ul>
 &lt;li>&lt;strong>Verify that:&lt;/strong>
 &lt;ul>
-&lt;li>Images are published at &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">DockerHub&lt;/a> with tags {RELEASE} and &lt;em>latest&lt;/em>.&lt;/li>
-&lt;li>Images with &lt;em>latest&lt;/em> tag are pointing to current release by confirming the digest of the image with &lt;em>latest&lt;/em> tag is the same as the one with {RELEASE} tag.&lt;/li>
+&lt;li>Images are published at &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">DockerHub&lt;/a> with tags {RELEASE_VERSION} and &lt;em>latest&lt;/em>.&lt;/li>
+&lt;li>Images with &lt;em>latest&lt;/em> tag are pointing to current release by confirming the digest of the image with &lt;em>latest&lt;/em> tag is the same as the one with {RELEASE_VERSION} tag.&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;/ul>
@@ -1809,7 +1811,7 @@ All wheels should be published, in addition to the zip of the release source.
 &lt;p>Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:&lt;/p>
 &lt;pre>&lt;code># Optional: unlock the signing key by signing an arbitrary file.
 gpg --output ~/doc.sig --sign ~/.bashrc
-VERSION_TAG=&amp;quot;v${RELEASE}&amp;quot;
+VERSION_TAG=&amp;quot;v${RELEASE_VERSION}&amp;quot;
 # Tag for Go SDK
 git tag -s &amp;quot;sdks/$VERSION_TAG&amp;quot; &amp;quot;$RC_TAG&amp;quot;
 git push https://github.com/apache/beam &amp;quot;sdks/$VERSION_TAG&amp;quot;
