@@ -95,9 +95,9 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
   /**
    * DO NOT USE
    *
-   * <p>This method results in data within the allowed timestamp skew being late. Use {@link
-   * withWatermarkDelay} instead which results in data within the allowed timestamp skew being on
-   * time.
+   * <p>This method results in data within the allowed timestamp skew being late. Use
+   * {@link WithTimestamps#withWatermarkDelay} instead which results in data within the allowed
+   * timestamp skew being on time.
    *
    * <p>Return a new WithTimestamps like this one with updated allowed timestamp skew, which is the
    * maximum duration that timestamps can be shifted backward. Does not modify this object.
@@ -119,17 +119,18 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
   /**
    * DO NOT USE
    *
-   * <p>This method results in data within the allowed timestamp skew being late. Use {@link
-   * withWatermarkDelay} instead which results in data within the allowed timestamp skew being on
-   * time.
+   * <p>This method results in data within the allowed timestamp skew being late. Use
+   * {@link WithTimestamps#withWatermarkDelay} instead which results in data within the allowed
+   * timestamp skew being on time.
    *
    * <p>Returns the allowed timestamp skew duration, which is the maximum duration that timestamps
    * can be shifted backwards from the timestamp of the input element.
    *
    * @see DoFn#getAllowedTimestampSkew()
    * @deprecated This method permits elements to be emitted behind the watermark. These elements are
-   *     considered late, and if behind the {@link Window#withAllowedLateness(Duration) allowed
-   *     lateness} of a downstream {@link PCollection} may be silently dropped.
+   * considered late, and if behind the
+   * {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
+   * {@link PCollection} may be silently dropped.
    */
   @Deprecated
   public Duration getAllowedTimestampSkew() {
