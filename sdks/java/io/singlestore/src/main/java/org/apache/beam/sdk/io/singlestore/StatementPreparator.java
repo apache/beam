@@ -20,6 +20,10 @@ package org.apache.beam.sdk.io.singlestore;
 import java.io.Serializable;
 import java.sql.PreparedStatement;
 
+/**
+ * An interface used by the SingleStoreIO {@link Read} to set the parameters of the {@link
+ * PreparedStatement}.
+ */
 @FunctionalInterface
 public interface StatementPreparator extends Serializable {
   void setParameters(PreparedStatement preparedStatement) throws Exception;

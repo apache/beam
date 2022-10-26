@@ -19,7 +19,12 @@ package org.apache.beam.sdk.io.singlestore;
 
 import java.io.Serializable;
 import java.sql.ResultSet;
+import org.apache.beam.sdk.values.PCollection;
 
+/**
+ * An interface used by {@link Read} and {@link ReadWithPartitions} for converting each row of the
+ * {@link ResultSet} into an element of the resulting {@link PCollection}.
+ */
 @FunctionalInterface
 public interface RowMapper<T> extends Serializable {
   T mapRow(ResultSet resultSet) throws Exception;

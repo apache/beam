@@ -111,11 +111,16 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
     return toBuilder().setStatementPreparator(statementPreparator).build();
   }
 
+  /**
+   * Whether to reshuffle the resulting PCollection so results are distributed to all workers. The
+   * default is to parallelize and should only be changed if this is known to be unnecessary.
+   */
   public Read<T> withOutputParallelization(Boolean outputParallelization) {
     checkNotNull(outputParallelization, "outputParallelization can not be null");
     return withOutputParallelization(ValueProvider.StaticValueProvider.of(outputParallelization));
   }
 
+  /** Same as {@link #withOutputParallelization(Boolean)} but accepting a ValueProvider. */
   public Read<T> withOutputParallelization(ValueProvider<Boolean> outputParallelization) {
     checkNotNull(outputParallelization, "outputParallelization can not be null");
     return toBuilder().setOutputParallelization(outputParallelization).build();

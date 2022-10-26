@@ -28,6 +28,10 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * A POJO describing a SingleStoreDB {@link DataSource} by providing all properties needed to create
+ * it.
+ */
 @AutoValue
 public abstract class DataSourceConfiguration implements Serializable {
   abstract @Nullable ValueProvider<String> getEndpoint();
@@ -97,11 +101,22 @@ public abstract class DataSourceConfiguration implements Serializable {
     return builder().setDatabase(database).build();
   }
 
+  /**
+   * Sets the connection properties passed to driver.connect(...). Format of the string must be
+   * [propertyName=property;]*
+   *
+   * <p>NOTE - The "user" and "password" properties can be add via {@link #withUsername(String)},
+   * {@link #withPassword(String)}, so they do not need to be included here.
+   *
+   * <p>Full list of supported properties can be found here {@link <a
+   * href="https://docs.singlestore.com/managed-service/en/developer-resources/connect-with-application-development-tools/connect-with-java-jdbc/the-singlestore-jdbc-driver.html#connection-string-parameters">...</a>}
+   */
   public DataSourceConfiguration withConnectionProperties(String connectionProperties) {
     checkNotNull(connectionProperties, "connectionProperties can not be null");
     return withConnectionProperties(ValueProvider.StaticValueProvider.of(connectionProperties));
   }
 
+  /** Same as {@link #withConnectionProperties(String)} but accepting a ValueProvider. */
   public DataSourceConfiguration withConnectionProperties(
       ValueProvider<String> connectionProperties) {
     checkNotNull(connectionProperties, "connectionProperties can not be null");

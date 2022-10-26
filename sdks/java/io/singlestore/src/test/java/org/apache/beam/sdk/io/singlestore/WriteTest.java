@@ -37,6 +37,8 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.commons.dbcp2.DelegatingStatement;
 import org.junit.After;
 import org.junit.Before;
@@ -47,8 +49,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.testcontainers.shaded.com.google.common.base.Splitter;
-import org.testcontainers.shaded.com.google.common.collect.Lists;
 
 /** Test Write. */
 @RunWith(JUnit4.class)
