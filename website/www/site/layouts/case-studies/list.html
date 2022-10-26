@@ -71,4 +71,8 @@ limitations under the License. See accompanying LICENSE file.
         </a>
     </div>
 </div>
+
+{{ $shuffle := resources.Get "js/shuffle-elements.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $shuffle.RelPermalink }}" defer></script>
+
 {{ end }}
