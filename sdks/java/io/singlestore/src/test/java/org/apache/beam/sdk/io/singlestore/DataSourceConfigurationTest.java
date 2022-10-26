@@ -17,9 +17,30 @@
  */
 package org.apache.beam.sdk.io.singlestore;
 
+import org.apache.commons.dbcp2.BasicDataSource;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import javax.sql.DataSource;
+import java.sql.SQLException;
+
+import static org.junit.Assert.assertEquals;
+
 /** Test DataSourceConfiguration. */
 @RunWith(JUnit4.class)
-public class DataSourceConfigurationTest {}
+public class DataSourceConfigurationTest {
+  @Test
+  public void testGetDataSource() throws SQLException {
+    DataSourceConfiguration configuration = DataSourceConfiguration.create("localhost")
+        .withDatabase("db")
+        .withConnectionProperties("a=b;c=d")
+        .withPassword("password")
+        .withUsername("admin");
+
+    BasicDataSource dataSource = (BasicDataSource) configuration.getDataSource();
+    assertEquals("jdbc:singlestore://localhost/db", dataSource.getUrl());
+    assertEquals("admin", dataSource.getUsername());
+    assertEquals("password", dataSource.getPassword());
+  }
+}

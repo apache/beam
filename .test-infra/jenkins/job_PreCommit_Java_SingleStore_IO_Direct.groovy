@@ -23,14 +23,14 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Java_SingleStore_IO_Direct',
     gradleTask: ':sdks:java:io:singlestore:integrationTest',
     gradleSwitches: [
-        '-PdisableSpotlessCheck=true',
-        '-PdisableCheckStyle=true'
+      '-PdisableSpotlessCheck=true',
+      '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
-        '^sdks/java/io/singlestore/.*$',
+      '^sdks/java/io/singlestore/.*$',
     ],
     timeoutMins: 60,
-)
+    )
 builder.build {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
