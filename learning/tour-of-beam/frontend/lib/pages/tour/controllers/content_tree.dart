@@ -79,7 +79,8 @@ class ContentTreeController extends ChangeNotifier {
       return;
     }
 
-    _currentNode = contentTree.getNodeByTreeIds(_treeIds);
+    _currentNode = contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.getFirstUnit();
+    _treeIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
     notifyListeners();
   }
 
