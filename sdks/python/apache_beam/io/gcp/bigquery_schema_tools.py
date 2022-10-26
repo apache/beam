@@ -28,9 +28,13 @@ from typing import Sequence
 import numpy as np
 
 import apache_beam as beam
+import apache_beam.io.gcp.bigquery_tools
+import apache_beam.typehints.schemas
+import apache_beam.utils.proto_utils
 import apache_beam.utils.timestamp
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.portability.api import schema_pb2
+from apache_beam.transforms import DoFn
 
 # BigQuery types as listed in
 # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
@@ -91,13 +95,11 @@ def bq_field_to_type(field, mode):
 
 
 def convert_to_usertype(table_schema):
-  usertype = beam.io.gcp.bigquery_schema_tools. \
-        generate_user_type_from_bq_schema(table_schema)
-  return beam.ParDo(
-      beam.io.gcp.bigquery_schema_tools.BeamSchemaConversionDoFn(usertype))
+  usertype = generate_user_type_from_bq_schema(table_schema)
+  return beam.ParDo(BeamSchemaConversionDoFn(usertype))
 
 
-class BeamSchemaConversionDoFn(beam.DoFn):
+class BeamSchemaConversionDoFn(DoFn):
   def __init__(self, pcoll_val_ctor):
     self._pcoll_val_ctor = pcoll_val_ctor
 
@@ -113,8 +115,9 @@ class BeamSchemaConversionDoFn(beam.DoFn):
   @classmethod
   def _from_serialized_schema(cls, schema_str):
     return cls(
-        beam.typehints.schemas.named_tuple_from_schema(
-            beam.utils.proto_utils.parse_Bytes(schema_str, schema_pb2.Schema)))
+        apache_beam.typehints.schemas.named_tuple_from_schema(
+            apache_beam.utils.proto_utils.parse_Bytes(
+                schema_str, schema_pb2.Schema)))
 
   def __reduce__(self):
     # when pickling, use bytes representation of the schema.
