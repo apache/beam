@@ -26,7 +26,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
@@ -121,8 +120,7 @@ public class ReadWithPartitionsTest {
             SingleStoreIO.<TestRow>readWithPartitions()
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .withQuery("SELECT * FROM `t`")
-                .withRowMapper(new TestHelper.TestRowMapper())
-                .withCoder(SerializableCoder.of(TestRow.class)));
+                .withRowMapper(new TestHelper.TestRowMapper()));
 
     PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
         .isEqualTo((long) EXPECTED_ROW_COUNT);
@@ -140,8 +138,7 @@ public class ReadWithPartitionsTest {
             SingleStoreIO.<TestRow>readWithPartitions()
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .withTable("t")
-                .withRowMapper(new TestHelper.TestRowMapper())
-                .withCoder(SerializableCoder.of(TestRow.class)));
+                .withRowMapper(new TestHelper.TestRowMapper()));
 
     PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
         .isEqualTo((long) EXPECTED_ROW_COUNT);
@@ -160,26 +157,7 @@ public class ReadWithPartitionsTest {
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .withQuery("SELECT * FROM `t`")
                 .withRowMapper(new TestHelper.TestRowMapper())
-                .withInitialNumReaders(2)
-                .withCoder(SerializableCoder.of(TestRow.class)));
-
-    PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
-        .isEqualTo((long) EXPECTED_ROW_COUNT);
-
-    Iterable<TestRow> expectedValues = TestRow.getExpectedValues(0, EXPECTED_ROW_COUNT);
-    PAssert.that(rows).containsInAnyOrder(expectedValues);
-
-    pipeline.run();
-  }
-
-  @Test
-  public void testReadWithPartitionsWithoutCoder() {
-    PCollection<TestRow> rows =
-        pipeline.apply(
-            SingleStoreIO.<TestRow>readWithPartitions()
-                .withDataSourceConfiguration(dataSourceConfiguration)
-                .withQuery("SELECT * FROM `t`")
-                .withRowMapper(new TestHelper.TestRowMapper()));
+                .withInitialNumReaders(2));
 
     PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
         .isEqualTo((long) EXPECTED_ROW_COUNT);

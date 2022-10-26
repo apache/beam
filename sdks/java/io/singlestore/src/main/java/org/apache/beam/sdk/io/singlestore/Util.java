@@ -38,32 +38,27 @@ public class Util {
   }
 
   public static <OutputT> Coder<OutputT> inferCoder(
-      @Nullable Coder<OutputT> defaultCoder,
       RowMapper<OutputT> rowMapper,
       CoderRegistry registry,
       SchemaRegistry schemaRegistry,
       Logger log) {
-    if (defaultCoder != null) {
-      return defaultCoder;
-    } else {
-      TypeDescriptor<OutputT> outputType =
-          TypeDescriptors.extractFromTypeParameters(
-              rowMapper,
-              RowMapper.class,
-              new TypeDescriptors.TypeVariableExtractor<RowMapper<OutputT>, OutputT>() {});
-      try {
-        return schemaRegistry.getSchemaCoder(outputType);
-      } catch (NoSuchSchemaException e) {
-        log.warn(
-            "Unable to infer a schema for type {}. Attempting to infer a coder without a schema.",
-            outputType);
-      }
-      try {
-        return registry.getCoder(outputType);
-      } catch (CannotProvideCoderException e) {
-        throw new IllegalArgumentException(
-            String.format("Unable to infer a coder for type %s", outputType));
-      }
+    TypeDescriptor<OutputT> outputType =
+        TypeDescriptors.extractFromTypeParameters(
+            rowMapper,
+            RowMapper.class,
+            new TypeDescriptors.TypeVariableExtractor<RowMapper<OutputT>, OutputT>() {});
+    try {
+      return schemaRegistry.getSchemaCoder(outputType);
+    } catch (NoSuchSchemaException e) {
+      log.warn(
+          "Unable to infer a schema for type {}. Attempting to infer a coder without a schema.",
+          outputType);
+    }
+    try {
+      return registry.getCoder(outputType);
+    } catch (CannotProvideCoderException e) {
+      throw new IllegalArgumentException(
+          String.format("Unable to infer a coder for type %s", outputType));
     }
   }
 

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.singlestore;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
-import static org.mockito.mock.SerializableMode.ACROSS_CLASSLOADERS;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -143,26 +142,24 @@ public class WriteTest {
     @Override
     public DataSource answer(InvocationOnMock invocation) throws SQLException {
       com.singlestore.jdbc.Statement stmt =
-          Mockito.mock(
-              com.singlestore.jdbc.Statement.class,
-              Mockito.withSettings().serializable(ACROSS_CLASSLOADERS));
+          Mockito.mock(com.singlestore.jdbc.Statement.class);
       SetInputStream inputStreamSetter = new SetInputStream();
       Mockito.doAnswer(inputStreamSetter).when(stmt).setNextLocalInfileInputStream(Mockito.any());
 
       DelegatingStatement delStmt =
           Mockito.mock(
-              DelegatingStatement.class, Mockito.withSettings().serializable(ACROSS_CLASSLOADERS));
+              DelegatingStatement.class);
       Mockito.when(delStmt.getInnermostDelegate()).thenReturn(stmt);
       Mockito.doAnswer(new ExecuteUpdate(inputStreamSetter))
           .when(delStmt)
           .executeUpdate("LOAD DATA LOCAL INFILE '###.tsv' INTO TABLE `t`");
 
       Connection conn =
-          Mockito.mock(Connection.class, Mockito.withSettings().serializable(ACROSS_CLASSLOADERS));
+          Mockito.mock(Connection.class);
       Mockito.when(conn.createStatement()).thenReturn(delStmt);
 
       DataSource dataSource =
-          Mockito.mock(DataSource.class, Mockito.withSettings().serializable(ACROSS_CLASSLOADERS));
+          Mockito.mock(DataSource.class);
       Mockito.when(dataSource.getConnection()).thenReturn(conn);
 
       return dataSource;

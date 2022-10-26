@@ -27,7 +27,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -112,8 +111,7 @@ public class ReadTest {
             SingleStoreIO.<TestRow>read()
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .withQuery("SELECT * FROM `t`")
-                .withRowMapper(new TestHelper.TestRowMapper())
-                .withCoder(SerializableCoder.of(TestRow.class)));
+                .withRowMapper(new TestHelper.TestRowMapper()));
 
     PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
         .isEqualTo((long) EXPECTED_ROW_COUNT);
@@ -135,7 +133,6 @@ public class ReadTest {
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .withQuery("SELECT * FROM `t` WHERE id < ?")
                 .withRowMapper(new TestHelper.TestRowMapper())
-                .withCoder(SerializableCoder.of(TestRow.class))
                 .withStatementPreparator(new TestStatmentPreparator()));
 
     PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
@@ -156,8 +153,7 @@ public class ReadTest {
             SingleStoreIO.<TestRow>read()
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .withTable("t")
-                .withRowMapper(new TestHelper.TestRowMapper())
-                .withCoder(SerializableCoder.of(TestRow.class)));
+                .withRowMapper(new TestHelper.TestRowMapper()));
 
     PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
         .isEqualTo((long) EXPECTED_ROW_COUNT);
@@ -170,26 +166,6 @@ public class ReadTest {
 
   @Test
   public void testReadWithoutOutputParallelization() {
-    PCollection<TestRow> rows =
-        pipeline.apply(
-            SingleStoreIO.<TestRow>read()
-                .withDataSourceConfiguration(dataSourceConfiguration)
-                .withQuery("SELECT * FROM `t`")
-                .withRowMapper(new TestHelper.TestRowMapper())
-                .withOutputParallelization(false)
-                .withCoder(SerializableCoder.of(TestRow.class)));
-
-    PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
-        .isEqualTo((long) EXPECTED_ROW_COUNT);
-
-    Iterable<TestRow> expectedValues = TestRow.getExpectedValues(0, EXPECTED_ROW_COUNT);
-    PAssert.that(rows).containsInAnyOrder(expectedValues);
-
-    pipeline.run();
-  }
-
-  @Test
-  public void testReadWithoutCoder() {
     PCollection<TestRow> rows =
         pipeline.apply(
             SingleStoreIO.<TestRow>read()

@@ -55,8 +55,6 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
 
   abstract @Nullable ValueProvider<Integer> getInitialNumReaders();
 
-  abstract @Nullable Coder<T> getCoder();
-
   abstract Builder<T> toBuilder();
 
   @AutoValue.Builder
@@ -70,8 +68,6 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
     abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
 
     abstract Builder<T> setInitialNumReaders(ValueProvider<Integer> initialNumReaders);
-
-    abstract Builder<T> setCoder(Coder<T> coder);
 
     abstract ReadWithPartitions<T> build();
   }
@@ -120,11 +116,6 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
     return toBuilder().setInitialNumReaders(initialNumReaders).build();
   }
 
-  public ReadWithPartitions<T> withCoder(Coder<T> coder) {
-    checkNotNull(coder, "coder cen not be null");
-    return toBuilder().setCoder(coder).build();
-  }
-
   @Override
   public PCollection<T> expand(PBegin input) {
     DataSourceConfiguration dataSourceConfiguration =
@@ -145,7 +136,6 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
 
     Coder<T> coder =
         Util.inferCoder(
-            getCoder(),
             rowMapper,
             input.getPipeline().getCoderRegistry(),
             input.getPipeline().getSchemaRegistry(),
@@ -274,6 +264,5 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
     builder.addIfNotNull(DisplayData.item("table", getTable()));
     builder.addIfNotNull(DisplayData.item("rowMapper", Util.getClassNameOrNull(getRowMapper())));
     builder.addIfNotNull(DisplayData.item("initialNumReaders", getInitialNumReaders()));
-    builder.addIfNotNull(DisplayData.item("coder", Util.getClassNameOrNull(getCoder())));
   }
 }
