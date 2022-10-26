@@ -37,7 +37,7 @@ require (
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/proullon/ramsql v0.0.0-20211120092837-c8d0a408b939
-	github.com/spf13/cobra v1.6.0
+	github.com/spf13/cobra v1.6.1
 	github.com/testcontainers/testcontainers-go v0.14.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
