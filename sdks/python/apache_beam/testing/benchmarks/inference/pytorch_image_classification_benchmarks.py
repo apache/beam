@@ -20,10 +20,13 @@ import logging
 
 from apache_beam.examples.inference import pytorch_image_classification
 from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.load_tests.load_test_metrics_utils import FetchMetrics
+from apache_beam.testing.analysis import ChangePointAnalysis
 from torchvision import models
 
 _PERF_TEST_MODELS = ['resnet50', 'resnet101', 'resnet152']
 _PRETRAINED_MODEL_MODULE = 'torchvision.models'
+_RUNINFERENCE_PERFORMANCE_METRIC = 'num_inferences'
 
 
 class PytorchVisionBenchmarkTest(LoadTest):
@@ -60,6 +63,18 @@ class PytorchVisionBenchmarkTest(LoadTest):
         model_class=model_class,
         model_params=model_params,
         test_pipeline=self.pipeline)
+
+  def run_change_point_analysis(self):
+    if self.pipeline.get_option('publish_to_big_query'):
+      metric_values = FetchMetrics.fetch_from_bq(
+          project_name=self.pipeline.get_option('project'),
+          dataset=self.pipeline.get_option('metrics_dataset'),
+          table=self.pipeline.get_option('metrics_table'),
+          metric_name=_RUNINFERENCE_PERFORMANCE_METRIC)
+    change_point_analyzer = ChangePointAnalysis(metric_values)
+    # sends 0 or 1 to the GH actions which could trigger an issue if there
+    # is a regression
+    change_point_analyzer.find_change_point()
 
 
 if __name__ == '__main__':
