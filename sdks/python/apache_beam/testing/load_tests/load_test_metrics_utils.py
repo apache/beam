@@ -616,3 +616,27 @@ class AssignTimestamps(beam.DoFn):
   def process(self, element):
     yield self.timestamp_val_fn(
         element, self.timestamp_fn(micros=int(self.time_fn() * 1000000)))
+
+
+class FetchMetrics:
+  @staticmethod
+  def fetch_from_bq(
+      project_name, table, dataset, metric_name: str, limit=100) -> List:
+    query_template = """
+      SELECT *
+      FROM {}.{}.{}
+      ORDER BY {} DESC
+      LIMIT {}
+    """.format(project_name, table, dataset, SUBMIT_TIMESTAMP_LABEL, limit)
+    bq_client = bigquery.Client(project=project_name)
+    query_job = bq_client.query(query_template)
+    results = query_job.result()
+    metric_values = []
+    for result in results:
+      if metric_name in result[METRICS_TYPE_LABEL]:
+        metric_values.append(result[METRICS_TYPE_LABEL])
+    return metric_values
+
+  @staticmethod
+  def fetch_from_influxdb():
+    pass
