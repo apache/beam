@@ -23,6 +23,10 @@
 #   categories:
 #     - Branching
 #     - Multiple Outputs
+#   complexity: BASIC
+#   tags:
+#     - branching
+#     - numbers
 
 import apache_beam as beam
 
@@ -37,4 +41,3 @@ with beam.Pipeline() as p:
 
   mult5_results | 'Log multiply 5' >> LogElements(prefix='Multiplied by 5: ')
   mult10_results | 'Log multiply 10' >> LogElements(prefix='Multiplied by 10: ')
-

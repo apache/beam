@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+import logging
 from collections import defaultdict
 from typing import Any
 from typing import Callable
@@ -24,21 +25,50 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
+from typing import Union
 
 import torch
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.utils.annotations import experimental
+
+__all__ = [
+    'PytorchModelHandlerTensor',
+    'PytorchModelHandlerKeyedTensor',
+]
 
 
 def _load_model(
     model_class: torch.nn.Module, state_dict_path, device, **model_params):
   model = model_class(**model_params)
-  model.to(device)
+
+  if device == torch.device('cuda') and not torch.cuda.is_available():
+    logging.warning(
+        "Model handler specified a 'GPU' device, but GPUs are not available. " \
+        "Switching to CPU.")
+    device = torch.device('cpu')
+
   file = FileSystems.open(state_dict_path, 'rb')
-  model.load_state_dict(torch.load(file))
+  try:
+    logging.info(
+        "Loading state_dict_path %s onto a %s device", state_dict_path, device)
+    state_dict = torch.load(file, map_location=device)
+  except RuntimeError as e:
+    if device == torch.device('cuda'):
+      message = "Loading the model onto a GPU device failed due to an " \
+        f"exception:\n{e}\nAttempting to load onto a CPU device instead."
+      logging.warning(message)
+      return _load_model(
+          model_class, state_dict_path, torch.device('cpu'), **model_params)
+    else:
+      raise e
+
+  model.load_state_dict(state_dict)
+  model.to(device)
   model.eval()
-  return model
+  logging.info("Finished loading PyTorch model.")
+  return (model, device)
 
 
 def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
@@ -51,6 +81,23 @@ def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
   if examples.device != device:
     examples = examples.to(device)
   return examples
+
+
+def _convert_to_result(
+    batch: Iterable, predictions: Union[Iterable, Dict[Any, Iterable]]
+) -> Iterable[PredictionResult]:
+  if isinstance(predictions, dict):
+    # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
+    # key_type2: Iterable<val_type2>, ...} where each Iterable is of
+    # length batch_size, to a list of dictionaries:
+    # [{key_type1: value_type1, key_type2: value_type2}]
+    predictions_per_tensor = [
+        dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
+    ]
+    return [
+        PredictionResult(x, y) for x, y in zip(batch, predictions_per_tensor)
+    ]
+  return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
 
 class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
@@ -68,6 +115,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
 
       pcoll | RunInference(PytorchModelHandlerTensor(state_dict_path="my_uri"))
 
+    See https://pytorch.org/tutorials/beginner/saving_loading_models.html
+    for details
+
     Args:
       state_dict_path: path to the saved dictionary of the model state.
       model_class: class of the Pytorch model that defines the model
@@ -78,24 +128,28 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
 
-    See https://pytorch.org/tutorials/beginner/saving_loading_models.html
-    for details
+    **Supported Versions:** RunInference APIs in Apache Beam have been tested
+    with PyTorch 1.9 and 1.10.
     """
     self._state_dict_path = state_dict_path
-    if device == 'GPU' and torch.cuda.is_available():
+    if device == 'GPU':
+      logging.info("Device is set to CUDA")
       self._device = torch.device('cuda')
     else:
+      logging.info("Device is set to CPU")
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_params = model_params
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
-    return _load_model(
+    model, device = _load_model(
         self._model_class,
         self._state_dict_path,
         self._device,
         **self._model_params)
+    self._device = device
+    return model
 
   def run_inference(
       self,
@@ -125,10 +179,13 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """
     inference_args = {} if not inference_args else inference_args
 
-    batched_tensors = torch.stack(batch)
-    batched_tensors = _convert_to_device(batched_tensors, self._device)
-    predictions = model(batched_tensors, **inference_args)
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    # torch.no_grad() mitigates GPU memory issues
+    # https://github.com/apache/beam/issues/22811
+    with torch.no_grad():
+      batched_tensors = torch.stack(batch)
+      batched_tensors = _convert_to_device(batched_tensors, self._device)
+      predictions = model(batched_tensors, **inference_args)
+      return _convert_to_result(batch, predictions)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -142,9 +199,13 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferencePytorch'
+    return 'BeamML_PyTorch'
+
+  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+    pass
 
 
+@experimental(extra_message="No backwards-compatibility guarantees.")
 class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
                                                   PredictionResult,
                                                   torch.nn.Module]):
@@ -176,22 +237,29 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       device: the device on which you wish to run the model. If
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
+
+    **Supported Versions:** RunInference APIs in Apache Beam have been tested
+    with PyTorch 1.9 and 1.10.
     """
     self._state_dict_path = state_dict_path
-    if device == 'GPU' and torch.cuda.is_available():
+    if device == 'GPU':
+      logging.info("Device is set to CUDA")
       self._device = torch.device('cuda')
     else:
+      logging.info("Device is set to CPU")
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_params = model_params
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
-    return _load_model(
+    model, device = _load_model(
         self._model_class,
         self._state_dict_path,
         self._device,
         **self._model_params)
+    self._device = device
+    return model
 
   def run_inference(
       self,
@@ -224,16 +292,21 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     # If elements in `batch` are provided as a dictionaries from key to Tensors,
     # then iterate through the batch list, and group Tensors to the same key
     key_to_tensor_list = defaultdict(list)
-    for example in batch:
-      for key, tensor in example.items():
-        key_to_tensor_list[key].append(tensor)
-    key_to_batched_tensors = {}
-    for key in key_to_tensor_list:
-      batched_tensors = torch.stack(key_to_tensor_list[key])
-      batched_tensors = _convert_to_device(batched_tensors, self._device)
-      key_to_batched_tensors[key] = batched_tensors
-    predictions = model(**key_to_batched_tensors, **inference_args)
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+
+    # torch.no_grad() mitigates GPU memory issues
+    # https://github.com/apache/beam/issues/22811
+    with torch.no_grad():
+      for example in batch:
+        for key, tensor in example.items():
+          key_to_tensor_list[key].append(tensor)
+      key_to_batched_tensors = {}
+      for key in key_to_tensor_list:
+        batched_tensors = torch.stack(key_to_tensor_list[key])
+        batched_tensors = _convert_to_device(batched_tensors, self._device)
+        key_to_batched_tensors[key] = batched_tensors
+      predictions = model(**key_to_batched_tensors, **inference_args)
+
+      return _convert_to_result(batch, predictions)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -249,4 +322,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferencePytorch'
+    return 'BeamML_PyTorch'
+
+  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+    pass

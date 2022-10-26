@@ -7,6 +7,7 @@ aliases:
   - /blog/2020/04/15/beam-2.20.0.html
 categories:
   - blog
+  - release
 authors:
   - amaliujia
 ---

@@ -40,7 +40,7 @@ configurations {
   validatesRunner
 }
 
-def samza_version = "1.5.0"
+def samza_version = "1.6.0"
 
 dependencies {
   implementation library.java.vendored_guava_26_0_jre
@@ -66,7 +66,7 @@ dependencies {
   implementation "org.apache.samza:samza-yarn_2.11:$samza_version"
   compileOnly library.java.error_prone_annotations
   runtimeOnly "org.apache.kafka:kafka-clients:2.0.1"
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(path: ":model:pipeline", configuration: "shadow")

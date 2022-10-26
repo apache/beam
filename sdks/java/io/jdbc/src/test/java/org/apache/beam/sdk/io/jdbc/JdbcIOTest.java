@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import static java.sql.JDBCType.NULL;
-import static java.sql.JDBCType.NUMERIC;
 import static org.apache.beam.sdk.io.common.DatabaseTestHelper.assertRowCount;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.closeTo;
@@ -72,9 +71,9 @@ import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
-import org.apache.beam.sdk.io.jdbc.LogicalTypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
@@ -324,9 +323,7 @@ public class JdbcIOTest implements Serializable {
     Schema expectedSchema =
         Schema.of(
             Schema.Field.of(
-                "T1",
-                FieldType.logicalType(FixedPrecisionNumeric.of(NUMERIC.getName(), 1, 0))
-                    .withNullable(false)));
+                "T1", FieldType.logicalType(FixedPrecisionNumeric.of(1, 0)).withNullable(false)));
 
     assertEquals(expectedSchema, rows.getSchema());
 
@@ -379,9 +376,7 @@ public class JdbcIOTest implements Serializable {
     Schema expectedSchema =
         Schema.of(
             Schema.Field.of(
-                "T1",
-                FieldType.logicalType(FixedPrecisionNumeric.of(NUMERIC.getName(), 10, 2))
-                    .withNullable(false)));
+                "T1", FieldType.logicalType(FixedPrecisionNumeric.of(10, 2)).withNullable(false)));
 
     assertEquals(expectedSchema, rows.getSchema());
 

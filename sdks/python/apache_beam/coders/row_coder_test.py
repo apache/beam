@@ -23,9 +23,11 @@ from itertools import chain
 
 import numpy as np
 from google.protobuf import json_format
+from numpy.testing import assert_array_equal
 
 import apache_beam as beam
 from apache_beam.coders import RowCoder
+from apache_beam.coders import coder_impl
 from apache_beam.coders.typecoders import registry as coders_registry
 from apache_beam.internal import pickler
 from apache_beam.portability.api import schema_pb2
@@ -58,7 +60,14 @@ NullablePerson = typing.NamedTuple(
      ("favorite_time", typing.Optional[Timestamp]),
      ("one_more_field", typing.Optional[str])])
 
+
+class People(typing.NamedTuple):
+  primary: Person
+  partner: typing.Optional[Person]
+
+
 coders_registry.register_coder(Person, RowCoder)
+coders_registry.register_coder(People, RowCoder)
 
 
 class RowCoderTest(unittest.TestCase):
@@ -120,6 +129,19 @@ class RowCoderTest(unittest.TestCase):
 
       self.assertEqual(
           test_case, real_coder.decode(real_coder.encode(test_case)))
+
+  def test_create_row_coder_from_nested_named_tuple(self):
+    expected_coder = RowCoder(typing_to_runner_api(People).row_type.schema)
+    real_coder = coders_registry.get_coder(People)
+
+    for primary in self.PEOPLE:
+      for other in self.PEOPLE + [None]:
+        test_case = People(primary=primary, partner=other)
+        self.assertEqual(
+            expected_coder.encode(test_case), real_coder.encode(test_case))
+
+        self.assertEqual(
+            test_case, real_coder.decode(real_coder.encode(test_case)))
 
   def test_create_row_coder_from_schema(self):
     schema = schema_pb2.Schema(
@@ -385,6 +407,42 @@ class RowCoderTest(unittest.TestCase):
     cloud_object = coder.as_cloud_object()
 
     self.assertEqual(schema_proto_json, cloud_object['schema'])
+
+  def test_batch_encode_decode(self):
+    coder = RowCoder(typing_to_runner_api(Person).row_type.schema).get_impl()
+    seq_out = coder_impl.create_OutputStream()
+    for person in self.PEOPLE:
+      coder.encode_to_stream(person, seq_out, False)
+
+    batch_out = coder_impl.create_OutputStream()
+    columnar = {
+        field: np.array([getattr(person, field) for person in self.PEOPLE],
+                        ndmin=1)
+        for field in Person._fields
+    }
+    coder.encode_batch_to_stream(columnar, batch_out)
+    if seq_out.get() != batch_out.get():
+      a, b = seq_out.get(), batch_out.get()
+      N = 25
+      for k in range(0, max(len(a), len(b)), N):
+        print(k, a[k:k + N] == b[k:k + N])
+        print(a[k:k + N])
+        print(b[k:k + N])
+    self.assertEqual(seq_out.get(), batch_out.get())
+
+    for size in [len(self.PEOPLE) - 1, len(self.PEOPLE), len(self.PEOPLE) + 1]:
+      dest = {
+          field: np.ndarray((size, ), dtype=a.dtype)
+          for field,
+          a in columnar.items()
+      }
+      n = min(size, len(self.PEOPLE))
+      self.assertEqual(
+          n,
+          coder.decode_batch_from_stream(
+              dest, coder_impl.create_InputStream(seq_out.get())))
+      for field, a in columnar.items():
+        assert_array_equal(a[:n], dest[field][:n])
 
 
 if __name__ == "__main__":

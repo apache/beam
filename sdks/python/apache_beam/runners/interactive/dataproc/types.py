@@ -51,7 +51,7 @@ class ClusterMetadata:
 
   """
   project_id: Optional[str] = None
-  region: Optional[str] = None
+  region: Optional[str] = 'us-central1'
   cluster_name: Optional[str] = field(
       default_factory=_generate_unique_cluster_name)
   # From WorkerOptions.

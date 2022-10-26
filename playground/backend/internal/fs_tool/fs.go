@@ -16,13 +16,15 @@
 package fs_tool
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"fmt"
-	"github.com/google/uuid"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/google/uuid"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 )
 
 const (

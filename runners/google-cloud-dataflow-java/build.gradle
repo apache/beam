@@ -54,8 +54,8 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20220525',
-    'dataflow.fnapi_container_version' : 'beam-master-20220701',
+    'dataflow.legacy_container_version' : 'beam-master-20220816',
+    'dataflow.fnapi_container_version' : 'beam-master-20220923',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -89,9 +89,13 @@ dependencies {
   implementation library.java.avro
   implementation library.java.bigdataoss_util
   implementation library.java.commons_codec
-  implementation library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
+  // Avoids conflicts with bigdataoss_util (BEAM-11010)
+  implementation library.java.flogger_system_backend
   permitUnusedDeclared library.java.flogger_system_backend
   implementation library.java.google_api_client
+  // Ensures SequencedMessage availability for Spotless
+  implementation library.java.proto_google_cloud_pubsublite_v1
+  permitUnusedDeclared library.java.proto_google_cloud_pubsublite_v1
   implementation library.java.google_api_services_clouddebugger
   implementation library.java.google_api_services_dataflow
   implementation library.java.google_api_services_storage
@@ -107,7 +111,7 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
@@ -138,6 +142,7 @@ def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-
 def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
 def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
 def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
+def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
 
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
 def dockerJavaImageContainer = "${dockerImageRoot}/java"
@@ -163,6 +168,7 @@ def runnerV2PipelineOptions = [
   "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
   // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
   "--experiments=use_unified_worker,use_runner_v2,shuffle_mode=appliance",
+  "--firestoreDb=${firestoreDb}",
 ]
 
 def commonLegacyExcludeCategories = [
@@ -391,7 +397,10 @@ task validatesRunnerStreaming {
     ],
     excludedTests: [
       // TODO(https://github.com/apache/beam/issues/21472)
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState'
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
+      // GroupIntoBatches.withShardedKey not supported on streaming runner v1
+      // https://github.com/apache/beam/issues/22592
+      'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
     ]
   ))
 }
@@ -497,7 +506,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesStrictTimerOrdering' /* https://github.com/apache/beam/issues/19957 */,
-      'org.apache.beam.sdk.testing.UsesTestStream',
       'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
     ],
     excludedTests: [
@@ -531,9 +539,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
 
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded',
-
-      // TODO: remove once dataflow runner v2 fixed fake windowing strategy.
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerSetWithinAllowedLateness',
 
       'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics',
 
@@ -588,6 +593,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
+          "--firestoreDb=${firestoreDb}",
   ])
 
   include '**/*IT.class'
@@ -619,6 +625,7 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
           "--dataflowKmsKey=${dataflowKmsKey}",
+          "--firestoreDb=${firestoreDb}",
   ])
 
   include '**/*IT.class'

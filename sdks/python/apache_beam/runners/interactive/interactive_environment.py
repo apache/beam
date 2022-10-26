@@ -717,7 +717,11 @@ class InteractiveEnvironment(object):
   def _get_gcs_cache_dir(self, pipeline, cache_dir):
     cache_dir_path = PurePath(cache_dir)
     if len(cache_dir_path.parts) < 2:
-      _LOGGER.error('GCS bucket cache path is too short to be valid.')
+      _LOGGER.error(
+          'GCS bucket cache path "%s" is too short to be valid. See '
+          'https://cloud.google.com/storage/docs/naming-buckets for '
+          'the expected format.',
+          cache_dir)
       raise ValueError('cache_root GCS bucket path is invalid.')
     bucket_name = cache_dir_path.parts[1]
     assert_bucket_exists(bucket_name)

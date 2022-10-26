@@ -21,6 +21,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -282,6 +283,27 @@ func (f *DoFn) IsSplittable() bool {
 	return ok
 }
 
+// PipelineState returns a list of PipelineState objects used to access/mutate global pipeline state (if any).
+func (f *DoFn) PipelineState() []state.PipelineState {
+	var s []state.PipelineState
+	if f.Recv == nil {
+		return s
+	}
+
+	v := reflect.Indirect(reflect.ValueOf(f.Recv))
+
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		if f.CanInterface() {
+			if ps, ok := f.Interface().(state.PipelineState); ok {
+				s = append(s, ps)
+			}
+		}
+	}
+
+	return s
+}
+
 // SplittableDoFn represents a DoFn implementing SDF methods.
 type SplittableDoFn DoFn
 
@@ -453,6 +475,21 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 		return nil, addContext(err, fn)
 	}
 
+	// Make sure that all state entries have keys. If they don't set them to the struct field name.
+	if fn.Recv != nil {
+		v := reflect.Indirect(reflect.ValueOf(fn.Recv))
+		for i := 0; i < v.NumField(); i++ {
+			f := v.Field(i)
+			if f.CanInterface() {
+				if ps, ok := f.Interface().(state.PipelineState); ok {
+					if ps.StateKey() == "" {
+						f.FieldByName("Key").SetString(v.Type().Field(i).Name)
+					}
+				}
+			}
+		}
+	}
+
 	// Validate ProcessElement has correct number of main inputs (as indicated by
 	// numMainIn), and that main inputs are before side inputs.
 	processFn := fn.methods[processElementName]
@@ -561,7 +598,14 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 		}
 	}
 
-	return (*DoFn)(fn), nil
+	doFn := (*DoFn)(fn)
+
+	err = validateState(doFn, numMainIn)
+	if err != nil {
+		return nil, addContext(err, fn)
+	}
+
+	return doFn, nil
 }
 
 // validateMainInputs checks that a method has the given number of main inputs
@@ -1218,6 +1262,50 @@ func validateStatefulWatermarkSig(fn *Fn, numMainIn int) error {
 			}
 		}
 	}
+	return nil
+}
+
+func validateState(fn *DoFn, numIn mainInputs) error {
+	ps := fn.PipelineState()
+
+	if _, hasSp := fn.methods[processElementName].StateProvider(); hasSp {
+		if numIn == MainSingle {
+			err := errors.Errorf("ProcessElement uses a StateProvider, but is not keyed")
+			return errors.SetTopLevelMsgf(err, "ProcessElement uses a StateProvider, but is not keyed. "+
+				"All stateful DoFns must take a key/value pair as an input.")
+		}
+		if len(ps) == 0 {
+			err := errors.Errorf("ProcessElement uses a StateProvider, but noState structs are attached to the DoFn")
+			return errors.SetTopLevelMsgf(err, "ProcessElement uses a StateProvider, but no State structs are "+
+				"attached to the DoFn. Ensure that you are including the State structs you're using to read/write"+
+				"global state as public uppercase member variables.")
+		}
+		stateKeys := make(map[string]state.PipelineState)
+		for _, s := range ps {
+			k := s.StateKey()
+			if orig, ok := stateKeys[k]; ok {
+				err := errors.Errorf("Duplicate state key %v", k)
+				return errors.SetTopLevelMsgf(err, "Duplicate state key %v used by %v and %v. Ensure that state keys are"+
+					"unique per DoFn", k, orig, s)
+			}
+			t := s.StateType()
+			if t != state.TypeValue && t != state.TypeBag && t != state.TypeCombining && t != state.TypeSet && t != state.TypeMap {
+				err := errors.Errorf("Unrecognized state type %v for state %v", t, s)
+				return errors.SetTopLevelMsgf(err, "Unrecognized state type %v for state %v. Currently the only supported state"+
+					"types are state.Value, state.Combining, state.Bag, state.Set, and state.Map", t, s)
+			}
+			stateKeys[k] = s
+		}
+	} else {
+		if len(ps) > 0 {
+			err := errors.Errorf("ProcessElement doesn't use a StateProvider, but State structs are attached to "+
+				"the DoFn: %v", ps)
+			return errors.SetTopLevelMsgf(err, "ProcessElement doesn't use a StateProvider, but State structs are "+
+				"attached to the DoFn: %v\nEnsure that you are using the StateProvider to perform any reads or writes"+
+				"of pipeline state.", ps)
+		}
+	}
+
 	return nil
 }
 

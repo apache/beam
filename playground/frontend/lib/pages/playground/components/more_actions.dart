@@ -19,11 +19,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/links.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/shortcuts/components/shortcuts_modal.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum HeaderAction {
@@ -36,7 +36,11 @@ enum HeaderAction {
 }
 
 class MoreActions extends StatefulWidget {
-  const MoreActions({Key? key}) : super(key: key);
+  final PlaygroundController playgroundController;
+
+  const MoreActions({
+    required this.playgroundController,
+  });
 
   @override
   State<MoreActions> createState() => _MoreActionsState();
@@ -52,7 +56,7 @@ class _MoreActionsState extends State<MoreActions> {
       child: PopupMenuButton<HeaderAction>(
         icon: Icon(
           Icons.more_horiz_outlined,
-          color: ThemeColors.of(context).grey1Color,
+          color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
         ),
         itemBuilder: (BuildContext context) => <PopupMenuEntry<HeaderAction>>[
           PopupMenuItem<HeaderAction>(
@@ -62,10 +66,12 @@ class _MoreActionsState extends State<MoreActions> {
               leading: SvgPicture.asset(kShortcutsIconAsset),
               title: Text(appLocale.shortcuts),
               onTap: () {
-              AnalyticsService.get(context).trackOpenShortcutsModal();
-              showDialog<void>(
+                AnalyticsService.get(context).trackOpenShortcutsModal();
+                showDialog<void>(
                   context: context,
-                  builder: (BuildContext context) => const ShortcutsModal(),
+                  builder: (BuildContext context) => ShortcutsModal(
+                    playgroundController: widget.playgroundController,
+                  ),
                 );
               },
             ),

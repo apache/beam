@@ -228,6 +228,23 @@ class BatchElementsTest(unittest.TestCase):
               7,  # elements in [30, 47)
           ]))
 
+  def test_global_batch_timestamps(self):
+    # Assumes a single bundle
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create(range(3), reshuffle=False)
+          | util.BatchElements(min_batch_size=2, max_batch_size=2)
+          | beam.Map(
+              lambda batch,
+              timestamp=beam.DoFn.TimestampParam: (len(batch), timestamp)))
+      assert_that(
+          res,
+          equal_to([
+              (2, GlobalWindow().max_timestamp()),
+              (1, GlobalWindow().max_timestamp()),
+          ]))
+
   def test_sized_batches(self):
     with TestPipeline() as p:
       res = (

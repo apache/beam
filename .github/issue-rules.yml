@@ -258,6 +258,9 @@ rules:
   contains: 'release'
   addLabels: ['release']
 - valueFor: 'Component'
+  contains: 'run-inference'
+  addLabels: ['python', 'run-inference', 'ml']
+- valueFor: 'Component'
   contains: 'runner-apex'
   addLabels: ['runners', 'apex']
 - valueFor: 'Component'

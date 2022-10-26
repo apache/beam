@@ -16,7 +16,6 @@
 package symtab
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -70,7 +69,7 @@ func fnaddr() uintptr {
 `
 
 func TestSym2Addr(t *testing.T) {
-	f, err := ioutil.TempFile("", "TestSym2Addr*.go")
+	f, err := os.CreateTemp("", "TestSym2Addr*.go")
 	if err != nil {
 		t.Fatal(err)
 	}

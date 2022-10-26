@@ -32,8 +32,3 @@ dependencies {
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
-
-configurations.testRuntimeClasspath {
-  // force version required by embedded-redis:0.8.2 in tests
-  resolutionStrategy { force "commons-io:commons-io:2.7" }
-}

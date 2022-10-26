@@ -19,7 +19,11 @@
 
 import pickle
 import unittest
+from typing import Any
+from typing import Dict
 from typing import Iterable
+from typing import Mapping
+from typing import Optional
 from typing import Sequence
 
 import apache_beam as beam
@@ -79,11 +83,21 @@ class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
     return {'min_batch_size': 9999}
 
 
-class FakeModelHandlerExtraInferenceArgs(FakeModelHandler):
+class FakeModelHandlerFailsOnInferenceArgs(FakeModelHandler):
+  def run_inference(self, batch, unused_model, inference_args=None):
+    raise ValueError(
+        'run_inference should not be called because error should already be '
+        'thrown from the validate_inference_args check.')
+
+
+class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
   def run_inference(self, batch, unused_model, inference_args=None):
     if not inference_args:
       raise ValueError('inference_args should exist')
     return batch
+
+  def validate_inference_args(self, inference_args):
+    pass
 
 
 class RunInferenceBaseTest(unittest.TestCase):
@@ -128,8 +142,38 @@ class RunInferenceBaseTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(examples)
       inference_args = {'key': True}
       actual = pcoll | base.RunInference(
-          FakeModelHandlerExtraInferenceArgs(), inference_args=inference_args)
+          FakeModelHandlerExpectedInferenceArgs(),
+          inference_args=inference_args)
       assert_that(actual, equal_to(examples), label='assert:inferences')
+
+  def test_run_inference_metrics_with_custom_namespace(self):
+    metrics_namespace = 'my_custom_namespace'
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10]
+    pcoll = pipeline | 'start' >> beam.Create(examples)
+    _ = pcoll | base.RunInference(
+        FakeModelHandler(), metrics_namespace=metrics_namespace)
+    result = pipeline.run()
+    result.wait_until_finish()
+
+    metrics_filter = MetricsFilter().with_namespace(namespace=metrics_namespace)
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) != 0
+    assert len(metrics['distributions']) != 0
+
+    metrics_filter = MetricsFilter().with_namespace(namespace='fake_namespace')
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) == len(metrics['distributions']) == 0
+
+  def test_unexpected_inference_args_passed(self):
+    with self.assertRaisesRegex(ValueError, r'inference_args were provided'):
+      with TestPipeline() as pipeline:
+        examples = [1, 5, 3, 10]
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        inference_args = {'key': True}
+        _ = pcoll | base.RunInference(
+            FakeModelHandlerFailsOnInferenceArgs(),
+            inference_args=inference_args)
 
   def test_counted_metrics(self):
     pipeline = TestPipeline()
@@ -210,6 +254,59 @@ class RunInferenceBaseTest(unittest.TestCase):
           pipeline | 'keyed' >> beam.Create(keyed_examples)
           | 'RunKeyed' >> base.RunInference(model_handler))
       pipeline.run()
+
+  def test_model_handler_compatibility(self):
+    # ** IMPORTANT ** Do not change this test to make your PR pass without
+    # first reading below.
+    # Be certain that the modification will not break third party
+    # implementations of ModelHandler.
+    # See issue https://github.com/apache/beam/issues/23484
+    # If this test fails, likely third party implementations of
+    # ModelHandler will break.
+    class ThirdPartyHandler(base.ModelHandler[int, int, FakeModel]):
+      def __init__(self, custom_parameter=None):
+        pass
+
+      def load_model(self) -> FakeModel:
+        return FakeModel()
+
+      def run_inference(
+          self,
+          batch: Sequence[int],
+          model: FakeModel,
+          inference_args: Optional[Dict[str, Any]] = None) -> Iterable[int]:
+        yield 0
+
+      def get_num_bytes(self, batch: Sequence[int]) -> int:
+        return 1
+
+      def get_metrics_namespace(self) -> str:
+        return 'ThirdParty'
+
+      def get_resource_hints(self) -> dict:
+        return {}
+
+      def batch_elements_kwargs(self) -> Mapping[str, Any]:
+        return {}
+
+      def validate_inference_args(
+          self, inference_args: Optional[Dict[str, Any]]):
+        pass
+
+    # This test passes if calling these methods does not cause
+    # any runtime exceptions.
+    third_party_model_handler = ThirdPartyHandler(custom_parameter=0)
+    fake_model = third_party_model_handler.load_model()
+    third_party_model_handler.run_inference([], fake_model)
+    fake_inference_args = {'some_arg': 1}
+    third_party_model_handler.run_inference([],
+                                            fake_model,
+                                            inference_args=fake_inference_args)
+    third_party_model_handler.get_num_bytes([1, 2, 3])
+    third_party_model_handler.get_metrics_namespace()
+    third_party_model_handler.get_resource_hints()
+    third_party_model_handler.batch_elements_kwargs()
+    third_party_model_handler.validate_inference_args({})
 
 
 if __name__ == '__main__':

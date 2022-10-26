@@ -25,7 +25,6 @@ import time
 import unittest
 
 import grpc
-import pytest
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
@@ -92,7 +91,8 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
         GRPCChannelFactory.insecure_channel(address))
     _LOGGER.info('Waiting for server to be ready...')
     start = time.time()
-    timeout = 30
+    # Long timeout based previously flaky test. See issue #22115.
+    timeout = 300
     while True:
       time.sleep(0.1)
       if cls._subprocess.poll() is not None:
@@ -263,9 +263,6 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     return options
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="[https://github.com/apache/beam/issues/20427]")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_subprocesses = True
 

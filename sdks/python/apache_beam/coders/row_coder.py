@@ -25,12 +25,15 @@ from apache_beam.coders.coder_impl import RowCoderImpl
 from apache_beam.coders.coders import BooleanCoder
 from apache_beam.coders.coders import BytesCoder
 from apache_beam.coders.coders import Coder
+from apache_beam.coders.coders import DecimalCoder
 from apache_beam.coders.coders import FastCoder
 from apache_beam.coders.coders import FloatCoder
 from apache_beam.coders.coders import IterableCoder
 from apache_beam.coders.coders import MapCoder
 from apache_beam.coders.coders import NullableCoder
+from apache_beam.coders.coders import SinglePrecisionFloatCoder
 from apache_beam.coders.coders import StrUtf8Coder
+from apache_beam.coders.coders import TimestampCoder
 from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
@@ -133,6 +136,8 @@ class RowCoder(FastCoder):
 
 
 typecoders.registry.register_coder(row_type.RowTypeConstraint, RowCoder)
+typecoders.registry.register_coder(
+    row_type.GeneratedClassRowTypeConstraint, RowCoder)
 
 
 def _coder_from_type(field_type):
@@ -148,6 +153,8 @@ def _nonnull_coder_from_type(field_type):
   if type_info == "atomic_type":
     if field_type.atomic_type in (schema_pb2.INT32, schema_pb2.INT64):
       return VarIntCoder()
+    elif field_type.atomic_type == schema_pb2.FLOAT:
+      return SinglePrecisionFloatCoder()
     elif field_type.atomic_type == schema_pb2.DOUBLE:
       return FloatCoder()
     elif field_type.atomic_type == schema_pb2.STRING:
@@ -163,10 +170,17 @@ def _nonnull_coder_from_type(field_type):
         _coder_from_type(field_type.map_type.key_type),
         _coder_from_type(field_type.map_type.value_type))
   elif type_info == "logical_type":
-    # Special case for the Any logical type. Just use the default coder for an
-    # unknown Python object.
     if field_type.logical_type.urn == PYTHON_ANY_URN:
+      # Special case for the Any logical type. Just use the default coder for an
+      # unknown Python object.
       return typecoders.registry.get_coder(object)
+    elif field_type.logical_type.urn == common_urns.millis_instant.urn:
+      # Special case for millis instant logical type used to handle Java sdk's
+      # millis Instant. It explicitly uses TimestampCoder which deals with fix
+      # length 8-bytes big-endian-long instead of VarInt coder.
+      return TimestampCoder()
+    elif field_type.logical_type.urn == 'beam:logical_type:decimal:v1':
+      return DecimalCoder()
 
     logical_type = LogicalType.from_runner_api(field_type.logical_type)
     return LogicalTypeCoder(

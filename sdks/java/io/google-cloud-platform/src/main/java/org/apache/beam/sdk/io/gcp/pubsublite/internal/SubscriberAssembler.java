@@ -33,6 +33,8 @@ import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.CursorClient;
 import com.google.cloud.pubsublite.internal.CursorClientSettings;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
+import com.google.cloud.pubsublite.internal.wire.Committer;
+import com.google.cloud.pubsublite.internal.wire.CommitterSettings;
 import com.google.cloud.pubsublite.internal.wire.PubsubContext;
 import com.google.cloud.pubsublite.internal.wire.PubsubContext.Framework;
 import com.google.cloud.pubsublite.internal.wire.RoutingMetadata;
@@ -40,6 +42,8 @@ import com.google.cloud.pubsublite.internal.wire.SubscriberBuilder;
 import com.google.cloud.pubsublite.internal.wire.SubscriberFactory;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.SeekRequest;
+import com.google.cloud.pubsublite.v1.CursorServiceClient;
+import com.google.cloud.pubsublite.v1.CursorServiceSettings;
 import com.google.cloud.pubsublite.v1.SubscriberServiceClient;
 import com.google.cloud.pubsublite.v1.SubscriberServiceSettings;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,7 +55,7 @@ class SubscriberAssembler {
       new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<SubscriptionPath, SubscriberServiceClient> SUB_CLIENTS =
       new ConcurrentHashMap<>();
-  private static final ConcurrentHashMap<SubscriptionPath, CursorClient> CURSOR_CLIENTS =
+  private static final ConcurrentHashMap<SubscriptionPath, CursorServiceClient> CURSOR_CLIENTS =
       new ConcurrentHashMap<>();
 
   private final SubscriberOptions options;
@@ -91,14 +95,18 @@ class SubscriberAssembler {
         options.subscriptionPath(), path -> newSubscriberServiceClient());
   }
 
-  private CursorClient newCursorClient() throws ApiException {
-    return CursorClient.create(
-        CursorClientSettings.newBuilder()
-            .setRegion(options.subscriptionPath().location().extractRegion())
-            .build());
+  private CursorServiceClient newCursorClient() throws ApiException {
+    try {
+      CursorServiceSettings.Builder settingsBuilder = CursorServiceSettings.newBuilder();
+      return CursorServiceClient.create(
+          addDefaultSettings(
+              options.subscriptionPath().location().extractRegion(), settingsBuilder));
+    } catch (Throwable t) {
+      throw toCanonical(t).underlying;
+    }
   }
 
-  private CursorClient getCursorClient() {
+  private CursorServiceClient getCursorClient() {
     return CURSOR_CLIENTS.computeIfAbsent(options.subscriptionPath(), path -> newCursorClient());
   }
 
@@ -130,16 +138,24 @@ class SubscriberAssembler {
             .build();
   }
 
-  BlockingCommitter getCommitter() {
-    return offset -> {
-      try {
-        getCursorClient()
-            .commitCursor(options.subscriptionPath(), partition, offset)
-            .get(1, MINUTES);
-      } catch (Throwable t) {
-        throw toCanonical(t).underlying;
-      }
-    };
+  BlockingCommitter newCommitter() {
+    CursorServiceClient client = getCursorClient();
+    Committer committer =
+        CommitterSettings.newBuilder()
+            .setPartition(partition)
+            .setSubscriptionPath(options.subscriptionPath())
+            .setStreamFactory(
+                responseStream -> {
+                  ApiCallContext context =
+                      getCallContext(
+                          PubsubContext.of(FRAMEWORK),
+                          RoutingMetadata.of(options.subscriptionPath(), partition));
+                  return client.streamingCommitCursorCallable().splitCall(responseStream, context);
+                })
+            .build()
+            .instantiate();
+    committer.startAsync().awaitRunning();
+    return new BlockingCommitterImpl(committer);
   }
 
   TopicBacklogReader getBacklogReader() {
@@ -151,6 +167,13 @@ class SubscriberAssembler {
   }
 
   InitialOffsetReader getInitialOffsetReader() {
-    return new InitialOffsetReaderImpl(getCursorClient(), options.subscriptionPath(), partition);
+    return new InitialOffsetReaderImpl(
+        CursorClient.create(
+            CursorClientSettings.newBuilder()
+                .setServiceClient(getCursorClient())
+                .setRegion(options.subscriptionPath().location().extractRegion())
+                .build()),
+        options.subscriptionPath(),
+        partition);
   }
 }

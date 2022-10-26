@@ -19,8 +19,8 @@
 def basePath = '..'
 /* All properties required for loading the Spark build script */
 project.ext {
-  // Set the version of all Spark-related dependencies here.
-  spark_version = '2.4.8'
+  // Spark 2 version as defined in BeamModulePlugin
+  spark_version = spark2_version
   spark_scala_version = '2.11'
   // Copy shared sources for Spark 2 to use Spark 3 as primary version in place
   copySourceBase = true

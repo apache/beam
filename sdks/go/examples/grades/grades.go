@@ -24,6 +24,12 @@ package main
 //     - Debugging
 //     - Combiners
 //     - Filtering
+//   complexity: MEDIUM
+//   tags:
+//     - combine
+//     - map
+//     - strings
+//     - numbers
 
 import (
 	"context"

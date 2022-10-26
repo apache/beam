@@ -93,8 +93,8 @@ Download latest Hazelcast Jet version compatible with the Beam you are using fro
 <nav class="version-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="version-jet3">Hazelcast Jet 3.x</li>
-    <li data-type="version-jet4">Hazelcast Jet 4.x</li>
+    <li data-value="jet3">Hazelcast Jet 3.x</li>
+    <li data-value="jet4">Hazelcast Jet 4.x</li>
   </ul>
 </nav>
 
@@ -108,31 +108,31 @@ members using the `jet-start` script that comes with the downloaded Jet distribu
 </span>
 to form a cluster. Let's start up a cluster formed by two members:
 
-{{< highlight class="version-jet3" >}}
+{{< version jet3 >}}
 $ cd hazelcast-jet
 $ bin/jet-start.sh &
 $ bin/jet-start.sh &
-{{< /highlight >}}
+{{< /version >}}
 
-{{< highlight class="version-jet4" >}}
+{{< version jet4 >}}
 $ cd hazelcast-jet
 $ bin/jet-start &
 $ bin/jet-start &
-{{< /highlight >}}
+{{< /version >}}
 
 Check the cluster is up and running:
 
-{{< highlight class="version-jet3" >}}
+{{< version jet3 >}}
 $ bin/jet.sh cluster
-{{< /highlight >}}
+{{< /version >}}
 
-{{< highlight class="version-jet4" >}}
+{{< version jet4 >}}
 $ bin/jet cluster
-{{< /highlight >}}
+{{< /version >}}
 
 You should see something like:
 
-{{< highlight class="version-jet3" >}}
+{{< version jet3 >}}
 State: ACTIVE
 Version: 3.0
 Size: 2
@@ -140,9 +140,9 @@ Size: 2
 ADDRESS                  UUID
 [192.168.0.117]:5701     76bea7ba-f032-4c25-ad04-bdef6782f481
 [192.168.0.117]:5702     03ecfaa2-be16-41b6-b5cf-eea584d7fb86
-{{< /highlight >}}
+{{< /version >}}
 
-{{< highlight class="version-jet4" >}}
+{{< version jet4 >}}
 State: ACTIVE
 Version: 4.0
 Size: 2
@@ -150,7 +150,7 @@ Size: 2
 ADDRESS                  UUID
 [192.168.0.117]:5701     b9937bba-32aa-48ba-8e32-423aafed763b
 [192.168.0.117]:5702     dfeadfb2-3ba5-4d1c-95e7-71a1a3ca4937
-{{< /highlight >}}
+{{< /version >}}
 
 Change directory to the Beam Examples project and issue following command to submit and execute your
 Pipeline on the remote Jet cluster.
@@ -172,6 +172,7 @@ cluster runs. The word count job won't be able to read the data otherwise.
 
 ## Pipeline Options for the Jet Runner
 
+<div class="table-container-wrapper">
 <table class="table table-bordered">
 <tr>
   <th>Field</th>
@@ -204,7 +205,7 @@ cluster runs. The word count job won't be able to read the data otherwise.
   <td><code>codeJarPathname</code></td>
   <td>Also a property needed only when using external Jet Clusters, specifies the location of a fat jar
   containing all the code that needs to run on the cluster (so at least the pipeline and the runner code). The value
-  is any string that is acceptad by <code>new java.io.File()</code> as a parameter.</td>
+  is any string that is accepted by <code>new java.io.File()</code> as a parameter.</td>
   <td>Has no default value.</td>
 </tr>
 <tr>
@@ -227,3 +228,4 @@ cluster runs. The word count job won't be able to read the data otherwise.
   <td><code>false</code></td>
 </tr>
 </table>
+</div>

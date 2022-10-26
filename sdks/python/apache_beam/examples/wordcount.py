@@ -29,6 +29,12 @@
 #     - Combiners
 #     - Options
 #     - Quickstart
+#   complexity: MEDIUM
+#   tags:
+#     - options
+#     - count
+#     - combine
+#     - strings
 
 import argparse
 import logging

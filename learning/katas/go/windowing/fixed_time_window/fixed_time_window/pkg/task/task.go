@@ -17,8 +17,8 @@ package task
 
 import (
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"time"
 )
 
@@ -36,7 +36,7 @@ func timestampFn(iw beam.Window, et beam.EventTime, line string) Commit {
 }
 
 func toTime(et beam.EventTime) time.Time {
-	return time.Unix(0, et.Milliseconds() * int64(time.Millisecond))
+	return time.Unix(0, et.Milliseconds()*int64(time.Millisecond))
 }
 
 type Commit struct {
@@ -51,4 +51,3 @@ func (c Commit) String() string {
 		c.EventTimestamp.Format(time.Kitchen),
 		c.Line)
 }
-

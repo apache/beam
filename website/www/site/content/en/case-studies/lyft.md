@@ -25,7 +25,7 @@ limitations under the License.
 -->
 <div class="case-study-opinion">
     <div class="case-study-opinion-img">
-        <img class="case-study-opinion-img-cropped" src="/images/logos/powered-by/lyft.png"/>
+        <img class="case-study-opinion-img-cropped case-study-opinion-img-center" src="/images/logos/powered-by/lyft.png"/>
     </div>
     <blockquote class="case-study-quote-block">
       <p class="case-study-quote-text">

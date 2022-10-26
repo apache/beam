@@ -49,6 +49,8 @@ public class DataChangeRecordTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L,
+            "transactionTag",
+            true,
             mock(ChangeStreamRecordMetadata.class));
     final DataChangeRecord record2 =
         new DataChangeRecord(
@@ -70,6 +72,8 @@ public class DataChangeRecordTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L,
+            "transactionTag",
+            true,
             mock(ChangeStreamRecordMetadata.class));
 
     assertEquals(record1, record2);

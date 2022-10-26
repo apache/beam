@@ -17,7 +17,13 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -25,8 +31,15 @@ import org.apache.beam.sdk.testing.UsesImpulse;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -40,11 +53,17 @@ import org.junit.runners.JUnit4;
 public class PeriodicSequenceTest {
   @Rule public transient TestPipeline p = TestPipeline.create();
 
-  public static class ExtractTsDoFn<InputT> extends DoFn<InputT, KV<InputT, Instant>> {
+  public static class ExtractTsDoFn<InputT>
+      extends DoFn<InputT, TimestampedValue<KV<InputT, Instant>>> {
+
     @ProcessElement
-    public void processElement(DoFn<InputT, KV<InputT, Instant>>.ProcessContext c)
+    public void processElement(
+        @Element InputT element,
+        @Timestamp Instant ts,
+        OutputReceiver<TimestampedValue<KV<InputT, Instant>>> output)
         throws Exception {
-      c.output(KV.of(c.element(), c.timestamp()));
+
+      output.output(TimestampedValue.of(KV.of(element, ts), Instant.now()));
     }
   }
 
@@ -57,29 +76,63 @@ public class PeriodicSequenceTest {
     UsesUnboundedSplittableParDo.class
   })
   public void testOutputsProperElements() {
-    Instant instant = Instant.now();
-
-    Instant startTime = instant.minus(Duration.standardHours(100));
-    long duration = 500;
+    Instant startTime = Instant.now().plus(Duration.standardSeconds(2));
     Duration interval = Duration.millis(250);
     long intervalMillis = interval.getMillis();
+    long duration = 3 * intervalMillis;
     Instant stopTime = startTime.plus(Duration.millis(duration));
 
-    PCollection<KV<Instant, Instant>> result =
-        p.apply(
-                Create.<PeriodicSequence.SequenceDefinition>of(
-                    new PeriodicSequence.SequenceDefinition(startTime, stopTime, interval)))
+    PCollection<TimestampedValue<KV<Instant, Instant>>> result =
+        p.apply(Create.of(new PeriodicSequence.SequenceDefinition(startTime, stopTime, interval)))
             .apply(PeriodicSequence.create())
-            .apply(ParDo.of(new ExtractTsDoFn<>())); // used to validate timestamp
+            .apply(
+                Window.<Instant>into(FixedWindows.of(interval))
+                    .withTimestampCombiner(TimestampCombiner.EARLIEST))
+            .apply(WithKeys.of("dummy"))
+            .apply(GroupByKey.create())
+            .apply(
+                MapElements.into(TypeDescriptor.of(Instant.class))
+                    .via(e -> Iterables.getOnlyElement(e.getValue())))
+            .apply(ParDo.of(new ExtractTsDoFn<>())); // validate timestamps
 
-    ArrayList<KV<Instant, Instant>> expectedResults =
-        new ArrayList<>((int) (duration / intervalMillis + 1));
+    ArrayList<Instant> expectedResults = new ArrayList<>();
     for (long i = 0; i <= duration; i += intervalMillis) {
       Instant el = startTime.plus(Duration.millis(i));
-      expectedResults.add(KV.of(el, el));
+      expectedResults.add(el);
     }
 
-    PAssert.that(result).containsInAnyOrder(expectedResults);
+    PAssert.that(result)
+        .satisfies(
+            values -> {
+              List<TimestampedValue<KV<Instant, Instant>>> sortedValues =
+                  Streams.stream(values)
+                      .sorted(Comparator.comparing(e -> e.getValue().getValue()))
+                      .collect(Collectors.toList());
+
+              assertEquals(
+                  expectedResults,
+                  sortedValues.stream()
+                      .map(e -> e.getValue().getValue())
+                      .collect(Collectors.toList()));
+
+              Instant minTs =
+                  sortedValues.stream()
+                      .min(Comparator.comparing(TimestampedValue::getTimestamp))
+                      .get()
+                      .getTimestamp();
+              Instant maxTs =
+                  sortedValues.stream()
+                      .max(Comparator.comparing(TimestampedValue::getTimestamp))
+                      .get()
+                      .getTimestamp();
+              final long expectedDiff = intervalMillis / 2;
+              assertTrue(
+                  String.format(
+                      "Expected processing-time diff at least %d, got %d",
+                      expectedDiff, maxTs.getMillis() - minTs.getMillis()),
+                  maxTs.getMillis() - minTs.getMillis() > expectedDiff);
+              return null;
+            });
 
     p.run().waitUntilFinish();
   }

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.bigqueryioperftests;
 
+import static org.junit.Assert.assertNotEquals;
+
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -183,8 +185,10 @@ public class BigQueryIOIT {
                                 new TableFieldSchema().setName("data").setType("BYTES")))));
 
     PipelineResult pipelineResult = pipeline.run();
-    pipelineResult.waitUntilFinish();
+    PipelineResult.State pipelineState = pipelineResult.waitUntilFinish();
     extractAndPublishTime(pipelineResult, metricName);
+    // Fail the test if pipeline failed.
+    assertNotEquals(pipelineState, PipelineResult.State.FAILED);
   }
 
   private void testRead() {
@@ -193,8 +197,10 @@ public class BigQueryIOIT {
         .apply("Read from BQ", BigQueryIO.readTableRows().from(tableQualifier))
         .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)));
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    PipelineResult.State pipelineState = result.waitUntilFinish();
     extractAndPublishTime(result, READ_TIME_METRIC_NAME);
+    // Fail the test if pipeline failed.
+    assertNotEquals(pipelineState, PipelineResult.State.FAILED);
   }
 
   private void extractAndPublishTime(PipelineResult pipelineResult, String writeTimeMetricName) {

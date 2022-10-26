@@ -119,7 +119,7 @@ public class SplittableParDoTranslators {
 
       final MessageStream<OpMessage<RawUnionValue>> taggedOutputStream =
           partitionedInputStream
-              .flatMapAsync(OpAdapter.adapt(new KvToKeyedWorkItemOp<>()))
+              .flatMapAsync(OpAdapter.adapt(new KvToKeyedWorkItemOp<>(), ctx))
               .flatMapAsync(
                   OpAdapter.adapt(
                       new SplittableParDoProcessKeyedElementsOp<>(
@@ -129,7 +129,8 @@ public class SplittableParDoTranslators {
                           new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
                           ctx.getTransformFullName(),
                           ctx.getTransformId(),
-                          input.isBounded())));
+                          input.isBounded()),
+                      ctx));
 
       for (int outputIndex : tagToIndexMap.values()) {
         @SuppressWarnings("unchecked")
@@ -139,7 +140,7 @@ public class SplittableParDoTranslators {
                     message ->
                         message.getType() != OpMessage.Type.ELEMENT
                             || message.getElement().getValue().getUnionTag() == outputIndex)
-                .flatMapAsync(OpAdapter.adapt(new RawUnionValueToValue()));
+                .flatMapAsync(OpAdapter.adapt(new RawUnionValueToValue(), ctx));
 
         ctx.registerMessageStream(indexToPCollectionMap.get(outputIndex), outputStream);
       }

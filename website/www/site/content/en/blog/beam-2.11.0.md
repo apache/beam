@@ -3,6 +3,7 @@ title:  "Apache Beam 2.11.0"
 date:   2019-03-05 00:00:01 -0800
 categories:
   - blog
+  - release
 aliases:
   - /blog/2019/03/05/beam-2.11.0.html
 authors:

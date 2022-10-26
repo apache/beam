@@ -150,7 +150,7 @@ public class DatabaseTestHelper {
   public static ArrayList<KV<Integer, String>> getTestDataToWrite(long rowsToAdd) {
     ArrayList<KV<Integer, String>> data = new ArrayList<>();
     for (int i = 0; i < rowsToAdd; i++) {
-      KV<Integer, String> kv = KV.of(i, "Test");
+      KV<Integer, String> kv = KV.of(i, TestRow.getNameForSeed(i));
       data.add(kv);
     }
     return data;

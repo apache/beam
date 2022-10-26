@@ -241,8 +241,8 @@ def dup_topx(state, arg):
   state.stack += state[-arg:]
 
 
-store_attr = pop_top
-delete_attr = nop
+store_attr = pop_two
+delete_attr = pop_top
 store_global = pop_top
 delete_global = nop
 
@@ -419,6 +419,12 @@ def store_fast(state, arg):
 
 def delete_fast(state, arg):
   state.vars[arg] = Any  # really an error
+
+
+# bpo-43683 Adds GEN_START in Python 3.10, but removed in Python 3.11
+# https://github.com/python/cpython/pull/25138
+def gen_start(state, arg):
+  assert len(state.stack) == 0
 
 
 def load_closure(state, arg):

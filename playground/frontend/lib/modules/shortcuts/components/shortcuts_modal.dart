@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/shortcuts/components/shortcut_row.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
+import 'package:playground_components/playground_components.dart';
 
 const kButtonBorderRadius = 24.0;
 const kButtonWidth = 120.0;
@@ -29,7 +31,11 @@ const kButtonHeight = 40.0;
 const kDialogPadding = 40.0;
 
 class ShortcutsModal extends StatelessWidget {
-  const ShortcutsModal({Key? key}) : super(key: key);
+  final PlaygroundController playgroundController;
+
+  const ShortcutsModal({
+    required this.playgroundController,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +56,10 @@ class ShortcutsModal extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.start,
         runSpacing: kXlSpacing,
         children: [
-          ...globalShortcuts.map(
+          ...[
+            ...playgroundController.shortcuts,
+            ...globalShortcuts,
+          ].map(
             (shortcut) => Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -58,7 +67,7 @@ class ShortcutsModal extends StatelessWidget {
                 Expanded(
                   flex: 3,
                   child: Text(
-                    localize(context, shortcut.name),
+                    shortcut.actionIntent.slug.tr(),
                     style: const TextStyle(fontWeight: kBoldWeight),
                   ),
                 ),
@@ -83,22 +92,5 @@ class ShortcutsModal extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  String localize(BuildContext context, String shortcutName) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
-
-    switch(shortcutName) {
-      case 'Run':
-        return appLocale.run;
-      case 'Reset':
-        return appLocale.reset;
-      case 'Clear Output':
-        return appLocale.clearOutput;
-      case 'New Example':
-        return appLocale.newExample;
-      default:
-        return shortcutName;
-    }
   }
 }

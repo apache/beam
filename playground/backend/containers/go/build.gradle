@@ -67,7 +67,7 @@ docker {
   tags containerImageTags()
   buildArgs(['BASE_IMAGE': project.rootProject.hasProperty(["base-image"]) ?
                            project.rootProject["base-image"] :
-                           "golang:1.16-bullseye" ])
+                           "golang:1.18-bullseye" ])
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects

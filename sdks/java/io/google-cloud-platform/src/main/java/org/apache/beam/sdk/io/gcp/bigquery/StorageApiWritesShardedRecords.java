@@ -389,7 +389,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                       stream,
                       () ->
                           datasetService.getStreamAppendClient(
-                              stream, descriptor.get().descriptor));
+                              stream, descriptor.get().descriptor, false));
               for (AppendRowsContext context : contexts) {
                 context.streamName = stream;
                 appendClient.pin();
@@ -430,7 +430,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                         context.streamName,
                         () ->
                             datasetService.getStreamAppendClient(
-                                context.streamName, descriptor.get().descriptor));
+                                context.streamName, descriptor.get().descriptor, false));
                 return appendClient.appendRows(context.offset, protoRows);
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -553,6 +553,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         OutputReceiver<KV<String, Operation>> o,
         BoundedWindow window) {
       // Stream is idle - clear it.
+      // Note: this is best effort. We are explicitly emiting a timestamp that is before
+      // the default output timestamp, which means that in some cases (usually when draining
+      // a pipeline) this finalize element will be dropped as late. This is usually ok as
+      // BigQuery will eventually garbage collect the stream. We attempt to finalize idle streams
+      // merely to remove the pressure of large numbers of orphaned streams from BigQuery.
       finalizeStream(streamName, streamOffset, o, window.maxTimestamp());
       streamsIdle.inc();
     }
@@ -566,6 +571,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       // Window is done - usually because the pipeline has been drained. Make sure to clean up
       // streams so that they are not leaked.
       finalizeStream(streamName, streamOffset, o, window.maxTimestamp());
+    }
+
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      return Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
     }
   }
 }

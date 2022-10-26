@@ -23,7 +23,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -158,7 +157,7 @@ func main() {
 	if err := tmpl.Funcs(funcMap).Execute(&buf, top); err != nil {
 		log.Fatalf("specialization failed: %v", err)
 	}
-	if err := ioutil.WriteFile(*output, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(*output, buf.Bytes(), 0644); err != nil {
 		log.Fatalf("write failed: %v", err)
 	}
 }

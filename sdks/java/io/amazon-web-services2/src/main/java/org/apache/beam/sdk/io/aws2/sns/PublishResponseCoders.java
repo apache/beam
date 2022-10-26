@@ -34,7 +34,12 @@ import software.amazon.awssdk.awscore.AwsResponseMetadata;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
-/** Coders for SNS {@link PublishResponse}. */
+/**
+ * Coders for SNS {@link PublishResponse}.
+ *
+ * @deprecated Schema based coder is inferred automatically.
+ */
+@Deprecated
 public class PublishResponseCoders {
   private static final Coder<String> MESSAGE_ID_CODER = StringUtf8Coder.of();
   private static final NullableCoder<AwsResponseMetadata> METADATA_CODER =

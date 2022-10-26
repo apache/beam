@@ -33,7 +33,7 @@ def tpcdsArgsProperty = "tpcds.args"
 def tpcdsRunnerProperty = "tpcds.runner"
 def tpcdsRunnerDependency = project.findProperty(tpcdsRunnerProperty)
         ?: ":runners:direct-java"
-def shouldProvideSpark = ":runners:spark:2".equals(tpcdsRunnerDependency)
+def isSpark = tpcdsRunnerDependency.startsWith(":runners:spark:")
 def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(tpcdsRunnerDependency)
 def runnerConfiguration = ":runners:direct-java".equals(tpcdsRunnerDependency) ? "shadow" : null
 
@@ -60,6 +60,7 @@ dependencies {
     provided "org.immutables:value:2.8.8"
     permitUnusedDeclared "org.immutables:value:2.8.8"
     implementation library.java.avro
+    implementation library.java.joda_time
     implementation library.java.vendored_guava_26_0_jre
     implementation library.java.vendored_calcite_1_28_0
     implementation library.java.commons_csv
@@ -70,6 +71,7 @@ dependencies {
     implementation project(":sdks:java:extensions:sql:zetasql")
     implementation project(":sdks:java:io:parquet")
     implementation project(":sdks:java:extensions:google-cloud-platform-core")
+    implementation project(":sdks:java:testing:test-utils")
     permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core")
     implementation project(":sdks:java:io:google-cloud-platform")
     permitUnusedDeclared project(":sdks:java:io:google-cloud-platform")
@@ -77,25 +79,14 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     testRuntimeOnly library.java.slf4j_jdk14
     testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
     gradleRun project(project.path)
     gradleRun project(path: tpcdsRunnerDependency, configuration: runnerConfiguration)
-
-    // The Spark runner requires the user to provide a Spark dependency. For self-contained
-    // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased
-    // to not hardcode any runner other than :runners:direct-java
-    if (shouldProvideSpark) {
-        gradleRun library.java.spark_core, {
-            exclude group:"org.slf4j", module:"jul-to-slf4j"
-        }
-        gradleRun library.java.spark_sql
-        gradleRun library.java.spark_streaming
-    }
 }
 
-if (shouldProvideSpark) {
+if (isSpark) {
     configurations.gradleRun {
-        // Using Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
-        exclude group: "org.slf4j", module: "slf4j-jdk14"
+      exclude group: "org.slf4j", module: "slf4j-jdk14"
     }
 }
 
@@ -103,7 +94,7 @@ if (shouldProvideSpark) {
 //
 // Parameters:
 //   -Ptpcds.runner
-//       Specify a runner subproject, such as ":runners:spark:2" or ":runners:flink:1.13"
+//       Specify a runner subproject, such as ":runners:spark:3" or ":runners:flink:1.13"
 //       Defaults to ":runners:direct-java"
 //
 //   -Ptpcds.args
@@ -125,6 +116,17 @@ task run(type: JavaExec) {
         tpcdsArgsList.add("--dataflowWorkerJar=${dataflowWorkerJar}".toString())
         tpcdsArgsList.add('--workerHarnessContainerImage=')
     }
+
+  if(isSpark) {
+    // Disable UI
+    systemProperty "spark.ui.enabled", "false"
+    systemProperty "spark.ui.showConsoleProgress", "false"
+
+    // For transparency, be explicit about configuration of local Spark
+    tpcdsArgsList.add("--sparkMaster=local[4]")
+    // Dataset runner only
+    systemProperty "spark.sql.shuffle.partitions", "4"
+  }
 
     mainClass = "org.apache.beam.sdk.tpcds.BeamTpcds"
     classpath = configurations.gradleRun

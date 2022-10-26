@@ -24,12 +24,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-When the Apache Beam project proposed entry into the [Apache Incubator](http://wiki.apache.org/incubator/BeamProposal) the proposal
+When the Apache Beam project proposed entry into the [Apache Incubator](https://wiki.apache.org/incubator/BeamProposal) the proposal
 included the [Dataflow Java SDK](https://github.com/GoogleCloudPlatform/DataflowJavaSDK). In the long term, however, Apache Beam aims to support SDKs implemented in multiple languages, such as Python.
 
 <!--more-->
 
-Today, Google submitted the [Dataflow Python (2.x) SDK](http://github.com/GoogleCloudPlatform/DataflowPythonSDK) on GitHub. Google is committed to including the in progress python SDK in Apache Beam and, in that spirit, we've moved development of the Python SDK to a public repository. While this SDK will not be included with the initial (incubating) releases of Apache Beam, our we plan on incorporating the Python SDK into beam during incubation. We want to take the time to implement changes from the [technical vision](https://goo.gl/nk5OM0) into the Java SDK before we introduce a Python SDK for Apache Beam. We believe this will allow us to work on the model and SDKs in an ordered fashion.
+Today, Google submitted the [Dataflow Python (2.x) SDK](https://github.com/GoogleCloudPlatform/DataflowPythonSDK) on GitHub. Google is committed to including the in progress python SDK in Apache Beam and, in that spirit, we've moved development of the Python SDK to a public repository. While this SDK will not be included with the initial (incubating) releases of Apache Beam, our we plan on incorporating the Python SDK into beam during incubation. We want to take the time to implement changes from the [technical vision](https://goo.gl/nk5OM0) into the Java SDK before we introduce a Python SDK for Apache Beam. We believe this will allow us to work on the model and SDKs in an ordered fashion.
 
 You can look for the Apache Beam Python SDK in the coming months once we finish forking and refactoring the Java SDK.
 

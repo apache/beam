@@ -22,7 +22,8 @@ class PythonTestProperties {
   final static List<String> ALL_SUPPORTED_VERSIONS = [
     '3.7',
     '3.8',
-    '3.9'
+    '3.9',
+    '3.10'
   ]
   final static List<String> SUPPORTED_CONTAINER_TASKS = ALL_SUPPORTED_VERSIONS.collect {
     "py${it.replace('.', '')}"

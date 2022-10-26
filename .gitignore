@@ -92,6 +92,9 @@ sdks/python/coverage.xml
 # Ignore Jupyter notebook checkpoints.
 **/.ipynb_checkpoints/**/*
 
+# Ignore python venv
+**/venv
+
 # NOTE: if you modify this file, you probably need to modify the file set that
 # is an input to 'maven-assembly-plugin' that generates source distribution.
 # This is typically in files named 'src.xml' throughout this repository.
@@ -117,11 +120,13 @@ website/www/yarn-error.log
 **/node_modules
 
 # Dart/Flutter
-**/.dart_tool
-**/.packages
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
+**/.dart_tool
 **/generated_plugin_registrant.dart
+**/*.g.dart
+**/*.mocks.dart
+**/.packages
 
 # Ignore Beam Playground Terraform
 **/.terraform
@@ -129,3 +134,6 @@ website/www/yarn-error.log
 **/*.tfstate.*
 **/*.hcl
 **/*.tfvars
+
+# Ignore Katas auto-generated files
+**/*-remote-info.yaml

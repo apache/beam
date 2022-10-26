@@ -38,6 +38,8 @@ import threading
 import time
 import traceback
 from itertools import islice
+from typing import Optional
+from typing import Union
 
 import apache_beam
 from apache_beam.internal.http_client import get_new_http
@@ -49,6 +51,7 @@ from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import monitoring_infos
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
 
 __all__ = ['GcsIO']
@@ -158,7 +161,12 @@ class GcsIOError(IOError, retry.PermanentException):
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
   def __init__(self, storage_client=None, pipeline_options=None):
+    # type: (Optional[storage.StorageV1], Optional[Union[dict, PipelineOptions]]) -> None
     if storage_client is None:
+      if not pipeline_options:
+        pipeline_options = PipelineOptions()
+      elif isinstance(pipeline_options, dict):
+        pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
       storage_client = storage.StorageV1(
           credentials=auth.get_service_credentials(pipeline_options),
           get_credentials=False,
@@ -580,9 +588,9 @@ class GcsIO(object):
     counter = 0
     start_time = time.time()
     if with_metadata:
-      _LOGGER.info("Starting the file information of the input")
+      _LOGGER.debug("Starting the file information of the input")
     else:
-      _LOGGER.info("Starting the size estimation of the input")
+      _LOGGER.debug("Starting the size estimation of the input")
     while True:
       response = self.client.objects.List(request)
       for item in response.items:
@@ -604,7 +612,9 @@ class GcsIO(object):
         request.pageToken = response.nextPageToken
       else:
         break
-    _LOGGER.info(
+    _LOGGER.log(
+        # do not spam logs when list_prefix is likely used to check empty folder
+        logging.INFO if counter > 0 else logging.DEBUG,
         "Finished listing %s files in %s seconds.",
         counter,
         time.time() - start_time)

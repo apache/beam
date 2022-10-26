@@ -241,6 +241,15 @@ func reflectDecodeUint(rv reflect.Value, r io.Reader) error {
 	return nil
 }
 
+func reflectDecodeSinglePrecisionFloat(rv reflect.Value, r io.Reader) error {
+	v, err := DecodeSinglePrecisionFloat(r)
+	if err != nil {
+		return errors.Wrap(err, "error decoding single-precision float field")
+	}
+	rv.SetFloat(float64(v))
+	return nil
+}
+
 func reflectDecodeFloat(rv reflect.Value, r io.Reader) error {
 	v, err := DecodeDouble(r)
 	if err != nil {
@@ -336,7 +345,9 @@ func (b *RowDecoderBuilder) decoderForSingleTypeReflect(t reflect.Type) (typeDec
 		return typeDecoderFieldReflect{decode: reflectDecodeInt}, nil
 	case reflect.Uint, reflect.Uint64, reflect.Uint32, reflect.Uint16:
 		return typeDecoderFieldReflect{decode: reflectDecodeUint}, nil
-	case reflect.Float32, reflect.Float64:
+	case reflect.Float32:
+		return typeDecoderFieldReflect{decode: reflectDecodeSinglePrecisionFloat}, nil
+	case reflect.Float64:
 		return typeDecoderFieldReflect{decode: reflectDecodeFloat}, nil
 	case reflect.Ptr:
 		decf, err := b.decoderForSingleTypeReflect(t.Elem())

@@ -23,7 +23,6 @@ import static java.sql.JDBCType.LONGNVARCHAR;
 import static java.sql.JDBCType.LONGVARBINARY;
 import static java.sql.JDBCType.LONGVARCHAR;
 import static java.sql.JDBCType.NCHAR;
-import static java.sql.JDBCType.NUMERIC;
 import static java.sql.JDBCType.NVARCHAR;
 import static java.sql.JDBCType.VARBINARY;
 import static java.sql.JDBCType.VARCHAR;
@@ -31,14 +30,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.Serializable;
 import java.sql.Array;
-import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -55,6 +52,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
@@ -142,7 +140,7 @@ class SchemaUtil {
       case NCHAR:
         return beamLogicalField(NCHAR.getName(), LogicalTypes.FixedLengthString::of);
       case NUMERIC:
-        return beamLogicalNumericField(NUMERIC.getName());
+        return beamLogicalNumericField();
       case NVARCHAR:
         return beamLogicalField(NVARCHAR.getName(), LogicalTypes.VariableLengthString::of);
       case REAL:
@@ -213,11 +211,11 @@ class SchemaUtil {
   }
 
   /**
-   * Converts numeric fields with specified precision and scale to {@link
-   * LogicalTypes.FixedPrecisionNumeric}. If a precision of numeric field is not specified, then
-   * converts such field to {@link FieldType#DECIMAL}.
+   * Converts numeric fields with specified precision and scale to {@link FixedPrecisionNumeric}. If
+   * a precision of numeric field is not specified, then converts such field to {@link
+   * FieldType#DECIMAL}.
    */
-  private static BeamFieldConverter beamLogicalNumericField(String identifier) {
+  private static BeamFieldConverter beamLogicalNumericField() {
     return (index, md) -> {
       int precision = md.getPrecision(index);
       if (precision == Integer.MAX_VALUE || precision == -1) {
@@ -227,8 +225,7 @@ class SchemaUtil {
       }
       int scale = md.getScale(index);
       Schema.FieldType fieldType =
-          Schema.FieldType.logicalType(
-              LogicalTypes.FixedPrecisionNumeric.of(identifier, precision, scale));
+          Schema.FieldType.logicalType(FixedPrecisionNumeric.of(precision, scale));
       return beamFieldOfType(fieldType).create(index, md);
     };
   }
@@ -293,10 +290,16 @@ class SchemaUtil {
       final Schema.LogicalType<InputT, BaseT> fieldType) {
     String logicalTypeName = fieldType.getIdentifier();
 
+    JDBCType underlyingType;
+
     if (Objects.equals(fieldType, LogicalTypes.JDBC_UUID_TYPE.getLogicalType())) {
       return OBJECT_EXTRACTOR;
+    } else if (Objects.equals(logicalTypeName, FixedPrecisionNumeric.IDENTIFIER)) {
+      underlyingType = JDBCType.NUMERIC;
+    } else {
+      underlyingType = JDBCType.valueOf(logicalTypeName);
     }
-    JDBCType underlyingType = JDBCType.valueOf(logicalTypeName);
+
     switch (underlyingType) {
       case DATE:
         return DATE_EXTRACTOR;
@@ -313,11 +316,12 @@ class SchemaUtil {
   /** Convert SQL date type to Beam DateTime. */
   private static ResultSetFieldExtractor createDateExtractor() {
     return (rs, i) -> {
-      Date date = rs.getDate(i, Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
+      // TODO(https://github.com/apache/beam/issues/19215) import when joda LocalDate is removed.
+      java.time.LocalDate date = rs.getObject(i, java.time.LocalDate.class);
       if (date == null) {
         return null;
       }
-      ZonedDateTime zdt = ZonedDateTime.of(date.toLocalDate(), LocalTime.MIDNIGHT, ZoneOffset.UTC);
+      ZonedDateTime zdt = date.atStartOfDay(ZoneOffset.UTC);
       return new DateTime(zdt.toInstant().toEpochMilli(), ISOChronology.getInstanceUTC());
     };
   }

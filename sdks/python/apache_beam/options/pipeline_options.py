@@ -133,6 +133,18 @@ class _BeamArgumentParser(argparse.ArgumentParser):
     super().error(message)
 
 
+class _DictUnionAction(argparse.Action):
+  """
+  argparse Action take union of json loads values. If a key is specified in more
+  than one of the values, the last value takes precedence.
+  """
+  def __call__(self, parser, namespace, values, option_string=None):
+    if not hasattr(namespace,
+                   self.dest) or getattr(namespace, self.dest) is None:
+      setattr(namespace, self.dest, {})
+    getattr(namespace, self.dest).update(values)
+
+
 class PipelineOptions(HasDisplayData):
   """This class and subclasses are used as containers for command line options.
 
@@ -640,6 +652,15 @@ class GoogleCloudOptions(PipelineOptions):
   COMPUTE_API_SERVICE = 'compute.googleapis.com'
   STORAGE_API_SERVICE = 'storage.googleapis.com'
   DATAFLOW_ENDPOINT = 'https://dataflow.googleapis.com'
+  OAUTH_SCOPES = [
+      'https://www.googleapis.com/auth/bigquery',
+      'https://www.googleapis.com/auth/cloud-platform',
+      'https://www.googleapis.com/auth/devstorage.full_control',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/datastore',
+      'https://www.googleapis.com/auth/spanner.admin',
+      'https://www.googleapis.com/auth/spanner.data'
+  ]
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -773,6 +794,16 @@ class GoogleCloudOptions(PipelineOptions):
         'either a single service account as the impersonator, or a '
         'comma-separated list of service accounts to create an '
         'impersonation delegation chain.')
+    parser.add_argument(
+        '--gcp_oauth_scope',
+        '--gcp_oauth_scopes',
+        dest='gcp_oauth_scopes',
+        action='append',
+        default=cls.OAUTH_SCOPES,
+        help=(
+            'Controls the OAuth scopes that will be requested when creating '
+            'GCP credentials. Note: If set programmatically, must be set as a '
+            'list of strings'))
 
   def _create_default_gcs_bucket(self):
     try:
@@ -979,7 +1010,8 @@ class WorkerOptions(PipelineOptions):
             'Default log level is INFO.'))
     parser.add_argument(
         '--sdk_harness_log_level_overrides',
-        action='append',
+        type=json.loads,
+        action=_DictUnionAction,
         default=None,
         help=(
             'Controls the log levels for specifically named loggers. The '
@@ -1421,6 +1453,20 @@ class FlinkRunnerOptions(PipelineOptions):
         ' directly, rather than starting up a job server.'
         ' Only applies when flink_master is set to a'
         ' cluster address.  Requires Python 3.6+.')
+    parser.add_argument(
+        '--parallelism',
+        type=int,
+        default=-1,
+        help='The degree of parallelism to be used when distributing'
+        ' operations onto workers. If the parallelism is not set, the'
+        ' configured Flink default is used, or 1 if none can be found.')
+    parser.add_argument(
+        '--max_parallelism',
+        type=int,
+        default=-1,
+        help='The pipeline wide maximum degree of parallelism to be used. The'
+        ' maximum parallelism specifies the upper limit for dynamic scaling'
+        ' and the number of key groups used for partitioned state.')
 
 
 class SparkRunnerOptions(PipelineOptions):

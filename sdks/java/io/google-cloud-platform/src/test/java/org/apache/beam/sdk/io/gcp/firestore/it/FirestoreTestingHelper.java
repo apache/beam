@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore.it;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assume.assumeThat;
-
 import com.google.api.core.ApiFunction;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
@@ -67,6 +63,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
@@ -106,10 +104,12 @@ final class FirestoreTestingHelper implements TestRule {
     DataLayout value() default DataLayout.Shallow;
   }
 
-  private static final FirestoreOptions FIRESTORE_OPTIONS = FirestoreOptions.getDefaultInstance();
+  private final GcpOptions options;
+  private final org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions firestoreBeamOptions;
+  private final FirestoreOptions firestoreOptions;
 
-  private final Firestore fs = FIRESTORE_OPTIONS.getService();
-  private final FirestoreRpc rpc = (FirestoreRpc) FIRESTORE_OPTIONS.getRpc();
+  private final Firestore fs;
+  private final FirestoreRpc rpc;
   private final CleanupMode cleanupMode;
 
   private Class<?> testClass;
@@ -125,6 +125,19 @@ final class FirestoreTestingHelper implements TestRule {
       "initialization.fields.uninitialized") // testClass and testName are managed via #apply
   public FirestoreTestingHelper(CleanupMode cleanupMode) {
     this.cleanupMode = cleanupMode;
+    options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
+    firestoreBeamOptions =
+        TestPipeline.testingPipelineOptions()
+            .as(org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions.class);
+    firestoreOptions =
+        FirestoreOptions.newBuilder()
+            .setCredentials(options.getGcpCredential())
+            .setProjectId(options.getProject())
+            .setDatabaseId(firestoreBeamOptions.getFirestoreDb())
+            .build();
+
+    fs = firestoreOptions.getService();
+    rpc = (FirestoreRpc) firestoreOptions.getRpc();
   }
 
   @Override
@@ -170,7 +183,7 @@ final class FirestoreTestingHelper implements TestRule {
   String getDatabase() {
     return String.format(
         "projects/%s/databases/%s",
-        FIRESTORE_OPTIONS.getProjectId(), FIRESTORE_OPTIONS.getDatabaseId());
+        firestoreOptions.getProjectId(), firestoreOptions.getDatabaseId());
   }
 
   String getDocumentRoot() {
@@ -197,8 +210,16 @@ final class FirestoreTestingHelper implements TestRule {
     return documentGenerator(to, collectionId, false);
   }
 
+  DocumentGenerator documentGenerator(int from, int to, String collectionId) {
+    return documentGenerator(from, to, collectionId, false);
+  }
+
   DocumentGenerator documentGenerator(int to, String collectionId, boolean addBazDoc) {
-    return new DocumentGenerator(to, collectionId, addBazDoc);
+    return documentGenerator(1, to, collectionId, addBazDoc);
+  }
+
+  DocumentGenerator documentGenerator(int from, int to, String collectionId, boolean addBazDoc) {
+    return new DocumentGenerator(from, to, collectionId, addBazDoc);
   }
 
   Stream<String> listCollectionIds(String parent) {
@@ -305,19 +326,6 @@ final class FirestoreTestingHelper implements TestRule {
     };
   }
 
-  @SuppressWarnings("nullness")
-  static String assumeEnvVarSet(@NonNull String name) {
-    LOG.debug(">>> assumeEnvVarSet(name : {})", name);
-    try {
-      String value = System.getenv(name);
-      LOG.debug("value = {}", value);
-      assumeThat(name + " not set", value, is(notNullValue()));
-      return value;
-    } finally {
-      LOG.debug("<<< assumeEnvVarSet(name : {})", name);
-    }
-  }
-
   private static String id(String docOrCol, int counter) {
     return String.format("%s-%05d", docOrCol, counter);
   }
@@ -328,10 +336,10 @@ final class FirestoreTestingHelper implements TestRule {
     private final String collectionId;
     private final boolean addBazDoc;
 
-    private DocumentGenerator(int to, String collectionId, boolean addBazDoc) {
+    private DocumentGenerator(int from, int to, String collectionId, boolean addBazDoc) {
       this.documentIds =
           Collections.unmodifiableList(
-              IntStream.rangeClosed(1, to).mapToObj(i -> docId()).collect(Collectors.toList()));
+              IntStream.rangeClosed(from, to).mapToObj(i -> docId()).collect(Collectors.toList()));
       this.collectionId = collectionId;
       this.addBazDoc = addBazDoc;
     }

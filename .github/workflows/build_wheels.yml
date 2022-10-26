@@ -31,6 +31,11 @@ on:
     paths: ['sdks/python/**', 'model/**', 'release/**']
   workflow_dispatch:
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
 env:
   GCP_PATH: "gs://${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
 
@@ -44,7 +49,7 @@ jobs:
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -64,9 +69,9 @@ jobs:
       rc_num: ${{ steps.get_rc_version.outputs.RC_NUM }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.7
       - name: Get build dependencies
@@ -77,21 +82,21 @@ jobs:
       - name: Get tag
         id: get_tag
         run: |
-          echo ::set-output name=TAG::${GITHUB_REF#refs/*/}
+          echo "TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
       - name: Check whether an -RC tag was applied to the commit.
         id: is_rc
         run: |
           echo ${{ steps.get_tag.outputs.TAG }} > temp
           OUTPUT=$( if  grep -e '-RC.' -q temp; then echo 1; else echo 0; fi)
-          echo "::set-output name=is_rc::$OUTPUT"
+          echo "is_rc=$OUTPUT" >> $GITHUB_OUTPUT
       - name: Get RELEASE_VERSION and RC_NUM
         if: steps.is_rc.outputs.is_rc == 1
         id: get_rc_version
         run: |
           RC_NUM=$(sed -n "s/^.*-RC\([0-9]*\)/\1/p" temp)
           RELEASE_VERSION=$(sed -n "s/^v\(.*\)-RC[0-9]/\1/p" temp)
-          echo "::set-output name=RC_NUM::$RC_NUM"
-          echo "::set-output name=RELEASE_VERSION::$RELEASE_VERSION"
+          echo "RC_NUM=$RC_NUM" >> $GITHUB_OUTPUT
+          echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_OUTPUT
       - name: Build source
         working-directory: ./sdks/python
         run: python setup.py sdist --formats=zip
@@ -107,12 +112,12 @@ jobs:
         working-directory: ./sdks/python
         run: mv $(ls | grep apache-beam) apache-beam-source
       - name: Upload source as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: source
           path: sdks/python/apache-beam-source
       - name: Upload compressed sources as artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: source_zip
           path: sdks/python/dist
@@ -149,13 +154,13 @@ jobs:
         run: mv $(ls | grep apache-beam) apache-beam-source-rc
       - name: Upload RC source as artifact
         if: steps.is_rc.outputs.is_rc == 1
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: source_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/apache-beam-source-rc
       - name: Upload compressed RC sources as artifacts
         if: steps.is_rc.outputs.is_rc == 1
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: source_zip_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/dist
@@ -186,7 +191,7 @@ jobs:
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: source_zip
           path: source/
@@ -207,40 +212,43 @@ jobs:
     strategy:
       matrix:
         os_python: [
-          {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-*"},
-          {"os": "macos-latest", "python": "cp37-* cp38-* cp39-*"},
-          {"os": "windows-latest", "python": "cp37-* cp38-* cp39-*"},
+          {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
+          {"os": "macos-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
+          {"os": "windows-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
         ]
         arch: [auto]
         include:
-          - os_python: {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-*"}
+          - os_python: {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-* cp310-*"}
             arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
     - name: Install Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.7
     - uses: docker/setup-qemu-action@v1
       if: ${{matrix.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel
-      run: pip install cibuildwheel==1.11.0
+      run: pip install cibuildwheel==2.9.0
     - name: Build wheel
       working-directory: apache-beam-source
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
-        CIBW_BEFORE_BUILD: pip install cython && pip install --upgrade setuptools
+        # TODO: https://github.com/apache/beam/issues/23048
+        CIBW_SKIP: "*-musllinux_*"
+        CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
+        CIBW_BEFORE_BUILD: pip install cython numpy && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: install sha512sum on MacOS
@@ -254,7 +262,7 @@ jobs:
         done
       shell: bash
     - name: Upload wheels as artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse-${{ matrix.os_python.os }}
         path: apache-beam-source/wheelhouse/
@@ -263,7 +271,10 @@ jobs:
       working-directory: apache-beam-source-rc
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
-        CIBW_BEFORE_BUILD: pip install cython
+        # TODO: https://github.com/apache/beam/issues/23048
+        CIBW_SKIP: "*-musllinux_*"
+        CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
+        CIBW_BEFORE_BUILD: pip install cython  numpy && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: Add RC checksums
@@ -276,7 +287,7 @@ jobs:
       shell: bash
     - name: Upload RC wheels as artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.os_python.os }}
         path: apache-beam-source-rc/wheelhouse/
@@ -293,7 +304,7 @@ jobs:
         os : [ubuntu-latest, macos-latest, windows-latest]
     steps:
     - name: Download wheels from artifacts
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: wheelhouse-${{ matrix.os }}
         path: wheelhouse/
@@ -342,6 +353,8 @@ jobs:
       run: gsutil ls "${{ env.GCP_PATH }}*"
 
   branch_repo_nightly:
+    permissions:
+      contents: write
     name: Branch repo nightly
     needs:
       - build_source
@@ -351,7 +364,7 @@ jobs:
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
       - name: Checkout code on master branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive

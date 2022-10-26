@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.KV;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -52,6 +53,14 @@ public class JdbcIOExceptionHandlingParameterizedTest {
       JdbcIO.DataSourceConfiguration.create(
           "org.apache.derby.jdbc.EmbeddedDriver", "jdbc:derby:memory:testDB;create=true");
   private static final DataSource DATA_SOURCE = DATA_SOURCE_CONFIGURATION.buildDatasource();
+
+  @BeforeClass
+  public static void beforeClass() {
+    // by default, derby uses a lock timeout of 60 seconds. In order to speed up the test
+    // and detect the lock faster, we decrease this timeout
+    System.setProperty("derby.locks.waitTimeout", "2");
+    System.setProperty("derby.stream.error.file", "build/derby.log");
+  }
 
   @Parameterized.Parameters
   public static Collection<Object[]> data() {

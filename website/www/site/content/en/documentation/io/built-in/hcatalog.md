@@ -70,7 +70,7 @@ pipeline
 `HCatalogIO` is built for Apache HCatalog versions 2 and up and will not work out of the box for older versions of HCatalog.
 The following illustrates a workaround to work with Hive 1.1.
 
-Include the following Hive 1.2 jars in the über jar you build.
+Include the following Hive 1.2 jars in the uber jar you build.
 The 1.2 jars provide the necessary methods for Beam while remain compatible with Hive 1.1.
 
 ```

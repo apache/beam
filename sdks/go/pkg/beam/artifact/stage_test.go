@@ -17,7 +17,7 @@ package artifact
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 
@@ -89,7 +89,7 @@ func validate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys, sha2
 			t.Fatalf("failed to get artifact for %v: %v", key, err)
 		}
 
-		hash, err := retrieveChunks(stream, ioutil.Discard)
+		hash, err := retrieveChunks(stream, io.Discard)
 		if err != nil {
 			t.Fatalf("failed to get chunks for %v: %v", key, err)
 		}

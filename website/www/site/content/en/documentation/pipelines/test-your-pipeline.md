@@ -52,7 +52,7 @@ To test a transform you've created, you can use the following pattern:
 {{< paragraph class="language-py" >}}
 [TestPipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/testing/test_pipeline.py) is a class included in the Beam Python SDK specifically for testing transforms.
 {{< /paragraph >}}
-For tests, use `TestPipeline` in place of `Pipeline` when you create the pipeline object. Unlike `Pipeline.create`, `TestPipeline.create` handles setting `PipelineOptions` interally.
+For tests, use `TestPipeline` in place of `Pipeline` when you create the pipeline object. Unlike `Pipeline.create`, `TestPipeline.create` handles setting `PipelineOptions` internally.
 
 You create a `TestPipeline` as follows:
 

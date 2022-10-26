@@ -492,7 +492,8 @@ public class FakeDatasetService implements DatasetService, Serializable {
   }
 
   @Override
-  public StreamAppendClient getStreamAppendClient(String streamName, Descriptor descriptor) {
+  public StreamAppendClient getStreamAppendClient(
+      String streamName, Descriptor descriptor, boolean useConnectionPool) {
     return new StreamAppendClient() {
       private Descriptor protoDescriptor;
 

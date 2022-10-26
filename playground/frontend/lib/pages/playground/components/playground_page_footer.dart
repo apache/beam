@@ -18,12 +18,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/links.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/pages/playground/components/feedback/playground_feedback.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PlaygroundPageFooter extends StatelessWidget {
@@ -34,7 +34,9 @@ class PlaygroundPageFooter extends StatelessWidget {
     AppLocalizations appLocale = AppLocalizations.of(context)!;
 
     return Container(
-      color: ThemeColors.of(context).secondaryBackground,
+      color: Theme.of(context)
+          .extension<BeamThemeExtension>()
+          ?.secondaryBackgroundColor,
       width: double.infinity,
       child: Padding(
         padding: const EdgeInsets.symmetric(

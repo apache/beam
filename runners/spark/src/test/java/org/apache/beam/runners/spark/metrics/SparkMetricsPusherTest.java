@@ -69,7 +69,7 @@ public class SparkMetricsPusherTest {
   @Category(StreamingTest.class)
   @Test
   public void testInStreamingMode() throws Exception {
-    pipeline.getOptions().as(TestSparkPipelineOptions.class).setForceStreaming(true);
+    pipeline.getOptions().as(TestSparkPipelineOptions.class).setStreaming(true);
 
     Instant instant = new Instant(0);
     CreateStream<Integer> source =

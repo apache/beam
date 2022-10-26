@@ -29,6 +29,7 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.core.ApiFuture;
+import com.google.api.gax.core.ExecutorProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.FixedHeaderProvider;
@@ -105,6 +106,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -120,6 +122,7 @@ import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -135,6 +138,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -1151,6 +1155,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                       sleeper)));
           strideIndices.add(strideIndex);
           retTotalDataSize += dataSize;
+          rows = new ArrayList<>();
         }
 
         try {
@@ -1300,8 +1305,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public StreamAppendClient getStreamAppendClient(String streamName, Descriptor descriptor)
-        throws Exception {
+    public StreamAppendClient getStreamAppendClient(
+        String streamName, Descriptor descriptor, boolean useConnectionPool) throws Exception {
       ProtoSchema protoSchema =
           ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
 
@@ -1317,6 +1322,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           StreamWriter.newBuilder(streamName)
               .setWriterSchema(protoSchema)
               .setChannelProvider(transportChannelProvider)
+              .setEnableConnectionPool(useConnectionPool)
               .setTraceId(
                   "Dataflow:"
                       + (bqIOMetadata.getBeamJobId() != null
@@ -1482,9 +1488,33 @@ class BigQueryServicesImpl implements BigQueryServices {
       return BigQueryWriteClient.create(
           BigQueryWriteSettings.newBuilder()
               .setCredentialsProvider(() -> options.as(GcpOptions.class).getGcpCredential())
+              .setBackgroundExecutorProvider(new OptionsExecutionProvider(options))
               .build());
     } catch (Exception e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * OptionsExecutionProvider is a utility class used to wrap the Pipeline-wide {@link
+   * ScheduledExecutorService} into a supplier for the {@link BigQueryWriteClient}.
+   */
+  private static class OptionsExecutionProvider implements ExecutorProvider {
+
+    private final BigQueryOptions options;
+
+    public OptionsExecutionProvider(BigQueryOptions options) {
+      this.options = options;
+    }
+
+    @Override
+    public boolean shouldAutoClose() {
+      return false;
+    }
+
+    @Override
+    public ScheduledExecutorService getExecutor() {
+      return options.as(ExecutorOptions.class).getScheduledExecutorService();
     }
   }
 
@@ -1681,7 +1711,12 @@ class BigQueryServicesImpl implements BigQueryServices {
     BoundedExecutorService(ListeningExecutorService taskExecutor, int parallelism) {
       this.taskExecutor = taskExecutor;
       this.taskSubmitExecutor =
-          MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+          MoreExecutors.listeningDecorator(
+              Executors.newSingleThreadExecutor(
+                  new ThreadFactoryBuilder()
+                      .setDaemon(true)
+                      .setNameFormat("BoundedBigQueryService-thread")
+                      .build()));
       this.semaphore = new Semaphore(parallelism);
     }
 

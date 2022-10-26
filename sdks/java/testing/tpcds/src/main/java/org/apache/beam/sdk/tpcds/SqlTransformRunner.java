@@ -17,14 +17,19 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,6 +42,8 @@ import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -46,8 +53,10 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
 import org.apache.commons.csv.CSVFormat;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -215,18 +224,26 @@ public class SqlTransformRunner {
     return schemaProjected;
   }
 
+  private static List<TpcdsRunResult> collectTpcdsResults(
+      CompletionService<TpcdsRunResult> completion, int numOfResults)
+      throws InterruptedException, ExecutionException {
+    List<TpcdsRunResult> results = new ArrayList<>();
+    for (int i = 0; i < numOfResults; i++) {
+      results.add(completion.take().get());
+    }
+
+    return results;
+  }
+
   /**
    * Print the summary table after all jobs are finished.
    *
-   * @param completion A collection of all TpcdsRunResult that are from finished jobs.
-   * @param numOfResults The number of results in the collection.
+   * @param results Tpcds run results
    * @throws Exception
    */
-  private static void printExecutionSummary(
-      CompletionService<TpcdsRunResult> completion, int numOfResults) throws Exception {
+  private static void printExecutionSummary(List<TpcdsRunResult> results) throws Exception {
     List<List<String>> summaryRowsList = new ArrayList<>();
-    for (int i = 0; i < numOfResults; i++) {
-      TpcdsRunResult tpcdsRunResult = completion.take().get();
+    for (TpcdsRunResult tpcdsRunResult : results) {
       List<String> list = new ArrayList<>();
       list.add(tpcdsRunResult.getQueryName());
       list.add(tpcdsRunResult.getJobName());
@@ -252,6 +269,8 @@ public class SqlTransformRunner {
    * @throws Exception
    */
   public static void runUsingSqlTransform(String[] args) throws Exception {
+    Instant start = Instant.now();
+
     TpcdsOptions tpcdsOptions =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TpcdsOptions.class);
 
@@ -306,6 +325,75 @@ public class SqlTransformRunner {
 
     executor.shutdown();
 
-    printExecutionSummary(completion, queryNames.length);
+    List<TpcdsRunResult> results = collectTpcdsResults(completion, queryNames.length);
+
+    if (tpcdsOptions.getExportSummaryToInfluxDB()) {
+      final long timestamp = start.getMillis() / 1000; // seconds
+      savePerfsToInfluxDB(tpcdsOptions, results, timestamp);
+    }
+
+    printExecutionSummary(results);
+  }
+
+  private static void savePerfsToInfluxDB(
+      final TpcdsOptions options, final List<TpcdsRunResult> results, final long timestamp) {
+    final InfluxDBSettings settings = getInfluxSettings(options);
+
+    final List<InfluxDBPublisher.DataPoint> dataPoints =
+        results.stream()
+            .map(
+                entry -> createInfluxDBDataPoint(options, entry, getInfluxTags(options), timestamp))
+            .collect(toList());
+    InfluxDBPublisher.publish(settings, dataPoints);
+  }
+
+  @SuppressWarnings({"nullness"})
+  private static Map<String, String> getInfluxTags(TpcdsOptions options) {
+    Map<String, String> tags =
+        options.getInfluxTags() != null
+            ? new HashMap<>(options.getInfluxTags())
+            : new HashMap<String, String>();
+    tags.put("runner", options.getRunner().getSimpleName());
+    return tags;
+  }
+
+  private static InfluxDBPublisher.DataPoint createInfluxDBDataPoint(
+      final TpcdsOptions options,
+      final TpcdsRunResult entry,
+      final Map<String, String> tags,
+      final long timestamp) {
+    String measurement = generateMeasurementName(options, entry);
+
+    final int runtimeMs =
+        entry.getIsSuccessful()
+            ? (int) (entry.getElapsedTime() * 1000) // change sec to ms
+            : 0;
+
+    Map<String, Number> fields = ImmutableMap.of("runtimeMs", runtimeMs);
+    return InfluxDBPublisher.dataPoint(measurement, tags, fields, timestamp);
+  }
+
+  private static String generateMeasurementName(final TpcdsOptions options, TpcdsRunResult entry) {
+    return String.format(
+        "%s_%s_%s_%s",
+        options.getBaseInfluxMeasurement(),
+        entry.getQueryName(),
+        entry.getDialect(),
+        entry.getDataSize());
+  }
+
+  @SuppressWarnings({"nullness"})
+  private static InfluxDBSettings getInfluxSettings(final TpcdsOptions options) {
+    checkStateNotNull(options.getInfluxHost(), "InfluxHost cannot be null");
+    checkStateNotNull(options.getInfluxDatabase(), "InfluxDatabase cannot be null");
+    checkStateNotNull(options.getBaseInfluxMeasurement(), "BaseInfluxMeasurement cannot be null");
+    checkStateNotNull(options.getInfluxRetentionPolicy(), "InfluxRetentionPolicy cannot be null");
+
+    return InfluxDBSettings.builder()
+        .withHost(options.getInfluxHost())
+        .withDatabase(options.getInfluxDatabase())
+        .withMeasurement(options.getBaseInfluxMeasurement())
+        .withRetentionPolicy(options.getInfluxRetentionPolicy())
+        .get();
   }
 }

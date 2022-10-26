@@ -70,9 +70,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Map<TupleTag<?>, PCollection<?>> allPcs = pcs.getAll();
  * }</pre>
  */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
-})
 public class PCollectionTuple implements PInput, POutput {
   /**
    * Returns an empty {@link PCollectionTuple} that is part of the given {@link Pipeline}.

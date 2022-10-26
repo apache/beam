@@ -46,7 +46,7 @@ public class BundleCheckpointHandlers {
 
   /**
    * A {@link BundleCheckpointHandler} which uses {@link
-   * org.apache.beam.runners.core.TimerInternals.TimerData} ans {@link
+   * org.apache.beam.runners.core.TimerInternals.TimerData} and {@link
    * org.apache.beam.sdk.state.ValueState} to reschedule {@link DelayedBundleApplication}.
    */
   public static class StateAndTimerBundleCheckpointHandler<T> implements BundleCheckpointHandler {
@@ -108,7 +108,7 @@ public class BundleCheckpointHandlers {
           // Calculate the watermark hold for the timer.
           long outputTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
           if (!residual.getApplication().getOutputWatermarksMap().isEmpty()) {
-            for (org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp outputWatermark :
+            for (org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Timestamp outputWatermark :
                 residual.getApplication().getOutputWatermarksMap().values()) {
               outputTimestamp = Math.min(outputTimestamp, outputWatermark.getSeconds() * 1000);
             }

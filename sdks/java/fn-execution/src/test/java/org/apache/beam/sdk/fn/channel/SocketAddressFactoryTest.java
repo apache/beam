@@ -23,7 +23,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.unix.DomainSocketAddress;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;

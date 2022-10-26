@@ -20,14 +20,15 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import java.io.Serializable;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -35,15 +36,14 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark flatten translation. */
 @RunWith(JUnit4.class)
 public class FlattenTest implements Serializable {
-  private static Pipeline pipeline;
+  @Rule public transient TestPipeline pipeline = TestPipeline.fromOptions(testOptions());
 
-  @BeforeClass
-  public static void beforeClass() {
+  private static PipelineOptions testOptions() {
     SparkStructuredStreamingPipelineOptions options =
         PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
     options.setTestMode(true);
-    pipeline = Pipeline.create(options);
+    return options;
   }
 
   @Test

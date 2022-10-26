@@ -17,15 +17,15 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"log"
+	"os"
 	"testing"
 
 	yaml "gopkg.in/yaml.v2"
 )
 
 func TestStandardCoders(t *testing.T) {
-	data, err := ioutil.ReadFile(yamlPath)
+	data, err := os.ReadFile(yamlPath)
 	if err != nil {
 		log.Fatalf("Couldn't read %v: %v", yamlPath, err)
 	}

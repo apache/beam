@@ -65,8 +65,8 @@ func (fn *myDoFn2) ProcessElement(word string, iter func(**Foo, *beam.EventTime)
 	return mtime.Now(), word, len(word)
 }
 
-func ExampleDoFn2x1() {
-	// Since myDoFn's ProcessElement call has 2 inputs and 1 output, call DoFn2x1.
+func ExampleDoFn3x1() {
+	// Since myDoFn's ProcessElement call has 3 inputs and 1 output, call DoFn3x1.
 	// Since the inputs to ProcessElement are (string, func(int)), and the output
 	// is int, we pass those parameter types to the function.
 	register.DoFn3x1[string, func(*string) bool, func(int), int](&myDoFn{})

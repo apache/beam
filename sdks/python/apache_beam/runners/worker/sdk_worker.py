@@ -61,6 +61,7 @@ from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.data_plane import PeriodicThread
+from apache_beam.runners.worker.statecache import CacheAware
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
@@ -212,7 +213,9 @@ class SdkHarness(object):
     if status_address:
       try:
         self._status_handler = FnApiWorkerStatusHandler(
-            status_address, self._bundle_processor_cache,
+            status_address,
+            self._bundle_processor_cache,
+            self._state_cache,
             enable_heap_dump)  # type: Optional[FnApiWorkerStatusHandler]
       except Exception:
         traceback_string = traceback.format_exc()
@@ -363,9 +366,7 @@ class SdkHarness(object):
   def create_worker(self):
     # type: () -> SdkWorker
     return SdkWorker(
-        self._bundle_processor_cache,
-        state_cache_metrics_fn=self._state_cache.get_monitoring_infos,
-        profiler_factory=self._profiler_factory)
+        self._bundle_processor_cache, profiler_factory=self._profiler_factory)
 
 
 class BundleProcessorCache(object):
@@ -581,12 +582,10 @@ class SdkWorker(object):
   def __init__(
       self,
       bundle_processor_cache,  # type: BundleProcessorCache
-      state_cache_metrics_fn=list,  # type: Callable[[], Iterable[metrics_pb2.MonitoringInfo]]
       profiler_factory=None,  # type: Optional[Callable[..., Profile]]
   ):
     # type: (...) -> None
     self.bundle_processor_cache = bundle_processor_cache
-    self.state_cache_metrics_fn = state_cache_metrics_fn
     self.profiler_factory = profiler_factory
 
   def do_instruction(self, request):
@@ -634,7 +633,6 @@ class SdkWorker(object):
           delayed_applications, requests_finalization = (
               bundle_processor.process_bundle(instruction_id))
           monitoring_infos = bundle_processor.monitoring_infos()
-          monitoring_infos.extend(self.state_cache_metrics_fn())
           response = beam_fn_api_pb2.InstructionResponse(
               instruction_id=instruction_id,
               process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
@@ -878,7 +876,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     for _, state_handler in self._state_handler_cache.items():
       state_handler.done()
     self._state_handler_cache.clear()
-    self._state_cache.evict_all()
+    self._state_cache.invalidate_all()
 
 
 class CachingStateHandler(metaclass=abc.ABCMeta):
@@ -1130,7 +1128,6 @@ class GlobalCachingStateHandler(CachingStateHandler):
     # for items cached at the bundle level.
     self._context.bundle_cache_token = bundle_id
     try:
-      self._state_cache.initialize_metrics()
       self._context.user_state_cache_token = user_state_cache_token
       with self._underlying.process_instruction_id(bundle_id):
         yield
@@ -1152,22 +1149,9 @@ class GlobalCachingStateHandler(CachingStateHandler):
       return self._lazy_iterator(state_key, coder)
     # Cache lookup
     cache_state_key = self._convert_to_cache_key(state_key)
-    cached_value = self._state_cache.get(cache_state_key, cache_token)
-    if cached_value is None:
-      # Cache miss, need to retrieve from the Runner
-      # Further size estimation or the use of the continuation token on the
-      # runner side could fall back to materializing one item at a time.
-      # https://jira.apache.org/jira/browse/BEAM-8297
-      materialized = cached_value = (
-          self._partially_cached_iterable(state_key, coder))
-      if isinstance(materialized, (list, self.ContinuationIterable)):
-        self._state_cache.put(cache_state_key, cache_token, materialized)
-      else:
-        _LOGGER.error(
-            "Uncacheable type %s for key %s. Not caching.",
-            materialized,
-            state_key)
-    return cached_value
+    return self._state_cache.get(
+        (cache_state_key, cache_token),
+        lambda key: self._partially_cached_iterable(state_key, coder))
 
   def extend(
       self,
@@ -1178,29 +1162,21 @@ class GlobalCachingStateHandler(CachingStateHandler):
     # type: (...) -> _Future
     cache_token = self._get_cache_token(state_key)
     if cache_token:
-      # Update the cache
+      # Update the cache if the value is already present and
+      # can be updated.
       cache_key = self._convert_to_cache_key(state_key)
-      cached_value = self._state_cache.get(cache_key, cache_token)
-      # Keep in mind that the state for this key can be evicted
-      # while executing this function. Either read or write to the cache
-      # but never do both here!
-      if cached_value is None:
-        # We have never cached this key before, first retrieve state
-        cached_value = self.blocking_get(state_key, coder)
-      # Just extend the already cached value
+      cached_value = self._state_cache.peek((cache_key, cache_token))
       if isinstance(cached_value, list):
+        # The state is fully cached and can be extended
+
         # Materialize provided iterable to ensure reproducible iterations,
         # here and when writing to the state handler below.
         elements = list(elements)
-        # The state is fully cached and can be extended
         cached_value.extend(elements)
-      elif isinstance(cached_value, self.ContinuationIterable):
-        # The state is too large to be fully cached (continuation token used),
-        # only the first part is cached, the rest if enumerated via the runner.
-        pass
-      else:
-        # When a corrupt value made it into the cache, we have to fail.
-        raise Exception("Unexpected cached value: %s" % cached_value)
+        # Re-insert into the cache the updated value so the updated size is
+        # reflected.
+        self._state_cache.put((cache_key, cache_token), cached_value)
+
     # Write to state handler
     futures = []
     out = coder_impl.create_OutputStream()
@@ -1223,7 +1199,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
     cache_token = self._get_cache_token(state_key)
     if cache_token:
       cache_key = self._convert_to_cache_key(state_key)
-      self._state_cache.clear(cache_key, cache_token)
+      self._state_cache.put((cache_key, cache_token), [])
     return self._underlying.clear(state_key)
 
   def done(self):
@@ -1290,7 +1266,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
           functools.partial(
               self._lazy_iterator, state_key, coder, continuation_token))
 
-  class ContinuationIterable(Generic[T]):
+  class ContinuationIterable(Generic[T], CacheAware):
     def __init__(self, head, continue_iterator_fn):
       # type: (Iterable[T], Callable[[], Iterable[T]]) -> None
       self.head = head
@@ -1302,6 +1278,13 @@ class GlobalCachingStateHandler(CachingStateHandler):
         yield item
       for item in self.continue_iterator_fn():
         yield item
+
+    def get_referents_for_cache(self):
+      # type: () -> List[Any]
+      # Only capture the size of the elements and not the
+      # continuation iterator since it references objects
+      # we don't want to include in the cache measurement.
+      return [self.head]
 
   @staticmethod
   def _convert_to_cache_key(state_key):

@@ -44,14 +44,11 @@ public class SamzaPipelineOptionsValidator {
               : pipelineOptions.getConfigOverride();
       final JobConfig jobConfig = new JobConfig(new MapConfig(configs));
 
-      // TODO: once Samza supports a better thread pool modle, e.g. thread
-      // per-task/key-range, this can be supported.
+      // Validate that the threadPoolSize is not override in the code
       checkArgument(
           jobConfig.getThreadPoolSize() <= 1,
           JOB_CONTAINER_THREAD_POOL_SIZE
-              + " cannot be configured to"
-              + " greater than 1 for max bundle size: "
-              + pipelineOptions.getMaxBundleSize());
+              + " config should be replaced with SamzaPipelineOptions.numThreadsForProcessElement");
     }
   }
 }

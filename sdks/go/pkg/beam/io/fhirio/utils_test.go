@@ -27,6 +27,8 @@ import (
 )
 
 var (
+	testOperationResult = operationResults{Successes: 5, Failures: 2}
+
 	fakeRequestReturnErrorMessage = "internal error"
 	requestReturnErrorFakeClient  = &fakeFhirStoreClient{
 		fakeReadResources: func([]byte) (*http.Response, error) {
@@ -39,6 +41,9 @@ var (
 			return nil, errors.New(fakeRequestReturnErrorMessage)
 		},
 		fakeDeidentify: func(string, string, *healthcare.DeidentifyConfig) (operationResults, error) {
+			return operationResults{}, errors.New(fakeRequestReturnErrorMessage)
+		},
+		fakeImportResources: func(string, string, ContentStructure) (operationResults, error) {
 			return operationResults{}, errors.New(fakeRequestReturnErrorMessage)
 		},
 	}
@@ -95,10 +100,11 @@ var (
 )
 
 type fakeFhirStoreClient struct {
-	fakeReadResources  func([]byte) (*http.Response, error)
-	fakeExecuteBundles func(string, string) (*http.Response, error)
-	fakeSearch         func(string, string, map[string]string, string) (*http.Response, error)
-	fakeDeidentify     func(string, string, *healthcare.DeidentifyConfig) (operationResults, error)
+	fakeReadResources   func([]byte) (*http.Response, error)
+	fakeExecuteBundles  func(string, string) (*http.Response, error)
+	fakeSearch          func(string, string, map[string]string, string) (*http.Response, error)
+	fakeDeidentify      func(string, string, *healthcare.DeidentifyConfig) (operationResults, error)
+	fakeImportResources func(string, string, ContentStructure) (operationResults, error)
 }
 
 func (c *fakeFhirStoreClient) executeBundle(storePath, bundle string) (*http.Response, error) {
@@ -115,6 +121,10 @@ func (c *fakeFhirStoreClient) search(storePath, resourceType string, queries map
 
 func (c *fakeFhirStoreClient) deidentify(srcStorePath, dstStorePath string, deidConfig *healthcare.DeidentifyConfig) (operationResults, error) {
 	return c.fakeDeidentify(srcStorePath, dstStorePath, deidConfig)
+}
+
+func (c *fakeFhirStoreClient) importResources(storePath, gcsURI string, contentStructure ContentStructure) (operationResults, error) {
+	return c.fakeImportResources(storePath, gcsURI, contentStructure)
 }
 
 // Useful to fake the Body of a http.Response.

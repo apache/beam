@@ -131,6 +131,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   public PCollection<Void> expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
     String operationName = input.getName() + "/" + getName();
     BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+    org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument(
+        !options.getUseStorageApiConnectionPool(),
+        "useStorageApiConnectionPool only supported " + "when using STORAGE_API_AT_LEAST_ONCE");
     return input
         .apply(
             "Write Records",
@@ -176,13 +179,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private DescriptorWrapper descriptorWrapper;
       private Instant nextCacheTickle = Instant.MAX;
       private final int clientNumber;
+      private final boolean usingMultiplexing;
 
       public DestinationState(
           String tableUrn,
           MessageConverter<ElementT> messageConverter,
           DatasetService datasetService,
           boolean useDefaultStream,
-          int streamAppendClientCount) {
+          int streamAppendClientCount,
+          BigQueryOptions bigQueryOptions) {
         this.tableUrn = tableUrn;
         this.messageConverter = messageConverter;
         this.pendingMessages = Lists.newArrayList();
@@ -190,6 +195,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.useDefaultStream = useDefaultStream;
         this.descriptorWrapper = messageConverter.getSchemaDescriptor();
         this.clientNumber = new Random().nextInt(streamAppendClientCount);
+        this.usingMultiplexing = bigQueryOptions.getUseStorageApiConnectionPool();
       }
 
       void teardown() {
@@ -229,7 +235,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       StreamAppendClient generateClient() throws Exception {
         Preconditions.checkStateNotNull(maybeDatasetService);
-        return maybeDatasetService.getStreamAppendClient(streamName, descriptorWrapper.descriptor);
+        return maybeDatasetService.getStreamAppendClient(
+            streamName, descriptorWrapper.descriptor, usingMultiplexing);
       }
 
       StreamAppendClient getStreamAppendClient(boolean lookupCache) {
@@ -342,11 +349,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   this.currentOffset += inserts.getSerializedRowsCount();
                 }
                 ApiFuture<AppendRowsResponse> response = writeStream.appendRows(offset, protoRows);
-                inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
-                if (writeStream.getInflightWaitSeconds() > 5) {
-                  LOG.warn(
-                      "Storage Api write delay more than {} seconds.",
-                      writeStream.getInflightWaitSeconds());
+                if (!usingMultiplexing) {
+                  inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
+                  if (writeStream.getInflightWaitSeconds() > 5) {
+                    LOG.warn(
+                        "Storage Api write delay more than {} seconds.",
+                        writeStream.getInflightWaitSeconds());
+                  }
                 }
                 return response;
               } catch (Exception e) {
@@ -372,15 +381,14 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       String retrieveErrorDetails(Iterable<Context<AppendRowsResponse>> contexts) {
         return StreamSupport.stream(contexts.spliterator(), false)
-            .map(ctx -> Preconditions.checkStateNotNull(ctx.getError()))
+            .<@Nullable Throwable>map(ctx -> ctx.getError())
             .map(
                 err ->
-                    String.format(
-                        "message: %s, stacktrace: %s",
-                        err,
-                        Lists.newArrayList(err.getStackTrace()).stream()
+                    (err == null)
+                        ? "no error"
+                        : Lists.newArrayList(err.getStackTrace()).stream()
                             .map(se -> se.toString())
-                            .collect(Collectors.joining("\n"))))
+                            .collect(Collectors.joining("\n")))
             .collect(Collectors.joining(","));
       }
     }
@@ -457,7 +465,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     }
 
     DestinationState createDestinationState(
-        ProcessContext c, DestinationT destination, DatasetService datasetService) {
+        ProcessContext c,
+        DestinationT destination,
+        DatasetService datasetService,
+        BigQueryOptions bigQueryOptions) {
       TableDestination tableDestination1 = dynamicDestinations.getTable(destination);
       checkArgument(
           tableDestination1 != null,
@@ -476,7 +487,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           messageConverter,
           datasetService,
           useDefaultStream,
-          streamAppendClientCount);
+          streamAppendClientCount,
+          bigQueryOptions);
     }
 
     @ProcessElement
@@ -490,7 +502,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       Preconditions.checkStateNotNull(destinations);
       DestinationState state =
           destinations.computeIfAbsent(
-              element.getKey(), k -> createDestinationState(c, k, initializedDatasetService));
+              element.getKey(),
+              k ->
+                  createDestinationState(
+                      c, k, initializedDatasetService, pipelineOptions.as(BigQueryOptions.class)));
       flushIfNecessary();
       state.addMessage(element.getValue());
       ++numPendingRecords;

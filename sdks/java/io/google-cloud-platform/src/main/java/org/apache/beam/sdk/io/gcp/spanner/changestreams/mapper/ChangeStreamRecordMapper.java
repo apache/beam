@@ -67,6 +67,8 @@ public class ChangeStreamRecordMapper {
       "number_of_records_in_transaction";
   private static final String NUMBER_OF_PARTITIONS_IN_TRANSACTION_COLUMN =
       "number_of_partitions_in_transaction";
+  private static final String TRANSACTION_TAG = "transaction_tag";
+  private static final String IS_SYSTEM_TRANSACTION = "is_system_transaction";
   private static final String NAME_COLUMN = "name";
   private static final String TYPE_COLUMN = "type";
   private static final String IS_PRIMARY_KEY_COLUMN = "is_primary_key";
@@ -253,6 +255,8 @@ public class ChangeStreamRecordMapper {
         valueCaptureTypeFrom(row.getString(VALUE_CAPTURE_TYPE_COLUMN)),
         row.getLong(NUMBER_OF_RECORDS_IN_TRANSACTION_COLUMN),
         row.getLong(NUMBER_OF_PARTITIONS_IN_TRANSACTION_COLUMN),
+        row.getString(TRANSACTION_TAG),
+        row.getBoolean(IS_SYSTEM_TRANSACTION),
         changeStreamRecordMetadataFrom(partition, commitTimestamp, resultSetMetadata));
   }
 

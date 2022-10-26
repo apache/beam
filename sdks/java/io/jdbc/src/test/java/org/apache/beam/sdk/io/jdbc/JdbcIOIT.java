@@ -21,10 +21,10 @@ import static org.apache.beam.sdk.io.common.DatabaseTestHelper.assertRowCount;
 import static org.apache.beam.sdk.io.common.DatabaseTestHelper.getTestDataToWrite;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.junit.Assert.assertNotEquals;
 
 import com.google.cloud.Timestamp;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -50,8 +50,8 @@ import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -61,6 +61,7 @@ import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -95,8 +96,6 @@ import org.postgresql.ds.PGSimpleDataSource;
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
 
-  // the number of rows written to table in normal integration tests (not the performance test).
-  private static final int EXPECTED_ROW_COUNT = 1000;
   private static final String NAMESPACE = JdbcIOIT.class.getName();
   // the number of rows written to table in the performance test.
   private static int numberOfRows;
@@ -116,6 +115,7 @@ public class JdbcIOIT {
     }
     org.junit.Assume.assumeNotNull(options);
     numberOfRows = options.getNumberOfRecords();
+
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     tableName = DatabaseTestHelper.getTestTableName("IT");
     settings =
@@ -135,10 +135,13 @@ public class JdbcIOIT {
     DatabaseTestHelper.createTable(dataSource, tableName);
     try {
       PipelineResult writeResult = runWrite();
-      writeResult.waitUntilFinish();
-      PipelineResult readResult = runRead();
-      readResult.waitUntilFinish();
+      PipelineResult.State writeState = writeResult.waitUntilFinish();
+      PipelineResult readResult = runRead(tableName);
+      PipelineResult.State readState = readResult.waitUntilFinish();
       gatherAndPublishMetrics(writeResult, readResult);
+      // Fail the test if pipeline failed.
+      assertNotEquals(writeState, PipelineResult.State.FAILED);
+      assertNotEquals(readState, PipelineResult.State.FAILED);
     } finally {
       DatabaseTestHelper.deleteTable(dataSource, tableName);
     }
@@ -230,7 +233,10 @@ public class JdbcIOIT {
    * verify that their values are correct. Where first/last 500 rows is determined by the fact that
    * we know all rows have a unique id - we can use the natural ordering of that key.
    */
-  private PipelineResult runRead() {
+  private PipelineResult runRead(String tableName) {
+    if (tableName == null) {
+      tableName = JdbcIOIT.tableName;
+    }
     PCollection<TestRow> namesAndIds =
         pipelineRead
             .apply(
@@ -378,9 +384,15 @@ public class JdbcIOIT {
     String firstTableName = DatabaseTestHelper.getTestTableName("JDBCIT_WRITE");
     DatabaseTestHelper.createTable(dataSource, firstTableName);
     try {
-      ArrayList<KV<Integer, String>> data = getTestDataToWrite(EXPECTED_ROW_COUNT);
 
-      PCollection<KV<Integer, String>> dataCollection = pipelineWrite.apply(Create.of(data));
+      PCollection<KV<Integer, String>> dataCollection =
+          pipelineWrite
+              .apply(GenerateSequence.from(0).to(numberOfRows))
+              .apply(
+                  FlatMapElements.into(
+                          TypeDescriptors.kvs(
+                              TypeDescriptors.integers(), TypeDescriptors.strings()))
+                      .via(num -> getTestDataToWrite(1)));
       PCollection<JdbcTestHelper.TestDto> resultSetCollection =
           dataCollection.apply(
               getJdbcWriteWithReturning(firstTableName)
@@ -393,16 +405,12 @@ public class JdbcIOIT {
                       }));
       resultSetCollection.setCoder(JdbcTestHelper.TEST_DTO_CODER);
 
-      List<JdbcTestHelper.TestDto> expectedResult = new ArrayList<>();
-      for (int id = 0; id < EXPECTED_ROW_COUNT; id++) {
-        expectedResult.add(new JdbcTestHelper.TestDto(id));
-      }
-
-      PAssert.that(resultSetCollection).containsInAnyOrder(expectedResult);
+      PAssert.that(resultSetCollection.apply(Count.globally()))
+          .containsInAnyOrder(Long.valueOf(numberOfRows));
 
       pipelineWrite.run().waitUntilFinish();
 
-      assertRowCount(dataSource, firstTableName, EXPECTED_ROW_COUNT);
+      assertRowCount(dataSource, firstTableName, numberOfRows);
     } finally {
       DatabaseTestHelper.deleteTable(dataSource, firstTableName);
     }

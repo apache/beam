@@ -212,7 +212,6 @@ func main() {
 		go func(workerId string) {
 			log.Printf("Executing: python %v", strings.Join(args, " "))
 			log.Fatalf("Python exited: %v", execx.ExecuteEnv(map[string]string{"WORKER_ID": workerId}, "python", args...))
-			wg.Done()
 		}(workerId)
 	}
 	wg.Wait()

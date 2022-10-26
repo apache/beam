@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
@@ -34,7 +36,7 @@ interface BigQuerySourceDef extends Serializable {
    *
    * @param stepUuid Job UUID
    * @param coder Coder
-   * @param parseFn Parse function
+   * @param readerFactory Reader factory
    * @param useAvroLogicalTypes Use avro logical types i.e DATE, TIME
    * @param <T> Type of the resulting PCollection
    * @return An implementation of {@link BigQuerySourceBase}
@@ -42,7 +44,7 @@ interface BigQuerySourceDef extends Serializable {
   <T> BigQuerySourceBase<T> toSource(
       String stepUuid,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
+      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
       boolean useAvroLogicalTypes);
 
   /**

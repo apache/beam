@@ -19,13 +19,17 @@
 package org.apache.beam.learning.katas.coretransforms.cogroupbykey;
 
 // beam-playground:
-//   name: GroupByKey
+//   name: JoinPCollections
 //   description: Task from katas that joins two PCollections.
 //   multifile: true
 //   context_line: 48
 //   categories:
 //     - Combiners
 //     - Core Transforms
+//   complexity: MEDIUM
+//   tags:
+//     - join
+//     - strings
 
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;

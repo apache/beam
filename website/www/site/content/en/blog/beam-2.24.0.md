@@ -3,6 +3,7 @@ title:  "Apache Beam 2.24.0"
 date:   2020-09-18 00:00:01 -0800
 categories:
   - blog
+  - release
 authors:
   - danoliveira
 ---

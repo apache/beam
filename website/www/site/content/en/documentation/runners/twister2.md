@@ -88,7 +88,7 @@ deployments and how to get them setup visit [Twister2 Docs](https://twister2.org
 <nav class="version-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="version-twister2-0.6.0">Twister2 0.6.0</li>
+    <li data-value="twister2-0.6.0">Twister2 0.6.0</li>
   </ul>
 </nav>
 
@@ -113,6 +113,7 @@ Note: Currently file paths need to be absolute paths.
 
 ## Pipeline Options for the Twister2 Runner
 
+<div class="table-container-wrapper">
 <table class="table table-bordered">
 <tr>
   <th>Field</th>
@@ -150,3 +151,4 @@ Note: Currently file paths need to be absolute paths.
   <td>2048</td>
 </tr>
 </table>
+</div>

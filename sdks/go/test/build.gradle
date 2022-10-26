@@ -55,7 +55,6 @@ task flinkValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:java8:docker"
-  dependsOn ":sdks:java:container:java11:docker"
   dependsOn ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
@@ -80,7 +79,6 @@ task samzaValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:java8:docker"
-  dependsOn ":sdks:java:container:java11:docker"
   dependsOn ":runners:samza:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
@@ -106,7 +104,6 @@ task sparkValidatesRunner {
 
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:java:container:java8:docker"
-  dependsOn ":sdks:java:container:java11:docker"
   dependsOn ":runners:spark:2:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
@@ -138,7 +135,6 @@ tasks.register("ulrValidatesRunner") {
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:java8:docker"
-  dependsOn ":sdks:java:container:java11:docker"
   dependsOn "setupVirtualenv"
   dependsOn ":sdks:python:buildPython"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
