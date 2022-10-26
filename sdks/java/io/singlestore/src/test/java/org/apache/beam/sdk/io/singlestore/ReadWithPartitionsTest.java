@@ -17,9 +17,235 @@
  */
 package org.apache.beam.sdk.io.singlestore;
 
+import static org.junit.Assert.assertThrows;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import javax.sql.DataSource;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.common.TestRow;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.values.PCollection;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
+import org.mockito.stubbing.OngoingStubbing;
 
 /** Test ReadWithPartitions. */
 @RunWith(JUnit4.class)
-public class ReadWithPartitionsTest {}
+public class ReadWithPartitionsTest {
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  public final transient Pipeline pipelineForErrorChecks = Pipeline.create();
+
+  private static DataSourceConfiguration dataSourceConfiguration;
+
+  private static final int EXPECTED_ROW_COUNT = 10;
+
+  ResultSet getMockResultSet(int from, int to) throws SQLException {
+    ResultSet res = Mockito.mock(ResultSet.class, Mockito.withSettings().serializable());
+    OngoingStubbing<Boolean> next = Mockito.when(res.next());
+    for (int i = from; i < to; i++) {
+      next = next.thenReturn(true);
+    }
+    next.thenReturn(false);
+
+    OngoingStubbing<Integer> getInt = Mockito.when(res.getInt(1));
+    for (int i = from; i < to; i++) {
+      getInt = getInt.thenReturn(i);
+    }
+
+    OngoingStubbing<String> getString = Mockito.when(res.getString(2));
+    for (int i = from; i < to; i++) {
+      getString = getString.thenReturn(TestRow.getNameForSeed(i));
+    }
+
+    return res;
+  }
+
+  @Before
+  public void init() throws SQLException {
+    ResultSet res0 = getMockResultSet(0, EXPECTED_ROW_COUNT / 2);
+    ResultSet res1 = getMockResultSet(EXPECTED_ROW_COUNT / 2, EXPECTED_ROW_COUNT);
+
+    ResultSet resNumPartitions =
+        Mockito.mock(ResultSet.class, Mockito.withSettings().serializable());
+    Mockito.when(resNumPartitions.next()).thenReturn(true).thenReturn(false);
+    Mockito.when(resNumPartitions.getInt(1)).thenReturn(2);
+
+    Statement stmtNumPartitions =
+        Mockito.mock(Statement.class, Mockito.withSettings().serializable());
+    Mockito.when(
+            stmtNumPartitions.executeQuery(
+                "SELECT num_partitions FROM information_schema.DISTRIBUTED_DATABASES WHERE database_name = 'db'"))
+        .thenReturn(resNumPartitions);
+
+    PreparedStatement stmt0 =
+        Mockito.mock(PreparedStatement.class, Mockito.withSettings().serializable());
+    Mockito.when(stmt0.executeQuery()).thenReturn(res0);
+
+    PreparedStatement stmt1 =
+        Mockito.mock(PreparedStatement.class, Mockito.withSettings().serializable());
+    Mockito.when(stmt1.executeQuery()).thenReturn(res1);
+
+    Connection conn = Mockito.mock(Connection.class, Mockito.withSettings().serializable());
+    Mockito.when(conn.createStatement()).thenReturn(stmtNumPartitions);
+    Mockito.when(conn.prepareStatement("SELECT * FROM (SELECT * FROM `t`) WHERE partition_id()=0"))
+        .thenReturn(stmt0);
+    Mockito.when(conn.prepareStatement("SELECT * FROM (SELECT * FROM `t`) WHERE partition_id()=1"))
+        .thenReturn(stmt1);
+
+    DataSource dataSource = Mockito.mock(DataSource.class, Mockito.withSettings().serializable());
+    Mockito.when(dataSource.getConnection()).thenReturn(conn);
+
+    dataSourceConfiguration =
+        Mockito.mock(DataSourceConfiguration.class, Mockito.withSettings().serializable());
+    Mockito.when(dataSourceConfiguration.getDataSource()).thenReturn(dataSource);
+    Mockito.when(dataSourceConfiguration.getDatabase())
+        .thenReturn(ValueProvider.StaticValueProvider.of("db"));
+  }
+
+  @Test
+  public void testReadWithPartitions() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            SingleStoreIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(dataSourceConfiguration)
+                .withQuery("SELECT * FROM `t`")
+                .withRowMapper(new TestHelper.TestRowMapper())
+                .withCoder(SerializableCoder.of(TestRow.class)));
+
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
+        .isEqualTo((long) EXPECTED_ROW_COUNT);
+
+    Iterable<TestRow> expectedValues = TestRow.getExpectedValues(0, EXPECTED_ROW_COUNT);
+    PAssert.that(rows).containsInAnyOrder(expectedValues);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithPartitionsWithTable() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            SingleStoreIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(dataSourceConfiguration)
+                .withTable("t")
+                .withRowMapper(new TestHelper.TestRowMapper())
+                .withCoder(SerializableCoder.of(TestRow.class)));
+
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
+        .isEqualTo((long) EXPECTED_ROW_COUNT);
+
+    Iterable<TestRow> expectedValues = TestRow.getExpectedValues(0, EXPECTED_ROW_COUNT);
+    PAssert.that(rows).containsInAnyOrder(expectedValues);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithPartitionsWithInitialNumReaders() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            SingleStoreIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(dataSourceConfiguration)
+                .withQuery("SELECT * FROM `t`")
+                .withRowMapper(new TestHelper.TestRowMapper())
+                .withInitialNumReaders(2)
+                .withCoder(SerializableCoder.of(TestRow.class)));
+
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
+        .isEqualTo((long) EXPECTED_ROW_COUNT);
+
+    Iterable<TestRow> expectedValues = TestRow.getExpectedValues(0, EXPECTED_ROW_COUNT);
+    PAssert.that(rows).containsInAnyOrder(expectedValues);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithPartitionsWithoutCoder() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            SingleStoreIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(dataSourceConfiguration)
+                .withQuery("SELECT * FROM `t`")
+                .withRowMapper(new TestHelper.TestRowMapper()));
+
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
+        .isEqualTo((long) EXPECTED_ROW_COUNT);
+
+    Iterable<TestRow> expectedValues = TestRow.getExpectedValues(0, EXPECTED_ROW_COUNT);
+    PAssert.that(rows).containsInAnyOrder(expectedValues);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithPartitionsZeroInitialNumReaders() {
+    assertThrows(
+        "withInitialNumReaders() should be greater or equal to 1",
+        IllegalArgumentException.class,
+        () -> {
+          pipelineForErrorChecks.apply(
+              SingleStoreIO.<TestRow>readWithPartitions()
+                  .withDataSourceConfiguration(dataSourceConfiguration)
+                  .withTable("t")
+                  .withInitialNumReaders(0)
+                  .withRowMapper(new TestHelper.TestRowMapper()));
+        });
+  }
+
+  @Test
+  public void testReadWithPartitionsTooBigInitialNumReaders() {
+    pipelineForErrorChecks.apply(
+        SingleStoreIO.<TestRow>readWithPartitions()
+            .withDataSourceConfiguration(dataSourceConfiguration)
+            .withTable("t")
+            .withInitialNumReaders(100)
+            .withRowMapper(new TestHelper.TestRowMapper()));
+
+    assertThrows(
+        "withInitialNumReaders() should not be greater then number of partitions in the database.\n"
+            + "InitialNumReaders is 100, number of partitions in the database is 2",
+        Pipeline.PipelineExecutionException.class,
+        () -> pipelineForErrorChecks.run().waitUntilFinish());
+  }
+
+  @Test
+  public void testReadWithPartitionsNoTableAndQuery() {
+    assertThrows(
+        "One of withTable() or withQuery() is required",
+        IllegalArgumentException.class,
+        () -> {
+          pipelineForErrorChecks.apply(
+              SingleStoreIO.<TestRow>readWithPartitions()
+                  .withDataSourceConfiguration(dataSourceConfiguration)
+                  .withRowMapper(new TestHelper.TestRowMapper()));
+        });
+  }
+
+  @Test
+  public void testReadWithPartitionsBothTableAndQuery() {
+    assertThrows(
+        "withTable() can not be used together with withQuery()",
+        IllegalArgumentException.class,
+        () -> {
+          pipelineForErrorChecks.apply(
+              SingleStoreIO.<TestRow>readWithPartitions()
+                  .withDataSourceConfiguration(dataSourceConfiguration)
+                  .withTable("t")
+                  .withQuery("SELECT * FROM `t`")
+                  .withRowMapper(new TestHelper.TestRowMapper()));
+        });
+  }
+}

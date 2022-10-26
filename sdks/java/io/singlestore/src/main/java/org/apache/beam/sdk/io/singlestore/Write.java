@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.singlestore;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -94,6 +95,16 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
     return toBuilder().setUserDataMapper(userDataMapper).build();
   }
 
+  public Write<T> withBatchSize(Integer batchSize) {
+    checkNotNull(batchSize, "batchSize can not be null");
+    return withBatchSize(ValueProvider.StaticValueProvider.of(batchSize));
+  }
+
+  public Write<T> withBatchSize(ValueProvider<Integer> batchSize) {
+    checkNotNull(batchSize, "batchSize can not be null");
+    return toBuilder().setBatchSize(batchSize).build();
+  }
+
   @Override
   public PDone expand(PCollection<T> input) {
     DataSourceConfiguration dataSourceConfiguration =
@@ -103,6 +114,7 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
     UserDataMapper<T> userDataMapper =
         Util.getRequiredArgument(getUserDataMapper(), "withUserDataMapper() is required");
     int batchSize = Util.getArgumentWithDefault(getBatchSize(), DEFAULT_BATCH_SIZE);
+    checkArgument(batchSize > 0, "batchSize should be greater then 0");
 
     input
         .apply(

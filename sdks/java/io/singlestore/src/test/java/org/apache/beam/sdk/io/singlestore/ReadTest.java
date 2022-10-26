@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.singlestore;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import java.io.Serializable;
 import java.sql.Connection;
@@ -25,6 +26,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.PAssert;
@@ -45,6 +47,7 @@ import org.mockito.stubbing.OngoingStubbing;
 @RunWith(JUnit4.class)
 public class ReadTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  public final transient Pipeline pipelineForErrorChecks = Pipeline.create();
 
   private static DataSourceConfiguration dataSourceConfiguration;
   private static PreparedStatement stmt;
@@ -202,5 +205,35 @@ public class ReadTest {
     PAssert.that(rows).containsInAnyOrder(expectedValues);
 
     pipeline.run();
+  }
+
+  @Test
+  public void testReadNoTableAndQuery() {
+    assertThrows(
+        "One of withTable() or withQuery() is required",
+        IllegalArgumentException.class,
+        () -> {
+          pipelineForErrorChecks.apply(
+              SingleStoreIO.<TestRow>read()
+                  .withDataSourceConfiguration(dataSourceConfiguration)
+                  .withRowMapper(new TestHelper.TestRowMapper())
+                  .withOutputParallelization(false));
+        });
+  }
+
+  @Test
+  public void testReadBothTableAndQuery() {
+    assertThrows(
+        "withTable() can not be used together with withQuery()",
+        IllegalArgumentException.class,
+        () -> {
+          pipelineForErrorChecks.apply(
+              SingleStoreIO.<TestRow>read()
+                  .withDataSourceConfiguration(dataSourceConfiguration)
+                  .withTable("t")
+                  .withQuery("SELECT * FROM `t`")
+                  .withRowMapper(new TestHelper.TestRowMapper())
+                  .withOutputParallelization(false));
+        });
   }
 }
