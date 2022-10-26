@@ -34,8 +34,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.joda.time.Duration;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
@@ -87,7 +92,14 @@ public class DatabaseTestHelper {
             .map(kv -> kv.getKey() + " " + kv.getValue())
             .collect(Collectors.joining(", "));
     SQLException exception = null;
-    for (int i = 0; i < 4; i++) {
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backoff =
+        FluentBackoff.DEFAULT
+            .withInitialBackoff(Duration.standardSeconds(1))
+            .withMaxCumulativeBackoff(Duration.standardMinutes(5))
+            .withMaxRetries(4)
+            .backoff();
+    while (true) {
       try (Connection connection = dataSource.getConnection()) {
         try (Statement statement = connection.createStatement()) {
           statement.execute(String.format("create table %s (%s)", tableName, fieldsList));
@@ -96,8 +108,17 @@ public class DatabaseTestHelper {
       } catch (SQLException e) {
         exception = e;
       }
+      boolean hasNext;
+      try {
+        hasNext = BackOffUtils.next(sleeper, backoff);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      if (!hasNext) {
+        // we tried the max number of times
+        throw exception;
+      }
     }
-    throw exception;
   }
 
   public static void createTable(DataSource dataSource, String tableName) throws SQLException {
