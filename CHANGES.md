@@ -60,7 +60,7 @@
 
 ## Breaking Changes
 
-* `ParquetIO.withSplit` was removed ([#X](https://github.com/apache/beam/issues/23832)).
+* `ParquetIO.withSplit` was removed ([#23832](https://github.com/apache/beam/issues/23832)).
 
 # [2.43.0] - Unreleased
 
