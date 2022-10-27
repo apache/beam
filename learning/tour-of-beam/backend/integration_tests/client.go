@@ -39,20 +39,38 @@ func verifyHeaders(header http.Header) error {
 
 func GetSdkList(url string) (SdkList, error) {
 	var result SdkList
-	err := Get(&result, url, nil)
+	err := Get(&result, url, nil, nil)
 	return result, err
 }
 
 func GetContentTree(url, sdk string) (ContentTree, error) {
 	var result ContentTree
-	err := Get(&result, url, map[string]string{"sdk": sdk})
+	err := Get(&result, url, map[string]string{"sdk": sdk}, nil)
 	return result, err
 }
 
 func GetUnitContent(url, sdk, unitId string) (Unit, error) {
 	var result Unit
-	err := Get(&result, url, map[string]string{"sdk": sdk, "id": unitId})
+	err := Get(&result, url, map[string]string{"sdk": sdk, "id": unitId}, nil)
 	return result, err
+}
+
+func GetUserProgress(url, sdk, token string) (SdkProgress, error) {
+	var result SdkProgress
+	err := Get(&result, url, map[string]string{"sdk": sdk},
+		map[string]string{"Authorization": "Bearer " + token})
+	return result, err
+}
+
+func PostUnitComplete(url, sdk, unitId, token string) error {
+	var result struct{}
+	err := Do(&result, http.MethodPost, url, map[string]string{"sdk": sdk, "id": unitId},
+		map[string]string{"Authorization": "Bearer " + token}, nil)
+	return err
+}
+
+func Get(dst interface{}, url string, queryParams, headers map[string]string) error {
+	return Do(dst, http.MethodGet, url, queryParams, headers, nil)
 }
 
 // Generic HTTP call wrapper
@@ -60,12 +78,16 @@ func GetUnitContent(url, sdk, unitId string) (Unit, error) {
 // * dst: response struct pointer
 // * url: request  url
 // * query_params: url query params, as a map (we don't use multiple-valued params)
-func Get(dst interface{}, url string, queryParams map[string]string) error {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func Do(dst interface{}, method, url string, queryParams, headers map[string]string, body io.Reader) error {
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return err
 	}
 	req.Header.Add("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Add(k, v)
+	}
+
 	if len(queryParams) > 0 {
 		q := req.URL.Query()
 		for k, v := range queryParams {

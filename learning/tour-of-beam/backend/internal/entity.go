@@ -15,6 +15,13 @@
 
 package internal
 
+import "errors"
+
+var (
+	ErrNoUnit = errors.New("unit not found")
+	ErrNoUser = errors.New("user not found")
+)
+
 type SdkItem struct {
 	Id    string `json:"id"`
 	Title string `json:"title"`
@@ -74,4 +81,13 @@ type ContentTree struct {
 type CodeMessage struct {
 	Code    string `json:"code"`
 	Message string `json:"message,omitempty"`
+}
+
+type UnitProgress struct {
+	Id            string `json:"id"`
+	IsCompleted   bool   `json:"isCompleted"`
+	UserSnippetId string `json:"userSnippetId,omitempty"`
+}
+type SdkProgress struct {
+	Units []UnitProgress `json:"units"`
 }

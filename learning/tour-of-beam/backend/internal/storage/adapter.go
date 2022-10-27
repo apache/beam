@@ -35,6 +35,10 @@ func datastoreKey(kind string, sdk tob.Sdk, id string, parent *datastore.Key) *d
 	return pgNameKey(kind, name, parent)
 }
 
+func rootSdkKey(sdk tob.Sdk) *datastore.Key {
+	return pgNameKey(PgSdksKind, sdk.StorageID(), nil)
+}
+
 func MakeUnitNode(unit *tob.Unit, order, level int) *TbLearningNode {
 	if unit == nil {
 		return nil
@@ -127,5 +131,12 @@ func MakeDatastoreModule(mod *tob.Module, order int) *TbLearningModule {
 		Complexity: mod.Complexity,
 
 		Order: order,
+	}
+}
+
+func FromDatastoreUserProgress(tbUP TbUnitProgress) tob.UnitProgress {
+	return tob.UnitProgress{
+		Id:          tbUP.UnitID,
+		IsCompleted: tbUP.IsCompleted,
 	}
 }
