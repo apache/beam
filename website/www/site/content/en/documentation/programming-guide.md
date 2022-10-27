@@ -4131,7 +4131,7 @@ output_pc = input_pc | beam.GroupBy('user_id','bank')
 {{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
-Support for nested fields hasn't been developed for GO SDK yet
+Support for schema-aware grouping hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="lanuage-java" >}}
