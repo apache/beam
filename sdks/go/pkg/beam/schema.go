@@ -77,6 +77,23 @@ func RegisterSchemaProvider(rt reflect.Type, provider interface{}) {
 	coder.RegisterSchemaProviders(rt, p.BuildEncoder, p.BuildDecoder)
 }
 
+// RegisterSchemaProviderWithURN is for internal use only. Users are recommended to use
+// beam.RegisterSchemaProvider() instead.
+// RegisterSchemaProviderWithURN registers a new schema provider for a new logical type defined
+// in pkg/beam/model/pipeline_v1/schema.pb.go
+//
+// RegisterSchemaProviderWithURN must be called before beam.Init(), and conventionally
+// is called in a package init() function.
+func RegisterSchemaProviderWithURN(rt reflect.Type, provider interface{}, urn string) {
+	p := provider.(SchemaProvider)
+	st, err := p.FromLogicalType(rt)
+	if err != nil {
+		panic(fmt.Sprintf("beam.RegisterSchemaProvider: schema type provider for %v, doesn't support that type", rt))
+	}
+	schema.RegisterLogicalType(schema.ToLogicalType(urn, rt, st))
+	coder.RegisterSchemaProviders(rt, p.BuildEncoder, p.BuildDecoder)
+}
+
 // SchemaProvider specializes schema handling for complex types, including conversion to a
 // valid schema base type,
 //

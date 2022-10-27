@@ -76,13 +76,20 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
   @Override
   public PCollection<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>> expand(
       PCollection<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>> input) {
+
+    Coder<SecondaryKeyT> secondaryKeyCoder = getSecondaryKeyCoder(input.getCoder());
+    try {
+      secondaryKeyCoder.verifyDeterministic();
+    } catch (Coder.NonDeterministicException e) {
+      throw new IllegalStateException(
+          "the secondary key coder of SortValues must be deterministic", e);
+    }
+
     return input
         .apply(
             ParDo.of(
                 new SortValuesDoFn<>(
-                    sorterOptions,
-                    getSecondaryKeyCoder(input.getCoder()),
-                    getValueCoder(input.getCoder()))))
+                    sorterOptions, secondaryKeyCoder, getValueCoder(input.getCoder()))))
         .setCoder(input.getCoder());
   }
 
