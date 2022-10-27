@@ -18,7 +18,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-Kio is a set of Kotlin extensions for Apache Beam to implement fluent-like API for Java SDK.<!--more-->
+<div class="case-study-post">
+
+# Kio is a set of Kotlin extensions for Apache Beam to implement fluent-like API for Java SDK.<!--more-->
 
 ## Word Count example
 
@@ -41,3 +43,5 @@ kio.execute().waitUntilDone()
 ## Documentation
 
 For more information about Kio, please see the documentation here: [https://code.chermenin.ru/kio](https://code.chermenin.ru/kio).
+</div>
+<div class="clear-nav"></div>
