@@ -1,12 +1,12 @@
 
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
-      'https://beam-playgroundtest.net/router';
+      'https://router.beam-playgroundtest.net';
 const String kApiJavaClientURL =
-      'https://beam-playgroundtest.net/java';
+      'https://java.beam-playgroundtest.net';
 const String kApiGoClientURL =
-      'https://beam-playgroundtest.net/go';
+      'https://go.beam-playgroundtest.net';
 const String kApiPythonClientURL =
-      'https://beam-playgroundtest.net/python';
+      'https://python.beam-playgroundtest.net';
 const String kApiScioClientURL =
-      'https://beam-playgroundtest.net/scio';
+      'https://scio.beam-playgroundtest.net';

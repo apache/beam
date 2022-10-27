@@ -19,4 +19,9 @@ metadata:
   name: {{ .Values.project_id }}
 spec:
   domains:
-    - beam-playgroundtest.net
+    - go.beam-playgroundtest.net
+    - java.beam-playgroundtest.net
+    - scio.beam-playgroundtest.net
+    - python.beam-playgroundtest.net
+    - router.beam-playgroundtest.net
+    - beam-playgroundtest.net  

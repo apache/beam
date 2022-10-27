@@ -26,51 +26,51 @@ metadata:
      app: playground-go
 spec:
   rules:
-  - host: "beam-playgroundtest.net"
+  - host: "go.beam-playgroundtest.net"
     http:
       paths:
-      - path: "/go"
-        pathType: Prefix
+      - path: "/*"
+        pathType: ImplementationSpecific
         backend:
           service:
             name: playground-go
             port:
               number: {{ .Values.service.port }}
-  - host: "beam-playgroundtest.net"
+  - host: "java.beam-playgroundtest.net"
     http:
       paths:
-      - path: "/java"
-        pathType: Prefix
+      - path: "/*"
+        pathType: ImplementationSpecific
         backend:
           service:
             name: playground-java
             port:
               number: {{ .Values.service.port }}
-  - host: "beam-playgroundtest.net"
+  - host: "python.beam-playgroundtest.net"
     http:
       paths:
-      - path: "/python"
-        pathType: Prefix
+      - path: "/*"
+        pathType: ImplementationSpecific
         backend:
           service:
             name: playground-python
             port:
               number: {{ .Values.service.port }}
-  - host: "beam-playgroundtest.net"
+  - host: "router.beam-playgroundtest.net"
     http:
       paths:
-      - path: "/router"
-        pathType: Prefix
+      - path: "/*"
+        pathType: ImplementationSpecific
         backend:
           service:
             name: playground-router
             port:
               number: {{ .Values.service.port }}
-  - host: "beam-playgroundtest.net"
+  - host: "scio.beam-playgroundtest.net"
     http:
       paths:
-      - path: "/scio"
-        pathType: Prefix
+      - path: "/*"
+        pathType: ImplementationSpecific
         backend:
           service:
             name: playground-scio
@@ -79,7 +79,7 @@ spec:
   - host: "beam-playgroundtest.net"
     http:
       paths:
-      - path: "/frontend"
+      - path: "/*"
         pathType: ImplementationSpecific
         backend:
           service:
