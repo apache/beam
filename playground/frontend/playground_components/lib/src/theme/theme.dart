@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -138,7 +138,6 @@ final kLightTheme = ThemeData(
       secondaryBackgroundColor: BeamLightThemeColors.secondaryBackground,
       codeBackgroundColor: BeamLightThemeColors.codeBackground,
       codeRootStyle: GoogleFonts.sourceCodePro(
-        backgroundColor: BeamLightThemeColors.primaryBackground,
         color: BeamLightThemeColors.text,
         fontSize: codeFontSize,
       ),
@@ -212,7 +211,6 @@ final kDarkTheme = ThemeData(
       secondaryBackgroundColor: BeamDarkThemeColors.secondaryBackground,
       codeBackgroundColor: BeamDarkThemeColors.codeBackground,
       codeRootStyle: GoogleFonts.sourceCodePro(
-        backgroundColor: BeamDarkThemeColors.primaryBackground,
         color: BeamDarkThemeColors.text,
         fontSize: codeFontSize,
       ),
