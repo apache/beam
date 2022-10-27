@@ -25,7 +25,7 @@ grpcio-tools==1.37.0
 # pin grpcio to the previous version.
 grpcio==1.49.1;sys_platform=="darwin"
 mypy-protobuf==1.18
-protobuf==3.19.4;python_version=="3.10" and sys_platform=="darwin"
+protobuf==4.21.9;python_version=="3.10" and sys_platform=="darwin"
 
 # Avoid https://github.com/pypa/virtualenv/issues/2006
 distlib==0.3.1
