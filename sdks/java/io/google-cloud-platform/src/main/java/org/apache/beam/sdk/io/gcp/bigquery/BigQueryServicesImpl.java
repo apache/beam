@@ -1519,7 +1519,6 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
   }
 
-
   public static CustomHttpErrors createBigQueryClientCustomErrors() {
     CustomHttpErrors.Builder builder = new CustomHttpErrors.Builder();
     // 403 errors, to list tables, matching this URL:

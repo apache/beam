@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.core.ApiClock;
@@ -28,11 +27,12 @@ import org.threeten.bp.Duration;
 
 /**
  * This class is copied from the {@link com.google.api.gax.rpc.InstantiatingWatchdogProvider},
- * however it says to not auto close, so that the {@link org.apache.beam.sdk.util.UnboundedScheduledExecutorService}
- * we pass it doesn't try to get closed as well.
+ * however it says to not auto close, so that the {@link
+ * org.apache.beam.sdk.util.UnboundedScheduledExecutorService} we pass it doesn't try to get closed
+ * as well.
  */
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class NonClosingWatchdogProvider implements WatchdogProvider {
   private ApiClock clock;
@@ -104,5 +104,4 @@ public class NonClosingWatchdogProvider implements WatchdogProvider {
   public boolean shouldAutoClose() {
     return false;
   }
-
 }
