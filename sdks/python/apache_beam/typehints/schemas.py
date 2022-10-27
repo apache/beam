@@ -34,12 +34,22 @@ Imposes a mapping between common Python types and Beam portable schemas
   bytes       <-----> BYTES
   ByteString  ------> BYTES
   Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
-  Timestamp   <------ LogicalType(urn="beam:logical_type:millis_instant:v1")
   Decimal     <-----> LogicalType(urn="beam:logical_type:fixed_decimal:v1")
   Mapping     <-----> MapType
   Sequence    <-----> ArrayType
   NamedTuple  <-----> RowType
   beam.Row    ------> RowType
+
+One direction mapping of Python types from Beam portable schemas:
+
+  bytes
+    <------ LogicalType(urn="beam:logical_type:fixed_bytes:v1")
+    <------ LogicalType(urn="beam:logical_type:var_bytes:v1")
+  str
+    <------ LogicalType(urn="beam:logical_type:fixed_char:v1")
+    <------ LogicalType(urn="beam:logical_type:var_char:v1")
+  Timestamp
+    <------ LogicalType(urn="beam:logical_type:millis_instant:v1")
 
 Note that some of these mappings are provided as conveniences,
 but they are lossy and will not survive a roundtrip from python to Beam schemas
@@ -57,6 +67,7 @@ any backwards-compatibility guarantee.
 # pytype: skip-file
 
 import decimal
+import logging
 from typing import Any
 from typing import ByteString
 from typing import Dict
@@ -115,6 +126,8 @@ PRIMITIVE_TO_ATOMIC_TYPE.update({
     int: schema_pb2.INT64,
     float: schema_pb2.DOUBLE,
 })
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def named_fields_to_schema(
@@ -697,6 +710,10 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
         # TODO(https://github.com/apache/beam/issues/23373): Complete support
         # for logical types that require arguments beyond atomic type.
         # For now, skip arguments.
+        _LOGGER.warning(
+            'Logical type %s with argument is currently unsupported. '
+            'Argument values are omitted',
+            logical_type_proto.urn)
         return logical_type()
       return logical_type(argument)
 
@@ -738,7 +755,7 @@ class PassThroughLogicalType(LogicalType[LanguageT, LanguageT, ArgT]):
   @classmethod
   def _from_typing(cls, typ):
     # type: (type) -> LogicalType
-    # TODO: enable argument
+    # TODO(https://github.com/apache/beam/issues/23373): enable argument
     return cls()
 
 
