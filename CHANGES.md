@@ -58,12 +58,16 @@
   than requiring them to be passed separately via the `--extra_package` option.
   ([#23684](https://github.com/apache/beam/pull/23684))
 
+## Breaking Changes
+
+* `ParquetIO.withSplit` was removed ([#23832](https://github.com/apache/beam/issues/23832)).
 
 # [2.43.0] - Unreleased
 
 ## Highlights
 
 * Python 3.10 support in Apache Beam ([#21458](https://github.com/apache/beam/issues/21458)).
+* An initial implementation of a runner that allows us to run Beam pipelines on Dask. Try it out and give us feedback! (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
 
 
 ## I/Os
@@ -81,6 +85,7 @@
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Dataframe wrapper added in Go SDK via Cross-Language (with automatic expansion service). (Go) ([#23384](https://github.com/apache/beam/issues/23384)).
 * Name all Java threads to aid in debugging ([#23049](https://github.com/apache/beam/issues/23049)).
+* An initial implementation of a runner that allows us to run Beam pipelines on Dask. (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
 
 ## Breaking Changes
 

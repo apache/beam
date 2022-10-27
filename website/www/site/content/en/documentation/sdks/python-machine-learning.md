@@ -77,6 +77,9 @@ You need to provide a path to a file that contains the model's saved weights. Th
 1. Download the pre-trained weights and host them in a location that the pipeline can access.
 2. Pass the path of the model weights to the PyTorch `ModelHandler` by using the following code: `state_dict_path=<path_to_weights>`.
 
+See [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch.ipynb)
+that illustrates running PyTorch models with Apache Beam.
+
 #### Scikit-learn
 
 You need to provide a path to a file that contains the pickled Scikit-learn model. This path must be accessible by the pipeline. To use pre-trained models with the RunInference API and the Scikit-learn framework, complete the following steps:
@@ -86,6 +89,9 @@ You need to provide a path to a file that contains the pickled Scikit-learn mode
    `model_uri=<path_to_pickled_file>` and `model_file_type: <ModelFileType>`, where you can specify
    `ModelFileType.PICKLE` or `ModelFileType.JOBLIB`, depending on how the model was serialized.
 
+See [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_sklearn.ipynb)
+that illustrates running Scikit-learn models with Apache Beam.
+
 #### TensorFlow
 
 To use TensorFlow with the RunInference API, you need to do the following:
@@ -94,48 +100,8 @@ To use TensorFlow with the RunInference API, you need to do the following:
 * Create a model handler using `tfx_bsl.public.beam.run_inference.CreateModelHandler()`.
 * Use the model handler with the [`apache_beam.ml.inference.base.RunInference`](/releases/pydoc/current/apache_beam.ml.inference.base.html) transform.
 
-A sample pipeline might look like the following example:
-
-```
-import apache_beam as beam
-from apache_beam.ml.inference.base import RunInference
-from tensorflow_serving.apis import prediction_log_pb2
-from tfx_bsl.public.proto import model_spec_pb2
-from tfx_bsl.public.tfxio import TFExampleRecord
-from tfx_bsl.public.beam.run_inference import CreateModelHandler
-
-pipeline = beam.Pipeline()
-tfexample_beam_record = TFExampleRecord(file_pattern='/path/to/examples')
-saved_model_spec = model_spec_pb2.SavedModelSpec(model_path='/path/to/model')
-inference_spec_type = model_spec_pb2.InferenceSpecType(saved_model_spec=saved_model_spec)
-model_handler = CreateModelHandler(inference_spec_type)
-with pipeline as p:
-    _ = (p | tfexample_beam_record.RawRecordBeamSource()
-           | RunInference(model_handler)
-           | beam.Map(print)
-        )
-```
-
-Note: A model handler that is created with `CreateModelHander()` is always unkeyed.
-
-### Keyed Model Handlers
-To make a keyed model handler, wrap any unkeyed model handler in the keyed model handler. For example:
-
-```
-from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.base import KeyedModelHandler
-model_handler = <Instantiate your model handler>
-keyed_model_handler = KeyedModelHandler(model_handler)
-
-with pipeline as p:
-     p | ( <Your Pipeline>
-       RunInference(keyed_model_handler)
-     )
-```
-
-If you are unsure if your data is keyed, you can also use `MaybeKeyedModelHandler`.
-
-For more information, see [`KeyedModelHander`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler).
+See [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb)
+that illustrates running TensorFlow models with Apache Beam and tfx-bsl.
 
 ### Use custom models
 
@@ -208,6 +174,10 @@ with pipeline as p:
    ])
    predictions = data | RunInference(keyed_model_handler)
 ```
+
+If you are unsure if your data is keyed, you can also use `MaybeKeyedModelHandler`.
+
+For more information, see [`KeyedModelHander`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler).
 
 ### Use the PredictionResults object
 

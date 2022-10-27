@@ -562,18 +562,18 @@ See the source of the script for more details, or to run commands manually in ca
       1. Verify Docker images are published. How to find images:
           1. Visit [https://hub.docker.com/u/apache](https://hub.docker.com/search?q=apache%2Fbeam&type=image)
           2. Visit each repository and navigate to *tags* tab.
-          3. Verify images are pushed with tags: ${RELEASE}_rc{RC_NUM}
+          3. Verify images are pushed with tags: ${RELEASE_VERSION}_rc{RC_NUM}
       1. Verify that third party licenses are included in Docker containers by logging in to the images.
           - For Python SDK images, there should be around 80 ~ 100 dependencies.
           Please note that dependencies for the SDKs with different Python versions vary.
           Need to verify all Python images by replacing `${ver}` with each supported Python version `X.Y`.
           ```
-          docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE_VERSION}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
           - For Java SDK images, there should be around 200 dependencies.
           ```
-          docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE_VERSION}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
   1. Publish staging artifacts
@@ -740,7 +740,7 @@ all major features and bug fixes, and all known issues.
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
 1. Website pull request proposed to list the [release](https://beam.apache.org/get-started/downloads/), publish the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/).
-1. Docker images are published to [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags: {RELEASE}_rc{RC_NUM}.
+1. Docker images are published to [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags: {RELEASE_VERSION}_rc{RC_NUM}.
 
 You can (optionally) also do additional verification by:
 1. Check that Python zip file contains the `README.md`, `NOTICE`, and `LICENSE` files.
@@ -787,8 +787,9 @@ Here’s an email template; please adjust as you see fit.
     * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
     * Java artifacts were built with Gradle GRADLE_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
     * Python artifacts are deployed along with the source release to the dist.apache.org [2] and PyPI[8].
-    * Validation sheet with a tab for 1.2.3 release to help with validation [9].
-    * Docker images published to Docker Hub [10].
+    * Go artifacts and documentation are available at pkg.go.dev [9]
+    * Validation sheet with a tab for 1.2.3 release to help with validation [10].
+    * Docker images published to Docker Hub [11].
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
@@ -805,8 +806,9 @@ Here’s an email template; please adjust as you see fit.
     [6] https://github.com/apache/beam/pull/...
     [7] https://github.com/apache/beam-site/pull/...
     [8] https://pypi.org/project/apache-beam/1.2.3rc3/
-    [9] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
-    [10] https://hub.docker.com/search?q=apache%2Fbeam&type=image
+    [9] https://pkg.go.dev/github.com/apache/beam/sdks/v2@v1.2.3-RC3/go/pkg/beam
+    [10] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
+    [11] https://hub.docker.com/search?q=apache%2Fbeam&type=image
 
 If there are any issues found in the release candidate, reply on the vote thread to cancel the vote.
 There’s no need to wait 72 hours.
@@ -877,7 +879,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   ```
   **Spark Local Runner**
   ```
-  ./gradlew :runners:spark:2:runQuickstartJavaSpark \
+  ./gradlew :runners:spark:3:runQuickstartJavaSpark \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
@@ -1145,8 +1147,8 @@ All wheels should be published, in addition to the zip of the release source.
 ./beam/release/src/main/scripts/publish_docker_images.sh
 ```
 * **Verify that:**
-  * Images are published at [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags {RELEASE} and *latest*.
-  * Images with *latest* tag are pointing to current release by confirming the digest of the image with *latest* tag is the same as the one with {RELEASE} tag.
+  * Images are published at [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags {RELEASE_VERSION} and *latest*.
+  * Images with *latest* tag are pointing to current release by confirming the digest of the image with *latest* tag is the same as the one with {RELEASE_VERSION} tag.
 
 (Optional) Clean up any unneeded local images afterward to save disk space.
 
@@ -1165,7 +1167,7 @@ Create and push a new signed tag for the released version by copying the tag for
 # Optional: unlock the signing key by signing an arbitrary file.
 gpg --output ~/doc.sig --sign ~/.bashrc
 
-VERSION_TAG="v${RELEASE}"
+VERSION_TAG="v${RELEASE_VERSION}"
 
 # Tag for Go SDK
 git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
