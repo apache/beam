@@ -3757,11 +3757,11 @@ output_pc = input_pc | beam.Select("user_id")
 ##### **Nested fields**
 
 {{< paragraph class="language-py" >}}
-Support for Nested fields hasn't been developed for python SDK yet
+Support for Nested fields hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-Support for Nested fields hasn't been developed for GO SDK yet
+Support for Nested fields hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
