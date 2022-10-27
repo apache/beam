@@ -22,6 +22,7 @@ import com.google.api.core.ApiClock;
 import com.google.api.gax.rpc.Watchdog;
 import com.google.api.gax.rpc.WatchdogProvider;
 import java.util.concurrent.ScheduledExecutorService;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.threeten.bp.Duration;
 import com.google.common.base.Preconditions;
@@ -32,9 +33,9 @@ import com.google.common.base.Preconditions;
  * we pass it doesn't try to get closed as well.
  */
 public class NonClosingWatchdogProvider implements WatchdogProvider {
-  private final ApiClock clock;
-  private final ScheduledExecutorService executor;
-  private final Duration checkInterval;
+  private ApiClock clock;
+  private ScheduledExecutorService executor;
+  private Duration checkInterval;
 
   public static WatchdogProvider create() {
     return new NonClosingWatchdogProvider(null, null, null);
@@ -55,9 +56,9 @@ public class NonClosingWatchdogProvider implements WatchdogProvider {
   }
 
   @Override
-  public WatchdogProvider withClock(ApiClock clock) {
-    return new NonClosingWatchdogProvider(
-        Preconditions.checkNotNull(clock), executor, checkInterval);
+  public WatchdogProvider withClock(@NonNull ApiClock clock) {
+    this.clock = clock;
+    return this;
   }
 
   @Override
@@ -66,9 +67,9 @@ public class NonClosingWatchdogProvider implements WatchdogProvider {
   }
 
   @Override
-  public WatchdogProvider withCheckInterval(Duration checkInterval) {
-    return new NonClosingWatchdogProvider(
-        clock, executor, Preconditions.checkNotNull(checkInterval));
+  public WatchdogProvider withCheckInterval(@NonNull Duration checkInterval) {
+    this.checkInterval = checkInterval;
+    return this;
   }
 
   @Override
@@ -77,9 +78,9 @@ public class NonClosingWatchdogProvider implements WatchdogProvider {
   }
 
   @Override
-  public WatchdogProvider withExecutor(ScheduledExecutorService executor) {
-    return new NonClosingWatchdogProvider(
-        clock, Preconditions.checkNotNull(executor), checkInterval);
+  public WatchdogProvider withExecutor(@NonNull ScheduledExecutorService executor) {
+    this.executor = executor;
+    return this;
   }
 
   @SuppressWarnings("ConstantConditions")
