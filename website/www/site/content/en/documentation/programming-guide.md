@@ -4122,7 +4122,7 @@ are grouped together into an `ITERABLE` field. For example
 {{< /paragraph >}}
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress"));
+purchases.apply(Group.byFieldNames("userId", "bank"));
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -4138,29 +4138,6 @@ Support for nested fields hasn't been developed for GO SDK yet
 The output schema of this is:
 {{< /paragraph >}}
 
-{{< paragraph class="language-java" >}}
-<table>
-  <thead>
-    <tr class="header">
-      <th><b>Field Name</b></th>
-      <th><b>Field Type</b></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>key</td>
-      <td>ROW{userId:STRING, streetAddress:STRING}</td>
-    </tr>
-    <tr>
-      <td>values</td>
-      <td>ITERABLE[ROW[Purchase]]</td>
-    </tr>
-  </tbody>
-</table>
-<br/>
-{{< /paragraph >}}
-
-{{< paragraph class="language-py" >}}
 <table>
   <thead>
     <tr class="header">
@@ -4180,7 +4157,6 @@ The output schema of this is:
   </tbody>
 </table>
 <br/>
-{{< /paragraph >}}
 
 The key field contains the grouping key and the values field contains a list of all the values that matched that key.
 
@@ -4217,7 +4193,6 @@ output_pc = input_pc | beam.GroupBy("user_id")
 Support for nested fields hasn't been developed for GO SDK yet
 {{< /paragraph >}}
 
-{{< paragraph class="language-java" >}}
 The result of this aggregation will have the following schema:
 <table>
   <thead>
@@ -4238,30 +4213,6 @@ The result of this aggregation will have the following schema:
   </tbody>
 </table>
 <br/>
-{{< /paragraph >}}
-
-{{< paragraph class="language-py" >}}
-The result of this aggregation will have the following schema:
-<table>
-  <thead>
-    <tr class="header">
-      <th><b>Field Name</b></th>
-      <th><b>Field Type</b></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>key</td>
-      <td>ROW{userId:STRING}</td>
-    </tr>
-    <tr>
-      <td>value</td>
-      <td>ROW{num_purchases: INT64, total_spendcents: INT64, top_purchases: ARRAY[INT64]}</td>
-    </tr>
-  </tbody>
-</table>
-<br/>
-{{< /paragraph >}}
 
 Often `Selected.flattenedSchema` will be use to flatten the result into a non-nested, flat schema.
 
