@@ -13,14 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package storage
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"path"
 	"runtime"
+	"strings"
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 )
@@ -33,16 +35,41 @@ func getSamplesPath() string {
 type Mock struct{}
 
 // check if the interface is implemented.
-var _ IContent = &Mock{}
+var _ Iface = &Mock{}
 
-func (d *Mock) GetContentTree(_ context.Context, sdk tob.Sdk, userId *string) (ct tob.ContentTree, err error) {
+func (d *Mock) GetContentTree(_ context.Context, sdk tob.Sdk) (ct tob.ContentTree, err error) {
+	// this sdk is special: we use it as an empty learning path
+	if sdk == tob.SDK_SCIO {
+		return ct, errors.New("empty sdk tree")
+	}
 	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_content_tree.json"))
 	_ = json.Unmarshal(content, &ct)
 	return ct, nil
 }
 
-func (d *Mock) GetUnitContent(_ context.Context, sdk tob.Sdk, unitId string, userId *string) (u tob.Unit, err error) {
+func (d *Mock) SaveContentTrees(_ context.Context, _ []tob.ContentTree) error {
+	return nil
+}
+
+func (d *Mock) GetUnitContent(_ context.Context, sdk tob.Sdk, unitId string) (u *tob.Unit, err error) {
+	if strings.HasPrefix(unitId, "unknown_") {
+		return u, tob.ErrNoUnit
+	}
 	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_unit_content.json"))
 	err = json.Unmarshal(content, &u)
 	return u, err
+}
+
+func (d *Mock) SaveUser(ctx context.Context, uid string) error {
+	return nil
+}
+
+func (d *Mock) GetUserProgress(_ context.Context, sdk tob.Sdk, userId string) (sp *tob.SdkProgress, err error) {
+	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_user_progress.json"))
+	_ = json.Unmarshal(content, &sp)
+	return sp, nil
+}
+
+func (d *Mock) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error {
+	return nil
 }
