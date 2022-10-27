@@ -350,6 +350,13 @@ project.tasks.register("xlangSpannerIOIT") {
         "--environment_type=LOOPBACK",
         "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
         "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+        '--sdk_harness_log_level_overrides=' +
+            // suppress info level flink.runtime log flood
+            '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
+            // suppress full __metricscontainers log printed in FlinkPipelineRunner.createPortablePipelineResult
+            '\\"org.apache.beam.runners.flink.FlinkPipelineRunner\\":\\"WARN\\",' +
+            // suppress metric name collision warning logs
+            '\\"org.apache.flink.runtime.metrics.groups\\":\\"ERROR\\"}'
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
