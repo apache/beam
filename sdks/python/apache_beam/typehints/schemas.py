@@ -34,12 +34,22 @@ Imposes a mapping between common Python types and Beam portable schemas
   bytes       <-----> BYTES
   ByteString  ------> BYTES
   Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
-  Timestamp   <------ LogicalType(urn="beam:logical_type:millis_instant:v1")
   Decimal     <-----> LogicalType(urn="beam:logical_type:fixed_decimal:v1")
   Mapping     <-----> MapType
   Sequence    <-----> ArrayType
   NamedTuple  <-----> RowType
   beam.Row    ------> RowType
+
+One direction mapping of Python types from Beam portable schemas:
+
+  bytes
+    <------ LogicalType(urn="beam:logical_type:fixed_bytes:v1")
+    <------ LogicalType(urn="beam:logical_type:var_bytes:v1")
+  str
+    <------ LogicalType(urn="beam:logical_type:fixed_char:v1")
+    <------ LogicalType(urn="beam:logical_type:var_char:v1")
+  Timestamp
+    <------ LogicalType(urn="beam:logical_type:millis_instant:v1")
 
 Note that some of these mappings are provided as conveniences,
 but they are lossy and will not survive a roundtrip from python to Beam schemas
@@ -57,6 +67,7 @@ any backwards-compatibility guarantee.
 # pytype: skip-file
 
 import decimal
+import logging
 from typing import Any
 from typing import ByteString
 from typing import Dict
@@ -116,6 +127,8 @@ PRIMITIVE_TO_ATOMIC_TYPE.update({
     float: schema_pb2.DOUBLE,
 })
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def named_fields_to_schema(
     names_and_types: Union[Dict[str, type], Sequence[Tuple[str, type]]],
@@ -169,6 +182,25 @@ def typing_from_runner_api(
     schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> type:
   return SchemaTranslation(
       schema_registry=schema_registry).typing_from_runner_api(fieldtype_proto)
+
+
+def value_to_runner_api(
+    type_proto: schema_pb2.FieldType,
+    value,
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY
+) -> schema_pb2.FieldValue:
+  return SchemaTranslation(schema_registry=schema_registry).value_to_runner_api(
+      type_proto, value)
+
+
+def value_from_runner_api(
+    type_proto: schema_pb2.FieldType,
+    value_proto: schema_pb2.FieldValue,
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY
+) -> schema_pb2.FieldValue:
+  return SchemaTranslation(
+      schema_registry=schema_registry).value_from_runner_api(
+          type_proto, value_proto)
 
 
 def option_to_runner_api(
@@ -269,59 +301,114 @@ class SchemaTranslation(object):
           logical_type=schema_pb2.LogicalType(urn=PYTHON_ANY_URN),
           nullable=True)
     else:
-      if logical_type.argument_type() is None:
-        return schema_pb2.FieldType(
-            logical_type=schema_pb2.LogicalType(
-                urn=logical_type.urn(),
-                representation=self.typing_to_runner_api(
-                    logical_type.representation_type())))
-      else:
-        # TODO(https://github.com/apache/beam/issues/23373): Complete support
-        # for logical types that require arguments.
-        # This include implement SchemaTranslation.value_to_runner_api (see Java
-        # SDK's SchemaTranslation.fieldValueToProto)
-        return schema_pb2.FieldType(
-            logical_type=schema_pb2.LogicalType(
-                urn=logical_type.urn(),
-                representation=self.typing_to_runner_api(
-                    logical_type.representation_type()),
-                argument_type=self.typing_to_runner_api(
-                    logical_type.argument_type())))
+      argument_type = None
+      argument = None
+      if logical_type.argument_type() is not None:
+        argument_type = self.typing_to_runner_api(logical_type.argument_type())
+        try:
+          argument = self.value_to_runner_api(
+              argument_type, logical_type.argument())
+        except ValueError:
+          # TODO(https://github.com/apache/beam/issues/23373): Complete support
+          # for logical types that require arguments beyond atomic type.
+          # For now, skip arguments.
+          argument = None
+      return schema_pb2.FieldType(
+          logical_type=schema_pb2.LogicalType(
+              urn=logical_type.urn(),
+              representation=self.typing_to_runner_api(
+                  logical_type.representation_type()),
+              argument_type=argument_type,
+              argument=argument))
+
+  def atomic_value_from_runner_api(
+      self,
+      atomic_type: schema_pb2.AtomicType,
+      atomic_value: schema_pb2.AtomicTypeValue):
+    if atomic_type == schema_pb2.BYTE:
+      value = np.int8(atomic_value.byte)
+    elif atomic_type == schema_pb2.INT16:
+      value = np.int16(atomic_value.int16)
+    elif atomic_type == schema_pb2.INT32:
+      value = np.int32(atomic_value.int32)
+    elif atomic_type == schema_pb2.INT64:
+      value = np.int64(atomic_value.int64)
+    elif atomic_type == schema_pb2.FLOAT:
+      value = np.float32(atomic_value.float)
+    elif atomic_type == schema_pb2.DOUBLE:
+      value = np.float64(atomic_value.double)
+    elif atomic_type == schema_pb2.STRING:
+      value = atomic_value.string
+    elif atomic_type == schema_pb2.BOOLEAN:
+      value = atomic_value.boolean
+    elif atomic_type == schema_pb2.BYTES:
+      value = atomic_value.bytes
+    else:
+      raise ValueError(
+          f"Unrecognized atomic_type ({atomic_type}) "
+          f"when decoding value {atomic_value!r}")
+
+    return value
+
+  def atomic_value_to_runner_api(
+      self, atomic_type: schema_pb2.AtomicType,
+      value) -> schema_pb2.AtomicTypeValue:
+    if atomic_type == schema_pb2.BYTE:
+      atomic_value = schema_pb2.AtomicTypeValue(byte=value)
+    elif atomic_type == schema_pb2.INT16:
+      atomic_value = schema_pb2.AtomicTypeValue(int16=value)
+    elif atomic_type == schema_pb2.INT32:
+      atomic_value = schema_pb2.AtomicTypeValue(int32=value)
+    elif atomic_type == schema_pb2.INT64:
+      atomic_value = schema_pb2.AtomicTypeValue(int64=value)
+    elif atomic_type == schema_pb2.FLOAT:
+      atomic_value = schema_pb2.AtomicTypeValue(float=value)
+    elif atomic_type == schema_pb2.DOUBLE:
+      atomic_value = schema_pb2.AtomicTypeValue(double=value)
+    elif atomic_type == schema_pb2.STRING:
+      atomic_value = schema_pb2.AtomicTypeValue(string=value)
+    elif atomic_type == schema_pb2.BOOLEAN:
+      atomic_value = schema_pb2.AtomicTypeValue(boolean=value)
+    elif atomic_type == schema_pb2.BYTES:
+      atomic_value = schema_pb2.AtomicTypeValue(bytes=value)
+    else:
+      raise ValueError(
+          "Unrecognized atomic_type {atomic_type} when encoding value {value}")
+
+    return atomic_value
+
+  def value_from_runner_api(
+      self,
+      type_proto: schema_pb2.FieldType,
+      value_proto: schema_pb2.FieldValue):
+    if type_proto.WhichOneof("type_info") != "atomic_type":
+      # TODO: Allow other value types
+      raise ValueError(
+          "Encounterd option with unsupported type. Only "
+          f"atomic_type options are supported: {type_proto}")
+
+    value = self.atomic_value_from_runner_api(
+        type_proto.atomic_type, value_proto.atomic_value)
+    return value
+
+  def value_to_runner_api(self, typing_proto: schema_pb2.FieldType, value):
+    if typing_proto.WhichOneof("type_info") != "atomic_type":
+      # TODO: Allow other value types
+      raise ValueError(
+          "Only atomic_type option values are currently supported in Python. "
+          f"Got {value!r}, which maps to fieldtype {typing_proto!r}.")
+
+    atomic_value = self.atomic_value_to_runner_api(
+        typing_proto.atomic_type, value)
+    value_proto = schema_pb2.FieldValue(atomic_value=atomic_value)
+    return value_proto
 
   def option_from_runner_api(
       self, option_proto: schema_pb2.Option) -> Tuple[str, Any]:
     if not option_proto.HasField('type'):
       return option_proto.name, None
 
-    fieldtype_proto = option_proto.type
-    if fieldtype_proto.WhichOneof("type_info") != "atomic_type":
-      raise ValueError(
-          "Encounterd option with unsupported type. Only "
-          f"atomic_type options are supported: {option_proto}")
-
-    if fieldtype_proto.atomic_type == schema_pb2.BYTE:
-      value = np.int8(option_proto.value.atomic_value.byte)
-    elif fieldtype_proto.atomic_type == schema_pb2.INT16:
-      value = np.int16(option_proto.value.atomic_value.int16)
-    elif fieldtype_proto.atomic_type == schema_pb2.INT32:
-      value = np.int32(option_proto.value.atomic_value.int32)
-    elif fieldtype_proto.atomic_type == schema_pb2.INT64:
-      value = np.int64(option_proto.value.atomic_value.int64)
-    elif fieldtype_proto.atomic_type == schema_pb2.FLOAT:
-      value = np.float32(option_proto.value.atomic_value.float)
-    elif fieldtype_proto.atomic_type == schema_pb2.DOUBLE:
-      value = np.float64(option_proto.value.atomic_value.double)
-    elif fieldtype_proto.atomic_type == schema_pb2.STRING:
-      value = option_proto.value.atomic_value.string
-    elif fieldtype_proto.atomic_type == schema_pb2.BOOLEAN:
-      value = option_proto.value.atomic_value.boolean
-    elif fieldtype_proto.atomic_type == schema_pb2.BYTES:
-      value = option_proto.value.atomic_value.bytes
-    else:
-      raise ValueError(
-          f"Unrecognized atomic_type ({fieldtype_proto.atomic_type}) "
-          f"when decoding option {option_proto!r}")
-
+    value = self.value_from_runner_api(option_proto.type, option_proto.value)
     return option_proto.name, value
 
   def option_to_runner_api(self, option: Tuple[str, Any]) -> schema_pb2.Option:
@@ -332,41 +419,9 @@ class SchemaTranslation(object):
       # Don't set type, value
       return schema_pb2.Option(name=name)
 
-    fieldtype_proto = self.typing_to_runner_api(type(value))
-    if fieldtype_proto.WhichOneof("type_info") != "atomic_type":
-      # TODO: Allow other value types
-      raise ValueError(
-          "Only atomic_type option values are currently supported in Python. "
-          f"Got {value!r}, which maps to fieldtype {fieldtype_proto!r}.")
-
-    if fieldtype_proto.atomic_type == schema_pb2.BYTE:
-      atomictypevalue_proto = schema_pb2.AtomicTypeValue(byte=value)
-    elif fieldtype_proto.atomic_type == schema_pb2.INT16:
-      atomictypevalue_proto = schema_pb2.AtomicTypeValue(int16=value)
-    elif fieldtype_proto.atomic_type == schema_pb2.INT32:
-      atomictypevalue_proto = schema_pb2.AtomicTypeValue(int32=value)
-    elif fieldtype_proto.atomic_type == schema_pb2.INT64:
-      atomictypevalue_proto = schema_pb2.AtomicTypeValue(int64=value)
-    elif fieldtype_proto.atomic_type == schema_pb2.FLOAT:
-      atomictypevalue_proto = schema_pb2.AtomicTypeValue(float=value)
-    elif fieldtype_proto.atomic_type == schema_pb2.DOUBLE:
-      atomictypevalue_proto = schema_pb2.AtomicTypeValue(double=value)
-    elif fieldtype_proto.atomic_type == schema_pb2.STRING:
-      atomictypevalue_proto = schema_pb2.AtomicTypeValue(string=value)
-    elif fieldtype_proto.atomic_type == schema_pb2.BOOLEAN:
-      atomictypevalue_proto = schema_pb2.AtomicTypeValue(boolean=value)
-    elif fieldtype_proto.atomic_type == schema_pb2.BYTES:
-      atomictypevalue_proto = schema_pb2.AtomicTypeValue(bytes=value)
-    else:
-      raise ValueError(
-          "Unrecognized atomic_type in fieldtype_proto="
-          f"{fieldtype_proto!r} when encoding option {option!r}")
-
-    return schema_pb2.Option(
-        name=name,
-        type=fieldtype_proto,
-        value=schema_pb2.FieldValue(atomic_value=atomictypevalue_proto),
-    )
+    type_proto = self.typing_to_runner_api(type(value))
+    value_proto = self.value_to_runner_api(type_proto, value)
+    return schema_pb2.Option(name=name, type=type_proto, value=value_proto)
 
   def typing_from_runner_api(
       self, fieldtype_proto: schema_pb2.FieldType) -> type:
@@ -648,8 +703,24 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     if logical_type is None:
       raise ValueError(
           "No logical type registered for URN '%s'" % logical_type_proto.urn)
-    # TODO(bhulette): Use argument
-    return logical_type()
+    if not logical_type_proto.HasField(
+        "argument_type") or not logical_type_proto.HasField("argument"):
+      # logical type_proto without argument
+      return logical_type()
+    else:
+      try:
+        argument = value_from_runner_api(
+            logical_type_proto.argument_type, logical_type_proto.argument)
+      except ValueError:
+        # TODO(https://github.com/apache/beam/issues/23373): Complete support
+        # for logical types that require arguments beyond atomic type.
+        # For now, skip arguments.
+        _LOGGER.warning(
+            'Logical type %s with argument is currently unsupported. '
+            'Argument values are omitted',
+            logical_type_proto.urn)
+        return logical_type()
+      return logical_type(argument)
 
 
 class NoArgumentLogicalType(LogicalType[LanguageT, RepresentationT, None]):
@@ -668,6 +739,28 @@ class NoArgumentLogicalType(LogicalType[LanguageT, RepresentationT, None]):
 
     # Since there's no argument, there can be no additional information encoded
     # in the typing. Just construct an instance.
+    return cls()
+
+
+class PassThroughLogicalType(LogicalType[LanguageT, LanguageT, ArgT]):
+  """A base class for LogicalTypes that use the same type as the underlying
+  representation type.
+  """
+  def to_language_type(self, value):
+    return value
+
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return cls.language_type()
+
+  def to_representation_type(self, value):
+    return value
+
+  @classmethod
+  def _from_typing(cls, typ):
+    # type: (type) -> LogicalType
+    # TODO(https://github.com/apache/beam/issues/23373): enable argument
     return cls()
 
 
@@ -856,3 +949,129 @@ class FixedPrecisionDecimalLogicalType(
 # TODO(yathu,BEAM-10722): Investigate and resolve conflicts in logical type
 # registration when more than one logical types sharing the same language type
 LogicalType.register_logical_type(DecimalLogicalType)
+
+
+@LogicalType.register_logical_type
+class FixedBytes(PassThroughLogicalType[bytes, np.int32]):
+  """A logical type for fixed-length bytes."""
+  @classmethod
+  def urn(cls):
+    return common_urns.fixed_bytes.urn
+
+  def __init__(self, length: np.int32):
+    self.length = length
+
+  @classmethod
+  def language_type(cls) -> type:
+    return bytes
+
+  def to_language_type(self, value: bytes):
+    length = len(value)
+    if length > self.length:
+      raise ValueError(
+          "value length {} > allowed length {}".format(length, self.length))
+    elif length < self.length:
+      # padding at the end
+      value = value + b'\0' * (self.length - length)
+
+    return value
+
+  @classmethod
+  def argument_type(cls):
+    return np.int32
+
+  def argument(self):
+    return self.length
+
+
+@LogicalType.register_logical_type
+class VariableBytes(PassThroughLogicalType[bytes, np.int32]):
+  """A logical type for variable-length bytes with specified maximum length."""
+  @classmethod
+  def urn(cls):
+    return common_urns.var_bytes.urn
+
+  def __init__(self, max_length: np.int32 = np.iinfo(np.int32).max):
+    self.max_length = max_length
+
+  @classmethod
+  def language_type(cls) -> type:
+    return bytes
+
+  def to_language_type(self, value: bytes):
+    length = len(value)
+    if length > self.max_length:
+      raise ValueError(
+          "value length {} > allowed length {}".format(length, self.max_length))
+
+    return value
+
+  @classmethod
+  def argument_type(cls):
+    return np.int32
+
+  def argument(self):
+    return self.max_length
+
+
+@LogicalType.register_logical_type
+class FixedString(PassThroughLogicalType[str, np.int32]):
+  """A logical type for fixed-length string."""
+  @classmethod
+  def urn(cls):
+    return common_urns.fixed_char.urn
+
+  def __init__(self, length: np.int32):
+    self.length = length
+
+  @classmethod
+  def language_type(cls) -> type:
+    return str
+
+  def to_language_type(self, value: str):
+    length = len(value)
+    if length > self.length:
+      raise ValueError(
+          "value length {} > allowed length {}".format(length, self.length))
+    elif length < self.length:
+      # padding at the end
+      value = value + ' ' * (self.length - length)
+
+    return value
+
+  @classmethod
+  def argument_type(cls):
+    return np.int32
+
+  def argument(self):
+    return self.length
+
+
+@LogicalType.register_logical_type
+class VariableString(PassThroughLogicalType[str, np.int32]):
+  """A logical type for variable-length string with specified maximum length."""
+  @classmethod
+  def urn(cls):
+    return common_urns.var_char.urn
+
+  def __init__(self, max_length: np.int32 = np.iinfo(np.int32).max):
+    self.max_length = max_length
+
+  @classmethod
+  def language_type(cls) -> type:
+    return str
+
+  def to_language_type(self, value: str):
+    length = len(value)
+    if length > self.max_length:
+      raise ValueError(
+          "value length {} > allowed length {}".format(length, self.max_length))
+
+    return value
+
+  @classmethod
+  def argument_type(cls):
+    return np.int32
+
+  def argument(self):
+    return self.max_length
