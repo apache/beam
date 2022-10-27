@@ -4035,11 +4035,11 @@ purchases.apply(Select.flattenedSchema());
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
-Support for nested fields hasn't been developed for python SDK yet
+Support for nested fields hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-Support for nested fields hasn't been developed for GO SDK yet
+Support for nested fields hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
