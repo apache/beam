@@ -34,7 +34,7 @@ import org.threeten.bp.Duration;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class NonClosingWatchdogProvider implements WatchdogProvider {
+class NonClosingWatchdogProvider implements WatchdogProvider {
   private ApiClock clock;
   private ScheduledExecutorService executor;
   private Duration checkInterval;
