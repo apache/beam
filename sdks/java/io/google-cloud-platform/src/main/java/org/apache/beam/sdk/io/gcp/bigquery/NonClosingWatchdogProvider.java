@@ -31,6 +31,9 @@ import com.google.common.base.Preconditions;
  * however it says to not auto close, so that the {@link org.apache.beam.sdk.util.UnboundedScheduledExecutorService}
  * we pass it doesn't try to get closed as well.
  */
+@SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class NonClosingWatchdogProvider implements WatchdogProvider {
   private ApiClock clock;
   private ScheduledExecutorService executor;
