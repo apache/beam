@@ -22,7 +22,7 @@ import com.google.api.core.ApiClock;
 import com.google.api.gax.rpc.Watchdog;
 import com.google.api.gax.rpc.WatchdogProvider;
 import java.util.concurrent.ScheduledExecutorService;
-import javax.annotation.Nonnull;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.threeten.bp.Duration;
 import com.google.common.base.Preconditions;
@@ -33,9 +33,9 @@ import com.google.common.base.Preconditions;
  * we pass it doesn't try to get closed as well.
  */
 public class NonClosingWatchdogProvider implements WatchdogProvider {
-  @Nullable private final ApiClock clock;
-  @Nullable private final ScheduledExecutorService executor;
-  @Nullable private final Duration checkInterval;
+  private final ApiClock clock;
+  private final ScheduledExecutorService executor;
+  private final Duration checkInterval;
 
   public static WatchdogProvider create() {
     return new NonClosingWatchdogProvider(null, null, null);
@@ -56,7 +56,7 @@ public class NonClosingWatchdogProvider implements WatchdogProvider {
   }
 
   @Override
-  public WatchdogProvider withClock(@Nonnull ApiClock clock) {
+  public WatchdogProvider withClock(@NonNull ApiClock clock) {
     return new NonClosingWatchdogProvider(
         Preconditions.checkNotNull(clock), executor, checkInterval);
   }
@@ -67,7 +67,7 @@ public class NonClosingWatchdogProvider implements WatchdogProvider {
   }
 
   @Override
-  public WatchdogProvider withCheckInterval(@Nonnull Duration checkInterval) {
+  public WatchdogProvider withCheckInterval(@NonNull Duration checkInterval) {
     return new NonClosingWatchdogProvider(
         clock, executor, Preconditions.checkNotNull(checkInterval));
   }
@@ -78,7 +78,7 @@ public class NonClosingWatchdogProvider implements WatchdogProvider {
   }
 
   @Override
-  public WatchdogProvider withExecutor(ScheduledExecutorService executor) {
+  public WatchdogProvider withExecutor(@NonNull ScheduledExecutorService executor) {
     return new NonClosingWatchdogProvider(
         clock, Preconditions.checkNotNull(executor), checkInterval);
   }
