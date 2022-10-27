@@ -86,7 +86,6 @@ public class NonClosingWatchdogProvider implements WatchdogProvider {
   }
 
   @SuppressWarnings("ConstantConditions")
-  @Nullable
   @Override
   public Watchdog getWatchdog() {
     Preconditions.checkState(!needsClock(), "A clock is needed");
