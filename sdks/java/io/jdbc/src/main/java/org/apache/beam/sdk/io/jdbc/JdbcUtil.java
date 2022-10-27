@@ -193,7 +193,7 @@ class JdbcUtil {
           String logicalTypeName = fieldType.getLogicalType().getIdentifier();
 
           // Special case of Timestamp and Numeric which are logical types in Portable framework
-          // but has their own fieldType in Java.
+          // but have their own fieldType in Java.
           if (logicalTypeName.equals(MicrosInstant.IDENTIFIER)) {
             // Process timestamp of MicrosInstant kind, which should only be passed from other type
             // systems such as SQL and other Beam SDKs.
@@ -207,50 +207,46 @@ class JdbcUtil {
             return (element, ps, i, fieldWithIndex) -> {
               ps.setBigDecimal(i + 1, element.getDecimal(fieldWithIndex.getIndex()));
             };
-          }
-
-          JDBCType jdbcType = JDBCType.valueOf(logicalTypeName);
-          switch (jdbcType) {
-            case DATE:
-              return (element, ps, i, fieldWithIndex) -> {
-                ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
-                ps.setDate(
-                    i + 1,
-                    value == null
-                        ? null
-                        : new Date(
-                            getDateOrTimeOnly(value.toDateTime(), true).getTime().getTime()));
-              };
-            case TIME:
-              return (element, ps, i, fieldWithIndex) -> {
-                ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
-                ps.setTime(
-                    i + 1,
-                    value == null
-                        ? null
-                        : new Time(
-                            getDateOrTimeOnly(
-                                    element.getDateTime(fieldWithIndex.getIndex()).toDateTime(),
-                                    false)
-                                .getTime()
-                                .getTime()));
-              };
-            case TIMESTAMP_WITH_TIMEZONE:
-              return (element, ps, i, fieldWithIndex) -> {
-                ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
-                if (value == null) {
-                  ps.setTimestamp(i + 1, null);
-                } else {
-                  Calendar calendar = withTimestampAndTimezone(value.toDateTime());
-                  ps.setTimestamp(i + 1, new Timestamp(calendar.getTime().getTime()), calendar);
-                }
-              };
-            case OTHER:
-              return (element, ps, i, fieldWithIndex) ->
-                  ps.setObject(
-                      i + 1, element.getValue(fieldWithIndex.getIndex()), java.sql.Types.OTHER);
-            default:
-              return getPreparedStatementSetCaller(fieldType.getLogicalType().getBaseType());
+          } else if (logicalTypeName.equals("DATE")) {
+            return (element, ps, i, fieldWithIndex) -> {
+              ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+              ps.setDate(
+                  i + 1,
+                  value == null
+                      ? null
+                      : new Date(getDateOrTimeOnly(value.toDateTime(), true).getTime().getTime()));
+            };
+          } else if (logicalTypeName.equals("TIME")) {
+            return (element, ps, i, fieldWithIndex) -> {
+              ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+              ps.setTime(
+                  i + 1,
+                  value == null
+                      ? null
+                      : new Time(
+                          getDateOrTimeOnly(
+                                  element.getDateTime(fieldWithIndex.getIndex()).toDateTime(),
+                                  false)
+                              .getTime()
+                              .getTime()));
+            };
+          } else if (logicalTypeName.equals("TIMESTAMP_WITH_TIMEZONE")) {
+            return (element, ps, i, fieldWithIndex) -> {
+              ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+              if (value == null) {
+                ps.setTimestamp(i + 1, null);
+              } else {
+                Calendar calendar = withTimestampAndTimezone(value.toDateTime());
+                ps.setTimestamp(i + 1, new Timestamp(calendar.getTime().getTime()), calendar);
+              }
+            };
+          } else if (logicalTypeName.equals("OTHER")) {
+            return (element, ps, i, fieldWithIndex) ->
+                ps.setObject(
+                    i + 1, element.getValue(fieldWithIndex.getIndex()), java.sql.Types.OTHER);
+          } else {
+            // generic beam logic type (such as portable logical types)
+            return getPreparedStatementSetCaller(fieldType.getLogicalType().getBaseType());
           }
         }
       default:
