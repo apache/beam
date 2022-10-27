@@ -4225,11 +4225,11 @@ that are likely associated with that transaction (both the user and product matc
 and is specified with the `using` keyword:
 
 {{< paragraph class="language-py" >}}
-Support for joins hasn't been developed for python SDK yet
+Support for joins hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-Support for joins hasn't been developed for GO SDK yet
+Support for joins hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 {{< highlight java >}}
