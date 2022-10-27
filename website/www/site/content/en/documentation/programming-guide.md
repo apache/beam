@@ -4268,11 +4268,11 @@ If the fields to match in the two schemas have different names, then the on func
 Review schema named those fields differently than the Transaction schema, then we could write the following:
 
 {{< paragraph class="language-py" >}}
-Support for joins hasn't been developed for python SDK yet
+Support for joins hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-Support for joins hasn't been developed for GO SDK yet
+Support for joins hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 {{< highlight java >}}
