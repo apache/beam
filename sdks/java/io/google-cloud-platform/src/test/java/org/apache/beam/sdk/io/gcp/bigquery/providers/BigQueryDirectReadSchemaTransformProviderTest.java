@@ -51,7 +51,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.DirectReadPCollectionRowTupleTransform;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadPCollectionRowTupleTransform;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransformConfiguration;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices.FakeBigQueryServerStream;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
@@ -246,8 +247,8 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
             .build();
     BigQueryDirectReadSchemaTransformProvider provider =
         new BigQueryDirectReadSchemaTransformProvider();
-    DirectReadPCollectionRowTupleTransform readTransform =
-        (DirectReadPCollectionRowTupleTransform) provider.from(config).buildTransform();
+    BigQueryDirectReadPCollectionRowTupleTransform readTransform =
+        (BigQueryDirectReadPCollectionRowTupleTransform) provider.from(config).buildTransform();
     PCollectionRowTuple input = PCollectionRowTuple.empty(p);
     String tag = provider.outputCollectionNames().get(0);
 
@@ -310,8 +311,8 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
             .build();
     BigQueryDirectReadSchemaTransformProvider provider =
         new BigQueryDirectReadSchemaTransformProvider();
-    DirectReadPCollectionRowTupleTransform readTransform =
-        (DirectReadPCollectionRowTupleTransform) provider.from(config).buildTransform();
+    BigQueryDirectReadPCollectionRowTupleTransform readTransform =
+        (BigQueryDirectReadPCollectionRowTupleTransform) provider.from(config).buildTransform();
     PCollectionRowTuple input = PCollectionRowTuple.empty(p);
     String tag = provider.outputCollectionNames().get(0);
 

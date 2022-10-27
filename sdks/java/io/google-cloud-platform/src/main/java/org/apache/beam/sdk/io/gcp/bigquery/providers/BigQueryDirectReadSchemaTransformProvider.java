@@ -21,14 +21,20 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
+import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransformConfiguration;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -40,6 +46,14 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
+/**
+ * An implementation of {@link TypedSchemaTransformProvider} for BigQuery Storage Read API jobs
+ * configured via {@link BigQueryDirectReadSchemaTransformConfiguration}.
+ *
+ * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
+ * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
+ * repository.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -57,7 +71,7 @@ public class BigQueryDirectReadSchemaTransformProvider
 
   @Override
   protected SchemaTransform from(BigQueryDirectReadSchemaTransformConfiguration configuration) {
-    return new DirectReadSchemaTransform(configuration);
+    return new BigQueryDirectReadSchemaTransform(configuration);
   }
 
   @Override
@@ -75,24 +89,74 @@ public class BigQueryDirectReadSchemaTransformProvider
     return Collections.singletonList(OUTPUT_TAG);
   }
 
-  private static class DirectReadSchemaTransform implements SchemaTransform {
+  /** Configuration for reading from BigQuery with Storage Read API. */
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  public abstract static class BigQueryDirectReadSchemaTransformConfiguration {
+
+    /** Instantiates a {@link BigQueryDirectReadSchemaTransformConfiguration.Builder} instance. */
+    public static Builder builder() {
+      return new AutoValue_BigQueryDirectReadSchemaTransformProvider_BigQueryDirectReadSchemaTransformConfiguration
+          .Builder();
+    }
+
+    @Nullable
+    public abstract String getQuery();
+
+    @Nullable
+    public abstract String getTableSpec();
+
+    @Nullable
+    public abstract String getRowRestriction();
+
+    @Nullable
+    public abstract List<String> getSelectedFields();
+
+    @Nullable
+    public abstract BigQueryServices getBigQueryServices();
+
+    /** Builder for the {@link BigQueryDirectReadSchemaTransformConfiguration}. */
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setQuery(String query);
+
+      public abstract Builder setTableSpec(String tableSpec);
+
+      public abstract Builder setRowRestriction(String rowRestriction);
+
+      public abstract Builder setSelectedFields(List<String> selectedFields);
+
+      public abstract Builder setBigQueryServices(BigQueryServices bigQueryServices);
+
+      /** Builds a {@link BigQueryDirectReadSchemaTransformConfiguration} instance. */
+      public abstract BigQueryDirectReadSchemaTransformConfiguration build();
+    }
+  }
+
+  /**
+   * A {@link SchemaTransform} for BigQuery Storage Read API, configured with {@link
+   * BigQueryDirectReadSchemaTransformConfiguration} and instantiated by {@link
+   * BigQueryDirectReadSchemaTransformProvider}
+   */
+  private static class BigQueryDirectReadSchemaTransform implements SchemaTransform {
     private final BigQueryDirectReadSchemaTransformConfiguration configuration;
 
-    DirectReadSchemaTransform(BigQueryDirectReadSchemaTransformConfiguration configuration) {
+    BigQueryDirectReadSchemaTransform(
+        BigQueryDirectReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 
     @Override
     public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new DirectReadPCollectionRowTupleTransform(configuration);
+      return new BigQueryDirectReadPCollectionRowTupleTransform(configuration);
     }
   }
 
-  static class DirectReadPCollectionRowTupleTransform
+  static class BigQueryDirectReadPCollectionRowTupleTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
     private final BigQueryDirectReadSchemaTransformConfiguration configuration;
 
-    DirectReadPCollectionRowTupleTransform(
+    BigQueryDirectReadPCollectionRowTupleTransform(
         BigQueryDirectReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
