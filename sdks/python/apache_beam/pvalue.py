@@ -684,8 +684,8 @@ class Row(object):
     return hash(self.__dict__.items())
 
   def __eq__(self, other):
-    return type(self) == type(other) and all(
-        s == o for s, o in zip(self.__dict__.items(), other.__dict__.items()))
+    return (type(self) == type(other) and
+            self.__dict__.items() == other.__dict__.items())
 
   def __reduce__(self):
     return _make_Row, tuple(self.__dict__.items())
