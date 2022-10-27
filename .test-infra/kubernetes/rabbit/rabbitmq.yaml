@@ -14,6 +14,11 @@
 #    limitations under the License.
 
 
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rabbitmq
+---
 kind: Service
 apiVersion: v1
 metadata:
@@ -45,13 +50,9 @@ spec:
     - name: http
       protocol: TCP
       port: 15672
-      targetPort: 15672
-      nodePort: 31673
     - name: amqp
       protocol: TCP
       port: 5672
-      targetPort: 5672
-      nodePort: 30673
   selector:
     app: rabbitmq
 ---
