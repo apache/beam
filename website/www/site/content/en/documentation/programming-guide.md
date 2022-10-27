@@ -3810,11 +3810,11 @@ selected, the result is an array of the selected subfield type. For example
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-Support for Array fields hasn't been developed for python SDK yet
+Support for Array fields hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-Support for Array fields hasn't been developed for GO SDK yet
+Support for Array fields hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 {{< highlight java >}}
