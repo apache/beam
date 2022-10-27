@@ -3898,11 +3898,11 @@ purchases.apply(Select.fieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
-Support for Nested fields hasn't been developed for python SDK yet
+Support for Nested fields hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-Support for Nested fields hasn't been developed for GO SDK yet
+Support for Nested fields hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 The resulting `PCollection` will have the following schema
