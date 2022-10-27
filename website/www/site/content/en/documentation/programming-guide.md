@@ -4296,11 +4296,11 @@ processed in unexpanded format - providing the join key along with Iterables of 
 that key.
 
 {{< paragraph class="language-py" >}}
-Support for joins hasn't been developed for python SDK yet
+Support for joins hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-Support for joins hasn't been developed for GO SDK yet
+Support for joins hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 ##### **Filtering events**
