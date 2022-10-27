@@ -152,15 +152,16 @@ dependencies {
   implementation project(":sdks:java:fn-execution")
   implementation library.java.vendored_grpc_1_48_1
   implementation library.java.vendored_guava_26_0_jre
-  implementation "io.dropwizard.metrics:metrics-core:3.1.5" // version used by Spark 2.4
   spark.components.each { component ->
     provided "$component:$spark_version"
   }
   permitUnusedDeclared "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
   if (project.property("spark_scala_version").equals("2.11")) {
+    implementation "io.dropwizard.metrics:metrics-core:3.1.5" // version used by Spark 2.4
     compileOnly "org.scala-lang:scala-library:2.11.12"
     runtimeOnly library.java.jackson_module_scala_2_11
   } else {
+    implementation "io.dropwizard.metrics:metrics-core:4.1.1" // version used by Spark 3.1
     compileOnly "org.scala-lang:scala-library:2.12.15"
     runtimeOnly library.java.jackson_module_scala_2_12
   }
@@ -384,9 +385,6 @@ tasks.register("validatesRunner") {
   // Otherwise, it breaks Spark runner ValidatesRunner tests.
   //dependsOn validatesStructuredStreamingRunnerBatch
 }
-
-// Generates :runners:spark:*:runQuickstartJavaSpark task
-createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
 
 tasks.register("hadoopVersionsTest") {
   group = "Verification"

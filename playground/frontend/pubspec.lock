@@ -50,6 +50,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.9.0"
+  autotrie:
+    dependency: transitive
+    description:
+      name: autotrie
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.0.0"
   boolean_selector:
     dependency: transitive
     description:
@@ -148,15 +155,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "4.1.0"
-  code_text_field:
-    dependency: transitive
-    description:
-      path: "."
-      ref: "9e2c9fe52a69481f038f4b6609e8a0a776429437"
-      resolved-ref: "9e2c9fe52a69481f038f4b6609e8a0a776429437"
-      url: "https://github.com/BertrandBev/code_field.git"
-    source: git
-    version: "1.0.3"
   collection:
     dependency: "direct main"
     description:
@@ -274,6 +272,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_code_editor:
+    dependency: transitive
+    description:
+      name: flutter_code_editor
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.1.2"
   flutter_highlight:
     dependency: transitive
     description:
@@ -293,6 +298,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_markdown:
+    dependency: transitive
+    description:
+      name: flutter_markdown
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.6.12"
   flutter_svg:
     dependency: "direct main"
     description:
@@ -359,6 +371,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.7.0"
+  hive:
+    dependency: transitive
+    description:
+      name: hive
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.2.3"
   html:
     dependency: transitive
     description:
@@ -421,7 +440,7 @@ packages:
       name: json_annotation
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "4.5.0"
+    version: "4.7.0"
   linked_scroll_controller:
     dependency: transitive
     description:
@@ -443,6 +462,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.0.2"
+  markdown:
+    dependency: transitive
+    description:
+      name: markdown
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "6.0.1"
   matcher:
     dependency: transitive
     description:
@@ -639,6 +665,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.2.0"
+  scrollable_positioned_list:
+    dependency: transitive
+    description:
+      name: scrollable_positioned_list
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.3.5"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -777,6 +810,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.0.0"
+  tuple:
+    dependency: transitive
+    description:
+      name: tuple
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.0.1"
   typed_data:
     dependency: transitive
     description:
