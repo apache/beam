@@ -3796,9 +3796,11 @@ shipping-address fields one would write
 purchases.apply(Select.fieldNames("shippingAddress.*"));
 {{< /highlight >}}
 
-<!-- {{< highlight py >}} 
+<!-- 
+{{< highlight py >}} 
+#TODO(https://github.com/apache/beam/issues/23275): Add support for projecting nested fields
 input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
-output_pc = input_pc | beam.Select(shipping_address=lambda item: str(item["shipping_address.*"]))                                               
+output_pc = input_pc | beam.Select("shipping_address.*"))                                               
 {{< /highlight >}} -->
 ##### **Arrays**
 
