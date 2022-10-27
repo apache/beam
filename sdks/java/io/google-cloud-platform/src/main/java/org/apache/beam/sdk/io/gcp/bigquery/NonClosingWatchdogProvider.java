@@ -22,7 +22,6 @@ import com.google.api.core.ApiClock;
 import com.google.api.gax.rpc.Watchdog;
 import com.google.api.gax.rpc.WatchdogProvider;
 import java.util.concurrent.ScheduledExecutorService;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.threeten.bp.Duration;
 import com.google.common.base.Preconditions;
@@ -56,7 +55,7 @@ public class NonClosingWatchdogProvider implements WatchdogProvider {
   }
 
   @Override
-  public WatchdogProvider withClock(@NonNull ApiClock clock) {
+  public WatchdogProvider withClock(ApiClock clock) {
     return new NonClosingWatchdogProvider(
         Preconditions.checkNotNull(clock), executor, checkInterval);
   }
@@ -67,7 +66,7 @@ public class NonClosingWatchdogProvider implements WatchdogProvider {
   }
 
   @Override
-  public WatchdogProvider withCheckInterval(@NonNull Duration checkInterval) {
+  public WatchdogProvider withCheckInterval(Duration checkInterval) {
     return new NonClosingWatchdogProvider(
         clock, executor, Preconditions.checkNotNull(checkInterval));
   }
@@ -78,7 +77,7 @@ public class NonClosingWatchdogProvider implements WatchdogProvider {
   }
 
   @Override
-  public WatchdogProvider withExecutor(@NonNull ScheduledExecutorService executor) {
+  public WatchdogProvider withExecutor(ScheduledExecutorService executor) {
     return new NonClosingWatchdogProvider(
         clock, Preconditions.checkNotNull(executor), checkInterval);
   }
