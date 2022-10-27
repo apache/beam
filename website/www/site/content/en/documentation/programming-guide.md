@@ -4182,11 +4182,11 @@ purchases.apply(Group.byFieldNames("userId")
 {{< /highlight >}}
 
 {{< highlight py >}}
-input_pc = ... # {"user_id": ...,"item_Id": ..., "cost_cents": ...}
+input_pc = ... # {"user_id": ..., "item_Id": ..., "cost_cents": ...}
 output_pc = input_pc | beam.GroupBy("user_id")
-	.aggregate_field("item_id",CountCombineFn,"num_purchases")
-	.aggregate_field("cost_cents",sum,"total_spendcents")
-	.aggregate_field("cost_cents",TopCombineFn,"top_purchases")	
+	.aggregate_field("item_id", CountCombineFn, "num_purchases")
+	.aggregate_field("cost_cents", sum, "total_spendcents")
+	.aggregate_field("cost_cents", TopCombineFn, "top_purchases")	
 {{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
