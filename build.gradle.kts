@@ -191,6 +191,9 @@ tasks.rat {
     // Ignore typesciript package management.
     "sdks/typescript/package-lock.json",
     "sdks/typescript/node_modules/**/*",
+
+    // Ignore third party vendored files
+    "sdks/python/apache_beam/vendor/**/*",
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior

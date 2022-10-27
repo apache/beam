@@ -36,7 +36,6 @@ crcmod==1.7
 cryptography==40.0.1
 Cython==0.29.33
 deprecation==2.1.0
-dill==0.3.1.1
 dnspython==2.3.0
 docker==6.0.1
 docopt==0.6.2
