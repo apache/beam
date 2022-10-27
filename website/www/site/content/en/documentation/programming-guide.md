@@ -4256,7 +4256,7 @@ The result of this aggregation will have the following schema:
     </tr>
     <tr>
       <td>value</td>
-      <td>ROW{num_purchases: INT64, total_spendcents: INT64, top_pdghurchases: ARRAY[INT64]}</td>
+      <td>ROW{num_purchases: INT64, total_spendcents: INT64, top_purchases: ARRAY[INT64]}</td>
     </tr>
   </tbody>
 </table>
