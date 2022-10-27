@@ -1489,6 +1489,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           BigQueryWriteSettings.newBuilder()
               .setCredentialsProvider(() -> options.as(GcpOptions.class).getGcpCredential())
               .setBackgroundExecutorProvider(new OptionsExecutionProvider(options))
+              .setWatchdogProvider(NonClosingWatchdogProvider.create())
               .build());
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -1517,6 +1518,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       return options.as(ExecutorOptions.class).getScheduledExecutorService();
     }
   }
+
 
   public static CustomHttpErrors createBigQueryClientCustomErrors() {
     CustomHttpErrors.Builder builder = new CustomHttpErrors.Builder();
