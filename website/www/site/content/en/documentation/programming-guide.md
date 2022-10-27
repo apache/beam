@@ -3866,11 +3866,11 @@ purchasesByType.apply(Select.fieldNames("purchases{}.userId"));
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
-Support for Nested fields hasn't been developed for python SDK yet
+Support for Map fields hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-Support for Nested fields hasn't been developed for python SDK yet
+Support for Map fields hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 Will result in a row containing a map field with key-type string and value-type string. The selected map will contain
