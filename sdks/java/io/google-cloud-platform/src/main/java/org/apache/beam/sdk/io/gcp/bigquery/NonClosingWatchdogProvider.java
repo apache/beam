@@ -21,10 +21,10 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.core.ApiClock;
 import com.google.api.gax.rpc.Watchdog;
 import com.google.api.gax.rpc.WatchdogProvider;
+import com.google.common.base.Preconditions;
 import java.util.concurrent.ScheduledExecutorService;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.threeten.bp.Duration;
-import com.google.common.base.Preconditions;
 
 /**
  * This class is copied from the {@link com.google.api.gax.rpc.InstantiatingWatchdogProvider},
