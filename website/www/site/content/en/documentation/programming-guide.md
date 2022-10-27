@@ -3780,11 +3780,11 @@ output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_add
 ##### **Wildcards**
 
 {{< paragraph class="language-py" >}}
-Support for wildcards hasn't been developed for python SDK yet
+Support for wildcards hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-Support for wildcards hasn't been developed for GO SDK yet
+Support for wildcards hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
