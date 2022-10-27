@@ -42,7 +42,7 @@ from typing import Any
 from typing import Dict
 from typing import Tuple
 
-import apache_beam.vendored.dill as dill
+from apache_beam.vendored import dill
 
 settings = {'dill_byref': None}
 

@@ -52,7 +52,6 @@ from typing import Set
 from typing import Tuple
 from typing import Type
 
-import apache_beam.vendored.dill as dill
 import numpy as np
 from fastavro import parse_schema
 from fastavro import schemaless_reader
@@ -67,6 +66,7 @@ from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.vendored import dill
 
 try:
   import dataclasses
