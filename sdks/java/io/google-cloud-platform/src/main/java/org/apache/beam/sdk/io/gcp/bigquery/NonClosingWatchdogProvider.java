@@ -15,8 +15,7 @@ import com.google.common.base.Preconditions;
  * we pass it doesn't try to get closed as well.
  */
 public class NonClosingWatchdogProvider implements WatchdogProvider {
-  @Nullable
-  private final ApiClock clock;
+  @Nullable private final ApiClock clock;
   @Nullable private final ScheduledExecutorService executor;
   @Nullable private final Duration checkInterval;
 
