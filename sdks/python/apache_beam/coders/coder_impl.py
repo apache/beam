@@ -52,7 +52,7 @@ from typing import Set
 from typing import Tuple
 from typing import Type
 
-import dill
+import apache_beam.vendored.dill as dill
 import numpy as np
 from fastavro import parse_schema
 from fastavro import schemaless_reader
