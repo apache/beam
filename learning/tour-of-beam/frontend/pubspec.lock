@@ -50,6 +50,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.9.0"
+  autotrie:
+    dependency: transitive
+    description:
+      name: autotrie
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.0.0"
   boolean_selector:
     dependency: transitive
     description:
@@ -120,6 +127,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.2.1"
+  charcode:
+    dependency: transitive
+    description:
+      name: charcode
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "1.3.1"
   checked_yaml:
     dependency: transitive
     description:
@@ -141,15 +155,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "4.2.0"
-  code_text_field:
-    dependency: "direct main"
-    description:
-      path: "."
-      ref: "9e2c9fe52a69481f038f4b6609e8a0a776429437"
-      resolved-ref: "9e2c9fe52a69481f038f4b6609e8a0a776429437"
-      url: "https://github.com/BertrandBev/code_field.git"
-    source: git
-    version: "1.0.3"
   collection:
     dependency: transitive
     description:
@@ -267,6 +272,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_code_editor:
+    dependency: transitive
+    description:
+      name: flutter_code_editor
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.1.1"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -390,6 +402,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.7.0"
+  hive:
+    dependency: transitive
+    description:
+      name: hive
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.2.3"
   http:
     dependency: "direct main"
     description:
@@ -668,6 +687,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.27.5"
+  scrollable_positioned_list:
+    dependency: transitive
+    description:
+      name: scrollable_positioned_list
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.3.5"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -834,6 +860,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.17.4"
+  tuple:
+    dependency: transitive
+    description:
+      name: tuple
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.0.1"
   typed_data:
     dependency: transitive
     description:
