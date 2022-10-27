@@ -3934,11 +3934,11 @@ purchases.apply(Select.fieldNames("userId", "shippingAddress.*"));
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
-Support for Wildcards hasn't been developed for python SDK yet
+Support for Wildcards hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-Support for Wildcards hasn't been developed for GO SDK yet
+Support for Wildcards hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 Will result in the following schema
