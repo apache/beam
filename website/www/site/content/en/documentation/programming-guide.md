@@ -3772,10 +3772,10 @@ Individual nested fields can be specified using the dot operator. For example, t
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
-	
-<!-- {{< highlight py >}} 
+
+<!-- {{< highlight py >}}
 input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
-output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_address.post_code"]))                                               
+output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_address.post_code"]))
 {{< /highlight >}} -->
 ##### **Wildcards**
 
@@ -3796,8 +3796,8 @@ shipping-address fields one would write
 purchases.apply(Select.fieldNames("shippingAddress.*"));
 {{< /highlight >}}
 
-<!-- 
-{{< highlight py >}} 
+<!--
+{{< highlight py >}}
 #TODO(https://github.com/apache/beam/issues/23275): Add support for projecting nested fields
 input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Select("shipping_address.*"))                                               
@@ -4186,7 +4186,7 @@ input_pc = ... # {"user_id": ..., "item_Id": ..., "cost_cents": ...}
 output_pc = input_pc | beam.GroupBy("user_id")
 	.aggregate_field("item_id", CountCombineFn, "num_purchases")
 	.aggregate_field("cost_cents", sum, "total_spendcents")
-	.aggregate_field("cost_cents", TopCombineFn, "top_purchases")	
+	.aggregate_field("cost_cents", TopCombineFn, "top_purchases")
 {{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
