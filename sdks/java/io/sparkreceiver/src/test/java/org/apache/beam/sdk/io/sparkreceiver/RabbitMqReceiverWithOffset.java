@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
 
   private static final Logger LOG = LoggerFactory.getLogger(RabbitMqReceiverWithOffset.class);
+  private static final int MAX_PREFETCH_COUNT = 65535;
 
   private final String rabbitmqUrl;
   private final String streamName;
@@ -99,7 +100,7 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
       channel = connection.createChannel();
       channel.queueDeclare(
           streamName, true, false, false, Collections.singletonMap("x-queue-type", "stream"));
-      channel.basicQos((int) totalMessagesNumber);
+      channel.basicQos(Math.min(MAX_PREFETCH_COUNT, (int) totalMessagesNumber));
       testConsumer = new TestConsumer(this, channel, this::store);
 
       channel.basicConsume(
@@ -149,7 +150,7 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
         String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
       try {
         final String sMessage = new String(body, StandardCharsets.UTF_8);
-        LOG.info("Adding message to consumer: {}", sMessage);
+        LOG.trace("Adding message to consumer: {}", sMessage);
         messageConsumer.accept(sMessage);
         if (getChannel().isOpen() && !receiver.isStopped()) {
           getChannel().basicAck(envelope.getDeliveryTag(), false);
