@@ -281,6 +281,7 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
+  dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT_V2")
 }
@@ -332,7 +333,14 @@ tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
-  dependsOn(":sdks:python:test-suites:direct:py39:inferencePostCommitIT")
+}
+
+tasks.register("python310PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
+  dependsOn(":sdks:python:test-suites:direct:py310:inferencePostCommitIT")
 }
 
 task("python37SickbayPostCommit") {
@@ -349,13 +357,14 @@ task("python39SickbayPostCommit") {
 
 tasks.register("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
-  dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
+  dependsOn(":sdks:python:test-suites:portable:py310:preCommitPy310")
 }
 
 tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py310:sparkValidatesRunner")
 }
 
 tasks.register("websitePreCommit") {
