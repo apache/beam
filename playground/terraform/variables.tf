@@ -40,6 +40,8 @@ variable "gke_machine_type" {
   default     = "e2-standard-4"
 }
 
+variable "dnsname" {}
+
 variable "gke_node_count" {
   description = "Node pool size"
   default     = 1
