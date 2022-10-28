@@ -172,3 +172,7 @@ variable "location" {
 }
 
 variable "dnsname" {}
+variable "state_bucket" {}
+variable "state_prefix" {
+  default = ""
+}
