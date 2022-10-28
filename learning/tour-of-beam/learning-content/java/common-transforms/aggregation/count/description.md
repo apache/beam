@@ -78,6 +78,8 @@ KV{KV{🥕, 3}, 1}
 KV{KV{🍅, 5}, 1}
 ```
 
+### Playground exercise
+
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
 `Count` returns the count elements from the `PCollection`. If you replace the `integers input` with this `map input`:
@@ -101,7 +103,32 @@ PCollection<KV<Integer, Integer>> output = applyTransform(numbers);
 ```
 static PCollection<KV<Integer, Integer>> applyTransform(PCollection<KV<Integer, Integer>> input) {
         return input.apply(Count.globally());
-    }
+}
+```
+
+And Count transforms work with strings too! Can you change the example to count the number of words in a given sentence and how often each word occurs?
+
+Don't forget to add import:
+
+```
+import java.util.Arrays;
+import org.apache.beam.sdk.values.KV;
+```
+
+Create data for PCollection:
+
+```
+String str = "To be, or not to be: that is the question:Whether 'tis nobler in the mind to suffer The slings and arrows of outrageous fortune,Or to take arms against a sea of troubles,And by opposing end them. To die: to sleep";
+
+PCollection<String> input = pipeline.apply(Create.of(Arrays.asList(str.split(" "))));
+```
+
+Count how many words are repeated with `Count.perElement`:
+
+```
+static PCollection<KV<String, Long>> applyTransform(PCollection<String> input) {
+    return input.apply(Count.perElement());
+}
 ```
 
 Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

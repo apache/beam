@@ -45,14 +45,30 @@ class Output(beam.PTransform):
     def expand(self, input):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
+class ExtractTaxiRideCostFn(beam.DoFn):
+
+    def process(self, element):
+        line = element.split(',')
+        return tryParseTaxiRideCost(line,16)
+
+
+def tryParseTaxiRideCost(line,index):
+    if(len(line) > index):
+      try:
+        yield float(line[index])
+      except:
+        yield float(0)
+    else:
+        yield float(0)
+
+
 with beam.Pipeline() as p:
-    # List of elements
-    (p | beam.Create([12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15])
-    # Return filtered numbers
 
-    # Set 'positive' for numbers
+  lines = (p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv')
+  | beam.ParDo(ExtractTaxiRideCostFn()))
 
-    # Return count for each key
+  (lines
+  | 'Log above cost' >> Output(prefix='Above pCollection values:'))
 
-     | Output())
-
+  (lines
+  | 'Log below cost' >> Output(prefix='Below pCollection values:'))

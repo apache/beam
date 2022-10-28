@@ -11,8 +11,11 @@ limitations under the License.
 -->
 
 ### Common Transforms motivating challenge
-You are given a `PCollection` constructed from in-memory array of integer numbers: `[12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15]`. Your task is to count how many positive even numbers and how many positive odd numbers are there. Although there are many ways how to do this try to use different transformas introduced in this module.
 
-Please note that 0 is an even number.
+You are provided with a `PCollection` from the array of taxi order prices in a csv file. Your task is to find how many orders are below $15 and above. Return it as a map structure (key-value), make `above` or `below` the key, and the sum of all orders - the value.Although there are many ways to do this, try using another transformation presented in this module.
 
-Considering all of the above, in a given array you have 3 positive even numbers (12, 0 and 6) and 5 positive odd numbers (93, 53, 133, 13, 15).
+Taxi.csv consists of 16 columns:
+
+`VendorID,tpep_pickup_datetime,tpep_dropoff_datetime,passenger_count,trip_distance,RatecodeID,store_and_fwd_flag,PULocationID,DOLocationID,payment_type,fare_amount,extra,mta_tax,tip_amount,tolls_amount,improvement_surcharge,total_amount`
+
+Required number of columns:**16 - order price**.

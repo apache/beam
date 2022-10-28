@@ -11,6 +11,6 @@ limitations under the License.
 -->
 
 To solve this challenge, you may build a pipeline that consists of the following steps:
-1. Filter whether the number is equal to zero or greater than it using `Filter`
-2. Set the "odd" key for odd numbers and "even" for even numbers using `WithKeys`
-3. Count the number of even and odd numbers using the `Count.PerKey()`
+1. Filter so that the price is more than 15 or less using the `beam.Filter`.
+2. Summarize each `PCollection` using `beam.CombineGlobally(sum)`.
+3. Return `KV` using the `WithKeys` key, which will be `above` or `below`.

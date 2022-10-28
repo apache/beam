@@ -43,14 +43,14 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        // List of elements
-        PCollection<Integer> numbers =
+        // Create input PCollection
+        PCollection<Integer> input =
                 pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 
-        // The [numbers] filtered with the applyTransform()
-        PCollection<Integer> output = applyTransform(numbers);
+        // The [input] filtered with the applyTransform()
+        PCollection<Integer> output = applyTransform(input);
 
-        output.apply("Log", ParDo.of(new LogOutput<Integer>("PCollection filtered value")));
+        output.apply("Log", ParDo.of(new LogOutput<>("PCollection filtered value")));
 
         pipeline.run();
     }

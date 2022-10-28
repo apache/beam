@@ -97,6 +97,8 @@ Output
 ('🌽', 1)
 ```
 
+### Playground exercise
+
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
 `Count.globally` returns the number of integers from the `PCollection`. If you replace the `integers input` with this `map input` and replace `beam.combiners.Count.Globally` on `beam.combiners.Count.PerKey` it will output the count numbers by key :
@@ -111,10 +113,27 @@ beam.Create([
 ]) | beam.combiners.Count.PerKey()
 ```
 
-For unique element count use:
+And Count transforms work with strings too! Can you change the example to count the number of words in a given sentence and how often each word occurs?
+
+Count how many words are repeated with `Count`:
 
 ```
-beam.combiners.Count.PerElement()
+  (p | beam.Create(["To be, or not to be: that is the question:Whether 'tis nobler in the mind to suffer The slings and arrows of outrageous fortune,Or to take arms against a sea of troubles,And by opposing end them. To die: to sleep"])
+  | beam.ParDo(SplitWords())
+  | beam.combiners.Count.PerElement()
+  | Output(prefix='PCollection filtered value: '))
+```
+
+For split word you can use:
+
+```
+class SplitWords(beam.DoFn):
+  def __init__(self, delimiter=' '):
+    self.delimiter = delimiter
+
+  def process(self, text):
+    for word in text.split(self.delimiter):
+      yield word
 ```
 
 Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

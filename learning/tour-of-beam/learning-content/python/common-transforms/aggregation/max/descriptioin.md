@@ -66,6 +66,8 @@ Output
 ('🍅', 5)
 ```
 
+### Playground exercise
+
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
 `Top.Largest` returns larger numbers from `PCCollection` than specified in the function argument. If you replace the `integers input` with this `map input` and replace `beam.combiners.Top.Largest(5)` on `beam.CombinePerKey(max)` it will output the maximum numbers by key :

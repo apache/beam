@@ -65,6 +65,8 @@ Output
 ('🍅', 3)
 ```
 
+### Playground exercise
+
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
 `Top.Smallest` returns smaller numbers from `PCollection` than specified in the function argument. If you replace the `integers input` with this `map input` and replace `beam.combiners.Top.Smallest(5)` on `beam.CombinePerKey(min)` it will output the minimum numbers by key :

@@ -46,7 +46,7 @@ func main() {
     // The applyTransform() converts [input] to [output]
     output := applyTransform(s, input)
 
-    debug.Printf(s, "PCollection count value: %v", output)
+	debug.Printf(s, "Input has %v elements", output)
 
     err := beamx.Run(ctx, p)
 

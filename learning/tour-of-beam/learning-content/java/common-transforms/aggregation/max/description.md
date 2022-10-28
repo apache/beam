@@ -48,6 +48,8 @@ KV{🥕, 3}
 KV{🍆, 1}
 ```
 
+### Playground exercise
+
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
 `Max.doublesGlobally` returns the maximum element from the `PCollection`. If you replace the `integers input` with this `map input`:

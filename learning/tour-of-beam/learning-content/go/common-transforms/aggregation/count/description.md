@@ -42,8 +42,37 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
+### Playground exercise
+
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
-`CountElms` returns the number of integers from the `PCollection`. If you replace `CountElms` but `Count`, you can count the elements by the values of how many times they met.
+`CountElms` returns the number of integers from the `PCollection`. If you replace `CountElms` with `Count` you can count the elements by the values of how many times they met.
+
+And Count transforms work with strings too! Can you change the example to count the number of words in a given sentence and how often each word occurs?
+
+Don't forget to add import:
+
+```
+import (
+    "strings"
+    ...
+)
+```
+
+Create data for PCollection:
+
+```
+String str = "To be, or not to be: that is the question:Whether 'tis nobler in the mind to suffer The slings and arrows of outrageous fortune,Or to take arms against a sea of troubles,And by opposing end them. To die: to sleep";
+
+PCollection<String> input = pipeline.apply(Create.of(Arrays.asList(str.split(" "))));
+```
+
+Count how many words are repeated with `Count`:
+
+```
+func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return stats.Count(s, input)
+}
+```
 
 Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

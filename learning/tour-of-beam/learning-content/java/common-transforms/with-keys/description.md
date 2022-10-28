@@ -54,6 +54,8 @@ KV{SpecifiedKey, World}
 KV{SpecifiedKey, Beam}
 ```
 
+### Playground exercise
+
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
 The data is returned, which consists of a card with a key, which is the first letter of the word and the meaning of which is the word itself.

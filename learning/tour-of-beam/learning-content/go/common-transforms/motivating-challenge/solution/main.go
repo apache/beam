@@ -28,12 +28,16 @@ package main
 
 import (
     "context"
+    "strings"
+    "strconv"
+    "strings"
     "github.com/apache/beam/sdks/v2/go/pkg/beam"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 )
 
 func main() {
@@ -41,26 +45,31 @@ func main() {
 
     p, s := beam.NewPipelineWithRoot()
 
-    // List of elements
-    input := beam.Create(s, 12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15)
+    file := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
-    debug.Print(s, input)
-    filtered := filter.Exclude(s, input, func(element int) bool {
-        return element < 0
-    })
+    // Extract cost from PCollection
+    input := ExtractCostFromFile(s, file)
 
-    tagged := beam.ParDo(s, func(input int) (string, int) {
-        if input%2 == 0 {
-            return "even", input
-        } else {
-            return "odd", input
-        }
-    }, filtered)
+    // Filtering with fixed cost
+    aboveCosts := getAboveCosts(s, input)
 
-    // Returns numbers count with the countingNumbers()
-    count := getCountingNumbersByKey(s, tagged)
+    // Filtering with fixed cost
+    belowCosts := getBelowCosts(s, input)
 
-    debug.Print(s, count)
+    // Summing up the price above the fixed price
+    aboveCostsSum := getSum(s, aboveCosts)
+
+    // Summing up the price above the fixed price
+    belowCostsSum := getSum(s, belowCosts)
+
+    // Create map[key,value]
+    aboveKV := getMap(s, aboveCostsSum, "above")
+
+    // Create map[key,value]
+    belowKV := getMap(s, belowCostsSum, "below")
+
+    debug.Printf(s, "Above pCollection output", aboveKV)
+    debug.Printf(s, "Below pCollection output", belowKV)
 
     err := beamx.Run(ctx, p)
 
@@ -69,14 +78,35 @@ func main() {
     }
 }
 
-// Returns positive numbers
+func ExtractCostFromFile(s beam.Scope, input beam.PCollection) beam.PCollection {
+    return beam.ParDo(s, func(line string) float64 {
+        taxi := strings.Split(strings.TrimSpace(line), ",")
+        if len(taxi) > 16 {
+            cost, _ := strconv.ParseFloat(taxi[16],64)
+            return cost
+        }
+        return 0.0
+    }, input)
+}
 
-// Returns a map with a key that will not be odd or even , and the value will be the number itself at the input
+func getSum(s beam.Scope, input beam.PCollection) beam.PCollection {
+    return stats.Sum(s, input)
+}
 
-// Returns the count of numbers
-func getCountingNumbersByKey(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return stats.Count(s,
-        beam.ParDo(s, func(key string, value int) string {
-            return key
-        }, input))
+func getAboveCosts(s beam.Scope, input beam.PCollection) beam.PCollection{
+    return filter.Include(s, input, func(element float64) bool {
+             return element >= 15
+    })
+}
+
+func getBelowCosts(s beam.Scope, input beam.PCollection) beam.PCollection{
+    return filter.Include(s, input, func(element float64) bool {
+        return element < 15
+    })
+}
+
+func getMap(s beam.Scope, input beam.PCollection,key string) beam.PCollection{
+    return beam.ParDo(s, func(number float64) (string, float64) {
+        return key,number
+    }, input)
 }

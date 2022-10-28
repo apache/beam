@@ -49,6 +49,8 @@ KV{🥕, 2.5}
 KV{🍅, 4.0}
 ```
 
+### Playground exercise
+
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
 `Mean.globally` returns the mean from the `PCollection`. If you replace the `integers input` with this `map input`:

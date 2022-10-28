@@ -45,14 +45,14 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        // List of elements
+        // Create input PCollection
         PCollection<Integer> input =
                 pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 
         // The applyTransform() converts [input] to [output]
         PCollection<Long> output = applyTransform(input);
 
-        output.apply("Log", ParDo.of(new LogOutput<>("PCollection count value")));
+        output.apply("Log", ParDo.of(new LogOutput<>("Input has elements")));
 
         pipeline.run();
     }

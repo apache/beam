@@ -40,6 +40,8 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
+### Playground exercise
+
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
 `Min` returns the minimum number from the `PCollection`. If you replace the `integers input` with this `map input`:

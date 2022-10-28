@@ -47,7 +47,7 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        // List of elements
+        // Create input PCollection
         PCollection<String> words =
                 pipeline.apply(
                         Create.of("apple", "banana", "cherry", "durian", "guava", "melon"));
