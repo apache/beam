@@ -116,6 +116,7 @@ gcloud container clusters get-credentials --region `chosen_location` `gke_name` 
 ```
 gcloud app deploy playground/index.yaml --project=`project_id`
 ```
+Please add NS records from your Cloud DNS (your project>Cloud DNS>playground>NS records) to your domain registrator
 That's all, the configuration of the environment has been completed. For deploying the Beam Playground to the Google cloud Kubernetes engine, please execute the following command (Ensure you are in the "beam" folder):
 ```
 ./gradlew playground:terraform:gkebackend -Pproject_environment="env" -Pdocker-tag="tag" (env - folder name which you created for configuration files, tag - image tag for backend)
