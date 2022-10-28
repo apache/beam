@@ -291,7 +291,7 @@ task("prepareConfig") {
         var extip = ""
         var stdout = ByteArrayOutputStream()
         exec {
-            commandLine = listOf("terraform", "output", "playground_static_ip_address")
+            commandLine = listOf("terraform", "output", "playground_dns_name")
             standardOutput = stdout
         }
         extip = stdout.toString().trim().replace("\"", "")
@@ -304,15 +304,15 @@ task("prepareConfig") {
             """
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
-      'https://router.${extip}.nip.io';
+      'https://router.${extip};
 const String kApiJavaClientURL =
-      'https://java.${extip}.nip.io';
+      'https://java.${extip};
 const String kApiGoClientURL =
-      'https://go.${extip}.nip.io';
+      'https://go.${extip};
 const String kApiPythonClientURL =
-      'https://python.${extip}.nip.io';
+      'https://python.${extip};
 const String kApiScioClientURL =
-      'https://scio.${extip}.nip.io';
+      'https://scio.${extip};
 """
         )
         try {
@@ -468,15 +468,19 @@ task ("gkebackend") {
   val push = tasks.getByName("pushBack")
   val helm = tasks.getByName("helmInstallBackend")
   val prepare = tasks.getByName("prepareConfig")
+  val front = tasks.getByName("pushFront")
   dependsOn(init)
   dependsOn(apply)
   dependsOn(takeConfig)
   dependsOn(push)
-  dependsOn(helm)
   dependsOn(prepare)
+  dependsOn(front)
+  dependsOn(helm)
   apply.mustRunAfter(init)
   takeConfig.mustRunAfter(apply)
   push.mustRunAfter(takeConfig)
-  helm.mustRunAfter(push)
-  prepare.mustRunAfter(helm)
+  prepare.mustRunAfter(push)
+  front.mustRunAfter(prepare)
+  helm.mustRunAfter(front)
+  
 }
