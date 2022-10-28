@@ -61,6 +61,6 @@ In order to automate and track the AI/ML workflows throughout your project, you 
 ## Examples
 
 You can find examples of end-to-end AI/ML pipelines for several use cases:
-* [Multi model pipelines in Beam](/documentation/ml/multi-model-pipelines)
-* [Online Clustering in Beam](/documentation/ml/online-clustering)
-* [Anomaly Detection in Beam](/documentation/ml/anomaly-detection)
+* [Multi model pipelines in Beam](/documentation/ml/multi-model-pipelines): It explains how multi-model pipelines work and gives an overview of what you need to know to build one using RunInference API.
+* [Online Clustering in Beam](/documentation/ml/online-clustering): The example demonstrates how to setup a realtime clustering pipeline that can read text from PubSub, convert the text into an embedding using a transformer based language model with RunInference API, and cluster them using BIRCH with Stateful Processing.
+* [Anomaly Detection in Beam](/documentation/ml/anomaly-detection): The example demonstrates how to setup an anomaly detection pipeline that reads text from PubSub in real-time, and then detects anomaly using a trained HDBSCAN clustering model with RunInference API.
