@@ -59,7 +59,7 @@ resource "google_dns_record_set" "scioplayground" {
   ttl     = 300
 }
 
-esource "google_dns_record_set" "routerplayground" {
+resource "google_dns_record_set" "routerplayground" {
   managed_zone = google_dns_managed_zone.playground.name
   name    = "router.${google_dns_managed_zone.playground.dns_name}"
   type    = "A"
