@@ -30,7 +30,7 @@
 
 import apache_beam as beam
 
-from log_elements import LogElements
+from apache_beam.transforms.util import LogElements
 
 PLAYER_1 = 'Player 1'
 PLAYER_2 = 'Player 2'

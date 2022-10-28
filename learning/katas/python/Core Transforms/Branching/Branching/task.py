@@ -30,7 +30,7 @@
 
 import apache_beam as beam
 
-from log_elements import LogElements
+from apache_beam.transforms.util import LogElements
 
 with beam.Pipeline() as p:
 

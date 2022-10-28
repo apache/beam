@@ -37,7 +37,7 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.utils.timestamp import Duration
-from log_elements import LogElements
+from apache_beam.transforms.util import LogElements
 
 
 class CountEvents(beam.PTransform):

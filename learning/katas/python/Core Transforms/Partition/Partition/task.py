@@ -29,7 +29,7 @@
 
 import apache_beam as beam
 
-from log_elements import LogElements
+from apache_beam.transforms.util import LogElements
 
 
 def partition_fn(number, num_partitions):

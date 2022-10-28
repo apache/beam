@@ -32,7 +32,7 @@
 import apache_beam as beam
 from apache_beam import pvalue
 
-from log_elements import LogElements
+from apache_beam.transforms.util import LogElements
 
 num_below_100_tag = 'num_below_100'
 num_above_100_tag = 'num_above_100'

@@ -35,7 +35,7 @@ import pytz
 import apache_beam as beam
 from apache_beam.transforms import window
 
-from log_elements import LogElements
+from apache_beam.transforms.util import LogElements
 
 
 with beam.Pipeline() as p:
