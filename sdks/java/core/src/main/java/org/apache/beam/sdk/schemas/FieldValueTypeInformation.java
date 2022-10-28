@@ -177,6 +177,14 @@ public abstract class FieldValueTypeInformation implements Serializable {
       throw new RuntimeException("Getter has wrong prefix " + method.getName());
     }
 
+    return forMethodWithName(method, index, name);
+  }
+
+  public static FieldValueTypeInformation forMethod(Method method, int index) {
+    return forMethodWithName(method, index, method.getName());
+  }
+
+  private static FieldValueTypeInformation forMethodWithName(Method method, int index, String name) {
     TypeDescriptor type = TypeDescriptor.of(method.getGenericReturnType());
     boolean nullable = hasNullableReturnType(method);
     return new AutoValue_FieldValueTypeInformation.Builder()

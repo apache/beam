@@ -854,4 +854,86 @@ public class AutoValueSchemaTest {
     assertEquals(
         registry.getFromRowFunction(SimpleAutoValueWithRenamedFields.class).apply(row), autoValue);
   }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  abstract static class NonGetterAutoValue {
+    public abstract String str();
+
+    public abstract byte aByte();
+
+    public abstract short aShort();
+
+    public abstract int getAnInt();
+
+    public abstract long aLong();
+
+    public abstract boolean aBoolean();
+
+    public abstract DateTime dateTime();
+
+    @SuppressWarnings("mutable")
+    public abstract byte[] bytes();
+
+    public abstract ByteBuffer byteBuffer();
+
+    public abstract Instant instant();
+
+    public abstract BigDecimal bigDecimal();
+
+    public abstract StringBuilder stringBuilder();
+  }
+  
+  @Test
+  public void testNonGetterAutoValue() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(NonGetterAutoValue.class);
+    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_SCHEMA, schema);
+  }
+
+  static class SuperclassThatDefinesToString {
+    @Override
+    public String toString() {
+      return "Base class string representation";
+    }
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  abstract static class NonGetterAutoValueWithOverriddenObjectMethod extends SuperclassThatDefinesToString {
+    public abstract String str();
+
+    public abstract byte aByte();
+
+    public abstract short aShort();
+
+    public abstract int getAnInt();
+
+    public abstract long aLong();
+
+    public abstract boolean aBoolean();
+
+    public abstract DateTime dateTime();
+
+    @SuppressWarnings("mutable")
+    public abstract byte[] bytes();
+
+    public abstract ByteBuffer byteBuffer();
+
+    public abstract Instant instant();
+
+    public abstract BigDecimal bigDecimal();
+
+    public abstract StringBuilder stringBuilder();
+
+    // cause AutoValue to generate this even though the superclass has it
+    @Override public abstract String toString();
+  }
+
+  @Test
+  public void testNonGetterAutoValueWithOverriddenObjectMethod() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(NonGetterAutoValueWithOverriddenObjectMethod.class);
+    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_SCHEMA, schema);
+  }
 }

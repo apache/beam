@@ -56,16 +56,21 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
 
       List<Method> methods =
           ReflectUtils.getMethods(targetClass).stream()
-              .filter(ReflectUtils::isGetter)
               // All AutoValue getters are marked abstract.
               .filter(m -> Modifier.isAbstract(m.getModifiers()))
               .filter(m -> !Modifier.isPrivate(m.getModifiers()))
               .filter(m -> !Modifier.isProtected(m.getModifiers()))
               .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
+              .filter(m -> !m.getName().equals("toString") && !m.getName().equals("equals") && !m.getName().equals("hashCode"))
               .collect(Collectors.toList());
       List<FieldValueTypeInformation> types = Lists.newArrayListWithCapacity(methods.size());
       for (int i = 0; i < methods.size(); ++i) {
-        types.add(FieldValueTypeInformation.forGetter(methods.get(i), i));
+        final Method method = methods.get(i);
+        if (method.getName().startsWith("get") || method.getName().startsWith("is")) {
+          types.add(FieldValueTypeInformation.forGetter(method, i));
+        } else {
+          types.add(FieldValueTypeInformation.forMethod(method, i));
+        }
       }
       types.sort(Comparator.comparing(FieldValueTypeInformation::getNumber));
       validateFieldNumbers(types);
