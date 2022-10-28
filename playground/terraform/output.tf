@@ -33,9 +33,6 @@ output "playground_network_id" {
   value = module.infrastructure.playground_network_id
 }
 
-output "playground_dns_name" {
-  value = module.infrastructure.playground_network_id
-}
 output "playground_subnetwork_id" {
   value = module.infrastructure.playground_subnetwork_id
 }
