@@ -66,5 +66,5 @@ output "playground_static_ip_address_name" {
 }
 
 output "playground_dns_name" {
- value = module.cluddns.playground_dns
+ value = module.ip_address.playground_dns_name
 }
