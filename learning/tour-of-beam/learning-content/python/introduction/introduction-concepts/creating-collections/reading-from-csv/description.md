@@ -19,9 +19,13 @@ Loading data from csv file requires some processing and consists of two main par
 * Loading text lines using `TextIO.Read` transform
 * Parsing lines of text into tabular format
 
+### Playground exercise
+
 Try to experiment with an example in the playground window and modify the code to process other fields from New York taxi rides dataset.
 Here is a list of fields and a sample record from this dataset:
 
 `VendorID,tpep_pickup_datetime,tpep_dropoff_datetime,passenger_count,trip_distance,RatecodeID,store_and_fwd_flag,PULocationID,DOLocationID,payment_type,fare_amount,extra,mta_tax,tip_amount,tolls_amount,improvement_surcharge,total_amount`
 
 `1,2018-01-01 00:21:05,2018-01-01 00:24:23,1,.50,1,N,41,24,2,4.5,0.5,0.5,0,0,0.3,5.8`
+
+Overview [file](https://storage.googleapis.com/apache-beam-samples/nyc_taxi/misc/sample1000.csv)

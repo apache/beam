@@ -40,16 +40,24 @@ The following example shows how to add `input` and `output` custom options:
 ```
 // Use standard Go flags to define pipeline options.
 var (
-  input  = flag.String("input", "", "")
-  output = flag.String("output", "", "")
-)
-```
-
-You can also specify a description, which appears when a user passes `--help` as a command-line argument, and a default value.
-
-```
-var (
   input  = flag.String("input", "gs://my-bucket/input", "Input for the pipeline")
   output = flag.String("output", "gs://my-bucket/output", "Output for the pipeline")
 )
 ```
+
+### Playground exercise
+
+You can find the full code of the above example in the playground window, which you can run and experiment with.
+
+You can transfer files of other extensions. For example, a csv file with taxi order data. And after making some transformations, you can write to a new csv file:
+```
+var (
+  input = flag.String("input", "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv", "File(s) to read.")
+
+  output = flag.String("output", "output.csv", "Output file (required).")
+)
+```
+
+Overview [file](https://storage.googleapis.com/apache-beam-samples/nyc_taxi/misc/sample1000.csv)
+
+Do you also notice in what order elements of PCollection appear in the console? Why is that? You can also run the example several times to see if the output stays the same or changes.

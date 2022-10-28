@@ -44,14 +44,14 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<String> output = setupPipeline(pipeline);
+        PCollection<String> output = createPCollection(pipeline);
 
         output.apply("Log", ParDo.of(new LogOutput<String>()));
 
         pipeline.run();
     }
 
-    static PCollection<String> setupPipeline(Pipeline pipeline) {
+    static PCollection<String> createPCollection(Pipeline pipeline) {
         return pipeline.apply(Create.of("Hello Beam"));
     }
 

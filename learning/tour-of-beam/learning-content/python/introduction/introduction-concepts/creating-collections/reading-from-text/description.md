@@ -28,6 +28,10 @@ with beam.Pipeline() as p:
 
 ```
 
+### Playground exercise
+
 In the playground window, you can find an example that reads a king lear poem from the text file stored in the Google Storage bucket and fills PCollection with individual lines and then with individual words. Try it out and see what the output is.
 
-One of the differences you will see is that the output is much shorter than the input file itself. This is because the number of elements in the output `PCollection` is limited with the `Sample.fixedSizeGlobally` transform. Use Sample.fixedSizeGlobally transform of is another technique you can use to troubleshoot and limit the output sent to the console for debugging purposes in case of large input datasets.
+One of the differences you will see is that the output is much shorter than the input file itself. This is because the number of elements in the output `PCollection` is limited with the ` beam.combiners.Sample.FixedSizeGlobally(10)` transform. Use Sample.fixedSizeGlobally transform of is another technique you can use to troubleshoot and limit the output sent to the console for debugging purposes in case of large input datasets.
+
+Overview [file](https://storage.googleapis.com/apache-beam-samples/shakespeare/kinglear.txt)

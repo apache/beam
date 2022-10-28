@@ -20,6 +20,8 @@ Loading data from csv file requires some processing and consists of two main par
 * Loading text lines using `TextIO.Read` transform
 * Parsing lines of text into tabular format
 
+### Playground exercise
+
 Try to experiment with an example in the playground window and modify the code to process other fields from New York taxi rides dataset.
 
 Here is a list of fields and a sample record from this dataset:

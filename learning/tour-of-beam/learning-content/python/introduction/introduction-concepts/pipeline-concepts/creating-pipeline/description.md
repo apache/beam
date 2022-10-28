@@ -23,3 +23,24 @@ import apache_beam as beam
 with beam.Pipeline() as pipeline:
   pass  # build your pipeline here
 ```
+
+### Playground exercise
+
+You can find the full code of the above example in the playground window, which you can run and experiment with.
+
+When creating pipelines, you can give an argument with explicitly specified parameters:
+
+```
+beam_options = PipelineOptions(
+    runner='DataflowRunner',
+    project='my-project-id',
+    job_name='unique-job-name',
+    temp_location='gs://my-bucket/temp',
+)
+```
+
+Creation based on option:
+
+```
+pipeline = beam.Pipeline(options=beam_options)
+```
