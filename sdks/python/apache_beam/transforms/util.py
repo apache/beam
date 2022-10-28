@@ -83,6 +83,7 @@ __all__ = [
     'Distinct',
     'Keys',
     'KvSwap',
+    'LogElements',
     'Regex',
     'Reify',
     'RemoveDuplicates',
