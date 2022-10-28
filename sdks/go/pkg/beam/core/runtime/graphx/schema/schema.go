@@ -92,6 +92,7 @@ func getUUID(ut reflect.Type) string {
 // Registered returns whether the given type has been registered with
 // the schema package.
 func (r *Registry) Registered(ut reflect.Type) bool {
+	r.reconcileRegistrations()
 	_, ok := r.syntheticToUser[ut]
 	return ok
 }
