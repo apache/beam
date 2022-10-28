@@ -64,3 +64,7 @@ output "playground_gke_project" {
 output "playground_static_ip_address_name" {
  value = module.ip_address.playground_static_ip_address_name
 }
+
+output "playground_dns_name" {
+ value = module.cluddns.playground_dns
+}
