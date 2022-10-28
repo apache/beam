@@ -100,6 +100,6 @@ module "api_enable" {
 }
   
 module "clouddns" {
-  source            = "./clouddns"
+  source            = "./cluddns"
   project_id         = var.project_id
 }
