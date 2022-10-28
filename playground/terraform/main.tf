@@ -46,6 +46,7 @@ module "infrastructure" {
   gke_name                      = var.gke_name
   gke_location                  = var.location
   service_account               = var.service_account
+  dnsname                       = var.dnsname
 }
 
 module "applications" {
