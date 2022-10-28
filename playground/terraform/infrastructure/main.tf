@@ -16,7 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+data "terraform_remote_state" "playground-state" {
+  backend = "gcs"
+  config  = {
+    bucket = var.state_bucket
+    prefix = var.state_prefix
+  }
+}
 
 module "setup" {
   source             = "./setup"
