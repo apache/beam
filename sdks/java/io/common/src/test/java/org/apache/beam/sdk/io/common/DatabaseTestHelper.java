@@ -100,8 +100,8 @@ public class DatabaseTestHelper {
             .withMaxRetries(4)
             .backoff();
     while (true) {
-      //This is not implemented as try-with-resources because it appears that try-with-resources is
-      //not correctly catching the PSQLException thrown by dataSource.getConnection()
+      // This is not implemented as try-with-resources because it appears that try-with-resources is
+      // not correctly catching the PSQLException thrown by dataSource.getConnection()
       Connection connection = null;
       try {
         connection = dataSource.getConnection();
@@ -112,7 +112,7 @@ public class DatabaseTestHelper {
       } catch (SQLException e) {
         exception = e;
       } finally {
-        if (connection!=null){
+        if (connection != null) {
           connection.close();
         }
       }
