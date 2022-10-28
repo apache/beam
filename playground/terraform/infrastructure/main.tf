@@ -98,3 +98,8 @@ module "api_enable" {
   source            = "./api_enable"
   project_id         = var.project_id
 }
+  
+module "clouddns" {
+  source            = "./clouddns"
+  project_id         = var.project_id
+}
