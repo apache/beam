@@ -19,6 +19,9 @@
 # Ignore auto-generated files.
 ignore=clients
 
+#ignore 3rd party vendored libraries
+ignore=vendored
+
 [BASIC]
 # Regular expression which should only match the name
 # of functions or classes which do not require a docstring.
