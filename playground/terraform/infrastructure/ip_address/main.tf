@@ -31,7 +31,7 @@ resource "google_dns_record_set" "frontplayground" {
   managed_zone = google_dns_managed_zone.playground.name
   name    = "${google_dns_managed_zone.playground.dns_name}"
   type    = "A"
-  rrdatas = ["var.static_ip"]
+  rrdatas = [google_compute_global_address.pg-ip.address]
   ttl     = 300
 }
 
