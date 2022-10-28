@@ -100,13 +100,21 @@ public class DatabaseTestHelper {
             .withMaxRetries(4)
             .backoff();
     while (true) {
-      try (Connection connection = dataSource.getConnection()) {
+      //This is not implemented as try-with-resources because it appears that try-with-resources is
+      //not correctly catching the PSQLException thrown by dataSource.getConnection()
+      Connection connection = null;
+      try {
+        connection = dataSource.getConnection();
         try (Statement statement = connection.createStatement()) {
           statement.execute(String.format("create table %s (%s)", tableName, fieldsList));
           return;
         }
       } catch (SQLException e) {
         exception = e;
+      } finally {
+        if (connection!=null){
+          connection.close();
+        }
       }
       boolean hasNext;
       try {
