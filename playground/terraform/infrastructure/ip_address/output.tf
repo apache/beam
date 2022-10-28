@@ -24,9 +24,3 @@ output "playground_static_ip_address" {
 output "playground_static_ip_address_name" {
  value = google_compute_global_address.pg-ip.name
 }
-
-variable "names" {
- default = ["go", "java", "python", "scio", "router"]
-}
-
-variable "dnsname" {}
