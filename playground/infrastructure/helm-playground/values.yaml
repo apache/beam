@@ -31,10 +31,10 @@ autoscaling:
    maxReplicas: 4
    targetCPUUtilizationPercentage: 80
 
-static_ip: 34.149.77.235
-redis_ip: 10.172.83.5:6379
-project_id: draft-pg
-registry: us-east1-docker.pkg.dev/draft-pg/playground-repository
+static_ip: 34.96.104.87
+redis_ip: 10.120.127.21:6379
+project_id: sandbox-playground-002
+registry: us-east1-docker.pkg.dev/sandbox-playground-002/playground-repository
 static_ip_name: pg-static-ip
 tag: delta
     
