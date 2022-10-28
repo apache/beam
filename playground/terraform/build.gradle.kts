@@ -468,7 +468,7 @@ task ("gkebackend") {
   val prepare = tasks.getByName("prepareConfig")
   val front = tasks.getByName("pushFront")
   val push = tasks.getByName("pushBack")
-  val helm = tasks.getByName("helmInstallBackend")
+  val helm = tasks.getByName("helmInstallPlayground")
   dependsOn(init)
   dependsOn(apply)
   dependsOn(takeConfig)
