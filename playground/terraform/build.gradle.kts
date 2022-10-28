@@ -294,7 +294,7 @@ task("prepareConfig") {
             commandLine = listOf("terraform", "output", "playground_dns_name")
             standardOutput = stdout
         }
-        extip = stdout.toString().trim().replace("."", "")
+        extip = stdout.toString().trim().replace("\"", "")
         stdout = ByteArrayOutputStream()
         val configFileName = "config.g.dart"
         val modulePath = project(":playground:frontend").projectDir.absolutePath
