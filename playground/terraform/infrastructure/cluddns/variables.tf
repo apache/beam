@@ -20,3 +20,5 @@
 variable "names" {
  default = ["go", "java", "python", "scio", "router"]
 }
+
+variable "dnsname" {}
