@@ -100,6 +100,7 @@ module "api_enable" {
 }
   
 module "clouddns" {
+  depends_on        = [module.setup, module.artifact_registry, module.memorystore, module.network, module.api_enable, module.ip_address]
   source            = "./cluddns"
-  project_id         = var.project_id
+  project_id        = var.project_id
 }
