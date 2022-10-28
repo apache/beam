@@ -23,7 +23,7 @@ resource "google_dns_record_set" "frontplayground" {
   managed_zone = google_dns_managed_zone.playground.name
   name    = "${google_dns_managed_zone.playground.dns_name}"
   type    = "A"
-  rrdatas = ["var.static_ip"]
+  rrdatas = [var.static_ip]
   ttl     = 300
 }
 
@@ -31,7 +31,7 @@ resource "google_dns_record_set" "goplayground" {
   managed_zone = google_dns_managed_zone.playground.name
   name    = "go.${google_dns_managed_zone.playground.dns_name}"
   type    = "A"
-  rrdatas = ["var.static_ip"]
+  rrdatas = ["${var.static_ip}"]
   ttl     = 300
 }
 
@@ -39,7 +39,7 @@ resource "google_dns_record_set" "javaplayground" {
   managed_zone = google_dns_managed_zone.playground.name
   name    = "java.${google_dns_managed_zone.playground.dns_name}"
   type    = "A"
-  rrdatas = ["var.static_ip"]
+  rrdatas = [${var.static_ip}]
   ttl     = 300
 }
 
