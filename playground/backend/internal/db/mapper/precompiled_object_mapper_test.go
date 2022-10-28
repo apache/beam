@@ -41,7 +41,11 @@ func TestPrecompiledObjectMapper_ToObjectInfo(t *testing.T) {
 		actualResult.ContextLine != 32 ||
 		len(actualResult.Categories) != 3 ||
 		actualResult.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
-		actualResult.Sdk != pb.Sdk_SDK_JAVA {
+		actualResult.Sdk != pb.Sdk_SDK_JAVA ||
+		len(actualResult.Datasets) != 1 ||
+		actualResult.Datasets[0].DatasetPath != "MOCK_PATH_0" ||
+		actualResult.Datasets[0].Options["Topic"] != "MOCK_TOPIC" ||
+		actualResult.Emulator != pb.EmulatorType_EMULATOR_TYPE_KAFKA {
 		t.Error("ToObjectInfo() unexpected result")
 	}
 }
@@ -57,7 +61,11 @@ func TestPrecompiledObjectMapper_ToPrecompiledObj(t *testing.T) {
 		actualResult.Link != "MOCK_PATH" ||
 		actualResult.ContextLine != 32 ||
 		actualResult.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
-		actualResult.Sdk != pb.Sdk_SDK_JAVA {
+		actualResult.Sdk != pb.Sdk_SDK_JAVA ||
+		len(actualResult.Datasets) != 1 ||
+		actualResult.Datasets[0].DatasetPath != "MOCK_PATH_0" ||
+		actualResult.Datasets[0].Options["Topic"] != "MOCK_TOPIC" ||
+		actualResult.Emulator != pb.EmulatorType_EMULATOR_TYPE_KAFKA {
 		t.Error("ToPrecompiledObj() unexpected result")
 	}
 }
@@ -226,6 +234,15 @@ func getExampleDTO(name, defaultName, sdk string) *dto.ExampleDTO {
 			IsMain:   true,
 		}},
 		DefaultExampleName: defaultName,
+		Datasets: []*dto.DatasetDTO{
+			{
+				Path: "MOCK_PATH_0",
+				Config: map[string]string{
+					"Topic": "MOCK_TOPIC",
+				},
+				Emulator: pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+			},
+		},
 	}
 }
 
