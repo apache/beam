@@ -17,12 +17,22 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.CombiningState;
@@ -36,6 +46,7 @@ import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -116,11 +127,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
               return;
             }
 
-            // Need explicit synchronization here
-            synchronized (this) {
-              countState.add(1);
-            }
-
+            countState.add(1);
             String key = c.element().getKey();
             int n = countState.read();
             if (n >= expectedCount.get(key)) {
@@ -152,7 +159,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
                 KV.of("banana", 5L)));
 
     // TODO: remove after SAMZA-2761 fix
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 50; i++) {
       input.add(KV.of("*", 0L));
     }
 
@@ -167,5 +174,62 @@ public class AsyncDoFnRunnerTest implements Serializable {
             Arrays.asList(KV.of("apple", 10L), KV.of("banana", 10L), KV.of("grape", 10L)));
 
     pipeline.run();
+  }
+
+  @Test
+  public void testKeyedOutputFutures() {
+    // We test the scenario that two elements of the same key needs to be processed in order.
+    final DoFnRunner<KV<String, Integer>, Void> doFnRunner = mock(DoFnRunner.class);
+    final AtomicInteger prev = new AtomicInteger(0);
+    final CountDownLatch latch = new CountDownLatch(1);
+    doAnswer(
+            invocation -> {
+              latch.await();
+              WindowedValue<KV<String, Integer>> wv = invocation.getArgument(0);
+              Integer val = wv.getValue().getValue();
+
+              // Verify the previous element has been fully processed by checking the prev value
+              assertEquals(val - 1, prev.get());
+
+              prev.set(val);
+              return null;
+            })
+        .when(doFnRunner)
+        .processElement(any());
+
+    SamzaPipelineOptions options = PipelineOptionsFactory.as(SamzaPipelineOptions.class);
+    options.setNumThreadsForProcessElement(4);
+
+    final OpEmitter<Void> opEmitter = new OpAdapter.OpEmitterImpl<>();
+    final FutureCollector<Void> futureCollector = new DoFnOp.FutureCollectorImpl<>();
+    futureCollector.prepare();
+
+    final AsyncDoFnRunner<KV<String, Integer>, Void> asyncDoFnRunner =
+        AsyncDoFnRunner.create(doFnRunner, opEmitter, futureCollector, true, options);
+
+    final String appleKey = "apple";
+
+    final WindowedValue<KV<String, Integer>> input1 =
+        WindowedValue.valueInGlobalWindow(KV.of(appleKey, 1));
+
+    final WindowedValue<KV<String, Integer>> input2 =
+        WindowedValue.valueInGlobalWindow(KV.of(appleKey, 2));
+
+    asyncDoFnRunner.processElement(input1);
+    asyncDoFnRunner.processElement(input2);
+    // Resume input1 process afterwards
+    latch.countDown();
+
+    // Waiting for the futures to be resolved
+    try {
+      futureCollector.finish().toCompletableFuture().get();
+    } catch (Exception e) {
+      // ignore interruption here.
+    }
+
+    // The final val should be the last element value
+    assertEquals(2, prev.get());
+    // The appleKey in keyedOutputFutures map should be removed
+    assertFalse(asyncDoFnRunner.hasOutputFuturesForKey(appleKey));
   }
 }

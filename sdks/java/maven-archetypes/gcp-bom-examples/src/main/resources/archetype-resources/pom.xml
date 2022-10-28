@@ -324,6 +324,13 @@
       <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
     </dependency>
 
+    <!-- Adds a dependency on the Python Multi-language pipelines API module. -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-python</artifactId>
+      <version>${beam.version}</version>
+    </dependency>
+
     <!-- Dependencies below this line are specific dependencies needed by the examples code. -->
     <dependency>
       <groupId>com.google.api-client</groupId>
