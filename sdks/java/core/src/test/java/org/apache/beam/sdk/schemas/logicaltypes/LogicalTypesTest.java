@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -129,5 +132,103 @@ public class LogicalTypesTest {
     assertEquals(
         schemaValue,
         new SchemaLogicalType().toInputType(new SchemaLogicalType().toBaseType(schemaValue)));
+  }
+
+  @Test
+  public void testFixedPrecisionNumeric() {
+    final int precision = 10;
+    final int scale = 2;
+
+    Schema argumentSchema =
+        Schema.builder().addInt32Field("precision").addInt32Field("scale").build();
+
+    // invalid schema
+    final Schema invalidArgumentSchema =
+        Schema.builder().addInt32Field("invalid").addInt32Field("schema").build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            FixedPrecisionNumeric.of(
+                Row.withSchema(invalidArgumentSchema).addValues(precision, scale).build()));
+
+    // FixedPrecisionNumeric specified precision and scale
+    FixedPrecisionNumeric numeric =
+        FixedPrecisionNumeric.of(
+            Row.withSchema(argumentSchema).addValues(precision, scale).build());
+    Schema schema = Schema.builder().addLogicalTypeField("decimal", numeric).build();
+
+    // check argument valid case
+    BigDecimal decimal = BigDecimal.valueOf(1_000_000_001, scale);
+    Row row = Row.withSchema(schema).addValues(decimal).build();
+    assertEquals(decimal, row.getLogicalTypeValue(0, BigDecimal.class));
+
+    // check argument invalid case (value out of precision limit)
+    decimal = BigDecimal.valueOf(100_000_000_001L, scale);
+    assertThrows(IllegalArgumentException.class, Row.withSchema(schema).addValues(decimal)::build);
+
+    // FixedPrecisionNumeric without specifying precision
+    numeric = FixedPrecisionNumeric.of(scale);
+    schema = Schema.builder().addLogicalTypeField("decimal", numeric).build();
+
+    // check argument always valid  (precision limit unspecified)
+    decimal = BigDecimal.valueOf(1_000_000_001, scale);
+    row = Row.withSchema(schema).addValues(decimal).build();
+    assertEquals(decimal, row.getLogicalTypeValue(0, BigDecimal.class));
+
+    decimal = BigDecimal.valueOf(100_000_000_001L, scale);
+    row = Row.withSchema(schema).addValues(decimal).build();
+    assertEquals(decimal, row.getLogicalTypeValue(0, BigDecimal.class));
+  }
+
+  @Test
+  public void testFixedBytes() {
+    FixedBytes fixedBytes = FixedBytes.of(5);
+
+    // check argument valid case, with padding
+    byte[] resultBytes = fixedBytes.toInputType(new byte[] {0x1, 0x2, 0x3});
+    assertArrayEquals(new byte[] {0x1, 0x2, 0x3, 0x0, 0x0}, resultBytes);
+
+    // check argument invalid case
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> fixedBytes.toInputType(new byte[] {0x1, 0x2, 0x3, 0x4, 0x5, 0x6}));
+  }
+
+  @Test
+  public void testVariableBytes() {
+    VariableBytes variableBytes = VariableBytes.of(5);
+
+    // check argument valid case, no padding
+    byte[] resultBytes = variableBytes.toInputType(new byte[] {0x1, 0x2, 0x3});
+    assertArrayEquals(new byte[] {0x1, 0x2, 0x3}, resultBytes);
+
+    // check argument invalid case
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> variableBytes.toInputType(new byte[] {0x1, 0x2, 0x3, 0x4, 0x5, 0x6}));
+  }
+
+  @Test
+  public void testFixedString() {
+    FixedString fixedString = FixedString.of(5);
+
+    // check argument valid case, with padding
+    String resultString = fixedString.toInputType("123");
+    assertEquals("123  ", resultString);
+
+    // check argument invalid case
+    assertThrows(IllegalArgumentException.class, () -> fixedString.toInputType("123456"));
+  }
+
+  @Test
+  public void testVariableString() {
+    VariableString varibaleString = VariableString.of(5);
+
+    // check argument valid case, no padding
+    String resultString = varibaleString.toInputType("123");
+    assertEquals("123", resultString);
+
+    // check argument invalid case
+    assertThrows(IllegalArgumentException.class, () -> varibaleString.toInputType("123456"));
   }
 }

@@ -1,0 +1,49 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. See accompanying LICENSE file.
+*/}}
+{{/*
+Embedding example:
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" example="SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationCount" >}}
+{{< playground_snippet language="py" example="SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_KATA/AggregationCount" >}}
+{{< playground_snippet language="go" example="SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" >}}
+{{< playground_snippet language="scio" example="SDK_SCIO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" >}}
+{{< /playground >}}
+
+*/}}
+<div class="playground-wrapper">
+    <div class="playground-snippets">
+        {{ .Inner }}
+    </div>
+    {{ $snippetsList := slice }}
+    {{ $divMatches := findRE "<div class=\"[^\"]+(playground-snippet)\"(.*)</div>" .Inner }}
+
+    {{ range $divMatches }}
+        {{ $attributeRegex := "data-sdk=\"(?P<sdk>\\w+)\" data-example=\"([^\"]+)\"" }}
+        {{ $sdk := replaceRE ".*data-sdk=\"(\\w+)\".*" "$1" . }}
+        {{ $example := replaceRE ".*example=\"([^\"]+)\".*" "$1" . }}
+        {{ $json := printf "%s%s%s%s%s" "{\"sdk\":\"" $sdk "\",\"example\":\"" $example "\"}" }}
+        {{ $snippetsList = append $json $snippetsList }}
+    {{ end}}
+
+    {{ $snippets := printf "%s%s%s" "[" (delimit $snippetsList ",") "]" }}
+    {{ $editable := 1 }}{{ if isset .Params "editable" }}{{ $editable = index .Params "editable" }}{{ end }}
+    <div class="code-snippet code-snippet-playground">
+        <iframe
+            src="https://play.beam.apache.org/embedded?editable={{ $editable }}&examples={{ $snippets }}"
+            width="100%"
+            height="{{ .Get "height" }}"
+            class="playground"
+            allow="clipboard-write"
+        ></iframe>
+    </div>
+</div>

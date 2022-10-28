@@ -56,6 +56,7 @@ export 'src/theme/theme.dart';
 export 'src/util/pipeline_options.dart';
 
 export 'src/widgets/bubble.dart';
+export 'src/widgets/clickable.dart';
 export 'src/widgets/complexity.dart';
 export 'src/widgets/dismissible_overlay.dart';
 export 'src/widgets/divider.dart';

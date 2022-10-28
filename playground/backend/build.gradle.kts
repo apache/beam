@@ -131,7 +131,6 @@ task("benchmarkCodeProcessing") {
 }
 
 task("benchmark") {
-  dependsOn(":playground:backend:benchmarkPrecompiledObjects")
   dependsOn(":playground:backend:benchmarkCodeProcessing")
 }
 

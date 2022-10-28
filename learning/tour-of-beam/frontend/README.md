@@ -22,9 +22,25 @@
 
  # About
 
- # Getting started
- Flutter installation guide: https://docs.flutter.dev/get-started/install
- Run the app: `flutter run --web-renderer html`
+## Getting started
+Running, debugging, and testing all require this first step that fetches
+dependencies and generates code:
+
+```bash
+cd ../../../playground/frontend/playground_components
+flutter pub get
+flutter pub run build_runner build
+cd ../../../learning/tour-of-beam/frontend
+flutter pub get
+flutter pub run build_runner build
+```
+
+### Run
+
+The following command is used to build and serve the frontend app locally:
+
+`$ flutter run -d chrome`
+
 
  # Deployment
 

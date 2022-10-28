@@ -36,12 +36,19 @@ concurrency:
 
 env:
   TOB_LEARNING_ROOT: ./samples/learning-content
-  DATASTORE_PROJECT_ID: test-proj
+  # firebase
+  GOOGLE_CLOUD_PROJECT: demo-test-proj
+  FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
+  # datastore
+  DATASTORE_PROJECT_ID: demo-test-proj
   DATASTORE_EMULATOR_HOST: localhost:8081
   DATASTORE_EMULATOR_DATADIR: ./datadir
+  # GCF
   PORT_SDK_LIST: 8801
   PORT_GET_CONTENT_TREE: 8802
   PORT_GET_UNIT_CONTENT: 8803
+  PORT_GET_USER_PROGRESS: 8804
+  PORT_POST_UNIT_COMPLETE: 8805
 
 
 jobs:
@@ -57,19 +64,9 @@ jobs:
           # pin to the biggest Go version supported by Cloud Functions runtime
           go-version: '1.16'
 
-      # 1. Datastore emulator
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v0'
-        with:
-          version: 397.0.0
-          project_id: ${{ env.DATASTORE_PROJECT_ID }}
-          install_components: 'beta,cloud-datastore-emulator'
-      - name: 'Start datastore emulator'
-        run: |
-          gcloud beta emulators datastore start \
-          --data-dir=${{ env.DATASTORE_EMULATOR_DATADIR }} \
-          --host-port=${{ env.DATASTORE_EMULATOR_HOST }} \
-          --consistency=1 &
+      # 1. Start emulators
+      - name: Start emulators
+        run: docker-compose up -d
 
       # 2. start function-framework processes in BG
       - name: Compile CF
@@ -80,14 +77,23 @@ jobs:
         run: PORT=${{ env.PORT_GET_CONTENT_TREE }} FUNCTION_TARGET=getContentTree ./tob_function &
       - name: Run getUnitContent in background
         run: PORT=${{ env.PORT_GET_UNIT_CONTENT }} FUNCTION_TARGET=getUnitContent ./tob_function &
+      - name: Run getUserProgress in background
+        run: PORT=${{ env.PORT_GET_USER_PROGRESS }} FUNCTION_TARGET=getUserProgress ./tob_function &
+      - name: Run postUnitComplete in background
+        run: PORT=${{ env.PORT_POST_UNIT_COMPLETE }} FUNCTION_TARGET=postUnitComplete ./tob_function &
 
       # 3. Load data in datastore: run CD step on samples/learning-content
       - name: Run CI/CD to populate datastore
         run: go run cmd/ci_cd/ci_cd.go
 
-      # 4. Check sdkList, getContentTree, getUnitContent: run integration tests
+      # 4. run integration tests
       - name: Go integration tests
         run: go test -v --tags integration ./integration_tests/...
+      
+      - name: Stop emulators
+        if: always()
+        run: docker-compose down
+
       # 5. Compare storage/datastore/index.yml VS generated
       - name: Check index.yaml
         run: |

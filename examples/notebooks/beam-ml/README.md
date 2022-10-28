@@ -34,7 +34,7 @@ Beam comes with various implementations of ModelHandler.
 
 ### Loading the Notebooks
 
-1. A quick way to get started is with [Colab](colab.sandbox.google.com).
+1. A quick way to get started is with [Colab](https://colab.sandbox.google.com/).
 2. Load the notebook from github, for example:
 ```
 https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb.

@@ -19,6 +19,8 @@ on:
 
 jobs:
   assign:
+    permissions:
+      issues: write
     name: Take or close an issue
     if: ${{ !github.event.issue.pull_request }}
     runs-on: ubuntu-latest
@@ -62,6 +64,14 @@ jobs:
                   state: 'closed'
                 });
               }
+            } else if (bodyString == '.reopen-issue') {
+                console.log('Reopening issue');
+                github.rest.issues.update({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'open'
+                });
             } else if (bodyString == '.set-labels' || bodyString == '.add-labels' || bodyString == '.remove-labels') {
               console.log('Updating labels');
               if (i + 1 >= body.length) {

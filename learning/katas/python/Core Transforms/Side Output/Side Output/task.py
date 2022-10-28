@@ -22,6 +22,12 @@
 #   categories:
 #     - Filtering
 #     - Multiple Outputs
+#   complexity: BASIC
+#   tags:
+#     - transform
+#     - map
+#     - output
+#     - strings
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -50,4 +56,3 @@ with beam.Pipeline() as p:
 
   results[num_below_100_tag] | 'Log numbers <= 100' >> LogElements(prefix='Number <= 100: ')
   results[num_above_100_tag] | 'Log numbers > 100' >> LogElements(prefix='Number > 100: ')
-

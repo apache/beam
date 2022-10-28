@@ -22,6 +22,10 @@ package filter_test
 //   context_line: 34
 //   categories:
 //     - Filtering
+//   complexity: BASIC
+//   tags:
+//     - filter
+//     - test
 
 import (
 	"testing"

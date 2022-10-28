@@ -17,10 +17,7 @@ package utils
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -28,26 +25,8 @@ import (
 	"cloud.google.com/go/datastore"
 
 	"beam.apache.org/playground/backend/internal/constants"
-	"beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/logger"
 )
-
-func ID(salt, content string, length int8) (string, error) {
-	hash := sha256.New()
-	if _, err := io.WriteString(hash, salt); err != nil {
-		logger.Errorf("ID(): error during hash generation: %s", err.Error())
-		return "", errors.InternalError("Error during hash generation", "Error writing hash and salt")
-	}
-	hash.Write([]byte(content))
-	sum := hash.Sum(nil)
-	b := make([]byte, base64.URLEncoding.EncodedLen(len(sum)))
-	base64.URLEncoding.Encode(b, sum)
-	hashLen := int(length)
-	for hashLen <= len(b) && b[hashLen-1] == '_' {
-		hashLen++
-	}
-	return string(b)[:hashLen], nil
-}
 
 func GetExampleKey(ctx context.Context, values ...interface{}) *datastore.Key {
 	id := GetIDWithDelimiter(values...)

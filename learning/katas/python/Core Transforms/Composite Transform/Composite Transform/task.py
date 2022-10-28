@@ -22,6 +22,11 @@
 #   context_line: 31
 #   categories:
 #     - Flatten
+#   complexity: BASIC
+#   tags:
+#     - count
+#     - strings
+#     - numbers
 
 import apache_beam as beam
 
@@ -42,4 +47,3 @@ with beam.Pipeline() as p:
   (p | beam.Create(['1,2,3,4,5', '6,7,8,9,10'])
      | ExtractAndMultiplyNumbers()
      | LogElements())
-

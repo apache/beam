@@ -5,5 +5,7 @@
     "hints" : [
         "## Hint 1\n\nhint 1",
         "## Hint 2\n\nhint 2"
-     ]
+     ],
+     "taskSnippetId": "TB_EXAMPLES_SDK_PYTHON_ChallengeTask",
+     "solutionSnippetId": "TB_EXAMPLES_SDK_PYTHON_ChallengeSolution"
 }

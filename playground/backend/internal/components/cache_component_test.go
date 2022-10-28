@@ -52,7 +52,7 @@ func setup() {
 		}
 	}
 	ctx = context.Background()
-	context.WithValue(ctx, constants.DatastoreNamespaceKey, "components")
+	ctx = context.WithValue(ctx, constants.DatastoreNamespaceKey, "components")
 	cacheService = local.New(ctx)
 	datastoreDb, _ = db.New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	cacheComponent = NewService(cacheService, datastoreDb)
@@ -173,7 +173,8 @@ func TestCacheComponent_GetCatalogFromCacheOrDatastore(t *testing.T) {
 					actualPCObj.PipelineOptions != "MOCK_OPTIONS" ||
 					actualPCObj.Description != "MOCK_DESCR" ||
 					actualPCObj.Link != "MOCK_PATH" ||
-					actualPCObj.ContextLine != 32 {
+					actualPCObj.ContextLine != 32 ||
+					actualPCObj.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
 					t.Error("GetCatalogFromCacheOrDatastore() unexpected result: wrong precompiled obj")
 				}
 				tt.clean()
@@ -288,15 +289,14 @@ func getCatalog() []*pb.Categories {
 
 func saveExample(name, sdk string) {
 	_, _ = datastoreDb.Client.Put(ctx, utils.GetExampleKey(ctx, sdk, name), &entity.ExampleEntity{
-		Name:       name,
-		Sdk:        utils.GetSdkKey(ctx, sdk),
-		Descr:      "MOCK_DESCR",
-		Cats:       []string{"MOCK_CATEGORY"},
-		Complexity: "MEDIUM",
-		Path:       "MOCK_PATH",
-		Type:       "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
-		Origin:     constants.ExampleOrigin,
-		SchVer:     utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
+		Name:   name,
+		Sdk:    utils.GetSdkKey(ctx, sdk),
+		Descr:  "MOCK_DESCR",
+		Cats:   []string{"MOCK_CATEGORY"},
+		Path:   "MOCK_PATH",
+		Type:   pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
+		Origin: constants.ExampleOrigin,
+		SchVer: utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 	})
 }
 
@@ -311,6 +311,7 @@ func saveSnippet(snipId, sdk string) {
 			PipeOpts:      "MOCK_OPTIONS",
 			Origin:        constants.ExampleOrigin,
 			NumberOfFiles: 1,
+			Complexity:    pb.Complexity_COMPLEXITY_MEDIUM.String(),
 		},
 		Files: []*entity.FileEntity{{
 			Name:     "MOCK_NAME",

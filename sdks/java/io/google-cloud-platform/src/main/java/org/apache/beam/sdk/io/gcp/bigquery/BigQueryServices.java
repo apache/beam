@@ -208,8 +208,8 @@ public interface BigQueryServices extends Serializable {
      * Create an append client for a given Storage API write stream. The stream must be created
      * first.
      */
-    StreamAppendClient getStreamAppendClient(String streamName, Descriptor descriptor)
-        throws Exception;
+    StreamAppendClient getStreamAppendClient(
+        String streamName, Descriptor descriptor, boolean useConnectionPool) throws Exception;
 
     /** Flush a given stream up to the given offset. The stream must have type BUFFERED. */
     ApiFuture<FlushRowsResponse> flush(String streamName, long flushOffset)

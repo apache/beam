@@ -46,7 +46,7 @@ public class BundleCheckpointHandlers {
 
   /**
    * A {@link BundleCheckpointHandler} which uses {@link
-   * org.apache.beam.runners.core.TimerInternals.TimerData} ans {@link
+   * org.apache.beam.runners.core.TimerInternals.TimerData} and {@link
    * org.apache.beam.sdk.state.ValueState} to reschedule {@link DelayedBundleApplication}.
    */
   public static class StateAndTimerBundleCheckpointHandler<T> implements BundleCheckpointHandler {

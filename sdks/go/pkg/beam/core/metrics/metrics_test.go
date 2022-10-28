@@ -400,6 +400,53 @@ func TestMergeDistributions(t *testing.T) {
 	}
 }
 
+func TestMergePCols(t *testing.T) {
+	realKey := StepKey{Name: "real"}
+	pColA := PColValue{ElementCount: 1, SampledByteSize: DistributionValue{Count: 2, Sum: 3, Min: 4, Max: 5}}
+	pColB := PColValue{ElementCount: 5, SampledByteSize: DistributionValue{Count: 4, Sum: 3, Min: 2, Max: 1}}
+	tests := []struct {
+		name                 string
+		attempted, committed map[StepKey]PColValue
+		want                 []PColResult
+	}{
+		{
+			name: "merge",
+			attempted: map[StepKey]PColValue{
+				realKey: pColA,
+			},
+			committed: map[StepKey]PColValue{
+				realKey: pColB,
+			},
+			want: []PColResult{{Attempted: pColA, Committed: pColB, Key: realKey}},
+		}, {
+			name: "attempted only",
+			attempted: map[StepKey]PColValue{
+				realKey: pColA,
+			},
+			committed: map[StepKey]PColValue{},
+			want:      []PColResult{{Attempted: pColA, Key: realKey}},
+		}, {
+			name:      "committed only",
+			attempted: map[StepKey]PColValue{},
+			committed: map[StepKey]PColValue{
+				realKey: pColB,
+			},
+			want: []PColResult{{Committed: pColB, Key: realKey}},
+		},
+	}
+	less := func(a, b DistributionResult) bool {
+		return a.Key.Name < b.Key.Name
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := MergePCols(test.attempted, test.committed)
+			if d := cmp.Diff(test.want, got, cmpopts.SortSlices(less)); d != "" {
+				t.Errorf("MergePCols(%+v, %+v) = %+v, want %+v\ndiff:\n%v", test.attempted, test.committed, got, test.want, d)
+			}
+		})
+	}
+}
+
 func TestMergeGauges(t *testing.T) {
 	realKey := StepKey{Name: "real"}
 	now := time.Now()
@@ -444,6 +491,53 @@ func TestMergeGauges(t *testing.T) {
 			got := MergeGauges(test.attempted, test.committed)
 			if d := cmp.Diff(test.want, got, cmpopts.SortSlices(less)); d != "" {
 				t.Errorf("MergeGauges(%+v, %+v) = %+v, want %+v\ndiff:\n%v", test.attempted, test.committed, got, test.want, d)
+			}
+		})
+	}
+}
+
+func TestMergeMsecs(t *testing.T) {
+	realKey := StepKey{Name: "real"}
+	msecA := MsecValue{Start: time.Second, Process: 2 * time.Second, Finish: time.Second, Total: 4 * time.Second}
+	msecB := MsecValue{Start: 2 * time.Second, Process: time.Second, Finish: 2 * time.Second, Total: 5 * time.Second}
+	tests := []struct {
+		name                 string
+		attempted, committed map[StepKey]MsecValue
+		want                 []MsecResult
+	}{
+		{
+			name: "merge",
+			attempted: map[StepKey]MsecValue{
+				realKey: msecA,
+			},
+			committed: map[StepKey]MsecValue{
+				realKey: msecB,
+			},
+			want: []MsecResult{{Attempted: msecA, Committed: msecB, Key: realKey}},
+		}, {
+			name: "attempted only",
+			attempted: map[StepKey]MsecValue{
+				realKey: msecA,
+			},
+			committed: map[StepKey]MsecValue{},
+			want:      []MsecResult{{Attempted: msecA, Key: realKey}},
+		}, {
+			name:      "committed only",
+			attempted: map[StepKey]MsecValue{},
+			committed: map[StepKey]MsecValue{
+				realKey: msecB,
+			},
+			want: []MsecResult{{Committed: msecB, Key: realKey}},
+		},
+	}
+	less := func(a, b DistributionResult) bool {
+		return a.Key.Name < b.Key.Name
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := MergeMsecs(test.attempted, test.committed)
+			if d := cmp.Diff(test.want, got, cmpopts.SortSlices(less)); d != "" {
+				t.Errorf("MergeMsecs(%+v, %+v) = %+v, want %+v\ndiff:\n%v", test.attempted, test.committed, got, test.want, d)
 			}
 		})
 	}

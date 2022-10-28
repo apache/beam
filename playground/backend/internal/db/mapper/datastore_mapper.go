@@ -49,6 +49,7 @@ func (m *DatastoreMapper) ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet
 			LVisited:      nowDate,
 			Origin:        constants.UserSnippetOrigin,
 			NumberOfFiles: len(info.Files),
+			Complexity:    info.Complexity.String(),
 		},
 	}
 	return &snippet

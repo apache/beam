@@ -94,6 +94,9 @@
           padding: 24px 19.2px 24.7px 20px;
           margin-bottom: 24px;
         }
+        @media (max-width: $ak-breakpoint-xs) {
+          width: 260px;
+        }
         &:hover {
           text-decoration: none;
           box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.24),
@@ -251,6 +254,9 @@
         max-width: 327px;
         height: 356px;
         padding: 32px 20px;
+        @media (max-width: $ak-breakpoint-xs) {
+          max-width: 260px;
+        }
 
         .calendar-card-big-title {
           margin-top: 35px;

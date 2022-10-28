@@ -17,8 +17,8 @@ package datastore
 
 import (
 	"context"
-	"time"
 	"fmt"
+	"time"
 
 	"cloud.google.com/go/datastore"
 

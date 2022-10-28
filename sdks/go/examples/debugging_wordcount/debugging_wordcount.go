@@ -52,6 +52,11 @@ package main
 //     - Filtering
 //     - Debugging
 //     - Quickstart
+//   complexity: MEDIUM
+//   tags:
+//     - count
+//     - io
+//     - strings
 
 import (
 	"context"

@@ -478,7 +478,7 @@ data.apply(
   - Example: `.withStagingBucketName("{gs,s3}://bucket/my/dir/")`
 
 - `.withStorageIntegrationName()`
-  - Accepts a name of a Snowflake storage integration object created according to Snowflake documentationt.
+  - Accepts a name of a Snowflake storage integration object created according to Snowflake documentation.
   - Example:
 {{< highlight >}}
 CREATE OR REPLACE STORAGE INTEGRATION "test_integration"
@@ -551,14 +551,14 @@ SnowflakeIO is not going to delete created CSV files from path under the “stag
   - Example: `.withDebugMode(SnowflakeIO.StreamingLogLevel.INFO)`
 
 
-**Important noticse**:
+**Important notice**:
 1. Streaming accepts only **key pair authentication**. For details, see: [Issue 21287](https://github.com/apache/beam/issues/21287).
 2. The role parameter configured in `SnowflakeIO.DataSourceConfiguration` object is ignored for streaming writing. For details, see: [Issue 21365](https://github.com/apache/beam/issues/21365)
 
 #### Flush time: duration & number of rows
 Duration: streaming write will write periodically files on stage according to time duration specified in flush time limit (for example. every 1 minute).
 
-Number of rows: files staged for write will have number of rows specified in flush row limit unless the flush time limit will be reached (for example if the limit is 1000 rows and buffor collected 99 rows and the 1 minute flush time passes, the rows will be sent to SnowPipe for insertion).
+Number of rows: files staged for write will have number of rows specified in flush row limit unless the flush time limit will be reached (for example if the limit is 1000 rows and buffer collected 99 rows and the 1-minute flush time passes, the rows will be sent to SnowPipe for insertion).
 
 Size of staged files will depend on the rows size and used compression (GZIP).
 
@@ -710,7 +710,7 @@ Then:
 SnowflakeIO uses `COPY` statements behind the scenes to read (using [COPY to location](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html)) files staged in cloud storage.StagingBucketName will be used as a temporary location for storing CSV files. Those temporary directories will be named `sf_copy_csv_DATE_TIME_RANDOMSUFFIX` and they will be removed automatically once Read operation finishes.
 
 ### CSVMapper
-SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to GCS/S3 as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](http://opencsv.sourceforge.net/) library.
+SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to GCS/S3 as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](https://opencsv.sourceforge.net/) library.
 
 The CSVMapper’s job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom POJO.
 
@@ -729,7 +729,7 @@ static SnowflakeIO.CsvMapper<GenericRecord> getCsvMapper() {
 {{< /highlight >}}
 ## Using SnowflakeIO with AWS S3
 To be able to use AWS S3 bucket as `stagingBucketName` is required to:
-1. Create `PipelineOptions` interface which is [extending](https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options) `SnowflakePipelineOptions` and [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/options/S3Options.html)
+1. Create `PipelineOptions` interface which is [extending](https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options) `SnowflakePipelineOptions` and [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/options/S3Options.html)
 with `AwsAccessKey` and `AwsSecretKey` options. Example:
 
 {{< highlight >}}
@@ -763,7 +763,7 @@ options.setAwsCredentialsProvider(
 Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
-**Note**: Remember to set `awsRegion` from [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/options/S3Options.html).
+**Note**: Remember to set `awsRegion` from [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/options/S3Options.html).
 
 ## Using SnowflakeIO in Python SDK
 ### Intro
@@ -804,7 +804,7 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
 
 - `storage_integration_name` Is the name of a Snowflake storage integration object created according to [Snowflake documentation](https://docs.snowflake.net/manuals/sql-reference/sql/create-storage-integration.html).
 
-- `csv_mapper` Specifies a function which must translate user-defined object to array of strings. SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to GCS/S3 as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](http://opencsv.sourceforge.net/) library. The csv_mapper function job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom objects.
+- `csv_mapper` Specifies a function which must translate user-defined object to array of strings. SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to GCS/S3 as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](https://opencsv.sourceforge.net/) library. The csv_mapper function job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom objects.
 Example:
 {{< highlight >}}
 def csv_mapper(strings_array):

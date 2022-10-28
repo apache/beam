@@ -28,6 +28,7 @@ import os
 import threading
 import time
 import traceback
+import warnings
 from collections import defaultdict
 from subprocess import DEVNULL
 from typing import TYPE_CHECKING
@@ -417,6 +418,10 @@ class DataflowRunner(PipelineRunner):
 
     debug_options = options.view_as(DebugOptions)
     if pipeline_proto or pipeline.contains_external_transforms:
+      if debug_options.lookup_experiment('disable_runner_v2'):
+        raise ValueError(
+            'This pipeline contains cross language transforms, '
+            'which require runner v2.')
       if not apiclient._use_unified_worker(options):
         _LOGGER.info(
             'Automatically enabling Dataflow Runner v2 since the '
@@ -448,12 +453,14 @@ class DataflowRunner(PipelineRunner):
       # contain any added PTransforms.
       pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
-      from apache_beam.runners.dataflow.ptransform_overrides import WriteToBigQueryPTransformOverride
+      if debug_options.lookup_experiment('use_legacy_bq_sink'):
+        warnings.warn(
+            "Native sinks no longer implemented; "
+            "ignoring use_legacy_bq_sink.")
+
       from apache_beam.runners.dataflow.ptransform_overrides import GroupIntoBatchesWithShardedKeyPTransformOverride
-      pipeline.replace_all([
-          WriteToBigQueryPTransformOverride(pipeline, options),
-          GroupIntoBatchesWithShardedKeyPTransformOverride(self, options)
-      ])
+      pipeline.replace_all(
+          [GroupIntoBatchesWithShardedKeyPTransformOverride(self, options)])
 
       if use_fnapi and not apiclient._use_unified_worker(options):
         pipeline.replace_all(DataflowRunner._JRH_PTRANSFORM_OVERRIDES)
@@ -614,15 +621,17 @@ class DataflowRunner(PipelineRunner):
   def _maybe_add_unified_worker_missing_options(self, options):
     debug_options = options.view_as(DebugOptions)
     # Streaming is always portable, default to runner v2.
-    if (options.view_as(StandardOptions).streaming and
-        not debug_options.lookup_experiment('disable_streaming_engine') and
-        not options.view_as(GoogleCloudOptions).dataflow_kms_key):
-      if not debug_options.lookup_experiment('disable_runner_v2'):
+    if options.view_as(StandardOptions).streaming:
+      if debug_options.lookup_experiment('disable_runner_v2_until_2023'):
+        debug_options.add_experiment('disable_runner_v2')
+      elif debug_options.lookup_experiment('disable_runner_v2'):
+        raise ValueError(
+            'disable_runner_v2 no longer supported for Beam Python %s, please '
+            'use disable_runner_v2_until_2023' % beam.version.__version__)
+      else:
         debug_options.add_experiment('beam_fn_api')
         debug_options.add_experiment('use_runner_v2')
-        if not debug_options.lookup_experiment(
-            'disable_portable_job_submission'):
-          debug_options.add_experiment('use_portable_job_submission')
+        debug_options.add_experiment('use_portable_job_submission')
     # set default beam_fn_api experiment if use unified
     # worker experiment flag exists, no-op otherwise.
     from apache_beam.runners.dataflow.internal import apiclient
@@ -1198,49 +1207,6 @@ class DataflowRunner(PipelineRunner):
             traceback.format_exc())
 
       step.add_property(PropertyNames.SOURCE_STEP_INPUT, source_dict)
-    elif transform.source.format == 'text':
-      step.add_property(PropertyNames.FILE_PATTERN, transform.source.path)
-    elif transform.source.format == 'bigquery':
-      if standard_options.streaming:
-        raise ValueError(
-            'BigQuery source is not currently available for use '
-            'in streaming pipelines.')
-      debug_options = options.view_as(DebugOptions)
-      use_fn_api = (
-          debug_options.experiments and
-          'beam_fn_api' in debug_options.experiments)
-      if use_fn_api:
-        raise ValueError(BQ_SOURCE_UW_ERROR)
-      step.add_property(PropertyNames.BIGQUERY_EXPORT_FORMAT, 'FORMAT_AVRO')
-      # TODO(silviuc): Add table validation if transform.source.validate.
-      if transform.source.table_reference is not None:
-        step.add_property(
-            PropertyNames.BIGQUERY_DATASET,
-            transform.source.table_reference.datasetId)
-        step.add_property(
-            PropertyNames.BIGQUERY_TABLE,
-            transform.source.table_reference.tableId)
-        # If project owning the table was not specified then the project owning
-        # the workflow (current project) will be used.
-        if transform.source.table_reference.projectId is not None:
-          step.add_property(
-              PropertyNames.BIGQUERY_PROJECT,
-              transform.source.table_reference.projectId)
-      elif transform.source.query is not None:
-        step.add_property(PropertyNames.BIGQUERY_QUERY, transform.source.query)
-        step.add_property(
-            PropertyNames.BIGQUERY_USE_LEGACY_SQL,
-            transform.source.use_legacy_sql)
-        step.add_property(
-            PropertyNames.BIGQUERY_FLATTEN_RESULTS,
-            transform.source.flatten_results)
-      else:
-        raise ValueError(
-            'BigQuery source %r must specify either a table or'
-            ' a query' % transform.source)
-      if transform.source.kms_key is not None:
-        step.add_property(
-            PropertyNames.BIGQUERY_KMS_KEY, transform.source.kms_key)
     elif transform.source.format == 'pubsub':
       if not standard_options.streaming:
         raise ValueError(
@@ -1306,29 +1272,7 @@ class DataflowRunner(PipelineRunner):
         TransformNames.WRITE, transform_node.full_label, transform_node)
     # TODO(mairbek): refactor if-else tree to use registerable functions.
     # Initialize the sink specific properties.
-    if transform.sink.format == 'text':
-      # Note that it is important to use typed properties (@type/value dicts)
-      # for non-string properties and also for empty strings. For example,
-      # in the code below the num_shards must have type and also
-      # file_name_suffix and shard_name_template (could be empty strings).
-      step.add_property(
-          PropertyNames.FILE_NAME_PREFIX,
-          transform.sink.file_name_prefix,
-          with_type=True)
-      step.add_property(
-          PropertyNames.FILE_NAME_SUFFIX,
-          transform.sink.file_name_suffix,
-          with_type=True)
-      step.add_property(
-          PropertyNames.SHARD_NAME_TEMPLATE,
-          transform.sink.shard_name_template,
-          with_type=True)
-      if transform.sink.num_shards > 0:
-        step.add_property(
-            PropertyNames.NUM_SHARDS, transform.sink.num_shards, with_type=True)
-      # TODO(silviuc): Implement sink validation.
-      step.add_property(PropertyNames.VALIDATE_SINK, False, with_type=True)
-    elif transform.sink.format == 'bigquery':
+    if transform.sink.format == 'bigquery':
       # TODO(silviuc): Add table validation if transform.sink.validate.
       step.add_property(
           PropertyNames.BIGQUERY_DATASET,

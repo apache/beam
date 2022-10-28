@@ -177,7 +177,11 @@ def main(unused_argv):
         raise RuntimeError('Unable to find the job id or job name from envvar.')
     except Exception as e:  # pylint: disable=broad-except
       _LOGGER.warning(
-          'Unable to start google cloud profiler due to error: %s' % e)
+          'Unable to start google cloud profiler due to error: %s. For how to '
+          'enable Cloud Profiler with Dataflow see '
+          'https://cloud.google.com/dataflow/docs/guides/profiling-a-pipeline.'
+          'For troubleshooting tips with Cloud Profiler see '
+          'https://cloud.google.com/profiler/docs/troubleshooting.' % e)
   try:
     _LOGGER.info('Python sdk harness starting.')
     sdk_harness.run()
@@ -276,23 +280,13 @@ def _set_log_level_overrides(options_dict: dict) -> None:
   """Set module log level overrides from options dict's entry
   `sdk_harness_log_level_overrides`.
   """
-  option_raw = options_dict.get('sdk_harness_log_level_overrides', None)
+  parsed_overrides = options_dict.get('sdk_harness_log_level_overrides', None)
 
-  if option_raw is None:
-    return
-
-  parsed_overrides = {}
-
-  try:
-    # parsing and flatten the appended option
-    deserialized = [json.loads(line) for line in option_raw]
-    for line in deserialized:
-      parsed_overrides.update(line)
-  except Exception:
-    _LOGGER.error(
-        "Unable to parse sdk_harness_log_level_overrides %s. "
-        "Log level overrides won't take effect.",
-        option_raw)
+  if not isinstance(parsed_overrides, dict):
+    if parsed_overrides is not None:
+      _LOGGER.error(
+          "Unable to parse sdk_harness_log_level_overrides: %s",
+          parsed_overrides)
     return
 
   for module_name, log_level in parsed_overrides.items():

@@ -99,4 +99,46 @@ public class SpannerAccessorTest {
         .getDatabaseClient(eq(DatabaseId.of("project", "test2", "test2")));
     verify(serviceFactory.mockSpanner(), times(2)).close();
   }
+
+  @Test
+  public void testCreateWithValidDatabaseRole() {
+    SpannerConfig config1 =
+        SpannerConfig.create()
+            .toBuilder()
+            .setServiceFactory(serviceFactory)
+            .setProjectId(StaticValueProvider.of("project"))
+            .setInstanceId(StaticValueProvider.of("test1"))
+            .setDatabaseId(StaticValueProvider.of("test1"))
+            .setDatabaseRole("test-role")
+            .build();
+
+    SpannerAccessor acc1 = SpannerAccessor.getOrCreate(config1);
+    acc1.close();
+
+    // getDatabaseClient and close() only called once.
+    verify(serviceFactory.mockSpanner(), times(1))
+        .getDatabaseClient(DatabaseId.of("project", "test1", "test1"));
+    verify(serviceFactory.mockSpanner(), times(1)).close();
+  }
+
+  @Test
+  public void testCreateWithEmptyDatabaseRole() {
+    SpannerConfig config1 =
+        SpannerConfig.create()
+            .toBuilder()
+            .setServiceFactory(serviceFactory)
+            .setProjectId(StaticValueProvider.of("project"))
+            .setInstanceId(StaticValueProvider.of("test1"))
+            .setDatabaseId(StaticValueProvider.of("test1"))
+            .setDatabaseRole("")
+            .build();
+
+    SpannerAccessor acc1 = SpannerAccessor.getOrCreate(config1);
+    acc1.close();
+
+    // getDatabaseClient and close() only called once.
+    verify(serviceFactory.mockSpanner(), times(1))
+        .getDatabaseClient(DatabaseId.of("project", "test1", "test1"));
+    verify(serviceFactory.mockSpanner(), times(1)).close();
+  }
 }

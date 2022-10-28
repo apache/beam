@@ -34,39 +34,24 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * credential.
  */
 public class GcpCredentialFactory implements CredentialFactory {
-  /**
-   * The scope cloud-platform provides access to all Cloud Platform resources. cloud-platform isn't
-   * sufficient yet for talking to datastore so we request those resources separately.
-   *
-   * <p>Note that trusted scope relationships don't apply to OAuth tokens, so for services we access
-   * directly (GCS) as opposed to through the backend (BigQuery, GCE), we need to explicitly request
-   * that scope.
-   */
-  private static final List<String> SCOPES =
-      Arrays.asList(
-          "https://www.googleapis.com/auth/cloud-platform",
-          "https://www.googleapis.com/auth/devstorage.full_control",
-          "https://www.googleapis.com/auth/userinfo.email",
-          "https://www.googleapis.com/auth/datastore",
-          "https://www.googleapis.com/auth/bigquery",
-          "https://www.googleapis.com/auth/bigquery.insertdata",
-          "https://www.googleapis.com/auth/pubsub");
-
+  // A list of OAuth scopes to request when creating a credential.
+  private List<String> oauthScopes;
   // If non-null, a list of service account emails to be used as an impersonation chain.
   private @Nullable List<String> impersonateServiceAccountChain;
 
-  private GcpCredentialFactory(@Nullable List<String> impersonateServiceAccountChain) {
+  private GcpCredentialFactory(
+      List<String> oauthScopes, @Nullable List<String> impersonateServiceAccountChain) {
     if (impersonateServiceAccountChain != null) {
       checkArgument(impersonateServiceAccountChain.size() > 0);
     }
 
+    this.oauthScopes = oauthScopes;
     this.impersonateServiceAccountChain = impersonateServiceAccountChain;
   }
 
   public static GcpCredentialFactory fromOptions(PipelineOptions options) {
-    @Nullable
-    String impersonateServiceAccountArg =
-        options.as(GcpOptions.class).getImpersonateServiceAccount();
+    GcpOptions gcpOptions = options.as(GcpOptions.class);
+    @Nullable String impersonateServiceAccountArg = gcpOptions.getImpersonateServiceAccount();
 
     @Nullable
     List<String> impersonateServiceAccountChain =
@@ -74,7 +59,7 @@ public class GcpCredentialFactory implements CredentialFactory {
             ? null
             : Arrays.asList(impersonateServiceAccountArg.split(","));
 
-    return new GcpCredentialFactory(impersonateServiceAccountChain);
+    return new GcpCredentialFactory(gcpOptions.getGcpOauthScopes(), impersonateServiceAccountChain);
   }
 
   /** Returns a default GCP {@link Credentials} or null when it fails. */
@@ -82,7 +67,7 @@ public class GcpCredentialFactory implements CredentialFactory {
   public @Nullable Credentials getCredential() {
     try {
       GoogleCredentials applicationDefaultCredentials =
-          GoogleCredentials.getApplicationDefault().createScoped(SCOPES);
+          GoogleCredentials.getApplicationDefault().createScoped(oauthScopes);
 
       if (impersonateServiceAccountChain == null) {
         return applicationDefaultCredentials;
@@ -94,7 +79,7 @@ public class GcpCredentialFactory implements CredentialFactory {
 
         GoogleCredentials impersonationCredentials =
             ImpersonatedCredentials.create(
-                applicationDefaultCredentials, targetPrincipal, delegationChain, SCOPES, 0);
+                applicationDefaultCredentials, targetPrincipal, delegationChain, oauthScopes, 0);
 
         return impersonationCredentials;
       }
