@@ -36,9 +36,10 @@
 7. [What are Google Cloud Platform APIs](https://cloud.google.com/apis) _(Note: Short description of all Google Platform APIs)_
 
 8. [Google Cloud Platform naming policy](https://cloud.google.com/compute/docs/naming-resources) _(Note: Describes the naming convention for Compute Engine resources)_
+9. Buy DNS name for your Playground
 
 ***Google Cloud preparation steps:***
-After you created or identified an existing project for deployment, add or select a service account with a JSON key, and add or select state_bucket for storing the Terraform state data according to the instructions above:
+After you created or identified an existing project for deployment, please be sure that your account has at least following privileges:
    - App Engine Admin
    - App Engine Creator
    - Artifact Registry Administrator
@@ -81,6 +82,7 @@ region               = "us-east1"            #Set the region - preferred region 
 location             = "us-east1-b"          #Select the location - location should be in region you set before
 state_bucket         = "bucket_name"         #Name of bucket - Google Cloud bucket where BEAM Playground will put temp files, [terraform state file] (https://spacelift.io/blog/terraform-state)
 bucket_examples_name = "bucket_name-example" #Enter an example bucket name - bucket for some build-in examples for BEAM Playground
+dnsname              = "your-dns-name."       #Variable for DNS name. You should reserve it first (a dot at the end is required) 
 ```
 * File name - `state.tfbackend`, item inside:
 ```
@@ -88,42 +90,34 @@ bucket               = "bucket_name"         #input bucket name - will be used f
 ```
 Then, let's configure authentication for the Google Cloud Platform:
 
-* The following command allows us to authenticate using JSON key file
+* The following commands allows us to configure account and project
 ```
-    export GOOGLE_APPLICATION_CREDENTIALS=`your service account JSON key location` (absolute path)
+gcloud init
 ```
-* Using the following command, we will activate the newly created service account:
 ```
-    gcloud auth activate-service-account `full principal service account` --key-file=`your service account JSON key location` (absolute path)
+gcloud auth application-default login
 ```
-
 # Infrastructure deployment:
 * To deploy the Infrastructure, use the following command (please be sure that you are in the "beam" folder):
 ```
 ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="env" (env - folder name which you created for configuration files)
 ```
-# Backend deployment:
+# Playground deployment:
 Once the script was executed successfully, you will need to authenticate on Docker and Google Kubernetes Engine
 The following command will authorize us in the Docker registry
 ```
- cat `your service account json key locaton` | docker login -u _json_key --password-stdin https://`chosen_region`-docker.pkg.dev
+ gcloud auth configure-docker `chosen_region`-docker.pkg.dev
 ```
 * The following command will authenticate us in GKE
 ```
-gcloud container clusters get-credentials --region `chosen_pg_location` `gke_name` --project `project_id`
+gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
 ```
 * We need to create database indexes for BEAM playground examples by the following command:
 ```
 gcloud app deploy playground/index.yaml --project=`project_id`
 ```
-That's all, the configuration of the environment has been completed. For deploying the backend part to the Google cloud Kubernetes engine, please execute the following command (Ensure you are in the "beam" folder):
+That's all, the configuration of the environment has been completed. For deploying the Beam Playground to the Google cloud Kubernetes engine, please execute the following command (Ensure you are in the "beam" folder):
 ```
 ./gradlew playground:terraform:gkebackend -Pproject_environment="env" -Pdocker-tag="tag" (env - folder name which you created for configuration files, tag - image tag for backend)
 ```
 During script execution, a google managed certificate will be created. The provisioning process could take up to 20 minutes
-
-# Frontend deployment:
-* To deploy the frontend, use the following command (Ensure you are in the "beam" folder):
-```
-./gradlew playground:terraform:deployFrontend -Pdocker-tag="env" -Pproject_id=`project_id` -Pproject_environment='tag'
-```
