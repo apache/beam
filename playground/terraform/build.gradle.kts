@@ -451,12 +451,12 @@ tag: $d_tag
 }
 helm {
     val backend by charts.creating {
-        chartName.set("backend")
-        sourceDir.set(file("../infrastructure/helm-backend"))
+        chartName.set("playground")
+        sourceDir.set(file("../infrastructure/helm-playground"))
     }
     releases {
-        create("backend") {
-            from(backend)
+        create("playground") {
+            from(playground)
         }
     }
 }
@@ -465,10 +465,10 @@ task ("gkebackend") {
   val init = tasks.getByName("terraformInit")
   val apply = tasks.getByName("terraformApplyInf")
   val takeConfig = tasks.getByName("takeConfig")
-  val push = tasks.getByName("pushBack")
-  val helm = tasks.getByName("helmInstallBackend")
   val prepare = tasks.getByName("prepareConfig")
   val front = tasks.getByName("pushFront")
+  val push = tasks.getByName("pushBack")
+  val helm = tasks.getByName("helmInstallBackend")
   dependsOn(init)
   dependsOn(apply)
   dependsOn(takeConfig)
