@@ -1106,6 +1106,8 @@ class ToString(object):
   Kvs = Iterables
 
 
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
 class LogElements(PTransform):
   """
   PTransform for printing the elements of a PCollection.
