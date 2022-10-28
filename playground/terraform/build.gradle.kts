@@ -450,7 +450,7 @@ tag: $d_tag
  }
 }
 helm {
-    val backend by charts.creating {
+    val playground by charts.creating {
         chartName.set("playground")
         sourceDir.set(file("../infrastructure/helm-playground"))
     }
