@@ -3792,39 +3792,89 @@ the user ids from a `PCollection` of purchases one would write (using the `Selec
 purchases.apply(Select.fieldNames("userId"));
 {{< /highlight >}}
 
+{{< highlight py >}}
+input_pc = ... # {"user_id": ...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select("user_id")
+{{< /highlight >}}
+
 ##### **Nested fields**
 
+{{< paragraph class="language-py" >}}
+Support for Nested fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Nested fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
  shipping address one would write
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
 
+<!-- {{< highlight py >}}
+input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_address.post_code"]))
+{{< /highlight >}} -->
 ##### **Wildcards**
 
+{{< paragraph class="language-py" >}}
+Support for wildcards hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for wildcards hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 The * operator can be specified at any nesting level to represent all fields at that level. For example, to select all
 shipping-address fields one would write
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("shippingAddress.*"));
 {{< /highlight >}}
 
+<!--
+{{< highlight py >}}
+#TODO(https://github.com/apache/beam/issues/23275): Add support for projecting nested fields
+input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select("shipping_address.*"))
+{{< /highlight >}} -->
 ##### **Arrays**
 
+{{< paragraph class="language-java" >}}
 An array field, where the array element type is a row, can also have subfields of the element type addressed. When
 selected, the result is an array of the selected subfield type. For example
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Support for Array fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Array fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("transactions[].bank"));
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 Will result in a row containing an array field with element-type string, containing the list of banks for each
 transaction.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 While the use of  [] brackets in the selector is recommended, to make it clear that array elements are being selected,
 they can be omitted for brevity. In the future, array slicing will be supported, allowing selection of portions of the
 array.
+{{< /paragraph >}}
+
 
 ##### **Maps**
 
@@ -3858,6 +3908,14 @@ The following
 purchasesByType.apply(Select.fieldNames("purchases{}.userId"));
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for Map fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Map fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
 Will result in a row containing a map field with key-type string and value-type string. The selected map will contain
 all of the keys from the original map, and the values will be the userId contained in the purchase record.
 
@@ -3881,6 +3939,14 @@ could select only the userId and streetAddress fields as follows
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Support for Nested fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Nested fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 The resulting `PCollection` will have the following schema
 
@@ -3909,6 +3975,14 @@ The same is true for wildcard selections. The following
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("userId", "shippingAddress.*"));
 {{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Support for Wildcards hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Wildcards hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 Will result in the following schema
 
@@ -3956,6 +4030,15 @@ selected field will appear as its own array field. For example
 purchases.apply(Select.fieldNames( "transactions.bank", "transactions.purchaseAmount"));
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for nested fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for nested fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 Will result in the following schema
 <table>
   <thead>
@@ -3976,6 +4059,7 @@ Will result in the following schema
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 Wildcard selections are equivalent to separately selecting each field.
 
@@ -3993,6 +4077,15 @@ Another use of the Select transform is to flatten a nested schema into a single 
 purchases.apply(Select.flattenedSchema());
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for nested fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for nested fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 Will result in the following schema
 <table>
   <thead>
@@ -4045,21 +4138,48 @@ Will result in the following schema
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 ##### **Grouping aggregations**
 
+{{< paragraph class="language-java" >}}
 The `Group` transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
 those groupings, and storing the result of those aggregations in a new schema field. The output of the `Group` transform
 has a schema with one field corresponding to each aggregation performed.
+{{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
+The `GroupBy` transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
+those groupings, and storing the result of those aggregations in a new schema field. The output of the `GroupBy` transform
+has a schema with one field corresponding to each aggregation performed.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 The simplest usage of `Group` specifies no aggregations, in which case all inputs matching the provided set of fields
 are grouped together into an `ITERABLE` field. For example
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+The simplest usage of `GroupBy` specifies no aggregations, in which case all inputs matching the provided set of fields
+are grouped together into an `ITERABLE` field. For example
+{{< /paragraph >}}
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress"));
+purchases.apply(Group.byFieldNames("userId", "bank"));
 {{< /highlight >}}
 
+{{< highlight py >}}
+input_pc = ... # {"user_id": ...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.GroupBy('user_id','bank')
+{{< /highlight >}}
+
+{{< paragraph class="language-go" >}}
+Support for schema-aware grouping hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="lanuage-java" >}}
 The output schema of this is:
+{{< /paragraph >}}
 
 <table>
   <thead>
@@ -4071,7 +4191,7 @@ The output schema of this is:
   <tbody>
     <tr>
       <td>key</td>
-      <td>ROW{userId:STRING, streetAddress:STRING}</td>
+      <td>ROW{userId:STRING, bank:STRING}</td>
     </tr>
     <tr>
       <td>values</td>
@@ -4104,6 +4224,18 @@ purchases.apply(Group.byFieldNames("userId")
     .aggregateField("costCents", Top.<Long>largestLongsFn(10), "topPurchases"));
 {{< /highlight >}}
 
+{{< highlight py >}}
+input_pc = ... # {"user_id": ..., "item_Id": ..., "cost_cents": ...}
+output_pc = input_pc | beam.GroupBy("user_id")
+	.aggregate_field("item_id", CountCombineFn, "num_purchases")
+	.aggregate_field("cost_cents", sum, "total_spendcents")
+	.aggregate_field("cost_cents", TopCombineFn, "top_purchases")
+{{< /highlight >}}
+
+{{< paragraph class="language-go" >}}
+Support for schema-aware grouping hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
 The result of this aggregation will have the following schema:
 <table>
   <thead>
@@ -4135,6 +4267,14 @@ that are likely associated with that transaction (both the user and product matc
 "natural join" - one in which the same field names are used on both the left-hand and right-hand sides of the join -
 and is specified with the `using` keyword:
 
+{{< paragraph class="language-py" >}}
+Support for joins hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for joins hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
 {{< highlight java >}}
 PCollection<Transaction> transactions = readTransactions();
 PCollection<Review> reviews = readReviews();
@@ -4142,6 +4282,7 @@ PCollection<Row> joined = transactions.apply(
     Join.innerJoin(reviews).using("userId", "productId"));
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 The resulting schema is the following:
 <table>
   <thead>
@@ -4162,11 +4303,20 @@ The resulting schema is the following:
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 Each resulting row contains one Transaction and one Review that matched the join condition.
 
 If the fields to match in the two schemas have different names, then the on function can be used. For example, if the
 Review schema named those fields differently than the Transaction schema, then we could write the following:
+
+{{< paragraph class="language-py" >}}
+Support for joins hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for joins hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 PCollection<Row> joined = transactions.apply(
@@ -4187,6 +4337,14 @@ join record, providing a generalization of outer joins to joins with greater tha
 can optionally be expanded - providing individual joined records, as in the `Join` transform. The output can also be
 processed in unexpanded format - providing the join key along with Iterables of all records from each input that matched
 that key.
+
+{{< paragraph class="language-py" >}}
+Support for joins hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for joins hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 ##### **Filtering events**
 
