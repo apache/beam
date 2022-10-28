@@ -40,6 +40,7 @@ dependencies {
   permitUnusedDeclared library.java.vendored_calcite_1_28_0
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
+  testImplementation project(":sdks:java:io:jdbc")
   // Depending on outputs so integrationTest can run with only test dependencies.
   // This enables us to test the JDBC jar being loaded on a custom classloader.
   integrationTest sourceSets.test.output
