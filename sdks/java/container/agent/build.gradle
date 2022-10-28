@@ -19,6 +19,13 @@
 plugins {
     id 'org.apache.beam.module'
 }
+
+if (project.hasProperty('java11Home')) {
+    javaVersion = "1.11"
+} else if (project.hasProperty('java17Home')) {
+    javaVersion = "1.17"
+}
+
 applyJavaNature(
     exportJavadoc: false,
     publish: false
@@ -35,9 +42,7 @@ jar {
     }
 }
 
-
 if (project.hasProperty('java11Home')) {
-    javaVersion = "1.11"
     def java11Home = project.findProperty('java11Home')
     project.tasks.withType(JavaCompile) {
         options.fork = true
@@ -45,7 +50,6 @@ if (project.hasProperty('java11Home')) {
         options.compilerArgs += ['-Xlint:-path']
     }
 } else if (project.hasProperty('java17Home')) {
-    javaVersion = "1.17"
     project.tasks.withType(JavaCompile) {
         setJava17Options(options)
 
