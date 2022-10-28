@@ -154,8 +154,6 @@ func ExampleWriteBatch() {
 		return muts
 	}())
 
-	var maxOpsPerMutation uint = 2 // since we Set() 2 ops in the above mutations at max
-	
 	// bigtableio.WriteBatch(...)
-	WriteBatch(s, "project", "instanceId", "tableName", maxOpsPerMutation, bigtableioMutationCol)
+	WriteBatch(s, "project", "instanceId", "tableName", bigtableioMutationCol)
 }
