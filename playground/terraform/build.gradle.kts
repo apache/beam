@@ -294,7 +294,7 @@ task("prepareConfig") {
             commandLine = listOf("terraform", "output", "playground_dns_name")
             standardOutput = stdout
         }
-        extip = stdout.toString().trim().replace("\"", "")
+        extip = stdout.toString().trim().replace(".\"", "")
         stdout = ByteArrayOutputStream()
         val configFileName = "config.g.dart"
         val modulePath = project(":playground:frontend").projectDir.absolutePath
@@ -304,15 +304,15 @@ task("prepareConfig") {
             """
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
-      'https://router.${extip};
+      'https://router.${extip}';
 const String kApiJavaClientURL =
-      'https://java.${extip};
+      'https://java.${extip}';
 const String kApiGoClientURL =
-      'https://go.${extip};
+      'https://go.${extip}';
 const String kApiPythonClientURL =
-      'https://python.${extip};
+      'https://python.${extip}';
 const String kApiScioClientURL =
-      'https://scio.${extip};
+      'https://scio.${extip}';
 """
         )
         try {
