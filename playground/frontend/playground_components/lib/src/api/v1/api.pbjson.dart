@@ -88,6 +88,39 @@ const Complexity$json = const {
 
 /// Descriptor for `Complexity`. Decode as a `google.protobuf.EnumDescriptorProto`.
 final $typed_data.Uint8List complexityDescriptor = $convert.base64Decode('CgpDb21wbGV4aXR5EhoKFkNPTVBMRVhJVFlfVU5TUEVDSUZJRUQQABIUChBDT01QTEVYSVRZX0JBU0lDEAESFQoRQ09NUExFWElUWV9NRURJVU0QAhIXChNDT01QTEVYSVRZX0FEVkFOQ0VEEAM=');
+@$core.Deprecated('Use emulatorTypeDescriptor instead')
+const EmulatorType$json = const {
+  '1': 'EmulatorType',
+  '2': const [
+    const {'1': 'EMULATOR_TYPE_UNSPECIFIED', '2': 0},
+    const {'1': 'EMULATOR_TYPE_KAFKA', '2': 1},
+  ],
+};
+
+/// Descriptor for `EmulatorType`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List emulatorTypeDescriptor = $convert.base64Decode('CgxFbXVsYXRvclR5cGUSHQoZRU1VTEFUT1JfVFlQRV9VTlNQRUNJRklFRBAAEhcKE0VNVUxBVE9SX1RZUEVfS0FGS0EQAQ==');
+@$core.Deprecated('Use datasetDescriptor instead')
+const Dataset$json = const {
+  '1': 'Dataset',
+  '2': const [
+    const {'1': 'options', '3': 1, '4': 3, '5': 11, '6': '.api.v1.Dataset.OptionsEntry', '10': 'options'},
+    const {'1': 'dataset_path', '3': 2, '4': 1, '5': 9, '10': 'datasetPath'},
+  ],
+  '3': const [Dataset_OptionsEntry$json],
+};
+
+@$core.Deprecated('Use datasetDescriptor instead')
+const Dataset_OptionsEntry$json = const {
+  '1': 'OptionsEntry',
+  '2': const [
+    const {'1': 'key', '3': 1, '4': 1, '5': 9, '10': 'key'},
+    const {'1': 'value', '3': 2, '4': 1, '5': 9, '10': 'value'},
+  ],
+  '7': const {'7': true},
+};
+
+/// Descriptor for `Dataset`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List datasetDescriptor = $convert.base64Decode('CgdEYXRhc2V0EjYKB29wdGlvbnMYASADKAsyHC5hcGkudjEuRGF0YXNldC5PcHRpb25zRW50cnlSB29wdGlvbnMSIQoMZGF0YXNldF9wYXRoGAIgASgJUgtkYXRhc2V0UGF0aBo6CgxPcHRpb25zRW50cnkSEAoDa2V5GAEgASgJUgNrZXkSFAoFdmFsdWUYAiABKAlSBXZhbHVlOgI4AQ==');
 @$core.Deprecated('Use runCodeRequestDescriptor instead')
 const RunCodeRequest$json = const {
   '1': 'RunCodeRequest',
@@ -95,11 +128,13 @@ const RunCodeRequest$json = const {
     const {'1': 'code', '3': 1, '4': 1, '5': 9, '10': 'code'},
     const {'1': 'sdk', '3': 2, '4': 1, '5': 14, '6': '.api.v1.Sdk', '10': 'sdk'},
     const {'1': 'pipeline_options', '3': 3, '4': 1, '5': 9, '10': 'pipelineOptions'},
+    const {'1': 'emulator', '3': 4, '4': 1, '5': 14, '6': '.api.v1.EmulatorType', '10': 'emulator'},
+    const {'1': 'datasets', '3': 5, '4': 3, '5': 11, '6': '.api.v1.Dataset', '10': 'datasets'},
   ],
 };
 
 /// Descriptor for `RunCodeRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List runCodeRequestDescriptor = $convert.base64Decode('Cg5SdW5Db2RlUmVxdWVzdBISCgRjb2RlGAEgASgJUgRjb2RlEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnM=');
+final $typed_data.Uint8List runCodeRequestDescriptor = $convert.base64Decode('Cg5SdW5Db2RlUmVxdWVzdBISCgRjb2RlGAEgASgJUgRjb2RlEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnMSMAoIZW11bGF0b3IYBCABKA4yFC5hcGkudjEuRW11bGF0b3JUeXBlUghlbXVsYXRvchIrCghkYXRhc2V0cxgFIAMoCzIPLmFwaS52MS5EYXRhc2V0UghkYXRhc2V0cw==');
 @$core.Deprecated('Use runCodeResponseDescriptor instead')
 const RunCodeResponse$json = const {
   '1': 'RunCodeResponse',
@@ -303,11 +338,13 @@ const PrecompiledObject$json = const {
     const {'1': 'sdk', '3': 10, '4': 1, '5': 14, '6': '.api.v1.Sdk', '10': 'sdk'},
     const {'1': 'complexity', '3': 11, '4': 1, '5': 14, '6': '.api.v1.Complexity', '10': 'complexity'},
     const {'1': 'tags', '3': 12, '4': 3, '5': 9, '10': 'tags'},
+    const {'1': 'emulator', '3': 13, '4': 1, '5': 14, '6': '.api.v1.EmulatorType', '10': 'emulator'},
+    const {'1': 'datasets', '3': 14, '4': 3, '5': 11, '6': '.api.v1.Dataset', '10': 'datasets'},
   ],
 };
 
 /// Descriptor for `PrecompiledObject`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSHAoJbXVsdGlmaWxlGAcgASgIUgltdWx0aWZpbGUSIQoMY29udGV4dF9saW5lGAggASgFUgtjb250ZXh0TGluZRInCg9kZWZhdWx0X2V4YW1wbGUYCSABKAhSDmRlZmF1bHRFeGFtcGxlEh0KA3NkaxgKIAEoDjILLmFwaS52MS5TZGtSA3NkaxIyCgpjb21wbGV4aXR5GAsgASgOMhIuYXBpLnYxLkNvbXBsZXhpdHlSCmNvbXBsZXhpdHkSEgoEdGFncxgMIAMoCVIEdGFncw==');
+final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSHAoJbXVsdGlmaWxlGAcgASgIUgltdWx0aWZpbGUSIQoMY29udGV4dF9saW5lGAggASgFUgtjb250ZXh0TGluZRInCg9kZWZhdWx0X2V4YW1wbGUYCSABKAhSDmRlZmF1bHRFeGFtcGxlEh0KA3NkaxgKIAEoDjILLmFwaS52MS5TZGtSA3NkaxIyCgpjb21wbGV4aXR5GAsgASgOMhIuYXBpLnYxLkNvbXBsZXhpdHlSCmNvbXBsZXhpdHkSEgoEdGFncxgMIAMoCVIEdGFncxIwCghlbXVsYXRvchgNIAEoDjIULmFwaS52MS5FbXVsYXRvclR5cGVSCGVtdWxhdG9yEisKCGRhdGFzZXRzGA4gAygLMg8uYXBpLnYxLkRhdGFzZXRSCGRhdGFzZXRz');
 @$core.Deprecated('Use categoriesDescriptor instead')
 const Categories$json = const {
   '1': 'Categories',

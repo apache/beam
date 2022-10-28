@@ -58,6 +58,11 @@ func GetPCObjectKey(ctx context.Context, values ...interface{}) *datastore.Key {
 	return getNameKey(ctx, constants.PCObjectKind, id, nil)
 }
 
+func GetDatasetSnippetKey(ctx context.Context, values ...interface{}) *datastore.Key {
+	id := GetIDWithDelimiter(values...)
+	return getNameKey(ctx, constants.DatasetsSnippetsKind, id, nil)
+}
+
 func GetExampleID(cloudPath string) (string, error) {
 	cloudPathParams := strings.Split(cloudPath, constants.CloudPathDelimiter)
 	if len(cloudPathParams) < 3 {

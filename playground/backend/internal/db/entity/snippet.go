@@ -50,6 +50,19 @@ type SnippetEntity struct {
 	PersistenceKey string         `datastore:"persistenceKey,omitempty"`
 }
 
+type DatasetEntity struct {
+	Key  *datastore.Key `datastore:"__key__"`
+	Link string         `datastore:"link"`
+}
+
+type DatasetSnippetEntity struct {
+	Key      *datastore.Key `datastore:"__key__"`
+	Config   string         `datastore:"config"`
+	Dataset  *datastore.Key `datastore:"dataset"`
+	Emulator string         `datastore:"emulator"`
+	Snippet  *datastore.Key `datastore:"snippet"`
+}
+
 type Snippet struct {
 	*IDMeta
 	Snippet *SnippetEntity
