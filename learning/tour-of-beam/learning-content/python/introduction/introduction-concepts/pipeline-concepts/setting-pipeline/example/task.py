@@ -49,7 +49,7 @@ class Output(beam.PTransform):
         input | beam.ParDo(self._OutputFn())
 
 def main(argv=None, save_main_session=True):
-    """Main entry point; defines and runs the wordcount pipeline."""
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--input',

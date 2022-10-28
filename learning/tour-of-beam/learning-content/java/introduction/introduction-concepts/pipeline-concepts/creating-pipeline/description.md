@@ -24,3 +24,13 @@ PipelineOptions options = PipelineOptionsFactory.create();
 // Then create the pipeline.
 Pipeline p = Pipeline.create(options);
 ```
+
+### Playground exercise
+
+You can find the full code of the above example in the playground window, which you can run and experiment with.
+
+When creating pipelines when writing arguments (String args[]), you can explicitly specify runner:
+
+```
+--runner=DirectRunner
+```

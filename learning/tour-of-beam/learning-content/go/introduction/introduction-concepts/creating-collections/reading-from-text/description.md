@@ -32,14 +32,10 @@ func main() {
 }
 ```
 
+### Playground exercise
+
 In the playground window, you can find an example that reads a king lear poem from the text file stored in the Google Storage bucket and fills PCollection with individual lines and then with individual words. Try it out and see what the output is.
 
-One of the differences you will see is that the output is much shorter than the input file itself. This is because the number of elements in the output `PCollection` is limited with the `Sample.fixedSizeGlobally` transform. Use Sample.fixedSizeGlobally transform of is another technique you can use to troubleshoot and limit the output sent to the console for debugging purposes in case of large input datasets.
+One of the differences you will see is that the output is much shorter than the input file itself. This is because the number of elements in the output `PCollection` is limited with the `top.Largest(s,lines,10,less)` transform. Use Sample.fixedSizeGlobally transform of is another technique you can use to troubleshoot and limit the output sent to the console for debugging purposes in case of large input datasets.
 
-### Read from csv file
-
-Data processing pipelines often work with tabular data. In many examples and challenges throughout the course, you’ll be working with one of the datasets stored as csv files in either beam-examples, dataflow-samples buckets.
-
-Loading data from csv file requires some processing and consists of two main part:
-* Loading text lines using `TextIO.Read` transform
-* Parsing lines of text into tabular format
+Overview [file](https://storage.googleapis.com/apache-beam-samples/shakespeare/kinglear.txt)

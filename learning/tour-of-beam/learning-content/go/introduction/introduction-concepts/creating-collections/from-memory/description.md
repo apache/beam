@@ -47,6 +47,8 @@ func main() {
 }
 ```
 
+### Playground exercise
+
 You can find the complete code of this example in the playground window you can run and experiment with.
 
 One of the differences you will notice is that it also contains the part to output `PCollection` elements to the console. Don’t worry if you don’t quite understand it, as the concept of `ParDo` transform will be explained later in the course. Feel free, however, to use it in exercises and challenges to explore results.

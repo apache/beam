@@ -25,3 +25,12 @@ beam.Init()
 // Create the Pipeline object and root scope.
 pipeline, scope := beam.NewPipelineWithRoot()
 ```
+
+### Playground exercise
+
+You can find the full code of the above example in the playground window, which you can run and experiment with. And you can create a `pipeline`, `scope` separately, it is an alternative to `beam.NewPipelineWithRoot()`. It is convenient if manipulations are needed before creating an element.
+
+```
+pipeline := beam.NewPipeline()
+scope := p.Root()
+```

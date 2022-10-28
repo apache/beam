@@ -54,8 +54,6 @@ public interface MyOptions extends PipelineOptions {
 }
 ```
 
-You can also specify a description, which appears when a user passes `--help` as a command-line argument, and a default value.
-
 You set the description and default value using annotations, as follows:
 
 ```
@@ -82,3 +80,13 @@ MyOptions options = PipelineOptionsFactory.fromArgs(args)
                                                 .withValidation()
                                                 .as(MyOptions.class);
 ```
+
+### Playground exercise
+
+You can find the full code of the above example in the playground window, which you can run and experiment with. And you can transfer files of other extensions. For example, a csv file with taxi order data. And after making some transformations, you can write to a new csv file:
+
+```
+--input=gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv --output=output.csv
+```
+
+Do you also notice in what order elements of PCollection appear in the console? Why is that? You can also run the example several times to see if the output stays the same or changes.
