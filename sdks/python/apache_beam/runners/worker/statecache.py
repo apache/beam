@@ -176,7 +176,7 @@ def get_deep_size(*objs):
 
   """Calculates the deep size of all the arguments in bytes."""
   return objsize.get_deep_size(
-      objs,
+      *objs,
       get_size_func=_size_func,
       get_referents_func=_get_referents_func,
       filter_func=_filter_func)
@@ -274,6 +274,7 @@ class StateCache(object):
     self._miss_count += 1
     loading_value = _LoadingValue()
     self._cache[key] = loading_value
+    self._current_weight += loading_value.weight()
 
     # Ensure that we unlock the lock while loading to allow for parallel gets
     self._lock.release()
