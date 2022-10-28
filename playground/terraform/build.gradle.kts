@@ -419,7 +419,7 @@ task("takeConfig") {
 
    val configFileName = "values.yaml"
    val modulePath = project(":playground").projectDir.absolutePath
-   val file = File("$modulePath/infrastructure/helm-backend/$configFileName")
+   val file = File("$modulePath/infrastructure/helm-playground/$configFileName")
        val lines = file.readLines()
     val endOfSlice = lines.indexOfFirst { it.contains("static_ip") }
     if (endOfSlice != -1) {
