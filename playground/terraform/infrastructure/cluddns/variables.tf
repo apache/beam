@@ -23,4 +23,7 @@ variable "names" {
 
 variable "dnsname" {}
 
-variable "static_ip" {}
+variable "static_ip" {
+ type = map
+ 
+}
