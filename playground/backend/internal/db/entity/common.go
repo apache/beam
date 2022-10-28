@@ -21,5 +21,5 @@ type IDMeta struct {
 }
 
 type DatastoreEntity interface {
-	ExampleEntity | SnippetEntity
+	ExampleEntity | SnippetEntity | DatasetSnippetEntity
 }

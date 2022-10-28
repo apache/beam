@@ -15,6 +15,16 @@
 
 package dto
 
+import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+)
+
 type SnippetDeleteDTO struct {
 	NumberOfFiles int `datastore:"numberOfFiles"`
+}
+
+type DatasetDTO struct {
+	Path     string
+	Config   map[string]string
+	Emulator pb.EmulatorType
 }

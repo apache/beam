@@ -123,3 +123,18 @@ class Complexity extends $pb.ProtobufEnum {
   const Complexity._($core.int v, $core.String n) : super(v, n);
 }
 
+class EmulatorType extends $pb.ProtobufEnum {
+  static const EmulatorType EMULATOR_TYPE_UNSPECIFIED = EmulatorType._(0, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'EMULATOR_TYPE_UNSPECIFIED');
+  static const EmulatorType EMULATOR_TYPE_KAFKA = EmulatorType._(1, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'EMULATOR_TYPE_KAFKA');
+
+  static const $core.List<EmulatorType> values = <EmulatorType> [
+    EMULATOR_TYPE_UNSPECIFIED,
+    EMULATOR_TYPE_KAFKA,
+  ];
+
+  static final $core.Map<$core.int, EmulatorType> _byValue = $pb.ProtobufEnum.initByValue(values);
+  static EmulatorType? valueOf($core.int value) => _byValue[value];
+
+  const EmulatorType._($core.int v, $core.String n) : super(v, n);
+}
+

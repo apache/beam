@@ -16,7 +16,9 @@
 package mapper
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"beam.apache.org/playground/backend/internal/db/dto"
 
@@ -46,22 +48,30 @@ func (pom *PrecompiledObjectMapper) ToObjectInfo(exampleDTO *dto.ExampleDTO) *dt
 		Sdk:             exampleDTO.GetSDK(),
 		Complexity:      exampleDTO.GetComplexity(),
 		Tags:            exampleDTO.Example.Tags,
+		Emulator:        exampleDTO.GetEmulator(),
+		Datasets:        exampleDTO.GetDatasets(),
 	}
 }
 
 func (pom *PrecompiledObjectMapper) ToArrayCategories(catalogDTO *dto.CatalogDTO) []*pb.Categories {
-	sdkToExample := catalogDTO.GetSdkCatalogAsMap()
+	sdkToDefaultExample := catalogDTO.GetSdkCatalogAsMap()
 	numberOfExamples := len(catalogDTO.Examples)
 	sdkToCategories := make(dto.SdkToCategories, 0)
+	datasetsSnippetsMap := catalogDTO.DatasetsSnippetsMap
 	for exampleIndx := 0; exampleIndx < numberOfExamples; exampleIndx++ {
 		example := catalogDTO.Examples[exampleIndx]
 		snippet := catalogDTO.Snippets[exampleIndx]
 		files := []*entity.FileEntity{catalogDTO.Files[exampleIndx]}
+		var datasetsDTO []*dto.DatasetDTO
+		if len(datasetsSnippetsMap) != 0 {
+			datasetsDTO = datasetsSnippetsMap[snippet.Key.Name]
+		}
 		objInfo := pom.ToObjectInfo(&dto.ExampleDTO{
 			Example:            example,
 			Snippet:            snippet,
 			Files:              files,
-			DefaultExampleName: sdkToExample[example.Sdk.Name],
+			DefaultExampleName: sdkToDefaultExample[example.Sdk.Name],
+			Datasets:           datasetsDTO,
 		})
 		for _, objCategory := range objInfo.Categories {
 			appendPrecompiledObject(*objInfo, &sdkToCategories, objCategory, example.Sdk.Name)
@@ -114,7 +124,55 @@ func (pom *PrecompiledObjectMapper) ToPrecompiledObj(exampleDTO *dto.ExampleDTO)
 		Sdk:             exampleDTO.GetSDK(),
 		Complexity:      exampleDTO.GetComplexity(),
 		Tags:            exampleDTO.Example.Tags,
+		Emulator:        exampleDTO.GetEmulator(),
+		Datasets:        exampleDTO.GetDatasets(),
 	}
+}
+
+func (pom *PrecompiledObjectMapper) ToSnippetsDatasetsMap(datasetEntities []*entity.DatasetEntity, datasetsSnippets []*entity.DatasetSnippetEntity) (map[string][]*dto.DatasetDTO, error) {
+	result := make(map[string][]*dto.DatasetDTO)
+	datasetsMap := make(map[string]*entity.DatasetEntity)
+	for _, dataset := range datasetEntities {
+		datasetsMap[dataset.Key.Name] = dataset
+	}
+	for _, datasetSnippet := range datasetsSnippets {
+		key := datasetSnippet.Snippet
+		datasets, ok := result[key.Name]
+		if !ok {
+			newDatasets := make([]*dto.DatasetDTO, 0)
+			datasetDto, err := toDatasetDTO(datasetsMap, datasetSnippet)
+			if err != nil {
+				return nil, err
+			}
+			newDatasets = append(newDatasets, datasetDto)
+			result[key.Name] = newDatasets
+		} else {
+			datasetDto, err := toDatasetDTO(datasetsMap, datasetSnippet)
+			if err != nil {
+				return nil, err
+			}
+			datasets = append(datasets, datasetDto)
+		}
+	}
+	return result, nil
+}
+
+func toDatasetDTO(datasetsMap map[string]*entity.DatasetEntity, datasetSnippet *entity.DatasetSnippetEntity) (*dto.DatasetDTO, error) {
+	var configInterface map[string]interface{}
+	if err := json.Unmarshal([]byte(datasetSnippet.Config), &configInterface); err != nil {
+		return nil, err
+	}
+	configString := make(map[string]string, len(configInterface))
+	for k, v := range configInterface {
+		strK := fmt.Sprintf("%v", k)
+		strV := fmt.Sprintf("%v", v)
+		configString[strK] = strV
+	}
+	return &dto.DatasetDTO{
+		Path:     datasetsMap[datasetSnippet.Dataset.Name].Link,
+		Config:   configString,
+		Emulator: pb.EmulatorType(pb.EmulatorType_value[fmt.Sprintf("EMULATOR_TYPE_%s", strings.ToUpper(datasetSnippet.Emulator))]),
+	}, nil
 }
 
 // appendPrecompiledObject add precompiled object to the common structure of precompiled objects
@@ -152,6 +210,8 @@ func putPrecompiledObjectsToCategory(categoryName string, precompiledObjects *dt
 			Sdk:             object.Sdk,
 			Complexity:      object.Complexity,
 			Tags:            object.Tags,
+			Emulator:        object.Emulator,
+			Datasets:        object.Datasets,
 		})
 	}
 	sdkCategory.Categories = append(sdkCategory.Categories, &category)

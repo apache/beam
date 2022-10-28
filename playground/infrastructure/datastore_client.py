@@ -360,7 +360,7 @@ class DatastoreClient:
                 "dataset": self._get_dataset_key(dataset_id),
                 "snippet": self._get_snippet_key(snippet_id),
                 "emulator": emulator.name,
-                "config": emulator_config
+                "config": str(emulator_config).replace("'", "\"")
             }
         )
         return dataset_snippet_entity

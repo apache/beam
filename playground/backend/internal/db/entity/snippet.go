@@ -38,6 +38,7 @@ type FileEntity struct {
 }
 
 type SnippetEntity struct {
+	Key           *datastore.Key `datastore:"__key__"`
 	OwnerId       string         `datastore:"ownerId"`
 	Sdk           *datastore.Key `datastore:"sdk"`
 	PipeOpts      string         `datastore:"pipeOpts"`
@@ -48,6 +49,19 @@ type SnippetEntity struct {
 	SchVer        *datastore.Key `datastore:"schVer"`
 	NumberOfFiles int            `datastore:"numberOfFiles"`
 	Complexity    string         `datastore:"complexity"`
+}
+
+type DatasetEntity struct {
+	Key  *datastore.Key `datastore:"__key__"`
+	Link string         `datastore:"link"`
+}
+
+type DatasetSnippetEntity struct {
+	Key      *datastore.Key `datastore:"__key__"`
+	Config   string         `datastore:"config"`
+	Dataset  *datastore.Key `datastore:"dataset"`
+	Emulator string         `datastore:"emulator"`
+	Snippet  *datastore.Key `datastore:"snippet"`
 }
 
 type Snippet struct {
