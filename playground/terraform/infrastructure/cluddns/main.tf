@@ -21,7 +21,7 @@ resource "google_dns_managed_zone" "playground" {
   description = "Playground DNS Zone"
 }
 
-resource "google_dns_record_set" "playground" {
+resource "google_dns_record_set" "frontplayground" {
   managed_zone = google_dns_managed_zone.playground.name
   name    = "${google_dns_managed_zone.playground.dns_name}"
   type    = "A"
