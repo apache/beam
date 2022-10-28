@@ -109,4 +109,5 @@ module "clouddns" {
   depends_on        = [module.setup, module.artifact_registry, module.memorystore, module.network, module.api_enable, module.ip_address]
   source            = "./cluddns"
   dnsname           = var.dnsname
+  static_ip         = data.terraform_remote_state.playground-state.outputs.playground_static_ip_address
 }
