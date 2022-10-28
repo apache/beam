@@ -22,3 +22,5 @@ variable "names" {
 }
 
 variable "dnsname" {}
+
+variable "static_ip" {}
