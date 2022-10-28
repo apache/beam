@@ -27,9 +27,9 @@ import time
 import unittest
 import warnings
 from datetime import datetime
-import pytz
 
 import pytest
+import pytz
 
 import apache_beam as beam
 from apache_beam import GroupByKey
@@ -1069,19 +1069,20 @@ class LogElementsTest(unittest.TestCase):
   @pytest.fixture(scope="function")
   def _capture_stdout_log(request, capsys):
     with TestPipeline() as p:
-      result = (p | beam.Create([
-          TimestampedValue(
-              "event",
-              datetime(2022, 10, 1, 0, 0, 0, 0,
-                        tzinfo=pytz.UTC).timestamp()),
-          TimestampedValue(
-              "event",
-              datetime(2022, 10, 2, 0, 0, 0, 0,
-                        tzinfo=pytz.UTC).timestamp()),
-      ]) \
-      | beam.WindowInto(FixedWindows(60)) \
-      | util.LogElements(
-          prefix='prefix_', with_window=True, with_timestamp=True))
+      result = (
+          p | beam.Create([
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 1, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 2, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+          ])
+          | beam.WindowInto(FixedWindows(60))
+          | util.LogElements(
+              prefix='prefix_', with_window=True, with_timestamp=True))
 
     request.captured_stdout = capsys.readouterr().out
     return result
