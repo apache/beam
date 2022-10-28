@@ -27,10 +27,41 @@ resource "google_dns_record_set" "frontplayground" {
   ttl     = 300
 }
 
-resource "google_dns_record_set" "playground" {
+resource "google_dns_record_set" "goplayground" {
   managed_zone = google_dns_managed_zone.playground.name
-  for_each = toset(var.names)
-  name    = "each.value.${google_dns_managed_zone.playground.dns_name}"
+  name    = "go.${google_dns_managed_zone.playground.dns_name}"
+  type    = "A"
+  rrdatas = ["data.terraform_remote_state.playground-state.outputs.playground_static_ip_address"]
+  ttl     = 300
+}
+
+resource "google_dns_record_set" "javaplayground" {
+  managed_zone = google_dns_managed_zone.playground.name
+  name    = "java.${google_dns_managed_zone.playground.dns_name}"
+  type    = "A"
+  rrdatas = ["data.terraform_remote_state.playground-state.outputs.playground_static_ip_address"]
+  ttl     = 300
+}
+
+resource "google_dns_record_set" "pythonplayground" {
+  managed_zone = google_dns_managed_zone.playground.name
+  name    = "python.${google_dns_managed_zone.playground.dns_name}"
+  type    = "A"
+  rrdatas = ["data.terraform_remote_state.playground-state.outputs.playground_static_ip_address"]
+  ttl     = 300
+}
+
+resource "google_dns_record_set" "scioplayground" {
+  managed_zone = google_dns_managed_zone.playground.name
+  name    = "scio.${google_dns_managed_zone.playground.dns_name}"
+  type    = "A"
+  rrdatas = ["data.terraform_remote_state.playground-state.outputs.playground_static_ip_address"]
+  ttl     = 300
+}
+
+esource "google_dns_record_set" "routerplayground" {
+  managed_zone = google_dns_managed_zone.playground.name
+  name    = "router.${google_dns_managed_zone.playground.dns_name}"
   type    = "A"
   rrdatas = ["data.terraform_remote_state.playground-state.outputs.playground_static_ip_address"]
   ttl     = 300
