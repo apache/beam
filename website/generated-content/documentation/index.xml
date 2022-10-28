@@ -9248,8 +9248,19 @@ the user ids from a &lt;code>PCollection&lt;/code> of purchases one would write 
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">fieldNames&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;userId&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">input_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="c1"># {&amp;#34;user_id&amp;#34;: ...,&amp;#34;bank&amp;#34;: ..., &amp;#34;purchase_amount&amp;#34;: ...}&lt;/span>
+&lt;span class="n">output_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">input_pc&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;user_id&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h5 id="nested-fields">&lt;strong>Nested fields&lt;/strong>&lt;/h5>
-&lt;p>Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
+&lt;p class="language-py">Support for Nested fields hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
+&lt;p class="language-go">Support for Nested fields hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
+&lt;p class="language-java">Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
 shipping address one would write&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -9259,8 +9270,21 @@ shipping address one would write&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">fieldNames&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;shippingAddress.postCode&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;!--
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">input_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="c1"># {&amp;#34;user_id&amp;#34;: ..., &amp;#34;shipping_address&amp;#34;: &amp;#34;post_code&amp;#34;: ..., &amp;#34;bank&amp;#34;: ..., &amp;#34;purchase_amount&amp;#34;: ...}&lt;/span>
+&lt;span class="n">output_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">input_pc&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">post_code&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">item&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;shipping_address.post_code&amp;#34;&lt;/span>&lt;span class="p">]))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+-->
 &lt;h5 id="wildcards">&lt;strong>Wildcards&lt;/strong>&lt;/h5>
-&lt;p>The * operator can be specified at any nesting level to represent all fields at that level. For example, to select all
+&lt;p class="language-py">Support for wildcards hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
+&lt;p class="language-go">Support for wildcards hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
+&lt;p class="language-java">The * operator can be specified at any nesting level to represent all fields at that level. For example, to select all
 shipping-address fields one would write&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -9270,9 +9294,23 @@ shipping-address fields one would write&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">fieldNames&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;shippingAddress.*&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;!--
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="c1">#TODO(https://github.com/apache/beam/issues/23275): Add support for projecting nested fields&lt;/span>
+&lt;span class="n">input_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="c1"># {&amp;#34;user_id&amp;#34;: ..., &amp;#34;shipping_address&amp;#34;: &amp;#34;post_code&amp;#34;: ..., &amp;#34;bank&amp;#34;: ..., &amp;#34;purchase_amount&amp;#34;: ...}&lt;/span>
+&lt;span class="n">output_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">input_pc&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;shipping_address.*&amp;#34;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+-->
 &lt;h5 id="arrays">&lt;strong>Arrays&lt;/strong>&lt;/h5>
-&lt;p>An array field, where the array element type is a row, can also have subfields of the element type addressed. When
+&lt;p class="language-java">An array field, where the array element type is a row, can also have subfields of the element type addressed. When
 selected, the result is an array of the selected subfield type. For example&lt;/p>
+&lt;p class="language-py">Support for Array fields hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
+&lt;p class="language-go">Support for Array fields hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -9281,9 +9319,9 @@ selected, the result is an array of the selected subfield type. For example&lt;/
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">fieldNames&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;transactions[].bank&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>Will result in a row containing an array field with element-type string, containing the list of banks for each
+&lt;p class="language-java">Will result in a row containing an array field with element-type string, containing the list of banks for each
 transaction.&lt;/p>
-&lt;p>While the use of [] brackets in the selector is recommended, to make it clear that array elements are being selected,
+&lt;p class="language-java">While the use of [] brackets in the selector is recommended, to make it clear that array elements are being selected,
 they can be omitted for brevity. In the future, array slicing will be supported, allowing selection of portions of the
 array.&lt;/p>
 &lt;h5 id="maps">&lt;strong>Maps&lt;/strong>&lt;/h5>
@@ -9317,6 +9355,8 @@ specific keys from the map. For example, given the following schema:&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchasesByType&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">fieldNames&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;purchases{}.userId&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;p class="language-py">Support for Map fields hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
+&lt;p class="language-go">Support for Map fields hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;p>Will result in a row containing a map field with key-type string and value-type string. The selected map will contain
 all of the keys from the original map, and the values will be the userId contained in the purchase record.&lt;/p>
 &lt;p>While the use of {} brackets in the selector is recommended, to make it clear that map value elements are being selected,
@@ -9339,6 +9379,8 @@ could select only the userId and streetAddress fields as follows&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">fieldNames&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;userId&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;shippingAddress.streetAddress&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;p class="language-py">Support for Nested fields hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
+&lt;p class="language-go">Support for Nested fields hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;p>The resulting &lt;code>PCollection&lt;/code> will have the following schema&lt;/p>
 &lt;table>
 &lt;thead>
@@ -9368,6 +9410,8 @@ could select only the userId and streetAddress fields as follows&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">fieldNames&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;userId&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;shippingAddress.*&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;p class="language-py">Support for Wildcards hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
+&lt;p class="language-go">Support for Wildcards hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;p>Will result in the following schema&lt;/p>
 &lt;table>
 &lt;thead>
@@ -9415,7 +9459,9 @@ selected field will appear as its own array field. For example&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">fieldNames&lt;/span>&lt;span class="o">(&lt;/span> &lt;span class="s">&amp;#34;transactions.bank&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;transactions.purchaseAmount&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>Will result in the following schema&lt;/p>
+&lt;p class="language-py">Support for nested fields hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
+&lt;p class="language-go">Support for nested fields hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
+&lt;p class="language-java">Will result in the following schema&lt;/p>
 &lt;table>
 &lt;thead>
 &lt;tr class="header">
@@ -9434,7 +9480,7 @@ selected field will appear as its own array field. For example&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;br/>
+&lt;br/>&lt;/p>
 &lt;p>Wildcard selections are equivalent to separately selecting each field.&lt;/p>
 &lt;p>Selecting fields nested inside of maps have the same semantics as arrays. If you select multiple fields from a map
 , then each selected field will be expanded to its own map at the top level. This means that the set of map keys will
@@ -9451,7 +9497,9 @@ a name conflict, as all selected fields are put in the same row schema. When thi
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">flattenedSchema&lt;/span>&lt;span class="o">());&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>Will result in the following schema&lt;/p>
+&lt;p class="language-py">Support for nested fields hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
+&lt;p class="language-go">Support for nested fields hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
+&lt;p class="language-java">Will result in the following schema&lt;/p>
 &lt;table>
 &lt;thead>
 &lt;tr class="header">
@@ -9502,22 +9550,37 @@ a name conflict, as all selected fields are put in the same row schema. When thi
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;br/>
+&lt;br/>&lt;/p>
 &lt;h5 id="grouping-aggregations">&lt;strong>Grouping aggregations&lt;/strong>&lt;/h5>
-&lt;p>The &lt;code>Group&lt;/code> transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
+&lt;p class="language-java">The &lt;code>Group&lt;/code> transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
 those groupings, and storing the result of those aggregations in a new schema field. The output of the &lt;code>Group&lt;/code> transform
 has a schema with one field corresponding to each aggregation performed.&lt;/p>
-&lt;p>The simplest usage of &lt;code>Group&lt;/code> specifies no aggregations, in which case all inputs matching the provided set of fields
+&lt;p class="language-py">The &lt;code>GroupBy&lt;/code> transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
+those groupings, and storing the result of those aggregations in a new schema field. The output of the &lt;code>GroupBy&lt;/code> transform
+has a schema with one field corresponding to each aggregation performed.&lt;/p>
+&lt;p class="language-java">The simplest usage of &lt;code>Group&lt;/code> specifies no aggregations, in which case all inputs matching the provided set of fields
+are grouped together into an &lt;code>ITERABLE&lt;/code> field. For example&lt;/p>
+&lt;p class="language-py">The simplest usage of &lt;code>GroupBy&lt;/code> specifies no aggregations, in which case all inputs matching the provided set of fields
 are grouped together into an &lt;code>ITERABLE&lt;/code> field. For example&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Group&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">byFieldNames&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;userId&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;shippingAddress.streetAddress&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Group&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">byFieldNames&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;userId&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;bank&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>The output schema of this is:&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">input_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="c1"># {&amp;#34;user_id&amp;#34;: ...,&amp;#34;bank&amp;#34;: ..., &amp;#34;purchase_amount&amp;#34;: ...}&lt;/span>
+&lt;span class="n">output_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">input_pc&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;user_id&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="s1">&amp;#39;bank&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-go">Support for schema-aware grouping hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
+&lt;p class="lanuage-java">The output schema of this is:&lt;/p>
 &lt;table>
 &lt;thead>
 &lt;tr class="header">
@@ -9528,7 +9591,7 @@ are grouped together into an &lt;code>ITERABLE&lt;/code> field. For example&lt;/
 &lt;tbody>
 &lt;tr>
 &lt;td>key&lt;/td>
-&lt;td>ROW{userId:STRING, streetAddress:STRING}&lt;/td>
+&lt;td>ROW{userId:STRING, bank:STRING}&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td>values&lt;/td>
@@ -9565,6 +9628,19 @@ output schema:&lt;/p>
 &lt;span class="o">.&lt;/span>&lt;span class="na">aggregateField&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;costCents&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Top&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">largestLongsFn&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">10&lt;/span>&lt;span class="o">),&lt;/span> &lt;span class="s">&amp;#34;topPurchases&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">input_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="c1"># {&amp;#34;user_id&amp;#34;: ..., &amp;#34;item_Id&amp;#34;: ..., &amp;#34;cost_cents&amp;#34;: ...}&lt;/span>
+&lt;span class="n">output_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">input_pc&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;user_id&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;item_id&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">CountCombineFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;num_purchases&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;cost_cents&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;total_spendcents&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;cost_cents&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">TopCombineFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;top_purchases&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-go">Support for schema-aware grouping hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;p>The result of this aggregation will have the following schema:&lt;/p>
 &lt;table>
 &lt;thead>
@@ -9592,6 +9668,8 @@ subset of fields. For example, the following examples uses the Purchases schema 
 that are likely associated with that transaction (both the user and product match that in the transaction). This is a
 &amp;ldquo;natural join&amp;rdquo; - one in which the same field names are used on both the left-hand and right-hand sides of the join -
 and is specified with the &lt;code>using&lt;/code> keyword:&lt;/p>
+&lt;p class="language-py">Support for joins hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
+&lt;p class="language-go">Support for joins hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -9603,7 +9681,7 @@ and is specified with the &lt;code>using&lt;/code> keyword:&lt;/p>
 &lt;span class="n">Join&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">innerJoin&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">reviews&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">using&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;userId&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;productId&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>The resulting schema is the following:&lt;/p>
+&lt;p class="language-java">The resulting schema is the following:&lt;/p>
 &lt;table>
 &lt;thead>
 &lt;tr class="header">
@@ -9622,10 +9700,12 @@ and is specified with the &lt;code>using&lt;/code> keyword:&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;br/>
+&lt;br/>&lt;/p>
 &lt;p>Each resulting row contains one Transaction and one Review that matched the join condition.&lt;/p>
 &lt;p>If the fields to match in the two schemas have different names, then the on function can be used. For example, if the
 Review schema named those fields differently than the Transaction schema, then we could write the following:&lt;/p>
+&lt;p class="language-py">Support for joins hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
+&lt;p class="language-go">Support for joins hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -9647,6 +9727,8 @@ join record, providing a generalization of outer joins to joins with greater tha
 can optionally be expanded - providing individual joined records, as in the &lt;code>Join&lt;/code> transform. The output can also be
 processed in unexpanded format - providing the join key along with Iterables of all records from each input that matched
 that key.&lt;/p>
+&lt;p class="language-py">Support for joins hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
+&lt;p class="language-go">Support for joins hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;h5 id="filtering-events">&lt;strong>Filtering events&lt;/strong>&lt;/h5>
 &lt;p>The &lt;code>Filter&lt;/code> transform can be configured with a set of predicates, each one based one specified fields. Only records for
 which all predicates return true will pass the filter. For example the following&lt;/p>
