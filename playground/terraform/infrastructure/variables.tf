@@ -170,3 +170,5 @@ variable "gke_location" {
 variable "location" {
   description = "Location of GKE cluster"
 }
+
+variable "dnsname" {}
