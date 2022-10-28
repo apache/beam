@@ -24,3 +24,7 @@ output "playground_static_ip_address" {
 output "playground_static_ip_address_name" {
  value = google_compute_global_address.pg-ip.name
 }
+
+output "playground_dns_name" {
+ value = google_dns_managed_zone.playground.dns_name
+}
