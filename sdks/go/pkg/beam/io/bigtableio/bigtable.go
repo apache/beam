@@ -25,21 +25,19 @@ import (
 
 	"cloud.google.com/go/bigtable"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	register.DoFn2x1[int, func(*Mutation) bool, error](&writeFn{})
-	register.Iter1[*Mutation]()
-	register.DoFn2x1[int, func(*Mutation) bool, error](&writeBatchFn{})
-	register.Iter1[*Mutation]()
+	beam.RegisterType(reflect.TypeOf(writeFn{}))
+	beam.RegisterType(reflect.TypeOf(writeBatchFn{}))
+	beam.RegisterType(reflect.TypeOf(Mutation{}))
 }
 
-// Mutation represents a necessary serializable wrapper analogue 
+// Mutation represents a necessary serializable wrapper analogue
 // to bigtable.Mutation containing a rowKey and the operations to be applied.
 type Mutation struct {
-	RowKey   string
-	Ops []Operation
+	RowKey string
+	Ops    []Operation
 
 	// optional custom beam.GroupByKey key, default is a fixed key of 1.
 	GroupKey string
@@ -49,8 +47,8 @@ type Mutation struct {
 type Operation struct {
 	Family string
 	Column string
-	Ts bigtable.Timestamp
-	Value []byte
+	Ts     bigtable.Timestamp
+	Value  []byte
 }
 
 // NewMutation returns a new *Mutation, analogue to bigtable.NewMutation().
@@ -87,33 +85,24 @@ func Write(s beam.Scope, project, instanceID, table string, col beam.PCollection
 	beam.ParDo0(s, &writeFn{Project: project, InstanceID: instanceID, TableName: table, Type: beam.EncodedType{T: t}}, post)
 }
 
-// WriteBatch writes the elements of the given PCollection<bigtableio.Mutation> 
+// WriteBatch writes the elements of the given PCollection<bigtableio.Mutation>
 // to bigtable using bigtable.ApplyBulk().
-// For the underlying bigtable.ApplyBulk function to work properly 
+// For the underlying bigtable.ApplyBulk function to work properly
 // the maximum number of operations per bigtableio.Mutation of the input
-// PCollection must be given (maxOpsPerMutation). This is necessary due to 
-// the maximum amount of mutations allowed per bulk operation (100,000),
+// PCollection must not be greater than 100,000. For more information
 // see https://cloud.google.com/bigtable/docs/writes#batch for more.
-func WriteBatch(s beam.Scope, project, instanceID, table string, maxOpsPerMutation uint, col beam.PCollection) {
+func WriteBatch(s beam.Scope, project, instanceID, table string, col beam.PCollection) {
 	t := col.Type().Type()
 	err := mustBeBigtableioMutation(t)
 	if err != nil {
 		panic(err)
 	}
 
-	if maxOpsPerMutation == 0 {
-		panic("maxOpsPerMutation must not be 0")
-	}
-
-	if maxOpsPerMutation > 100000 {
-		panic("maxOpsPerMutation must not be greater than 100,000, see https://cloud.google.com/bigtable/docs/writes#batch")
-	}
-
 	s = s.Scope("bigtable.WriteBatch")
 
 	pre := beam.ParDo(s, addGroupKeyFn, col)
 	post := beam.GroupByKey(s, pre)
-	beam.ParDo0(s, &writeBatchFn{Project: project, InstanceID: instanceID, TableName: table, MaxOpsPerMutation: maxOpsPerMutation, Type: beam.EncodedType{T: t}}, post)
+	beam.ParDo0(s, &writeBatchFn{Project: project, InstanceID: instanceID, TableName: table, Type: beam.EncodedType{T: t}}, post)
 }
 
 func addGroupKeyFn(mutation Mutation) (int, Mutation) {
@@ -142,39 +131,44 @@ type writeFn struct {
 	// InstanceID is the bigtable instanceID
 	InstanceID string `json:"instanceId"`
 	// Client is the bigtable.Client
-	Client *bigtable.Client `json:"client"`
+	client *bigtable.Client `json:"-"`
 	// TableName is the qualified table identifier.
 	TableName string `json:"tableName"`
 	// Table is a bigtable.Table instance with an eventual open connection
-	Table *bigtable.Table `json:"table"`
+	table *bigtable.Table `json:"-"`
 	// Type is the encoded schema type.
 	Type beam.EncodedType `json:"type"`
 }
 
-func (f *writeFn) StartBundle() error {
+func (f *writeFn) Setup() error {
 	var err error
-	f.Client, err = bigtable.NewClient(context.Background(), f.Project, f.InstanceID)
+	f.client, err = bigtable.NewClient(context.Background(), f.Project, f.InstanceID)
 	if err != nil {
 		return fmt.Errorf("could not create data operations client: %v", err)
 	}
 
-	f.Table = f.Client.Open(f.TableName)
+	f.table = f.client.Open(f.TableName)
 	return nil
 }
 
-func (f *writeFn) FinishBundle() error {
-	if err := f.Client.Close(); err != nil {
+func (f *writeFn) Teardown() error {
+	if err := f.client.Close(); err != nil {
 		return fmt.Errorf("could not close data operations client: %v", err)
 	}
 	return nil
 }
 
-func (f *writeFn) ProcessElement(key int, values func(*Mutation) bool) error {
+func (f *writeFn) ProcessElement(ctx context.Context, key int, values func(*Mutation) bool) error {
 
 	var mutation Mutation
 	for values(&mutation) {
-		
-		err := f.Table.Apply(context.Background(), mutation.RowKey, getBigtableMutation(mutation))
+
+		err := validateMutation(mutation)
+		if err != nil {
+			return fmt.Errorf("invalid bigtableio.Mutation: %s", err)
+		}
+
+		err = f.table.Apply(ctx, mutation.RowKey, getBigtableMutation(mutation))
 		if err != nil {
 			return fmt.Errorf("could not apply mutation for row key='%s': %v", mutation.RowKey, err)
 		}
@@ -190,69 +184,82 @@ type writeBatchFn struct {
 	// InstanceID is the bigtable instanceID
 	InstanceID string `json:"instanceId"`
 	// Client is the bigtable.Client
-	Client *bigtable.Client `json:"client"`
+	client *bigtable.Client `json:"-"`
 	// TableName is the qualified table identifier.
 	TableName string `json:"tableName"`
 	// Table is a bigtable.Table instance with an eventual open connection
-	Table *bigtable.Table `json:"table"`
-	// MaxOpsPerMutation indicates how many operations are contained within a bigtableio.Mutation at max
-	MaxOpsPerMutation uint `json:"maxOpsPerMutation"`
+	table *bigtable.Table `json:"-"`
 	// Type is the encoded schema type.
 	Type beam.EncodedType `json:"type"`
 }
 
-func (f *writeBatchFn) StartBundle() error {
+func (f *writeBatchFn) Setup() error {
 	var err error
-	f.Client, err = bigtable.NewClient(context.Background(), f.Project, f.InstanceID)
+	f.client, err = bigtable.NewClient(context.Background(), f.Project, f.InstanceID)
 	if err != nil {
 		return fmt.Errorf("could not create data operations client: %v", err)
 	}
 
-	f.Table = f.Client.Open(f.TableName)
+	f.table = f.client.Open(f.TableName)
 	return nil
 }
 
-func (f *writeBatchFn) FinishBundle() error {
-	if err := f.Client.Close(); err != nil {
+func (f *writeBatchFn) Teardown() error {
+	if err := f.client.Close(); err != nil {
 		return fmt.Errorf("could not close data operations client: %v", err)
 	}
 	return nil
 }
 
-func (f *writeBatchFn) ProcessElement(key int, values func(*Mutation) bool) error {
-	maxMutationsPerBatch := 100000 / int(f.MaxOpsPerMutation)
+func (f *writeBatchFn) ProcessElement(ctx context.Context, key int, values func(*Mutation) bool) error {
 
-	var rowKeys []string
-	var mutations []*bigtable.Mutation
+	var rowKeysInBatch []string
+	var mutationsInBatch []*bigtable.Mutation
 
-	mutationsAdded := 0
+	// opsAddedToBatch is used to make sure that one batch does not include more than 100000 operations/mutations
+	opsAddedToBatch := 0
 
 	var mutation Mutation
 	for values(&mutation) {
 
-		rowKeys = append(rowKeys, mutation.RowKey)
-		mutations = append(mutations, getBigtableMutation(mutation))
-		mutationsAdded += int(f.MaxOpsPerMutation)
+		err := validateMutation(mutation)
+		if err != nil {
+			return fmt.Errorf("invalid bigtableio.Mutation: %s", err)
+		}
 
-		if (mutationsAdded + int(f.MaxOpsPerMutation)) > maxMutationsPerBatch {
-			err := tryApplyBulk(f.Table.ApplyBulk(context.Background(), rowKeys, mutations))
+		opsInMutation := len(mutation.Ops)
+
+		if (opsAddedToBatch + opsInMutation) > 100000 {
+			err := tryApplyBulk(f.table.ApplyBulk(ctx, rowKeysInBatch, mutationsInBatch))
 			if err != nil {
 				return err
 			}
 
-			rowKeys = nil
-			mutations = nil
-			mutationsAdded = 0
+			rowKeysInBatch = nil
+			mutationsInBatch = nil
+			opsAddedToBatch = 0
 		}
+
+		rowKeysInBatch = append(rowKeysInBatch, mutation.RowKey)
+		mutationsInBatch = append(mutationsInBatch, getBigtableMutation(mutation))
+		opsAddedToBatch += len(mutation.Ops)
+
 	}
 
-	if len(rowKeys) != 0 && len(mutations) != 0 {
-		err := tryApplyBulk(f.Table.ApplyBulk(context.Background(), rowKeys, mutations))
+	if len(rowKeysInBatch) != 0 && len(mutationsInBatch) != 0 {
+		err := tryApplyBulk(f.table.ApplyBulk(ctx, rowKeysInBatch, mutationsInBatch))
 		if err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+func validateMutation(mutation Mutation) error {
+	if len(mutation.Ops) > 100000 {
+		return fmt.Errorf("one instance of bigtableio.Mutation must not have more than 100,000 operations/mutations, see https://cloud.google.com/bigtable/docs/writes#batch")
+	}
 	return nil
 }
 
@@ -275,4 +282,3 @@ func getBigtableMutation(mutation Mutation) *bigtable.Mutation {
 	}
 	return bigtableMutation
 }
-
