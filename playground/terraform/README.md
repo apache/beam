@@ -25,18 +25,16 @@
 
 2. [How to create a new service account](https://cloud.google.com/iam/docs/creating-managing-service-accounts) _(Note: You will find the instruction "How to create Service account" for your new project)_
 
-3. [How to create a JSON key for a Google Service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) _(Note: In this instruction will be explained how to create a JSON key for your service account. it will be required for authentication)_
+3. [How to create a new bucket](https://cloud.google.com/storage/docs/creating-buckets) _(Note: Short instruction for bucket creation. You will need at least one bucket for file keeping)_
 
-4. [How to create a new bucket](https://cloud.google.com/storage/docs/creating-buckets) _(Note: Short instruction for bucket creation. You will need at least one bucket for file keeping)_
+4. [How to assign a new role for the service account](https://cloud.google.com/iam/docs/granting-changing-revoking-access) _(Note: It will explain how to assign required roles for your service account)_
 
-5. [How to assign a new role for the service account](https://cloud.google.com/iam/docs/granting-changing-revoking-access) _(Note: It will explain how to assign required roles for your service account)_
+5. [How to install gcloud CLI to your local environment](https://cloud.google.com/sdk/docs/install?hl=en) _(Note: GCloud - Google command line interface, which will allow you to interact with the Google cloud platform thru the command line (https://en.wikipedia.org/wiki/Command-line_interface)_
 
-6. [How to install gcloud CLI to your local environment](https://cloud.google.com/sdk/docs/install?hl=en) _(Note: GCloud - Google command line interface, which will allow you to interact with the Google cloud platform thru the command line (https://en.wikipedia.org/wiki/Command-line_interface)_
+6. [What are Google Cloud Platform APIs](https://cloud.google.com/apis) _(Note: Short description of all Google Platform APIs)_
 
-7. [What are Google Cloud Platform APIs](https://cloud.google.com/apis) _(Note: Short description of all Google Platform APIs)_
-
-8. [Google Cloud Platform naming policy](https://cloud.google.com/compute/docs/naming-resources) _(Note: Describes the naming convention for Compute Engine resources)_
-9. Buy DNS name for your Playground
+7. [Google Cloud Platform naming policy](https://cloud.google.com/compute/docs/naming-resources) _(Note: Describes the naming convention for Compute Engine resources)_
+8. Buy DNS name for your Playground
 
 ***Google Cloud preparation steps:***
 After you created or identified an existing project for deployment, please be sure that your account has at least following privileges:
