@@ -60,16 +60,15 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     return new AutoValue_PubsubRowToMessage.Builder();
   }
 
-  static TupleTag<PubsubMessage> OUTPUT = new TupleTag<PubsubMessage>() {};
-  static TupleTag<Row> ERROR = new TupleTag<Row>() {};
+  static final TupleTag<PubsubMessage> OUTPUT = new TupleTag<PubsubMessage>() {};
+  static final TupleTag<Row> ERROR = new TupleTag<Row>() {};
   static final String ERROR_DATA_FIELD_NAME = "data";
   static final Field ERROR_MESSAGE_FIELD = Field.of("error_message", FieldType.STRING);
   static final Field ERROR_STACK_TRACE_FIELD = Field.of("error_stack_trace", FieldType.STRING);
 
   static final String DEFAULT_KEY_PREFIX = "$";
   static final String ATTRIBUTES_KEY_NAME = "pubsub_attributes";
-  static final FieldType ATTRIBUTES_FIELD_TYPE =
-      FieldType.map(FieldType.STRING, FieldType.STRING);
+  static final FieldType ATTRIBUTES_FIELD_TYPE = FieldType.map(FieldType.STRING, FieldType.STRING);
 
   static final String EVENT_TIMESTAMP_KEY_NAME = "pubsub_event_timestamp";
   static final FieldType EVENT_TIMESTAMP_FIELD_TYPE = FieldType.DATETIME;
@@ -172,8 +171,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
           getPayloadSerializer() == null,
           String.format(
               "schema field: %s of type: %s with a %s is incompatible",
-              payloadKeyName, PAYLOAD_BYTES_TYPE_NAME, PayloadSerializer.class.getName())
-      );
+              payloadKeyName, PAYLOAD_BYTES_TYPE_NAME, PayloadSerializer.class.getName()));
     }
 
     if (hasPayloadRowField) {
@@ -395,6 +393,14 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
 
     Row serializableRow(Row row) {
       SchemaReflection schemaReflection = SchemaReflection.of(row.getSchema());
+
+      if (schemaReflection.matchesAll(FieldMatcher.of(payloadKeyName, PAYLOAD_BYTES_TYPE_NAME))) {
+        throw new IllegalArgumentException(
+            String.format(
+                "serializable Row does not exist for payload of type: %s",
+                PAYLOAD_BYTES_TYPE_NAME));
+      }
+
       if (schemaReflection.matchesAll(FieldMatcher.of(payloadKeyName, PAYLOAD_ROW_TYPE_NAME))) {
         return row.getRow(payloadKeyName);
       }

@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.ATTRIBUTES_FIELD_TYPE;
@@ -21,7 +38,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.FieldMatcher;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.PubsubRowToMessageDoFn;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.SchemaReflection;
@@ -88,6 +104,11 @@ public class PubsubRowToMessageTest {
           Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE),
           Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE),
           Field.of(DEFAULT_PAYLOAD_KEY_NAME, FieldType.row(ALL_DATA_TYPES_SCHEMA)));
+
+  private static final Schema NON_USER_WITHOUT_PAYLOAD =
+      Schema.of(
+          Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE),
+          Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE));
 
   // private static final Field ROW_FIELD = Field.of("row", FieldType.row(ALL_DATA_TYPES_SCHEMA));
 
@@ -333,23 +354,35 @@ public class PubsubRowToMessageTest {
 
   @Test
   public void testFieldMatcher_match_TypeName() {
-    assertTrue(FieldMatcher.of(DEFAULT_PAYLOAD_KEY_NAME, TypeName.ROW).match(NON_USER_WITH_ROW_PAYLOAD));
-    assertTrue(FieldMatcher.of(DEFAULT_PAYLOAD_KEY_NAME, TypeName.BYTES).match(NON_USER_WITH_BYTES_PAYLOAD));
-    assertFalse(FieldMatcher.of(DEFAULT_PAYLOAD_KEY_NAME, TypeName.ROW).match(NON_USER_WITH_BYTES_PAYLOAD));
-    assertFalse(FieldMatcher.of(DEFAULT_PAYLOAD_KEY_NAME, TypeName.BYTES).match(NON_USER_WITH_ROW_PAYLOAD));
+    assertTrue(
+        FieldMatcher.of(DEFAULT_PAYLOAD_KEY_NAME, TypeName.ROW).match(NON_USER_WITH_ROW_PAYLOAD));
+    assertTrue(
+        FieldMatcher.of(DEFAULT_PAYLOAD_KEY_NAME, TypeName.BYTES)
+            .match(NON_USER_WITH_BYTES_PAYLOAD));
+    assertFalse(
+        FieldMatcher.of(DEFAULT_PAYLOAD_KEY_NAME, TypeName.ROW).match(NON_USER_WITH_BYTES_PAYLOAD));
+    assertFalse(
+        FieldMatcher.of(DEFAULT_PAYLOAD_KEY_NAME, TypeName.BYTES).match(NON_USER_WITH_ROW_PAYLOAD));
   }
 
   @Test
   public void testFieldMatcher_match_FieldType() {
-    assertTrue(FieldMatcher.of(DEFAULT_ATTRIBUTES_KEY_NAME, FieldType.map(FieldType.STRING, FieldType.STRING)).match(NON_USER_WITH_BYTES_PAYLOAD));
-    assertFalse(FieldMatcher.of(DEFAULT_ATTRIBUTES_KEY_NAME, FieldType.map(FieldType.STRING, FieldType.BYTES)).match(NON_USER_WITH_BYTES_PAYLOAD));
+    assertTrue(
+        FieldMatcher.of(
+                DEFAULT_ATTRIBUTES_KEY_NAME, FieldType.map(FieldType.STRING, FieldType.STRING))
+            .match(NON_USER_WITH_BYTES_PAYLOAD));
+    assertFalse(
+        FieldMatcher.of(
+                DEFAULT_ATTRIBUTES_KEY_NAME, FieldType.map(FieldType.STRING, FieldType.BYTES))
+            .match(NON_USER_WITH_BYTES_PAYLOAD));
   }
 
   @Test
   public void testRemoveFields() {
     Schema input = Schema.of(STRING_FIELD, BOOLEAN_FIELD, INT64_FIELD);
     Schema expected = Schema.builder().build();
-    Schema actual = removeFields(input, STRING_FIELD.getName(), BOOLEAN_FIELD.getName(), INT64_FIELD.getName());
+    Schema actual =
+        removeFields(input, STRING_FIELD.getName(), BOOLEAN_FIELD.getName(), INT64_FIELD.getName());
     assertEquals(expected, actual);
   }
 
@@ -360,32 +393,40 @@ public class PubsubRowToMessageTest {
     attributes.put("b", "2");
     attributes.put("c", "3");
 
-    Row withAttributes = Row.withSchema(NON_USER_WITH_BYTES_PAYLOAD)
-        .addValues(attributes, Instant.now(), new byte[]{})
-        .build();
+    Row withAttributes =
+        Row.withSchema(NON_USER_WITH_BYTES_PAYLOAD)
+            .addValues(attributes, Instant.now(), new byte[] {})
+            .build();
 
-    assertEquals(attributes, doFn(NON_USER_WITH_BYTES_PAYLOAD, null).attributesWithoutTimestamp(withAttributes));
+    assertEquals(
+        attributes,
+        doFn(NON_USER_WITH_BYTES_PAYLOAD, null).attributesWithoutTimestamp(withAttributes));
 
-    Schema withoutAttributesSchema = removeFields(NON_USER_WITH_BYTES_PAYLOAD, DEFAULT_ATTRIBUTES_KEY_NAME);
-    Row withoutAttributes = Row.withSchema(withoutAttributesSchema)
-        .addValues(Instant.now(), new byte[]{})
-        .build();
+    Schema withoutAttributesSchema =
+        removeFields(NON_USER_WITH_BYTES_PAYLOAD, DEFAULT_ATTRIBUTES_KEY_NAME);
+    Row withoutAttributes =
+        Row.withSchema(withoutAttributesSchema).addValues(Instant.now(), new byte[] {}).build();
 
-    assertEquals(new HashMap<>(), doFn(withoutAttributesSchema, null).attributesWithoutTimestamp(withoutAttributes));
+    assertEquals(
+        new HashMap<>(),
+        doFn(withoutAttributesSchema, null).attributesWithoutTimestamp(withoutAttributes));
   }
 
   @Test
   public void testPubsubRowToMessageParDo_timestamp() {
     Instant timestamp = Instant.now();
-    Row withTimestamp = Row.withSchema(NON_USER_WITH_BYTES_PAYLOAD)
-        .addValues(new HashMap<>(), timestamp, new byte[]{})
-        .build();
-    assertEquals(timestamp.toString(), doFn(NON_USER_WITH_BYTES_PAYLOAD, null).timestamp(withTimestamp).toString());
+    Row withTimestamp =
+        Row.withSchema(NON_USER_WITH_BYTES_PAYLOAD)
+            .addValues(new HashMap<>(), timestamp, new byte[] {})
+            .build();
+    assertEquals(
+        timestamp.toString(),
+        doFn(NON_USER_WITH_BYTES_PAYLOAD, null).timestamp(withTimestamp).toString());
 
-    Schema withoutTimestampSchema = removeFields(NON_USER_WITH_BYTES_PAYLOAD, DEFAULT_EVENT_TIMESTAMP_KEY_NAME);
-    Row withoutTimestamp = Row.withSchema(withoutTimestampSchema)
-        .addValues(new HashMap<>(), new byte[]{})
-        .build();
+    Schema withoutTimestampSchema =
+        removeFields(NON_USER_WITH_BYTES_PAYLOAD, DEFAULT_EVENT_TIMESTAMP_KEY_NAME);
+    Row withoutTimestamp =
+        Row.withSchema(withoutTimestampSchema).addValues(new HashMap<>(), new byte[] {}).build();
     ReadableDateTime actual = doFn(withoutTimestampSchema, null).timestamp(withoutTimestamp);
     assertNotNull(actual);
     assertTrue(actual.isAfter(timestamp));
@@ -393,41 +434,139 @@ public class PubsubRowToMessageTest {
 
   @Test
   public void testPubsubRowToMessageParDo_payload() {
-    PayloadSerializer jsonPayloadSerializer = new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
-    PayloadSerializer avroPayloadSerializer = new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
+    PayloadSerializer jsonPayloadSerializer =
+        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
+    PayloadSerializer avroPayloadSerializer =
+        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
 
     byte[] bytes = "abcdefg".getBytes(StandardCharsets.UTF_8);
-    assertArrayEquals(bytes, doFn(NON_USER_WITH_BYTES_PAYLOAD, null).payload(Row.withSchema(NON_USER_WITH_BYTES_PAYLOAD)
-            .addValues(new HashMap<>(), Instant.now(), bytes)
-        .build()));
+    assertArrayEquals(
+        bytes,
+        doFn(NON_USER_WITH_BYTES_PAYLOAD, null)
+            .payload(
+                Row.withSchema(NON_USER_WITH_BYTES_PAYLOAD)
+                    .addValues(new HashMap<>(), Instant.now(), bytes)
+                    .build()));
 
-    Row withoutUserFields = Row.withSchema(NON_USER_WITH_ROW_PAYLOAD)
-        .addValues(
-            new HashMap<>(), Instant.now(),
-            rowWithAllDataTypes(
-                true,
-                (byte) 1,
-                (ReadableDateTime) Instant.now().toDateTime(),
-                BigDecimal.valueOf(100L),
-                1.12345,
-                1.1f,
-                (short) 1,
-                1,
-                1L,
-                "abcdefg"
-            )
-        )
-        .build();
+    Row withoutUserFields =
+        Row.withSchema(NON_USER_WITH_ROW_PAYLOAD)
+            .addValues(
+                new HashMap<>(),
+                Instant.now(),
+                rowWithAllDataTypes(
+                    true,
+                    (byte) 1,
+                    Instant.now().toDateTime(),
+                    BigDecimal.valueOf(100L),
+                    1.12345,
+                    1.1f,
+                    (short) 1,
+                    1,
+                    1L,
+                    "abcdefg"))
+            .build();
 
-    assertArrayEquals(jsonPayloadSerializer.serialize( withoutUserFields.getRow(DEFAULT_PAYLOAD_KEY_NAME)), doFn(NON_USER_WITH_ROW_PAYLOAD, jsonPayloadSerializer).payload( withoutUserFields));
-    assertArrayEquals(avroPayloadSerializer.serialize( withoutUserFields.getRow(DEFAULT_PAYLOAD_KEY_NAME)), doFn(NON_USER_WITH_ROW_PAYLOAD, avroPayloadSerializer).payload( withoutUserFields));
+    assertArrayEquals(
+        jsonPayloadSerializer.serialize(withoutUserFields.getRow(DEFAULT_PAYLOAD_KEY_NAME)),
+        doFn(NON_USER_WITH_ROW_PAYLOAD, jsonPayloadSerializer).payload(withoutUserFields));
+
+    assertArrayEquals(
+        avroPayloadSerializer.serialize(withoutUserFields.getRow(DEFAULT_PAYLOAD_KEY_NAME)),
+        doFn(NON_USER_WITH_ROW_PAYLOAD, avroPayloadSerializer).payload(withoutUserFields));
+
+    Map<String, String> attributes = new HashMap<>();
+    attributes.put("a", "1");
+    attributes.put("b", "2");
+    attributes.put("c", "3");
+
+    Row withAttributesAndTimestamp =
+        Row.withSchema(NON_USER_WITHOUT_PAYLOAD).addValues(attributes, Instant.now()).build();
+
+    Row withUserFields =
+        rowWithAllDataTypes(
+            false,
+            (byte) 0,
+            Instant.now().toDateTime(),
+            BigDecimal.valueOf(200L),
+            2.12345,
+            2.1f,
+            (short) 2,
+            2,
+            2L,
+            "1234567");
+
+    Row withUserFieldsAndAttributesTimestamp = merge(withAttributesAndTimestamp, withUserFields);
+
+    assertArrayEquals(
+        jsonPayloadSerializer.serialize(withUserFields),
+        doFn(withUserFieldsAndAttributesTimestamp.getSchema(), jsonPayloadSerializer)
+            .payload(withUserFieldsAndAttributesTimestamp));
+
+    assertArrayEquals(
+        avroPayloadSerializer.serialize(withUserFields),
+        doFn(withUserFieldsAndAttributesTimestamp.getSchema(), avroPayloadSerializer)
+            .payload(withUserFieldsAndAttributesTimestamp));
   }
 
   @Test
-  public void testPubsubRowToMessageParDo_serializableRow() {}
+  public void testPubsubRowToMessageParDo_serializableRow() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            doFn(NON_USER_WITH_BYTES_PAYLOAD, null)
+                .serializableRow(
+                    Row.withSchema(NON_USER_WITH_BYTES_PAYLOAD)
+                        .attachValues(new HashMap<>(), Instant.now(), new byte[] {})));
+
+    Map<String, String> attributes = new HashMap<>();
+    attributes.put("a", "1");
+    attributes.put("b", "2");
+    attributes.put("c", "3");
+
+    Row withAllDataTypes =
+        rowWithAllDataTypes(
+            true,
+            (byte) 0,
+            Instant.now().toDateTime(),
+            BigDecimal.valueOf(1L),
+            3.12345,
+            4.1f,
+            (short) 5,
+            2,
+            7L,
+            "asdfjkl;");
+
+    Row nonUserWithRowPayload =
+        Row.withSchema(NON_USER_WITH_ROW_PAYLOAD)
+            .attachValues(attributes, Instant.now(), withAllDataTypes);
+
+    PayloadSerializer jsonPayloadSerializer =
+        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
+
+    assertEquals(
+        withAllDataTypes,
+        doFn(NON_USER_WITH_ROW_PAYLOAD, jsonPayloadSerializer)
+            .serializableRow(nonUserWithRowPayload));
+
+    Row withAttributesAndTimestamp =
+            Row.withSchema(NON_USER_WITHOUT_PAYLOAD).addValues(attributes, Instant.now()).build();
+
+    Row withUserFieldsAttributesAndTimestamp = merge(withAttributesAndTimestamp, withAllDataTypes);
+
+    assertEquals(
+            withAllDataTypes,
+            doFn(withUserFieldsAttributesAndTimestamp.getSchema(), jsonPayloadSerializer)
+                    .serializableRow(withUserFieldsAttributesAndTimestamp));
+  }
 
   private static PubsubRowToMessageDoFn doFn(Schema schema, PayloadSerializer payloadSerializer) {
-    return new PubsubRowToMessageDoFn(DEFAULT_ATTRIBUTES_KEY_NAME, DEFAULT_EVENT_TIMESTAMP_KEY_NAME, DEFAULT_PAYLOAD_KEY_NAME, errorSchema(schema), DEFAULT_EVENT_TIMESTAMP_KEY_NAME, payloadSerializer);
+    return new PubsubRowToMessageDoFn(
+        DEFAULT_ATTRIBUTES_KEY_NAME,
+        DEFAULT_EVENT_TIMESTAMP_KEY_NAME,
+        DEFAULT_PAYLOAD_KEY_NAME,
+        errorSchema(schema),
+        DEFAULT_EVENT_TIMESTAMP_KEY_NAME,
+        payloadSerializer);
   }
 
   private static Row rowWithAllDataTypes(
@@ -440,29 +579,12 @@ public class PubsubRowToMessageTest {
       Short int16,
       Integer int32,
       Long int64,
-      String string
-  ) {
+      String string) {
     return Row.withSchema(ALL_DATA_TYPES_SCHEMA)
-        .addValues(_boolean, _byte, datetime, decimal, _double, _float, int16, int32,
-  int64, string)
+        .addValues(_boolean, _byte, datetime, decimal, _double, _float, int16, int32, int64, string)
         .build();
   }
 
-  // private static Row nest(String name, Row row) {
-  //   Field field = Field.of(name, FieldType.row(row.getSchema()));
-  //   return Row.withSchema(Schema.of(field)).addValues(row).build();
-  // }
-  //
-  // private static Schema asArrays(Schema schema) {
-  //   Schema.Builder builder = Schema.builder();
-  //   for (Field field : schema.getFields()) {
-  //     String name = field.getName();
-  //     FieldType fieldType = field.getType();
-  //     builder = builder.addField(Field.of(name, FieldType.array(fieldType)));
-  //   }
-  //   return builder.build();
-  // }
-  //
   private static Schema merge(Schema a, Schema b) {
     List<Field> fields = new ArrayList<>(a.getFields());
     fields.addAll(b.getFields());
@@ -472,13 +594,16 @@ public class PubsubRowToMessageTest {
     }
     return builder.build();
   }
-  //
-  // private static Row merge(Row a, Row b) {
-  //   Schema schema = merge(a.getSchema(), b.getSchema());
-  //   Row.Builder builder = Row.withSchema(schema);
-  //   for (String name : schema.getFieldNames()) {
-  //     builder.addValue(getValue(name, a, b));
-  //   }
-  //   return builder.build();
-  // }
+
+  private static Row merge(Row a, Row b) {
+    Schema schema = merge(a.getSchema(), b.getSchema());
+    Map<String, Object> values = new HashMap<>();
+    for (String name : a.getSchema().getFieldNames()) {
+      values.put(name, a.getValue(name));
+    }
+    for (String name : b.getSchema().getFieldNames()) {
+      values.put(name, b.getValue(name));
+    }
+    return Row.withSchema(schema).withFieldValues(values).build();
+  }
 }
