@@ -55,6 +55,11 @@ import org.joda.time.ReadableDateTime;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollectionTuple> {
+
+  static Builder builder() {
+    return new AutoValue_PubsubRowToMessage.Builder();
+  }
+
   static TupleTag<PubsubMessage> OUTPUT = new TupleTag<PubsubMessage>() {};
   static TupleTag<Row> ERROR = new TupleTag<Row>() {};
   static final String ERROR_DATA_FIELD_NAME = "data";
@@ -81,20 +86,24 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
   @Nullable
   abstract String getTargetTimestampAttributeName();
 
+  static Schema errorSchema(Schema inputSchema) {
+    Field dataField = Field.of(ERROR_DATA_FIELD_NAME, FieldType.row(inputSchema));
+    return Schema.of(dataField, ERROR_MESSAGE_FIELD, ERROR_STACK_TRACE_FIELD);
+  }
+
   @Override
   public PCollectionTuple expand(PCollection<Row> input) {
     Schema schema = input.getSchema();
     validate(schema);
-    Field dataField = Field.of(ERROR_DATA_FIELD_NAME, FieldType.row(schema));
-    Schema errorSchema = Schema.of(dataField, ERROR_MESSAGE_FIELD, ERROR_STACK_TRACE_FIELD);
     return input.apply(
         PubsubRowToMessage.class.getSimpleName(),
         ParDo.of(
                 new PubsubRowToMessageDoFn(
                     getAttributesKeyName(),
-                    getEventTimestampKeyName(),
+                    getSourceEventTimestampKeyName(),
                     getPayloadKeyName(),
-                    errorSchema,
+                    errorSchema(schema),
+                    getTargetTimestampAttributeName(),
                     getPayloadSerializer()))
             .withOutputTags(OUTPUT, TupleTagList.of(ERROR)));
   }
@@ -103,7 +112,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     return getKeyPrefix() + ATTRIBUTES_KEY_NAME;
   }
 
-  String getEventTimestampKeyName() {
+  String getSourceEventTimestampKeyName() {
     return getKeyPrefix() + EVENT_TIMESTAMP_KEY_NAME;
   }
 
@@ -113,8 +122,8 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
 
   void validate(Schema schema) {
     validateAttributesField(schema);
-    validateEventTimeStampField(schema);
-    validatePayloadField(schema);
+    validateSourceEventTimeStampField(schema);
+    validateSerializableFields(schema);
   }
 
   void validateAttributesField(Schema schema) {
@@ -127,8 +136,8 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
             .matchesAll(FieldMatcher.of(attributesKeyName, ATTRIBUTES_FIELD_TYPE)));
   }
 
-  void validateEventTimeStampField(Schema schema) {
-    String eventTimestampKeyName = getEventTimestampKeyName();
+  void validateSourceEventTimeStampField(Schema schema) {
+    String eventTimestampKeyName = getSourceEventTimestampKeyName();
     if (!schema.hasField(eventTimestampKeyName)) {
       return;
     }
@@ -137,34 +146,51 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
             .matchesAll(FieldMatcher.of(eventTimestampKeyName, EVENT_TIMESTAMP_FIELD_TYPE)));
   }
 
-  void validatePayloadField(Schema schema) {
+  void validateSerializableFields(Schema schema) {
     String attributesKeyName = getAttributesKeyName();
-    String eventTimestampKeyName = getEventTimestampKeyName();
+    String eventTimestampKeyName = getSourceEventTimestampKeyName();
     String payloadKeyName = getPayloadKeyName();
     Schema withUserFieldsOnly =
         removeFields(schema, attributesKeyName, eventTimestampKeyName, payloadKeyName);
     boolean hasUserFields = withUserFieldsOnly.getFieldCount() > 0;
     String withUserFieldsList = String.join(", ", withUserFieldsOnly.getFieldNames());
     SchemaReflection schemaReflection = SchemaReflection.of(schema);
-    boolean hasPayloadField = schemaReflection.matchesAll(FieldMatcher.of(name));
+    boolean hasPayloadField = schemaReflection.matchesAll(FieldMatcher.of(payloadKeyName));
     boolean hasPayloadRowField =
         schemaReflection.matchesAll(FieldMatcher.of(payloadKeyName, PAYLOAD_ROW_TYPE_NAME));
+    boolean hasPayloadBytesField =
+        schemaReflection.matchesAll(FieldMatcher.of(payloadKeyName, PAYLOAD_BYTES_TYPE_NAME));
     boolean hasBothUserFieldsAndPayloadField = hasUserFields && hasPayloadField;
 
     checkArgument(
         !hasBothUserFieldsAndPayloadField,
         String.format(
             "schema field: %s incompatible with %s fields", payloadKeyName, withUserFieldsList));
-    checkArgument(
-        hasPayloadRowField && getPayloadSerializer() != null,
-        String.format(
-            "schema field: %s of type: %s requires a %s",
-            payloadKeyName, PAYLOAD_ROW_TYPE_NAME, PayloadSerializer.class.getName()));
-    checkArgument(
-        hasUserFields && getPayloadSerializer() != null,
-        String.format(
-            "specifying schema fields: %s requires a %s",
-            withUserFieldsList, PayloadSerializer.class.getName()));
+
+    if (hasPayloadBytesField) {
+      checkArgument(
+          getPayloadSerializer() == null,
+          String.format(
+              "schema field: %s of type: %s with a %s is incompatible",
+              payloadKeyName, PAYLOAD_BYTES_TYPE_NAME, PayloadSerializer.class.getName())
+      );
+    }
+
+    if (hasPayloadRowField) {
+      checkArgument(
+          getPayloadSerializer() != null,
+          String.format(
+              "schema field: %s of type: %s requires a %s",
+              payloadKeyName, PAYLOAD_ROW_TYPE_NAME, PayloadSerializer.class.getName()));
+    }
+
+    if (hasUserFields) {
+      checkArgument(
+          getPayloadSerializer() != null,
+          String.format(
+              "specifying schema fields: %s requires a %s",
+              withUserFieldsList, PayloadSerializer.class.getName()));
+    }
   }
 
   @AutoValue.Builder
@@ -246,8 +272,11 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     }
 
     boolean match(Schema schema) {
+      if (!schema.hasField(name)) {
+        return false;
+      }
       if (typeName == null && fieldType == null) {
-        return schema.hasField(name);
+        return true;
       }
       Field field = schema.getField(name);
       if (typeName != null) {
@@ -273,29 +302,33 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     PubsubRowToMessageDoFn from(PubsubRowToMessage spec) {
       return new PubsubRowToMessageDoFn(
           spec.getAttributesKeyName(),
-          spec.getEventTimestampKeyName(),
+          spec.getSourceEventTimestampKeyName(),
           spec.getPayloadKeyName(),
           errorSchema,
+          spec.getTargetTimestampAttributeName(),
           spec.getPayloadSerializer());
     }
 
     private final String attributesKeyName;
-    private final String eventTimestampKeyName;
+    private final String sourceTimestampKeyName;
     private final String payloadKeyName;
     private final Schema errorSchema;
 
+    @Nullable private String targetTimestampKeyName;
     @Nullable private PayloadSerializer payloadSerializer;
 
     PubsubRowToMessageDoFn(
         String attributesKeyName,
-        String eventTimestampKeyName,
+        String sourceTimestampKeyName,
         String payloadKeyName,
         Schema errorSchema,
+        String targetTimestampKeyName,
         @Nullable PayloadSerializer payloadSerializer) {
       this.attributesKeyName = attributesKeyName;
-      this.eventTimestampKeyName = eventTimestampKeyName;
+      this.sourceTimestampKeyName = sourceTimestampKeyName;
       this.payloadKeyName = payloadKeyName;
       this.errorSchema = errorSchema;
+      this.targetTimestampKeyName = targetTimestampKeyName;
       this.payloadSerializer = payloadSerializer;
     }
 
@@ -305,9 +338,13 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
 
         Map<String, String> attributesWithoutTimestamp = this.attributesWithoutTimestamp(row);
         String timestampAsString = this.timestampAsString(row);
+        String timestampKeyName = sourceTimestampKeyName;
+        if (targetTimestampKeyName != null) {
+          timestampKeyName = targetTimestampKeyName;
+        }
         byte[] payload = this.payload(row);
         HashMap<String, String> attributes = new HashMap<>(attributesWithoutTimestamp);
-        attributes.put(eventTimestampKeyName, timestampAsString);
+        attributes.put(timestampKeyName, timestampAsString);
         PubsubMessage message = new PubsubMessage(payload, attributes);
         receiver.get(OUTPUT).output(message);
 
@@ -342,10 +379,10 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     }
 
     ReadableDateTime timestamp(Row row) {
-      if (!row.getSchema().hasField(eventTimestampKeyName)) {
+      if (!row.getSchema().hasField(sourceTimestampKeyName)) {
         return Instant.now().toDateTime();
       }
-      return row.getDateTime(eventTimestampKeyName);
+      return row.getDateTime(sourceTimestampKeyName);
     }
 
     byte[] payload(Row row) {
@@ -362,7 +399,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
         return row.getRow(payloadKeyName);
       }
       Schema withUserFieldsOnly =
-          removeFields(row.getSchema(), attributesKeyName, eventTimestampKeyName);
+          removeFields(row.getSchema(), attributesKeyName, sourceTimestampKeyName);
       Map<String, Object> values = new HashMap<>();
       for (String name : withUserFieldsOnly.getFieldNames()) {
         values.put(name, row.getValue(name));
