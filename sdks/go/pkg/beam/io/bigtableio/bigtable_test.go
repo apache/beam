@@ -17,6 +17,7 @@ package bigtableio
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -117,6 +118,42 @@ func TestTryApplyBulk(t *testing.T) {
 		t.Error("tryApplyBulk should return an error for inputs <[]error, nil>")
 	}
 }
+
+func TestValidateMutationSucceedsWhenZeroOps(t *testing.T) {
+	validMutation := NewMutation("rowKey")
+
+	err := validateMutation(*validMutation)
+	if err != nil {
+		t.Errorf("mutation (0 ops) should be valid, but was marked invalid: %s", err)
+	}
+}
+
+func TestValidateMutationSucceedsWhenLessThanOrEqualHundredKOps(t *testing.T) {
+	validMutation := NewMutation("rowKey")
+
+	for i := 0; i < 100000; i++ {
+		validMutation.Set("family", fmt.Sprint(i), bigtable.Now(), []byte{})
+	}
+
+	err := validateMutation(*validMutation)
+	if err != nil {
+		t.Errorf("mutation (100,000 ops) should be valid, but was marked invalid: %s", err)
+	}
+}
+
+func TestValidateMutationFailsWhenGreaterThanHundredKOps(t *testing.T) {
+	validMutation := NewMutation("rowKey")
+
+	for i := 0; i < 100001; i++ {
+		validMutation.Set("family", fmt.Sprint(i), bigtable.Now(), []byte{})
+	}
+
+	err := validateMutation(*validMutation)
+	if err == nil {
+		t.Error("mutation (100,001 ops) should be invalid, but was marked valid")
+	}
+}
+
 
 // Examples:
 
