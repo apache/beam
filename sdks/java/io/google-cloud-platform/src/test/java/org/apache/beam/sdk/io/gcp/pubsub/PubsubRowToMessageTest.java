@@ -549,14 +549,14 @@ public class PubsubRowToMessageTest {
             .serializableRow(nonUserWithRowPayload));
 
     Row withAttributesAndTimestamp =
-            Row.withSchema(NON_USER_WITHOUT_PAYLOAD).addValues(attributes, Instant.now()).build();
+        Row.withSchema(NON_USER_WITHOUT_PAYLOAD).addValues(attributes, Instant.now()).build();
 
     Row withUserFieldsAttributesAndTimestamp = merge(withAttributesAndTimestamp, withAllDataTypes);
 
     assertEquals(
-            withAllDataTypes,
-            doFn(withUserFieldsAttributesAndTimestamp.getSchema(), jsonPayloadSerializer)
-                    .serializableRow(withUserFieldsAttributesAndTimestamp));
+        withAllDataTypes,
+        doFn(withUserFieldsAttributesAndTimestamp.getSchema(), jsonPayloadSerializer)
+            .serializableRow(withUserFieldsAttributesAndTimestamp));
   }
 
   private static PubsubRowToMessageDoFn doFn(Schema schema, PayloadSerializer payloadSerializer) {
@@ -570,18 +570,18 @@ public class PubsubRowToMessageTest {
   }
 
   private static Row rowWithAllDataTypes(
-      boolean _boolean,
-      byte _byte,
+      boolean boolean0,
+      byte byte0,
       ReadableDateTime datetime,
       BigDecimal decimal,
-      Double _double,
-      Float _float,
+      Double double0,
+      Float float0,
       Short int16,
       Integer int32,
       Long int64,
       String string) {
     return Row.withSchema(ALL_DATA_TYPES_SCHEMA)
-        .addValues(_boolean, _byte, datetime, decimal, _double, _float, int16, int32, int64, string)
+        .addValues(boolean0, byte0, datetime, decimal, double0, float0, int16, int32, int64, string)
         .build();
   }
 
