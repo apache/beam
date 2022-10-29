@@ -664,8 +664,8 @@ class _ParquetSink(filebasedsink.FileBasedSink):
         use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps,
         use_compliant_nested_type=self._use_compliant_nested_type)
 
-  def write_record(self, writer, value):
-    writer.write_table(value)
+  def write_record(self, writer, table: pa.Table):
+    writer.write_table(table)
 
   def close(self, writer):
     writer.close()
