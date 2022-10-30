@@ -16,18 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-function is_branch() {
-    #if nothing matches show-ref will return an error code of 1
-    if git show-ref --quiet --verify -- "refs/heads/$1" ; then
-      return 1
+function is_in_remote() {
+    local branch=${1}
+    local existed_in_remote=$(git ls-remote --heads origin ${branch})
+
+    if [[ -z ${existed_in_remote} ]]; then
+        return 1
     else
-      return 0
+        return 0
     fi
 }
 
-if is_branch "$1"; then
+if ! is_in_remote "$1"; then
   echo "Branch [$1] doesn't exist."
+  exit 0
 else
   echo "Branch [$1] already exists!"
-  echo >&2 "Please make sure your branch doesn't exist."
+  echo "Please make sure your branch doesn't exist."
+  exit 1
 fi
