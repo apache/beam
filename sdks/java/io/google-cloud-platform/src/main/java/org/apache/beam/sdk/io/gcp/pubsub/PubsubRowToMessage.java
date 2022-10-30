@@ -449,7 +449,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
 
     /**
      * Extracts a {@code byte[]} payload from a {@link Row}, from either of the following mutually
-     * exclusive sources: <br>
+     * exclusive sources. <br>
      * - {@link #payloadKeyName} {@link Field} with {@link FieldType#BYTES} <br>
      * - serialized {@link #payloadKeyName} {@link Field} with {@link TypeName#ROW} using the {@link
      * #payloadSerializer} <br>
@@ -466,7 +466,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
 
     /**
      * Extracts the serializable part of a {@link Row} from the following mutually exclusive
-     * sources: <br>
+     * sources. <br>
      * - serialized {@link #payloadKeyName} {@link Field} with {@link TypeName#ROW} using the {@link
      * #payloadSerializer} <br>
      * - serialized user fields provided that are not {@link #attributesKeyName} and {@link
