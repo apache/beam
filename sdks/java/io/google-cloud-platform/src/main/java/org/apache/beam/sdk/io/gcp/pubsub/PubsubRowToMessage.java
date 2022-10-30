@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
 
@@ -321,26 +322,16 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
   }
 
   static class PubsubRowToMessageDoFn extends DoFn<Row, PubsubMessage> {
-    PubsubRowToMessageDoFn from(PubsubRowToMessage spec) {
-      return new PubsubRowToMessageDoFn(
-          spec.getAttributesKeyName(),
-          spec.getSourceEventTimestampKeyName(),
-          spec.getPayloadKeyName(),
-          errorSchema,
-          spec.getTargetTimestampAttributeName(),
-          spec.getMockInstant(),
-          spec.getPayloadSerializer());
-    }
 
     private final String attributesKeyName;
     private final String sourceTimestampKeyName;
     private final String payloadKeyName;
     private final Schema errorSchema;
 
-    @Nullable private String targetTimestampKeyName;
-    @Nullable private PayloadSerializer payloadSerializer;
+    @Nullable private final String targetTimestampKeyName;
+    @Nullable private final PayloadSerializer payloadSerializer;
 
-    @Nullable private Instant mockInstant;
+    @Nullable private final Instant mockInstant;
 
     PubsubRowToMessageDoFn(
         String attributesKeyName,
@@ -409,10 +400,11 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       if (row.getSchema().hasField(sourceTimestampKeyName)) {
         return row.getDateTime(sourceTimestampKeyName);
       }
+      Instant instant = Instant.now();
       if (mockInstant != null) {
-        return mockInstant.toDateTime();
+        instant = mockInstant;
       }
-      return Instant.now().toDateTime();
+      return new DateTime(instant).withZone(instant.getZone());
     }
 
     byte[] payload(Row row) {
