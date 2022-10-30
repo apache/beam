@@ -85,6 +85,9 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
   @Nullable
   abstract String getTargetTimestampAttributeName();
 
+  @Nullable
+  abstract Instant getMockInstant();
+
   static Schema errorSchema(Schema inputSchema) {
     Field dataField = Field.of(ERROR_DATA_FIELD_NAME, FieldType.row(inputSchema));
     return Schema.of(dataField, ERROR_MESSAGE_FIELD, ERROR_STACK_TRACE_FIELD);
@@ -94,19 +97,24 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
   public PCollectionTuple expand(PCollection<Row> input) {
     Schema schema = input.getSchema();
     validate(schema);
-    PCollectionTuple pct = input.apply(
-        PubsubRowToMessage.class.getSimpleName(),
-        ParDo.of(
-                new PubsubRowToMessageDoFn(
-                    getAttributesKeyName(),
-                    getSourceEventTimestampKeyName(),
-                    getPayloadKeyName(),
-                    errorSchema(schema),
-                    getTargetTimestampAttributeName(),
-                    getPayloadSerializer()))
-            .withOutputTags(OUTPUT, TupleTagList.of(ERROR)));
+    Schema errorSchema = errorSchema(schema);
+    PCollectionTuple pct =
+        input.apply(
+            PubsubRowToMessage.class.getSimpleName(),
+            ParDo.of(
+                    new PubsubRowToMessageDoFn(
+                        getAttributesKeyName(),
+                        getSourceEventTimestampKeyName(),
+                        getPayloadKeyName(),
+                        errorSchema,
+                        getTargetTimestampAttributeName(),
+                        getMockInstant(),
+                        getPayloadSerializer()))
+                .withOutputTags(OUTPUT, TupleTagList.of(ERROR)));
 
     PCollection<PubsubMessage> output = pct.get(OUTPUT);
+    PCollection<Row> error = pct.get(ERROR).setRowSchema(errorSchema);
+    return PCollectionTuple.of(OUTPUT, output).and(ERROR, error);
   }
 
   String getAttributesKeyName() {
@@ -215,6 +223,8 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
 
     abstract Builder setTargetTimestampAttributeName(String value);
 
+    abstract Builder setMockInstant(Instant value);
+
     abstract PubsubRowToMessage autoBuild();
 
     final PubsubRowToMessage build() {
@@ -318,6 +328,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
           spec.getPayloadKeyName(),
           errorSchema,
           spec.getTargetTimestampAttributeName(),
+          spec.getMockInstant(),
           spec.getPayloadSerializer());
     }
 
@@ -329,12 +340,15 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     @Nullable private String targetTimestampKeyName;
     @Nullable private PayloadSerializer payloadSerializer;
 
+    @Nullable private Instant mockInstant;
+
     PubsubRowToMessageDoFn(
         String attributesKeyName,
         String sourceTimestampKeyName,
         String payloadKeyName,
         Schema errorSchema,
-        String targetTimestampKeyName,
+        @Nullable String targetTimestampKeyName,
+        @Nullable Instant mockInstant,
         @Nullable PayloadSerializer payloadSerializer) {
       this.attributesKeyName = attributesKeyName;
       this.sourceTimestampKeyName = sourceTimestampKeyName;
@@ -342,6 +356,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       this.errorSchema = errorSchema;
       this.targetTimestampKeyName = targetTimestampKeyName;
       this.payloadSerializer = payloadSerializer;
+      this.mockInstant = mockInstant;
     }
 
     @ProcessElement
@@ -391,10 +406,13 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     }
 
     ReadableDateTime timestamp(Row row) {
-      if (!row.getSchema().hasField(sourceTimestampKeyName)) {
-        return Instant.now().toDateTime();
+      if (row.getSchema().hasField(sourceTimestampKeyName)) {
+        return row.getDateTime(sourceTimestampKeyName);
       }
-      return row.getDateTime(sourceTimestampKeyName);
+      if (mockInstant != null) {
+        return mockInstant.toDateTime();
+      }
+      return Instant.now().toDateTime();
     }
 
     byte[] payload(Row row) {
