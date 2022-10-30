@@ -17,14 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.ATTRIBUTES_FIELD_TYPE;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.ATTRIBUTES_KEY_NAME;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.DEFAULT_KEY_PREFIX;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.EVENT_TIMESTAMP_FIELD_TYPE;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.EVENT_TIMESTAMP_KEY_NAME;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.PAYLOAD_KEY_NAME;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.errorSchema;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.removeFields;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.*;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -51,7 +44,10 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.io.payloads.AvroPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.JsonPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
@@ -110,8 +106,6 @@ public class PubsubRowToMessageTest {
           Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE),
           Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE));
 
-  // private static final Field ROW_FIELD = Field.of("row", FieldType.row(ALL_DATA_TYPES_SCHEMA));
-
   static {
     PIPELINE_OPTIONS.setStableUniqueNames(CheckEnabled.OFF);
   }
@@ -120,11 +114,129 @@ public class PubsubRowToMessageTest {
 
   @Test
   public void testExpand() {
-    pipeline.run(PIPELINE_OPTIONS);
-  }
+    PayloadSerializer jsonPayloadSerializer =
+        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
 
-  @Test
-  public void testPubsubRowToMessageParDo_Process() {
+    Instant timestamp = Instant.now();
+
+    Map<String, String> emptyAttributes = new HashMap<>();
+    Map<String, String> attributes = new HashMap<>();
+    attributes.put("aaa", "111");
+    attributes.put("bbb", "222");
+    attributes.put("ccc", "333");
+
+    Map<String, String> timestampOnlyAttributes = new HashMap<>();
+    timestampOnlyAttributes.put(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, timestamp.toString());
+
+    Map<String, String> attributesWithTimestamp = new HashMap<>(attributes);
+    attributesWithTimestamp.putAll(timestampOnlyAttributes);
+
+    byte[] bytes =
+        "All the 🌎's a 🎦, and all the 🚹 and 🚺 merely players. They 🈷️their 🚪and their 🎟️and 1️⃣🚹in his time ▶️many🤺🪂🏆"
+            .getBytes(StandardCharsets.UTF_8);
+
+    Field attributesField = Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE);
+    Field timestampField = Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE);
+    Field payloadBytesField = Field.of(DEFAULT_PAYLOAD_KEY_NAME, FieldType.BYTES);
+    Field payloadRowField =
+        Field.of(DEFAULT_PAYLOAD_KEY_NAME, FieldType.row(ALL_DATA_TYPES_SCHEMA));
+
+    Row withAllDataTypes =
+        rowWithAllDataTypes(
+            true,
+            (byte) 0,
+            Instant.now().toDateTime(),
+            BigDecimal.valueOf(1L),
+            3.12345,
+            4.1f,
+            (short) 5,
+            2,
+            7L,
+            "asdfjkl;");
+
+    byte[] serializedWithAllDataTypes = jsonPayloadSerializer.serialize(withAllDataTypes);
+
+    Schema withAttributesSchema = Schema.of(attributesField);
+    Row withAttributes = Row.withSchema(withAttributesSchema).attachValues(attributes);
+
+    Schema withTimestampSchema = Schema.of(timestampField);
+    Row withTimestamp = Row.withSchema(withTimestampSchema).attachValues(timestamp);
+
+    Schema withPayloadBytesSchema = Schema.of(payloadBytesField);
+    Row withPayloadBytes = Row.withSchema(withPayloadBytesSchema).attachValues(bytes);
+
+    Schema withPayloadRowSchema = Schema.of(payloadRowField);
+    Row withPayloadRow = Row.withSchema(withPayloadRowSchema).attachValues(withAllDataTypes);
+
+    PubsubRowToMessage transformWithoutSerializer = PubsubRowToMessage.builder().build();
+    PubsubRowToMessage transformWithSerializer =
+        PubsubRowToMessage.builder().setPayloadSerializer(jsonPayloadSerializer).build();
+
+    PCollection<Row> a0t0p0u1 = pipeline.apply(Create.of(withAllDataTypes)).setRowSchema(ALL_DATA_TYPES_SCHEMA);
+    PubsubMessage a0t0p0u1Message = new PubsubMessage(serializedWithAllDataTypes, emptyAttributes);
+    PAssert.that(a0t0p0u1.apply(transformWithSerializer).get(OUTPUT))
+        .containsInAnyOrder(a0t0p0u1Message);
+
+    PCollection<Row> a1t0p0u1 = pipeline.apply(Create.of(merge(withAttributes, withAllDataTypes)))
+            .setRowSchema(merge(withAttributesSchema, ALL_DATA_TYPES_SCHEMA));
+    PubsubMessage a1t0p0u1Message = new PubsubMessage(serializedWithAllDataTypes, attributes);
+    PAssert.that(a1t0p0u1.apply(transformWithSerializer).get(OUTPUT))
+        .containsInAnyOrder(a1t0p0u1Message);
+
+    PCollection<Row> a0t1p0u1 = pipeline.apply(Create.of(merge(withTimestamp, withAllDataTypes)))
+            .setRowSchema(merge(withTimestampSchema, ALL_DATA_TYPES_SCHEMA));
+    PubsubMessage a0t1p0u1Message =
+        new PubsubMessage(serializedWithAllDataTypes, timestampOnlyAttributes);
+    PAssert.that(a0t1p0u1.apply(transformWithSerializer).get(OUTPUT))
+        .containsInAnyOrder(a0t1p0u1Message);
+
+    PCollection<Row> a0t0p1bu0 = pipeline.apply(Create.of(withPayloadBytes))
+            .setRowSchema(withPayloadBytesSchema);
+    PubsubMessage a0t0p1bu0Message = new PubsubMessage(bytes, emptyAttributes);
+    PAssert.that(a0t0p1bu0.apply(transformWithoutSerializer).get(OUTPUT))
+        .containsInAnyOrder(a0t0p1bu0Message);
+
+    PCollection<Row> a0t0p1ru0 = pipeline.apply(Create.of(withPayloadRow))
+            .setRowSchema(withPayloadRowSchema);
+    PubsubMessage a0t0p1ru0Message = new PubsubMessage(serializedWithAllDataTypes, emptyAttributes);
+    PAssert.that(a0t0p1ru0.apply(transformWithSerializer).get(OUTPUT))
+        .containsInAnyOrder(a0t0p1ru0Message);
+
+    PCollection<Row> a1t0p1bu0 = pipeline.apply(Create.of(merge(withAttributes, withPayloadBytes)))
+            .setRowSchema(merge(withAttributesSchema, withPayloadBytesSchema));
+    PubsubMessage a1t0p1bu0Message = new PubsubMessage(bytes, attributes);
+    PAssert.that(a1t0p1bu0.apply(transformWithoutSerializer).get(OUTPUT))
+        .containsInAnyOrder(a1t0p1bu0Message);
+
+    PCollection<Row> a0t1p1bu0 = pipeline.apply(Create.of(merge(withTimestamp, withPayloadBytes)))
+            .setRowSchema(merge(withTimestampSchema, withPayloadBytesSchema));
+    PubsubMessage a0t1p1bu0Message = new PubsubMessage(bytes, timestampOnlyAttributes);
+    PAssert.that(a0t1p1bu0.apply(transformWithoutSerializer).get(OUTPUT))
+        .containsInAnyOrder(a0t1p1bu0Message);
+
+    PCollection<Row> a1t1p1bu0 =
+        pipeline.apply(Create.of(merge(withAttributes, withTimestamp, withPayloadBytes)))
+                .setRowSchema(merge(withAttributesSchema, withTimestampSchema, withPayloadBytesSchema));
+    PubsubMessage a1t1p1bu0Message = new PubsubMessage(bytes, attributesWithTimestamp);
+    PAssert.that(a1t1p1bu0.apply(transformWithoutSerializer).get(OUTPUT))
+        .containsInAnyOrder(a1t1p1bu0Message);
+
+    PCollection<Row> a1t1p1ru0 =
+        pipeline.apply(Create.of(merge(withAttributes, withTimestamp, withPayloadRow)))
+                .setRowSchema(merge(withAttributesSchema, withTimestampSchema, withPayloadRowSchema));
+    PubsubMessage a1t1p1ru0Message =
+        new PubsubMessage(serializedWithAllDataTypes, attributesWithTimestamp);
+    PAssert.that(a1t1p1ru0.apply(transformWithSerializer).get(OUTPUT))
+        .containsInAnyOrder(a1t1p1ru0Message);
+
+    PCollection<Row> a1t1p0u1 =
+        pipeline.apply(Create.of(merge(withAttributes, withTimestamp, withAllDataTypes)))
+                .setRowSchema(merge(withAttributesSchema, withTimestampSchema, ALL_DATA_TYPES_SCHEMA));
+    PubsubMessage a1t1p0u1Message =
+        new PubsubMessage(serializedWithAllDataTypes, attributesWithTimestamp);
+    PAssert.that(a1t1p0u1.apply(transformWithSerializer).get(OUTPUT))
+        .containsInAnyOrder(a1t1p0u1Message);
+
     pipeline.run(PIPELINE_OPTIONS);
   }
 
@@ -145,7 +257,74 @@ public class PubsubRowToMessageTest {
   }
 
   @Test
-  public void testValidate() {}
+  public void testValidate() {
+    PubsubRowToMessage pubsubRowToMessage = PubsubRowToMessage.builder().build();
+    PayloadSerializer jsonPayloadSerializer =
+        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> pubsubRowToMessage.validate(Schema.builder().build()));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            pubsubRowToMessage.validate(
+                Schema.of(Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, FieldType.STRING))));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            pubsubRowToMessage.validate(
+                Schema.of(
+                    Field.of(
+                        DEFAULT_ATTRIBUTES_KEY_NAME,
+                        FieldType.map(FieldType.STRING, FieldType.BYTES)))));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            pubsubRowToMessage.validate(
+                Schema.of(
+                    Field.of(
+                        DEFAULT_ATTRIBUTES_KEY_NAME,
+                        FieldType.map(FieldType.BYTES, FieldType.STRING)))));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            pubsubRowToMessage.validate(
+                Schema.of(Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, FieldType.STRING))));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> PubsubRowToMessage.builder().build().validate(ALL_DATA_TYPES_SCHEMA));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> PubsubRowToMessage.builder().build().validate(NON_USER_WITH_ROW_PAYLOAD));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            PubsubRowToMessage.builder()
+                .setPayloadSerializer(jsonPayloadSerializer)
+                .build()
+                .validate(NON_USER_WITH_BYTES_PAYLOAD));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            PubsubRowToMessage.builder()
+                .build()
+                .validate(merge(ALL_DATA_TYPES_SCHEMA, NON_USER_WITH_BYTES_PAYLOAD)));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            PubsubRowToMessage.builder()
+                .build()
+                .validate(merge(ALL_DATA_TYPES_SCHEMA, NON_USER_WITH_ROW_PAYLOAD)));
+  }
 
   @Test
   public void testValidateAttributesField() {
@@ -153,11 +332,13 @@ public class PubsubRowToMessageTest {
     pubsubRowToMessage.validateAttributesField(ALL_DATA_TYPES_SCHEMA);
     pubsubRowToMessage.validateAttributesField(
         Schema.of(Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE)));
+
     assertThrows(
         IllegalArgumentException.class,
         () ->
             pubsubRowToMessage.validateAttributesField(
                 Schema.of(Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, FieldType.STRING))));
+
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -166,6 +347,7 @@ public class PubsubRowToMessageTest {
                     Field.of(
                         DEFAULT_ATTRIBUTES_KEY_NAME,
                         FieldType.map(FieldType.STRING, FieldType.BYTES)))));
+
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -174,6 +356,11 @@ public class PubsubRowToMessageTest {
                     Field.of(
                         DEFAULT_ATTRIBUTES_KEY_NAME,
                         FieldType.map(FieldType.BYTES, FieldType.STRING)))));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            PubsubRowToMessage.builder().build().validateSerializableFields(ALL_DATA_TYPES_SCHEMA));
   }
 
   @Test
@@ -237,6 +424,18 @@ public class PubsubRowToMessageTest {
                 .setPayloadSerializer(jsonPayloadSerializer)
                 .build()
                 .validateSerializableFields(NON_USER_WITH_BYTES_PAYLOAD));
+  }
+
+  @Test
+  public void testShouldEitherHavePayloadOrUserFields() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            PubsubRowToMessage.builder()
+                .build()
+                .validateSerializableFields(
+                    Schema.of(
+                        Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE))));
   }
 
   @Test
@@ -595,6 +794,14 @@ public class PubsubRowToMessageTest {
     return builder.build();
   }
 
+  private static Schema merge(Schema schema, Schema ...additional) {
+    Schema result = schema;
+    for (Schema additionalSchema : additional) {
+      result = merge(result, additionalSchema);
+    }
+    return result;
+  }
+
   private static Row merge(Row a, Row b) {
     Schema schema = merge(a.getSchema(), b.getSchema());
     Map<String, Object> values = new HashMap<>();
@@ -605,5 +812,13 @@ public class PubsubRowToMessageTest {
       values.put(name, b.getValue(name));
     }
     return Row.withSchema(schema).withFieldValues(values).build();
+  }
+
+  private static Row merge(Row row, Row... additional) {
+    Row result = row;
+    for (Row additionalRow : additional) {
+      row = merge(row, additionalRow);
+    }
+    return result;
   }
 }

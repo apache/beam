@@ -94,7 +94,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
   public PCollectionTuple expand(PCollection<Row> input) {
     Schema schema = input.getSchema();
     validate(schema);
-    return input.apply(
+    PCollectionTuple pct = input.apply(
         PubsubRowToMessage.class.getSimpleName(),
         ParDo.of(
                 new PubsubRowToMessageDoFn(
@@ -105,6 +105,8 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
                     getTargetTimestampAttributeName(),
                     getPayloadSerializer()))
             .withOutputTags(OUTPUT, TupleTagList.of(ERROR)));
+
+    PCollection<PubsubMessage> output = pct.get(OUTPUT);
   }
 
   String getAttributesKeyName() {
@@ -120,6 +122,12 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
   }
 
   void validate(Schema schema) {
+
+    if (schema.getFieldCount() == 0) {
+      throw new IllegalArgumentException(
+          String.format("Schema must contain at least one field. Schema: %s", schema));
+    }
+
     validateAttributesField(schema);
     validateSourceEventTimeStampField(schema);
     validateSerializableFields(schema);
@@ -160,6 +168,12 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     boolean hasPayloadBytesField =
         schemaReflection.matchesAll(FieldMatcher.of(payloadKeyName, PAYLOAD_BYTES_TYPE_NAME));
     boolean hasBothUserFieldsAndPayloadField = hasUserFields && hasPayloadField;
+
+    checkArgument(
+        hasUserFields || hasPayloadField,
+        String.format(
+            "schema must have either a %s field or user fields i.e. not %s, %s or %s",
+            payloadKeyName, attributesKeyName, eventTimestampKeyName, payloadKeyName));
 
     checkArgument(
         !hasBothUserFieldsAndPayloadField,
