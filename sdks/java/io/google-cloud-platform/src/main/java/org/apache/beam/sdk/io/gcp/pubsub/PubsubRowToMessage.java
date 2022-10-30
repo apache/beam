@@ -78,17 +78,27 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
   static final TypeName PAYLOAD_BYTES_TYPE_NAME = TypeName.BYTES;
   static final TypeName PAYLOAD_ROW_TYPE_NAME = TypeName.ROW;
 
+  /** The prefix for all non-user fields. Defaults to {@link #DEFAULT_KEY_PREFIX}. */
   abstract String getKeyPrefix();
 
+  /**
+   * The {@link PayloadSerializer} to {@link PayloadSerializer#serialize(Row)} the payload or user
+   * fields row.
+   */
   @Nullable
   abstract PayloadSerializer getPayloadSerializer();
 
+  /** The name of the attribute to apply to the {@link PubsubMessage}. */
   @Nullable
   abstract String getTargetTimestampAttributeName();
 
+  /**
+   * Use for testing, simplify assertions of generated timestamp when input lacks a timestamp field.
+   */
   @Nullable
   abstract Instant getMockInstant();
 
+  /** Generates {@link Schema} of the {@link #ERROR} {@link PCollection}. */
   static Schema errorSchema(Schema inputSchema) {
     Field dataField = Field.of(ERROR_DATA_FIELD_NAME, FieldType.row(inputSchema));
     return Schema.of(dataField, ERROR_MESSAGE_FIELD, ERROR_STACK_TRACE_FIELD);
@@ -118,18 +128,22 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     return PCollectionTuple.of(OUTPUT, output).and(ERROR, error);
   }
 
+  /** Returns the name of the source attributes key, prefixed with {@link #getKeyPrefix()}. */
   String getAttributesKeyName() {
     return getKeyPrefix() + ATTRIBUTES_KEY_NAME;
   }
 
+  /** Returns the name of the source timestamp key, prefixed with {@link #getKeyPrefix()}. */
   String getSourceEventTimestampKeyName() {
     return getKeyPrefix() + EVENT_TIMESTAMP_KEY_NAME;
   }
 
+  /** Returns the name of the source payload key, prefixed with {@link #getKeyPrefix()}. */
   String getPayloadKeyName() {
     return getKeyPrefix() + PAYLOAD_KEY_NAME;
   }
 
+  /** Validates an input's {@link Schema} for correctness. */
   void validate(Schema schema) {
 
     if (schema.getFieldCount() == 0) {
@@ -142,6 +156,10 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     validateSerializableFields(schema);
   }
 
+  /**
+   * Validates an input's {@link Schema} for its {@link #getAttributesKeyName()} field correctness,
+   * if exists.
+   */
   void validateAttributesField(Schema schema) {
     String attributesKeyName = getAttributesKeyName();
     if (!schema.hasField(attributesKeyName)) {
@@ -152,6 +170,10 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
             .matchesAll(FieldMatcher.of(attributesKeyName, ATTRIBUTES_FIELD_TYPE)));
   }
 
+  /**
+   * Validates an input's {@link Schema} for its {@link #getSourceEventTimestampKeyName()} ()} field
+   * correctness, if exists.
+   */
   void validateSourceEventTimeStampField(Schema schema) {
     String eventTimestampKeyName = getSourceEventTimestampKeyName();
     if (!schema.hasField(eventTimestampKeyName)) {
@@ -162,6 +184,11 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
             .matchesAll(FieldMatcher.of(eventTimestampKeyName, EVENT_TIMESTAMP_FIELD_TYPE)));
   }
 
+  /**
+   * Validates an input's {@link Schema} for either {@link #getPayloadKeyName()} or user fields
+   * correctness. Additionally, it validates the {@link #getPayloadSerializer()} null state based on
+   * the {@link #getPayloadKeyName()} {@link FieldType} or the presence of user fields.
+   */
   void validateSerializableFields(Schema schema) {
     String attributesKeyName = getAttributesKeyName();
     String eventTimestampKeyName = getSourceEventTimestampKeyName();
@@ -236,6 +263,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     }
   }
 
+  /** {@link SchemaReflection} is a helper class for reflecting fields of a {@link Schema}. */
   static class SchemaReflection {
     static SchemaReflection of(Schema schema) {
       return new SchemaReflection(schema);
@@ -257,6 +285,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     }
   }
 
+  /** {@link FieldMatcher} matches fields in a {@link Schema}. */
   static class FieldMatcher {
     static FieldMatcher of(String name) {
       return new FieldMatcher(name);
@@ -294,6 +323,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       this(name, null, fieldType);
     }
 
+    /** Returns true when the {@link Field} in a {@link Schema} matches its search criteria. */
     boolean match(Schema schema) {
       if (!schema.hasField(name)) {
         return false;
@@ -309,6 +339,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     }
   }
 
+  /** Removes fields from a {@link Schema}. */
   static Schema removeFields(Schema schema, String... fields) {
     List<String> exclude = Arrays.stream(fields).collect(Collectors.toList());
     Schema.Builder builder = Schema.builder();
@@ -321,6 +352,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     return builder.build();
   }
 
+  /** A {@link DoFn} that converts a {@link Row} to a {@link PubsubMessage}. */
   static class PubsubRowToMessageDoFn extends DoFn<Row, PubsubMessage> {
 
     private final String attributesKeyName;
@@ -381,6 +413,10 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       }
     }
 
+    /**
+     * Extracts the {@link Map<String, String>} attributes from a {@link Row} that contains the
+     * {@link #attributesKeyName}.
+     */
     Map<String, String> attributesWithoutTimestamp(Row row) {
       if (!row.getSchema().hasField(attributesKeyName)) {
         return new HashMap<>();
@@ -396,6 +432,10 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       return timestamp(row).toString();
     }
 
+    /**
+     * Extracts a {@link ReadableDateTime} from a {@link Row} containing a {@link
+     * #sourceTimestampKeyName}. If the {@link Field} is missing, returns an {@link Instant#now()}.
+     */
     ReadableDateTime timestamp(Row row) {
       if (row.getSchema().hasField(sourceTimestampKeyName)) {
         return row.getDateTime(sourceTimestampKeyName);
@@ -407,6 +447,15 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       return new DateTime(instant).withZone(instant.getZone());
     }
 
+    /**
+     * Extracts a {@code byte[]} payload from a {@link Row}, from either of the following mutually
+     * exclusive sources: <br>
+     * - {@link #payloadKeyName} {@link Field} with {@link FieldType#BYTES} <br>
+     * - serialized {@link #payloadKeyName} {@link Field} with {@link TypeName#ROW} using the {@link
+     * #payloadSerializer} <br>
+     * - serialized user fields provided that are not {@link #attributesKeyName} and {@link
+     * #sourceTimestampKeyName}
+     */
     byte[] payload(Row row) {
       if (SchemaReflection.of(row.getSchema())
           .matchesAll(FieldMatcher.of(payloadKeyName, PAYLOAD_BYTES_TYPE_NAME))) {
@@ -415,6 +464,14 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       return Objects.requireNonNull(payloadSerializer).serialize(serializableRow(row));
     }
 
+    /**
+     * Extracts the serializable part of a {@link Row} from the following mutually exclusive
+     * sources: <br>
+     * - serialized {@link #payloadKeyName} {@link Field} with {@link TypeName#ROW} using the {@link
+     * #payloadSerializer} <br>
+     * - serialized user fields provided that are not {@link #attributesKeyName} and {@link
+     * #sourceTimestampKeyName}
+     */
     Row serializableRow(Row row) {
       SchemaReflection schemaReflection = SchemaReflection.of(row.getSchema());
 
