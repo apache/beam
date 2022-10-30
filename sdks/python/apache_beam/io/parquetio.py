@@ -565,6 +565,72 @@ class WriteToParquetBatched(PTransform):
       shard_name_template=None,
       mime_type='application/x-parquet',
   ):
+    """Initialize a WriteToParquetBatched transform.
+
+    Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
+    records. Each record is a pa.Table Schema must be specified like the
+    example below.
+
+    .. testsetup::
+
+      from tempfile import NamedTemporaryFile
+      import glob
+      import os
+      import pyarrow
+
+      filename = NamedTemporaryFile(delete=False).name
+      table =  pyarrow.Table.from_pylist([{'name': 'foo', 'age': 10},
+                                          {'name': 'bar', 'age': 20}])
+
+    .. testcode::
+
+      with beam.Pipeline() as p:
+        records = p | 'Read' >> beam.Create([table])
+        _ = records | 'Write' >> beam.io.WriteToParquetBatched(filename,
+            pyarrow.schema(
+                [('name', pyarrow.string()), ('age', pyarrow.int64())]
+            )
+        )
+
+    .. testcleanup::
+
+      for output in glob.glob('{}*'.format(filename)):
+        os.remove(output)
+
+    For more information on supported types and schema, please see the pyarrow
+    document.
+
+    Args:
+      file_path_prefix: The file path to write to. The files written will begin
+        with this prefix, followed by a shard identifier (see num_shards), and
+        end in a common extension, if given by file_name_suffix. In most cases,
+        only this argument is specified and num_shards, shard_name_template, and
+        file_name_suffix use default values.
+      schema: The schema to use, as type of ``pyarrow.Schema``.
+      codec: The codec to use for block-level compression. Any string supported
+        by the pyarrow specification is accepted.
+      use_deprecated_int96_timestamps: Write nanosecond resolution timestamps to
+        INT96 Parquet format. Defaults to False.
+      use_compliant_nested_type: Write compliant Parquet nested type (lists).
+      file_name_suffix: Suffix for the files written.
+      num_shards: The number of files (shards) used for output. If not set, the
+        service will decide on the optimal number of shards.
+        Constraining the number of shards is likely to reduce
+        the performance of a pipeline.  Setting this value is not recommended
+        unless you require a specific number of output files.
+      shard_name_template: A template string containing placeholders for
+        the shard number and shard count. When constructing a filename for a
+        particular shard number, the upper-case letters 'S' and 'N' are
+        replaced with the 0-padded shard number and shard count respectively.
+        This argument can be '' in which case it behaves as if num_shards was
+        set to 1 and only one file will be generated. The default pattern used
+        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+      mime_type: The MIME type to use for the produced files, if the filesystem
+        supports specifying MIME types.
+
+    Returns:
+      A WriteToParquetBatched transform usable for writing.
+    """
     super().__init__()
     self._sink = \
       _create_parquet_sink(
