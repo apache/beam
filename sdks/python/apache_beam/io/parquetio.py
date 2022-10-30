@@ -547,12 +547,12 @@ class WriteToParquet(PTransform):
 
 
 class WriteToParquetBatched(PTransform):
-  """Initialize a WriteToParquetBatched transform.
+  """A ``PTransform`` for writing parquet files from a `PCollection` of
+    `pyarrow.Table`.
 
-     Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
-     batches. Each batch is a pa.Table. Schema must be specified like the
-     example below.
-     """
+    This ``PTransform`` is currently experimental. No backward-compatibility
+    guarantees.
+  """
   def __init__(
       self,
       file_path_prefix,
@@ -579,8 +579,8 @@ class WriteToParquetBatched(PTransform):
       import pyarrow
 
       filename = NamedTemporaryFile(delete=False).name
-      table =  pyarrow.Table.from_pylist([{'name': 'foo', 'age': 10},
-                                          {'name': 'bar', 'age': 20}])
+      table = pyarrow.Table.from_pylist([{'name': 'foo', 'age': 10},
+                                         {'name': 'bar', 'age': 20}])
 
     .. testcode::
 
