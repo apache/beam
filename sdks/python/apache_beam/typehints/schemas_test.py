@@ -30,7 +30,6 @@ from typing import Optional
 from typing import Sequence
 
 import cloudpickle
-import dill
 import numpy as np
 from parameterized import parameterized
 from parameterized import parameterized_class
@@ -45,6 +44,7 @@ from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.vendor import dill
 
 all_nonoptional_primitives = [
     np.int8,

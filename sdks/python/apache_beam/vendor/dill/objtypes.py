@@ -13,7 +13,7 @@ to load more objects and types, use dill.load_types()
 """
 
 # non-local import of dill.objects
-from apache_beam.vendored.dill import objects
+from apache_beam.vendor.dill import objects
 for _type in objects.keys():
     exec("%s = type(objects['%s'])" % (_type,_type))
     
