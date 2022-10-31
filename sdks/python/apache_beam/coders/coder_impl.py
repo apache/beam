@@ -66,7 +66,7 @@ from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
-from apache_beam.vendored import dill
+from apache_beam.vendor import dill
 
 try:
   import dataclasses

@@ -23,6 +23,9 @@ apache_beam/io/gcp/internal/clients/storage/storage_v1_messages.py
 apache_beam/coders/proto2_coder_test_messages_pb2.py
 apache_beam/portability/api/*
 
+# Avoid all third party code.
+apache_beam/vendor/*
+
 # Avoid excessive wrapping.
 apache_beam/examples/snippets/transforms/aggregation/groupby_test.py
 

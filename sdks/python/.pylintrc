@@ -17,7 +17,7 @@
 
 [MASTER]
 # Ignore auto-generated files and 3rd party libraries.
-ignore=clients,vendored
+ignore=clients,vendor
 
 [BASIC]
 # Regular expression which should only match the name

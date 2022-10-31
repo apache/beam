@@ -74,4 +74,5 @@ echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
 echo "Running pylint --py3k for modules $( printf "%s " "${MODULE}" ):"
 pylint -j8 $( printf "%s " "${MODULE}" ) \
-  --ignore-patterns="$FILES_TO_IGNORE" --py3k
+  --ignore-patterns="$FILES_TO_IGNORE" --py3k \
+  --ignore=vendor

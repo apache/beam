@@ -76,7 +76,7 @@ echo -e "Skipping lint for files:\n${FILES_TO_IGNORE}"
 echo -e "Linting modules:\n${MODULE}"
 
 echo "Running pylint..."
-pylint -j8 ${MODULE} --ignore-patterns="$FILES_TO_IGNORE" --ignore=vendored
+pylint -j8 ${MODULE} --ignore-patterns="$FILES_TO_IGNORE" --ignore=vendor
 echo "Running flake8..."
 flake8 ${MODULE} --count --select=E9,F821,F822,F823 --show-source --statistics \
   --exclude="${FILES_TO_IGNORE}"
