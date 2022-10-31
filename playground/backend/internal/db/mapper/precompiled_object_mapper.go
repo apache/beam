@@ -48,7 +48,6 @@ func (pom *PrecompiledObjectMapper) ToObjectInfo(exampleDTO *dto.ExampleDTO) *dt
 		Sdk:             exampleDTO.GetSDK(),
 		Complexity:      exampleDTO.GetComplexity(),
 		Tags:            exampleDTO.Example.Tags,
-		Emulator:        exampleDTO.GetEmulator(),
 		Datasets:        exampleDTO.GetDatasets(),
 	}
 }
@@ -57,7 +56,7 @@ func (pom *PrecompiledObjectMapper) ToArrayCategories(catalogDTO *dto.CatalogDTO
 	sdkToDefaultExample := catalogDTO.GetSdkCatalogAsMap()
 	numberOfExamples := len(catalogDTO.Examples)
 	sdkToCategories := make(dto.SdkToCategories, 0)
-	datasetsSnippetsMap := catalogDTO.DatasetsSnippetsMap
+	datasetsSnippetsMap := catalogDTO.DatasetsMapBySnippetID
 	for exampleIndx := 0; exampleIndx < numberOfExamples; exampleIndx++ {
 		example := catalogDTO.Examples[exampleIndx]
 		snippet := catalogDTO.Snippets[exampleIndx]
@@ -124,42 +123,43 @@ func (pom *PrecompiledObjectMapper) ToPrecompiledObj(exampleDTO *dto.ExampleDTO)
 		Sdk:             exampleDTO.GetSDK(),
 		Complexity:      exampleDTO.GetComplexity(),
 		Tags:            exampleDTO.Example.Tags,
-		Emulator:        exampleDTO.GetEmulator(),
 		Datasets:        exampleDTO.GetDatasets(),
 	}
 }
 
-func (pom *PrecompiledObjectMapper) ToSnippetsDatasetsMap(datasetEntities []*entity.DatasetEntity, datasetsSnippets []*entity.DatasetSnippetEntity) (map[string][]*dto.DatasetDTO, error) {
+func (pom *PrecompiledObjectMapper) ToDatasetBySnippetIDMap(datasetEntities []*entity.DatasetEntity, snippets []*entity.SnippetEntity) (map[string][]*dto.DatasetDTO, error) {
 	result := make(map[string][]*dto.DatasetDTO)
 	datasetsMap := make(map[string]*entity.DatasetEntity)
 	for _, dataset := range datasetEntities {
 		datasetsMap[dataset.Key.Name] = dataset
 	}
-	for _, datasetSnippet := range datasetsSnippets {
-		key := datasetSnippet.Snippet
-		datasets, ok := result[key.Name]
-		if !ok {
-			newDatasets := make([]*dto.DatasetDTO, 0)
-			datasetDto, err := toDatasetDTO(datasetsMap, datasetSnippet)
-			if err != nil {
-				return nil, err
+	for _, snippet := range snippets {
+		if len(snippet.Datasets) != 0 {
+			key := snippet.Key.Name
+			datasets, ok := result[key]
+			if !ok {
+				newDatasets := make([]*dto.DatasetDTO, 0)
+				datasetDto, err := toDatasetDTO(datasetsMap, snippet)
+				if err != nil {
+					return nil, err
+				}
+				newDatasets = append(newDatasets, datasetDto)
+				result[key] = newDatasets
+			} else {
+				datasetDto, err := toDatasetDTO(datasetsMap, snippet)
+				if err != nil {
+					return nil, err
+				}
+				datasets = append(datasets, datasetDto)
 			}
-			newDatasets = append(newDatasets, datasetDto)
-			result[key.Name] = newDatasets
-		} else {
-			datasetDto, err := toDatasetDTO(datasetsMap, datasetSnippet)
-			if err != nil {
-				return nil, err
-			}
-			datasets = append(datasets, datasetDto)
 		}
 	}
 	return result, nil
 }
 
-func toDatasetDTO(datasetsMap map[string]*entity.DatasetEntity, datasetSnippet *entity.DatasetSnippetEntity) (*dto.DatasetDTO, error) {
+func toDatasetDTO(datasetsMap map[string]*entity.DatasetEntity, snippet *entity.SnippetEntity) (*dto.DatasetDTO, error) {
 	var configInterface map[string]interface{}
-	if err := json.Unmarshal([]byte(datasetSnippet.Config), &configInterface); err != nil {
+	if err := json.Unmarshal([]byte(snippet.Datasets[0].Config), &configInterface); err != nil {
 		return nil, err
 	}
 	configString := make(map[string]string, len(configInterface))
@@ -169,9 +169,9 @@ func toDatasetDTO(datasetsMap map[string]*entity.DatasetEntity, datasetSnippet *
 		configString[strK] = strV
 	}
 	return &dto.DatasetDTO{
-		Path:     datasetsMap[datasetSnippet.Dataset.Name].Link,
+		Path:     datasetsMap[snippet.Datasets[0].Dataset.Name].Link,
 		Config:   configString,
-		Emulator: pb.EmulatorType(pb.EmulatorType_value[fmt.Sprintf("EMULATOR_TYPE_%s", strings.ToUpper(datasetSnippet.Emulator))]),
+		Emulator: pb.EmulatorType(pb.EmulatorType_value[fmt.Sprintf("EMULATOR_TYPE_%s", strings.ToUpper(snippet.Datasets[0].Emulator))]),
 	}, nil
 }
 
@@ -210,7 +210,6 @@ func putPrecompiledObjectsToCategory(categoryName string, precompiledObjects *dt
 			Sdk:             object.Sdk,
 			Complexity:      object.Complexity,
 			Tags:            object.Tags,
-			Emulator:        object.Emulator,
 			Datasets:        object.Datasets,
 		})
 	}

@@ -38,17 +38,18 @@ type FileEntity struct {
 }
 
 type SnippetEntity struct {
-	Key           *datastore.Key `datastore:"__key__"`
-	OwnerId       string         `datastore:"ownerId"`
-	Sdk           *datastore.Key `datastore:"sdk"`
-	PipeOpts      string         `datastore:"pipeOpts"`
-	Created       time.Time      `datastore:"created"`
-	LVisited      time.Time      `datastore:"lVisited"`
-	Origin        string         `datastore:"origin"`
-	VisitCount    int            `datastore:"visitCount"`
-	SchVer        *datastore.Key `datastore:"schVer"`
-	NumberOfFiles int            `datastore:"numberOfFiles"`
-	Complexity    string         `datastore:"complexity"`
+	Key           *datastore.Key         `datastore:"__key__"`
+	OwnerId       string                 `datastore:"ownerId"`
+	Sdk           *datastore.Key         `datastore:"sdk"`
+	PipeOpts      string                 `datastore:"pipeOpts"`
+	Created       time.Time              `datastore:"created"`
+	LVisited      time.Time              `datastore:"lVisited"`
+	Origin        string                 `datastore:"origin"`
+	VisitCount    int                    `datastore:"visitCount"`
+	SchVer        *datastore.Key         `datastore:"schVer"`
+	NumberOfFiles int                    `datastore:"numberOfFiles"`
+	Complexity    string                 `datastore:"complexity"`
+	Datasets      []*DatasetNestedEntity `datastore:"datasets"`
 }
 
 type DatasetEntity struct {
@@ -56,12 +57,10 @@ type DatasetEntity struct {
 	Link string         `datastore:"link"`
 }
 
-type DatasetSnippetEntity struct {
-	Key      *datastore.Key `datastore:"__key__"`
+type DatasetNestedEntity struct {
 	Config   string         `datastore:"config"`
 	Dataset  *datastore.Key `datastore:"dataset"`
 	Emulator string         `datastore:"emulator"`
-	Snippet  *datastore.Key `datastore:"snippet"`
 }
 
 type Snippet struct {

@@ -45,7 +45,7 @@ func TestPrecompiledObjectMapper_ToObjectInfo(t *testing.T) {
 		len(actualResult.Datasets) != 1 ||
 		actualResult.Datasets[0].DatasetPath != "MOCK_PATH_0" ||
 		actualResult.Datasets[0].Options["Topic"] != "MOCK_TOPIC" ||
-		actualResult.Emulator != pb.EmulatorType_EMULATOR_TYPE_KAFKA {
+		actualResult.Datasets[0].Type != pb.EmulatorType_EMULATOR_TYPE_KAFKA {
 		t.Error("ToObjectInfo() unexpected result")
 	}
 }
@@ -65,7 +65,7 @@ func TestPrecompiledObjectMapper_ToPrecompiledObj(t *testing.T) {
 		len(actualResult.Datasets) != 1 ||
 		actualResult.Datasets[0].DatasetPath != "MOCK_PATH_0" ||
 		actualResult.Datasets[0].Options["Topic"] != "MOCK_TOPIC" ||
-		actualResult.Emulator != pb.EmulatorType_EMULATOR_TYPE_KAFKA {
+		actualResult.Datasets[0].Type != pb.EmulatorType_EMULATOR_TYPE_KAFKA {
 		t.Error("ToPrecompiledObj() unexpected result")
 	}
 }
