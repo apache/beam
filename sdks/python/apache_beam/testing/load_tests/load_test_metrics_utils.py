@@ -34,6 +34,7 @@ import logging
 import time
 import uuid
 from typing import Any
+from typing import Dict
 from typing import List
 from typing import Mapping
 from typing import Optional
@@ -620,8 +621,11 @@ class AssignTimestamps(beam.DoFn):
 
 class FetchMetrics:
   @staticmethod
-  def fetch_from_bq(
-      project_name, table, dataset, metric_name: str, limit=100) -> List:
+  def fetch_from_bq(project_name,
+                    table,
+                    dataset,
+                    metric_name: str,
+                    limit=100) -> List[Dict]:
     query_template = """
       SELECT *
       FROM {}.{}.{}
@@ -634,7 +638,11 @@ class FetchMetrics:
     metric_values = []
     for result in results:
       if metric_name in result[METRICS_TYPE_LABEL]:
-        metric_values.append(result[METRICS_TYPE_LABEL])
+        metric_values.append({
+            METRICS_TYPE_LABEL: result[METRICS_TYPE_LABEL],
+            SUBMIT_TIMESTAMP_LABEL: result[SUBMIT_TIMESTAMP_LABEL],
+            VALUE_LABEL: result[VALUE_LABEL]
+        })
     return metric_values
 
   @staticmethod

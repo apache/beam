@@ -71,10 +71,14 @@ class PytorchVisionBenchmarkTest(LoadTest):
           dataset=self.pipeline.get_option('metrics_dataset'),
           table=self.pipeline.get_option('metrics_table'),
           metric_name=_RUNINFERENCE_PERFORMANCE_METRIC)
-    change_point_analyzer = ChangePointAnalysis(metric_values)
-    # sends 0 or 1 to the GH actions which could trigger an issue if there
-    # is a regression
-    change_point_analyzer.find_change_point()
+      change_point_analyzer = ChangePointAnalysis(metric_values)
+      # sends 0 or 1 to the GH actions which could trigger an issue if there
+      # is a regression
+      is_performance_regression = change_point_analyzer.find_change_point()
+      if is_performance_regression:
+        # if performace regression found,
+        # call change_point_analyzer.get_failing_test_description()
+        raise NotImplementedError
 
 
 if __name__ == '__main__':
