@@ -1,7 +1,8 @@
 ---
-title: "Strivr"
-icon: /images/logos/powered-by/Strivr.png
-hasLink: "https://www.strivr.com/"
+title:  "Yahoo"
+icon: /images/logos/powered-by/yahoo.png
+hasNav: true
+hasLink: "https://www.yahoo.com/"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

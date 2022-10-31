@@ -1,7 +1,7 @@
 ---
-title: "Strivr"
-icon: /images/logos/powered-by/Strivr.png
-hasLink: "https://www.strivr.com/"
+title:  "Spotify"
+icon: /images/logos/powered-by/spotify.svg
+hasLink: "https://www.youtube.com/watch?v=sJ5EPAJUzTg&list=PL4dEBWmGSIU9OkXQU2OAXmITPLhiMSPRp&index=5"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

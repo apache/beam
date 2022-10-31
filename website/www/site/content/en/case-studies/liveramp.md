@@ -1,7 +1,8 @@
 ---
-title: "Strivr"
-icon: /images/logos/powered-by/Strivr.png
-hasLink: "https://www.strivr.com/"
+title:  "LiveRamp"
+icon: /images/logos/powered-by/liveramp.png
+hasNav: true
+hasLink: "https://liveramp.com/"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

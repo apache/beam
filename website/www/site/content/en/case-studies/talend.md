@@ -1,7 +1,7 @@
 ---
-title: "Strivr"
-icon: /images/logos/powered-by/Strivr.png
-hasLink: "https://www.strivr.com/"
+title:  "Talend"
+icon: /images/logos/powered-by/talend.svg
+hasLink: "https://www.youtube.com/watch?v=zwtTa0MHckU&list=PL4dEBWmGSIU9OkXQU2OAXmITPLhiMSPRp&index=17"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
