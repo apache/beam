@@ -18,6 +18,8 @@
 import requests
 import os
 import json
+from typing import Optional
+from typing import List
 
 # def binary_segmentation_algo(data, breakpoints=2):
 #   model = "l2"
@@ -42,8 +44,9 @@ class GitHubIssues:
   def __init__(self, owner, repo):
     self.owner = owner
     self.repo = repo
-    self.query = 'https://api.github.com/repos/{}/{}/issues'.format(
+    self.query = "https://api.github.com/repos/{}/{}/issues".format(
         self.owner, self.repo)
+
     self._github_token = os.environ['GITHUB_TOKEN']
     self.headers = {
         "Authorization": 'token {}'.format(self._github_token),
@@ -53,44 +56,54 @@ class GitHubIssues:
       raise Exception(
           'A Github Personal Access token is required to create Github Issues.')
 
-  def create_issue(self, title, description, label: str = 'bug'):
-    current_issue = self.search_issue_with_title(title, label)
-    if current_issue['total_count']:
-      issue_number = current_issue['items']['number']
-      print(issue_number)
-      raise NotImplementedError
+  def create_or_update_issue(
+      self, title, description, labels: Optional[List] = None):
+    """
+    Create an issue with title, description with a label.
+    If an issue is already present, comment on the issue instead of
+    creating a duplicate issue.
+    """
+    last_created_issue = self.search_issue_with_title(title, labels)
+    if last_created_issue['total_count']:
+      self.comment_on_issue(last_created_issue=last_created_issue)
     else:
       data = {
           'owner': self.owner,
           'repo': self.repo,
           'title': title,
           'body': description,
-          'label': label
+          'labels': labels
       }
-      r = requests.post(
-          url=self.query, data=json.dumps(data), headers=self.headers)
-      assert r.status_code == 201
+      requests.post(url=self.query, data=json.dumps(data), headers=self.headers)
 
-  def search_issue_with_title(self, title, label):
-    search_query = "repo:{}/{}+{} type:issue is:open label:{}".format(
-        self.owner, self.repo, title, label)
-    query = "https://api.github.com/search/issues?q={}".format(search_query)
-
-    response = requests.get(url=query, headers=self.headers)
-    print(response.json())
-    print(response.json()['total_count'])
-    return response.json()
-
-  def comment_on_issue(self):
+  def comment_on_issue(self, last_created_issue):
     """
     If there is an already present issue with the title name,
     update that issue with the new description.
     """
-    raise NotImplementedError
+    if last_created_issue['total_count']:
+      items = last_created_issue['items'][0]
+      comment_url = items['comments_url']
+      issue_number = items['number']
+      _COMMENT = 'Creating comment on already created issue.'
+      data = {
+          'owner': self.owner,
+          'repo': self.repo,
+          'body': _COMMENT,
+          issue_number: issue_number,
+      }
+      requests.post(comment_url, json.dumps(data), headers=self.headers)
 
+  def search_issue_with_title(self, title, labels=None):
+    """
+    Filter issues using title.
+    """
+    search_query = "repo:{}/{}+{} type:issue is:open".format(
+        self.owner, self.repo, title)
+    if labels:
+      for label in labels:
+        search_query = search_query + ' label:{}'.format(label)
+    query = "https://api.github.com/search/issues?q={}".format(search_query)
 
-# my_issues = GitHubIssues(owner='AnandInguva', repo='beam')
-#
-# my_issues.create_issue(title='Found a ',
-#   description='Testing creating issues with Github rest APIs',
-#                      label='bug')
+    response = requests.get(url=query, headers=self.headers)
+    return response.json()
