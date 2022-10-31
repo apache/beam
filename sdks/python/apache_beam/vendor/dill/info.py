@@ -1,3 +1,6 @@
+# pylint: skip-file
+
+
 # THIS FILE GENERATED FROM SETUP.PY
 this_version = '0.3.2.dev0'
 stable_version = '0.3.1.1'

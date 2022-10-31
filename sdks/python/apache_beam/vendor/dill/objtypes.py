@@ -1,3 +1,5 @@
+# pylint: skip-file
+
 #!/usr/bin/env python
 #
 # Author: Mike McKerns (mmckerns @caltech and @uqfoundation)
