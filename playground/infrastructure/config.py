@@ -116,7 +116,6 @@ class DatastoreProps:
     FILES_KIND = "pg_files"
     SDK_KIND = "pg_sdks"
     DATASET_KIND = "pg_datasets"
-    DATASET_SNIPPET_KIND = "pg_datasets_snippets"
 
 
 @dataclass(frozen=True)
