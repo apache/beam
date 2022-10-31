@@ -28,8 +28,7 @@
 #     - strings
 
 import apache_beam as beam
-
-from apache_beam.transforms.util import LogElements
+from apache_beam import LogElements
 
 with beam.Pipeline() as p:
 

@@ -30,8 +30,7 @@
 #     - number
 
 import apache_beam as beam
-
-from apache_beam.transforms.util import LogElements
+from apache_beam import LogElements
 
 lines = [
     "apple orange grape banana apple banana",

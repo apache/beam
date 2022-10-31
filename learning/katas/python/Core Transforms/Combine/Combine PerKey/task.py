@@ -29,8 +29,7 @@
 #     - numbers
 
 import apache_beam as beam
-
-from apache_beam.transforms.util import LogElements
+from apache_beam import LogElements
 
 PLAYER_1 = 'Player 1'
 PLAYER_2 = 'Player 2'
