@@ -19,9 +19,9 @@ metadata:
   name: {{ .Values.project_id }}
 spec:
   domains:
-    - go.sandboxplayground.com
-    - java.sandboxplayground.com
-    - scio.sandboxplayground.com
-    - python.sandboxplayground.com
-    - router.sandboxplayground.com
-    - sandboxplayground.com  
+    - go.{{ .Values.dns_name }}
+    - java.{{ .Values.dns_name }}
+    - scio.{{ .Values.dns_name }}
+    - python.{{ .Values.dns_name }}
+    - router.{{ .Values.dns_name }}
+    - {{ .Values.dns_name }}  
