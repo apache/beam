@@ -93,6 +93,14 @@
   }
 }
 
+.case-study-used-by-card--with-link {
+  &:hover {
+    .case-study-used-by-card-img {
+      display: block;
+    }
+  }
+}
+
 .case-study-card {
   padding: 16px;
   display: flex;
