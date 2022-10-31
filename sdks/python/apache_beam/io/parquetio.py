@@ -571,7 +571,7 @@ class WriteToParquetBatched(PTransform):
     records. Each record is a pa.Table Schema must be specified like the
     example below.
 
-    .. testsetup::
+    .. testsetup:: batched
 
       from tempfile import NamedTemporaryFile
       import glob
@@ -579,11 +579,11 @@ class WriteToParquetBatched(PTransform):
       import pyarrow
 
       filename = NamedTemporaryFile(delete=False).name
+
+    .. testcode:: batched
+
       table = pyarrow.Table.from_pylist([{'name': 'foo', 'age': 10},
                                          {'name': 'bar', 'age': 20}])
-
-    .. testcode::
-
       with beam.Pipeline() as p:
         records = p | 'Read' >> beam.Create([table])
         _ = records | 'Write' >> beam.io.WriteToParquetBatched(filename,
@@ -592,7 +592,7 @@ class WriteToParquetBatched(PTransform):
             )
         )
 
-    .. testcleanup::
+    .. testcleanup:: batched
 
       for output in glob.glob('{}*'.format(filename)):
         os.remove(output)
