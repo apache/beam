@@ -3792,39 +3792,89 @@ the user ids from a `PCollection` of purchases one would write (using the `Selec
 purchases.apply(Select.fieldNames("userId"));
 {{< /highlight >}}
 
+{{< highlight py >}}
+input_pc = ... # {"user_id": ...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select("user_id")
+{{< /highlight >}}
+
 ##### **Nested fields**
 
+{{< paragraph class="language-py" >}}
+Support for Nested fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Nested fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
  shipping address one would write
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
 
+<!-- {{< highlight py >}}
+input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_address.post_code"]))
+{{< /highlight >}} -->
 ##### **Wildcards**
 
+{{< paragraph class="language-py" >}}
+Support for wildcards hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for wildcards hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 The * operator can be specified at any nesting level to represent all fields at that level. For example, to select all
 shipping-address fields one would write
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("shippingAddress.*"));
 {{< /highlight >}}
 
+<!--
+{{< highlight py >}}
+#TODO(https://github.com/apache/beam/issues/23275): Add support for projecting nested fields
+input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select("shipping_address.*"))
+{{< /highlight >}} -->
 ##### **Arrays**
 
+{{< paragraph class="language-java" >}}
 An array field, where the array element type is a row, can also have subfields of the element type addressed. When
 selected, the result is an array of the selected subfield type. For example
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Support for Array fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Array fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("transactions[].bank"));
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 Will result in a row containing an array field with element-type string, containing the list of banks for each
 transaction.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 While the use of  [] brackets in the selector is recommended, to make it clear that array elements are being selected,
 they can be omitted for brevity. In the future, array slicing will be supported, allowing selection of portions of the
 array.
+{{< /paragraph >}}
+
 
 ##### **Maps**
 
@@ -3858,6 +3908,14 @@ The following
 purchasesByType.apply(Select.fieldNames("purchases{}.userId"));
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for Map fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Map fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
 Will result in a row containing a map field with key-type string and value-type string. The selected map will contain
 all of the keys from the original map, and the values will be the userId contained in the purchase record.
 
@@ -3881,6 +3939,14 @@ could select only the userId and streetAddress fields as follows
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Support for Nested fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Nested fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 The resulting `PCollection` will have the following schema
 
@@ -3909,6 +3975,14 @@ The same is true for wildcard selections. The following
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("userId", "shippingAddress.*"));
 {{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Support for Wildcards hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Wildcards hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 Will result in the following schema
 
@@ -3956,6 +4030,15 @@ selected field will appear as its own array field. For example
 purchases.apply(Select.fieldNames( "transactions.bank", "transactions.purchaseAmount"));
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for nested fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for nested fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 Will result in the following schema
 <table>
   <thead>
@@ -3976,6 +4059,7 @@ Will result in the following schema
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 Wildcard selections are equivalent to separately selecting each field.
 
@@ -3993,6 +4077,15 @@ Another use of the Select transform is to flatten a nested schema into a single 
 purchases.apply(Select.flattenedSchema());
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for nested fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for nested fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 Will result in the following schema
 <table>
   <thead>
@@ -4045,21 +4138,48 @@ Will result in the following schema
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 ##### **Grouping aggregations**
 
+{{< paragraph class="language-java" >}}
 The `Group` transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
 those groupings, and storing the result of those aggregations in a new schema field. The output of the `Group` transform
 has a schema with one field corresponding to each aggregation performed.
+{{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
+The `GroupBy` transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
+those groupings, and storing the result of those aggregations in a new schema field. The output of the `GroupBy` transform
+has a schema with one field corresponding to each aggregation performed.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 The simplest usage of `Group` specifies no aggregations, in which case all inputs matching the provided set of fields
 are grouped together into an `ITERABLE` field. For example
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+The simplest usage of `GroupBy` specifies no aggregations, in which case all inputs matching the provided set of fields
+are grouped together into an `ITERABLE` field. For example
+{{< /paragraph >}}
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress"));
+purchases.apply(Group.byFieldNames("userId", "bank"));
 {{< /highlight >}}
 
+{{< highlight py >}}
+input_pc = ... # {"user_id": ...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.GroupBy('user_id','bank')
+{{< /highlight >}}
+
+{{< paragraph class="language-go" >}}
+Support for schema-aware grouping hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="lanuage-java" >}}
 The output schema of this is:
+{{< /paragraph >}}
 
 <table>
   <thead>
@@ -4071,7 +4191,7 @@ The output schema of this is:
   <tbody>
     <tr>
       <td>key</td>
-      <td>ROW{userId:STRING, streetAddress:STRING}</td>
+      <td>ROW{userId:STRING, bank:STRING}</td>
     </tr>
     <tr>
       <td>values</td>
@@ -4104,6 +4224,18 @@ purchases.apply(Group.byFieldNames("userId")
     .aggregateField("costCents", Top.<Long>largestLongsFn(10), "topPurchases"));
 {{< /highlight >}}
 
+{{< highlight py >}}
+input_pc = ... # {"user_id": ..., "item_Id": ..., "cost_cents": ...}
+output_pc = input_pc | beam.GroupBy("user_id")
+	.aggregate_field("item_id", CountCombineFn, "num_purchases")
+	.aggregate_field("cost_cents", sum, "total_spendcents")
+	.aggregate_field("cost_cents", TopCombineFn, "top_purchases")
+{{< /highlight >}}
+
+{{< paragraph class="language-go" >}}
+Support for schema-aware grouping hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
 The result of this aggregation will have the following schema:
 <table>
   <thead>
@@ -4135,6 +4267,14 @@ that are likely associated with that transaction (both the user and product matc
 "natural join" - one in which the same field names are used on both the left-hand and right-hand sides of the join -
 and is specified with the `using` keyword:
 
+{{< paragraph class="language-py" >}}
+Support for joins hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for joins hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
 {{< highlight java >}}
 PCollection<Transaction> transactions = readTransactions();
 PCollection<Review> reviews = readReviews();
@@ -4142,6 +4282,7 @@ PCollection<Row> joined = transactions.apply(
     Join.innerJoin(reviews).using("userId", "productId"));
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 The resulting schema is the following:
 <table>
   <thead>
@@ -4162,11 +4303,20 @@ The resulting schema is the following:
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 Each resulting row contains one Transaction and one Review that matched the join condition.
 
 If the fields to match in the two schemas have different names, then the on function can be used. For example, if the
 Review schema named those fields differently than the Transaction schema, then we could write the following:
+
+{{< paragraph class="language-py" >}}
+Support for joins hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for joins hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 PCollection<Row> joined = transactions.apply(
@@ -4187,6 +4337,14 @@ join record, providing a generalization of outer joins to joins with greater tha
 can optionally be expanded - providing individual joined records, as in the `Join` transform. The output can also be
 processed in unexpanded format - providing the join key along with Iterables of all records from each input that matched
 that key.
+
+{{< paragraph class="language-py" >}}
+Support for joins hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for joins hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 ##### **Filtering events**
 
@@ -7282,7 +7440,18 @@ To create an SDK wrapper for use in a Python pipeline, do the following:
 
 #### 13.1.2. Creating cross-language Python transforms
 
-To make your Python transform usable with different SDK languages, you must create a Python module that registers an existing Python transform as a cross-language transform for use with the Python expansion service and calls into that existing transform to perform its intended operation.
+Any Python transforms defined in the scope of the expansion service should be accessible by specifying their fully qualified names. For example, you could use Python's `ReadFromText` transform in a Java pipeline with its fully qualified name `apache_beam.io.ReadFromText`:
+
+```java
+p.apply("Read",
+    PythonExternalTransform.<PBegin, PCollection<String>>from("apache_beam.io.ReadFromText")
+    .withKwarg("file_pattern", options.getInputFile())
+    .withKwarg("validate", false))
+```
+
+  > **Note:** `PythonExternalTransform` has other useful methods such as `withExtraPackages` for staging PyPI package dependencies and `withOutputCoder` for setting an output coder.
+
+Alternatively, you may want to create a Python module that registers an existing Python transform as a cross-language transform for use with the Python expansion service and calls into that existing transform to perform its intended operation. A registered URN can be used later in an expansion request for indicating an expansion target.
 
 **Defining the Python module**
 
@@ -7336,7 +7505,7 @@ $ export PORT_FOR_EXPANSION_SERVICE=12345
 3. Import any modules that contain transforms to be made available using the expansion service.
 
     {{< highlight >}}
-$ python -m apache_beam.runners.portability.expansion_service_test -p $PORT_FOR_EXPANSION_SERVICE
+$ python -m apache_beam.runners.portability.expansion_service_test -p $PORT_FOR_EXPANSION_SERVICE --pickle_library=cloudpickle
     {{< /highlight >}}
 
 4. This expansion service is now ready to serve up transforms on the address `localhost:$PORT_FOR_EXPANSION_SERVICE`.
@@ -7393,7 +7562,29 @@ Depending on the SDK language of the pipeline, you can use a high-level SDK-wrap
 
 #### 13.2.1. Using cross-language transforms in a Java pipeline
 
-Currently, to access cross-language transforms from the Java SDK, you have to use the lower-level [External](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) class.
+Users have three options to use cross-language transforms in a Java pipeline. At the highest level of abstraction, some popular Python transforms are accessible through dedicated Java wrapper transforms. For example, the Java SDK has the `DataframeTransform` class, which uses the Python SDK's `DataframeTransform`, and it has the `RunInference` class, which uses the Python SDK's `RunInference`, and so on. When an SDK-specific wrapper transform is not available for a target Python transform, you can use the lower-level [PythonExternalTransform](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java) class instead by specifying the fully qualified name of the Python transform. If you want to try external transforms from SDKs other than Python (including Java SDK itself), you can also use the lowest-level [External](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) class.
+
+**Using an SDK wrapper**
+
+To use a cross-language transform through an SDK wrapper, import the module for the SDK wrapper and call it from your pipeline, as shown in the example:
+
+```java
+import org.apache.beam.sdk.extensions.python.transforms.DataframeTransform;
+
+input.apply(DataframeTransform.of("lambda df: df.groupby('a').sum()").withIndexes())
+```
+
+**Using the PythonExternalTransform class**
+
+When an SDK-specific wrapper is not available, you can access the Python cross-language transform through the `PythonExternalTransform` class by specifying the fully qualified name and the constructor arguments of the target Python transform.
+
+```java
+input.apply(
+    PythonExternalTransform.<PCollection<Row>, PCollection<Row>>from(
+        "apache_beam.dataframe.transforms.DataframeTransform")
+    .withKwarg("func", PythonCallableSource.of("lambda df: df.groupby('a').sum()"))
+    .withKwarg("include_indexes", true))
+```
 
 **Using the External class**
 

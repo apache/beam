@@ -20,6 +20,8 @@ package tob
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -31,10 +33,9 @@ import (
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
 
-const (
-	BAD_FORMAT     = "BAD_FORMAT"
-	INTERNAL_ERROR = "INTERNAL_ERROR"
-	NOT_FOUND      = "NOT_FOUND"
+var (
+	svc  service.IContent
+	auth *Authorizer
 )
 
 // Helper to format http error messages.
@@ -45,31 +46,45 @@ func finalizeErrResponse(w http.ResponseWriter, status int, code, message string
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-var svc service.IContent
-
-func init() {
+func MakeRepo(ctx context.Context) storage.Iface {
 	// dependencies
 	// required:
 	// * TOB_MOCK: respond with static samples
 	// OR
+	// * GOOGLE_APPLICATION_CREDENTIALS: json file path to cloud credentials
 	// * DATASTORE_PROJECT_ID: cloud project id
 	// optional:
 	// * DATASTORE_EMULATOR_HOST: emulator host/port (ex. 0.0.0.0:8888)
 	if os.Getenv("TOB_MOCK") > "" {
-		svc = &service.Mock{}
+		fmt.Println("Initialize mock storage")
+		return &storage.Mock{}
 	} else {
 		// consumes DATASTORE_* env variables
-		client, err := datastore.NewClient(context.Background(), "")
+		client, err := datastore.NewClient(ctx, "")
 		if err != nil {
 			log.Fatalf("new datastore client: %v", err)
 		}
-		svc = &service.Svc{Repo: &storage.DatastoreDb{Client: client}}
+
+		return &storage.DatastoreDb{Client: client}
 	}
+}
+
+func init() {
+	ctx := context.Background()
+
+	repo := MakeRepo(ctx)
+	svc = &service.Svc{Repo: repo}
+	auth = MakeAuthorizer(ctx, repo)
+	commonGet := Common(http.MethodGet)
+	commonPost := Common(http.MethodPost)
 
 	// functions framework
-	functions.HTTP("getSdkList", Common(getSdkList))
-	functions.HTTP("getContentTree", Common(ParseSdkParam(getContentTree)))
-	functions.HTTP("getUnitContent", Common(ParseSdkParam(getUnitContent)))
+	functions.HTTP("getSdkList", commonGet(getSdkList))
+	functions.HTTP("getContentTree", commonGet(ParseSdkParam(getContentTree)))
+	functions.HTTP("getUnitContent", commonGet(ParseSdkParam(getUnitContent)))
+
+	functions.HTTP("getUserProgress", commonGet(ParseSdkParam(auth.ParseAuthHeader(getUserProgress))))
+	functions.HTTP("postUnitComplete", commonPost(ParseSdkParam(auth.ParseAuthHeader(postUnitComplete))))
 }
 
 // Get list of SDK names
@@ -85,12 +100,10 @@ func getSdkList(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Get the content tree for a given SDK and user
-// Merges info from the default tree and per-user information:
-// user code snippets and progress
+// Get the content tree for a given SDK
 // Required to be wrapped into ParseSdkParam middleware.
 func getContentTree(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
-	tree, err := svc.GetContentTree(r.Context(), sdk, nil /*TODO userId*/)
+	tree, err := svc.GetContentTree(r.Context(), sdk)
 	if err != nil {
 		log.Println("Get content tree error:", err)
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
@@ -112,8 +125,8 @@ func getContentTree(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 func getUnitContent(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 	unitId := r.URL.Query().Get("id")
 
-	unit, err := svc.GetUnitContent(r.Context(), sdk, unitId, nil /*TODO userId*/)
-	if err == service.ErrNoUnit {
+	unit, err := svc.GetUnitContent(r.Context(), sdk, unitId)
+	if errors.Is(err, tob.ErrNoUnit) {
 		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
 		return
 	}
@@ -129,4 +142,36 @@ func getUnitContent(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format unit content")
 		return
 	}
+}
+
+// Get user progress
+func getUserProgress(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid string) {
+	progress, err := svc.GetUserProgress(r.Context(), sdk, uid)
+
+	if err != nil {
+		log.Println("Get user progress error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(progress)
+	if err != nil {
+		log.Println("Format user progress error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format user progress content")
+		return
+	}
+}
+
+// Mark unit completed
+func postUnitComplete(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid string) {
+	unitId := r.URL.Query().Get("id")
+
+	err := svc.SetUnitComplete(r.Context(), sdk, unitId, uid)
+	if err != nil {
+		log.Println("Set unit complete error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
+		return
+	}
+
+	fmt.Fprint(w, "{}")
 }
