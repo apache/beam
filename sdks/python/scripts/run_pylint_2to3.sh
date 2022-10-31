@@ -63,6 +63,11 @@ while IFS= read -d $'\0' -r file ; do
     EXCLUDED_GENERATED_FILES+=("$file")
 done < <(find apache_beam/portability/api -type f -name "*pb2*.py" -print0)
 
+# Ignore vendor files.
+while IFS= read -d $'\0' -r file ; do
+    EXCLUDED_GENERATED_FILES+=("$file")
+done < <(find apache_beam/vendor -type f -name "*.py" -print0)
+
 FILES_TO_IGNORE=""
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   if test -z "$FILES_TO_IGNORE"
@@ -70,9 +75,9 @@ for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
     else FILES_TO_IGNORE="$FILES_TO_IGNORE, $(basename $file)"
   fi
 done
-echo "Skipping lint for generated files: $FILES_TO_IGNORE"
+
+echo "Skipping lint for generated and vendored files: $FILES_TO_IGNORE"
 
 echo "Running pylint --py3k for modules $( printf "%s " "${MODULE}" ):"
 pylint -j8 $( printf "%s " "${MODULE}" ) \
-  --ignore-patterns="$FILES_TO_IGNORE" --py3k \
-  --ignore=vendor
+  --ignore-patterns="$FILES_TO_IGNORE" --py3k
