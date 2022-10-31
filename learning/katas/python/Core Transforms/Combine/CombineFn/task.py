@@ -27,7 +27,6 @@
 #     - nunbers
 
 import apache_beam as beam
-from apache_beam import LogElements
 
 
 class AverageFn(beam.CombineFn):
@@ -52,4 +51,4 @@ with beam.Pipeline() as p:
 
   (p | beam.Create([10, 20, 50, 70, 90])
      | beam.CombineGlobally(AverageFn())
-     | LogElements())
+     | beam.LogElements())

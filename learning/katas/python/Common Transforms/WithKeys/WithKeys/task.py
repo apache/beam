@@ -27,10 +27,9 @@
 #     - strings
 
 import apache_beam as beam
-from apache_beam import LogElements
 
 with beam.Pipeline() as p:
 
   (p | beam.Create(['apple', 'banana', 'cherry', 'durian', 'guava', 'melon'])
      | beam.WithKeys(lambda word: word[0:1])
-     | LogElements())
+     | beam.LogElements())

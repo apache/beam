@@ -28,7 +28,6 @@
 #     - strings
 
 import apache_beam as beam
-from apache_beam import LogElements
 
 
 class Person:
@@ -63,4 +62,4 @@ with beam.Pipeline() as p:
 
   (p | beam.Create(persons)
      | beam.ParDo(EnrichCountryDoFn(), beam.pvalue.AsDict(cities_to_countries))
-   | LogElements())
+   | beam.LogElements())

@@ -33,7 +33,6 @@ from datetime import datetime
 import pytz
 
 import apache_beam as beam
-from apache_beam import LogElements
 from apache_beam.transforms import window
 
 
@@ -53,4 +52,4 @@ with beam.Pipeline() as p:
        ])
      | beam.WindowInto(window.FixedWindows(24*60*60))
      | beam.combiners.Count.PerElement()
-     | LogElements(with_window=True))
+     | beam.LogElements(with_window=True))

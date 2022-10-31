@@ -28,10 +28,9 @@
 #     - strings
 
 import apache_beam as beam
-from apache_beam import LogElements
 
 with beam.Pipeline() as p:
 
   (p | beam.Create(['Apache Beam', 'Unified Batch and Streaming'])
      | beam.FlatMap(lambda sentence: sentence.split())
-     | LogElements())
+     | beam.LogElements())

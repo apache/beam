@@ -29,7 +29,6 @@
 #     - numbers
 
 import apache_beam as beam
-from apache_beam import LogElements
 
 with beam.Pipeline() as p:
 
@@ -38,5 +37,5 @@ with beam.Pipeline() as p:
   mult5_results = numbers | beam.Map(lambda num: num * 5)
   mult10_results = numbers | beam.Map(lambda num: num * 10)
 
-  mult5_results | 'Log multiply 5' >> LogElements(prefix='Multiplied by 5: ')
-  mult10_results | 'Log multiply 10' >> LogElements(prefix='Multiplied by 10: ')
+  mult5_results | 'Log multiply 5' >> beam.LogElements(prefix='Multiplied by 5: ')
+  mult10_results | 'Log multiply 10' >> beam.LogElements(prefix='Multiplied by 10: ')

@@ -30,7 +30,6 @@
 #     - strings
 
 import apache_beam as beam
-from apache_beam import LogElements
 
 
 class WordsAlphabet:
@@ -66,4 +65,4 @@ with beam.Pipeline() as p:
   countries = p | 'Countries' >> beam.Create(['australia', 'brazil', 'canada'])
 
   (apply_transforms(fruits, countries)
-   | LogElements())
+   | beam.LogElements())

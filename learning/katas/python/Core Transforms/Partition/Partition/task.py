@@ -28,7 +28,6 @@
 #     - numbers
 
 import apache_beam as beam
-from apache_beam import LogElements
 
 
 def partition_fn(number, num_partitions):
@@ -44,5 +43,5 @@ with beam.Pipeline() as p:
       (p | beam.Create([1, 2, 3, 4, 5, 100, 110, 150, 250])
          | beam.Partition(partition_fn, 2))
 
-  results[0] | 'Log numbers > 100' >> LogElements(prefix='Number > 100: ')
-  results[1] | 'Log numbers <= 100' >> LogElements(prefix='Number <= 100: ')
+  results[0] | 'Log numbers > 100' >> beam.LogElements(prefix='Number > 100: ')
+  results[1] | 'Log numbers <= 100' >> beam.LogElements(prefix='Number <= 100: ')
