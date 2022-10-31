@@ -55,12 +55,10 @@ type DatasetEntity struct {
 	Link string         `datastore:"link"`
 }
 
-type DatasetSnippetEntity struct {
-	Key      *datastore.Key `datastore:"__key__"`
+type DatasetNestedEntity struct {
 	Config   string         `datastore:"config"`
 	Dataset  *datastore.Key `datastore:"dataset"`
 	Emulator string         `datastore:"emulator"`
-	Snippet  *datastore.Key `datastore:"snippet"`
 }
 
 type Snippet struct {

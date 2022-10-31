@@ -34,7 +34,6 @@ type ObjectInfo struct {
 	Sdk             pb.Sdk
 	Complexity      pb.Complexity
 	Tags            []string
-	Emulator        pb.EmulatorType
 	Datasets        []*pb.Dataset
 }
 
@@ -43,11 +42,11 @@ type CategoryToPrecompiledObjects map[string]PrecompiledObjects
 type SdkToCategories map[string]CategoryToPrecompiledObjects
 
 type CatalogDTO struct {
-	Examples            []*entity.ExampleEntity
-	Snippets            []*entity.SnippetEntity
-	Files               []*entity.FileEntity
-	SdkCatalog          []*entity.SDKEntity
-	DatasetsSnippetsMap map[string][]*DatasetDTO
+	Examples               []*entity.ExampleEntity
+	Snippets               []*entity.SnippetEntity
+	Files                  []*entity.FileEntity
+	SdkCatalog             []*entity.SDKEntity
+	DatasetsMapBySnippetID map[string][]*DatasetDTO
 }
 
 type DefaultExamplesDTO struct {
@@ -96,20 +95,13 @@ func (e *ExampleDTO) GetComplexity() pb.Complexity {
 	return pb.Complexity(pb.Complexity_value[e.Snippet.Complexity])
 }
 
-func (e *ExampleDTO) GetEmulator() pb.EmulatorType {
-	datasets := e.Datasets
-	if len(datasets) != 0 {
-		return datasets[0].Emulator
-	}
-	return pb.EmulatorType_EMULATOR_TYPE_UNSPECIFIED
-}
-
 func (e *ExampleDTO) GetDatasets() []*pb.Dataset {
 	datasetsDTO := e.Datasets
 	if len(datasetsDTO) != 0 {
 		result := make([]*pb.Dataset, 0, len(datasetsDTO))
 		for _, dto := range datasetsDTO {
 			result = append(result, &pb.Dataset{
+				Type:        dto.Emulator,
 				Options:     dto.Config,
 				DatasetPath: dto.Path,
 			})

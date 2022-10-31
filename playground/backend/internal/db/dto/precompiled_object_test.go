@@ -105,29 +105,6 @@ func TestExampleDTO_GetSDK(t *testing.T) {
 	runTestTable(t, tests)
 }
 
-func TestExampleDTO_GetEmulator(t *testing.T) {
-	tests := getTestTable([]*ExampleDTOTestCase{
-		{
-			name: "Getting an emulator in the usual case",
-			then: func(dto *ExampleDTO) bool {
-				return dto.GetEmulator() == pb.EmulatorType_EMULATOR_TYPE_KAFKA
-			},
-		},
-		{
-			name: "Getting an emulator when datasets not set",
-			given: func() *ExampleDTO {
-				dto := getExampleDTO()
-				dto.Datasets = nil
-				return dto
-			},
-			then: func(dto *ExampleDTO) bool {
-				return dto.GetEmulator() == pb.EmulatorType_EMULATOR_TYPE_UNSPECIFIED
-			},
-		},
-	})
-	runTestTable(t, tests)
-}
-
 func TestExampleDTO_GetDatasets(t *testing.T) {
 	tests := getTestTable([]*ExampleDTOTestCase{
 		{
