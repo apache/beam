@@ -30,6 +30,17 @@ Authorized endpoints also consume `Authorization: Bearer <id_token>` header
 * getUserProgress?sdk=<sdk>
 * postUnitContent?sdk=<sdk>&id=<id>
 
+### Playground GRPC API
+
+We use Playground GRPC to save/get user snippets, so we keep the generated stubs in [playground_api](playground_api)
+To re-generate:
+```
+$ protoc -I ../../../playground/api/v1 \
+     --go_out=playground_api --go_opt=paths=source_relative \
+     --go-grpc_out=playground_api --go-grpc_opt=paths=source_relative \
+     api.proto
+```
+
 
 ### Datastore schema
 
