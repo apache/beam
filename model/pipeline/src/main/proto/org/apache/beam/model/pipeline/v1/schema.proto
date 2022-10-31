@@ -147,6 +147,34 @@ message LogicalTypes {
     //     two's complement encoded big integer.
     DECIMAL = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:logical_type:decimal:v1"];
+
+    // A URN for FixedLengthBytes type
+    //   - Representation type: BYTES
+    //   - Argument type: INT32.
+    //     A fixed-length bytes with its length as the argument.
+    FIXED_BYTES = 4 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:fixed_bytes:v1"];
+
+    // A URN for VariableLengthBytes type
+    //   - Representation type: BYTES
+    //   - Argument type: INT32.
+    //     A variable-length bytes with its maximum length as the argument.
+    VAR_BYTES = 5 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:var_bytes:v1"];
+
+    // A URN for FixedLengthString type
+    //   - Representation type: STRING
+    //   - Argument type: INT32.
+    //     A fixed-length string with its length as the argument.
+    FIXED_CHAR = 6 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:fixed_char:v1"];
+
+    // A URN for VariableLengthString type
+    //   - Representation type: STRING
+    //   - Argument type: INT32.
+    //     A variable-length string with its maximum length as the argument.
+    VAR_CHAR = 7 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:var_char:v1"];
   }
 }
 

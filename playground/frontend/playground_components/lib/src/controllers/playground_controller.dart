@@ -177,7 +177,7 @@ class PlaygroundController with ChangeNotifier {
 
   void setSource(String source) {
     final controller = requireSnippetEditingController();
-    controller.codeController.text = source;
+    controller.setSource(source);
   }
 
   void setSelectedOutputFilterType(OutputType type) {

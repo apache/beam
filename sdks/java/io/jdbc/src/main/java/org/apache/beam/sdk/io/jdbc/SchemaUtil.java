@@ -53,6 +53,9 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
@@ -73,7 +76,6 @@ class SchemaUtil {
   interface ResultSetFieldExtractor extends Serializable {
     Object extract(ResultSet rs, Integer index) throws SQLException;
   }
-
   // ResultSetExtractors for primitive schema types (excluding arrays, structs and logical types).
   private static final EnumMap<Schema.TypeName, ResultSetFieldExtractor>
       RESULTSET_FIELD_EXTRACTORS =
@@ -114,13 +116,13 @@ class SchemaUtil {
       case BIGINT:
         return beamFieldOfType(Schema.FieldType.INT64);
       case BINARY:
-        return beamLogicalField(BINARY.getName(), LogicalTypes.FixedLengthBytes::of);
+        return beamLogicalField(BINARY.getName(), LogicalTypes::fixedOrVariableBytes);
       case BIT:
         return beamFieldOfType(LogicalTypes.JDBC_BIT_TYPE);
       case BOOLEAN:
         return beamFieldOfType(Schema.FieldType.BOOLEAN);
       case CHAR:
-        return beamLogicalField(CHAR.getName(), LogicalTypes.FixedLengthString::of);
+        return beamLogicalField(CHAR.getName(), FixedString::of);
       case DATE:
         return beamFieldOfType(LogicalTypes.JDBC_DATE_TYPE);
       case DECIMAL:
@@ -132,17 +134,17 @@ class SchemaUtil {
       case INTEGER:
         return beamFieldOfType(Schema.FieldType.INT32);
       case LONGNVARCHAR:
-        return beamLogicalField(LONGNVARCHAR.getName(), LogicalTypes.VariableLengthString::of);
+        return beamLogicalField(LONGNVARCHAR.getName(), VariableString::of);
       case LONGVARBINARY:
-        return beamLogicalField(LONGVARBINARY.getName(), LogicalTypes.VariableLengthBytes::of);
+        return beamLogicalField(LONGVARBINARY.getName(), VariableBytes::of);
       case LONGVARCHAR:
-        return beamLogicalField(LONGVARCHAR.getName(), LogicalTypes.VariableLengthString::of);
+        return beamLogicalField(LONGVARCHAR.getName(), VariableString::of);
       case NCHAR:
-        return beamLogicalField(NCHAR.getName(), LogicalTypes.FixedLengthString::of);
+        return beamLogicalField(NCHAR.getName(), FixedString::of);
       case NUMERIC:
         return beamLogicalNumericField();
       case NVARCHAR:
-        return beamLogicalField(NVARCHAR.getName(), LogicalTypes.VariableLengthString::of);
+        return beamLogicalField(NVARCHAR.getName(), VariableString::of);
       case REAL:
         return beamFieldOfType(Schema.FieldType.FLOAT);
       case SMALLINT:
@@ -156,9 +158,9 @@ class SchemaUtil {
       case TINYINT:
         return beamFieldOfType(Schema.FieldType.BYTE);
       case VARBINARY:
-        return beamLogicalField(VARBINARY.getName(), LogicalTypes.VariableLengthBytes::of);
+        return beamLogicalField(VARBINARY.getName(), VariableBytes::of);
       case VARCHAR:
-        return beamLogicalField(VARCHAR.getName(), LogicalTypes.VariableLengthString::of);
+        return beamLogicalField(VARCHAR.getName(), VariableString::of);
       case BLOB:
         return beamFieldOfType(FieldType.BYTES);
       case CLOB:
@@ -290,26 +292,17 @@ class SchemaUtil {
       final Schema.LogicalType<InputT, BaseT> fieldType) {
     String logicalTypeName = fieldType.getIdentifier();
 
-    JDBCType underlyingType;
-
     if (Objects.equals(fieldType, LogicalTypes.JDBC_UUID_TYPE.getLogicalType())) {
       return OBJECT_EXTRACTOR;
-    } else if (Objects.equals(logicalTypeName, FixedPrecisionNumeric.IDENTIFIER)) {
-      underlyingType = JDBCType.NUMERIC;
+    } else if (logicalTypeName.equals("DATE")) {
+      return DATE_EXTRACTOR;
+    } else if (logicalTypeName.equals("TIME")) {
+      return TIME_EXTRACTOR;
+    } else if (logicalTypeName.equals("TIMESTAMP_EXTRACTOR")) {
+      return TIMESTAMP_EXTRACTOR;
     } else {
-      underlyingType = JDBCType.valueOf(logicalTypeName);
-    }
-
-    switch (underlyingType) {
-      case DATE:
-        return DATE_EXTRACTOR;
-      case TIME:
-        return TIME_EXTRACTOR;
-      case TIMESTAMP_WITH_TIMEZONE:
-        return TIMESTAMP_EXTRACTOR;
-      default:
-        ResultSetFieldExtractor extractor = createFieldExtractor(fieldType.getBaseType());
-        return (rs, index) -> fieldType.toInputType((BaseT) extractor.extract(rs, index));
+      ResultSetFieldExtractor extractor = createFieldExtractor(fieldType.getBaseType());
+      return (rs, index) -> fieldType.toInputType((BaseT) extractor.extract(rs, index));
     }
   }
 

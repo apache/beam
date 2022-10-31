@@ -60,7 +60,8 @@
 
 ## Breaking Changes
 
-* `ParquetIO.withSplit` was removed ([#23832](https://github.com/apache/beam/issues/23832)).
+* `ParquetIO.withSplit` was removed since splittable reading has been the default behavior since 2.35.0. The effect of
+  this change is to drop support for non-splittable reading ([#23832](https://github.com/apache/beam/issues/23832)).
 
 # [2.43.0] - Unreleased
 
