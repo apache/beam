@@ -44,7 +44,7 @@ class SnippetEditingController extends ChangeNotifier {
 
   set selectedExample(Example? value) {
     _selectedExample = value;
-    codeController.text = _selectedExample?.source ?? '';
+    setSource(_selectedExample?.source ?? '');
     _pipelineOptions = _selectedExample?.pipelineOptions ?? '';
     notifyListeners();
   }
@@ -87,5 +87,10 @@ class SnippetEditingController extends ChangeNotifier {
       complexity: _selectedExample?.complexity ?? Complexity.unspecified,
       sdk: sdk,
     );
+  }
+
+  void setSource(String source) {
+    codeController.text = source;
+    codeController.historyController.deleteHistory();
   }
 }
