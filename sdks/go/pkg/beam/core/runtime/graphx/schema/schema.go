@@ -119,7 +119,10 @@ func (r *Registry) reconcileRegistrations() (deferedErr error) {
 		check := func(ut reflect.Type) bool {
 			return coder.LookupCustomCoder(ut) != nil
 		}
-		if check(ut) || check(reflect.PtrTo(ut)) {
+		// We could have either a pointer or non pointer here,
+		// so we strip pointerness and then check both.
+		vT := reflectx.SkipPtr(ut)
+		if check(vT) && check(reflect.PtrTo(vT)) {
 			continue
 		}
 		if err := r.registerType(ut, map[reflect.Type]struct{}{}); err != nil {

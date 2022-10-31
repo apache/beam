@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 type iter1[T any] struct {
@@ -107,6 +108,8 @@ func (v *iter2[T1, T2]) invoke(key *T1, value *T2) bool {
 }
 
 func registerType(t reflect.Type) {
+	// strip the pointer if present.
+	t = reflectx.SkipPtr(t)
 	if _, ok := runtime.TypeKey(t); !ok {
 		return
 	}

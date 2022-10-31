@@ -31,8 +31,9 @@ type myTestTypeEmitter1 struct {
 
 func TestEmitter1(t *testing.T) {
 	Emitter1[int]()
-	if !exec.IsEmitterRegistered(reflect.TypeOf((*func(int))(nil)).Elem()) {
-		t.Fatalf("exec.IsEmitterRegistered(reflect.TypeOf((*func(int))(nil)).Elem()) = false, want true")
+	e1T := reflect.TypeOf((*func(int))(nil)).Elem()
+	if !exec.IsEmitterRegistered(e1T) {
+		t.Fatalf("exec.IsEmitterRegistered(%v) = false, want true", e1T)
 	}
 
 	Emitter1[myTestTypeEmitter1]()
@@ -50,11 +51,17 @@ type myTestTypeEmitter2B struct {
 
 func TestEmitter2(t *testing.T) {
 	Emitter2[int, string]()
-	if !exec.IsEmitterRegistered(reflect.TypeOf((*func(int, string))(nil)).Elem()) {
-		t.Fatalf("exec.IsEmitterRegistered(reflect.TypeOf((*func(int, string))(nil)).Elem()) = false, want true")
+	e2isT := reflect.TypeOf((*func(int, string))(nil)).Elem()
+	if !exec.IsEmitterRegistered(e2isT) {
+		t.Fatalf("exec.IsEmitterRegistered(%v) = false, want true", e2isT)
 	}
 
-	Emitter2[myTestTypeEmitter2A, myTestTypeEmitter2B]()
+	Emitter2[*myTestTypeEmitter2A, myTestTypeEmitter2B]()
+	e2ABT := reflect.TypeOf((*func(*myTestTypeEmitter2A, myTestTypeEmitter2B))(nil)).Elem()
+	if !exec.IsEmitterRegistered(e2ABT) {
+		t.Fatalf("exec.IsEmitterRegistered(%v) = false, want true", e2ABT)
+	}
+
 	tA := reflect.TypeOf((*myTestTypeEmitter2A)(nil)).Elem()
 	checkRegisterations(t, tA)
 	tB := reflect.TypeOf((*myTestTypeEmitter2B)(nil)).Elem()
@@ -63,8 +70,9 @@ func TestEmitter2(t *testing.T) {
 
 func TestEmitter2_WithTimestamp(t *testing.T) {
 	Emitter2[typex.EventTime, string]()
-	if !exec.IsEmitterRegistered(reflect.TypeOf((*func(typex.EventTime, string))(nil)).Elem()) {
-		t.Fatalf("exec.IsEmitterRegistered(reflect.TypeOf((*func(typex.EventTime, string))(nil)).Elem()) = false, want true")
+	e2tssT := reflect.TypeOf((*func(typex.EventTime, string))(nil)).Elem()
+	if !exec.IsEmitterRegistered(e2tssT) {
+		t.Fatalf("exec.IsEmitterRegistered(%v) = false, want true", e2tssT)
 	}
 }
 
@@ -82,7 +90,11 @@ func TestEmitter3(t *testing.T) {
 		t.Fatalf("exec.IsEmitterRegistered(reflect.TypeOf((*func(typex.EventTime, int, string))(nil)).Elem()) = false, want true")
 	}
 
-	Emitter3[typex.EventTime, myTestTypeEmitter3A, myTestTypeEmitter3B]()
+	Emitter3[typex.EventTime, myTestTypeEmitter3A, *myTestTypeEmitter3B]()
+	e3tsABT := reflect.TypeOf((*func(typex.EventTime, myTestTypeEmitter3A, *myTestTypeEmitter3B))(nil)).Elem()
+	if !exec.IsEmitterRegistered(e3tsABT) {
+		t.Fatalf("exec.IsEmitterRegistered(%v) = false, want true", e3tsABT)
+	}
 	tA := reflect.TypeOf((*myTestTypeEmitter3A)(nil)).Elem()
 	checkRegisterations(t, tA)
 	tB := reflect.TypeOf((*myTestTypeEmitter3B)(nil)).Elem()

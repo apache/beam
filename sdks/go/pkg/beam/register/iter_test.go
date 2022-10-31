@@ -24,14 +24,18 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 type myTestTypeIter1 struct {
 	Int int
 }
 
-func checkRegisterations(t *testing.T, rt reflect.Type) {
+func checkRegisterations(t *testing.T, ort reflect.Type) {
 	t.Helper()
+	// Strip pointers for the original type since type key doesn't support them.
+	// Pointer handling is done elsewhere.
+	rt := reflectx.SkipPtr(ort)
 	key, ok := runtime.TypeKey(rt)
 	if !ok {
 		t.Fatalf("runtime.TypeKey(%v): no typekey for type", rt)
@@ -39,20 +43,22 @@ func checkRegisterations(t *testing.T, rt reflect.Type) {
 	if _, ok := runtime.LookupType(key); !ok {
 		t.Errorf("want type %v to be available with key %q", rt, key)
 	}
-	if !schema.Registered(rt) {
-		t.Errorf("want type %v to be registered with schemas", rt)
+	if !schema.Registered(ort) {
+		t.Errorf("want type %v to be registered with schemas", ort)
 	}
 }
 
 func TestIter1(t *testing.T) {
 	Iter1[int]()
-	if !exec.IsInputRegistered(reflect.TypeOf((*func(*int) bool)(nil)).Elem()) {
-		t.Fatalf("exec.IsInputRegistered(reflect.TypeOf(((*func(*int) bool)(nil)).Elem()) = false, want true")
+	itiT := reflect.TypeOf((*func(*int) bool)(nil)).Elem()
+	if !exec.IsInputRegistered(itiT) {
+		t.Fatalf("exec.IsInputRegistered(%v) = false, want true", itiT)
 	}
 
 	Iter1[myTestTypeIter1]()
-	if !exec.IsInputRegistered(reflect.TypeOf((*func(*int) bool)(nil)).Elem()) {
-		t.Fatalf("exec.IsInputRegistered(reflect.TypeOf(((*func(*int) bool)(nil)).Elem()) = false, want true")
+	it1T := reflect.TypeOf((*func(*int) bool)(nil)).Elem()
+	if !exec.IsInputRegistered(it1T) {
+		t.Fatalf("exec.IsInputRegistered(%v) = false, want true", it1T)
 	}
 
 	ttrt := reflect.TypeOf((*myTestTypeIter1)(nil)).Elem()
@@ -69,18 +75,20 @@ type myTestTypeIter2B struct {
 
 func TestIter2(t *testing.T) {
 	Iter2[int, string]()
-	if !exec.IsInputRegistered(reflect.TypeOf((*func(*int, *string) bool)(nil)).Elem()) {
-		t.Fatalf("exec.IsInputRegistered(reflect.TypeOf((*func(*int, *string) bool)(nil)).Elem()) = false, want true")
+	it2isT := reflect.TypeOf((*func(*int, *string) bool)(nil)).Elem()
+	if !exec.IsInputRegistered(it2isT) {
+		t.Fatalf("exec.IsInputRegistered(%v) = false, want true", it2isT)
 	}
 
-	Iter2[myTestTypeIter2A, myTestTypeIter2B]()
-	if !exec.IsInputRegistered(reflect.TypeOf((*func(*int) bool)(nil)).Elem()) {
-		t.Fatalf("exec.IsInputRegistered(reflect.TypeOf(((*func(*int) bool)(nil)).Elem()) = false, want true")
+	Iter2[myTestTypeIter2A, *myTestTypeIter2B]()
+	it2ABT := reflect.TypeOf((*func(*myTestTypeIter2A, **myTestTypeIter2B) bool)(nil)).Elem()
+	if !exec.IsInputRegistered(it2ABT) {
+		t.Fatalf("exec.IsInputRegistered(%v) = false, want true", it2ABT)
 	}
 
 	ttArt := reflect.TypeOf((*myTestTypeIter2A)(nil)).Elem()
 	checkRegisterations(t, ttArt)
-	ttBrt := reflect.TypeOf((*myTestTypeIter2B)(nil)).Elem()
+	ttBrt := reflect.TypeOf((*myTestTypeIter2B)(nil))
 	checkRegisterations(t, ttBrt)
 }
 
