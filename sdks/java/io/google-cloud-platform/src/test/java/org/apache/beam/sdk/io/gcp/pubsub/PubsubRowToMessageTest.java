@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.ATTRIBUTES_FIELD_TYPE;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.ATTRIBUTES_KEY_NAME;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.DEFAULT_KEY_PREFIX;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.ERROR;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.EVENT_TIMESTAMP_FIELD_TYPE;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.EVENT_TIMESTAMP_KEY_NAME;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.OUTPUT;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.schemas.io.payloads.JsonPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -128,7 +130,7 @@ public class PubsubRowToMessageTest {
   @Test(expected = IllegalArgumentException.class)
   public void testExpandThrowsExceptions() {
     PayloadSerializer jsonPayloadSerializer =
-        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
+        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, ImmutableMap.of());
 
     Instant embeddedTimestamp = Instant.now();
     Instant mockTimestamp = Instant.ofEpochMilli(embeddedTimestamp.getMillis() + 1000000L);
@@ -209,9 +211,45 @@ public class PubsubRowToMessageTest {
   }
 
   @Test
-  public void testExpand() {
+  public void testExpandError() {
+    PayloadSerializer mismatchedSerializerProviderSchema =
+        new JsonPayloadSerializerProvider()
+            .getSerializer(Schema.of(STRING_FIELD), ImmutableMap.of());
+
+    Row withAllDataTypes =
+        rowWithAllDataTypes(
+            true,
+            (byte) 0,
+            Instant.now().toDateTime(),
+            BigDecimal.valueOf(1L),
+            3.12345,
+            4.1f,
+            (short) 5,
+            2,
+            7L,
+            "asdfjkl;");
+
+    PubsubRowToMessage transformWithSerializer =
+        PubsubRowToMessage.builder()
+            .setPayloadSerializer(mismatchedSerializerProviderSchema)
+            .build();
+
+    PAssert.that(
+            pipeline
+                .apply(Create.of(withAllDataTypes))
+                .setRowSchema(ALL_DATA_TYPES_SCHEMA)
+                .apply(transformWithSerializer)
+                .get(ERROR)
+                .apply(Count.globally()))
+        .containsInAnyOrder(1L);
+
+    pipeline.run(PIPELINE_OPTIONS);
+  }
+
+  @Test
+  public void testExpandOutput() {
     PayloadSerializer jsonPayloadSerializer =
-        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
+        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, ImmutableMap.of());
 
     Instant embeddedTimestamp = Instant.now();
     Instant mockTimestamp = Instant.ofEpochMilli(embeddedTimestamp.getMillis() + 1000000L);
@@ -413,10 +451,93 @@ public class PubsubRowToMessageTest {
   }
 
   @Test
+  public void testSetTargetTimestampAttributeName() {
+    Instant mockTimestamp = Instant.now();
+    String mockTimestampString = mockTimestamp.toString();
+    byte[] bytes = new byte[] {1, 2, 3, 4};
+
+    Field payloadBytesField = Field.of(DEFAULT_PAYLOAD_KEY_NAME, FieldType.BYTES);
+
+    Schema withPayloadBytesSchema = Schema.of(payloadBytesField);
+    Row withPayloadBytes = Row.withSchema(withPayloadBytesSchema).attachValues(bytes);
+
+    String customTargetTimestampAttributeName = "custom_timestamp_key";
+
+    PubsubRowToMessage withoutSetTargetTimestampAttributeName =
+        PubsubRowToMessage.builder().setMockInstant(mockTimestamp).build();
+    PubsubRowToMessage withSetTargetTimestampAttributeName =
+        PubsubRowToMessage.builder()
+            .setMockInstant(mockTimestamp)
+            .setTargetTimestampAttributeName(customTargetTimestampAttributeName)
+            .build();
+
+    PCollection<Row> input =
+        pipeline.apply(Create.of(withPayloadBytes)).setRowSchema(Schema.of(payloadBytesField));
+
+    PAssert.that(input.apply(withoutSetTargetTimestampAttributeName).get(OUTPUT))
+        .containsInAnyOrder(
+            new PubsubMessage(
+                bytes, ImmutableMap.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, mockTimestampString)));
+
+    PAssert.that(input.apply(withSetTargetTimestampAttributeName).get(OUTPUT))
+        .containsInAnyOrder(
+            new PubsubMessage(
+                bytes, ImmutableMap.of(customTargetTimestampAttributeName, mockTimestampString)));
+
+    pipeline.run(PIPELINE_OPTIONS);
+  }
+
+  @Test
+  public void testInputSchemaFactory() {
+    assertEquals(
+        Schema.of(
+            Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE),
+            Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE)),
+        PubsubRowToMessage.builder().build().inputSchemaFactory().buildSchema());
+
+    assertEquals(
+        Schema.of(
+            Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE),
+            Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE),
+            Field.of(DEFAULT_PAYLOAD_KEY_NAME, FieldType.BYTES)),
+        PubsubRowToMessage.builder().build().inputSchemaFactory(FieldType.BYTES).buildSchema());
+
+    assertEquals(
+        Schema.of(
+            Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE),
+            Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE),
+            Field.of(DEFAULT_PAYLOAD_KEY_NAME, FieldType.row(ALL_DATA_TYPES_SCHEMA))),
+        PubsubRowToMessage.builder()
+            .build()
+            .inputSchemaFactory(FieldType.row(ALL_DATA_TYPES_SCHEMA))
+            .buildSchema());
+
+    String prefix = "_";
+    assertEquals(
+        Schema.of(
+            Field.of(prefix + ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE),
+            Field.of(prefix + EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE)),
+        PubsubRowToMessage.builder()
+            .setKeyPrefix(prefix)
+            .build()
+            .inputSchemaFactory()
+            .buildSchema());
+
+    Field[] userFields = ALL_DATA_TYPES_SCHEMA.getFields().toArray(new Field[0]);
+    assertEquals(
+        merge(
+            Schema.of(
+                Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE),
+                Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE)),
+            ALL_DATA_TYPES_SCHEMA),
+        PubsubRowToMessage.builder().build().inputSchemaFactory().buildSchema(userFields));
+  }
+
+  @Test
   public void testValidate() {
     PubsubRowToMessage pubsubRowToMessage = PubsubRowToMessage.builder().build();
     PayloadSerializer jsonPayloadSerializer =
-        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
+        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, ImmutableMap.of());
 
     assertThrows(
         IllegalArgumentException.class,
@@ -535,9 +656,9 @@ public class PubsubRowToMessageTest {
   @Test
   public void testShouldValidatePayloadSerializerNullState() {
     PayloadSerializer jsonPayloadSerializer =
-        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
+        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, ImmutableMap.of());
     PayloadSerializer avroPayloadSerializer =
-        new AvroPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
+        new AvroPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, ImmutableMap.of());
 
     PubsubRowToMessage.builder()
         .setPayloadSerializer(jsonPayloadSerializer)
@@ -763,7 +884,7 @@ public class PubsubRowToMessageTest {
         Row.withSchema(withoutAttributesSchema).addValues(Instant.now(), new byte[] {}).build();
 
     assertEquals(
-        new HashMap<>(),
+        ImmutableMap.of(),
         doFn(withoutAttributesSchema, null).attributesWithoutTimestamp(withoutAttributes));
   }
 
@@ -772,7 +893,7 @@ public class PubsubRowToMessageTest {
     Instant timestamp = Instant.now();
     Row withTimestamp =
         Row.withSchema(NON_USER_WITH_BYTES_PAYLOAD)
-            .addValues(new HashMap<>(), timestamp, new byte[] {})
+            .addValues(ImmutableMap.of(), timestamp, new byte[] {})
             .build();
     assertEquals(
         timestamp.toString(),
@@ -781,18 +902,17 @@ public class PubsubRowToMessageTest {
     Schema withoutTimestampSchema =
         removeFields(NON_USER_WITH_BYTES_PAYLOAD, DEFAULT_EVENT_TIMESTAMP_KEY_NAME);
     Row withoutTimestamp =
-        Row.withSchema(withoutTimestampSchema).addValues(new HashMap<>(), new byte[] {}).build();
+        Row.withSchema(withoutTimestampSchema).addValues(ImmutableMap.of(), new byte[] {}).build();
     ReadableDateTime actual = doFn(withoutTimestampSchema, null).timestamp(withoutTimestamp);
     assertNotNull(actual);
-    assertTrue(actual.isAfter(timestamp));
   }
 
   @Test
   public void testPubsubRowToMessageParDo_payload() {
     PayloadSerializer jsonPayloadSerializer =
-        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
+        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, ImmutableMap.of());
     PayloadSerializer avroPayloadSerializer =
-        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
+        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, ImmutableMap.of());
 
     byte[] bytes = "abcdefg".getBytes(StandardCharsets.UTF_8);
     assertArrayEquals(
@@ -800,13 +920,13 @@ public class PubsubRowToMessageTest {
         doFn(NON_USER_WITH_BYTES_PAYLOAD, null)
             .payload(
                 Row.withSchema(NON_USER_WITH_BYTES_PAYLOAD)
-                    .addValues(new HashMap<>(), Instant.now(), bytes)
+                    .addValues(ImmutableMap.of(), Instant.now(), bytes)
                     .build()));
 
     Row withoutUserFields =
         Row.withSchema(NON_USER_WITH_ROW_PAYLOAD)
             .addValues(
-                new HashMap<>(),
+                ImmutableMap.of(),
                 Instant.now(),
                 rowWithAllDataTypes(
                     true,
@@ -871,7 +991,7 @@ public class PubsubRowToMessageTest {
             doFn(NON_USER_WITH_BYTES_PAYLOAD, null)
                 .serializableRow(
                     Row.withSchema(NON_USER_WITH_BYTES_PAYLOAD)
-                        .attachValues(new HashMap<>(), Instant.now(), new byte[] {})));
+                        .attachValues(ImmutableMap.of(), Instant.now(), new byte[] {})));
 
     Map<String, String> attributes = new HashMap<>();
     attributes.put("a", "1");
@@ -896,7 +1016,7 @@ public class PubsubRowToMessageTest {
             .attachValues(attributes, Instant.now(), withAllDataTypes);
 
     PayloadSerializer jsonPayloadSerializer =
-        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, new HashMap<>());
+        new JsonPayloadSerializerProvider().getSerializer(ALL_DATA_TYPES_SCHEMA, ImmutableMap.of());
 
     assertEquals(
         withAllDataTypes,

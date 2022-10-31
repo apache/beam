@@ -104,6 +104,36 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     return Schema.of(dataField, ERROR_MESSAGE_FIELD, ERROR_STACK_TRACE_FIELD);
   }
 
+  /**
+   * As a convenience method, generates {@link InputSchemaFactory} for expected {@link Schema} for
+   * {@link Row} input into {@link PubsubRowToMessage}, excluding {@link Field} for {@link
+   * #getPayloadKeyName()}. See {@link InputSchemaFactory#buildSchema(Field...)} for details on how
+   * to add additional fields.
+   */
+  InputSchemaFactory inputSchemaFactory() {
+    return inputSchemaFactory(null);
+  }
+
+  /**
+   * As a convenience method, generates {@link InputSchemaFactory} for expected {@link Schema} for
+   * {@link Row} input into {@link PubsubRowToMessage}. The {@link Field} for {@link
+   * #getPayloadKeyName()} is excluded for null {@param payloadFieldType}. See {@link
+   * InputSchemaFactory#buildSchema(Field...)} for details on how to * add additional fields.
+   */
+  InputSchemaFactory inputSchemaFactory(@Nullable FieldType payloadFieldType) {
+    InputSchemaFactory.Builder builder =
+        InputSchemaFactory.builder()
+            .setAttributesField(Field.of(getAttributesKeyName(), ATTRIBUTES_FIELD_TYPE))
+            .setTimestampField(
+                Field.of(getSourceEventTimestampKeyName(), EVENT_TIMESTAMP_FIELD_TYPE));
+
+    if (payloadFieldType != null) {
+      builder = builder.setPayloadField(Field.of(getPayloadKeyName(), payloadFieldType));
+    }
+
+    return builder.build();
+  }
+
   @Override
   public PCollectionTuple expand(PCollection<Row> input) {
     Schema schema = input.getSchema();
@@ -275,6 +305,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       this.schema = schema;
     }
 
+    /** Returns true of all {@param fieldMatchers} {@link FieldMatcher#match(Schema)}. */
     boolean matchesAll(FieldMatcher... fieldMatchers) {
       for (FieldMatcher fieldMatcher : fieldMatchers) {
         if (!fieldMatcher.match(schema)) {
@@ -414,7 +445,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     }
 
     /**
-     * Extracts the {@link Map<String, String>} attributes from a {@link Row} that contains the
+     * Extracts the {@code Map<String, String>} attributes from a {@link Row} that contains the
      * {@link #attributesKeyName}.
      */
     Map<String, String> attributesWithoutTimestamp(Row row) {
@@ -492,6 +523,55 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
         values.put(name, row.getValue(name));
       }
       return Row.withSchema(withUserFieldsOnly).withFieldValues(values).build();
+    }
+  }
+
+  /**
+   * A convenience class for generating the expected {@link Schema} for {@link Row} input of {@link
+   * PubsubRowToMessage}.
+   */
+  @AutoValue
+  abstract static class InputSchemaFactory {
+    static Builder builder() {
+      return new AutoValue_PubsubRowToMessage_InputSchemaFactory.Builder();
+    }
+
+    abstract Field getAttributesField();
+
+    abstract Field getTimestampField();
+
+    @Nullable
+    abstract Field getPayloadField();
+
+    /**
+     * Builds a {@link Schema} from {@link #getAttributesField()} and {@link #getTimestampField()}
+     * and {@param additionalFields}. Users are encouraged to use the {@link #removeFields(Schema,
+     * String...)} method to customize the resulting {@link Schema}.
+     */
+    Schema buildSchema(Field... additionalFields) {
+      Schema.Builder builder =
+          Schema.builder().addField(getAttributesField()).addField(getTimestampField());
+
+      if (getPayloadField() != null) {
+        builder = builder.addField(getPayloadField());
+      }
+
+      for (Field field : additionalFields) {
+        builder = builder.addField(field);
+      }
+
+      return builder.build();
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setAttributesField(Field value);
+
+      abstract Builder setTimestampField(Field value);
+
+      abstract Builder setPayloadField(Field value);
+
+      abstract InputSchemaFactory build();
     }
   }
 }
