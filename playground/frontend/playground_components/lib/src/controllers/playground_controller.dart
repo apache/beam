@@ -234,7 +234,7 @@ class PlaygroundController with ChangeNotifier {
       _showPrecompiledResult(controller);
     } else {
       final request = RunCodeRequest(
-        code: controller.codeController.text,
+        code: controller.codeController.fullText,
         sdk: controller.sdk,
         pipelineOptions: parsedPipelineOptions,
       );
