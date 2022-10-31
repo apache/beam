@@ -232,12 +232,8 @@ if __name__ == '__main__':
         # The issue was fixed in version 1.9.2.1
         'crcmod>=1.7,<2.0',
         'orjson<4.0',
-        # Dill doesn't have forwards-compatibility guarantees within minor
-        # version. Pickles created with a new version of dill may not unpickle
-        # using older version of dill. It is best to use the same version of
-        # dill on client and server, therefore list of allowed versions is very
-        # narrow. See: https://github.com/uqfoundation/dill/issues/341.
-        'dill>=0.3.1.1,<0.3.2',
+        # Note: Omitting dill. A copy of dill is in the vendor
+        # directory. Since it is not forwards-compatible.
         # It is prudent to use the same version of pickler at job submission
         # and at runtime, therefore bounds need to be tight.
         # To avoid depending on an old dependency, update the minor version on
