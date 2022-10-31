@@ -56,14 +56,14 @@ func (pom *PrecompiledObjectMapper) ToArrayCategories(catalogDTO *dto.CatalogDTO
 	sdkToDefaultExample := catalogDTO.GetSdkCatalogAsMap()
 	numberOfExamples := len(catalogDTO.Examples)
 	sdkToCategories := make(dto.SdkToCategories, 0)
-	datasetsSnippetsMap := catalogDTO.DatasetsMapBySnippetID
+	datasetBySnippetIDMap := catalogDTO.DatasetBySnippetIDMap
 	for exampleIndx := 0; exampleIndx < numberOfExamples; exampleIndx++ {
 		example := catalogDTO.Examples[exampleIndx]
 		snippet := catalogDTO.Snippets[exampleIndx]
 		files := []*entity.FileEntity{catalogDTO.Files[exampleIndx]}
 		var datasetsDTO []*dto.DatasetDTO
-		if len(datasetsSnippetsMap) != 0 {
-			datasetsDTO = datasetsSnippetsMap[snippet.Key.Name]
+		if len(datasetBySnippetIDMap) != 0 {
+			datasetsDTO = datasetBySnippetIDMap[snippet.Key.Name]
 		}
 		objInfo := pom.ToObjectInfo(&dto.ExampleDTO{
 			Example:            example,
