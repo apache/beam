@@ -311,7 +311,9 @@ public class BeamRowToStorageApiProto {
         Stream<Object> valueStream =
             list.stream().map(v -> toProtoValue(fieldDescriptor, arrayElementType, v));
 
-        if (shouldFlatMap) valueStream = valueStream.flatMap(vs -> ((List) vs).stream());
+        if (shouldFlatMap) {
+          valueStream = valueStream.flatMap(vs -> ((List) vs).stream());
+        }
 
         return valueStream.collect(Collectors.toList());
       case ITERABLE:
