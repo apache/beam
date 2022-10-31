@@ -126,6 +126,7 @@ class ParDo(DaskBagOp):
     label = transform.label
     map_fn = transform.fn
     args, kwargs = transform.raw_side_inputs
+    args = list(args)
     main_input = next(iter(self.applied.main_inputs.values()))
     window_fn = main_input.windowing.windowfn if hasattr(main_input, "windowing") else None
 
@@ -159,8 +160,8 @@ class ParDo(DaskBagOp):
       do_fn_invoker.invoke_setup()
       do_fn_invoker.invoke_start_bundle()
 
-      results = [do_fn_invoker.invoke_process(it) for it in items]
-      results.extend(tagged_receivers.values)
+      to_proc = list(items) + tagged_receivers.values
+      results = [do_fn_invoker.invoke_process(it) for it in to_proc]
 
       do_fn_invoker.invoke_finish_bundle()
       do_fn_invoker.invoke_teardown()
