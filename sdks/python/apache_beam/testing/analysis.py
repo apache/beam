@@ -14,23 +14,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-import requests
-import os
 import json
-from typing import Optional
+import os
+import requests
+import sys
+from typing import Dict
 from typing import List
+from typing import Optional
 
-# def binary_segmentation_algo(data, breakpoints=2):
-#   model = "l2"
-#   algo = rpt.Binseg(model=model).fit(data)
-#   result = algo.predict(breakpoints)
-#   print(result)
+from apache_beam.testing.load_tests import load_test_metrics_utils
+
+_DESCRIPTION_TEMPLATE = """
+  Performance regression found in the test: {}
+""".format(sys.argv[0])
+_METRIC_INFO = """
+  timestamp: {} metric_name: {}, metric_value: {}
+"""
 
 
 class ChangePointAnalysis:
-  def __init__(self, data):
+  def __init__(self, data: List[Dict]):
     self.data = data
+
+  def get_failing_test_description(self):
+    metric_description = ''
+    for data in self.data:
+      metric_description += _METRIC_INFO.format(
+          data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL],
+          data[load_test_metrics_utils.METRICS_TYPE_LABEL],
+          data[load_test_metrics_utils.VALUE_LABEL]) + '\n'
+    return _DESCRIPTION_TEMPLATE + 2 * '\n' + metric_description
 
   def find_change_point(self):
     """
@@ -44,17 +57,14 @@ class GitHubIssues:
   def __init__(self, owner, repo):
     self.owner = owner
     self.repo = repo
-    self.query = "https://api.github.com/repos/{}/{}/issues".format(
-        self.owner, self.repo)
-
     self._github_token = os.environ['GITHUB_TOKEN']
+    if not self._github_token:
+      raise Exception(
+          'A Github Personal Access token is required to create Github Issues.')
     self.headers = {
         "Authorization": 'token {}'.format(self._github_token),
         "Accept": "application/vnd.github+json"
     }
-    if not self._github_token:
-      raise Exception(
-          'A Github Personal Access token is required to create Github Issues.')
 
   def create_or_update_issue(
       self, title, description, labels: Optional[List] = None):
@@ -67,6 +77,8 @@ class GitHubIssues:
     if last_created_issue['total_count']:
       self.comment_on_issue(last_created_issue=last_created_issue)
     else:
+      url = "https://api.github.com/repos/{}/{}/issues".format(
+          self.owner, self.repo)
       data = {
           'owner': self.owner,
           'repo': self.repo,
@@ -74,25 +86,24 @@ class GitHubIssues:
           'body': description,
           'labels': labels
       }
-      requests.post(url=self.query, data=json.dumps(data), headers=self.headers)
+      requests.post(url=url, data=json.dumps(data), headers=self.headers)
 
   def comment_on_issue(self, last_created_issue):
     """
     If there is an already present issue with the title name,
     update that issue with the new description.
     """
-    if last_created_issue['total_count']:
-      items = last_created_issue['items'][0]
-      comment_url = items['comments_url']
-      issue_number = items['number']
-      _COMMENT = 'Creating comment on already created issue.'
-      data = {
-          'owner': self.owner,
-          'repo': self.repo,
-          'body': _COMMENT,
-          issue_number: issue_number,
-      }
-      requests.post(comment_url, json.dumps(data), headers=self.headers)
+    items = last_created_issue['items'][0]
+    comment_url = items['comments_url']
+    issue_number = items['number']
+    _COMMENT = 'Creating comment on already created issue.'
+    data = {
+        'owner': self.owner,
+        'repo': self.repo,
+        'body': _COMMENT,
+        issue_number: issue_number,
+    }
+    requests.post(comment_url, json.dumps(data), headers=self.headers)
 
   def search_issue_with_title(self, title, labels=None):
     """
