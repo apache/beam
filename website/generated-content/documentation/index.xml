@@ -3689,7 +3689,7 @@ sets and its transforms.&lt;/p>
 &lt;li>&lt;a href="/documentation/programming-guide/#overview">Beam Programming Guide: Overview&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/programming-guide/#creating-a-pipeline">Beam Programming Guide: Creating a pipeline&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/pipelines/design-your-pipeline">Design your pipeline&lt;/a>&lt;/li>
-&lt;li>&lt;a href="/documentation/pipeline/create-your-pipeline">Create your pipeline&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/pipelines/create-your-pipeline">Create your pipeline&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h3 id="pcollection">PCollection&lt;/h3>
 &lt;p>A &lt;code>PCollection&lt;/code> is an unordered bag of elements. Each &lt;code>PCollection&lt;/code> is a
