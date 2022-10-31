@@ -118,7 +118,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
    * As a convenience method, generates {@link InputSchemaFactory} for expected {@link Schema} for
    * {@link Row} input into {@link PubsubRowToMessage}. The {@link Field} for {@link
    * #getPayloadKeyName()} is excluded for null {@param payloadFieldType}. See {@link
-   * InputSchemaFactory#buildSchema(Field...)} for details on how to * add additional fields.
+   * InputSchemaFactory#buildSchema(Field...)} for details on how to add additional fields.
    */
   InputSchemaFactory inputSchemaFactory(@Nullable FieldType payloadFieldType) {
     InputSchemaFactory.Builder builder =
