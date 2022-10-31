@@ -78,7 +78,6 @@ class DatastoreClient:
         files = []
         updated_example_ids = []
         datasets = []
-        datasets_snippets = []
         now = datetime.today()
 
         # retrieve the last schema version
@@ -97,7 +96,6 @@ class DatastoreClient:
                 self._to_example_entity(example, example_id, sdk_key, actual_schema_version_key, origin)
             )
             snippet = self._to_snippet_entity(example, example_id, sdk_key, now, actual_schema_version_key, origin)
-            snippets.append(snippet)
             pc_objects.extend(self._pc_object_entities(example, example_id))
             files.append(self._to_file_entity(example, example_id))
             if example.datasets and example.emulators:
@@ -106,18 +104,22 @@ class DatastoreClient:
                 file_name = f"{dataset.name}.{dataset.format}"
                 link = self._upload_dataset_to_bucket(file_name)
                 dataset = self._to_dataset_entity(file_name, link)
-                dataset_snippet = self._to_dataset_snippet_entity(file_name, example_id, emulator)
                 datasets.append(dataset)
-                datasets_snippets.append(dataset_snippet)
+                dataset_nested_entity = self._to_dataset_nested_entity(file_name, example_id, emulator)
+                snippet_datasets = [dataset_nested_entity]
+                snippet.update(
+                    {
+                        "datasets": snippet_datasets
+                    }
+                )
+            snippets.append(snippet)
 
+        if datasets:
+            self._datastore_client.put_multi(datasets)
         self._datastore_client.put_multi(examples)
         self._datastore_client.put_multi(snippets)
         self._datastore_client.put_multi(pc_objects)
         self._datastore_client.put_multi(files)
-        if datasets:
-            self._datastore_client.put_multi(datasets)
-        if datasets_snippets:
-            self._datastore_client.put_multi(datasets_snippets)
 
         # delete examples from the Cloud Datastore that are not in the repository
         examples_ids_for_removing = list(filter(lambda key: key not in updated_example_ids, examples_ids_before_updating))
@@ -218,9 +220,6 @@ class DatastoreClient:
 
     def _get_dataset_key(self, dataset_id: str):
         return self._get_key(DatastoreProps.DATASET_KIND, dataset_id)
-
-    def _get_dataset_snippet_key(self, dataset_snippet_id: str):
-        return self._get_key(DatastoreProps.DATASET_SNIPPET_KIND, dataset_snippet_id)
 
     def _make_example_id(self, origin: Origin, sdk: Sdk, name: str):
         # ToB examples (and other related entities: snippets, files, pc_objects)
@@ -347,23 +346,17 @@ class DatastoreClient:
         )
         return dataset_entity
 
-    def _to_dataset_snippet_entity(self, dataset_id: str, snippet_id: str, emulator: config.Emulator):
-        dataset_snippet_id = config.DatastoreProps.KEY_NAME_DELIMITER.join(
-            [dataset_id, snippet_id]
-        )
-        dataset_snippet_entity = datastore.Entity(self._get_dataset_snippet_key(dataset_snippet_id))
-        emulator_config = {
+    def _to_dataset_nested_entity(self, dataset_id: str, example_id: str, emulator: config.Emulator):
+        emulator_config = str({
             "topic": emulator.topic.id
-        }
-        dataset_snippet_entity.update(
-            {
-                "dataset": self._get_dataset_key(dataset_id),
-                "snippet": self._get_snippet_key(snippet_id),
-                "emulator": emulator.name,
-                "config": emulator_config
-            }
-        )
-        return dataset_snippet_entity
+        }).replace("'", "\"")
+        nested_entity = datastore.Entity(self._get_snippet_key(example_id), exclude_from_indexes=('config',))
+        nested_entity.update({
+            "dataset": self._get_dataset_key(dataset_id),
+            "emulator": emulator.name,
+            "config": emulator_config
+        })
+        return nested_entity
 
     def _get_file_name_with_extension(self, name: str, sdk: Sdk) -> str:
         filename, file_extension = os.path.splitext(name)
