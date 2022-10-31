@@ -29,6 +29,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+/**
+ * Adds a watermark a fixed delay behind the extracted timestamp of the source element. Does not
+ * allow the watermark to pass the timestamp of the source element.
+ */
 @BoundedPerElement
 class WithWatermarkDelayFn<T> extends DoFn<T, T> {
 
