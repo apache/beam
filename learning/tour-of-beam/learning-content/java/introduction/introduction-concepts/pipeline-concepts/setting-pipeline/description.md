@@ -89,4 +89,14 @@ You can find the full code of the above example in the playground window, which 
 --input=gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv --output=output.csv
 ```
 
+Here is a small list of fields and an example record from this dataset:
+
+| cost | passenger_count | ... |
+|------|-----------------|-----|
+| 5.8  | 1               | ... |
+| 4.6  | 2               | ... |
+| 24   | 1               | ... |
+
+Overview [file](https://storage.googleapis.com/apache-beam-samples/nyc_taxi/misc/sample1000.csv)
+
 Do you also notice in what order elements of PCollection appear in the console? Why is that? You can also run the example several times to see if the output stays the same or changes.

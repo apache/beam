@@ -15,13 +15,13 @@ limitations under the License.
 
 Now that you know how to create a Beam pipeline and pass parameters into it, it is time to learn how to create an initial `PCollection` and fill it with data.
 
-There are several options on how to do that:
+There are several options:
 
 → You can create a PCollection of data stored in an in-memory collection class in your driver program.
 
-→ You can also read the data from a variety of external sources such as local and cloud-based files, databases, or other sources using Beam-provided I/O adapters
+→ You can also read the data from a variety of external sources such as local or cloud-based files, databases, or other sources using Beam-provided I/O adapters
 
-Through the tour, most of the examples use either `PCollection` created from in-memory data or data read from one of the cloud buckets: beam-examples, dataflow-samples. These buckets contain sample data sets specifically created for educational purposes.
+Through the tour, most of the examples use either a `PCollection` created from in-memory data or data read from one of the cloud buckets "beam-examples" or "dataflow-samples". These buckets contain sample data sets specifically created for educational purposes.
 
 We encourage you to take a look, explore these data sets and use them while learning Apache Beam.
 
@@ -38,7 +38,7 @@ public static void main(String[] args) {
     Pipeline pipeline = Pipeline.create(options);
 
     // Now create the PCollection using list of strings
-    PCollection<String> words =
+    PCollection<String> strings =
         pipeline.apply(
             Create.of("To", "be", "or", "not", "to", "be","that", "is", "the", "question")
         );
