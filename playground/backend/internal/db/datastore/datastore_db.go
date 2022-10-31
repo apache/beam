@@ -245,20 +245,20 @@ func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEnti
 		return nil, err
 	}
 
-	var datasetsSnippetsMap map[string][]*dto.DatasetDTO
+	var datasetBySnippetIDMap map[string][]*dto.DatasetDTO
 	if len(datasets) != 0 {
-		datasetsSnippetsMap, err = d.ResponseMapper.ToDatasetBySnippetIDMap(datasets, snippets)
+		datasetBySnippetIDMap, err = d.ResponseMapper.ToDatasetBySnippetIDMap(datasets, snippets)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	return d.ResponseMapper.ToArrayCategories(&dto.CatalogDTO{
-		Examples:               examples,
-		Snippets:               snippets,
-		Files:                  files,
-		SdkCatalog:             sdkCatalog,
-		DatasetsMapBySnippetID: datasetsSnippetsMap,
+		Examples:              examples,
+		Snippets:              snippets,
+		Files:                 files,
+		SdkCatalog:            sdkCatalog,
+		DatasetBySnippetIDMap: datasetBySnippetIDMap,
 	}), nil
 }
 

@@ -42,11 +42,11 @@ type CategoryToPrecompiledObjects map[string]PrecompiledObjects
 type SdkToCategories map[string]CategoryToPrecompiledObjects
 
 type CatalogDTO struct {
-	Examples               []*entity.ExampleEntity
-	Snippets               []*entity.SnippetEntity
-	Files                  []*entity.FileEntity
-	SdkCatalog             []*entity.SDKEntity
-	DatasetsMapBySnippetID map[string][]*DatasetDTO
+	Examples              []*entity.ExampleEntity
+	Snippets              []*entity.SnippetEntity
+	Files                 []*entity.FileEntity
+	SdkCatalog            []*entity.SDKEntity
+	DatasetBySnippetIDMap map[string][]*DatasetDTO
 }
 
 type DefaultExamplesDTO struct {
