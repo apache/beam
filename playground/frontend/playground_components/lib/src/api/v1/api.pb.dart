@@ -33,17 +33,22 @@ export 'api.pbenum.dart';
 
 class Dataset extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'Dataset', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
-    ..m<$core.String, $core.String>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'options', entryClassName: 'Dataset.OptionsEntry', keyFieldType: $pb.PbFieldType.OS, valueFieldType: $pb.PbFieldType.OS, packageName: const $pb.PackageName('api.v1'))
-    ..aOS(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasetPath')
+    ..e<EmulatorType>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: EmulatorType.EMULATOR_TYPE_UNSPECIFIED, valueOf: EmulatorType.valueOf, enumValues: EmulatorType.values)
+    ..m<$core.String, $core.String>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'options', entryClassName: 'Dataset.OptionsEntry', keyFieldType: $pb.PbFieldType.OS, valueFieldType: $pb.PbFieldType.OS, packageName: const $pb.PackageName('api.v1'))
+    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasetPath')
     ..hasRequiredFields = false
   ;
 
   Dataset._() : super();
   factory Dataset({
+    EmulatorType? type,
     $core.Map<$core.String, $core.String>? options,
     $core.String? datasetPath,
   }) {
     final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
     if (options != null) {
       _result.options.addAll(options);
     }
@@ -74,16 +79,25 @@ class Dataset extends $pb.GeneratedMessage {
   static Dataset? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.Map<$core.String, $core.String> get options => $_getMap(0);
+  EmulatorType get type => $_getN(0);
+  @$pb.TagNumber(1)
+  set type(EmulatorType v) { setField(1, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
 
   @$pb.TagNumber(2)
-  $core.String get datasetPath => $_getSZ(1);
-  @$pb.TagNumber(2)
-  set datasetPath($core.String v) { $_setString(1, v); }
-  @$pb.TagNumber(2)
-  $core.bool hasDatasetPath() => $_has(1);
-  @$pb.TagNumber(2)
-  void clearDatasetPath() => clearField(2);
+  $core.Map<$core.String, $core.String> get options => $_getMap(1);
+
+  @$pb.TagNumber(3)
+  $core.String get datasetPath => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set datasetPath($core.String v) { $_setString(2, v); }
+  @$pb.TagNumber(3)
+  $core.bool hasDatasetPath() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearDatasetPath() => clearField(3);
 }
 
 class RunCodeRequest extends $pb.GeneratedMessage {
@@ -91,8 +105,7 @@ class RunCodeRequest extends $pb.GeneratedMessage {
     ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'code')
     ..e<Sdk>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
     ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
-    ..e<EmulatorType>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'emulator', $pb.PbFieldType.OE, defaultOrMaker: EmulatorType.EMULATOR_TYPE_UNSPECIFIED, valueOf: EmulatorType.valueOf, enumValues: EmulatorType.values)
-    ..pc<Dataset>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasets', $pb.PbFieldType.PM, subBuilder: Dataset.create)
+    ..pc<Dataset>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasets', $pb.PbFieldType.PM, subBuilder: Dataset.create)
     ..hasRequiredFields = false
   ;
 
@@ -101,7 +114,6 @@ class RunCodeRequest extends $pb.GeneratedMessage {
     $core.String? code,
     Sdk? sdk,
     $core.String? pipelineOptions,
-    EmulatorType? emulator,
     $core.Iterable<Dataset>? datasets,
   }) {
     final _result = create();
@@ -113,9 +125,6 @@ class RunCodeRequest extends $pb.GeneratedMessage {
     }
     if (pipelineOptions != null) {
       _result.pipelineOptions = pipelineOptions;
-    }
-    if (emulator != null) {
-      _result.emulator = emulator;
     }
     if (datasets != null) {
       _result.datasets.addAll(datasets);
@@ -171,16 +180,7 @@ class RunCodeRequest extends $pb.GeneratedMessage {
   void clearPipelineOptions() => clearField(3);
 
   @$pb.TagNumber(4)
-  EmulatorType get emulator => $_getN(3);
-  @$pb.TagNumber(4)
-  set emulator(EmulatorType v) { setField(4, v); }
-  @$pb.TagNumber(4)
-  $core.bool hasEmulator() => $_has(3);
-  @$pb.TagNumber(4)
-  void clearEmulator() => clearField(4);
-
-  @$pb.TagNumber(5)
-  $core.List<Dataset> get datasets => $_getList(4);
+  $core.List<Dataset> get datasets => $_getList(3);
 }
 
 class RunCodeResponse extends $pb.GeneratedMessage {
@@ -1072,8 +1072,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..e<Sdk>(10, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
     ..e<Complexity>(11, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'complexity', $pb.PbFieldType.OE, defaultOrMaker: Complexity.COMPLEXITY_UNSPECIFIED, valueOf: Complexity.valueOf, enumValues: Complexity.values)
     ..pPS(12, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'tags')
-    ..e<EmulatorType>(13, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'emulator', $pb.PbFieldType.OE, defaultOrMaker: EmulatorType.EMULATOR_TYPE_UNSPECIFIED, valueOf: EmulatorType.valueOf, enumValues: EmulatorType.values)
-    ..pc<Dataset>(14, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasets', $pb.PbFieldType.PM, subBuilder: Dataset.create)
+    ..pc<Dataset>(13, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasets', $pb.PbFieldType.PM, subBuilder: Dataset.create)
     ..hasRequiredFields = false
   ;
 
@@ -1091,7 +1090,6 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     Sdk? sdk,
     Complexity? complexity,
     $core.Iterable<$core.String>? tags,
-    EmulatorType? emulator,
     $core.Iterable<Dataset>? datasets,
   }) {
     final _result = create();
@@ -1130,9 +1128,6 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (tags != null) {
       _result.tags.addAll(tags);
-    }
-    if (emulator != null) {
-      _result.emulator = emulator;
     }
     if (datasets != null) {
       _result.datasets.addAll(datasets);
@@ -1263,16 +1258,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   $core.List<$core.String> get tags => $_getList(11);
 
   @$pb.TagNumber(13)
-  EmulatorType get emulator => $_getN(12);
-  @$pb.TagNumber(13)
-  set emulator(EmulatorType v) { setField(13, v); }
-  @$pb.TagNumber(13)
-  $core.bool hasEmulator() => $_has(12);
-  @$pb.TagNumber(13)
-  void clearEmulator() => clearField(13);
-
-  @$pb.TagNumber(14)
-  $core.List<Dataset> get datasets => $_getList(13);
+  $core.List<Dataset> get datasets => $_getList(12);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {

@@ -65,8 +65,9 @@ enum EmulatorType {
 }
 
 message Dataset {
-  map<string, string> options = 1;
-  string dataset_path = 2;
+  EmulatorType type = 1;
+  map<string, string> options = 2;
+  string dataset_path = 3;
 }
 
 // RunCodeRequest represents a code text and options of SDK which executes the code.
@@ -75,8 +76,7 @@ message RunCodeRequest {
   Sdk sdk = 2;
   // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
   string pipeline_options = 3;
-  EmulatorType emulator = 4;
-  repeated Dataset datasets = 5;
+  repeated Dataset datasets = 4;
 }
 
 // RunCodeResponse contains information of the pipeline uuid.
@@ -188,8 +188,7 @@ message PrecompiledObject{
   Sdk sdk = 10;
   Complexity complexity = 11;
   repeated string tags = 12;
-  EmulatorType emulator = 13;
-  repeated Dataset datasets = 14;
+  repeated Dataset datasets = 13;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk
