@@ -7864,9 +7864,9 @@ batches.
 {{< paragraph class="language-py" >}}
 Note that the typehints on the Batched DoFn are *critical*. This is how
 a Batched DoFn declares what batch type it expects. When this DoFn is ued in a
-pipeline, Beam will expect these typehints to ensure that the input and output
+pipeline, Beam will inspect these typehints to ensure that the input and output
 types are compatible, and to verify that it understands how to create instances
-of this type of Batch (see [Supported Batch Types](#batched-dofn-types)).
+of this type of batch (see [Supported Batch Types](#batched-dofn-types)).
 {{< /paragraph >}}
 
 
@@ -7898,6 +7898,12 @@ the context. Generally, if the inputs to a DoFn are already batched Beam will
 use the batched implementation, otherwise it will use the element-wise
 implementation defined in the `process` method.
 {{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Note that, in this case, there is no need to define `infer_output_type`. This is
+because Beam can get the output type from the typehint on `process`.
+{{< /paragraph >}}
+
 
 
 ### 14.3 Batch Production vs. Batch Consumption {#batched-dofn-batch-production}
@@ -7941,7 +7947,7 @@ Batched DoFns are currently a Python-only feature.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-So far we’ve generally used numpy types in these Batched DoFn implementations -
+So far we’ve used numpy types in these Batched DoFn implementations -
 `np.int64 ` as the element typehint and `np.ndarray` as the corresponding
 batch typehint - but Beam supports typehints from other libraries as well.
 {{< /paragraph >}}
