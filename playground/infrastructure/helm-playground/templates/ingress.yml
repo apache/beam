@@ -26,7 +26,7 @@ metadata:
      app: playground-go
 spec:
   rules:
-  - host: "go.beam-playgroundtest.net"
+  - host: "go.sandboxplayground.com"
     http:
       paths:
       - path: "/*"
@@ -36,7 +36,7 @@ spec:
             name: playground-go
             port:
               number: {{ .Values.service.port }}
-  - host: "java.beam-playgroundtest.net"
+  - host: "java.sandboxplayground.com"
     http:
       paths:
       - path: "/*"
@@ -46,7 +46,7 @@ spec:
             name: playground-java
             port:
               number: {{ .Values.service.port }}
-  - host: "python.beam-playgroundtest.net"
+  - host: "python.sandboxplayground.com"
     http:
       paths:
       - path: "/*"
@@ -56,7 +56,7 @@ spec:
             name: playground-python
             port:
               number: {{ .Values.service.port }}
-  - host: "router.beam-playgroundtest.net"
+  - host: "router.sandboxplayground.com"
     http:
       paths:
       - path: "/*"
@@ -66,7 +66,7 @@ spec:
             name: playground-router
             port:
               number: {{ .Values.service.port }}
-  - host: "scio.beam-playgroundtest.net"
+  - host: "scio.sandboxplayground.com"
     http:
       paths:
       - path: "/*"
@@ -76,7 +76,7 @@ spec:
             name: playground-scio
             port:
               number: {{ .Values.service.port }}
-  - host: "beam-playgroundtest.net"
+  - host: "sandboxplayground.com"
     http:
       paths:
       - path: "/*"

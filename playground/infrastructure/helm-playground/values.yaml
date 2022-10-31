@@ -36,5 +36,6 @@ redis_ip: 10.120.127.21:6379
 project_id: sandbox-playground-002
 registry: us-east1-docker.pkg.dev/sandbox-playground-002/playground-repository
 static_ip_name: pg-static-ip
-tag: delta
+tag: gamma
+dns_name: sandboxplayground.com
     

@@ -294,7 +294,7 @@ task("prepareConfig") {
             commandLine = listOf("terraform", "output", "playground_dns_name")
             standardOutput = stdout
         }
-        extip = stdout.toString().trim().replace(".\"", "")
+        extip = stdout.toString().trim().replace("\"", "").dropLast(1)
         stdout = ByteArrayOutputStream()
         val configFileName = "config.g.dart"
         val modulePath = project(":playground:frontend").projectDir.absolutePath
@@ -381,6 +381,7 @@ task("takeConfig") {
    var registry = ""
    var ipaddrname = ""
    var d_tag = ""
+   var dns_name = ""
    var stdout = ByteArrayOutputStream()
    if (project.hasProperty("docker-tag")) {
         d_tag = project.property("docker-tag") as String
@@ -416,6 +417,12 @@ task("takeConfig") {
    }
    ipaddrname = stdout.toString().trim().replace("\"", "")
    stdout = ByteArrayOutputStream()
+   exec {
+       commandLine = listOf("terraform", "output", "playground_dns_name")
+       standardOutput = stdout
+        }
+   dns_name = stdout.toString().trim().replace("\"", "").dropLast(1)
+   stdout = ByteArrayOutputStream()
 
    val configFileName = "values.yaml"
    val modulePath = project(":playground").projectDir.absolutePath
@@ -446,6 +453,7 @@ project_id: ${proj}
 registry: ${registry}
 static_ip_name: ${ipaddrname}
 tag: $d_tag
+dns_name: $dns_name
     """)
  }
 }
@@ -482,5 +490,17 @@ task ("gkebackend") {
   prepare.mustRunAfter(push)
   front.mustRunAfter(prepare)
   helm.mustRunAfter(front)
-  
 }
+
+task ("stringtest") {
+ group = "deploy"
+ val init = tasks.getByName("terraformInit")
+ val takeConfig = tasks.getByName("takeConfig")
+ val prepare = tasks.getByName("prepareConfig")
+ dependsOn(init)
+ dependsOn(takeConfig)
+ dependsOn(prepare)
+ prepare.mustRunAfter(init)
+ takeConfig.mustRunAfter(prepare)
+}
+
