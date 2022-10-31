@@ -44,6 +44,7 @@
 }
 
 .case-study-list--additional {
+  visibility: hidden;
   @media (min-width: $mobile) and (max-width: $tablet) {
     justify-content: center;
   }
