@@ -183,7 +183,7 @@ class RunInferenceBaseTest(unittest.TestCase):
         metric_results = (
             run_result.metrics().query(MetricsFilter().with_name('failed_batches_counter')))
         num_failed_batches_counter = metric_results['counters'][0]
-        self.assertEqual(num_failed_batches_counter.committed, 1)
+        self.assertGreater(num_failed_batches_counter.committed, 0)
 
   def test_failed_batches_counter_no_failures(self):
     pipeline = TestPipeline()
