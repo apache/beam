@@ -59,10 +59,10 @@ def get_windowed_value(item: t.Any, window_fn: WindowFn) -> WindowedValue:
     windowed_value = item
   elif isinstance(item, TimestampedValue):
     assign_context = WindowFn.AssignContext(item.timestamp, item.value)
-    windowed_value = WindowedValue(item.value, item.timestamp,
-                                   tuple(window_fn.assign(assign_context)))
+    windowed_value = WindowedValue(
+        item.value, item.timestamp, tuple(window_fn.assign(assign_context)))
   else:
-    windowed_value = WindowedValue(item, 0, (GlobalWindow(),))
+    windowed_value = WindowedValue(item, 0, (GlobalWindow(), ))
 
   return windowed_value
 
@@ -82,9 +82,7 @@ class TaggingReceiver(Receiver):
 
 @dataclasses.dataclass
 class OneReceiver(dict):
-  values: t.List[PCollVal] = field(
-    default_factory=list
-  )
+  values: t.List[PCollVal] = field(default_factory=list)
 
   def __missing__(self, key):
     if key not in self:
@@ -106,11 +104,13 @@ class DaskBagOp(abc.ABC):
 
 
 class NoOp(DaskBagOp):
+
   def apply(self, input_bag: OpInput) -> db.Bag:
     return input_bag
 
 
 class Create(DaskBagOp):
+
   def apply(self, input_bag: OpInput) -> db.Bag:
     assert input_bag is None, 'Create expects no input!'
     original_transform = t.cast(_Create, self.transform)
@@ -128,7 +128,8 @@ class ParDo(DaskBagOp):
     args, kwargs = transform.raw_side_inputs
     args = list(args)
     main_input = next(iter(self.applied.main_inputs.values()))
-    window_fn = main_input.windowing.windowfn if hasattr(main_input, "windowing") else None
+    window_fn = main_input.windowing.windowfn if hasattr(
+        main_input, "windowing") else None
 
     context = DoFnContext(label, state=None)
     bundle_finalizer_param = DoFn.BundleFinalizerParam()
@@ -137,24 +138,23 @@ class ParDo(DaskBagOp):
     tagged_receivers = OneReceiver()
 
     output_processor = _OutputHandler(
-      window_fn=window_fn,
-      main_receivers=tagged_receivers[None],
-      tagged_receivers=tagged_receivers,
-      per_element_output_counter=None,
-      output_batch_converter=None,
-      process_yields_batches=False,
-      process_batch_yields_elements=False
-    )
+        window_fn=window_fn,
+        main_receivers=tagged_receivers[None],
+        tagged_receivers=tagged_receivers,
+        per_element_output_counter=None,
+        output_batch_converter=None,
+        process_yields_batches=False,
+        process_batch_yields_elements=False)
 
     do_fn_invoker = DoFnInvoker.create_invoker(
-      do_fn_signature,
-      output_processor,
-      context,
-      None,
-      args,
-      kwargs,
-      user_state_context=None,
-      bundle_finalizer_param=bundle_finalizer_param)
+        do_fn_signature,
+        output_processor,
+        context,
+        None,
+        args,
+        kwargs,
+        user_state_context=None,
+        bundle_finalizer_param=bundle_finalizer_param)
 
     def apply_dofn_to_bundle(items):
       do_fn_invoker.invoke_setup()
@@ -168,10 +168,13 @@ class ParDo(DaskBagOp):
 
       return results
 
-    return input_bag.map(get_windowed_value, window_fn).map_partitions(apply_dofn_to_bundle).flatten()
+    return input_bag.map(
+        get_windowed_value,
+        window_fn).map_partitions(apply_dofn_to_bundle).flatten()
 
 
 class Map(DaskBagOp):
+
   def apply(self, input_bag: OpInput) -> db.Bag:
     transform = t.cast(apache_beam.Map, self.transform)
     args, kwargs = util.insert_values_in_args(
@@ -180,7 +183,9 @@ class Map(DaskBagOp):
 
 
 class GroupByKey(DaskBagOp):
+
   def apply(self, input_bag: OpInput) -> db.Bag:
+
     def key(item):
       return item[0]
 
@@ -192,6 +197,7 @@ class GroupByKey(DaskBagOp):
 
 
 class Flatten(DaskBagOp):
+
   def apply(self, input_bag: OpInput) -> db.Bag:
     assert type(input_bag) is list, 'Must take a sequence of bags!'
     return db.concat(input_bag)
@@ -200,7 +206,7 @@ class Flatten(DaskBagOp):
 TRANSLATIONS = {
     _Create: Create,
     apache_beam.ParDo: ParDo,
-  apache_beam.Map: Map,
-  _GroupByKeyOnly: GroupByKey,
-  _Flatten: Flatten,
+    apache_beam.Map: Map,
+    _GroupByKeyOnly: GroupByKey,
+    _Flatten: Flatten,
 }

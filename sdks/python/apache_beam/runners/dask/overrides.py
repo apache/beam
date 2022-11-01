@@ -44,6 +44,7 @@ class _Create(beam.PTransform):
 @typehints.with_input_types(K)
 @typehints.with_output_types(K)
 class _Reshuffle(beam.PTransform):
+
   def expand(self, input_or_inputs):
     return beam.pvalue.PCollection.from_(input_or_inputs)
 
@@ -59,6 +60,7 @@ class _Read(beam.PTransform):
 @typehints.with_input_types(t.Tuple[K, V])
 @typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
 class _GroupByKeyOnly(beam.PTransform):
+
   def expand(self, input_or_inputs):
     return beam.pvalue.PCollection.from_(input_or_inputs)
 
@@ -73,6 +75,7 @@ class _GroupByKeyOnly(beam.PTransform):
 @typehints.with_input_types(t.Tuple[K, t.Iterable[V]])
 @typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
 class _GroupAlsoByWindow(beam.ParDo):
+
   def __init__(self, windowing):
     super().__init__(_GroupAlsoByWindowDoFn(windowing))
     self.windowing = windowing
@@ -90,18 +93,20 @@ class _GroupByKey(beam.PTransform):
         input_or_inputs
         | "ReifyWindows" >> beam.ParDo(beam.GroupByKey.ReifyWindows())
         | "GroupByKey" >> _GroupByKeyOnly()
-        | "GroupByWindow" >> _GroupAlsoByWindow(input_or_inputs.windowing)
-    )
+        | "GroupByWindow" >> _GroupAlsoByWindow(input_or_inputs.windowing))
 
 
 class _Flatten(beam.PTransform):
+
   def expand(self, input_or_inputs):
     is_bounded = all(pcoll.is_bounded for pcoll in input_or_inputs)
     return beam.pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
 
 
 def dask_overrides() -> t.List[PTransformOverride]:
+
   class CreateOverride(PTransformOverride):
+
     def matches(self, applied_ptransform: AppliedPTransform) -> bool:
       return applied_ptransform.transform.__class__ == beam.Create
 
@@ -110,6 +115,7 @@ def dask_overrides() -> t.List[PTransformOverride]:
       return _Create(t.cast(beam.Create, applied_ptransform.transform).values)
 
   class ReshuffleOverride(PTransformOverride):
+
     def matches(self, applied_ptransform: AppliedPTransform) -> bool:
       return applied_ptransform.transform.__class__ == beam.Reshuffle
 
@@ -118,6 +124,7 @@ def dask_overrides() -> t.List[PTransformOverride]:
       return _Reshuffle()
 
   class ReadOverride(PTransformOverride):
+
     def matches(self, applied_ptransform: AppliedPTransform) -> bool:
       return applied_ptransform.transform.__class__ == beam.io.Read
 
@@ -126,6 +133,7 @@ def dask_overrides() -> t.List[PTransformOverride]:
       return _Read(t.cast(beam.io.Read, applied_ptransform.transform).source)
 
   class GroupByKeyOverride(PTransformOverride):
+
     def matches(self, applied_ptransform: AppliedPTransform) -> bool:
       return applied_ptransform.transform.__class__ == beam.GroupByKey
 
@@ -134,6 +142,7 @@ def dask_overrides() -> t.List[PTransformOverride]:
       return _GroupByKey()
 
   class FlattenOverride(PTransformOverride):
+
     def matches(self, applied_ptransform: AppliedPTransform) -> bool:
       return applied_ptransform.transform.__class__ == beam.Flatten
 
@@ -142,9 +151,9 @@ def dask_overrides() -> t.List[PTransformOverride]:
       return _Flatten()
 
   return [
-    CreateOverride(),
-    ReshuffleOverride(),
-    ReadOverride(),
-    GroupByKeyOverride(),
-    FlattenOverride(),
+      CreateOverride(),
+      ReshuffleOverride(),
+      ReadOverride(),
+      GroupByKeyOverride(),
+      FlattenOverride(),
   ]

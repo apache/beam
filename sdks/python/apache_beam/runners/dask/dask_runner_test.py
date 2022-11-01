@@ -33,6 +33,7 @@ except (ImportError, ModuleNotFoundError):
 
 
 class DaskOptionsTest(unittest.TestCase):
+
   def test_parses_connection_timeout__defaults_to_none(self):
     default_options = PipelineOptions([])
     default_dask_options = default_options.view_as(DaskOptions)
@@ -65,6 +66,7 @@ class DaskOptionsTest(unittest.TestCase):
 
 class DaskRunnerRunPipelineTest(unittest.TestCase):
   """Test class used to introspect the dask runner via a debugger."""
+
   def setUp(self) -> None:
     self.pipeline = test_pipeline.TestPipeline(runner=DaskRunner())
 
@@ -74,6 +76,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([1]))
 
   def test_create_and_map(self):
+
     def double(x):
       return x * 2
 
@@ -82,16 +85,16 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([2]))
 
   def test_create_map_and_groupby(self):
+
     def double(x):
       return x * 2, x
 
     with self.pipeline as p:
       pcoll = p | beam.Create([1]) | beam.Map(double) | beam.GroupByKey()
-      assert_that(pcoll, equal_to([
-        (2, [1])
-      ]))
+      assert_that(pcoll, equal_to([(2, [1])]))
 
   def test_map_with_side_inputs(self):
+
     def mult_by(x, y):
       return x * y
 
@@ -100,6 +103,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([3]))
 
   def test_map_with_named_side_inputs(self):
+
     def mult_by(x, y):
       return x * y
 
