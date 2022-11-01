@@ -80,7 +80,7 @@ public class ResourceManagerUtilsTest {
   }
 
   @Test
-  public void testGenerateResourceIdShouldReplaceUpperCaseLettersWithLowerCase() {
+  public void testGenerateResourceIdShouldReplaceUpperCaseLettersWithHyphen() {
     String testBaseString = "Test-Instance";
 
     String actual =
@@ -91,7 +91,7 @@ public class ResourceManagerUtilsTest {
             MAX_INSTANCE_ID_LENGTH,
             TIME_FORMAT);
 
-    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("-est--nstance-\\d{8}-\\d{6}-\\d{6}");
   }
 
   @Test

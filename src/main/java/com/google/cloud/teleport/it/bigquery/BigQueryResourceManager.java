@@ -15,10 +15,9 @@
  */
 package com.google.cloud.teleport.it.bigquery;
 
-import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.InsertAllRequest.RowToInsert;
 import com.google.cloud.bigquery.Schema;
-import com.google.common.collect.ImmutableList;
+import com.google.cloud.bigquery.TableResult;
 import java.util.List;
 
 /** Interface for managing BigQuery resources in integration tests. */
@@ -31,6 +30,13 @@ public interface BigQueryResourceManager {
    * @throws BigQueryResourceManagerException if there is an error creating the dataset in BigQuery.
    */
   void createDataset(String region);
+
+  /**
+   * Return the dataset ID this Resource Manager uses to create and manage tables in.
+   *
+   * @return the dataset ID.
+   */
+  String getDatasetId();
 
   /**
    * Creates a table within the current dataset given a table name and schema.
@@ -87,17 +93,17 @@ public interface BigQueryResourceManager {
   void write(String tableName, List<RowToInsert> tableRows);
 
   /**
-   * Reads all the rows in a table. This method requires {@link
-   * BigQueryResourceManager#createTable(String, Schema)} to be called for the target table
-   * beforehand.
+   * Reads all the rows in a table and returns a TableResult containing a JSON string
+   * representation. This method requires {@link BigQueryResourceManager#createTable(String,
+   * Schema)} to be called for the target table beforehand.
    *
    * @param tableName The name of the table to read rows from.
-   * @return A list containing all the rows in the table.
+   * @return A TableResult containing all the rows in the table in JSON.
    * @throws BigQueryResourceManagerException if method is called after resources have been cleaned
    *     up, if the manager object has no dataset, if the table does not exist or if there is an
    *     Exception when attempting to insert the rows.
    */
-  ImmutableList<FieldValueList> readTable(String tableName);
+  TableResult readTable(String tableName);
 
   /**
    * Deletes all created resources (dataset and tables) and cleans up the BigQuery client, making

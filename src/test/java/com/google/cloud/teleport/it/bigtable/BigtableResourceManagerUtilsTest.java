@@ -21,18 +21,13 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.bigtable.admin.v2.models.StorageType;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 /** Unit tests for {@link com.google.cloud.teleport.it.bigtable.BigtableResourceManagerUtils}. */
 @RunWith(JUnit4.class)
 public class BigtableResourceManagerUtilsTest {
-  @Rule public final MockitoRule mockito = MockitoJUnit.rule();
-
   private static final String TEST_ID = "test-id";
   private static final String ZONE = "us-central1-a";
   private static final int NUM_NODES = 1;

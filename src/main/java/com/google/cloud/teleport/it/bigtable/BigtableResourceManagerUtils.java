@@ -57,7 +57,7 @@ public final class BigtableResourceManagerUtils {
 
     String clusterId =
         generateResourceId(
-            baseString,
+            baseString.toLowerCase(),
             ILLEGAL_CLUSTER_CHARS,
             REPLACE_CLUSTER_CHAR,
             MAX_CLUSTER_ID_LENGTH,
@@ -76,7 +76,7 @@ public final class BigtableResourceManagerUtils {
    */
   static String generateInstanceId(String baseString) {
     return generateResourceId(
-        baseString,
+        baseString.toLowerCase(),
         ILLEGAL_INSTANCE_ID_CHARS,
         REPLACE_INSTANCE_ID_CHAR,
         MAX_INSTANCE_ID_LENGTH,

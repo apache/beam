@@ -19,6 +19,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,6 +34,7 @@ import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.InsertAllRequest;
 import com.google.cloud.bigquery.InsertAllResponse;
+import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
@@ -302,7 +304,8 @@ public class DefaultBigQueryResourceManagerTest {
   }
 
   @Test
-  public void testReadTableShouldThrowErrorWhenBigQueryFailsToReadRows() {
+  public void testReadTableShouldThrowErrorWhenBigQueryFailsToReadRows()
+      throws InterruptedException {
     // Use mocked dataset object
     when(bigQuery.create(any(DatasetInfo.class))).thenReturn(dataset);
     when(dataset.getDatasetId().getDataset()).thenReturn(DATASET_ID);
@@ -313,13 +316,14 @@ public class DefaultBigQueryResourceManagerTest {
 
     testManager.createTable(TABLE_NAME, schema);
 
-    when(bigQuery.listTableData(any())).thenThrow(BigQueryException.class);
+    doThrow(BigQueryException.class).when(bigQuery).query(any(QueryJobConfiguration.class));
 
     assertThrows(BigQueryResourceManagerException.class, () -> testManager.readTable(TABLE_NAME));
   }
 
   @Test
-  public void testReadTableShouldWorkWhenBigQueryDoesNotThrowAnyError() {
+  public void testReadTableShouldWorkWhenBigQueryDoesNotThrowAnyError()
+      throws InterruptedException {
     // Use mocked dataset object
     when(bigQuery.create(any(DatasetInfo.class))).thenReturn(dataset);
     when(dataset.getDatasetId().getDataset()).thenReturn(DATASET_ID);
@@ -335,7 +339,7 @@ public class DefaultBigQueryResourceManagerTest {
 
     testManager.readTable(TABLE_NAME);
 
-    verify(bigQuery).listTableData(any());
+    verify(bigQuery).query(any(QueryJobConfiguration.class));
   }
 
   @Test

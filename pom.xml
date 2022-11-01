@@ -32,8 +32,14 @@
     <guava.version>31.0.1-jre</guava.version>
     <mockito.version>3.7.7</mockito.version>
     <mockito-inline.version>4.5.1</mockito-inline.version>
+    <mongodb.version>3.12.10</mongodb.version>
     <puppycrawl.version>8.7</puppycrawl.version>
     <dataflow-api.version>v1b3-rev20220920-2.0.0</dataflow-api.version>
+    <re2j.version>1.5</re2j.version>
+    <slf4j.version>1.7.25</slf4j.version>
+    <surefire.version>2.21.0</surefire.version>
+    <testcontainers.version>1.17.5</testcontainers.version>
+    <truth.version>1.0.1</truth.version>
   </properties>
 
   <dependencies>
@@ -99,6 +105,31 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
       <version>${slf4j.version}</version>
+    </dependency>
+
+    <!-- Test Containers -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <version>${testcontainers.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>mongodb</artifactId>
+      <version>${testcontainers.version}</version>
+    </dependency>
+
+    <!-- Third-party drivers -->
+    <dependency>
+      <groupId>org.mongodb</groupId>
+      <artifactId>mongodb-driver-sync</artifactId>
+      <version>${mongodb.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.mongodb</groupId>
+          <artifactId>bson-record-codec</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- Testing -->

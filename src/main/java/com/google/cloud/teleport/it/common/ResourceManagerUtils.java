@@ -75,8 +75,7 @@ public class ResourceManagerUtils {
     checkArgument(baseString.length() != 0, "baseString cannot be empty.");
 
     // next, replace all illegal characters from given string with given replacement character
-    String illegalCharsRemoved =
-        illegalChars.matcher(baseString.toLowerCase()).replaceAll(replaceChar);
+    String illegalCharsRemoved = illegalChars.matcher(baseString).replaceAll(replaceChar);
 
     // finally, append the date/time and return the substring that does not exceed the length limit
     LocalDateTime localDateTime = LocalDateTime.now(ZoneId.of(TIME_ZONE));
