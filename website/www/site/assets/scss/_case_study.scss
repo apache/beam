@@ -44,6 +44,7 @@
 }
 
 .case-study-list--additional {
+  visibility: hidden;
   @media (min-width: $mobile) and (max-width: $tablet) {
     justify-content: center;
   }
@@ -90,6 +91,14 @@
   @media (min-width: $mobile){
     width: 18%;
     margin-right: 0;
+  }
+}
+
+.case-study-used-by-card--with-link {
+  &:hover {
+    .case-study-used-by-card-img {
+      display: block;
+    }
   }
 }
 
