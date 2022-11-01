@@ -21,7 +21,9 @@ import logging
 from apache_beam.examples.inference import pytorch_image_classification
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import FetchMetrics
+from apache_beam.testing import analysis
 from apache_beam.testing.analysis import ChangePointAnalysis
+from apache_beam.testing.analysis import GitHubIssues
 from torchvision import models
 
 _PERF_TEST_MODELS = ['resnet50', 'resnet101', 'resnet152']
@@ -63,22 +65,35 @@ class PytorchVisionBenchmarkTest(LoadTest):
         model_class=model_class,
         model_params=model_params,
         test_pipeline=self.pipeline)
+    pass
 
   def run_change_point_analysis(self):
+    # TODO: Add support for reading from InfluxDB.
     if self.pipeline.get_option('publish_to_big_query'):
       metric_values = FetchMetrics.fetch_from_bq(
           project_name=self.pipeline.get_option('project'),
           dataset=self.pipeline.get_option('metrics_dataset'),
           table=self.pipeline.get_option('metrics_table'),
           metric_name=_RUNINFERENCE_PERFORMANCE_METRIC)
-      change_point_analyzer = ChangePointAnalysis(metric_values)
+
+      change_point_analyzer = ChangePointAnalysis(
+          metric_values, metric_name=_RUNINFERENCE_PERFORMANCE_METRIC)
       # sends 0 or 1 to the GH actions which could trigger an issue if there
       # is a regression
       is_performance_regression = change_point_analyzer.find_change_point()
       if is_performance_regression:
         # if performace regression found,
         # call change_point_analyzer.get_failing_test_description()
-        raise NotImplementedError
+        gh_issue = GitHubIssues()
+        try:
+          gh_issue.create_or_update_issue(
+              title=analysis.TITLE_TEMPLATE,
+              description=change_point_analyzer.get_failing_test_description(),
+              labels=analysis.GH_ISSUE_LABELS)
+        except:
+          raise Exception(
+              'Performance regression detected. Failed to file '
+              'a Github issue.')
 
 
 if __name__ == '__main__':
