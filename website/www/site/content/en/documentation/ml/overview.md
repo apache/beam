@@ -47,12 +47,26 @@ Further reading:
 
 ## Inference
 
-There are several ways to use and deploy your model:
-1. Making it available for online predictions via an API
-2. Running it in real-time as new data becomes available in a pipeline
-3. Running it in batch on an existing dataset
+Beam provides different ways of implementing inference as part of your pipeline. This way you can run your ML model directly in your pipeline and apply it on big scale datasets, both in batch and streaming pipelines.
 
-Beam is ideally suitable for the last 2 use cases. In this case your data will run through a pipeline (streaming or batch), and you can obtain predictions by running inference in one of the steps of your pipeline. Beam provides the [RunInference API](https://beam.apache.org/documentation/sdks/python-machine-learning/) to facilitate the integration of your model into a pipeline step. When running your model, a common requirement is to enable GPU execution. Beam also provides support for this.
+### RunInference
+The recommended way to implement inference is by using the [RunInference API](https://beam.apache.org/documentation/sdks/python-machine-learning/). RunInference takes advantage of existing Apache Beam concepts, such as the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.
+
+You can easily integrate your model in your pipeline by using the corresponding model handlers. A `ModelHandler` is an object that wraps the underlying model and allows you to configure its parameters. Model handlers are available for PyTorch, Scikit-learn and TensorFlow. Examples of how to use RunInference for PyTorch, Scikit-learn and TensorFlow are shown in this [notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch_tensorflow_sklearn.ipynb).
+
+GPUs are optimized for training artificial intelligence and deep learning models as they can process multiple computations simultaneously. RunInference also allows you to use GPUs for significant inference speedup. An example of how to use RunInference with GPUs is demonstrated [here](/documentation/ml/runinference-metrics).
+
+### Custom Inference
+As of now, RunInference API doesn't support making remote inference calls (e.g. Natural Language API, Cloud Vision API and others). Therefore, in order to use these remote APIs with Beam, one needs to write custom inference call. The [notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb) shows how you can implement such a custom remote inference call using `beam.DoFn`. While implementing such a remote inference for real life projects, you need to think about following:
+
+* API quotas and the heavy load you might incur on your external API. For optimizing the calls to external API, you can confgure `PipelineOptions` to limit the parallel calls to the external remote API.
+
+* You must be prepared to encounter, identify, and handle failure as gracefully as possible. We recommend using techniques like `Exponential backoff` and `Dead letter queues`.
+
+* When running inference with an external API, you should batch your input together to allow for more efficient execution.
+
+* You should consider monitoring and measuring performance of a pipeline when deploying since monitoring can provide insight into the status and health of the application.
+
 
 ## Orchestrators
 
