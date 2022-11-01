@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
@@ -140,9 +141,21 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     LOG.info("Beam pipeline JSON graph:\n{}", jsonGraph);
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
+    /* Map of stateId to sanitized (remove whitespace and replace '-' with '_') PTransform name, used in multiple ParDos
+    (eg) @StateId("foo") used in two ParDos:
+        .apply("First Stateful ParDo with same stateId", ParDo.of(fn))
+        .apply("Second Stateful ParDo with same stateId", ParDo.of(fn2))
+    Map = ("foo", "First_Stateful_ParDo_with_same_stateId")
+    This will be populated with the key of stateId and value as the sanitized ParDo name. This map will be used to
+    identify the stateId used in multiple ParDos and rewrite RocksDB configs. */
+    final Map<String, String> multiParDoStateIdMap = new HashMap<>();
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
 
-    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+    SamzaPipelineTranslator.createConfig(
+        pipeline, options, idMap, multiParDoStateIdMap, configBuilder);
+    SamzaPipelineTranslator.rewriteConfigWithMultiParDoStateId(
+        options, multiParDoStateIdMap, configBuilder);
+
     configBuilder.put(BEAM_DOT_GRAPH, dotGraph);
     configBuilder.put(BEAM_JSON_GRAPH, jsonGraph);
 
@@ -155,6 +168,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
     final SamzaExecutionContext executionContext = new SamzaExecutionContext(options);
     final Map<String, MetricsReporterFactory> reporterFactories = getMetricsReporters();
+    final Set<String> multiParDoStateIds = multiParDoStateIdMap.keySet();
 
     final StreamApplication app =
         appDescriptor -> {
@@ -162,7 +176,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
           appDescriptor.withMetricsReporterFactories(reporterFactories);
 
           SamzaPipelineTranslator.translate(
-              pipeline, new TranslationContext(appDescriptor, idMap, options));
+              pipeline, new TranslationContext(appDescriptor, idMap, multiParDoStateIds, options));
         };
 
     // perform a final round of validation for the pipeline options now that all configs are

@@ -83,6 +83,7 @@ public class TranslationContext {
   private final Map<PValue, String> idMap;
   private final Map<String, MessageStream> registeredInputStreams = new HashMap<>();
   private final Map<String, Table> registeredTables = new HashMap<>();
+  private final Set<String> multiParDoStateIds;
   private final SamzaPipelineOptions options;
   private final HashIdGenerator idGenerator = new HashIdGenerator();
 
@@ -91,9 +92,11 @@ public class TranslationContext {
   public TranslationContext(
       StreamApplicationDescriptor appDescriptor,
       Map<PValue, String> idMap,
+      Set<String> multiParDoStateIds,
       SamzaPipelineOptions options) {
     this.appDescriptor = appDescriptor;
     this.idMap = idMap;
+    this.multiParDoStateIds = multiParDoStateIds;
     this.options = options;
   }
 
@@ -247,6 +250,19 @@ public class TranslationContext {
 
   public String getTransformId() {
     return idGenerator.getId(getTransformFullName());
+  }
+
+  /** Given a set of user stateIds and parDo name, return a stateId to storeId map. */
+  public Map<String, String> getStateIdToStoreIdMap(Set<String> stateIds, String escapedParDoName) {
+    final Map<String, String> storeIds = new HashMap<>();
+    stateIds.forEach(
+        stateId ->
+            storeIds.put(
+                stateId,
+                multiParDoStateIds.contains(stateId)
+                    ? String.join("-", stateId, escapedParDoName)
+                    : stateId));
+    return storeIds;
   }
 
   /** The dummy stream created will only be used in Beam tests. */

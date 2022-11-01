@@ -28,6 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -161,6 +162,16 @@ class ParDoBoundMultiTranslator<InT, OutT>
     Map<String, PCollectionView<?>> sideInputMapping =
         ParDoTranslation.getSideInputMapping(ctx.getCurrentTransform());
 
+    final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
+    final Map<String, String> userStateIdToStoreIdMap;
+    if (DoFnSignatures.isStateful(transform.getFn())) {
+      final Set<String> stateIds = signature.stateDeclarations().keySet();
+      final String escapedParDoName =
+          SamzaPipelineTranslatorUtils.escape(node.getEnclosingNode().getFullName());
+      userStateIdToStoreIdMap = ctx.getStateIdToStoreIdMap(stateIds, escapedParDoName);
+    } else {
+      userStateIdToStoreIdMap = Collections.emptyMap();
+    }
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
             transform.getMainOutputTag(),
@@ -182,7 +193,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             null,
             Collections.emptyMap(),
             doFnSchemaInformation,
-            sideInputMapping);
+            sideInputMapping,
+            userStateIdToStoreIdMap);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {
@@ -333,7 +345,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
             ctx.getJobInfo(),
             idToTupleTagMap,
             doFnSchemaInformation,
-            sideInputMapping);
+            sideInputMapping,
+            // TODO: populate this for portable
+            Collections.emptyMap());
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {
@@ -377,25 +391,21 @@ class ParDoBoundMultiTranslator<InT, OutT>
     if (signature.usesState()) {
       // set up user state configs
       for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
-        final String storeId = state.id();
-
-        // TODO: remove validation after we support same state id in different ParDo.
-        if (!ctx.addStateId(storeId)) {
-          throw new IllegalStateException(
-              "Duplicate StateId " + storeId + " found in multiple ParDo.");
-        }
-
+        final String userStateId = state.id();
+        final String escapedParDoName =
+            SamzaPipelineTranslatorUtils.escape(node.getEnclosingNode().getFullName());
+        final String uniqueStoreId = ctx.getUniqueStoreId(userStateId, escapedParDoName);
         config.put(
-            "stores." + storeId + ".factory",
+            "stores." + uniqueStoreId + ".factory",
             "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
-        config.put("stores." + storeId + ".key.serde", "byteArraySerde");
-        config.put("stores." + storeId + ".msg.serde", "stateValueSerde");
-        config.put("stores." + storeId + ".rocksdb.compression", "lz4");
+        config.put("stores." + uniqueStoreId + ".key.serde", "byteArraySerde");
+        config.put("stores." + uniqueStoreId + ".msg.serde", "stateValueSerde");
+        config.put("stores." + uniqueStoreId + ".rocksdb.compression", "lz4");
 
         if (options.getStateDurable()) {
           config.put(
-              "stores." + storeId + ".changelog",
-              ConfigBuilder.getChangelogTopic(options, storeId));
+              "stores." + uniqueStoreId + ".changelog",
+              ConfigBuilder.getChangelogTopic(options, uniqueStoreId));
         }
       }
     }
