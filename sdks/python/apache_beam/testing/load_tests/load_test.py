@@ -142,13 +142,6 @@ class LoadTest(object):
     """An abstract method that executes after the test method."""
     pass
 
-  def run_change_point_analysis(self):
-    """
-    An abstract method that executes after metrics are
-    published to InfluxDB/BQ
-    """
-    pass
-
   def run(self):
     try:
       self.test()
@@ -157,7 +150,6 @@ class LoadTest(object):
         # Defaults to waiting forever, unless timeout_ms has been set
         self.result.wait_until_finish(duration=self.timeout_ms)
       self._metrics_monitor.publish_metrics(self.result, self.extra_metrics)
-      self.run_change_point_analysis()
     finally:
       self.cleanup()
 

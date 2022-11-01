@@ -18,11 +18,14 @@ import json
 import os
 import requests
 import sys
+import yaml
+import logging
 from typing import Dict
 from typing import List
 from typing import Optional
 
 from apache_beam.testing.load_tests import load_test_metrics_utils
+from apache_beam.testing.load_tests.load_test_metrics_utils import FetchMetrics
 
 TITLE_TEMPLATE = """
   Performance regression found in the test: {}
@@ -34,7 +37,7 @@ _METRIC_DESCRIPTION = """
 _METRIC_INFO = """
   timestamp: {} metric_name: {}, metric_value: {}
 """
-GH_ISSUE_LABELS = ['testing']
+GH_ISSUE_LABELS = ['testing', 'P2']
 
 
 class ChangePointAnalysis:
@@ -124,3 +127,47 @@ class GitHubIssues:
 
     response = requests.get(url=query, headers=self.headers)
     return response.json()
+
+
+class RunChangePointAnalysis:
+  def __init__(self):
+    pass
+
+  def run_analysis(self, file_path):
+    with open(file_path, 'r') as stream:
+      config = yaml.safe_load(stream)
+    metric_name = config['metric_name']
+    if config['source'] == 'biq_query':
+      metric_values = FetchMetrics.fetch_from_bq(
+          project_name=config['project'],
+          dataset=config['metrics_dataset'],
+          table=config['metrics_table'],
+          metric_name=metric_name)
+
+      change_point_analyzer = ChangePointAnalysis(
+          metric_values, metric_name=metric_name)
+      # sends 0 or 1 to the GH actions which could trigger an issue if there
+      # is a regression
+      is_performance_regression = change_point_analyzer.find_change_point()
+      if is_performance_regression:
+        # if performace regression found,
+        # call change_point_analyzer.get_failing_test_description()
+        gh_issue = GitHubIssues()
+        try:
+          gh_issue.create_or_update_issue(
+              title=TITLE_TEMPLATE,
+              description=change_point_analyzer.get_failing_test_description(),
+              labels=GH_ISSUE_LABELS)
+        except:
+          raise Exception(
+              'Performance regression detected. Failed to file '
+              'a Github issue.')
+    elif config['source'] == 'influxDB':
+      raise NotImplementedError
+    else:
+      raise NotImplementedError
+
+
+if __name__ == '__main__':
+  logging.basicConfig(level=logging.INFO)
+  RunChangePointAnalysis.run_analysis('./tests_config.yaml')
