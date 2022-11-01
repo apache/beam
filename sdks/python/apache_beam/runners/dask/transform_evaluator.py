@@ -22,29 +22,30 @@ to Dask Bag functions.
 
 TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
 """
-import abc
 import dataclasses
-import typing as t
 from dataclasses import field
 
+import abc
 import dask.bag as db
+import typing as t
+
 
 import apache_beam
-from apache_beam import TaggedOutput
 from apache_beam import DoFn
+from apache_beam import TaggedOutput
 from apache_beam.internal import util
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.runners.common import DoFnContext
+from apache_beam.runners.common import DoFnInvoker
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.common import _OutputHandler
-from apache_beam.runners.common import DoFnInvoker
 from apache_beam.runners.dask.overrides import _Create
 from apache_beam.runners.dask.overrides import _Flatten
 from apache_beam.runners.dask.overrides import _GroupByKeyOnly
+from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
-from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.windowed_value import WindowedValue
 
 OpInput = t.Union[db.Bag, t.Sequence[db.Bag], None]

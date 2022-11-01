@@ -24,10 +24,11 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
-  from apache_beam.runners.dask.dask_runner import DaskOptions
-  from apache_beam.runners.dask.dask_runner import DaskRunner
   import dask
   import dask.distributed as ddist
+
+  from apache_beam.runners.dask.dask_runner import DaskOptions
+  from apache_beam.runners.dask.dask_runner import DaskRunner
 except (ImportError, ModuleNotFoundError):
   raise unittest.SkipTest('Dask must be installed to run tests.')
 

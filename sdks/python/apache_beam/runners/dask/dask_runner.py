@@ -21,8 +21,9 @@ The DaskRunner is a runner implementation that executes a graph of
 transformations across processes and workers via Dask distributed's
 scheduler.
 """
-import argparse
 import dataclasses
+
+import argparse
 import typing as t
 
 from apache_beam import pvalue
@@ -35,11 +36,7 @@ from apache_beam.runners.dask.transform_evaluator import NoOp
 from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineState
-from apache_beam.transforms.window import WindowFn
-from apache_beam.transforms.window import TimestampedValue
-from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.interactive_utils import is_in_notebook
-from apache_beam.utils.windowed_value import WindowedValue
 
 
 class DaskOptions(PipelineOptions):
