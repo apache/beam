@@ -104,13 +104,11 @@ class DaskBagOp(abc.ABC):
 
 
 class NoOp(DaskBagOp):
-
   def apply(self, input_bag: OpInput) -> db.Bag:
     return input_bag
 
 
 class Create(DaskBagOp):
-
   def apply(self, input_bag: OpInput) -> db.Bag:
     assert input_bag is None, 'Create expects no input!'
     original_transform = t.cast(_Create, self.transform)
@@ -119,7 +117,6 @@ class Create(DaskBagOp):
 
 
 class ParDo(DaskBagOp):
-
   def apply(self, input_bag: OpInput) -> db.Bag:
     transform = t.cast(apache_beam.ParDo, self.transform)
 
@@ -174,7 +171,6 @@ class ParDo(DaskBagOp):
 
 
 class Map(DaskBagOp):
-
   def apply(self, input_bag: OpInput) -> db.Bag:
     transform = t.cast(apache_beam.Map, self.transform)
     args, kwargs = util.insert_values_in_args(
@@ -183,9 +179,7 @@ class Map(DaskBagOp):
 
 
 class GroupByKey(DaskBagOp):
-
   def apply(self, input_bag: OpInput) -> db.Bag:
-
     def key(item):
       return item[0]
 
@@ -197,7 +191,6 @@ class GroupByKey(DaskBagOp):
 
 
 class Flatten(DaskBagOp):
-
   def apply(self, input_bag: OpInput) -> db.Bag:
     assert type(input_bag) is list, 'Must take a sequence of bags!'
     return db.concat(input_bag)
