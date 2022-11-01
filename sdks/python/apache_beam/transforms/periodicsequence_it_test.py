@@ -43,31 +43,29 @@ from apache_beam.transforms.periodicsequence import PeriodicSequence
 class PeriodicSequenceIT(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
-    self.runner_name = type(self.test_pipeline.runner).__name__
-    self.project = self.test_pipeline.get_option('project')
 
   @pytest.mark.it_postcommit
   @pytest.mark.sickbay_direct
   @pytest.mark.sickbay_spark
-  @pytest.mark.sickbay_flink
   @pytest.mark.timeout(
-      900)  # Timeout after 15 minutes to give Dataflow some extra time
+      1800)  # Timeout after 30 minutes to give Dataflow some extra time
   def test_periodicsequence_outputs_valid_watermarks_it(self):
     """Tests periodic sequence with watermarks on dataflow.
     For testing that watermarks are being correctly emitted,
     we make sure that there's not a long gap between an element being
     emitted and being correctly aggregated.
     """
-    class DoFnWithLongGaps(DoFn):
+    class FindLongGaps(DoFn):
       def process(self, element):
-        now = time.time()
-        if now - element[0] > 25:
-          yield (element[0], now)
+        emitted_at, unused_count = element
+        processed_at = time.time()
+        if processed_at - emitted_at > 25:
+          yield ('Elements emitted took too long to process.', emitted_at, processed_at)
 
     start_time = time.time()
     # Run long enough for Dataflow to start up
-    duration = 540
-    end_time = start_time + duration
+    duration_sec = 540
+    end_time = start_time + duration_sec
     interval = 1
 
     res = (
@@ -79,13 +77,10 @@ class PeriodicSequenceIT(unittest.TestCase):
             window.FixedWindows(2),
             accumulation_mode=trigger.AccumulationMode.DISCARDING)
         | beam.combiners.Count.PerElement()
-        | beam.ParDo(DoFnWithLongGaps()))
+        | beam.ParDo(FindLongGaps()))
     assert_that(res, is_empty())
 
-    proto_pipeline, _ = self.test_pipeline.to_runner_api(return_context=True)
-    pipeline_from_proto = Pipeline.from_runner_api(
-        proto_pipeline, self.test_pipeline.runner, self.test_pipeline._options)
-    pipeline_from_proto.run().wait_until_finish()
+    self.test_pipeline.run().wait_until_finish()
 
 
 if __name__ == '__main__':
