@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,55 +15,54 @@
 # limitations under the License.
 #
 
-"""Test for the wordcount example."""
-
+"""End-to-end test for Custom PTransform example."""
 # pytype: skip-file
 
-import collections
 import logging
-import re
 import unittest
 import uuid
 
 import pytest
 
-from apache_beam.examples.dataframe import wordcount
+from apache_beam.examples.cookbook import custom_ptransform
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import create_file
 from apache_beam.testing.test_utils import read_files_from_pattern
 
 
-class WordCountTest(unittest.TestCase):
+def format_result(result_string):
+  def format_tuple(result_elem_list):
+    [country, counter] = result_elem_list
+    return country, int(counter.strip())
 
-  SAMPLE_TEXT = """
-  a
-  a b
-  a b c
-  loooooonger words
-  """
+  result_list = list(
+      map(
+          lambda result_elem: format_tuple(result_elem.split(',')),
+          result_string.replace('\'', '').replace('[',
+                                                  '').replace(']', '').replace(
+                                                      '\"', '').split('\n')))
+  return result_list
+
+
+class CustomPTransformIT(unittest.TestCase):
+  WORDS = ['CAT', 'DOG', 'CAT', 'CAT', 'DOG']
+  EXPECTED_RESULT = "('CAT DOG CAT CAT DOG', 2)"
 
   @pytest.mark.examples_postcommit
-  def test_basics(self):
+  def test_custom_ptransform_output_files_on_small_input(self):
     test_pipeline = TestPipeline(is_integration_test=True)
+
     # Setup the files with expected content.
     temp_location = test_pipeline.get_option('temp_location')
-    temp_path = '/'.join([temp_location, str(uuid.uuid4())])
-    input = create_file('/'.join([temp_path, 'input.txt']), self.SAMPLE_TEXT)
-    expected_words = collections.defaultdict(int)
-    for word in re.findall(r'[\w]+', self.SAMPLE_TEXT):
-      expected_words[word] += 1
-    extra_opts = {'input': input, 'output': '%s.result' % temp_path}
-    wordcount.run(test_pipeline.get_full_options_as_args(**extra_opts))
-    # Parse result file and compare.
-    results = []
-    lines = read_files_from_pattern(temp_path + '.result*').splitlines()
-    for line in lines:
-      match = re.search(r'(\S+),([0-9]+)', line)
-      if match is not None:
-        results.append((match.group(1), int(match.group(2))))
-      elif line.strip():
-        self.assertEqual(line.strip(), 'word,count')
-    self.assertEqual(sorted(results), sorted(expected_words.items()))
+    input = '/'.join([temp_location, str(uuid.uuid4()), 'input.txt'])
+    output = '/'.join([temp_location, str(uuid.uuid4()), 'result'])
+    create_file(input, ' '.join(self.WORDS))
+    extra_opts = {'input': input, 'output': output}
+    custom_ptransform.run(test_pipeline.get_full_options_as_args(**extra_opts))
+
+    # Load result file and compare.
+    result = read_files_from_pattern('%s*' % output).strip()
+    self.assertEqual(result, self.EXPECTED_RESULT)
 
 
 if __name__ == '__main__':
