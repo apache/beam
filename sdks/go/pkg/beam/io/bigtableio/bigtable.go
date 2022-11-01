@@ -25,12 +25,13 @@ import (
 
 	"cloud.google.com/go/bigtable"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf(writeFn{}))
-	beam.RegisterType(reflect.TypeOf(writeBatchFn{}))
-	beam.RegisterType(reflect.TypeOf(Mutation{}))
+	register.DoFn3x1[context.Context, int, func(*Mutation) bool, error](&writeFn{})
+	register.DoFn3x1[context.Context, int, func(*Mutation) bool, error](&writeBatchFn{})
+	register.Iter1[*Mutation]()
 }
 
 // Mutation represents a necessary serializable wrapper analogue
