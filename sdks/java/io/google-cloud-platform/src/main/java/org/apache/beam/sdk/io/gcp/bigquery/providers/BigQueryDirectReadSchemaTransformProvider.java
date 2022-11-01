@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
@@ -27,6 +28,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
@@ -94,6 +96,26 @@ public class BigQueryDirectReadSchemaTransformProvider
   @AutoValue
   public abstract static class BigQueryDirectReadSchemaTransformConfiguration {
 
+    public void validate() {
+      String invalidConfigMessage = "Invalid BigQuery Direct Read configuration: ";
+      if (!Strings.isNullOrEmpty(this.getTableSpec())) {
+        checkNotNull(BigQueryHelpers.parseTableSpec(this.getTableSpec()));
+        checkArgument(
+            Strings.isNullOrEmpty(this.getQuery()),
+            invalidConfigMessage + "Cannot specify both query and table spec.");
+      } else {
+        checkArgument(
+            !Strings.isNullOrEmpty(this.getQuery()),
+            invalidConfigMessage + "Either a query or table spec needs to be specified.");
+        checkArgument(
+            Strings.isNullOrEmpty(this.getRowRestriction()),
+            invalidConfigMessage + "Row restriction can only be specified when using table spec.");
+        checkArgument(
+            this.getSelectedFields() == null,
+            invalidConfigMessage + "Selected fields can only be specified when using table spec.");
+      }
+    }
+
     /** Instantiates a {@link BigQueryDirectReadSchemaTransformConfiguration.Builder} instance. */
     public static Builder builder() {
       return new AutoValue_BigQueryDirectReadSchemaTransformProvider_BigQueryDirectReadSchemaTransformConfiguration
@@ -136,13 +158,15 @@ public class BigQueryDirectReadSchemaTransformProvider
   /**
    * A {@link SchemaTransform} for BigQuery Storage Read API, configured with {@link
    * BigQueryDirectReadSchemaTransformConfiguration} and instantiated by {@link
-   * BigQueryDirectReadSchemaTransformProvider}
+   * BigQueryDirectReadSchemaTransformProvider}.
    */
   private static class BigQueryDirectReadSchemaTransform implements SchemaTransform {
     private final BigQueryDirectReadSchemaTransformConfiguration configuration;
 
     BigQueryDirectReadSchemaTransform(
         BigQueryDirectReadSchemaTransformConfiguration configuration) {
+      // Validate configuration parameters before PTransform expansion
+      configuration.validate();
       this.configuration = configuration;
     }
 
@@ -184,18 +208,18 @@ public class BigQueryDirectReadSchemaTransformProvider
       BigQueryIO.TypedRead<TableRow> read =
           BigQueryIO.readTableRowsWithSchema().withMethod(TypedRead.Method.DIRECT_READ);
 
-      if (!Strings.isNullOrEmpty(configuration.getQuery())) {
-        read = read.fromQuery(configuration.getQuery());
-      }
       if (!Strings.isNullOrEmpty(configuration.getTableSpec())) {
         read = read.from(configuration.getTableSpec());
+        if (!Strings.isNullOrEmpty(configuration.getRowRestriction())) {
+          read = read.withRowRestriction(configuration.getRowRestriction());
+        }
+        if (configuration.getSelectedFields() != null) {
+          read = read.withSelectedFields(configuration.getSelectedFields());
+        }
+      } else {
+        read = read.fromQuery(configuration.getQuery());
       }
-      if (!Strings.isNullOrEmpty(configuration.getRowRestriction())) {
-        read = read.withRowRestriction(configuration.getRowRestriction());
-      }
-      if (configuration.getSelectedFields() != null) {
-        read = read.withSelectedFields(configuration.getSelectedFields());
-      }
+
       if (configuration.getBigQueryServices() != null) {
         read = read.withTestServices(configuration.getBigQueryServices());
       }

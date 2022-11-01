@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -198,6 +199,31 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
                         .setAtResponseStart(progressAtResponseStart)
                         .setAtResponseEnd(progressAtResponseEnd)))
         .build();
+  }
+
+  @Test
+  public void testValidateConfig() {
+    List<BigQueryDirectReadSchemaTransformConfiguration> invalidConfigs =
+        Arrays.asList(
+            BigQueryDirectReadSchemaTransformConfiguration.builder()
+                .setQuery("SELECT * FROM project:dataset.table")
+                .setTableSpec("project:dataset.table")
+                .build(),
+            BigQueryDirectReadSchemaTransformConfiguration.builder()
+                .setQuery("SELECT * FROM project:dataset.table")
+                .setRowRestriction("num > 10")
+                .build(),
+            BigQueryDirectReadSchemaTransformConfiguration.builder()
+                .setTableSpec("not a table spec")
+                .build());
+
+    for (BigQueryDirectReadSchemaTransformConfiguration config : invalidConfigs) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> {
+            config.validate();
+          });
+    }
   }
 
   @Test
