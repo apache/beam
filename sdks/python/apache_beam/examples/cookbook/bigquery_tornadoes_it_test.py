@@ -39,36 +39,37 @@ class BigqueryTornadoesIT(unittest.TestCase):
   # from expected Bigquery table.
   DEFAULT_CHECKSUM = 'd860e636050c559a16a791aff40d6ad809d4daf0'
 
+  def setUp(self):
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+
+    # Set extra options to the pipeline for test purpose
+    self.project = self.test_pipeline.get_option('project')
+
+    self.dataset = 'BigQueryTornadoesIT'
+    self.table = 'monthly_tornadoes_%s' % int(round(time.time() * 1000))
+
   @pytest.mark.examples_postcommit
   @pytest.mark.it_postcommit
   def test_bigquery_tornadoes_it(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
-
-    # Set extra options to the pipeline for test purpose
-    project = test_pipeline.get_option('project')
-
-    dataset = 'BigQueryTornadoesIT'
-    table = 'monthly_tornadoes_%s' % int(round(time.time() * 1000))
-    output_table = '.'.join([dataset, table])
+    output_table = '.'.join([self.dataset, self.table])
     query = 'SELECT month, tornado_count FROM `%s`' % output_table
 
     pipeline_verifiers = [
         PipelineStateMatcher(),
         BigqueryMatcher(
-            project=project, query=query, checksum=self.DEFAULT_CHECKSUM)
+            project=self.project, query=query, checksum=self.DEFAULT_CHECKSUM)
     ]
     extra_opts = {
         'output': output_table,
         'on_success_matcher': all_of(*pipeline_verifiers)
     }
 
-    # Register cleanup before pipeline execution.
-    # Note that actual execution happens in reverse order.
-    self.addCleanup(utils.delete_bq_table, project, dataset, table)
-
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    bigquery_tornadoes.run(test_pipeline.get_full_options_as_args(**extra_opts))
+    bigquery_tornadoes.run(self.test_pipeline.get_full_options_as_args(**extra_opts))
+
+  def tearDown(self):
+    utils.delete_bq_table(self.project, self.dataset, self.table)
 
 
 if __name__ == '__main__':
