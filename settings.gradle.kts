@@ -17,6 +17,25 @@
  */
 
 
+import androidx.build.gradle.gcpbuildcache.GcpBuildCache
+import androidx.build.gradle.gcpbuildcache.GcpBuildCacheServiceFactory
+
+
+// Remote Gradle GCP Cache Dependencies
+buildscript{
+    repositories {
+        mavenCentral()
+        flatDir {
+            dirs(".github/remote-gradle-cache/libs")
+        }
+        
+    }
+    dependencies{
+        classpath("androidx.build.gradle.gcpbuildcache:remote-gcp-gradle-cache:1.0.0-beta01")
+        classpath("com.google.cloud:google-cloud-storage:2.9.3")
+    }
+}
+
 plugins {
   id("com.gradle.enterprise") version "3.4.1" apply false
 }
@@ -40,6 +59,31 @@ if (isJenkinsBuild || isGithubActionsBuild) {
       termsOfServiceAgree = "yes"
       publishAlways()
     }
+  }
+}
+
+// Remote Gradle Cache can be also enabled with the environment variable
+val isRemoteCacheEnabled = System.getenv().containsKey("BEAM_REMOTE_CACHE_ENABLED") 
+var isMasterGHBuild= false
+var isHostedAgent= false
+if(isGithubActionsBuild){
+  isMasterGHBuild =  System.getenv("GITHUB_REPOSITORY_OWNER").equals("apache")
+  isHostedAgent= System.getenv("RUNNER_NAME").equals("Hosted Agent")
+}
+
+// Remote GCP Cache uses default gcloud-cli credentials 
+
+if(isRemoteCacheEnabled || (isMasterGHBuild && !isHostedAgent)) { //Only Self-Hosted Runners currently have a default GCP Service Account
+  
+  buildCache {
+      registerBuildCacheService(GcpBuildCache::class, GcpBuildCacheServiceFactory::class)
+      remote(GcpBuildCache::class) {
+          projectId = "apache-beam-testing"
+          bucketName = "gradle-cache-storage"
+          // Custom service account can be set with :  credentials = ExportedKeyGcpCredentials(File("path/to/credentials.json"))
+          isPush = isMasterGHBuild
+          isEnabled = true
+      }
   }
 }
 
