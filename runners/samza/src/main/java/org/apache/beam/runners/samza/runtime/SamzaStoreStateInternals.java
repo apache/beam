@@ -26,14 +26,12 @@ import java.lang.ref.SoftReference;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -66,7 +64,6 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -99,6 +96,8 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
   // the stores include both beamStore for system states as well as stores for user state
   private final Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores;
+  // map of user-provided stateId to unique storeId
+  private final Map<String, String> stateIdMap;
   private final K key;
   private final byte[] keyBytes;
   private final int batchGetSize;
@@ -106,6 +105,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
   private SamzaStoreStateInternals(
       Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores,
+      Map<String, String> stateIds,
       @Nullable K key,
       byte @Nullable [] keyBytes,
       String stageId,
@@ -115,6 +115,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     this.keyBytes = keyBytes;
     this.batchGetSize = batchGetSize;
     this.stageId = stageId;
+    this.stateIdMap = stateIds;
   }
 
   @SuppressWarnings("unchecked")
@@ -129,18 +130,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
    */
   static <K> Factory<K> createNonKeyedStateInternalsFactory(
       String id, TaskContext context, SamzaPipelineOptions pipelineOptions) {
-    return createStateInternalsFactory(id, null, context, pipelineOptions, Collections.emptySet());
-  }
-
-  static <K> Factory<K> createStateInternalsFactory(
-      String id,
-      Coder<K> keyCoder,
-      TaskContext context,
-      SamzaPipelineOptions pipelineOptions,
-      DoFnSignature signature) {
-
-    return createStateInternalsFactory(
-        id, keyCoder, context, pipelineOptions, signature.stateDeclarations().keySet());
+    return createStateInternalsFactory(id, null, context, pipelineOptions, Collections.emptyMap());
   }
 
   static <K> Factory<K> createStateInternalsFactory(
@@ -149,37 +139,40 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       TaskContext context,
       SamzaPipelineOptions pipelineOptions,
       ExecutableStage executableStage) {
-
-    Set<String> stateIds =
+    // TODO: handle portalbe
+    Map<String, String> stateIds =
         executableStage.getUserStates().stream()
             .map(UserStateReference::localName)
-            .collect(Collectors.toSet());
+            .collect(Collectors.toMap(a -> a, a -> a));
 
     return createStateInternalsFactory(id, keyCoder, context, pipelineOptions, stateIds);
   }
 
   @SuppressWarnings("unchecked")
-  private static <K> Factory<K> createStateInternalsFactory(
+  static <K> Factory<K> createStateInternalsFactory(
       String id,
       @Nullable Coder<K> keyCoder,
       TaskContext context,
       SamzaPipelineOptions pipelineOptions,
-      Collection<String> stateIds) {
+      Map<String, String> stateIdMap) {
     final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
     final Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores = new HashMap<>();
     stores.put(BEAM_STORE, getBeamStore(context));
 
     final Coder<K> stateKeyCoder;
     if (keyCoder != null) {
-      stateIds.forEach(
-          stateId ->
-              stores.put(
-                  stateId, (KeyValueStore<ByteArray, StateValue<?>>) context.getStore(stateId)));
+      stateIdMap
+          .values()
+          .forEach(
+              stateId ->
+                  stores.put(
+                      stateId,
+                      (KeyValueStore<ByteArray, StateValue<?>>) context.getStore(stateId)));
       stateKeyCoder = keyCoder;
     } else {
       stateKeyCoder = (Coder<K>) VoidCoder.of();
     }
-    return new Factory<>(Objects.toString(id), stores, stateKeyCoder, batchGetSize);
+    return new Factory<>(Objects.toString(id), stores, stateIdMap, stateKeyCoder, batchGetSize);
   }
 
   @Override
@@ -271,16 +264,19 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   public static class Factory<K> implements StateInternalsFactory<K> {
     private final String stageId;
     private final Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores;
+    private final Map<String, String> stateIdMap;
     private final Coder<K> keyCoder;
     private final int batchGetSize;
 
     public Factory(
         String stageId,
         Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores,
+        Map<String, String> stateIdMap,
         Coder<K> keyCoder,
         int batchGetSize) {
       this.stageId = stageId;
       this.stores = stores;
+      this.stateIdMap = stateIdMap;
       this.keyCoder = keyCoder;
       this.batchGetSize = batchGetSize;
     }
@@ -303,7 +299,8 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
         throw new RuntimeException("Cannot encode key for state store", e);
       }
 
-      return new SamzaStoreStateInternals<>(stores, key, baos.toByteArray(), stageId, batchGetSize);
+      return new SamzaStoreStateInternals<>(
+          stores, stateIdMap, key, baos.toByteArray(), stageId, batchGetSize);
     }
   }
 
@@ -323,11 +320,11 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       this.coder = coder;
       this.namespace = namespace;
       this.addressId = address.getId();
-      this.isBeamStore = !stores.containsKey(address.getId());
+      this.isBeamStore = !stores.containsKey(stateIdMap.get(address.getId()));
       this.store =
           isBeamStore
               ? (KeyValueStore) stores.get(BEAM_STORE)
-              : (KeyValueStore) stores.get(address.getId());
+              : (KeyValueStore) stores.get(stateIdMap.get(address.getId()));
       this.stageId = SamzaStoreStateInternals.this.stageId;
       this.keyBytes = SamzaStoreStateInternals.this.keyBytes;
     }

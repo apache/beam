@@ -161,6 +161,21 @@ class ParDoBoundMultiTranslator<InT, OutT>
     Map<String, PCollectionView<?>> sideInputMapping =
         ParDoTranslation.getSideInputMapping(ctx.getCurrentTransform());
 
+    final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
+    final Map<String, String> userStateIds;
+    if (DoFnSignatures.isStateful(transform.getFn())) {
+      TransformHierarchy.Node pardoNode = node;
+      while (!pardoNode.getEnclosingNode().isRootNode()) {
+        pardoNode = pardoNode.getEnclosingNode();
+      }
+      final String sanitizedParDoName =
+          pardoNode.getFullName().replaceAll("\\s", "").replace("-", "_");
+      userStateIds =
+          ctx.translateUserStateIdToStoreId(
+              signature.stateDeclarations().keySet(), sanitizedParDoName);
+    } else {
+      userStateIds = Collections.emptyMap();
+    }
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
             transform.getMainOutputTag(),
@@ -182,7 +197,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             null,
             Collections.emptyMap(),
             doFnSchemaInformation,
-            sideInputMapping);
+            sideInputMapping,
+            userStateIds);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {
@@ -333,7 +349,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
             ctx.getJobInfo(),
             idToTupleTagMap,
             doFnSchemaInformation,
-            sideInputMapping);
+            sideInputMapping,
+            // TODO: populate this for portable
+            Collections.emptyMap());
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {
@@ -377,25 +395,36 @@ class ParDoBoundMultiTranslator<InT, OutT>
     if (signature.usesState()) {
       // set up user state configs
       for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
-        final String storeId = state.id();
-
-        // TODO: remove validation after we support same state id in different ParDo.
-        if (!ctx.addStateId(storeId)) {
-          throw new IllegalStateException(
-              "Duplicate StateId " + storeId + " found in multiple ParDo.");
+        final String userStateId = state.id();
+        final String uniqueStoreId;
+        if (ctx.addStateId(userStateId)) {
+          uniqueStoreId = userStateId;
+        } else {
+          TransformHierarchy.Node pardoNode = node;
+          while (!pardoNode.getEnclosingNode().isRootNode()) {
+            pardoNode = pardoNode.getEnclosingNode();
+          }
+          final String sanitizedParDoName =
+              pardoNode.getFullName().replaceAll("\\s", "").replace("-", "_");
+          final String multiParDoStateId = String.join("-", userStateId, sanitizedParDoName);
+          String candidate = multiParDoStateId;
+          int suffixNum = 2;
+          while (!ctx.addStateId(candidate)) {
+            candidate = multiParDoStateId + suffixNum++;
+          }
+          uniqueStoreId = candidate;
         }
-
         config.put(
-            "stores." + storeId + ".factory",
+            "stores." + uniqueStoreId + ".factory",
             "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
-        config.put("stores." + storeId + ".key.serde", "byteArraySerde");
-        config.put("stores." + storeId + ".msg.serde", "stateValueSerde");
-        config.put("stores." + storeId + ".rocksdb.compression", "lz4");
+        config.put("stores." + uniqueStoreId + ".key.serde", "byteArraySerde");
+        config.put("stores." + uniqueStoreId + ".msg.serde", "stateValueSerde");
+        config.put("stores." + uniqueStoreId + ".rocksdb.compression", "lz4");
 
         if (options.getStateDurable()) {
           config.put(
-              "stores." + storeId + ".changelog",
-              ConfigBuilder.getChangelogTopic(options, storeId));
+              "stores." + uniqueStoreId + ".changelog",
+              ConfigBuilder.getChangelogTopic(options, uniqueStoreId));
         }
       }
     }

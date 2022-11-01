@@ -19,7 +19,6 @@ package org.apache.beam.runners.samza.translation;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Map;
@@ -253,7 +252,7 @@ public class ConfigGeneratorTest {
   }
 
   @Test
-  public void testDuplicateStateIdConfig() {
+  public void testUserStoreConfigSameStateIdAcrossParDo() {
     SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
     options.setJobName("TestStoreConfig");
     options.setRunner(SamzaRunner.class);
@@ -263,6 +262,7 @@ public class ConfigGeneratorTest {
         .apply(
             Create.empty(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.strings())))
         .apply(
+            "First stateful ParDo",
             ParDo.of(
                 new DoFn<KV<String, String>, KV<String, String>>() {
                   private static final String testState = "testState";
@@ -277,6 +277,7 @@ public class ConfigGeneratorTest {
                   }
                 }))
         .apply(
+            "Second stateful ParDo",
             ParDo.of(
                 new DoFn<KV<String, String>, Void>() {
                   private static final String testState = "testState";
@@ -291,9 +292,123 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
+    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+    final Config config = configBuilder.build();
 
-    assertThrows(
-        IllegalStateException.class,
-        () -> SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder));
+    assertEquals(
+        RocksDbKeyValueStorageEngineFactory.class.getName(),
+        config.get("stores.testState.factory"));
+    assertEquals("byteArraySerde", config.get("stores.testState.key.serde"));
+    assertEquals("stateValueSerde", config.get("stores.testState.msg.serde"));
+    assertNull(config.get("stores.testState.changelog"));
+
+    assertEquals(
+        RocksDbKeyValueStorageEngineFactory.class.getName(),
+        config.get("stores.testState-SecondstatefulParDo.factory"));
+    assertEquals("byteArraySerde", config.get("stores.testState-SecondstatefulParDo.key.serde"));
+    assertEquals("stateValueSerde", config.get("stores.testState-SecondstatefulParDo.msg.serde"));
+    assertNull(config.get("stores.testState-SecondstatefulParDo.changelog"));
+
+    options.setStateDurable(true);
+    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+    final Config config2 = configBuilder.build();
+    assertEquals(
+        "TestStoreConfig-1-testState-changelog", config2.get("stores.testState.changelog"));
+    assertEquals(
+        "TestStoreConfig-1-testState-SecondstatefulParDo-changelog",
+        config2.get("stores.testState-SecondstatefulParDo.changelog"));
+  }
+
+  @Test
+  public void testUserStoreConfigSameStateIdAcrossThreeParDo() {
+    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+    options.setJobName("TestStoreConfig");
+    options.setRunner(SamzaRunner.class);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply(
+            Create.empty(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.strings())))
+        .apply(
+            "First stateful ParDo",
+            ParDo.of(
+                new DoFn<KV<String, String>, KV<String, String>>() {
+                  private static final String testState = "testState";
+
+                  @StateId(testState)
+                  private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+
+                  @ProcessElement
+                  public void processElement(
+                      ProcessContext context, @StateId(testState) ValueState<Integer> state) {
+                    context.output(context.element());
+                  }
+                }))
+        .apply(
+            "Second stateful ParDo",
+            ParDo.of(
+                new DoFn<KV<String, String>, KV<String, String>>() {
+                  private static final String testState = "testState";
+
+                  @StateId(testState)
+                  private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+
+                  @ProcessElement
+                  public void processElement(
+                      ProcessContext context, @StateId(testState) ValueState<Integer> state) {
+                    context.output(context.element());
+                  }
+                }))
+        .apply(
+            "Second stateful ParDo",
+            ParDo.of(
+                new DoFn<KV<String, String>, Void>() {
+                  private static final String testState = "testState";
+
+                  @StateId(testState)
+                  private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+
+                  @ProcessElement
+                  public void processElement(
+                      ProcessContext context, @StateId(testState) ValueState<Integer> state) {}
+                }));
+
+    final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
+    final ConfigBuilder configBuilder = new ConfigBuilder(options);
+    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+    final Config config = configBuilder.build();
+
+    assertEquals(
+        RocksDbKeyValueStorageEngineFactory.class.getName(),
+        config.get("stores.testState.factory"));
+    assertEquals("byteArraySerde", config.get("stores.testState.key.serde"));
+    assertEquals("stateValueSerde", config.get("stores.testState.msg.serde"));
+    assertNull(config.get("stores.testState.changelog"));
+
+    assertEquals(
+        RocksDbKeyValueStorageEngineFactory.class.getName(),
+        config.get("stores.testState-SecondstatefulParDo.factory"));
+    assertEquals("byteArraySerde", config.get("stores.testState-SecondstatefulParDo.key.serde"));
+    assertEquals("stateValueSerde", config.get("stores.testState-SecondstatefulParDo.msg.serde"));
+    assertNull(config.get("stores.testState-SecondstatefulParDo.changelog"));
+
+    assertEquals(
+        RocksDbKeyValueStorageEngineFactory.class.getName(),
+        config.get("stores.testState-SecondstatefulParDo2.factory"));
+    assertEquals("byteArraySerde", config.get("stores.testState-SecondstatefulParDo2.key.serde"));
+    assertEquals("stateValueSerde", config.get("stores.testState-SecondstatefulParDo2.msg.serde"));
+    assertNull(config.get("stores.testState-SecondstatefulParDo2.changelog"));
+
+    options.setStateDurable(true);
+    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+    final Config config2 = configBuilder.build();
+    assertEquals(
+        "TestStoreConfig-1-testState-changelog", config2.get("stores.testState.changelog"));
+    assertEquals(
+        "TestStoreConfig-1-testState-SecondstatefulParDo-changelog",
+        config2.get("stores.testState-SecondstatefulParDo.changelog"));
+    assertEquals(
+        "TestStoreConfig-1-testState-SecondstatefulParDo2-changelog",
+        config2.get("stores.testState-SecondstatefulParDo2.changelog"));
   }
 }

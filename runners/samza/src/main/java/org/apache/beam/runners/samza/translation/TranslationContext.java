@@ -83,6 +83,8 @@ public class TranslationContext {
   private final Map<PValue, String> idMap;
   private final Map<String, MessageStream> registeredInputStreams = new HashMap<>();
   private final Map<String, Table> registeredTables = new HashMap<>();
+
+  private final Set<String> storeIdByParDo = new HashSet<>();
   private final SamzaPipelineOptions options;
   private final HashIdGenerator idGenerator = new HashIdGenerator();
 
@@ -247,6 +249,30 @@ public class TranslationContext {
 
   public String getTransformId() {
     return idGenerator.getId(getTransformFullName());
+  }
+
+  public Map<String, String> translateUserStateIdToStoreId(Set<String> stateIds, String parDoName) {
+    final Map<String, String> storeIds = new HashMap<>();
+    stateIds.forEach(
+        stateId -> {
+          final String storeId;
+          if (!storeIdByParDo.contains(stateId)) {
+            storeId = stateId;
+          } else if (!storeIdByParDo.contains(String.join("-", stateId, parDoName))) {
+            storeId = String.join("-", stateId, parDoName);
+          } else {
+            final String multiParDoStateId = String.join("-", stateId, parDoName);
+            String candidate = multiParDoStateId;
+            int suffixNum = 2;
+            while (!storeIdByParDo.contains(candidate)) {
+              candidate = multiParDoStateId + suffixNum++;
+            }
+            storeId = candidate;
+          }
+          storeIdByParDo.add(storeId);
+          storeIds.put(stateId, storeId);
+        });
+    return storeIds;
   }
 
   /** The dummy stream created will only be used in Beam tests. */
