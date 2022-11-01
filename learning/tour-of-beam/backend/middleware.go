@@ -24,6 +24,13 @@ import (
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 )
 
+const (
+	BAD_FORMAT     = "BAD_FORMAT"
+	INTERNAL_ERROR = "INTERNAL_ERROR"
+	NOT_FOUND      = "NOT_FOUND"
+	UNAUTHORIZED   = "UNAUTHORIZED"
+)
+
 // Middleware-maker for setting a header
 // We also make this less generic: it works with HandlerFunc's
 // so that to be convertible to func(w http ResponseWriter, r *http.Request)
@@ -51,12 +58,14 @@ func EnsureMethod(method string) func(http.HandlerFunc) http.HandlerFunc {
 }
 
 // Helper common AIO middleware
-func Common(next http.HandlerFunc) http.HandlerFunc {
-	addContentType := AddHeader("Content-Type", "application/json")
-	addCORS := AddHeader("Access-Control-Allow-Origin", "*")
-	ensureGet := EnsureMethod(http.MethodGet)
+func Common(method string) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		addContentType := AddHeader("Content-Type", "application/json")
+		addCORS := AddHeader("Access-Control-Allow-Origin", "*")
+		ensureGet := EnsureMethod(method)
 
-	return ensureGet(addCORS(addContentType(next)))
+		return ensureGet(addCORS(addContentType(next)))
+	}
 }
 
 // HandleFunc enriched with sdk.

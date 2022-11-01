@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_code_editor/flutter_code_editor.dart';
 
 import '../enums/complexity.dart';
 import '../models/example.dart';
@@ -44,7 +44,7 @@ class SnippetEditingController extends ChangeNotifier {
 
   set selectedExample(Example? value) {
     _selectedExample = value;
-    codeController.text = _selectedExample?.source ?? '';
+    setSource(_selectedExample?.source ?? '');
     _pipelineOptions = _selectedExample?.pipelineOptions ?? '';
     notifyListeners();
   }
@@ -63,7 +63,7 @@ class SnippetEditingController extends ChangeNotifier {
   }
 
   bool _isCodeChanged() {
-    return _selectedExample?.source != codeController.text;
+    return _selectedExample?.source != codeController.fullText;
   }
 
   bool _arePipelineOptionsChanged() {
@@ -82,10 +82,15 @@ class SnippetEditingController extends ChangeNotifier {
     //  user-shared examples, and an empty editor,
     //  https://github.com/apache/beam/issues/23252
     return ContentExampleLoadingDescriptor(
-      content: codeController.text,
+      content: codeController.fullText,
       name: _selectedExample?.name,
       complexity: _selectedExample?.complexity ?? Complexity.unspecified,
       sdk: sdk,
     );
+  }
+
+  void setSource(String source) {
+    codeController.text = source;
+    codeController.historyController.deleteHistory();
   }
 }

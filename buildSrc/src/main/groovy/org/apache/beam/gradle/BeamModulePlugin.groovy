@@ -546,6 +546,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_http_client_spi               : "software.amazon.awssdk:http-client-spi:$aws_java_sdk2_version",
         aws_java_sdk2_regions                       : "software.amazon.awssdk:regions:$aws_java_sdk2_version",
         aws_java_sdk2_utils                         : "software.amazon.awssdk:utils:$aws_java_sdk2_version",
+        aws_java_sdk2_profiles                      : "software.amazon.awssdk:profiles:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         byte_buddy                                  : "net.bytebuddy:byte-buddy:1.12.14",
@@ -603,7 +604,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
-        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/25.2.0/artifact_details.html
+        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/26.1.3/artifact_details.html
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.1.3",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
@@ -913,6 +914,18 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
+        // Use --release 8 when targeting Java 8 and running on JDK > 8
+        //
+        // Consider migrating compilation and testing to use JDK 9+ and setting '--release=8' as
+        // the default allowing 'applyJavaNature' to override it for the few modules that need JDK 9+
+        // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
+        if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
+        && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
+          options.compilerArgs += ['--release', '8']
+          // TODO(https://github.com/apache/beam/issues/23901): Fix
+          // optimizerOuterThis breakage
+          options.compilerArgs += ['-XDoptimizeOuterThis=false']
+        }
         // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
         // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
         options.compilerArgs -= [
@@ -981,10 +994,10 @@ class BeamModulePlugin implements Plugin<Project> {
           'org.checkerframework.checker.nullness.NullnessChecker'
         ]
 
-        if (parseBooleanProperty(project, 'enableCheckerFramework') || project.jenkins.isCIBuild) {
-          skipCheckerFramework = false
-        } else {
+        if (!parseBooleanProperty(project, 'enableCheckerFramework') && !project.jenkins.isCIBuild) {
           skipCheckerFramework = true
+        } else {
+          skipCheckerFramework = false
         }
 
         // Always exclude checkerframework on tests. It's slow, and it often
@@ -1919,9 +1932,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testRuntimeOnly it.project(path: ":runners:spark:2", configuration: "testRuntimeMigration")
-          testRuntimeOnly project.library.java.spark_core
-          testRuntimeOnly project.library.java.spark_streaming
+          testRuntimeOnly it.project(path: ":runners:spark:3", configuration: "testRuntimeMigration")
 
           // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
           project.configurations.testRuntimeClasspath {
@@ -2679,7 +2690,7 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn = [installGcpTest]
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
-            ':runners:spark:2:job-server:shadowJar',
+            ':runners:spark:3:job-server:shadowJar',
             ':sdks:python:container:py37:docker',
             ':sdks:python:container:py38:docker',
             ':sdks:python:container:py39:docker',
@@ -2695,7 +2706,7 @@ class BeamModulePlugin implements Plugin<Project> {
               "--parallelism=2",
               "--sdk_worker_parallelism=1",
               "--flink_job_server_jar=${project.project(flinkJobServerProject).shadowJar.archivePath}",
-              "--spark_job_server_jar=${project.project(':runners:spark:2:job-server').shadowJar.archivePath}",
+              "--spark_job_server_jar=${project.project(':runners:spark:3:job-server').shadowJar.archivePath}",
             ]
             if (isStreaming)
               options += [

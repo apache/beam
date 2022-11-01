@@ -29,6 +29,9 @@ project.ext {
 // Load the main build script which contains all build logic.
 apply from: "$basePath/spark_runner.gradle"
 
+// Generates runQuickstartJavaSpark task (can only support 1 version of Spark)
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
+
 // Additional supported Spark versions (used in compatibility tests)
 def sparkVersions = [
     "330": "3.3.0",
