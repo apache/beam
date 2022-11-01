@@ -337,7 +337,8 @@ class _MetricsCollector:
     # Metrics
     self._inference_counter = beam.metrics.Metrics.counter(
         namespace, 'num_inferences')
-    self.failed_batches_counter = 0
+    self.failed_batches_counter = beam.metrics.Metrics.counter(
+        namespace, 'failed_batches_counter')
     self._inference_request_batch_size = beam.metrics.Metrics.distribution(
         namespace, 'inference_request_batch_size')
     self._inference_request_batch_byte_size = (
@@ -430,9 +431,9 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     try:
       result_generator = self._model_handler.run_inference(
         batch, self._model, inference_args)
-    except BaseException:
+    except BaseException as e:
       self._metrics_collector.failed_batches_counter.inc()
-      raise
+      raise e
     else:
       predictions = list(result_generator)
 
