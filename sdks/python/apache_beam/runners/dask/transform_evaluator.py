@@ -29,7 +29,6 @@ import abc
 import dask.bag as db
 import typing as t
 
-
 import apache_beam
 from apache_beam import DoFn
 from apache_beam import TaggedOutput

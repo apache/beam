@@ -27,7 +27,7 @@ try:
   import dask
   import dask.distributed as ddist
 
-  from apache_beam.runners.dask.dask_runner import DaskOptions
+  from apache_beam.runners.dask.dask_runner import DaskOptions  # pylint: disable=ungrouped-imports
   from apache_beam.runners.dask.dask_runner import DaskRunner
 except (ImportError, ModuleNotFoundError):
   raise unittest.SkipTest('Dask must be installed to run tests.')
