@@ -141,9 +141,9 @@ type writeFn struct {
 	Type beam.EncodedType `json:"type"`
 }
 
-func (f *writeFn) Setup() error {
+func (f *writeFn) Setup(ctx context.Context) error {
 	var err error
-	f.client, err = bigtable.NewClient(context.Background(), f.Project, f.InstanceID)
+	f.client, err = bigtable.NewClient(ctx, f.Project, f.InstanceID)
 	if err != nil {
 		return fmt.Errorf("could not create data operations client: %v", err)
 	}
@@ -194,9 +194,9 @@ type writeBatchFn struct {
 	Type beam.EncodedType `json:"type"`
 }
 
-func (f *writeBatchFn) Setup() error {
+func (f *writeBatchFn) Setup(ctx context.Context) error {
 	var err error
-	f.client, err = bigtable.NewClient(context.Background(), f.Project, f.InstanceID)
+	f.client, err = bigtable.NewClient(ctx, f.Project, f.InstanceID)
 	if err != nil {
 		return fmt.Errorf("could not create data operations client: %v", err)
 	}
