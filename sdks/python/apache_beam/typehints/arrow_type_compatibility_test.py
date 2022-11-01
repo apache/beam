@@ -79,6 +79,23 @@ class ArrowTypeCompatibilityTest(unittest.TestCase):
             ]),
         }),
     },
+    {
+        'batch_typehint': pa.Array,
+        'element_typehint': int,
+        'batch': pa.array(range(100), type=pa.int64()),
+    },
+    {
+        'batch_typehint': pa.Array,
+        'element_typehint': row_type.RowTypeConstraint.from_fields([
+                    ("bar", Optional[float]),  # noqa: F821
+                    ("baz", Optional[str]),  # noqa: F821
+        ]),
+        'batch': pa.array([
+            {
+                'bar': i / 100, 'baz': str(i)
+            } if i % 7 else None for i in range(100)
+        ]),
+    }
 ])
 @pytest.mark.uses_pyarrow
 class ArrowBatchConverterTest(unittest.TestCase):
@@ -93,7 +110,10 @@ class ArrowBatchConverterTest(unittest.TestCase):
         self.element_typehint)
 
   def equality_check(self, left, right):
-    self.assertEqual(left, right)
+    if isinstance(left, pa.Array):
+      self.assertTrue(left.equals(right))
+    else:
+      self.assertEqual(left, right)
 
   def test_typehint_validates(self):
     typehints.validate_composite_type_param(self.batch_typehint, '')
