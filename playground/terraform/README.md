@@ -28,7 +28,7 @@
 ***Google Cloud preparation steps:***
 After creating or identified an existing project for deployment, please be sure that your account has at least following privileges:
    - App Engine Admin
-   - App Engine Creator
+   - App Engine Creator -??
    - Artifact Registry Administrator
    - Cloud Memorystore Redis Admin
    - Compute Admin
