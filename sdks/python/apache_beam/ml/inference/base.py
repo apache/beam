@@ -434,16 +434,15 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     except BaseException as e:
       self._metrics_collector.failed_batches_counter.inc()
       raise e
-    else:
-      predictions = list(result_generator)
+    predictions = list(result_generator)
 
-      end_time = _to_microseconds(self._clock.time_ns())
-      inference_latency = end_time - start_time
-      num_bytes = self._model_handler.get_num_bytes(batch)
-      num_elements = len(batch)
-      self._metrics_collector.update(num_elements, num_bytes, inference_latency)
+    end_time = _to_microseconds(self._clock.time_ns())
+    inference_latency = end_time - start_time
+    num_bytes = self._model_handler.get_num_bytes(batch)
+    num_elements = len(batch)
+    self._metrics_collector.update(num_elements, num_bytes, inference_latency)
 
-      return predictions
+    return predictions
 
   def finish_bundle(self):
     # TODO(https://github.com/apache/beam/issues/21435): Figure out why there

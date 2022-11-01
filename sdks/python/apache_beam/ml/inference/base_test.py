@@ -176,16 +176,14 @@ class RunInferenceBaseTest(unittest.TestCase):
       with TestPipeline() as pipeline:
         examples = [1, 5, 3, 10]
         pcoll = pipeline | 'start' >> beam.Create(examples)
-        inference_args = {'key': True}
-        _ = pcoll | base.RunInference(FakeModelHandlerFailsOnInferenceArgs(),
-                inference_args=inference_args)
+        _ = pcoll | base.RunInference(FakeModelHandlerFailsOnInferenceArgs())
         run_result = pipeline.run()
         run_result.wait_until_finish()
 
         metric_results = (
             run_result.metrics().query(MetricsFilter().with_name('failed_batches_counter')))
         num_failed_batches_counter = metric_results['counters'][0]
-        self.assertEqual(num_failed_batches_counter.committed, 1)
+        self.assertGreater(num_failed_batches_counter.committed, 0)
 
   def test_failed_batches_counter_no_failures(self):
     pipeline = TestPipeline()
