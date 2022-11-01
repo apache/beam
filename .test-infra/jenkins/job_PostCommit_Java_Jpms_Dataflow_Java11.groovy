@@ -43,8 +43,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Dataflow_Java11', 
           commonJobProperties.setGradleSwitches(delegate)
           switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}")
           // Specify maven home on Jenkins, needed by Maven archetype integration tests.
-            switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')
-            switches('--info')
+          switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')
+          switches('--info')
         }
       }
     }
