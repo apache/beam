@@ -60,7 +60,10 @@ class PeriodicSequenceIT(unittest.TestCase):
         emitted_at, unused_count = element
         processed_at = time.time()
         if processed_at - emitted_at > 25:
-          yield ('Elements emitted took too long to process.', emitted_at, processed_at)
+          yield (
+              'Elements emitted took too long to process.',
+              emitted_at,
+              processed_at)
 
     start_time = time.time()
     # Run long enough for Dataflow to start up
