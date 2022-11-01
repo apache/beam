@@ -24,28 +24,34 @@ from typing import Optional
 
 from apache_beam.testing.load_tests import load_test_metrics_utils
 
-_DESCRIPTION_TEMPLATE = """
+TITLE_TEMPLATE = """
   Performance regression found in the test: {}
 """.format(sys.argv[0])
+# TODO: Add mean value before and mean value after.
+_METRIC_DESCRIPTION = """
+  Affected metric: {}
+"""
 _METRIC_INFO = """
   timestamp: {} metric_name: {}, metric_value: {}
 """
+GH_ISSUE_LABELS = ['testing']
 
 
 class ChangePointAnalysis:
-  def __init__(self, data: List[Dict]):
+  def __init__(self, data: List[Dict], metric_name: str):
     self.data = data
+    self.metric_name = metric_name
 
   def get_failing_test_description(self):
-    metric_description = ''
+    metric_description = _METRIC_DESCRIPTION.format(self.metric_name) + 2 * '\n'
     for data in self.data:
       metric_description += _METRIC_INFO.format(
           data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL],
           data[load_test_metrics_utils.METRICS_TYPE_LABEL],
           data[load_test_metrics_utils.VALUE_LABEL]) + '\n'
-    return _DESCRIPTION_TEMPLATE + 2 * '\n' + metric_description
+    return metric_description
 
-  def find_change_point(self):
+  def find_change_point(self) -> bool:
     """
     TODO: Implementation of change point analysis using ruptures.
     pip install ruptures
@@ -54,7 +60,7 @@ class ChangePointAnalysis:
 
 
 class GitHubIssues:
-  def __init__(self, owner, repo):
+  def __init__(self, owner='apache', repo='beam'):
     self.owner = owner
     self.repo = repo
     self._github_token = os.environ['GITHUB_TOKEN']
