@@ -34,7 +34,9 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 public interface MultimapState<K, V> extends State {
 
   /**
-   * Associates the specified value with the specified key in this multimap.
+   * Associates the specified value with the specified key in this multimap. Existing values
+   * associated with the same key will not be overwritten. 2 keys are considered the same key if
+   * their encoded byte streams are the same.
    *
    * <p>Changes will not be reflected in the results returned by previous calls to {@link
    * ReadableState#read} on the results any of the reading methods({@link #get}, {@link #keys},
@@ -43,7 +45,7 @@ public interface MultimapState<K, V> extends State {
   void put(K key, V value);
 
   /**
-   * A deferred lookup, using null values if the item is not found.
+   * A deferred lookup, returns an empty iterable if the item is not found.
    *
    * <p>A user is encouraged to call {@code get} for all relevant keys and call {@code readLater()}
    * on the results.
