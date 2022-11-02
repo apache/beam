@@ -167,7 +167,10 @@ def alternate_pandas_inference_fn(model: BaseEstimator, batch: Sequence[pandas.D
   splits = [
       vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
   ]
-  return [0], splits
+  
+  predictions = predictions - 1
+
+  return predictions, splits
 
 class SkLearnRunInferenceTest(unittest.TestCase):
   def setUp(self):
@@ -326,6 +329,27 @@ class SkLearnRunInferenceTest(unittest.TestCase):
           PredictionResult(splits[2], 1),
           PredictionResult(splits[3], 1),
           PredictionResult(splits[4], 2),
+      ]
+      assert_that(
+          actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
+
+  def test_pipeline_pandas_custom_inference(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(build_pandas_pipeline(), file)
+    with TestPipeline() as pipeline:
+      dataframe = pandas_dataframe()
+      splits = [dataframe.loc[[i]] for i in dataframe.index]
+      pcoll = pipeline | 'start' >> beam.Create(splits)
+      actual = pcoll | RunInference(
+          SklearnModelHandlerPandas(model_uri=temp_file_name, inference_fn=alternate_pandas_inference_fn))
+
+      expected = [
+          PredictionResult(splits[0], 4),
+          PredictionResult(splits[1], 7),
+          PredictionResult(splits[2], 0),
+          PredictionResult(splits[3], 0),
+          PredictionResult(splits[4], 1),
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
