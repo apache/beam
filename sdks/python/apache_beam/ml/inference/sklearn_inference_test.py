@@ -154,23 +154,26 @@ def build_pandas_pipeline():
 def convert_inference_to_floor(prediction_result):
   return math.floor(prediction_result.inference)
 
+
 def alternate_numpy_inference_fn(
   model: BaseEstimator, batch: Sequence[numpy.ndarray], inference_args: Optional[Dict[str, Any]] = None
 ) -> Any:
     return [0]
 
-def alternate_pandas_inference_fn(model: BaseEstimator, batch: Sequence[pandas.DataFrame], inference_args: Optional[Dict[str, Any]] = None
-) -> Any:
+
+def alternate_pandas_inference_fn(
+  model: BaseEstimator, 
+  batch: Sequence[pandas.DataFrame], 
+  inference_args: Optional[Dict[str, Any]] = None) -> Any:
   # vectorize data for better performance
   vectorized_batch = pandas.concat(batch, axis=0)
   predictions = model.predict(vectorized_batch)
   splits = [
       vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
   ]
-  
   predictions = predictions - 1
-
   return predictions, splits
+
 
 class SkLearnRunInferenceTest(unittest.TestCase):
   def setUp(self):

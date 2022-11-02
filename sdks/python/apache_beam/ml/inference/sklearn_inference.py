@@ -46,7 +46,9 @@ __all__ = [
     'SklearnModelHandlerPandas',
 ]
 
-NumpyInferenceFn = Callable[[BaseEstimator, Sequence[numpy.ndarray], Optional[Dict[str, Any]]], Any]
+NumpyInferenceFn = Callable[
+  [BaseEstimator, Sequence[numpy.ndarray], Optional[Dict[str, Any]]], Any]
+
 
 class ModelFileType(enum.Enum):
   """Defines how a model file is serialized. Options are pickle or joblib."""
@@ -85,12 +87,14 @@ def _convert_to_result(
     ]
   return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
+
 def _default_numpy_inference_fn(
   model: BaseEstimator, batch: Sequence[numpy.ndarray], inference_args: Optional[Dict[str, Any]] = None
 ) -> Any:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     return model.predict(vectorized_batch)
+
 
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                             PredictionResult,
@@ -99,7 +103,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self,
       model_uri: str,
       model_file_type: ModelFileType = ModelFileType.PICKLE,
-      inference_fn: Optional[NumpyInferenceFn] = _default_numpy_inference_fn):
+      inference_fn: NumpyInferenceFn = _default_numpy_inference_fn):
     """ Implementation of the ModelHandler interface for scikit-learn
     using numpy arrays as input.
 
@@ -158,7 +162,10 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """
     return 'BeamML_Sklearn'
 
-PandasInferenceFn = Callable[[BaseEstimator, Sequence[pandas.DataFrame], Optional[Dict[str, Any]]], Any]
+
+PandasInferenceFn = Callable[
+  [BaseEstimator, Sequence[pandas.DataFrame], Optional[Dict[str, Any]]], Any]
+
 
 def _default_pandas_inference_fn(model: BaseEstimator, batch: Sequence[pandas.DataFrame], inference_args: Optional[Dict[str, Any]] = None
 ) -> Any:
@@ -170,6 +177,7 @@ def _default_pandas_inference_fn(model: BaseEstimator, batch: Sequence[pandas.Da
   ]
   return predictions, splits
 
+
 @experimental(extra_message="No backwards-compatibility guarantees.")
 class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
                                              PredictionResult,
@@ -178,7 +186,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       self,
       model_uri: str,
       model_file_type: ModelFileType = ModelFileType.PICKLE,
-      inference_fn: Optional[PandasInferenceFn] = _default_pandas_inference_fn):
+      inference_fn: PandasInferenceFn = _default_pandas_inference_fn):
     """Implementation of the ModelHandler interface for scikit-learn that
     supports pandas dataframes.
 
