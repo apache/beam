@@ -32,8 +32,6 @@
 import apache_beam as beam
 from apache_beam import pvalue
 
-from log_elements import LogElements
-
 num_below_100_tag = 'num_below_100'
 num_above_100_tag = 'num_above_100'
 
@@ -54,5 +52,5 @@ with beam.Pipeline() as p:
          | beam.ParDo(ProcessNumbersDoFn())
           .with_outputs(num_above_100_tag, main=num_below_100_tag))
 
-  results[num_below_100_tag] | 'Log numbers <= 100' >> LogElements(prefix='Number <= 100: ')
-  results[num_above_100_tag] | 'Log numbers > 100' >> LogElements(prefix='Number > 100: ')
+  results[num_below_100_tag] | 'Log numbers <= 100' >> beam.LogElements(prefix='Number <= 100: ')
+  results[num_above_100_tag] | 'Log numbers > 100' >> beam.LogElements(prefix='Number > 100: ')

@@ -115,7 +115,7 @@ class PlaygroundController with ChangeNotifier {
     return controller;
   }
 
-  String? get source => snippetEditingController?.codeController.text;
+  String? get source => snippetEditingController?.codeController.fullText;
 
   bool get isCodeRunning => !(result?.isFinished ?? true);
 
@@ -177,7 +177,7 @@ class PlaygroundController with ChangeNotifier {
 
   void setSource(String source) {
     final controller = requireSnippetEditingController();
-    controller.codeController.text = source;
+    controller.setSource(source);
   }
 
   void setSelectedOutputFilterType(OutputType type) {
@@ -234,7 +234,7 @@ class PlaygroundController with ChangeNotifier {
       _showPrecompiledResult(controller);
     } else {
       final request = RunCodeRequest(
-        code: controller.codeController.text,
+        code: controller.codeController.fullText,
         sdk: controller.sdk,
         pipelineOptions: parsedPipelineOptions,
       );
@@ -351,7 +351,9 @@ class PlaygroundController with ChangeNotifier {
     final controller = requireSnippetEditingController();
 
     return exampleCache.getSnippetId(
-      files: [SharedFile(code: controller.codeController.text, isMain: true)],
+      files: [
+        SharedFile(code: controller.codeController.fullText, isMain: true),
+      ],
       sdk: controller.sdk,
       pipelineOptions: controller.pipelineOptions,
     );
@@ -370,27 +372,27 @@ class PlaygroundController with ChangeNotifier {
   }
 
   late BeamShortcut runShortcut = BeamShortcut(
-        shortcuts: LogicalKeySet(
-          LogicalKeyboardKey.meta,
-          LogicalKeyboardKey.enter,
-        ),
-        actionIntent: const RunIntent(),
-        createAction: (BuildContext context) => CallbackAction(
-          onInvoke: (_) => runCode(),
-        ),
-      );
+    shortcuts: LogicalKeySet(
+      LogicalKeyboardKey.meta,
+      LogicalKeyboardKey.enter,
+    ),
+    actionIntent: const RunIntent(),
+    createAction: (BuildContext context) => CallbackAction(
+      onInvoke: (_) => runCode(),
+    ),
+  );
 
   late BeamShortcut resetShortcut = BeamShortcut(
-        shortcuts: LogicalKeySet(
-          LogicalKeyboardKey.meta,
-          LogicalKeyboardKey.shift,
-          LogicalKeyboardKey.keyE,
-        ),
-        actionIntent: const ResetIntent(),
-        createAction: (BuildContext context) => CallbackAction(
-          onInvoke: (_) => reset(),
-        ),
-      );
+    shortcuts: LogicalKeySet(
+      LogicalKeyboardKey.meta,
+      LogicalKeyboardKey.shift,
+      LogicalKeyboardKey.keyE,
+    ),
+    actionIntent: const ResetIntent(),
+    createAction: (BuildContext context) => CallbackAction(
+      onInvoke: (_) => reset(),
+    ),
+  );
 
   List<BeamShortcut> get shortcuts => [
         runShortcut,

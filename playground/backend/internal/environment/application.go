@@ -108,13 +108,16 @@ type ApplicationEnvs struct {
 
 	// propertyPath is the application properties path
 	propertyPath string
+
+	// cacheRequestTimeout is timeout to request data from cache
+	cacheRequestTimeout time.Duration
 }
 
 // NewApplicationEnvs constructor for ApplicationEnvs
 func NewApplicationEnvs(
 	workingDir, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath string,
 	cacheEnvs *CacheEnvs,
-	pipelineExecuteTimeout time.Duration,
+	pipelineExecuteTimeout, cacheRequestTimeout time.Duration,
 ) *ApplicationEnvs {
 	return &ApplicationEnvs{
 		workingDir:             workingDir,
@@ -125,6 +128,7 @@ func NewApplicationEnvs(
 		pipelinesFolder:        pipelinesFolder,
 		sdkConfigPath:          sdkConfigPath,
 		propertyPath:           propertyPath,
+		cacheRequestTimeout:    cacheRequestTimeout,
 	}
 }
 
@@ -176,4 +180,9 @@ func (ae *ApplicationEnvs) PropertyPath() string {
 // SetSchemaVersion sets the database schema version
 func (ae *ApplicationEnvs) SetSchemaVersion(schemaVersion string) {
 	ae.schemaVersion = schemaVersion
+}
+
+// CacheRequestTimeout returns timeout to request data from cache
+func (ae *ApplicationEnvs) CacheRequestTimeout() time.Duration {
+	return ae.cacheRequestTimeout
 }
