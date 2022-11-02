@@ -599,7 +599,6 @@ class TriggerLoadJobs(beam.DoFn):
   TEMP_TABLES = 'TemporaryTables'
   ONGOING_JOBS = 'OngoingJobs'
 
-
   def __init__(
       self,
       schema=None,
@@ -720,7 +719,8 @@ class TriggerLoadJobs(beam.DoFn):
         source_format=self.source_format,
         job_labels=self.bq_io_metadata.add_additional_bq_job_labels(),
         load_job_project_id=self.load_job_project_id)
-    yield pvalue.TaggedOutput(TriggerLoadJobs.ONGOING_JOBS, (destination, job_reference))
+    yield pvalue.TaggedOutput(
+        TriggerLoadJobs.ONGOING_JOBS, (destination, job_reference))
     self.pending_jobs.append(
         GlobalWindows.windowed_value((destination, job_reference)))
 
@@ -1064,10 +1064,13 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 load_job_project_id=self.load_job_project_id),
             load_job_name_pcv,
             *self.schema_side_inputs).with_outputs(
-                TriggerLoadJobs.TEMP_TABLES, TriggerLoadJobs.ONGOING_JOBS, main='main'))
+                TriggerLoadJobs.TEMP_TABLES,
+                TriggerLoadJobs.ONGOING_JOBS,
+                main='main'))
 
     finished_temp_tables_load_job_ids_pc = trigger_loads_outputs['main']
-    temp_tables_load_job_ids_pc = trigger_loads_outputs[TriggerLoadJobs.ONGOING_JOBS]
+    temp_tables_load_job_ids_pc = trigger_loads_outputs[
+        TriggerLoadJobs.ONGOING_JOBS]
     temp_tables_pc = trigger_loads_outputs[TriggerLoadJobs.TEMP_TABLES]
 
     schema_mod_job_ids_pc = (
@@ -1125,7 +1128,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 load_job_project_id=self.load_job_project_id),
             load_job_name_pcv,
             *self.schema_side_inputs).with_outputs(
-      TriggerLoadJobs.ONGOING_JOBS, main='main'))[TriggerLoadJobs.ONGOING_JOBS]
+                TriggerLoadJobs.ONGOING_JOBS, main='main')
+    )[TriggerLoadJobs.ONGOING_JOBS]
 
     destination_load_job_ids_pc = (
         (temp_tables_load_job_ids_pc, destination_load_job_ids_pc)
