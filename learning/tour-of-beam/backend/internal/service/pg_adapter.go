@@ -13,21 +13,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module beam.apache.org/learning/tour-of-beam/backend
+package service
 
-go 1.16
+import (
+	"log"
 
-require (
-	github.com/GoogleCloudPlatform/functions-framework-go v1.5.3
-	gopkg.in/yaml.v3 v3.0.1
+	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
+	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api"
 )
 
-require (
-	cloud.google.com/go/datastore v1.8.0
-	cloud.google.com/go/firestore v1.7.0 // indirect
-	firebase.google.com/go/v4 v4.9.0
-	github.com/matryer/moq v0.2.7 // indirect
-	github.com/stretchr/testify v1.8.0
-	google.golang.org/grpc v1.49.0
-	google.golang.org/protobuf v1.28.1
-)
+func MakePgSaveRequest(userRequest tob.UserCodeRequest, sdk tob.Sdk) pb.SaveSnippetRequest {
+	filesProto := make([]*pb.SnippetFile, 0)
+	for _, file := range userRequest.Files {
+		filesProto = append(filesProto,
+			&pb.SnippetFile{
+				Name:    file.Name,
+				Content: file.Content,
+				IsMain:  file.IsMain,
+			})
+	}
+	sdkIdx, ok := pb.Sdk_value[sdk.StorageID()]
+	if !ok {
+		log.Panicf("Playground SDK undefined for: %v", sdk)
+	}
+	return pb.SaveSnippetRequest{
+		Sdk:             pb.Sdk(sdkIdx),
+		Files:           filesProto,
+		PipelineOptions: userRequest.PipelineOptions,
+	}
+}

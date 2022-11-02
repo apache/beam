@@ -43,6 +43,6 @@ services:
       - SDK_CONFIG=/opt/playground/backend/sdks-emulator.yaml
       - PROTOCOL_TYPE=TCP
     ports:
-      - "8000:8000"
+      - "8000:8080"
     depends_on:
       - datastore

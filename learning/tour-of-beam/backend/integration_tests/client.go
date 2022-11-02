@@ -13,6 +13,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -69,6 +70,18 @@ func PostUnitComplete(url, sdk, unitId, token string) error {
 	return err
 }
 
+func PostUserCode(url, sdk, unitId, token string, body UserCodeRequest) error {
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	var result struct{}
+	err = Do(&result, http.MethodPost, url, map[string]string{"sdk": sdk, "id": unitId},
+		map[string]string{"Authorization": "Bearer " + token}, bytes.NewReader(raw))
+	return err
+}
+
 func Get(dst interface{}, url string, queryParams, headers map[string]string) error {
 	return Do(dst, http.MethodGet, url, queryParams, headers, nil)
 }
@@ -107,5 +120,6 @@ func Do(dst interface{}, method, url string, queryParams, headers map[string]str
 	}
 
 	tee := io.TeeReader(resp.Body, os.Stdout)
+	defer os.Stdout.WriteString("\n")
 	return json.NewDecoder(tee).Decode(dst)
 }
