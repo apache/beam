@@ -64,22 +64,22 @@ func GetUserProgress(url, sdk, token string) (SdkProgress, error) {
 }
 
 func PostUnitComplete(url, sdk, unitId, token string) error {
-	var result struct{}
+	var result interface{}
 	err := Do(&result, http.MethodPost, url, map[string]string{"sdk": sdk, "id": unitId},
 		map[string]string{"Authorization": "Bearer " + token}, nil)
 	return err
 }
 
-func PostUserCode(url, sdk, unitId, token string, body UserCodeRequest) error {
+func PostUserCode(url, sdk, unitId, token string, body UserCodeRequest) (ErrorResponse, error) {
 	raw, err := json.Marshal(body)
 	if err != nil {
-		return err
+		return ErrorResponse{}, err
 	}
 
-	var result struct{}
+	var result ErrorResponse
 	err = Do(&result, http.MethodPost, url, map[string]string{"sdk": sdk, "id": unitId},
 		map[string]string{"Authorization": "Bearer " + token}, bytes.NewReader(raw))
-	return err
+	return result, err
 }
 
 func Get(dst interface{}, url string, queryParams, headers map[string]string) error {

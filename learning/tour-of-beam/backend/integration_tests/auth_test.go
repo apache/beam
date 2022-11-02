@@ -64,10 +64,33 @@ func TestSaveGetProgress(t *testing.T) {
 			PipelineOptions: "some opts",
 		}
 
-		err := PostUserCode(url, "python", "unit_id_2", idToken, req)
+		_, err := PostUserCode(url, "python", "unit_id_2", idToken, req)
 		if err != nil {
 			t.Fatal(err)
 		}
+	})
+	t.Run("save_code_fail", func(t *testing.T) {
+		port := os.Getenv(PORT_POST_USER_CODE)
+		if port == "" {
+			t.Fatal(PORT_POST_USER_CODE, "env not set")
+		}
+		url := "http://localhost:" + port
+		req := UserCodeRequest{
+			Files: []UserCodeFile{
+				// empty content doesn't pass validation
+				{Name: "main.py", Content: "", IsMain: true},
+			},
+			PipelineOptions: "some opts",
+		}
+
+		resp, err := PostUserCode(url, "python", "unit_id_1", idToken, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "INTERNAL_ERROR", resp.Code)
+		msg := "playground api error"
+		assert.Equal(t, msg, resp.Message[:len(msg)])
+
 	})
 	t.Run("get", func(t *testing.T) {
 		port := os.Getenv(PORT_GET_USER_PROGRESS)

@@ -18,8 +18,9 @@ package internal
 import "errors"
 
 var (
-	ErrNoUnit = errors.New("unit not found")
-	ErrNoUser = errors.New("user not found")
+	ErrNoUnit     = errors.New("unit not found")
+	ErrNoUser     = errors.New("user not found")
+	ErrPlayground = errors.New("playground error")
 )
 
 type SdkItem struct {

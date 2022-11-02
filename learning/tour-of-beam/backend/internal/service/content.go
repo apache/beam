@@ -77,7 +77,7 @@ func (s *Svc) SaveUserCode(ctx context.Context, sdk tob.Sdk, unitId, uid string,
 	req := MakePgSaveRequest(userRequest, sdk)
 	resp, err := s.PgClient.SaveSnippet(ctx, &req)
 	if err != nil {
-		return fmt.Errorf("playground SaveSnippet: %w", err)
+		return err
 	}
 	fmt.Println("SaveSnippet response:", resp)
 	return s.Repo.SaveUserSnippetId(ctx, sdk, unitId, uid, resp.GetId())

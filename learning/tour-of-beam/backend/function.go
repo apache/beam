@@ -38,6 +38,7 @@ import (
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	grpc_status "google.golang.org/grpc/status"
 )
 
 var (
@@ -220,7 +221,11 @@ func postUserCode(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid strin
 	err = svc.SaveUserCode(r.Context(), sdk, unitId, uid, userCodeRequest)
 	if err != nil {
 		log.Println("Save user code error:", err)
-		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
+		message := "storage error"
+		if st, ok := grpc_status.FromError(err); ok {
+			message = fmt.Sprintf("playground api error: %s", st)
+		}
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, message)
 		return
 	}
 
