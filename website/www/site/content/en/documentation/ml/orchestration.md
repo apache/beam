@@ -92,7 +92,7 @@ This is our target file structure:
         │           └── train.py
         └── requirements.txt
 
-Let’s start with the component specifications. The full preprocessing component specification is illustrated below. The inputs are the path where the ingested dataset was saved by the ingest component and a path to a directory where the component can store artifacts. Additionally, there are some inputs that specify how and where the Beam pipeline should run. The specifications for the ingestion and train component are similar and can be found here and here, respectively.
+Let’s start with the component specifications. The full preprocessing component specification is illustrated below. The inputs are the path where the ingested dataset was saved by the ingest component and a path to a directory where the component can store artifacts. Additionally, there are some inputs that specify how and where the Beam pipeline should run. The specifications for the ingestion and train component are similar and can be found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/ml-orchestration/kfp/components/ingestion/component.yaml) and [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/ml-orchestration/kfp/components/train/component.yaml), respectively.
 
 >Note: we are using the KFP v1 SDK, because v2 is still in [beta](https://www.kubeflow.org/docs/started/support/#application-status). The v2 SDK introduces some new options for specifying the component interface with more native support for input and output artifacts. To see how to migrate components from v1 to v2, consult the [KFP docs](https://www.kubeflow.org/docs/components/pipelines/sdk-v2/v2-component-io/).
 
