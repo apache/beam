@@ -130,8 +130,8 @@ def preprocess_dataset(
   with beam.Pipeline(options=pipeline_options) as pipeline:
     (
         pipeline
-        |
-        "Read input jsonlines file" >> beam.io.ReadFromText(ingested_dataset_path)
+        | "Read input jsonlines file" >>
+        beam.io.ReadFromText(ingested_dataset_path)
         | "Load json" >> beam.Map(json.loads)
         | "Filter licenses" >> beam.Filter(valid_license)
         | "Download image from URL" >> beam.FlatMap(download_image_from_url)
