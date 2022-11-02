@@ -33,7 +33,6 @@ import torchvision.transforms.functional as TF
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
-
 IMAGE_SIZE = (224, 244)
 
 
