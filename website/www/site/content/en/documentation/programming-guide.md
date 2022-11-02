@@ -7808,7 +7808,7 @@ Batched DoFns are currently a Python-only feature.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-Batched DoFns enable users to create modular, composable, components that
+Batched DoFns enable users to create modular, composable components that
 operate on batches of multiple logical elements. These DoFns can leverage
 vectorized Python libraries, like numpy, scipy, and pandas, which operate on
 batches of data for efficiency.
@@ -7863,7 +7863,7 @@ batches.
 
 {{< paragraph class="language-py" >}}
 Note that the typehints on the Batched DoFn are *critical*. This is how
-a Batched DoFn declares what batch type it expects. When this DoFn is ued in a
+a Batched DoFn declares what batch type it expects. When this DoFn is used in a
 pipeline, Beam will inspect these typehints to ensure that the input and output
 types are compatible, and to verify that it understands how to create instances
 of this type of batch (see [Supported Batch Types](#batched-dofn-types)).
@@ -7877,7 +7877,7 @@ Batched DoFns are currently a Python-only feature.
 
 {{< paragraph class="language-py" >}}
 For some DoFns you may be able to provide both a batched and an element-wise
-implementation of your desired logic. You can do this, by simply defining both
+implementation of your desired logic. You can do this by simply defining both
 `process` and `process_batch`:
 {{< /paragraph >}}
 
@@ -7895,7 +7895,7 @@ class MultiplyByTwo(beam.DoFn):
 {{< paragraph class="language-py" >}}
 When executing this DoFn, Beam will select the best implementation to use given
 the context. Generally, if the inputs to a DoFn are already batched Beam will
-use the batched implementation, otherwise it will use the element-wise
+use the batched implementation; otherwise it will use the element-wise
 implementation defined in the `process` method.
 {{< /paragraph >}}
 
