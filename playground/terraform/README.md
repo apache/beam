@@ -105,7 +105,7 @@ gcloud container clusters get-credentials --region `chosen_location` `gke_name` 
 gcloud app deploy playground/index.yaml --project=`project_id`
 ```
 Please add NS records from your [Cloud DNS](https://cloud.google.com/dns/docs/records) (project_id>Cloud DNS>playground>NS records) to your domain registrator
-This step completes the configuration of the deployment environment. 
+This step completes the configuration of the deployment environment.
 
 To deploye the Beam Playground to the configured envrionment, please execute the following command (Ensure you are in the "beam" folder):
 ```
