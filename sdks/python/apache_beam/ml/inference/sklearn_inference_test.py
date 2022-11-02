@@ -156,15 +156,16 @@ def convert_inference_to_floor(prediction_result):
 
 
 def alternate_numpy_inference_fn(
-  model: BaseEstimator, batch: Sequence[numpy.ndarray], inference_args: Optional[Dict[str, Any]] = None
-) -> Any:
-    return [0]
+    model: BaseEstimator,
+    batch: Sequence[numpy.ndarray],
+    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+  return [0]
 
 
 def alternate_pandas_inference_fn(
-  model: BaseEstimator, 
-  batch: Sequence[pandas.DataFrame], 
-  inference_args: Optional[Dict[str, Any]] = None) -> Any:
+    model: BaseEstimator,
+    batch: Sequence[pandas.DataFrame],
+    inference_args: Optional[Dict[str, Any]] = None) -> Any:
   # vectorize data for better performance
   vectorized_batch = pandas.concat(batch, axis=0)
   predictions = model.predict(vectorized_batch)
@@ -199,7 +200,8 @@ class SkLearnRunInferenceTest(unittest.TestCase):
 
   def test_custom_inference_fn(self):
     fake_model = FakeModel()
-    inference_runner = SklearnModelHandlerNumpy(model_uri='unused', inference_fn=alternate_numpy_inference_fn)
+    inference_runner = SklearnModelHandlerNumpy(
+        model_uri='unused', inference_fn=alternate_numpy_inference_fn)
     batched_examples = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
@@ -345,7 +347,9 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       splits = [dataframe.loc[[i]] for i in dataframe.index]
       pcoll = pipeline | 'start' >> beam.Create(splits)
       actual = pcoll | RunInference(
-          SklearnModelHandlerPandas(model_uri=temp_file_name, inference_fn=alternate_pandas_inference_fn))
+          SklearnModelHandlerPandas(
+              model_uri=temp_file_name,
+              inference_fn=alternate_pandas_inference_fn))
 
       expected = [
           PredictionResult(splits[0], 4),

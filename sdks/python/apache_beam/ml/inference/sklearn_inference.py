@@ -47,7 +47,7 @@ __all__ = [
 ]
 
 NumpyInferenceFn = Callable[
-  [BaseEstimator, Sequence[numpy.ndarray], Optional[Dict[str, Any]]], Any]
+    [BaseEstimator, Sequence[numpy.ndarray], Optional[Dict[str, Any]]], Any]
 
 
 class ModelFileType(enum.Enum):
@@ -89,11 +89,12 @@ def _convert_to_result(
 
 
 def _default_numpy_inference_fn(
-  model: BaseEstimator, batch: Sequence[numpy.ndarray], inference_args: Optional[Dict[str, Any]] = None
-) -> Any:
-    # vectorize data for better performance
-    vectorized_batch = numpy.stack(batch, axis=0)
-    return model.predict(vectorized_batch)
+    model: BaseEstimator,
+    batch: Sequence[numpy.ndarray],
+    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+  # vectorize data for better performance
+  vectorized_batch = numpy.stack(batch, axis=0)
+  return model.predict(vectorized_batch)
 
 
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
@@ -164,11 +165,13 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
 
 
 PandasInferenceFn = Callable[
-  [BaseEstimator, Sequence[pandas.DataFrame], Optional[Dict[str, Any]]], Any]
+    [BaseEstimator, Sequence[pandas.DataFrame], Optional[Dict[str, Any]]], Any]
 
 
-def _default_pandas_inference_fn(model: BaseEstimator, batch: Sequence[pandas.DataFrame], inference_args: Optional[Dict[str, Any]] = None
-) -> Any:
+def _default_pandas_inference_fn(
+    model: BaseEstimator,
+    batch: Sequence[pandas.DataFrame],
+    inference_args: Optional[Dict[str, Any]] = None) -> Any:
   # vectorize data for better performance
   vectorized_batch = pandas.concat(batch, axis=0)
   predictions = model.predict(vectorized_batch)
