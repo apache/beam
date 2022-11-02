@@ -1,24 +1,22 @@
-{
-  "words": [
-    {
-      "key": 1,
-      "value": "hi there"
-    },
-    {
-      "key": 2,
-      "value": "hi"
-    },
-    {
-      "key": 3,
-      "value": "hi alex"
-    },
-    {
-      "key": 4,
-      "value": "hi vlad"
-    },
-    {
-      "key": 5,
-      "value": "welcome ana"
-    }
-  ]
-}
+[
+  {
+    "key": 1,
+    "value": "hi there"
+  },
+  {
+    "key": 2,
+    "value": "hi"
+  },
+  {
+    "key": 3,
+    "value": "hi alex"
+  },
+  {
+    "key": 4,
+    "value": "hi vlad"
+  },
+  {
+    "key": 5,
+    "value": "welcome ana"
+  }
+]

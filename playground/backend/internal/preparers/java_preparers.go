@@ -23,11 +23,14 @@ import (
 	"os"
 	"regexp"
 
+	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
 const (
+	bootstrapServerPattern            = "kafka_server:9092"
+	topicNamePattern                  = "dataset"
 	classWithPublicModifierPattern    = "public class "
 	classWithoutPublicModifierPattern = "class "
 	packagePattern                    = `^(package) (([\w]+\.)+[\w]+);`
@@ -104,6 +107,40 @@ func (builder *JavaPreparersBuilder) WithGraphHandler() *JavaPreparersBuilder {
 	return builder
 }
 
+//WithBootstrapServersChanger adds preparer to replace tokens in the example source to correct values
+func (builder *JavaPreparersBuilder) WithBootstrapServersChanger() *JavaPreparersBuilder {
+	if len(builder.params) == 0 {
+		return builder
+	}
+	bootstrapServerVal, ok := builder.params[constants.BootstrapServerKey]
+	if !ok {
+		return builder
+	}
+	bootstrapServersChanger := Preparer{
+		Prepare: replace,
+		Args:    []interface{}{builder.filePath, bootstrapServerPattern, bootstrapServerVal},
+	}
+	builder.AddPreparer(bootstrapServersChanger)
+	return builder
+}
+
+//WithTopicNameChanger adds preparer to replace tokens in the example source to correct values
+func (builder *JavaPreparersBuilder) WithTopicNameChanger() *JavaPreparersBuilder {
+	if len(builder.params) == 0 {
+		return builder
+	}
+	topicNameVal, ok := builder.params[constants.TopicNameKey]
+	if !ok {
+		return builder
+	}
+	topicNameChanger := Preparer{
+		Prepare: replace,
+		Args:    []interface{}{builder.filePath, topicNamePattern, topicNameVal},
+	}
+	builder.AddPreparer(topicNameChanger)
+	return builder
+}
+
 func addCodeToSaveGraph(args ...interface{}) error {
 	filePath := args[0].(string)
 	pipelineObjectName, _ := findPipelineObjectName(filePath)
@@ -125,7 +162,9 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
 			WithPackageChanger().
-			WithGraphHandler()
+			WithGraphHandler().
+			WithBootstrapServersChanger().
+			WithTopicNameChanger()
 	}
 	if isUnitTest {
 		builder.JavaPreparers().
@@ -136,7 +175,9 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
 			WithPackageRemover().
-			WithGraphHandler()
+			WithGraphHandler().
+			WithBootstrapServersChanger().
+			WithTopicNameChanger()
 	}
 }
 

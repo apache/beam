@@ -20,7 +20,8 @@ ALLOWED_LIST = [
     "127.0.0.1",
     "logging.googleapis.com",
     "datastore.googleapis.com",
-    "oauth2.googleapis.com"
+    "oauth2.googleapis.com",
+    "storage.googleapis.com"
 ]
 
 # ALLOWED_BUCKET_LIST contains all public Google Cloud Storage buckets
@@ -29,4 +30,5 @@ ALLOWED_BUCKET_LIST = [
     "dataflow-samples",
     "beam-samples",
     "apache-beam-samples",
+    "apache-beam-samples-test"
 ]

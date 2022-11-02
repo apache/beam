@@ -18,7 +18,7 @@
 package org.apache.beam.examples;
 
 // beam-playground:
-//   name: KafkaWordCount
+//   name: KafkaWordCountAvro
 //   description: Test example with Apache Kafka
 //   multifile: false
 //   context_line: 55
@@ -39,7 +39,7 @@ package org.apache.beam.examples;
 //   datasets:
 //      dataset:
 //          location: GCS
-//          format: json
+//          format: avro
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;

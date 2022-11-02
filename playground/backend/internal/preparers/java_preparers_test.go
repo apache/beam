@@ -16,13 +16,15 @@
 package preparers
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/fs_tool"
-	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/fs_tool"
 )
 
 func Test_replace(t *testing.T) {
@@ -88,9 +90,10 @@ func Test_replace(t *testing.T) {
 
 func TestGetJavaPreparers(t *testing.T) {
 	type args struct {
-		filePath   string
-		isUnitTest bool
-		isKata     bool
+		filePath      string
+		prepareParams map[string]string
+		isUnitTest    bool
+		isKata        bool
 	}
 	tests := []struct {
 		name string
@@ -99,23 +102,23 @@ func TestGetJavaPreparers(t *testing.T) {
 	}{
 		{
 			name: "Test number of preparers for code",
-			args: args{"MOCK_FILEPATH", false, false},
+			args: args{"MOCK_FILEPATH", make(map[string]string), false, false},
 			want: 3,
 		},
 		{
 			name: "Test number of preparers for unit test",
-			args: args{"MOCK_FILEPATH", true, false},
+			args: args{"MOCK_FILEPATH", make(map[string]string), true, false},
 			want: 2,
 		},
 		{
 			name: "Test number of preparers for kata",
-			args: args{"MOCK_FILEPATH", false, true},
+			args: args{"MOCK_FILEPATH", make(map[string]string), false, true},
 			want: 3,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewPreparersBuilder(tt.args.filePath)
+			builder := NewPreparersBuilder(tt.args.filePath, tt.args.prepareParams)
 			GetJavaPreparers(builder, tt.args.isUnitTest, tt.args.isKata)
 			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
 				t.Errorf("GetJavaPreparation() returns %v Preparers, want %v", len(*got), tt.want)

@@ -22,10 +22,13 @@ import (
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/code_processing"
 	"beam.apache.org/playground/backend/internal/components"
+	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/db"
 	"beam.apache.org/playground/backend/internal/db/mapper"
+	"beam.apache.org/playground/backend/internal/emulators"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/logger"
@@ -42,6 +45,7 @@ const (
 	errorTitleGetExampleOutput = "Error during getting example output"
 	errorTitleGetExampleLogs   = "Error during getting example logs"
 	errorTitleGetExampleGraph  = "Error during getting example graph"
+	errorTitleRunCode          = "Error during preparing"
 
 	userBadCloudPathErrMsg    = "Invalid cloud path parameter"
 	userCloudConnectionErrMsg = "Cloud connection error"
@@ -57,6 +61,7 @@ type playgroundController struct {
 	props          *environment.Properties
 	entityMapper   mapper.EntityMapper
 	cacheComponent *components.CacheComponent
+	storage        *cloud_bucket.CloudStorage
 
 	pb.UnimplementedPlaygroundServiceServer
 }
@@ -71,46 +76,73 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	// check for correct sdk
 	if info.Sdk != controller.env.BeamSdkEnvs.ApacheBeamSdk {
 		logger.Errorf("RunCode(): request contains incorrect sdk: %s\n", info.Sdk)
-		return nil, errors.InvalidArgumentError("Error during preparing", "Incorrect sdk. Want to receive %s, but the request contains %s", controller.env.BeamSdkEnvs.ApacheBeamSdk.String(), info.Sdk.String())
+		return nil, errors.InvalidArgumentError(errorTitleRunCode, "Incorrect sdk. Want to receive %s, but the request contains %s", controller.env.BeamSdkEnvs.ApacheBeamSdk.String(), info.Sdk.String())
 	}
 	switch info.Sdk {
 	case pb.Sdk_SDK_UNSPECIFIED:
 		logger.Errorf("RunCode(): unimplemented sdk: %s\n", info.Sdk)
-		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
+		return nil, errors.InvalidArgumentError(errorTitleRunCode, "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
 
 	cacheExpirationTime := controller.env.ApplicationEnvs.CacheEnvs().KeyExpirationTime()
 	pipelineId := uuid.New()
 
-	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir())
+	var kafkaMockCluster emulators.EmulatorMockCluster
+	var prepareParams = make(map[string]string)
+	if len(info.Datasets) != 0 {
+		kafkaMockClusterVal, err := emulators.NewKafkaMockCluster()
+		kafkaMockCluster = kafkaMockClusterVal
+		if err != nil {
+			logger.Errorf("RunCode(): failed to run a kafka mock cluster, %v", err)
+			return nil, errors.InternalError(errorTitleRunCode, "Failed to run a kafka mock cluster")
+		}
+		datasetDTOs, err := controller.storage.GetDatasets(ctx, controller.env.ApplicationEnvs.BucketName(), info.Datasets)
+		if err != nil {
+			logger.Errorf("RunCode(): failed to get datasets from the cloud storage, %v", err)
+			return nil, errors.InternalError(errorTitleRunCode, "Failed to get datasets from the cloud storage")
+		}
+		producer, err := emulators.NewKafkaProducer(kafkaMockClusterVal)
+		if err != nil {
+			logger.Errorf("RunCode(): failed to create a producer, %v", err)
+			return nil, errors.InternalError(errorTitleRunCode, "Failed to create a producer to save a dataset")
+		}
+		if err = producer.ProduceDatasets(datasetDTOs); err != nil {
+			logger.Errorf("RunCode(): failed to produce a dataset, %v", err)
+			return nil, errors.InternalError(errorTitleRunCode, "Failed to produce a dataset")
+		}
+		prepareParams[constants.TopicNameKey] = info.Datasets[0].Options[constants.TopicNameKey]
+		prepareParams[constants.BootstrapServerKey] = kafkaMockCluster.GetAddress()
+	}
+
+	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir(), kafkaMockCluster)
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup file system: %s\n", err.Error())
-		return nil, errors.InternalError("Error during preparing", "Error during setup file system for the code processing: %s", err.Error())
+		return nil, errors.InternalError(errorTitleRunCode, "Error during setup file system for the code processing: %s", err.Error())
 	}
 
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
-		code_processing.DeleteFolders(pipelineId, lc)
-		return nil, errors.InternalError("Error during preparing", "Error during saving status of the code processing")
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		return nil, errors.InternalError(errorTitleRunCode, "Error during saving status of the code processing")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
-		code_processing.DeleteFolders(pipelineId, lc)
-		return nil, errors.InternalError("Error during preparing", "Error during saving initial run output")
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		return nil, errors.InternalError(errorTitleRunCode, "Error during saving initial run output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
-		code_processing.DeleteFolders(pipelineId, lc)
-		return nil, errors.InternalError("Error during preparing", "Error during saving value for the logs output")
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		return nil, errors.InternalError(errorTitleRunCode, "Error during saving value for the logs output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
-		code_processing.DeleteFolders(pipelineId, lc)
-		return nil, errors.InternalError("Error during preparing", "Error during saving initial cancel flag")
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		return nil, errors.InternalError(errorTitleRunCode, "Error during saving initial cancel flag")
 	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
-		code_processing.DeleteFolders(pipelineId, lc)
-		return nil, errors.InternalError("Error during preparing", "Internal error")
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		return nil, errors.InternalError(errorTitleRunCode, "Internal error")
 	}
 
-	go code_processing.Process(context.Background(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions)
+	go code_processing.Process(context.Background(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions, kafkaMockCluster, prepareParams)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
 	return &pipelineInfo, nil

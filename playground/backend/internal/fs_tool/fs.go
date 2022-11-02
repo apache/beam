@@ -25,6 +25,7 @@ import (
 	"github.com/google/uuid"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/emulators"
 )
 
 const (
@@ -49,8 +50,9 @@ type LifeCyclePaths struct {
 
 // LifeCycle is used for preparing folders and files to process code for one code processing request.
 type LifeCycle struct {
-	folderGlobs []string // folders that should be created to process code
-	Paths       LifeCyclePaths
+	folderGlobs         []string // folders that should be created to process code
+	Paths               LifeCyclePaths
+	emulatorMockCluster emulators.EmulatorMockCluster
 }
 
 // NewLifeCycle returns a corresponding LifeCycle depending on the given SDK.

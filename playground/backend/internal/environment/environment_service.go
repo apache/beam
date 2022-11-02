@@ -65,6 +65,8 @@ const (
 	defaultSDKConfigPath          = "../sdks.yaml"
 	propertyPathKey               = "PROPERTY_PATH"
 	defaultPropertyPath           = "."
+	bucketNameKey                 = "BUCKET_NAME"
+	defaultBucketName             = "apache-beam-samples"
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
@@ -108,6 +110,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	pipelinesFolder := getEnv(pipelinesFolderKey, defaultPipelinesFolder)
 	sdkConfigPath := getEnv(SDKConfigPathKey, defaultSDKConfigPath)
 	propertyPath := getEnv(propertyPathKey, defaultPropertyPath)
+	bucketName := getEnv(bucketNameKey, defaultBucketName)
 
 	if value, present := os.LookupEnv(cacheKeyExpirationTimeKey); present {
 		if converted, err := time.ParseDuration(value); err == nil {
@@ -125,7 +128,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	}
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
+		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath, bucketName, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }
