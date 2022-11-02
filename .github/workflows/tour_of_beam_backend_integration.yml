@@ -21,9 +21,17 @@ name: Tour of Beam Go integration tests
 
 on:
   push:
-    paths:
-     - 'learning/tour-of-beam/backend/**'
-     - 'playground/backend/**'
+    branches: ['master', 'release-*']
+    tags: 'v*'
+    paths: 
+      - 'learning/tour-of-beam/backend/**'
+      - 'playground/backend/**'
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+    paths: 
+      - 'learning/tour-of-beam/backend/**'
+      - 'playground/backend/**'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -48,7 +56,7 @@ env:
   PORT_GET_UNIT_CONTENT: 8803
   PORT_GET_USER_PROGRESS: 8804
   PORT_POST_UNIT_COMPLETE: 8805
-  PORT_POST_USER_CODE: 8806
+  PORT_POST_USER_PROGRESS: 8806
 
 
 jobs:
