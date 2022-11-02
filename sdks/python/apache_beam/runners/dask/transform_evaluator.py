@@ -117,20 +117,18 @@ class Create(DaskBagOp):
 
 
 class ParDo(DaskBagOp):
-  def apply(self, input_bag: OpInput) -> db.Bag:
+  def apply(self, input_bag: db.Bag) -> db.Bag:
     transform = t.cast(apache_beam.ParDo, self.transform)
 
-    label = transform.label
-    map_fn = transform.fn
     args, kwargs = transform.raw_side_inputs
     args = list(args)
     main_input = next(iter(self.applied.main_inputs.values()))
     window_fn = main_input.windowing.windowfn if hasattr(
         main_input, "windowing") else None
 
-    context = DoFnContext(label, state=None)
+    context = DoFnContext(transform.label, state=None)
     bundle_finalizer_param = DoFn.BundleFinalizerParam()
-    do_fn_signature = DoFnSignature(map_fn)
+    do_fn_signature = DoFnSignature(transform.fn)
 
     tagged_receivers = OneReceiver()
 
