@@ -7831,7 +7831,7 @@ class MultiplyByTwo(beam.DoFn):
 
   # Declare what the element-wise output type is
   def infer_output_type(self, input_element_type):
-    return np.int64
+    return input_element_type
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
@@ -7842,33 +7842,36 @@ individual elements:
 {{< /paragraph >}}
 
 {{< highlight py >}}
-(p | beam.Create([1,2,3,4]).with_output_types(np.int64)
+(p | beam.Create([1, 2, 3, 4]).with_output_types(np.int64)
    | beam.ParDo(MultiplyByTwo) # Implicit buffering and batch creation
    | beam.Map(lambda x: x/3))  # Implicit batch explosion
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
-However, if Batched DoFns with equivalent types are chained together, this
-batching and unbatching will be elided. The batches will be passed straight
-through! This makes it much simpler to compose transforms that operate on
-batches.
+Note that we use
+[`PTransform.with_output_types`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform.with_output_types) to
+set the _element-wise_ typehint for the output of `beam.Create`. Then, when
+`MultiplyByTwo` is applied to this `PCollection`, Beam recognizes that
+`np.ndarray` is an acceptable batch type to use in conjunction with `np.int64`
+elements.  We will use numpy typehints like these throughout this guide, but
+Beam supports typehints from other libraries as well, see [Supported Batch
+Types](#batched-dofn-types).
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+In the previous case, Beam will implicitly create and explode batches at the
+input and output boundaries. However, if Batched DoFns with equivalent types are
+chained together, this batch creation and explosion will be elided. The batches
+will be passed straight through! This makes it much simpler to efficiently
+compose transforms that operate on batches.
 {{< /paragraph >}}
 
 {{< highlight py >}}
-(p | beam.Create([1,2,3,4]).with_output_types(np.int64)
+(p | beam.Create([1, 2, 3, 4]).with_output_types(np.int64)
    | beam.ParDo(MultiplyByTwo) # Implicit buffering and batch creation
    | beam.ParDo(MultiplyByTwo) # Batches passed through
    | beam.ParDo(MultiplyByTwo))
 {{< /highlight >}}
-
-{{< paragraph class="language-py" >}}
-Note that the typehints on the Batched DoFn are *critical*. This is how
-a Batched DoFn declares what batch type it expects. When this DoFn is used in a
-pipeline, Beam will inspect these typehints to ensure that the input and output
-types are compatible, and to verify that it understands how to create instances
-of this type of batch (see [Supported Batch Types](#batched-dofn-types)).
-{{< /paragraph >}}
-
 
 ### 14.2 Element-wise Fallback {#batched-dofn-elementwise}
 {{< paragraph class="language-go language-java language-typescript" >}}
@@ -7936,7 +7939,7 @@ class ReadFromFile(beam.DoFn):
 # Consumes batches, produces elements
 class WriteToFile(beam.DoFn):
   @beam.DoFn.yields_elements
-  def process(self, np.ndarray) -> Iterator[str]:
+  def process(self, batch: np.ndarray) -> Iterator[str]:
     ...
     yield output_path
 {{< /highlight >}}
@@ -7947,9 +7950,9 @@ Batched DoFns are currently a Python-only feature.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-So far we’ve used numpy types in these Batched DoFn implementations -
+We’ve used numpy types in the Batched DoFn implementations in this guide &ndash;
 `np.int64 ` as the element typehint and `np.ndarray` as the corresponding
-batch typehint - but Beam supports typehints from other libraries as well.
+batch typehint &ndash; but Beam supports typehints from other libraries as well.
 {{< /paragraph >}}
 
 #### [numpy](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/typehints/batch.py)
