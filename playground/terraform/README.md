@@ -23,7 +23,7 @@
 ### Following items need to be setup for Playground deployment on GCP:
 1. [GCP project](https://cloud.google.com/)
 
-2. [GCP service account](https://cloud.google.com/iam/docs/creating-managing-service-accounts) _(Note: You will find the instruction "How to create Service account" for your new project)_
+2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_
 
 ***Google Cloud preparation steps:***
 After creating or identified an existing project for deployment, please be sure that your account has at least following privileges:
