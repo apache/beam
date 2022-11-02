@@ -1272,32 +1272,7 @@ class DataflowRunner(PipelineRunner):
         TransformNames.WRITE, transform_node.full_label, transform_node)
     # TODO(mairbek): refactor if-else tree to use registerable functions.
     # Initialize the sink specific properties.
-    if transform.sink.format == 'bigquery':
-      # TODO(silviuc): Add table validation if transform.sink.validate.
-      step.add_property(
-          PropertyNames.BIGQUERY_DATASET,
-          transform.sink.table_reference.datasetId)
-      step.add_property(
-          PropertyNames.BIGQUERY_TABLE, transform.sink.table_reference.tableId)
-      # If project owning the table was not specified then the project owning
-      # the workflow (current project) will be used.
-      if transform.sink.table_reference.projectId is not None:
-        step.add_property(
-            PropertyNames.BIGQUERY_PROJECT,
-            transform.sink.table_reference.projectId)
-      step.add_property(
-          PropertyNames.BIGQUERY_CREATE_DISPOSITION,
-          transform.sink.create_disposition)
-      step.add_property(
-          PropertyNames.BIGQUERY_WRITE_DISPOSITION,
-          transform.sink.write_disposition)
-      if transform.sink.table_schema is not None:
-        step.add_property(
-            PropertyNames.BIGQUERY_SCHEMA, transform.sink.schema_as_json())
-      if transform.sink.kms_key is not None:
-        step.add_property(
-            PropertyNames.BIGQUERY_KMS_KEY, transform.sink.kms_key)
-    elif transform.sink.format == 'pubsub':
+    if transform.sink.format == 'pubsub':
       standard_options = options.view_as(StandardOptions)
       if not standard_options.streaming:
         raise ValueError(

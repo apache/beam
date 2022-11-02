@@ -112,6 +112,7 @@ else:
   globals()['create_OutputStream'] = create_OutputStream
   globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
   # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+  is_compiled = True
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -611,6 +612,12 @@ class BytesCoderImpl(CoderImpl):
   A coder for bytes/str objects."""
   def encode_to_stream(self, value, out, nested):
     # type: (bytes, create_OutputStream, bool) -> None
+
+    # value might be of type np.bytes if passed from encode_batch, and cython
+    # does not recognize it as bytes.
+    if is_compiled and isinstance(value, np.bytes_):
+      value = bytes(value)
+
     out.write(value, nested)
 
   def decode_from_stream(self, in_stream, nested):

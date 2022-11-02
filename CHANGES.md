@@ -43,7 +43,6 @@
 
 ## Bugfixes
 
-* Fixed JmsIO acknowledgment issue (https://github.com/apache/beam/issues/20814)
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 ## Known Issues
 
@@ -52,18 +51,42 @@
 
 # [2.44.0] - Unreleased
 
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
 ## New Features / Improvements
 
 * Local packages can now be used as dependencies in the requirements.txt file, rather
   than requiring them to be passed separately via the `--extra_package` option.
   ([#23684](https://github.com/apache/beam/pull/23684))
 
+## Breaking Changes
+
+* `ParquetIO.withSplit` was removed since splittable reading has been the default behavior since 2.35.0. The effect of
+  this change is to drop support for non-splittable reading ([#23832](https://github.com/apache/beam/issues/23832)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed JmsIO acknowledgment issue (https://github.com/apache/beam/issues/20814)
+* Fixed Beam SQL CalciteUtils (Java) and Cross-language JdbcIO (Python) did not support JDBC CHAR/VARCHAR, BINARY/VARBINARY logical types ([#23747](https://github.com/apache/beam/issues/23747), [#23526](https://github.com/apache/beam/issues/23526)).
 
 # [2.43.0] - Unreleased
 
 ## Highlights
 
 * Python 3.10 support in Apache Beam ([#21458](https://github.com/apache/beam/issues/21458)).
+* An initial implementation of a runner that allows us to run Beam pipelines on Dask. Try it out and give us feedback! (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
 
 
 ## I/Os
@@ -81,6 +104,7 @@
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Dataframe wrapper added in Go SDK via Cross-Language (with automatic expansion service). (Go) ([#23384](https://github.com/apache/beam/issues/23384)).
 * Name all Java threads to aid in debugging ([#23049](https://github.com/apache/beam/issues/23049)).
+* An initial implementation of a runner that allows us to run Beam pipelines on Dask. (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
 
 ## Breaking Changes
 

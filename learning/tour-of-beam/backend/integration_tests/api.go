@@ -67,3 +67,12 @@ type ErrorResponse struct {
 	Code    string `json:"code"`
 	Message string `json:"message,omitempty"`
 }
+
+type UnitProgress struct {
+	Id            string `json:"id"`
+	IsCompleted   bool   `json:"isCompleted"`
+	UserSnippetId string `json:"userSnippetId,omitempty"`
+}
+type SdkProgress struct {
+	Units []UnitProgress `json:"units"`
+}

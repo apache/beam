@@ -20,11 +20,13 @@
 
 import logging
 import re
+import sys
 import threading
 import time
 import unittest
 import weakref
 
+import objsize
 from hamcrest import assert_that
 from hamcrest import contains_string
 
@@ -32,6 +34,7 @@ from apache_beam.runners.worker.statecache import CacheAware
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.statecache import WeightedValue
 from apache_beam.runners.worker.statecache import _LoadingValue
+from apache_beam.runners.worker.statecache import get_deep_size
 
 
 class StateCacheTest(unittest.TestCase):
@@ -355,6 +358,54 @@ class StateCacheTest(unittest.TestCase):
         (
             'used/max 1/5 MB, hit 100.00%, lookups 0, '
             'avg load time 0 ns, loads 0, evictions 0'))
+
+  def test_get_deep_size_builtin_objects(self):
+    """
+    `statecache.get_deep_copy` should work same with objsize unless the `objs`
+    has `CacheAware` or a filtered object. They should return the same size for
+    built-in objects.
+    """
+    primitive_test_objects = [
+        1,                    # int
+        2.0,                  # float
+        1+1j,                 # complex
+        True,                 # bool
+        'hello,world',        # str
+        b'\00\01\02',         # bytes
+    ]
+
+    collection_test_objects = [
+        [3, 4, 5],            # list
+        (6, 7),               # tuple
+        {'a', 'b', 'c'},      # set
+        {'k': 8, 'l': 9},     # dict
+    ]
+
+    for obj in primitive_test_objects:
+      self.assertEqual(
+          get_deep_size(obj),
+          objsize.get_deep_size(obj),
+          f'different size for obj: `{obj}`, type: {type(obj)}')
+      self.assertEqual(
+          get_deep_size(obj),
+          sys.getsizeof(obj),
+          f'different size for obj: `{obj}`, type: {type(obj)}')
+
+    for obj in collection_test_objects:
+      self.assertEqual(
+          get_deep_size(obj),
+          objsize.get_deep_size(obj),
+          f'different size for obj: `{obj}`, type: {type(obj)}')
+
+  def test_current_weight_between_get_and_put(self):
+    value = 1234567
+    get_cache = StateCache(100)
+    get_cache.get("key", lambda k: value)
+
+    put_cache = StateCache(100)
+    put_cache.put("key", value)
+
+    self.assertEqual(get_cache._current_weight, put_cache._current_weight)
 
 
 if __name__ == '__main__':
