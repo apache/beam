@@ -7939,7 +7939,7 @@ class ReadFromFile(beam.DoFn):
 # Consumes batches, produces elements
 class WriteToFile(beam.DoFn):
   @beam.DoFn.yields_elements
-  def process(self, batch: np.ndarray) -> Iterator[str]:
+  def process_batch(self, batch: np.ndarray) -> Iterator[str]:
     ...
     yield output_path
 {{< /highlight >}}
