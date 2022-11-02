@@ -21,8 +21,6 @@ name: Tour of Beam Go integration tests
 
 on:
   push:
-    branches: ['master', 'release-*']
-    tags: ['v*']
     paths:
      - 'learning/tour-of-beam/backend/**'
      - 'playground/backend/**'

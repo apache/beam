@@ -21,12 +21,6 @@ name: Tour of Beam Go unittests
 
 on:
   push:
-    branches: ['master', 'release-*']
-    tags: 'v*'
-    paths: ['learning/tour-of-beam/backend/**']
-  pull_request:
-    branches: ['master', 'release-*']
-    tags: 'v*'
     paths: ['learning/tour-of-beam/backend/**']
 
 # This allows a subsequently queued workflow run to interrupt previous runs
