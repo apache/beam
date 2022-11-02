@@ -116,7 +116,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_uri: The URI to where the model is saved.
       model_file_type: The method of serialization of the argument.
         default=pickle
-      inference_fn: The inference function to use. 
+      inference_fn: The inference function to use.
         default=_default_numpy_inference_fn
     """
     self._model_uri = model_uri
@@ -204,7 +204,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       model_uri: The URI to where the model is saved.
       model_file_type: The method of serialization of the argument.
         default=pickle
-      inference_fn: The inference function to use. 
+      inference_fn: The inference function to use.
         default=_default_pandas_inference_fn
     """
     self._model_uri = model_uri
