@@ -46,6 +46,7 @@ __all__ = [
     'SklearnModelHandlerPandas',
 ]
 
+NumpyInferenceFn = Callable[[BaseEstimator, Sequence[numpy.ndarray], Optional[Dict[str, Any]]], Any]
 
 class ModelFileType(enum.Enum):
   """Defines how a model file is serialized. Options are pickle or joblib."""
@@ -98,7 +99,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self,
       model_uri: str,
       model_file_type: ModelFileType = ModelFileType.PICKLE,
-      inference_fn: Optional[Callable[[BaseEstimator, Sequence[numpy.ndarray], Optional[Dict[str, Any]]], Any]] = _default_numpy_inference_fn):
+      inference_fn: Optional[NumpyInferenceFn] = _default_numpy_inference_fn):
     """ Implementation of the ModelHandler interface for scikit-learn
     using numpy arrays as input.
 
@@ -157,6 +158,8 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """
     return 'BeamML_Sklearn'
 
+PandasInferenceFn = Callable[[BaseEstimator, Sequence[pandas.DataFrame], Optional[Dict[str, Any]]], Any]
+
 def _default_pandas_inference_fn(model: BaseEstimator, batch: Sequence[pandas.DataFrame], inference_args: Optional[Dict[str, Any]] = None
 ) -> Any:
   # vectorize data for better performance
@@ -175,7 +178,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       self,
       model_uri: str,
       model_file_type: ModelFileType = ModelFileType.PICKLE,
-      inference_fn: Optional[Callable[[BaseEstimator, Sequence[pandas.DataFrame], Optional[Dict[str, Any]]], Any]] = _default_pandas_inference_fn):
+      inference_fn: Optional[PandasInferenceFn] = _default_pandas_inference_fn):
     """Implementation of the ModelHandler interface for scikit-learn that
     supports pandas dataframes.
 
