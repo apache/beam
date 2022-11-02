@@ -1188,7 +1188,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;p>Kio is a set of Kotlin extensions for Apache Beam to implement fluent-like API for Java SDK.&lt;/p>
+&lt;div class="case-study-post">
+&lt;h1 id="kio-is-a-set-of-kotlin-extensions-for-apache-beam-to-implement-fluent-like-api-for-java-sdk">Kio is a set of Kotlin extensions for Apache Beam to implement fluent-like API for Java SDK.&lt;/h1>
 &lt;h2 id="word-count-example">Word Count example&lt;/h2>
 &lt;pre>&lt;code>// Create Kio context
 val kio = Kio.fromArguments(args)
@@ -1202,7 +1203,9 @@ kio.read().text(&amp;quot;~/input.txt&amp;quot;)
 // And execute it
 kio.execute().waitUntilDone()
 &lt;/code>&lt;/pre>&lt;h2 id="documentation">Documentation&lt;/h2>
-&lt;p>For more information about Kio, please see the documentation here: &lt;a href="https://code.chermenin.ru/kio">https://code.chermenin.ru/kio&lt;/a>.&lt;/p></description></item><item><title>Case-Studies: Klio</title><link>/case-studies/klio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/klio/</guid><description>
+&lt;p>For more information about Kio, please see the documentation here: &lt;a href="https://code.chermenin.ru/kio">https://code.chermenin.ru/kio&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;div class="clear-nav">&lt;/div></description></item><item><title>Case-Studies: Klio</title><link>/case-studies/klio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/klio/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
