@@ -39,7 +39,6 @@ task("lintProto") {
   }
 }
 
-// local deployment playground application - up
 task("dockerComposeLocalUp") {
     dependsOn(":playground:backend:containers:router:docker")
     dependsOn(":playground:backend:containers:go:docker")
@@ -49,6 +48,8 @@ task("dockerComposeLocalUp") {
     dependsOn(":playground:frontend:docker")
 
     group = "build"
+    description = "Start Playground backend and frontend locally"
+
     doLast {
         exec {
             executable("docker-compose")
@@ -57,9 +58,10 @@ task("dockerComposeLocalUp") {
     }
 }
 
-// local deployment playground application - down
 task("dockerComposeLocalDown") {
     group = "build"
+    description = "Stop Playground backend and frontend locally"
+
     doLast {
         exec {
             executable("docker-compose")
