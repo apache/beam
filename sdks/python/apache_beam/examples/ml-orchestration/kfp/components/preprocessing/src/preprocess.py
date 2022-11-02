@@ -21,6 +21,8 @@ import io
 import argparse
 import time
 from pathlib import Path
+import logging
+from collections.abc import Iterable
 
 import requests
 from PIL import Image, UnidentifiedImageError
@@ -30,6 +32,9 @@ import torchvision.transforms as T
 import torchvision.transforms.functional as TF
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+
+
+IMAGE_SIZE = (224, 244)
 
 
 # [START preprocess_component_argparse]
@@ -126,15 +131,13 @@ def preprocess_dataset(
     (
         pipeline
         |
-        "Read input jsonl file" >> beam.io.ReadFromText(ingested_dataset_path)
+        "Read input jsonlines file" >> beam.io.ReadFromText(ingested_dataset_path)
         | "Load json" >> beam.Map(json.loads)
         | "Filter licenses" >> beam.Filter(valid_license)
-        | "Download image from URL" >> beam.ParDo(DownloadImageFromURL())
-        | "Filter on valid images" >>
-        beam.Filter(lambda el: el['image'] is not None)
-        | "Resize image" >> beam.ParDo(ResizeImage(size=(224, 224)))
-        | "Clean Text" >> beam.ParDo(CleanText())
-        | "Serialize Example" >> beam.ParDo(SerializeExample())
+        | "Download image from URL" >> beam.FlatMap(download_image_from_url)
+        | "Resize image" >> beam.Map(resize_image, size=IMAGE_SIZE)
+        | "Clean Text" >> beam.Map(clean_text)
+        | "Serialize Example" >> beam.Map(serialize_example)
         | "Write to Avro files" >> beam.io.WriteToAvro(
             file_path_prefix=target_path,
             schema={
@@ -153,44 +156,37 @@ def preprocess_dataset(
   # [END deploy_preprocessing_beam_pipeline]
 
 
-class DownloadImageFromURL(beam.DoFn):
-  """DoFn to download the images from their uri."""
-  def process(self, element):
-    response = requests.get(element['image_url'])
-    try:
-      image = Image.open(io.BytesIO(response.content))
-      image = T.ToTensor()(image)
-      element['image'] = image
-    except UnidentifiedImageError:
-      element['image'] = None
-    return [element]
+def download_image_from_url(element: dict) -> Iterable[dict]:
+  """download the images from their uri."""
+  response = requests.get(element['image_url'])
+  try:
+    image = Image.open(io.BytesIO(response.content))
+    image = T.ToTensor()(image)
+    yield {**element, 'image': image}
+  except UnidentifiedImageError as e:
+    logging.exception(e)
 
 
-class ResizeImage(beam.DoFn):
-  "DoFn to resize the elememt's PIL image to the target resolution."
-
-  def process(self, element, size=(256, 256)):
-    element['image'] = TF.resize(element['image'], size)
-    return [element]
+def resize_image(element: dict, size=(256, 256)):
+  "Resize the element's PIL image to the target resolution."
+  image = TF.resize(element['image'], size)
+  return {**element, 'image': image}
 
 
-class CleanText(beam.DoFn):
-  """Dofn to perform a series of string cleaning operations."""
-  def process(self, element):
-    text = element['caption']
-    text = text.lower()  # lower case
-    text = re.sub(r"http\S+", "", text)  # remove urls
-    text = re.sub("\s+", " ", text)  # remove extra spaces (including \n and \t)
-    text = re.sub(
-        "[()[\].,|:;?!=+~\-\/{}]", ",",
-        text)  # all puncutation are replace w commas
-    text = f" {text}"  # always start with a space
-    text = text.strip(',')  #  remove commas at the start or end of the caption
-    text = text[:-1] if text and text[-1] == "," else text
-    text = text[1:] if text and text[0] == "," else text
-
-    element["preprocessed_caption"] = text
-    return [element]
+def clean_text(element: dict):
+  """Perform a series of string cleaning operations."""
+  text = element['caption']
+  text = text.lower()  # lower case
+  text = re.sub(r"http\S+", "", text)  # remove urls
+  text = re.sub("\s+", " ", text)  # remove extra spaces (including \n and \t)
+  text = re.sub(
+      "[()[\].,|:;?!=+~\-\/{}]", ",",
+      text)  # all puncutation are replace w commas
+  text = f" {text}"  # always start with a space
+  text = text.strip(',')  #  remove commas at the start or end of the caption
+  text = text[:-1] if text and text[-1] == "," else text
+  text = text[1:] if text and text[0] == "," else text
+  return {**element, "preprocessed_caption": text}
 
 
 def valid_license(element):
@@ -199,14 +195,13 @@ def valid_license(element):
   return license in ["Attribution License", "No known copyright restrictions"]
 
 
-class SerializeExample(beam.DoFn):
-  """DoFn to serialize an elements image."""
-  def process(self, element):
-    buffer = io.BytesIO()
-    torch.save(element['image'], buffer)
-    buffer.seek(0)
-    element['image'] = buffer.read()
-    return [element]
+def serialize_example(element):
+  """Serialize an elements image."""
+  buffer = io.BytesIO()
+  torch.save(element['image'], buffer)
+  buffer.seek(0)
+  image = buffer.read()
+  return {**element, 'image': image}
 
 
 if __name__ == "__main__":
