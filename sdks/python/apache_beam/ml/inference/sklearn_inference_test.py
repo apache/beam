@@ -24,11 +24,11 @@ import platform
 import shutil
 import sys
 import tempfile
+import unittest
 from typing import Any
 from typing import Dict
 from typing import Optional
 from typing import Sequence
-import unittest
 
 import joblib
 import numpy
