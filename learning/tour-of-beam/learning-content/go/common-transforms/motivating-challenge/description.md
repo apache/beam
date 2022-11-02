@@ -14,8 +14,12 @@ limitations under the License.
 
 You are provided with a `PCollection` from the array of taxi order prices in a csv file. Your task is to find how many orders are below $15 and above. Return it as a map structure (key-value), make `above` or `below` the key, and the sum of all orders - the value.Although there are many ways to do this, try using another transformation presented in this module.
 
-Taxi.csv consists of 16 columns:
+Here is a small list of fields and an example record from this dataset:
 
-`VendorID,tpep_pickup_datetime,tpep_dropoff_datetime,passenger_count,trip_distance,RatecodeID,store_and_fwd_flag,PULocationID,DOLocationID,payment_type,fare_amount,extra,mta_tax,tip_amount,tolls_amount,improvement_surcharge,total_amount`
+| cost | passenger_count | ... |
+|------|-----------------|-----|
+| 5.8  | 1               | ... |
+| 4.6  | 2               | ... |
+| 24   | 1               | ... |
 
-Required number of columns:**16 - order price**.
+Overview [file](https://storage.googleapis.com/apache-beam-samples/nyc_taxi/misc/sample1000.csv)
