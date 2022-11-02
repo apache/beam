@@ -120,7 +120,7 @@ Please see <a href=/get-started/quickstart-py/>here</a> for instructions.</li><l
 
 python -m apache_beam.runners.portability.local_job_service_main -p $JOB_SERVER_PORT
 </code></pre><ol start=3><li><p>In a different shell, go to a <a href=https://github.com/apache/beam>Beam HEAD Git clone</a>.</p></li><li><p>Build the Beam Java SDK container for a local pipeline execution
-(this guide requires that your JAVA_HOME is set to Java 11).</p></li></ol><pre><code>./gradlew :sdks:java:container:java11:docker
+(this guide requires that your JAVA_HOME is set to Java 11).</p></li></ol><pre><code>./gradlew :sdks:java:container:java11:docker -Pjava11Home=$JAVA_HOME
 </code></pre><ol start=5><li>Run the pipeline.</li></ol><blockquote><p><strong>Note:</strong> Due to <a href=https://github.com/apache/beam/issues/23717>issue#23717</a>,
 Beam 2.42.0 requires manually starting up an expansion service (see
 <a href=https://beam.apache.org/documentation/sdks/java-multi-language-pipelines/#advanced-start-an-expansion-service>these instructions</a>)
@@ -147,8 +147,8 @@ your own expansion service.</p><p>For example, to start the standard expansion s
 <a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service.py>ExpansionServiceServicer</a>,
 follow these steps:</p><ol><li><p>Activate a new virtual environment following
 <a href=https://beam.apache.org/get-started/quickstart-py/#create-and-activate-a-virtual-environment>these instructions</a>.</p></li><li><p>Install Apache Beam with <code>gcp</code> and <code>dataframe</code> packages.</p></li></ol><pre><code>pip install apache-beam[gcp,dataframe]
-</code></pre><ol start=4><li><p>Run the following command</p><pre><code>python -m apache_beam.runners.portability.expansion_service_main -p &lt;PORT&gt; --fully_qualified_name_glob &quot;*&quot;
-</code></pre></li></ol><p>The command runs
+</code></pre><ol start=4><li>Run the following command</li></ol><pre><code>python -m apache_beam.runners.portability.expansion_service_main -p &lt;PORT&gt; --fully_qualified_name_glob &quot;*&quot;
+</code></pre><p>The command runs
 <a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service_main.py>expansion_service_main.py</a>, which starts the standard expansion service. When you use
 Gradle to run your Java pipeline, you can specify the expansion service with the
 <code>expansionService</code> option. For example: <code>--expansionService=localhost:&lt;PORT></code>.</p><h3 id=run-with-dataflow-runner-using-a-beam-release-beam-2430-and-later>Run with Dataflow runner using a Beam release (Beam 2.43.0 and later)</h3><blockquote><p><strong>Note:</strong> Due to <a href=https://github.com/apache/beam/issues/23717>issue#23717</a>,
