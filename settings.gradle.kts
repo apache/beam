@@ -62,8 +62,9 @@ if (isJenkinsBuild || isGithubActionsBuild) {
   }
 }
 
-// Remote Gradle Cache can be also enabled with the environment variable
+// Remote Gradle Cache can be also enabled with this env var for users with gcloud credentials
 val isRemoteCacheEnabled = System.getenv().containsKey("BEAM_REMOTE_CACHE_ENABLED") 
+
 var isMasterGHBuild= false
 var isHostedAgent= false
 if(isGithubActionsBuild){
@@ -71,16 +72,15 @@ if(isGithubActionsBuild){
   isHostedAgent= System.getenv("RUNNER_NAME").equals("Hosted Agent")
 }
 
-// Remote GCP Cache uses default gcloud-cli credentials 
 
-if(isRemoteCacheEnabled || (isMasterGHBuild && !isHostedAgent)) { //Only Self-Hosted Runners currently have a default GCP Service Account
-  
+if(isRemoteCacheEnabled || (isMasterGHBuild && !isHostedAgent)) { //Only Self-Hosted Runners currently have a default GCP Service Account  
   buildCache {
       registerBuildCacheService(GcpBuildCache::class, GcpBuildCacheServiceFactory::class)
       remote(GcpBuildCache::class) {
           projectId = "apache-beam-testing"
           bucketName = "gradle-cache-storage"
           // Custom service account can be set with :  credentials = ExportedKeyGcpCredentials(File("path/to/credentials.json"))
+          // if custom credentials are not specified, it will  use gcloud credentials by default
           isPush = isMasterGHBuild
           isEnabled = true
       }
