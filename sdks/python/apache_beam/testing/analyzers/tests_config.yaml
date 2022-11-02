@@ -20,6 +20,4 @@ test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification
 metrics_dataset: beam_run_inference
 metrics_table: torch_inference_imagenet_results_resnet101
 project: apache-beam-testing
-metric_name:
-  - num_inferences
-  - load_model_latency_milli_secs
+metric_name: num_inferences

@@ -625,14 +625,14 @@ class FetchMetrics:
                     table,
                     dataset,
                     metric_name: str,
-                    limit=100) -> List[Dict]:
+                    limit=1000) -> List[Dict]:
     query_template = """
       SELECT *
       FROM {}.{}.{}
       ORDER BY {} DESC
       LIMIT {}
-    """.format(project_name, table, dataset, SUBMIT_TIMESTAMP_LABEL, limit)
-    bq_client = bigquery.Client(project=project_name)
+    """.format(project_name, dataset, table, SUBMIT_TIMESTAMP_LABEL, limit)
+    bq_client = bigquery.Client()
     query_job = bq_client.query(query_template)
     results = query_job.result()
     metric_values = []
