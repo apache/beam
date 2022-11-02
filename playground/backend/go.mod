@@ -20,10 +20,13 @@ go 1.18
 require (
 	cloud.google.com/go/datastore v1.9.0
 	cloud.google.com/go/logging v1.4.2
+	cloud.google.com/go/storage v1.22.1
+	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/go-redis/redismock/v8 v8.0.6
 	github.com/google/uuid v1.3.0
 	github.com/improbable-eng/grpc-web v0.14.1
+	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/procyon-projects/chrono v1.1.0
 	github.com/rs/cors v1.8.0
 	github.com/spf13/viper v1.12.0
@@ -71,6 +74,7 @@ require (
 	google.golang.org/genproto v0.0.0-20221014213838-99cd37c6964a // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
+	gopkg.in/linkedin/goavro.v1 v1.0.5 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	nhooyr.io/websocket v1.8.6 // indirect
 )
