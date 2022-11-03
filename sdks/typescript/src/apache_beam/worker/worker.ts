@@ -41,6 +41,7 @@ import {
 } from "../proto/beam_fn_api.grpc-server";
 
 import { MultiplexingDataChannel, IDataChannel } from "./data";
+import { MetricsContainer, MetricsShortIdCache } from "./metrics";
 import {
   MultiplexingStateChannel,
   CachingStateProvider,
@@ -67,8 +68,10 @@ export class Worker {
 
   processBundleDescriptors: Map<string, ProcessBundleDescriptor> = new Map();
   bundleProcessors: Map<string, BundleProcessor[]> = new Map();
+  activeBundleProcessors: Map<string, BundleProcessor> = new Map();
   dataChannels: Map<string, MultiplexingDataChannel> = new Map();
   stateChannels: Map<string, MultiplexingStateChannel> = new Map();
+  metricsShortIdCache = new MetricsShortIdCache();
 
   constructor(
     private id: string,
@@ -112,10 +115,12 @@ export class Worker {
   async handleRequest(request) {
     console.log(request);
     if (request.request.oneofKind === "processBundle") {
-      await this.process(request);
+      return this.process(request);
+    } else if (request.request.oneofKind === "processBundleProgress") {
+      return this.controlChannel.write(await this.progress(request));
     } else {
       console.log("Unknown instruction type: ", request);
-      this.controlChannel.write({
+      return this.controlChannel.write({
         instructionId: request.instructionId,
         error: "Unknown instruction type: " + request.request.oneofKind,
         response: {
@@ -125,8 +130,39 @@ export class Worker {
     }
   }
 
-  respond(response: InstructionResponse) {
-    this.controlChannel.write(response);
+  async respond(response: InstructionResponse) {
+    return this.controlChannel.write(response);
+  }
+
+  async progress(request): Promise<InstructionResponse> {
+    const processor = this.activeBundleProcessors.get(
+      request.processBundleProgress.instructionId
+    );
+    if (processor) {
+      const monitoringData = processor.monitoringData(this.metricsShortIdCache);
+      return {
+        instructionId: request.instructionId,
+        error: "",
+        response: {
+          oneofKind: "processBundleProgress",
+          processBundleProgress: {
+            monitoringInfos: [...monitoringData.entries()].map(
+              ([id, payload]) =>
+                this.metricsShortIdCache.asMonitoringInfo(id, payload)
+            ),
+            monitoringData: Object.fromEntries(monitoringData.entries()),
+          },
+        },
+      };
+    } else {
+      return {
+        instructionId: request.instructionId,
+        error: "Unknown bundle: " + request.processBundleProgress.instructionId,
+        response: {
+          oneofKind: undefined,
+        },
+      };
+    }
   }
 
   async process(request) {
@@ -163,6 +199,7 @@ export class Worker {
       }
 
       const processor = this.aquireBundleProcessor(descriptorId);
+      this.activeBundleProcessors.set(request.instructionId, processor);
       await processor.process(request.instructionId);
       await this.respond({
         instructionId: request.instructionId,
@@ -185,6 +222,8 @@ export class Worker {
         error: "" + error,
         response: { oneofKind: undefined },
       });
+    } finally {
+      this.activeBundleProcessors.delete(request.instructionId);
     }
   }
 
@@ -250,6 +289,7 @@ export class BundleProcessor {
   getStateChannel: ((string) => MultiplexingStateChannel) | StateProvider;
   currentBundleId?: string;
   stateProvider?: StateProvider;
+  metricsContainer: MetricsContainer;
 
   constructor(
     descriptor: ProcessBundleDescriptor,
@@ -260,6 +300,7 @@ export class BundleProcessor {
     this.descriptor = descriptor;
     this.getDataChannel = getDataChannel;
     this.getStateChannel = getStateChannel;
+    this.metricsContainer = new MetricsContainer();
 
     // TODO: (Perf) Consider defering this possibly expensive deserialization lazily to the worker thread.
     const this_ = this;
@@ -300,7 +341,8 @@ export class BundleProcessor {
               getReceiver,
               this_.getDataChannel,
               this_.getStateProvider.bind(this_),
-              this_.getBundleId.bind(this_)
+              this_.getBundleId.bind(this_),
+              this_.metricsContainer
             )
           )
         );
@@ -347,6 +389,7 @@ export class BundleProcessor {
   // Put this on a worker thread...
   async process(instructionId: string) {
     console.debug("Processing ", this.descriptor.id, "for", instructionId);
+    this.metricsContainer.reset();
     this.currentBundleId = instructionId;
     // We must await these in reverse topological order.
     for (const o of this.topologicallyOrderedOperators.slice().reverse()) {
@@ -361,6 +404,10 @@ export class BundleProcessor {
     }
     this.currentBundleId = undefined;
     this.stateProvider = undefined;
+  }
+
+  monitoringData(shortIdCache: MetricsShortIdCache): Map<string, Uint8Array> {
+    return this.metricsContainer.monitoringData(shortIdCache);
   }
 }
 

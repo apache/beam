@@ -33,6 +33,7 @@ import { Runner, PipelineResult } from "./runner";
 import * as worker from "../worker/worker";
 import * as operators from "../worker/operators";
 import { createStateKey } from "../worker/pardo_context";
+import * as metrics from "../worker/metrics";
 import * as state from "../worker/state";
 import { parDo } from "../transforms/pardo";
 import {
@@ -128,10 +129,18 @@ export class DirectRunner extends Runner {
       );
       await processor.process("bundle_id");
 
-      return {
-        waitUntilFinish: (duration?: number) =>
-          Promise.resolve(JobState_Enum.DONE),
-      };
+      return new (class DirectPipelineResult extends PipelineResult {
+        waitUntilFinish(duration?: number) {
+          return Promise.resolve(JobState_Enum.DONE);
+        }
+        async rawMetrics() {
+          const shortIdCache = new metrics.MetricsShortIdCache();
+          const monitoringData = processor.monitoringData(shortIdCache);
+          return Array.from(monitoringData.entries()).map(([id, payload]) =>
+            shortIdCache.asMonitoringInfo(id, payload)
+          );
+        }
+      })();
     } finally {
       DirectRunner.inMemoryStatesRefs.delete(stateCacheRef);
     }

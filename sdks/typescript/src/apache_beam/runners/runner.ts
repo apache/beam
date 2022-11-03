@@ -17,12 +17,27 @@
  */
 
 import { JobState_Enum } from "../proto/beam_job_api";
+import { MonitoringInfo } from "../proto/metrics";
 import { Pipeline } from "../internal/pipeline";
 import { Root, PValue } from "../pvalue";
 import { PipelineOptions } from "../options/pipeline_options";
+import * as metrics from "../worker/metrics";
 
-export interface PipelineResult {
-  waitUntilFinish(duration?: number): Promise<JobState_Enum>;
+export class PipelineResult {
+  waitUntilFinish(duration?: number): Promise<JobState_Enum> {
+    throw new Error("NotImplemented");
+  }
+  async rawMetrics(): Promise<MonitoringInfo[]> {
+    throw new Error("NotImplemented");
+  }
+  async counters(): Promise<{ [key: string]: number }> {
+    return Object.fromEntries(
+      metrics.aggregateMetrics(
+        await this.rawMetrics(),
+        "beam:metric:user:sum_int64:v1"
+      )
+    );
+  }
 }
 
 export function createRunner(options: any = {}): Runner {
