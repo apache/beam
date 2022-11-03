@@ -36,6 +36,7 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
     PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
 from config import Config, TagFields, PrecompiledExampleType, OptionalTagFields, Dataset, Emulator
 from grpc_client import GRPCClient
+from storage_client import StorageClient
 
 Tag = namedtuple(
     "Tag",
@@ -163,6 +164,7 @@ async def get_statuses(client: GRPCClient, examples: List[Example], concurrency:
         pipeline_id values.
     """
     tasks = []
+    storage_client = StorageClient()
     try:
         concurrency = int(os.environ["BEAM_CONCURRENCY"])
         logging.info("override default concurrency: %d", concurrency)
@@ -438,7 +440,7 @@ def _get_name(filename: str) -> str:
     return filename.split(os.extsep)[0]
 
 
-async def _update_example_status(example: Example, client: GRPCClient):
+async def _update_example_status(example: Example, client: GRPCClient, storage_client: StorageClient):
     """
     Receive status for examples and update example.status and pipeline_id
 
