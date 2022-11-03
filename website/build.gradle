@@ -116,11 +116,13 @@ task buildCodeSamples(type: Exec) {
 }
 
 task cloneRepository(type: Exec) {
-  //TODO: Get repository and branch from GA
+  def branch = System.getenv('ghBranch') ?  System.getenv('ghBranch'):
+          grgit ? grgit.branch.current().getName(): 'master'
+  def repositoryUrl = System.getenv('repositoryUrl') ? "https://github.com/${System.getenv('repositoryUrl')}" :
+                    "https://github.com/apache/beam"
 
   commandLine 'docker', 'exec',
-          "${->startDockerContainer.containerId()}", "git", "clone", "-b", "postcommit-website",
-          "$getBranchRepo", "."
+          "${->startDockerContainer.containerId()}", "git", "clone", "-b", branch, repositoryUrl, "."
 }
 
 initGitSubmodules.mustRunAfter cloneRepository
@@ -159,7 +161,7 @@ def createBuildTask = {
   BuildTaskConfiguration config = it as BuildTaskConfiguration
   task "build${config.name}Website" (type:Exec) {
     dependsOn setupDockerContainer
-    finalizedBy stopAndRemoveDockerContainer
+//     finalizedBy stopAndRemoveDockerContainer
 
     def configs = "$dockerSourceDir/site/config.toml"
     def baseUrlFlag = config.baseUrl ? "--baseURL /${config.baseUrl}" : ""
@@ -273,14 +275,64 @@ task preCommit {
   dependsOn testWebsite
 }
 
+task commitWebsiteDocker {
+    doLast {
+        def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
+        String message = "Publishing website ${currentDate} at commit \$LATEST_COMMIT"
+        String author = System.getEnv('ghprbPullAuthorLogin')
+
+        exec {
+            commandLine 'docker', 'exec', "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
+            """
+                export LATEST_COMMIT=\$(git log --format="%h" -n 1) && \
+                git fetch --force origin +asf-site:asf-site && \
+                git stash && \
+                git checkout asf-site && \
+                git rm -rq 'website/generated-content'
+            """
+        }
+
+        exec {
+            commandLine 'docker', 'exec', "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
+            """
+               mkdir website/generated-content
+               cp -r build/website/generated-apache-content/* website/generated-content
+            """
+        }
+
+        exec {
+            commandLine 'docker', 'exec', "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
+            """
+                git add 'website/generated-content'
+            """
+        }
+
+        //Set user name and email to commit
+        exec {
+            commandLine 'docker', 'exec', "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
+            """
+                if [ \$(git status --porcelain | wc -l) > 0 ];
+                then
+                    echo "Creating commit for changes"
+                    git commit -am "${message}"
+
+                else
+                    echo "No changes to commit"
+                fi
+            """
+        }
+
+    }
+}
+
 // Creates a new commit on asf-site branch
 task commitWebsite {
   doLast {
     assert grgit : "Cannot commit website outside of git repository"
-    assert file("${buildContentDir('apache')}/index.html").exists()
+//     assert file("${buildContentDir('apache')}/index.html").exists()
     // Generated javadoc and pydoc content is not built or stored in this repo.
-    assert !file("${buildContentDir('apache')}/documentation/sdks/javadoc").exists()
-    assert !file("${buildContentDir('apache')}/documentation/sdks/pydoc").exists()
+//     assert !file("${buildContentDir('apache')}/documentation/sdks/javadoc").exists()
+//     assert !file("${buildContentDir('apache')}/documentation/sdks/pydoc").exists()
 
     def git = grgit.open(currentDir: project.rootDir)
     // get the latest commit on master
@@ -345,12 +397,12 @@ task publishWebsite {
     }
 
     // Because git.push() fails to authenticate, run git push directly.
-    shell "git push ${gitboxUrl} asf-site"
+    //shell "git push ${gitboxUrl} asf-site"
   }
 }
 
-commitWebsite.dependsOn buildApacheWebsite
-publishWebsite.dependsOn commitWebsite
+commitWebsiteDocker.dependsOn buildApacheWebsite
+publishWebsite.dependsOn commitWebsiteDocker
 
 /*
  * Stages a pull request on GCS
