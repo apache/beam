@@ -169,5 +169,14 @@ func main() {
 		args = append(args, "--status_endpoint="+info.GetStatusEndpoint().GetUrl())
 	}
 
-	log.Fatalf("User program exited: %v", execx.Execute("npx", args...))
+  workerIds := append([]string{*workerId}, info.GetSiblingWorkerIds()...)
+	var wg sync.WaitGroup
+	wg.Add(len(workerIds))
+	for _, workerId := range workerIds {
+		go func(workerId string) {
+			log.Printf("Executing: python %v", strings.Join(args, " "))
+			log.Fatalf("User program exited: %v", execx.ExecuteEnv(map[string]string{"WORKER_ID": workerId}, "npx", args...))
+		}(workerId)
+	}
+	wg.Wait()
 }
