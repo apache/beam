@@ -13778,7 +13778,235 @@ return pcoll | beam.Map(lambda s: prefix &amp;#43; s &amp;#43; postfix)
 &lt;p>Currently, portable runners such as Flink, Spark, and the direct runner can be used with multi-language pipelines.&lt;/p>
 &lt;p>Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.&lt;/p>
 &lt;h3 id="x-lang-transform-tips-troubleshooting">13.4 Tips and Troubleshooting&lt;/h3>
-&lt;p>For additional tips and troubleshooting information, see &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Multi-language+Pipelines+Tips">here&lt;/a>.&lt;/p></description></item><item><title>Documentation: BigQuery ML integration</title><link>/documentation/patterns/bqml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bqml/</guid><description>
+&lt;p>For additional tips and troubleshooting information, see &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Multi-language+Pipelines+Tips">here&lt;/a>.&lt;/p>
+&lt;h2 id="batched-dofns">14 Batched DoFns&lt;/h2>
+&lt;nav class="language-switcher">
+&lt;strong>Adapt for:&lt;/strong>
+&lt;ul>
+&lt;li data-value="java" class="active">Java SDK&lt;/li>
+&lt;li data-value="py">Python SDK&lt;/li>
+&lt;li data-value="go">Go SDK&lt;/li>
+&lt;li data-value="typescript">TypeScript SDK&lt;/li>
+&lt;/ul>
+&lt;/nav>
+&lt;p class="language-go language-java language-typescript">Batched DoFns are currently a Python-only feature.&lt;/p>
+&lt;p class="language-py">Batched DoFns enable users to create modular, composable components that
+operate on batches of multiple logical elements. These DoFns can leverage
+vectorized Python libraries, like numpy, scipy, and pandas, which operate on
+batches of data for efficiency.&lt;/p>
+&lt;h3 id="batched-dofn-basics">14.1 Basics&lt;/h3>
+&lt;p class="language-go language-java language-typescript">Batched DoFns are currently a Python-only feature.&lt;/p>
+&lt;p class="language-py">A trivial Batched DoFn might look like this:&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">MultiplyByTwo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+  &lt;span class="c1"># Type&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">process_batch&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">batch&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ndarray&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">Iterator&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ndarray&lt;/span>&lt;span class="p">]:&lt;/span>
+    &lt;span class="k">yield&lt;/span> &lt;span class="n">batch&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">2&lt;/span>
+  &lt;span class="c1"># Declare what the element-wise output type is&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">infer_output_type&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">input_element_type&lt;/span>&lt;span class="p">):&lt;/span>
+    &lt;span class="k">return&lt;/span> &lt;span class="n">input_element_type&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-py">This DoFn can be used in a Beam pipeline that otherwise operates on individual
+elements. Beam will implicitly buffer elements and create numpy arrays on the
+input side, and on the output side it will explode the numpy arrays back into
+individual elements:&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">4&lt;/span>&lt;span class="p">])&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">int64&lt;/span>&lt;span class="p">)&lt;/span>
+   &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MultiplyByTwo&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="c1"># Implicit buffering and batch creation&lt;/span>
+   &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">))&lt;/span>  &lt;span class="c1"># Implicit batch explosion&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-py">Note that we use
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform.with_output_types">&lt;code>PTransform.with_output_types&lt;/code>&lt;/a> to
+set the &lt;em>element-wise&lt;/em> typehint for the output of &lt;code>beam.Create&lt;/code>. Then, when
+&lt;code>MultiplyByTwo&lt;/code> is applied to this &lt;code>PCollection&lt;/code>, Beam recognizes that
+&lt;code>np.ndarray&lt;/code> is an acceptable batch type to use in conjunction with &lt;code>np.int64&lt;/code>
+elements. We will use numpy typehints like these throughout this guide, but
+Beam supports typehints from other libraries as well, see &lt;a href="#batched-dofn-types">Supported Batch
+Types&lt;/a>.&lt;/p>
+&lt;p class="language-py">In the previous case, Beam will implicitly create and explode batches at the
+input and output boundaries. However, if Batched DoFns with equivalent types are
+chained together, this batch creation and explosion will be elided. The batches
+will be passed straight through! This makes it much simpler to efficiently
+compose transforms that operate on batches.&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">4&lt;/span>&lt;span class="p">])&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">int64&lt;/span>&lt;span class="p">)&lt;/span>
+   &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MultiplyByTwo&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="c1"># Implicit buffering and batch creation&lt;/span>
+   &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MultiplyByTwo&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="c1"># Batches passed through&lt;/span>
+   &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MultiplyByTwo&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="batched-dofn-elementwise">14.2 Element-wise Fallback&lt;/h3>
+&lt;p class="language-go language-java language-typescript">Batched DoFns are currently a Python-only feature.&lt;/p>
+&lt;p class="language-py">For some DoFns you may be able to provide both a batched and an element-wise
+implementation of your desired logic. You can do this by simply defining both
+&lt;code>process&lt;/code> and &lt;code>process_batch&lt;/code>:&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">MultiplyByTwo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">int64&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">Iterator&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">int64&lt;/span>&lt;span class="p">]:&lt;/span>
+&lt;span class="c1"># Multiply an individual int64 by 2&lt;/span>
+    &lt;span class="k">yield&lt;/span> &lt;span class="n">batch&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">2&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">process_batch&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">batch&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ndarray&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">Iterator&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ndarray&lt;/span>&lt;span class="p">]:&lt;/span>
+&lt;span class="c1"># Multiply a _batch_ of int64s by 2&lt;/span>
+    &lt;span class="k">yield&lt;/span> &lt;span class="n">batch&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">2&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-py">When executing this DoFn, Beam will select the best implementation to use given
+the context. Generally, if the inputs to a DoFn are already batched Beam will
+use the batched implementation; otherwise it will use the element-wise
+implementation defined in the &lt;code>process&lt;/code> method.&lt;/p>
+&lt;p class="language-py">Note that, in this case, there is no need to define &lt;code>infer_output_type&lt;/code>. This is
+because Beam can get the output type from the typehint on &lt;code>process&lt;/code>.&lt;/p>
+&lt;h3 id="batched-dofn-batch-production">14.3 Batch Production vs. Batch Consumption&lt;/h3>
+&lt;p class="language-go language-java language-typescript">Batched DoFns are currently a Python-only feature.&lt;/p>
+&lt;p class="language-py">By convention, Beam assumes that the &lt;code>process_batch&lt;/code> method, which consumes
+batched inputs, will also produce batched outputs. Similarly, Beam assumes the
+&lt;code>process&lt;/code> method will produce individual elements. This can be overridden with
+the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.yields_elements">&lt;code>@beam.DoFn.yields_elements&lt;/code>&lt;/a> and
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.yields_batches">&lt;code>@beam.DoFn.yields_batches&lt;/code>&lt;/a> decorators. For example:&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="c1"># Consumes elements, produces batches&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">ReadFromFile&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+  &lt;span class="nd">@beam.DoFn.yields_batches&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">path&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">Iterator&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ndarray&lt;/span>&lt;span class="p">]:&lt;/span>
+    &lt;span class="o">...&lt;/span>
+    &lt;span class="k">yield&lt;/span> &lt;span class="n">array&lt;/span>
+  
+  &lt;span class="c1"># Declare what the element-wise output type is&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">infer_output_type&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+    &lt;span class="k">return&lt;/span> &lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">int64&lt;/span>
+&lt;span class="c1"># Consumes batches, produces elements&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">WriteToFile&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+  &lt;span class="nd">@beam.DoFn.yields_elements&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">process_batch&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">batch&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ndarray&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">Iterator&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">]:&lt;/span>
+    &lt;span class="o">...&lt;/span>
+    &lt;span class="k">yield&lt;/span> &lt;span class="n">output_path&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="batched-dofn-types">14.4 Supported Batch Types&lt;/h3>
+&lt;p class="language-go language-java language-typescript">Batched DoFns are currently a Python-only feature.&lt;/p>
+&lt;p class="language-py">We’ve used numpy types in the Batched DoFn implementations in this guide –
+&lt;code>np.int64 &lt;/code> as the element typehint and &lt;code>np.ndarray&lt;/code> as the corresponding
+batch typehint – but Beam supports typehints from other libraries as well.&lt;/p>
+&lt;h4 id="numpyhttpsgithubcomapachebeamblobmastersdkspythonapache_beamtypehintsbatchpy">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/typehints/batch.py">numpy&lt;/a>&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Element Typehint&lt;/th>
+&lt;th>Batch Typehint&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Numeric types (&lt;code>int&lt;/code>, &lt;code>np.int32&lt;/code>, &lt;code>bool&lt;/code>, &amp;hellip;)&lt;/td>
+&lt;td>np.ndarray (or NumpyArray)&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="pandashttpsgithubcomapachebeamblobmastersdkspythonapache_beamtypehintspandas_type_compatibilitypy">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/typehints/pandas_type_compatibility.py">pandas&lt;/a>&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Element Typehint&lt;/th>
+&lt;th>Batch Typehint&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Numeric types (&lt;code>int&lt;/code>, &lt;code>np.int32&lt;/code>, &lt;code>bool&lt;/code>, &amp;hellip;)&lt;/td>
+&lt;td>&lt;code>pd.Series&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>bytes&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>Any&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="#schemas">Beam Schema Types&lt;/a>&lt;/td>
+&lt;td>&lt;code>pd.DataFrame&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="other-types">Other types?&lt;/h4>
+&lt;p>If there are other batch types you would like to use with Batched DoFns, please
+&lt;a href="https://github.com/apache/beam/issues/new/choose">file an issue&lt;/a>.&lt;/p>
+&lt;h3 id="batched-dofn-dynamic-types">14.5 Dynamic Batch Input and Output Types&lt;/h3>
+&lt;p class="language-go language-java language-typescript">Batched DoFns are currently a Python-only feature.&lt;/p>
+&lt;p class="language-py">For some Batched DoFns, it may not be sufficient to declare batch types
+statically, with typehints on &lt;code>process&lt;/code> and/or &lt;code>process_batch&lt;/code>. You may need to
+declare these types dynamically. You can do this by overriding the
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.get_input_batch_type">&lt;code>get_input_batch_type&lt;/code>&lt;/a>
+and
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.get_output_batch_type">&lt;code>get_output_batch_type&lt;/code>&lt;/a>
+methods on your DoFn:&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="c1"># Utilize Beam&amp;#39;s parameterized NumpyArray typehint&lt;/span>
+&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.typehints.batch&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">NumpyArray&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">MultipyByTwo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="c1"># No typehints needed&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">process_batch&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">batch&lt;/span>&lt;span class="p">):&lt;/span>
+    &lt;span class="k">yield&lt;/span> &lt;span class="n">batch&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">2&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">get_input_batch_type&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">input_element_type&lt;/span>&lt;span class="p">):&lt;/span>
+    &lt;span class="k">return&lt;/span> &lt;span class="n">NumpyArray&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">input_element_type&lt;/span>&lt;span class="p">]&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">get_output_batch_type&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">input_element_type&lt;/span>&lt;span class="p">):&lt;/span>
+    &lt;span class="k">return&lt;/span> &lt;span class="n">NumpyArray&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">input_element_type&lt;/span>&lt;span class="p">]&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">infer_output_type&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">input_element_type&lt;/span>&lt;span class="p">):&lt;/span>
+    &lt;span class="k">return&lt;/span> &lt;span class="n">input_element_type&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="batched-dofn-event-time">14.6 Batches and Event-time Semantics&lt;/h3>
+&lt;p class="language-go language-java language-typescript">Batched DoFns are currently a Python-only feature.&lt;/p>
+&lt;p class="language-py">Currently, batches must have a single set of timing information (event time,
+windows, etc&amp;hellip;) that applies to every logical element in the batch. There is
+currently no mechanism to create batches that span multiple timestamps. However,
+it is possible to retrieve this timing information in Batched DoFn
+implementations. This information can be accessed by using the conventional
+&lt;code>DoFn.*Param&lt;/code> attributes:&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">RetrieveTimingDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">process_batch&lt;/span>&lt;span class="p">(&lt;/span>
+    &lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+    &lt;span class="n">batch&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ndarray&lt;/span>&lt;span class="p">,&lt;/span>
+    &lt;span class="n">timestamp&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimestampParam&lt;/span>&lt;span class="p">,&lt;/span>
+    &lt;span class="n">pane_info&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PaneInfoParam&lt;/span>&lt;span class="p">,&lt;/span>
+   &lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">Iterator&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ndarray&lt;/span>&lt;span class="p">]:&lt;/span>
+     &lt;span class="o">...&lt;/span>
+  &lt;span class="k">def&lt;/span> &lt;span class="nf">infer_output_type&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">input_type&lt;/span>&lt;span class="p">):&lt;/span>
+    &lt;span class="k">return&lt;/span> &lt;span class="n">input_type&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div></description></item><item><title>Documentation: BigQuery ML integration</title><link>/documentation/patterns/bqml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bqml/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
