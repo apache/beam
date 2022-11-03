@@ -19,6 +19,10 @@
 
 SparkReceiverIO contains I/O transforms which allow you to read messages from Spark Receiver (org.apache.spark.streaming.receiver.Receiver).
 
+##Spark Receivers support
+
+SparkReceiverIO supports Spark Receivers (Spark version 2.11) that implement [HasOffset](src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
+
 ## Dependencies
 
 To use SparkReceiverIO you must first add a dependency on `beam-sdks-java-io-sparkreceiver`.
