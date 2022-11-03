@@ -282,8 +282,8 @@ func (d *Datastore) GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEn
 	}
 
 	if len(examples) == 0 {
-		logger.Error("no examples")
-		return nil, fmt.Errorf("no examples")
+		logger.Error("no default example")
+		return nil, fmt.Errorf("no default example")
 	}
 
 	//Retrieving snippets
