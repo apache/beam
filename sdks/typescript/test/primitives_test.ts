@@ -252,7 +252,7 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
 describe("primitives module", function () {
   describe("direct runner", suite.bind(this));
   if (process.env.BEAM_SERVICE_OVERRIDES) {
-    describe("portable runner", () => {
+    describe("portable runner @ulr", () => {
       suite.bind(this)(loopbackRunner());
     });
   }
