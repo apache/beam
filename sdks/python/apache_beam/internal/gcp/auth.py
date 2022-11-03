@@ -22,8 +22,10 @@
 import logging
 import socket
 import threading
+from typing import Optional
 
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 # google.auth is only available when Beam is installed with the gcp extra.
 try:
@@ -63,6 +65,8 @@ def set_running_in_gce(worker_executing_project):
 
 
 def get_service_credentials(pipeline_options):
+  # type: (PipelineOptions) -> Optional[google.auth.credentials.Credentials]
+
   """For internal use only; no backwards-compatibility guarantees.
 
   Get credentials to access Google services.
@@ -115,6 +119,7 @@ class _Credentials(object):
 
   @classmethod
   def get_service_credentials(cls, pipeline_options):
+    # type: (PipelineOptions) -> Optional[google.auth.credentials.Credentials]
     with cls._credentials_lock:
       if cls._credentials_init:
         return cls._credentials
@@ -134,6 +139,7 @@ class _Credentials(object):
 
   @staticmethod
   def _get_service_credentials(pipeline_options):
+    # type: (PipelineOptions) -> Optional[google.auth.credentials.Credentials]
     if not _GOOGLE_AUTH_AVAILABLE:
       _LOGGER.warning(
           'Unable to find default credentials because the google-auth library '

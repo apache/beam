@@ -93,7 +93,7 @@ For more information about pipelines, see the following pages:
  * [Beam Programming Guide: Overview](/documentation/programming-guide/#overview)
  * [Beam Programming Guide: Creating a pipeline](/documentation/programming-guide/#creating-a-pipeline)
  * [Design your pipeline](/documentation/pipelines/design-your-pipeline)
- * [Create your pipeline](/documentation/pipeline/create-your-pipeline)
+ * [Create your pipeline](/documentation/pipelines/create-your-pipeline)
 
 ### PCollection
 

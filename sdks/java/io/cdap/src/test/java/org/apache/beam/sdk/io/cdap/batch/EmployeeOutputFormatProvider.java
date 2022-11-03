@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cdap;
+package org.apache.beam.sdk.io.cdap.batch;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import java.util.Map;
+import org.apache.beam.sdk.io.cdap.CdapIO;
+import org.apache.beam.sdk.io.cdap.EmployeeConfig;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**

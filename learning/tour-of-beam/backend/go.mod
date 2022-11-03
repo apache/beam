@@ -24,5 +24,7 @@ require (
 
 require (
 	cloud.google.com/go/datastore v1.8.0
+	cloud.google.com/go/firestore v1.7.0 // indirect
+	firebase.google.com/go/v4 v4.9.0
 	github.com/stretchr/testify v1.8.0
 )
