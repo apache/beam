@@ -138,9 +138,10 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml) | Description placeholder | Yes/No                    |
 
 ### PostCommit Workflows
-| Workflow                                                                           | Description             | Requires GCP Credentials |
-|------------------------------------------------------------------------------------|-------------------------|--------------------------|
-| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
+| Workflow                                                                                   | Description                                                          | Requires GCP Credentials |
+|--------------------------------------------------------------------------------------------|----------------------------------------------------------------------|--------------------------|
+| [job-postcommit-website-publish.yml](.github/workflows/job-postcommit-website-publish.yml) | Publishes generated website content into asf-site branch for hosting | No                       |
+| [job-postcommit-website-test.yml](.github/workflows/job-postcommit-website-test.yml)       | Test to validate the Beam website, including external links.         | No                       |
 
 ### GitHub Action Tips
 

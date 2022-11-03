@@ -40,7 +40,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          submodules: recursive
 
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
@@ -57,6 +56,6 @@ jobs:
           ghprbPullAuthorLogin: ${{github.actor}}
           ghprbSourceBranch: ${{github.ref_name}}
           ghBranch: ${{github.head_ref}}
-          repositoryUrl: ${{github.repositoryUrl}}
+          repositoryUrl: ${{github.repository}}
         with:
           gradle-command: :website:publishWebsite
