@@ -7843,7 +7843,7 @@ individual elements:
 
 {{< highlight py >}}
 (p | beam.Create([1, 2, 3, 4]).with_output_types(np.int64)
-   | beam.ParDo(MultiplyByTwo) # Implicit buffering and batch creation
+   | beam.ParDo(MultiplyByTwo()) # Implicit buffering and batch creation
    | beam.Map(lambda x: x/3))  # Implicit batch explosion
 {{< /highlight >}}
 
@@ -7868,9 +7868,9 @@ compose transforms that operate on batches.
 
 {{< highlight py >}}
 (p | beam.Create([1, 2, 3, 4]).with_output_types(np.int64)
-   | beam.ParDo(MultiplyByTwo) # Implicit buffering and batch creation
-   | beam.ParDo(MultiplyByTwo) # Batches passed through
-   | beam.ParDo(MultiplyByTwo))
+   | beam.ParDo(MultiplyByTwo()) # Implicit buffering and batch creation
+   | beam.ParDo(MultiplyByTwo()) # Batches passed through
+   | beam.ParDo(MultiplyByTwo()))
 {{< /highlight >}}
 
 ### 14.2 Element-wise Fallback {#batched-dofn-elementwise}
