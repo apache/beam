@@ -93,6 +93,10 @@ toxTask "testPy38pandas-14", "py38-pandas-14"
 test.dependsOn "testPy38pandas-14"
 preCommitPy38.dependsOn "testPy38pandas-14"
 
+toxTask "testPy38pandas-15", "py38-pandas-15"
+test.dependsOn "testPy38pandas-15"
+preCommitPy38.dependsOn "testPy38pandas-15"
+
 // Create a test task for each minor version of pytorch
 toxTask "testPy38pytorch-19", "py38-pytorch-19"
 test.dependsOn "testPy38pytorch-19"
