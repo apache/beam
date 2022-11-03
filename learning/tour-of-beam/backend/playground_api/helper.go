@@ -13,22 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package playground
 
 import (
-	"context"
+	context "context"
 
-	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
+	grpc "google.golang.org/grpc"
 )
 
-type Iface interface {
-	GetContentTree(ctx context.Context, sdk tob.Sdk) (tob.ContentTree, error)
-	SaveContentTrees(ctx context.Context, trees []tob.ContentTree) error
+func GetMockClient() PlaygroundServiceClient {
 
-	GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (*tob.Unit, error)
-
-	SaveUser(ctx context.Context, uid string) error
-	GetUserProgress(ctx context.Context, sdk tob.Sdk, uid string) (*tob.SdkProgress, error)
-	SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error
-	SaveUserSnippetId(ctx context.Context, sdk tob.Sdk, unitId, uid, snippetId string) error
+	return &PlaygroundServiceClientMock{
+		SaveSnippetFunc: func(ctx context.Context, in *SaveSnippetRequest, opts ...grpc.CallOption) (*SaveSnippetResponse, error) {
+			return &SaveSnippetResponse{Id: "snippet_id_1"}, nil
+		},
+		GetSnippetFunc: func(ctx context.Context, in *GetSnippetRequest, opts ...grpc.CallOption) (*GetSnippetResponse, error) {
+			return &GetSnippetResponse{
+				Files: []*SnippetFile{
+					{Name: "main.py", Content: "import sys; sys.exit(0)", IsMain: true},
+				},
+				Sdk:             Sdk_SDK_PYTHON,
+				PipelineOptions: "some opts",
+			}, nil
+		},
+	}
 }
