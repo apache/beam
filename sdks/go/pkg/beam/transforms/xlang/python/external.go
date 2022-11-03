@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	pythonCallableUrn      = "beam:logical_type:python_callable:v1"
+	pythonCallableUrn = "beam:logical_type:python_callable:v1"
+	// ExpansionServiceModule is the module containing the python expansion service for python external transforms.
 	ExpansionServiceModule = "apache_beam.runners.portability.expansion_service_main"
 )
 

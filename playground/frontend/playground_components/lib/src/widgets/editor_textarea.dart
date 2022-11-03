@@ -18,8 +18,8 @@
 
 // TODO(alexeyinkin): Refactor this, merge into snippet_editor.dart
 
-import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_code_editor/flutter_code_editor.dart';
 
 import '../models/example.dart';
 import '../models/sdk.dart';
@@ -58,7 +58,7 @@ class EditorTextArea extends StatefulWidget {
 
 class _EditorTextAreaState extends State<EditorTextArea> {
   var focusNode = FocusNode();
-  final GlobalKey codeFieldKey = LabeledGlobalKey('CodeFieldKey');
+  final GlobalKey _sizeKey = LabeledGlobalKey('CodeFieldKey');
 
   @override
   void dispose() {
@@ -82,16 +82,21 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       readOnly: widget.enabled,
       label: 'widgets.codeEditor.label',
       child: FocusScope(
+        key: _sizeKey,
         node: FocusScopeNode(canRequestFocus: widget.isEditable),
         child: CodeTheme(
           data: ext.codeTheme,
-          child: CodeField(
-            key: codeFieldKey,
-            focusNode: focusNode,
-            enabled: widget.enabled,
-            controller: widget.codeController,
-            textStyle: ext.codeRootStyle,
-            expands: true,
+          child: Container(
+            color: ext.codeTheme.styles['root']?.backgroundColor,
+            child: SingleChildScrollView(
+              child: CodeField(
+                key: ValueKey(widget.codeController),
+                focusNode: focusNode,
+                enabled: widget.enabled,
+                controller: widget.codeController,
+                textStyle: ext.codeRootStyle,
+              ),
+            ),
           ),
         ),
       ),
@@ -137,9 +142,8 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   }
 
   int _getQntOfStringsOnScreen() {
-    RenderBox rBox =
-        codeFieldKey.currentContext?.findRenderObject() as RenderBox;
-    double height = rBox.size.height * .75;
+    final renderBox = _sizeKey.currentContext!.findRenderObject()! as RenderBox;
+    final height = renderBox.size.height * .75;
 
     return height ~/ codeFontSize;
   }

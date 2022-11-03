@@ -90,7 +90,7 @@ with pipeline as p:
 ```
 
 In
-this [notebook](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml/run-inference-multi-model.ipynb)
+this [notebook](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml/run_inference_multi_model.ipynb)
 , we show an end-to-end example of a cascade pipeline used for generating and ranking image
 captions. The solution consists of two open-source models:
 

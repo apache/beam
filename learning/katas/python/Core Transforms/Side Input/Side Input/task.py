@@ -29,8 +29,6 @@
 
 import apache_beam as beam
 
-from log_elements import LogElements
-
 
 class Person:
     def __init__(self, name, city, country=''):
@@ -64,4 +62,4 @@ with beam.Pipeline() as p:
 
   (p | beam.Create(persons)
      | beam.ParDo(EnrichCountryDoFn(), beam.pvalue.AsDict(cities_to_countries))
-   | LogElements())
+   | beam.LogElements())

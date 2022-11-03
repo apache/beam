@@ -32,8 +32,6 @@ import pytz
 import apache_beam as beam
 from apache_beam.transforms import window
 
-from log_elements import LogElements
-
 
 class Event:
     def __init__(self, id, event, timestamp):
@@ -60,5 +58,5 @@ with beam.Pipeline() as p:
           Event('5', 'book-order', datetime.datetime(2020, 3, 8, 0, 0, 0, 0, tzinfo=pytz.UTC)),
        ])
      | beam.ParDo(AddTimestampDoFn())
-     | LogElements(with_timestamp=True))
+     | beam.LogElements(with_timestamp=True))
 
