@@ -38,7 +38,6 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.io.NullWritable;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +87,6 @@ public class CdapHubspotStreamingToTxt {
 
   /* Logger for class.*/
   private static final Logger LOG = LoggerFactory.getLogger(CdapHubspotStreamingToTxt.class);
-  public static final int SECONDS_TO_READ = 30;
 
   /**
    * Main entry point for pipeline execution.
@@ -132,13 +130,12 @@ public class CdapHubspotStreamingToTxt {
         .apply(
             "globalwindow",
             Window.<KV<NullWritable, String>>into(new GlobalWindows())
-                .triggering(
-                    Repeatedly.forever(
-                        AfterProcessingTime.pastFirstElementInPane()
-                            .plusDelayOf(Duration.standardSeconds(SECONDS_TO_READ))))
+                .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
                 .discardingFiredPanes())
         .apply(Values.create())
-        .apply("writeToTxt", TextIO.write().withWindowedWrites().to(options.getTxtFilePath()));
+        .apply(
+            "writeToTxt",
+            TextIO.write().withWindowedWrites().withNumShards(1).to(options.getTxtFilePath()));
 
     return pipeline.run();
   }
