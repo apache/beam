@@ -26,7 +26,6 @@ import { Worker, WorkerEndpoints } from "./worker";
 
 async function main() {
   const argv = yargs.argv;
-  console.log(argv);
 
   let pushLogs;
   if (argv.logging_endpoint) {
@@ -44,7 +43,7 @@ async function main() {
     []
   ).forEach(require);
 
-  console.log("Starting worker", argv.id);
+  console.info("Starting worker", argv.id);
   const worker = new Worker(
     argv.id,
     {
@@ -56,9 +55,9 @@ async function main() {
   if (pushLogs) {
     await pushLogs();
   }
-  console.log("Worker started.");
+  console.info("Worker started.");
   await worker.wait();
-  console.log("Worker stoped.");
+  console.info("Worker stoped.");
 }
 
 main()

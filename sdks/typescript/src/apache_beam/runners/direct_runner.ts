@@ -103,8 +103,6 @@ export class DirectRunner extends Runner {
   }
 
   async runPipeline(p): Promise<PipelineResult> {
-    // console.dir(p.proto, { depth: null });
-
     const stateProvider = new InMemoryStateProvider();
     const stateCacheRef = uuid.v4();
     DirectRunner.inMemoryStatesRefs.set(stateCacheRef, stateProvider);
@@ -143,7 +141,7 @@ class DirectImpulseOperator implements operators.IOperator {
   receiver: operators.Receiver;
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {
@@ -181,7 +179,7 @@ class DirectGbkOperator implements operators.IOperator {
   windowCoder: Coder<Window>;
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {
@@ -394,7 +392,7 @@ class CollectSideOperator implements operators.IOperator {
   elementCoder: Coder<unknown>;
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {
@@ -457,7 +455,7 @@ class BufferOperator implements operators.IOperator {
   elements: WindowedValue<unknown>[];
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {
