@@ -1,5 +1,3 @@
-# pylint: skip-file
-
 # -*- coding: utf-8 -*-
 #
 # Author: Mike McKerns (mmckerns @caltech and @uqfoundation)

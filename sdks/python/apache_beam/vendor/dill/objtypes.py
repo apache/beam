@@ -1,7 +1,3 @@
-# pylint: skip-file
-
-#!/usr/bin/env python
-#
 # Author: Mike McKerns (mmckerns @caltech and @uqfoundation)
 # Copyright (c) 2008-2016 California Institute of Technology.
 # Copyright (c) 2016-2019 The Uncertainty Quantification Foundation.
