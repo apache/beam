@@ -41,12 +41,12 @@ class BatchDoFn(beam.DoFn):
     yield [element / 2 for element in batch]
 
 
-class BatchDoFnNoReturnAnnotation(beam.DoFn):
+class NoReturnAnnotation(beam.DoFn):
   def process_batch(self, batch: List[int], *args, **kwargs):
     yield [element * 2 for element in batch]
 
 
-class BatchDoFnOverrideTypeInference(beam.DoFn):
+class OverrideTypeInference(beam.DoFn):
   def process_batch(self, batch, *args, **kwargs):
     yield [element * 2 for element in batch]
 
@@ -104,7 +104,7 @@ def get_test_class_name(cls, num, params_dict):
         "expected_output_batch_type": beam.typehints.List[float]
     },
     {
-        "dofn": BatchDoFnNoReturnAnnotation(),
+        "dofn": NoReturnAnnotation(),
         "input_element_type": int,
         "expected_process_defined": False,
         "expected_process_batch_defined": True,
@@ -112,7 +112,7 @@ def get_test_class_name(cls, num, params_dict):
         "expected_output_batch_type": beam.typehints.List[int]
     },
     {
-        "dofn": BatchDoFnOverrideTypeInference(),
+        "dofn": OverrideTypeInference(),
         "input_element_type": int,
         "expected_process_defined": False,
         "expected_process_batch_defined": True,
@@ -168,7 +168,7 @@ class BatchDoFnParameterizedTest(unittest.TestCase):
     self.assertEqual(self.dofn._can_yield_batches, expected)
 
 
-class BatchDoFnNoInputAnnotation(beam.DoFn):
+class NoInputAnnotation(beam.DoFn):
   def process_batch(self, batch, *args, **kwargs):
     yield [element * 2 for element in batch]
 
@@ -217,11 +217,11 @@ class BatchDoFnTest(unittest.TestCase):
     pc = p | beam.Create([1, 2, 3])
 
     with self.assertRaisesRegex(TypeError,
-                                r'BatchDoFnNoInputAnnotation.process_batch'):
-      _ = pc | beam.ParDo(BatchDoFnNoInputAnnotation())
+                                r'NoInputAnnotation.process_batch'):
+      _ = pc | beam.ParDo(NoInputAnnotation())
 
   def test_unsupported_dofn_param_raises(self):
-    class BatchDoFnBadParam(beam.DoFn):
+    class BadParam(beam.DoFn):
       @no_type_check
       def process_batch(self, batch: List[int], key=beam.DoFn.KeyParam):
         yield batch * key
@@ -230,8 +230,8 @@ class BatchDoFnTest(unittest.TestCase):
     pc = p | beam.Create([1, 2, 3])
 
     with self.assertRaisesRegex(NotImplementedError,
-                                r'BatchDoFnBadParam.*KeyParam'):
-      _ = pc | beam.ParDo(BatchDoFnBadParam())
+                                r'BadParam.*KeyParam'):
+      _ = pc | beam.ParDo(BadParam())
 
   def test_mismatched_batch_producer_raises(self):
     p = beam.Pipeline()
