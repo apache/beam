@@ -26,12 +26,6 @@ data "terraform_remote_state" "playground-state" {
   }
 }
 
-# module "default" {
-#  source                 = "./default"
-#  project_id             = var.project_id
-#  create_default_service = var.create_default_service
-# }
-
 module "backend" {
 
   source                  = "./backend"

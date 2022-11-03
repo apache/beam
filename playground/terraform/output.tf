@@ -89,7 +89,3 @@ output "playground_gke_project" {
 output "playground_static_ip_address_name" {
   value = module.infrastructure.playground_static_ip_address_name
 }
-
-  output "playground_dns_name" {
-  value = module.infrastructure.playground_dns_name
-}

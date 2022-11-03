@@ -288,14 +288,10 @@ task("pushFront") {
 task("prepareConfig") {
     group = "deploy"
     doLast {
-        var extip = ""
-        var stdout = ByteArrayOutputStream()
-        exec {
-            commandLine = listOf("terraform", "output", "playground_dns_name")
-            standardOutput = stdout
-        }
-        extip = stdout.toString().trim().replace("\"", "").dropLast(1)
-        stdout = ByteArrayOutputStream()
+        var dns_name = ""
+        if (project.hasProperty("dns-name")) {
+        dns_name = project.property("dns-name") as String
+          }
         val configFileName = "config.g.dart"
         val modulePath = project(":playground:frontend").projectDir.absolutePath
         var file = File("$modulePath/lib/$configFileName")
@@ -304,15 +300,15 @@ task("prepareConfig") {
             """
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
-      'https://router.${extip}';
+      'https://router.${dns_name}';
 const String kApiJavaClientURL =
-      'https://java.${extip}';
+      'https://java.${dns_name}';
 const String kApiGoClientURL =
-      'https://go.${extip}';
+      'https://go.${dns_name}';
 const String kApiPythonClientURL =
-      'https://python.${extip}';
+      'https://python.${dns_name}';
 const String kApiScioClientURL =
-      'https://scio.${extip}';
+      'https://scio.${dns_name}';
 """
         )
         try {
@@ -381,7 +377,6 @@ task("takeConfig") {
    var registry = ""
    var ipaddrname = ""
    var d_tag = ""
-   var dns_name = ""
    var stdout = ByteArrayOutputStream()
    if (project.hasProperty("docker-tag")) {
         d_tag = project.property("docker-tag") as String
@@ -417,12 +412,6 @@ task("takeConfig") {
    }
    ipaddrname = stdout.toString().trim().replace("\"", "")
    stdout = ByteArrayOutputStream()
-   exec {
-       commandLine = listOf("terraform", "output", "playground_dns_name")
-       standardOutput = stdout
-        }
-   dns_name = stdout.toString().trim().replace("\"", "").dropLast(1)
-   stdout = ByteArrayOutputStream()
 
    val configFileName = "values.yaml"
    val modulePath = project(":playground").projectDir.absolutePath
@@ -453,7 +442,7 @@ project_id: ${proj}
 registry: ${registry}
 static_ip_name: ${ipaddrname}
 tag: $d_tag
-dns_name: $dns_name
+dns_name: ${dns_name}
     """)
  }
 }
@@ -491,16 +480,3 @@ task ("gkebackend") {
   front.mustRunAfter(prepare)
   helm.mustRunAfter(front)
 }
-
-task ("stringtest") {
- group = "deploy"
- val init = tasks.getByName("terraformInit")
- val takeConfig = tasks.getByName("takeConfig")
- val prepare = tasks.getByName("prepareConfig")
- dependsOn(init)
- dependsOn(takeConfig)
- dependsOn(prepare)
- prepare.mustRunAfter(init)
- takeConfig.mustRunAfter(prepare)
-}
-
