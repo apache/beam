@@ -68,7 +68,7 @@ export interface IOperator {
   startBundle: () => Promise<void>;
   // As this is called at every operator at every element, and the vast majority
   // of the time Promises are not needed, we wish to avoid the overhead of
-  // creating promisses and await as much as possible.
+  // creating promises and await as much as possible.
   process: (wv: WindowedValue<unknown>) => ProcessResult;
   finishBundle: () => Promise<void>;
 }
