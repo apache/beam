@@ -480,7 +480,8 @@ public class InMemoryStateInternals<K> implements StateInternals {
       implements MultimapState<K, V>, InMemoryState<InMemoryMultimap<K, V>> {
     private final Coder<K> keyCoder;
     private final Coder<V> valueCoder;
-    private Multimap<K, V> contents = ArrayListMultimap.create();
+    private Multimap<Object, V> contents = ArrayListMultimap.create();
+    private Map<Object, K> structuralKeysMapping = Maps.newHashMap();
 
     public InMemoryMultimap(Coder<K> keyCoder, Coder<V> valueCoder) {
       this.keyCoder = keyCoder;
@@ -490,26 +491,31 @@ public class InMemoryStateInternals<K> implements StateInternals {
     @Override
     public void clear() {
       contents = ArrayListMultimap.create();
+      structuralKeysMapping = Maps.newHashMap();
     }
 
     @Override
     public void put(K key, V value) {
-      contents.put(key, value);
+      Object structuralKey = keyCoder.structuralValue(key);
+      structuralKeysMapping.put(structuralKey, key);
+      contents.put(structuralKey, value);
     }
 
     @Override
     public void remove(K key) {
-      contents.removeAll(key);
+      Object structuralKey = keyCoder.structuralValue(key);
+      structuralKeysMapping.remove(structuralKey);
+      contents.removeAll(structuralKey);
     }
 
     @Override
     public @UnknownKeyFor @NonNull @Initialized ReadableState<Iterable<V>> get(K key) {
-      return CollectionViewState.of(contents.get(key));
+      return CollectionViewState.of(contents.get(keyCoder.structuralValue(key)));
     }
 
     @Override
     public ReadableState<Iterable<K>> keys() {
-      return CollectionViewState.of(contents.keySet());
+      return CollectionViewState.of(structuralKeysMapping.values());
     }
 
     @Override
@@ -518,10 +524,10 @@ public class InMemoryStateInternals<K> implements StateInternals {
         @Override
         public Iterable<Map.Entry<K, Iterable<V>>> read() {
           List<Map.Entry<K, Iterable<V>>> result = new ArrayList<>();
-          for (Map.Entry<K, Collection<V>> entry : contents.asMap().entrySet()) {
+          for (Map.Entry<Object, K> entry : structuralKeysMapping.entrySet()) {
             result.add(
                 new AbstractMap.SimpleEntry(
-                    entry.getKey(), ImmutableList.copyOf(entry.getValue())));
+                    entry.getValue(), ImmutableList.copyOf(contents.get(entry.getKey()))));
           }
           return ImmutableList.copyOf(result);
         }
@@ -540,7 +546,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
       return new ReadableState<Boolean>() {
         @Override
         public Boolean read() {
-          return contents.containsKey(key);
+          return structuralKeysMapping.containsKey(keyCoder.structuralValue(key));
         }
 
         @Override
@@ -575,9 +581,13 @@ public class InMemoryStateInternals<K> implements StateInternals {
     @Override
     public InMemoryMultimap<K, V> copy() {
       InMemoryMultimap<K, V> that = new InMemoryMultimap<>(keyCoder, valueCoder);
-      for (Map.Entry<K, V> entry : this.contents.entries()) {
-        that.contents.put(
-            uncheckedClone(keyCoder, entry.getKey()), uncheckedClone(valueCoder, entry.getValue()));
+      for (K key : this.structuralKeysMapping.values()) {
+        // Make a copy of structuralKey as well
+        Object structuralKey = keyCoder.structuralValue(key);
+        that.structuralKeysMapping.put(structuralKey, uncheckedClone(keyCoder, key));
+        for (V value : this.contents.get(structuralKey)) {
+          that.contents.put(structuralKey, uncheckedClone(valueCoder, value));
+        }
       }
       return that;
     }

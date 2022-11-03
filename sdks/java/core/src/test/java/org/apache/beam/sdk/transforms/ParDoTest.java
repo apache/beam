@@ -47,6 +47,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -65,6 +66,7 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -2834,6 +2836,66 @@ public class ParDoTest implements Serializable {
                 for (Entry<String, Iterable<Integer>> entry : entries) {
                   for (Integer v : entry.getValue()) {
                     r.output(KV.of(entry.getKey(), v));
+                  }
+                }
+              }
+            }
+          };
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn));
+      PAssert.that(output)
+          .containsInAnyOrder(
+              KV.of("a", 97), KV.of("a", 97),
+              KV.of("a", 98), KV.of("b", 33));
+      pipeline.run();
+    }
+
+    // Use byte[] as the key type of Multimap to test that Multimap should treat different keys with
+    // equivalent structural values as the same key.
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateStructuralValue() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      final byte[] bagKey = "BadKey".getBytes(StandardCharsets.UTF_8);
+      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<byte[], Integer>> multimapState =
+                StateSpecs.multimap(ByteArrayCoder.of(), VarIntCoder.of());
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<byte[], Integer> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, Integer>> r) {
+              KV<String, Integer> value = element.getValue();
+              ReadableState<Iterable<Entry<byte[], Iterable<Integer>>>> entriesView =
+                  state.entries();
+              state.put(value.getKey().getBytes(StandardCharsets.UTF_8), value.getValue());
+              count.add(1);
+              if (count.read() >= 4) {
+                Iterable<Entry<byte[], Iterable<Integer>>> entries = state.entries().read();
+                state.put(bagKey, -1);
+                assertEquals(4, countNestedIterables(entries));
+                assertEquals(5, countNestedIterables(entriesView.read()));
+                assertEquals(5, countNestedIterables(state.entries().read()));
+
+                for (Entry<byte[], Iterable<Integer>> entry : entries) {
+                  for (Integer v : entry.getValue()) {
+                    r.output(KV.of(new String(entry.getKey(), StandardCharsets.UTF_8), v));
                   }
                 }
               }

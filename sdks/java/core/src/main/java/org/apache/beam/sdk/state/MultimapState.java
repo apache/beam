@@ -22,7 +22,9 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * A {@link ReadableState} cell mapping keys to bags of values.
+ * A {@link ReadableState} cell mapping keys to bags of values. Keys are considered equivalent if
+ * their structural values are equivalent, see
+ * {@link org.apache.beam.sdk.coders.Coder#structuralValue} for additional details.
  *
  * <p>Implementations of this form of state are expected to implement multimap operations
  * efficiently as supported by some associated backing key-value store.
@@ -35,8 +37,7 @@ public interface MultimapState<K, V> extends State {
 
   /**
    * Associates the specified value with the specified key in this multimap. Existing values
-   * associated with the same key will not be overwritten. 2 keys are considered the same key if
-   * their encoded byte streams are the same.
+   * associated with the same key will not be overwritten.
    *
    * <p>Changes will not be reflected in the results returned by previous calls to {@link
    * ReadableState#read} on the results any of the reading methods({@link #get}, {@link #keys},
