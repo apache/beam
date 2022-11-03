@@ -52,7 +52,7 @@ const TERMINAL_STATES = [
 
 type completionCallback = (terminalState: JobStateEvent) => Promise<unknown>;
 
-class PortableRunnerPipelineResult implements PipelineResult {
+class PortableRunnerPipelineResult extends PipelineResult {
   jobId: string;
   runner: PortableRunner;
   completionCallbacks: completionCallback[];
@@ -63,6 +63,7 @@ class PortableRunnerPipelineResult implements PipelineResult {
     jobId: string,
     completionCallbacks: completionCallback[]
   ) {
+    super();
     this.runner = runner;
     this.jobId = jobId;
     this.completionCallbacks = completionCallbacks;
