@@ -153,7 +153,8 @@ public class SamzaDoFnRunners {
     }
 
     return pipelineOptions.getNumThreadsForProcessElement() > 1
-        ? AsyncDoFnRunner.create(doFnRunnerWithStates, emitter, futureCollector, pipelineOptions)
+        ? AsyncDoFnRunner.create(
+            doFnRunnerWithStates, emitter, futureCollector, keyedInternals != null, pipelineOptions)
         : doFnRunnerWithStates;
   }
 

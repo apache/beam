@@ -162,7 +162,8 @@ public class CdapIOIT {
 
     return CdapIO.<TestRowDBWritable, NullWritable>write()
         .withCdapPlugin(
-            Plugin.create(DBBatchSink.class, DBOutputFormat.class, DBOutputFormatProvider.class))
+            Plugin.createBatch(
+                DBBatchSink.class, DBOutputFormat.class, DBOutputFormatProvider.class))
         .withPluginConfig(pluginConfig)
         .withKeyClass(TestRowDBWritable.class)
         .withValueClass(NullWritable.class)
@@ -174,7 +175,8 @@ public class CdapIOIT {
 
     return CdapIO.<LongWritable, TestRowDBWritable>read()
         .withCdapPlugin(
-            Plugin.create(DBBatchSource.class, DBInputFormat.class, DBInputFormatProvider.class))
+            Plugin.createBatch(
+                DBBatchSource.class, DBInputFormat.class, DBInputFormatProvider.class))
         .withPluginConfig(pluginConfig)
         .withKeyClass(LongWritable.class)
         .withValueClass(TestRowDBWritable.class);

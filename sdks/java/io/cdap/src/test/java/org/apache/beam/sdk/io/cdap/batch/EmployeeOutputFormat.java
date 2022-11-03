@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cdap;
+package org.apache.beam.sdk.io.cdap.batch;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.io.cdap.CdapIO;
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.OutputCommitter;
@@ -56,16 +57,16 @@ public class EmployeeOutputFormat extends OutputFormat<String, String> {
     return outputCommitter;
   }
 
-  static synchronized void initWrittenOutput(OutputCommitter outputCommitter) {
+  public static synchronized void initWrittenOutput(OutputCommitter outputCommitter) {
     EmployeeOutputFormat.outputCommitter = outputCommitter;
     output = Collections.synchronizedList(new ArrayList<>());
   }
 
-  static List<KV<String, String>> getWrittenOutput() {
+  public static List<KV<String, String>> getWrittenOutput() {
     return output;
   }
 
-  static OutputCommitter getOutputCommitter() {
+  public static OutputCommitter getOutputCommitter() {
     return outputCommitter;
   }
 }

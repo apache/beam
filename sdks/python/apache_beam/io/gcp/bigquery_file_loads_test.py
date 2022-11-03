@@ -400,6 +400,23 @@ class TestPartitionFiles(unittest.TestCase):
 
 
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
+  def test_trigger_load_jobs_with_empty_files(self):
+    destination = "project:dataset.table"
+    empty_files = []
+    load_job_prefix = "test_prefix"
+
+    with beam.Pipeline() as p:
+      partitions = (
+          p
+          | beam.Create([(destination, empty_files)])
+          | beam.ParDo(bqfl.PartitionFiles(1000, 10)).with_outputs(
+              bqfl.PartitionFiles.MULTIPLE_PARTITIONS_TAG,
+              bqfl.PartitionFiles.SINGLE_PARTITION_TAG))
+
+      _ = (
+          partitions[bqfl.PartitionFiles.SINGLE_PARTITION_TAG]
+          | beam.ParDo(bqfl.TriggerLoadJobs(), load_job_prefix))
+
   def test_records_traverse_transform_with_mocks(self):
     destination = 'project1:dataset1.table1'
 
