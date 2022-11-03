@@ -197,9 +197,12 @@ class MismatchedElementProducingDoFn(beam.DoFn):
   def process_batch(self, batch: List[int], *args, **kwargs) -> Iterator[int]:
     yield batch[0]
 
+
 class NoElementOutputAnnotation(beam.DoFn):
-  def process_batch(self, batch: List[int], *args, **kwargs) -> Iterator[List[int]]:
+  def process_batch(self, batch: List[int], *args,
+                    **kwargs) -> Iterator[List[int]]:
     yield [element * 2 for element in batch]
+
 
 class BatchDoFnTest(unittest.TestCase):
   def test_map_pardo(self):
@@ -216,8 +219,7 @@ class BatchDoFnTest(unittest.TestCase):
     p = beam.Pipeline()
     pc = p | beam.Create([1, 2, 3])
 
-    with self.assertRaisesRegex(TypeError,
-                                r'NoInputAnnotation.process_batch'):
+    with self.assertRaisesRegex(TypeError, r'NoInputAnnotation.process_batch'):
       _ = pc | beam.ParDo(NoInputAnnotation())
 
   def test_unsupported_dofn_param_raises(self):
@@ -229,8 +231,7 @@ class BatchDoFnTest(unittest.TestCase):
     p = beam.Pipeline()
     pc = p | beam.Create([1, 2, 3])
 
-    with self.assertRaisesRegex(NotImplementedError,
-                                r'BadParam.*KeyParam'):
+    with self.assertRaisesRegex(NotImplementedError, r'BadParam.*KeyParam'):
       _ = pc | beam.ParDo(BadParam())
 
   def test_mismatched_batch_producer_raises(self):
