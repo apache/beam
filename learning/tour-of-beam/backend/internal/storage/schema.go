@@ -111,6 +111,7 @@ type TbUnitProgress struct {
 
 	UnitID      string `datastore:"unitId"`
 	IsCompleted bool   `datastore:"isCompleted"`
+	SnippetId   string `datastore:"snippetId"`
 }
 
 type PgSnippets struct {

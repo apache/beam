@@ -13,22 +13,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package service
 
 import (
-	"context"
+	"log"
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
+	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api"
 )
 
-type Iface interface {
-	GetContentTree(ctx context.Context, sdk tob.Sdk) (tob.ContentTree, error)
-	SaveContentTrees(ctx context.Context, trees []tob.ContentTree) error
-
-	GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (*tob.Unit, error)
-
-	SaveUser(ctx context.Context, uid string) error
-	GetUserProgress(ctx context.Context, sdk tob.Sdk, uid string) (*tob.SdkProgress, error)
-	SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error
-	SaveUserSnippetId(ctx context.Context, sdk tob.Sdk, unitId, uid, snippetId string) error
+func MakePgSaveRequest(userRequest tob.UserCodeRequest, sdk tob.Sdk) pb.SaveSnippetRequest {
+	filesProto := make([]*pb.SnippetFile, 0)
+	for _, file := range userRequest.Files {
+		filesProto = append(filesProto,
+			&pb.SnippetFile{
+				Name:    file.Name,
+				Content: file.Content,
+				IsMain:  file.IsMain,
+			})
+	}
+	sdkIdx, ok := pb.Sdk_value[sdk.StorageID()]
+	if !ok {
+		log.Panicf("Playground SDK undefined for: %v", sdk)
+	}
+	return pb.SaveSnippetRequest{
+		Sdk:             pb.Sdk(sdkIdx),
+		Files:           filesProto,
+		PipelineOptions: userRequest.PipelineOptions,
+	}
 }
