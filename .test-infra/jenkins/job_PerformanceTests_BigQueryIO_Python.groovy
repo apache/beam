@@ -90,7 +90,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       executeJob(delegate, bqio_read_test)
     }
 
-CronJobBuilder.cronJob('beam_PerformanceTests_BiqQueryIO_Read_Python', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_BiqQueryIO_Read_Python', 'H H * * *', this) {
   executeJob(delegate, bqio_read_test)
 }
 
@@ -103,6 +103,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       executeJob(delegate, bqio_write_test)
     }
 
-CronJobBuilder.cronJob('beam_PerformanceTests_BiqQueryIO_Write_Python_Batch', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_BiqQueryIO_Write_Python_Batch', 'H H * * *', this) {
   executeJob(delegate, bqio_write_test)
 }

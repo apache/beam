@@ -92,7 +92,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       executeJob(delegate, spannerio_read_test_2gb)
     }
 
-CronJobBuilder.cronJob('beam_PerformanceTests_SpannerIO_Read_2GB_Python', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_SpannerIO_Read_2GB_Python', 'H H * * *', this) {
   executeJob(delegate, spannerio_read_test_2gb)
 }
 
@@ -105,6 +105,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       executeJob(delegate, spannerio_write_test_2gb)
     }
 
-CronJobBuilder.cronJob('beam_PerformanceTests_SpannerIO_Write_2GB_Python_Batch', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_SpannerIO_Write_2GB_Python_Batch', 'H H * * *', this) {
   executeJob(delegate, spannerio_write_test_2gb)
 }

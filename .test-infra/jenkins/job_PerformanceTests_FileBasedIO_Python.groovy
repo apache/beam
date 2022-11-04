@@ -57,7 +57,7 @@ private void createGCSFileBasedIOITTestJob(testJob) {
     description(testJob.description)
     common.setTopLevelMainJobProperties(delegate)
     common.enablePhraseTriggeringFromPullRequest(delegate, testJob.githubTitle, testJob.githubTriggerPhrase)
-    common.setAutoJob(delegate, 'H 15 * * *')
+    common.setAutoJob(delegate, 'H H * * *')
     InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
       influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,

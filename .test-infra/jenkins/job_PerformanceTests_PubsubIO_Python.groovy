@@ -70,6 +70,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       executeJob(delegate, psio_test)
     }
 
-CronJobBuilder.cronJob('beam_PerformanceTests_PubsubIOIT_Python_Streaming', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_PubsubIOIT_Python_Streaming', 'H H * * *', this) {
   executeJob(delegate, psio_test)
 }
