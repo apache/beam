@@ -116,8 +116,9 @@ def test_find_examples(mock_os_walk, mock_check_file, mock_check_no_nested, is_v
 
 
 @pytest.mark.asyncio
+@mock.patch("google.cloud.storage.Client")
 @mock.patch("helper._update_example_status")
-async def test_get_statuses(mock_update_example_status):
+async def test_get_statuses(mock_update_example_status, mock_storage_client):
     example = Example(
         name="file",
         complexity="MEDIUM",
@@ -133,7 +134,7 @@ async def test_get_statuses(mock_update_example_status):
     client = mock.sentinel
     await get_statuses(client, [example])
 
-    mock_update_example_status.assert_called_once_with(example, client)
+    mock_update_example_status.assert_called_once_with(example, client, mock.ANY)
 
 
 @mock.patch(
@@ -328,6 +329,7 @@ def test__get_name():
 
 
 @pytest.mark.asyncio
+@mock.patch("google.cloud.storage.Client")
 @mock.patch("grpc_client.GRPCClient.check_status")
 @mock.patch("grpc_client.GRPCClient.run_code")
 async def test__update_example_status(mock_grpc_client_run_code, mock_grpc_client_check_status):
@@ -347,7 +349,9 @@ async def test__update_example_status(mock_grpc_client_run_code, mock_grpc_clien
     mock_grpc_client_run_code.return_value = "pipeline_id"
     mock_grpc_client_check_status.side_effect = [STATUS_VALIDATING, STATUS_FINISHED]
 
-    await _update_example_status(example, GRPCClient())
+    storage_client = StorageClient()
+
+    await _update_example_status(example, GRPCClient(), storage_client)
 
     assert example.pipeline_id == "pipeline_id"
     assert example.status == STATUS_FINISHED

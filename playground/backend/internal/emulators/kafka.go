@@ -136,7 +136,6 @@ func (kp *KafkaProducer) ProduceDatasets(datasets []*cloud_bucket.DatasetDTO) er
 				}
 				entries = append(entries, record.(map[string]interface{}))
 			}
-
 			break
 		default:
 			return errors.New("wrong dataset extension")
