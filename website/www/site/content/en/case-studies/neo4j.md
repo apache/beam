@@ -1,7 +1,8 @@
 ---
-title: "Strivr"
-icon: /images/logos/powered-by/Strivr.png
-hasLink: "https://www.strivr.com/"
+title:  "Neo4j"
+icon: /images/logos/powered-by/neo4j.svg
+hasNav: true
+hasLink: "https://www.youtube.com/watch?v=a5rx0_c4RXQ&list=PL4dEBWmGSIU9OkXQU2OAXmITPLhiMSPRp&index=31"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
