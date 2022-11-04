@@ -201,6 +201,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:core:buildNeeded")
   dependsOn(":sdks:java:core:buildDependents")
   dependsOn(":examples:java:preCommit")
+  dependsOn(":examples:java:cdap:preCommit")
   dependsOn(":examples:java:twitter:preCommit")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:javadoc:allJavadoc")
