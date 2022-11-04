@@ -104,6 +104,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self,
       model_uri: str,
       model_file_type: ModelFileType = ModelFileType.PICKLE,
+      *,
       inference_fn: NumpyInferenceFn = _default_numpy_inference_fn):
     """ Implementation of the ModelHandler interface for scikit-learn
     using numpy arrays as input.
@@ -189,6 +190,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       self,
       model_uri: str,
       model_file_type: ModelFileType = ModelFileType.PICKLE,
+      *,
       inference_fn: PandasInferenceFn = _default_pandas_inference_fn):
     """Implementation of the ModelHandler interface for scikit-learn that
     supports pandas dataframes.
