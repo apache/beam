@@ -75,6 +75,37 @@ describe("primitives module", function () {
       });
     });
 
+    it("runs a map with counters", async function () {
+      const result = await new DirectRunner().run((root) => {
+        root
+          .apply(beam.create([1, 2, 3]))
+          .map(
+            withName(
+              "mapWithCounter",
+              pardo.withContext(
+                (x: number, context) => {
+                  context.myCounter.increment(x);
+                  context.myDist.update(x);
+                  return x * x;
+                },
+                {
+                  myCounter: pardo.counter("myCounter"),
+                  myDist: pardo.distribution("myDist"),
+                }
+              )
+            )
+          )
+          .apply(testing.assertDeepEqual([1, 4, 9]));
+      });
+      assert.deepEqual((await result.counters()).myCounter, 1 + 2 + 3);
+      assert.deepEqual((await result.distributions()).myDist, {
+        count: 3,
+        sum: 6,
+        min: 1,
+        max: 3,
+      });
+    });
+
     it("runs a map with singleton side input", async function () {
       await new DirectRunner().run((root) => {
         const input = root.apply(beam.create([1, 2, 1]));
@@ -114,19 +145,21 @@ describe("primitives module", function () {
           .map(
             withName(
               "MapWithContext",
-              // This is the function to apply.
-              (kv, context) => {
-                return {
-                  key: kv.key,
-                  value: kv.value,
-                  window_start_ms: context.window.lookup().start.low,
-                  a: context.other,
-                };
-              }
-            ),
-            // This is the context to pass as the second argument.
-            // At each element, window.get() will return the associated window.
-            { window: pardo.windowParam(), other: "A" }
+              pardo.withContext(
+                // This is the function to apply.
+                (kv, context) => {
+                  return {
+                    key: kv.key,
+                    value: kv.value,
+                    window_start_ms: context.window.lookup().start.low,
+                    a: context.other,
+                  };
+                },
+                // This is the context to pass as the second argument.
+                // At each element, window.get() will return the associated window.
+                { window: pardo.windowParam(), other: "A" }
+              )
+            )
           )
           .apply(
             testing.assertDeepEqual([
