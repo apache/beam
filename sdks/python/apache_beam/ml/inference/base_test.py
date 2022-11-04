@@ -172,7 +172,7 @@ class RunInferenceBaseTest(unittest.TestCase):
             inference_args=inference_args)
 
   def test_increment_failed_batches_counter(self):
-    with self.assertRaises(ValueError, FakeModelHandlerFailsOnInferenceArgs):
+    with self.assertRaises(ValueError, FakeModelHandlerExpectedInferenceArgs):
       with TestPipeline() as pipeline:
         examples = [7]
         pcoll = pipeline | 'start' >> beam.Create(examples)
@@ -183,7 +183,7 @@ class RunInferenceBaseTest(unittest.TestCase):
         metric_results = (
             run_result.metrics().query(MetricsFilter().with_name('failed_batches_counter')))
         num_failed_batches_counter = metric_results['counters'][0]
-        self.assertEqual(num_failed_batches_counter.committed, 1)
+        self.assertEqual(num_failed_batches_counter.committed, 3)
 
   def test_failed_batches_counter_no_failures(self):
     pipeline = TestPipeline()
