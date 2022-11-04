@@ -91,7 +91,6 @@ module "gke" {
 module "ip_address" {
   source          = "./ip_address"
   depends_on      = [module.setup, module.api_enable]
-  dnsname         = var.dnsname
 }
 
 module "appengine" {
