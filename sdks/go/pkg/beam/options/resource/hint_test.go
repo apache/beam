@@ -77,15 +77,38 @@ func TestMinRamBytesHint_Payload(t *testing.T) {
 	}
 }
 
-func TestMinRamBytes_Panic(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic, but didn't get one.")
+func TestParseMinRamHint(t *testing.T) {
+	tests := []struct {
+		value   string
+		payload string
+	}{
+		{"0", "0"},
+		{"2", "2"},
+		{"11", "11"},
+		{"2003", "2003"},
+		{"1.23MB", "1230000"},
+		{"1.23MiB", "1289748"},
+		{"4GB", "4000000000"},
+		{"2GiB", "2147483648"},
+		{"1.4KiB", "1433"},
+	}
+
+	for _, test := range tests {
+		h := ParseMinRam(test.value)
+		if got, want := h.Payload(), []byte(test.payload); !bytes.Equal(got, want) {
+			t.Errorf("%v.Payload() = %v, want %v", h, string(got), string(want))
 		}
-	}()
-	MinRamBytes(-1)
+	}
 }
 
+func TestParseMinRamHint_panic(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("want ParseMinRam to panic")
+		}
+	}()
+	ParseMinRam("a bad byte string")
+}
 // We copy the URN from the proto for use as a constant rather than perform a direct look up
 // each time, or increase initialization time. However we do need to validate that they are
 // correct, and match the standard hint urns, so that's done here.

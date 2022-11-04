@@ -29,6 +29,7 @@ require (
 	cloud.google.com/go/pubsub v1.26.0
 	cloud.google.com/go/storage v1.27.0
 	github.com/docker/go-connections v0.4.0
+	github.com/dustin/go-humanize v1.0.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang/protobuf v1.5.2 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
 	github.com/google/go-cmp v0.5.9

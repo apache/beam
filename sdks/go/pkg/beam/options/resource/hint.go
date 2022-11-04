@@ -23,6 +23,8 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+
+	"github.com/dustin/go-humanize"
 )
 
 // Hints contains a list of hints for a given scope.
@@ -99,11 +101,23 @@ type Hint interface {
 //
 // See https://beam.apache.org/documentation/runtime/resource-hints/ for more information about
 // resource hints.
-func MinRamBytes(v int64) Hint {
-	if v < 0 {
-		panic(fmt.Sprintf("negative min ram hint: %v", v))
+func MinRamBytes(v uint64) Hint {
+	return minRamHint{value: int64(v)}
+}
+
+// ParseMinRam converts various byte units, including MB, GB, MiB, and GiB into a hint.
+// An invalid byte size format will cause ParseMinRam to panic.
+//
+// Hints are advisory only and runners may not respect them.
+//
+// See https://beam.apache.org/documentation/runtime/resource-hints/ for more information about
+// resource hints.
+func ParseMinRam(v string) Hint {
+	b, err := humanize.ParseBytes(v)
+	if err != nil {
+		panic(fmt.Sprintf("resource.ParseMinRam: unable to parse %q: %v", v, err))
 	}
-	return minRamHint{value: v}
+	return MinRamBytes(b)
 }
 
 type minRamHint struct {
