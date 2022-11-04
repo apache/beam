@@ -20,6 +20,7 @@ import * as protobufjs from "protobufjs";
 
 import { MonitoringInfo } from "../proto/metrics";
 import { Coder, Context } from "../coders/coders";
+import { IterableCoder } from "../coders/required_coders";
 import { VarIntCoder } from "../coders/standard_coders";
 
 export interface MetricSpec {
@@ -94,6 +95,69 @@ class Counter implements MetricCell<number> {
 }
 
 metricTypes.set("beam:metric:user:sum_int64:v1", (spec) => new Counter(spec));
+
+class Distribution implements MetricCell<number> {
+  private count = 0;
+  private sum = 0;
+  private min = 0;
+  private max = 0;
+
+  private coder = new IterableCoder(new VarIntCoder());
+
+  constructor(spec: MetricSpec) {}
+
+  update(value: number) {
+    if (this.count == 0) {
+      this.count = 1;
+      this.sum = this.min = this.max = value;
+    } else {
+      this.count += 1;
+      this.sum += value;
+      this.min = Math.min(value, this.min);
+      this.max = Math.max(value, this.max);
+    }
+  }
+
+  reset(): void {
+    this.count = 0;
+  }
+
+  toEmptyMonitoringInfo(): MonitoringInfo {
+    return MonitoringInfo.create({
+      urn: "beam:metric:user:distribution_int64:v1",
+      type: "beam:metrics:distribution_int64:v1",
+    });
+  }
+
+  payload(): Uint8Array {
+    return encode([this.count, this.sum, this.min, this.max], this.coder);
+  }
+
+  loadFromPayload(payload: Uint8Array) {
+    [this.count, this.sum, this.min, this.max] = decode(payload, this.coder);
+  }
+
+  merge(other) {
+    this.count += other.count;
+    this.sum += other.sum;
+    this.min = Math.min(this.min, other.min);
+    this.max = Math.max(this.max, other.max);
+  }
+
+  extract() {
+    return {
+      count: this.count,
+      sum: this.sum,
+      min: this.min,
+      max: this.max,
+    };
+  }
+}
+
+metricTypes.set(
+  "beam:metric:user:distribution_int64:v1",
+  (spec) => new Distribution(spec)
+);
 
 /**
  * A ScopedMetricCell is a MetricCell together with its identifier(s).
@@ -215,10 +279,10 @@ export function aggregateMetrics(
 
 function encode<T>(value: T, coder: Coder<T>) {
   const buffer = new protobufjs.Writer();
-  coder.encode(value, buffer, Context.wholeStream);
+  coder.encode(value, buffer, Context.needsDelimiters);
   return buffer.finish();
 }
 
 function decode<T>(encoded: Uint8Array, coder: Coder<T>): T {
-  return coder.decode(new protobufjs.Reader(encoded), Context.wholeStream);
+  return coder.decode(new protobufjs.Reader(encoded), Context.needsDelimiters);
 }

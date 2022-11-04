@@ -85,15 +85,25 @@ describe("primitives module", function () {
               pardo.withContext(
                 (x: number, context) => {
                   context.myCounter.increment(x);
+                  context.myDist.update(x);
                   return x * x;
                 },
-                { myCounter: pardo.counter("myCounter") }
+                {
+                  myCounter: pardo.counter("myCounter"),
+                  myDist: pardo.distribution("myDist"),
+                }
               )
             )
           )
           .apply(testing.assertDeepEqual([1, 4, 9]));
       });
       assert.deepEqual((await result.counters()).myCounter, 1 + 2 + 3);
+      assert.deepEqual((await result.distributions()).myDist, {
+        count: 3,
+        sum: 6,
+        min: 1,
+        max: 3,
+      });
     });
 
     it("runs a map with singleton side input", async function () {
