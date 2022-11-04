@@ -34,12 +34,12 @@ import logging
 import time
 import uuid
 from typing import Any
-from typing import Dict
 from typing import List
 from typing import Mapping
 from typing import Optional
 from typing import Union
 
+import pandas as pd
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -405,8 +405,10 @@ class ConsoleMetricsPublisher(object):
 class BigQueryMetricsPublisher(object):
   """A :class:`BigQueryMetricsPublisher` publishes collected metrics
   to BigQuery output."""
-  def __init__(self, project_name, table, dataset):
-    self.bq = BigQueryClient(project_name, table, dataset)
+  def __init__(self, project_name, table, dataset, bq_schema=None):
+    if not bq_schema:
+      bq_schema = SCHEMA
+    self.bq = BigQueryClient(project_name, table, dataset, bq_schema)
 
   def publish(self, results):
     outputs = self.bq.save(results)
@@ -421,7 +423,8 @@ class BigQueryMetricsPublisher(object):
 class BigQueryClient(object):
   """A :class:`BigQueryClient` publishes collected metrics to
   BigQuery output."""
-  def __init__(self, project_name, table, dataset):
+  def __init__(self, project_name, table, dataset, bq_schema=None):
+    self.schema = bq_schema
     self._namespace = table
     self._client = bigquery.Client(project=project_name)
     self._schema_names = self._get_schema_names()
@@ -429,10 +432,10 @@ class BigQueryClient(object):
     self._get_or_create_table(schema, dataset)
 
   def _get_schema_names(self):
-    return [schema['name'] for schema in SCHEMA]
+    return [schema['name'] for schema in self.schema]
 
   def _prepare_schema(self):
-    return [SchemaField(**row) for row in SCHEMA]
+    return [SchemaField(**row) for row in self.schema]
 
   def _get_or_create_table(self, bq_schemas, dataset):
     if self._namespace == '':
@@ -621,29 +624,32 @@ class AssignTimestamps(beam.DoFn):
 
 class FetchMetrics:
   @staticmethod
-  def fetch_from_bq(project_name,
-                    table,
-                    dataset,
-                    metric_name: str,
-                    limit=1000) -> List[Dict]:
-    query_template = """
-      SELECT *
-      FROM {}.{}.{}
-      ORDER BY {} DESC
-      LIMIT {}
-    """.format(project_name, dataset, table, SUBMIT_TIMESTAMP_LABEL, limit)
+  def fetch_from_bq(
+      project_name,
+      table,
+      dataset,
+      metric_name: str,
+      limit=1000,
+      query_template=None) -> pd.DataFrame:
+    if not query_template:
+      query_template = """
+        SELECT *
+        FROM {}.{}.{}
+        WHERE CONTAINS_SUBSTR(({}), '{}')
+        ORDER BY {} DESC
+        LIMIT {}
+      """.format(
+          project_name,
+          dataset,
+          table,
+          METRICS_TYPE_LABEL,
+          metric_name,
+          SUBMIT_TIMESTAMP_LABEL,
+          limit)
     bq_client = bigquery.Client()
     query_job = bq_client.query(query_template)
-    results = query_job.result()
-    metric_values = []
-    for result in results:
-      if metric_name in result[METRICS_TYPE_LABEL]:
-        metric_values.append({
-            METRICS_TYPE_LABEL: result[METRICS_TYPE_LABEL],
-            SUBMIT_TIMESTAMP_LABEL: result[SUBMIT_TIMESTAMP_LABEL],
-            VALUE_LABEL: result[VALUE_LABEL]
-        })
-    return metric_values
+    result = query_job.result()
+    return result.to_dataframe()
 
   @staticmethod
   def fetch_from_influxdb():

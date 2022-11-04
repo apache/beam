@@ -16,19 +16,55 @@
 #
 import json
 import os
+import time
+import uuid
+
+import pandas
 import requests
 import sys
 import yaml
 import logging
-from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Union
 
 import numpy as np
 from apache_beam.testing.load_tests import load_test_metrics_utils
+from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsPublisher
 from apache_beam.testing.load_tests.load_test_metrics_utils import FetchMetrics
 from signal_processing_algorithms.energy_statistics.energy_statistics import e_divisive
+
+BQ_PROJECT_NAME = 'apache-beam-testing'
+BQ_DATASET = 'beam-perf-storage'
+
+ID_LABEL = 'test_id'
+SUBMIT_TIMESTAMP_LABEL = 'timestamp'
+CHANGE_POINT_LABEL = 'change_point'
+TEST_NAME = 'test_name'
+METRIC_NAME = 'metric_name'
+ISSUE_URL = 'issue_url'
+
+_LOGGER = logging.getLogger(__name__)
+
+SCHEMA = [{
+    'name': ID_LABEL, 'field_type': 'STRING', 'mode': 'REQUIRED'
+},
+          {
+              'name': SUBMIT_TIMESTAMP_LABEL,
+              'field_type': 'TIMESTAMP',
+              'mode': 'REQUIRED'
+          },
+          {
+              'name': CHANGE_POINT_LABEL,
+              'field_type': 'FLOAT64',
+              'mode': 'REQUIRED'
+          }, {
+              'name': METRIC_NAME, 'field_type': 'STRING', 'mode': 'REQUIRED'
+          }, {
+              'name': TEST_NAME, 'field_type': 'FLOAT', 'mode': 'REQUIRED'
+          }, {
+              'name': ISSUE_URL, 'field_type': 'STRING', 'mode': 'REQUIRED'
+          }]
 
 TITLE_TEMPLATE = """
   Performance regression found in the test: {}
@@ -41,6 +77,42 @@ _METRIC_INFO = """
   timestamp: {} metric_name: {}, metric_value: {}
 """
 GH_ISSUE_LABELS = ['testing', 'P2']
+
+
+class Metric:
+  def __init__(
+      self,
+      submit_timestamp,
+      test_name,
+      metric_name,
+      issue_url,
+      test_id,
+      change_point):
+    """
+    Args:
+      submit_timestamp (float): date-time of saving metric to database.
+      test_name: Name of the perf test.
+      metric_name: metric_name
+      issue_url: URL to the GitHub issue.
+      test_id (uuid): unique id to identify test run.
+      change_point (object): Change point observed.
+    """
+    self.submit_timestamp = submit_timestamp
+    self.test_name = test_name
+    self.metric_name = metric_name
+    self.issue_url = issue_url
+    self.test_id = test_id
+    self.change_point = change_point
+
+  def as_dict(self):
+    return {
+        SUBMIT_TIMESTAMP_LABEL: self.submit_timestamp,
+        TEST_NAME: self.test_name,
+        METRIC_NAME: self.metric_name,
+        ISSUE_URL: self.issue_url,
+        ID_LABEL: self.test_id,
+        CHANGE_POINT_LABEL: self.change_point
+    }
 
 
 class GitHubIssues:
@@ -76,7 +148,9 @@ class GitHubIssues:
           'body': description,
           'labels': labels
       }
-      requests.post(url=url, data=json.dumps(data), headers=self.headers)
+      response = requests.post(
+          url=url, data=json.dumps(data), headers=self.headers).json()
+      return response
 
   def comment_on_issue(self, last_created_issue):
     """
@@ -113,7 +187,7 @@ class GitHubIssues:
 class ChangePointAnalysis:
   def __init__(
       self,
-      data: List[Dict],
+      data: pandas.DataFrame,
       metric_name: str,
   ):
     self.data = data
@@ -128,9 +202,7 @@ class ChangePointAnalysis:
 
   def find_change_points(self, analysis='edivisive') -> List:
     if analysis == 'edivisive':
-      metric_values = [
-          value[load_test_metrics_utils.VALUE_LABEL] for value in self.data
-      ][::-1]
+      metric_values = self.data[load_test_metrics_utils.VALUE_LABEL].tolist()
       change_points = ChangePointAnalysis.edivisive_means(metric_values)
       return change_points
     else:
@@ -149,6 +221,9 @@ class ChangePointAnalysis:
 class RunChangePointAnalysis:
   def __init__(self, change_point_sibling_distance: int = 2):
     self.change_point_sibling_distance = change_point_sibling_distance
+
+  def _get_latest_sibling_change_point(self, test_name, metric_name):
+    raise NotImplementedError
 
   def _find_sibling_change_point(self, changepoint_index,
                                  metric_values) -> Optional[int]:
@@ -180,6 +255,7 @@ class RunChangePointAnalysis:
     return 0
 
   def run(self, file_path):
+    test_name = sys.argv[0]
     with open(file_path, 'r') as stream:
       config = yaml.safe_load(stream)
     metric_name = config['metric_name']
@@ -195,8 +271,6 @@ class RunChangePointAnalysis:
       change_points_idx = change_point_analyzer.find_change_points()
 
       if not change_points_idx:
-        print(metric_values)
-        print(len(metric_values))
         return
 
       # always consider the latest change points
@@ -213,10 +287,24 @@ class RunChangePointAnalysis:
       if create_perf_alert:
         gh_issue = GitHubIssues()
         try:
-          gh_issue.create_or_update_issue(
+          response = gh_issue.create_or_update_issue(
               title=TITLE_TEMPLATE,
               description=change_point_analyzer.get_failing_test_description(),
               labels=GH_ISSUE_LABELS)
+
+          bq_metrics_publisher = BigQueryMetricsPublisher(
+              project_name=BQ_PROJECT_NAME, dataset=BQ_DATASET, table=test_name)
+          metric_dict = Metric(
+              submit_timestamp=time.time(),
+              test_name=test_name,
+              metric_name=metric_name,
+              test_id=uuid.uuid4().hex,
+              change_point=metric_values[
+                  load_test_metrics_utils.METRICS_TYPE_LABEL]
+              [change_point_index],
+              issue_url=response['items']['number'])
+          bq_metrics_publisher.publish(metric_dict.as_dict())
+
         except:
           raise Exception(
               'Performance regression detected. Failed to file '
