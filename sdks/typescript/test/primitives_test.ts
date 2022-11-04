@@ -29,8 +29,10 @@ import * as combiners from "../src/apache_beam/transforms/combiners";
 import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 
 import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
-import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
+import { universalRunner } from "../src/apache_beam/runners/universal";
 import { Pipeline } from "../src/apache_beam/internal/pipeline";
+import { GlobalWindow } from "../src/apache_beam/values";
+import { PaneInfoCoder } from "../src/apache_beam/coders/standard_coders";
 import * as testing from "../src/apache_beam/testing/assert";
 import * as windowings from "../src/apache_beam/transforms/windowings";
 import * as pardo from "../src/apache_beam/transforms/pardo";
@@ -247,4 +249,71 @@ describe("primitives module", function () {
       );
     });
   });
+});
+
+describe("liquid sharding @ulr", function () {
+  if (process.env.BEAM_SERVICE_OVERRIDES) {
+    it("handles splitting", async function () {
+      // This pipeline will process a number of "slow" elements, asking the
+      // ULR to split the "toSplit" bundle at various points. We then verify
+      // that the bundle was indeed split and all expected elements made it
+      // through.
+      const runner = universalRunner({
+        environmentType: "LOOPBACK",
+        testSplits: JSON.stringify({
+          toSplit: {
+            // Split 0.1, 0.15, etc. seconds into processing the bundle.
+            timings: [0.1, 0.15, 0.2, 0.25],
+            fractions: [0.5, 0.5, 0.5, 0.5],
+          },
+        }),
+      });
+      const numElements = 20;
+      const elements = [...Array(numElements).keys()].map((x) => "" + x);
+      await runner.run((root) => {
+        const pcolls = root
+          .apply(beam.create(elements))
+          .map((x) => {
+            // Synchronous sleep.
+            Atomics.wait(
+              new Int32Array(new SharedArrayBuffer(4)),
+              0,
+              0,
+              // Processing all elements spread out over 1000 ms, plus overhead.
+              1000 / numElements
+            );
+            return x;
+          })
+          .apply(
+            withName(
+              "toSplit",
+              beam.parDo({
+                process: (element) => [element],
+                finishBundle: () => [
+                  {
+                    value: "endOfBundle",
+                    windows: [new GlobalWindow()],
+                    pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
+                    timestamp: new GlobalWindow().maxTimestamp(),
+                  },
+                ],
+              })
+            )
+          )
+          .apply(
+            // More than one "endOfBundle" output because we split.
+            // (We in fact should have split multiple times, but all the
+            // remainders get concatenated into the second bundle.
+            // Importantly, however, we verify that regardless of where the
+            // splits occurred (if you print them, they're in an interesting
+            // order), all elements are accounted for.)
+            testing.assertDeepEqual(
+              elements.concat(["endOfBundle", "endOfBundle"])
+            )
+          );
+      });
+      // The pipeline should run fast, but give plenty of time for the service
+      // to start up in case the test machine is loaded.
+    }).timeout(30000);
+  }
 });
