@@ -490,6 +490,5 @@ task ("indexCreate") {
     val indexpath = "playground/index.yaml"
     exec {
        commandLine = listOf("gcloud", "app", "deploy", indexpath)
-       standardOutput = stdout
    }
 }
