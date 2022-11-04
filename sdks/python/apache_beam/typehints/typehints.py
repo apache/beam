@@ -801,7 +801,7 @@ class KVHint(CompositeTypeHint):
   def __getitem__(self, type_params):
     if not isinstance(type_params, tuple):
       raise TypeError(
-          'Parameter to KV typehint must be a tuple of types: '
+          'Parameter to KV type-hint must be a tuple of types: '
           'KV[.., ..].')
 
     if len(type_params) != 2:
