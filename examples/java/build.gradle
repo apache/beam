@@ -60,21 +60,9 @@ dependencies {
   implementation project(":sdks:java:extensions:python")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:kafka")
-  implementation project(":sdks:java:io:cdap")
-  implementation project(":sdks:java:io:hadoop-common")
   implementation project(":sdks:java:extensions:ml")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
-  implementation library.java.cdap_api
-  implementation library.java.cdap_api_commons
-  implementation library.java.cdap_etl_api
-  implementation library.java.cdap_hydrator_common
-  //TODO: modify to 'implementation library.java.cdap_plugin_hubspot',
-  // when new release with HasOffset interface will be published
-  implementation "com.akvelon:cdap-hubspot-plugins:1.0.3"
-  implementation library.java.cdap_plugin_service_now
-  implementation library.java.cdap_plugin_zendesk
-  implementation library.java.cdap_plugin_salesforce
   implementation library.java.google_api_client
   implementation library.java.google_api_services_bigquery
   implementation library.java.google_api_services_pubsub
@@ -84,7 +72,6 @@ dependencies {
   implementation library.java.google_code_gson
   implementation library.java.google_http_client
   implementation library.java.google_oauth_client
-  implementation library.java.hadoop_common
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.protobuf_java
@@ -177,11 +164,4 @@ task wordCount(type:JavaExec) {
   classpath = sourceSets.main.runtimeClasspath
   systemProperties = System.getProperties()
   args = ["--output=/tmp/ouput.txt"]
-}
-
-task executeCdap (type:JavaExec) {
-  mainClass = System.getProperty("mainClass")
-  classpath = sourceSets.main.runtimeClasspath
-  systemProperties System.getProperties()
-  args System.getProperty("exec.args", "").split()
 }
