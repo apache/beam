@@ -26,7 +26,7 @@ Setting up and configuring a new project can be time consuming, and varies in di
 
 <!--more-->
 
-All the starter projects come in their own GitHub repository, so it's as easy as cloning it and you're ready to go. They all come with a README with how to use it, a simple "Hello World" pipeline, and a test for the pipeline. The GitHub repositories come pre-configured with GitHub Actions to automatically run tests when pull requests are opened or modified, and Dependabot is enabled to make sure all the dependencies are up to date. This all comes out of the box, so you can start playing with your Beam pipeline without a hassle.
+All the starter projects come in their own GitHub repository, so you can simply clone a repo and you're ready to go. Each project comes with a README with how to use it, a simple "Hello World" pipeline, and a test for the pipeline. The GitHub repositories come pre-configured with GitHub Actions to automatically run tests when pull requests are opened or modified, and Dependabot is enabled to make sure all the dependencies are up to date. This all comes out of the box, so you can start playing with your Beam pipeline without a hassle.
 
 For example, here's how to get started with Java:
 
@@ -64,7 +64,7 @@ python main.py
 python -m unittest
 ```
 
-Here are the starter projects, you can choose your favorite language:
+Here are the starter projects; you can choose your favorite language:
 
 * **[Java]** [github.com/apache/beam-starter-java](https://github.com/apache/beam-starter-java) – Includes both Gradle and Maven configurations.
 * **[Python]** [github.com/apache/beam-starter-python](https://github.com/apache/beam-starter-python) – Includes a setup.py file to allow multiple files in your pipeline.
