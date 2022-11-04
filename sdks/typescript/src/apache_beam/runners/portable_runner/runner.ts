@@ -179,10 +179,10 @@ export class PortableRunner extends Runner {
   }
 
   async runPipeline(
-    pipeline: Pipeline,
+    pipeline: runnerApiProto.Pipeline,
     options?: PipelineOptions
   ): Promise<PipelineResult> {
-    return this.runPipelineWithProto(pipeline.getProto(), options);
+    return this.runPipelineWithProto(pipeline, options);
   }
 
   async runPipelineWithProto(
