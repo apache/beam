@@ -1,4 +1,50 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Mon, 17 Oct 2022 09:00:00 -0700</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.42.0</title><link>/blog/beam-2.42.0/</link><pubDate>Mon, 17 Oct 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.42.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Thu, 03 Nov 2022 09:00:00 -0700</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Beam starter projects</title><link>/blog/beam-starter-projects/</link><pubDate>Thu, 03 Nov 2022 09:00:00 -0700</pubDate><guid>/blog/beam-starter-projects/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We&amp;rsquo;re happy to announce that we&amp;rsquo;re providing new Beam starter projects! 🎉&lt;/p>
+&lt;p>Setting up and configuring a new project can be time consuming, and varies in different languages. We hope this will make it easier for you to get started in creating new Apache Beam projects and pipelines.&lt;/p>
+&lt;p>All the starter projects come in their own GitHub repository, so you can simply clone a repo and you&amp;rsquo;re ready to go. Each project comes with a README with how to use it, a simple &amp;ldquo;Hello World&amp;rdquo; pipeline, and a test for the pipeline. The GitHub repositories come pre-configured with GitHub Actions to automatically run tests when pull requests are opened or modified, and Dependabot is enabled to make sure all the dependencies are up to date. This all comes out of the box, so you can start playing with your Beam pipeline without a hassle.&lt;/p>
+&lt;p>For example, here&amp;rsquo;s how to get started with Java:&lt;/p>
+&lt;pre>&lt;code>git clone https://github.com/apache/beam-starter-java
+cd beam-starter-java
+# Install Java and Gradle with sdkman.
+curl -s &amp;quot;https://get.sdkman.io&amp;quot; | bash
+sdk install java 11.0.12-tem
+sdk install gradle
+# To run the pipeline.
+gradle run
+# To run the tests.
+gradle test
+&lt;/code>&lt;/pre>&lt;p>And here&amp;rsquo;s how to get started with Python:&lt;/p>
+&lt;pre>&lt;code>git clone https://github.com/apache/beam-starter-python
+cd beam-starter-python
+# Set up a virtual environment with the dependencies.
+python -m venv env
+source env/bin/activate
+pip install -r requirements.txt
+# To run the pipeline.
+python main.py
+# To run the tests.
+python -m unittest
+&lt;/code>&lt;/pre>&lt;p>Here are the starter projects; you can choose your favorite language:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>[Java]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-java">github.com/apache/beam-starter-java&lt;/a> – Includes both Gradle and Maven configurations.&lt;/li>
+&lt;li>&lt;strong>[Python]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-python">github.com/apache/beam-starter-python&lt;/a> – Includes a setup.py file to allow multiple files in your pipeline.&lt;/li>
+&lt;li>&lt;strong>[Go]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-go">github.com/apache/beam-starter-go&lt;/a> – Includes how to register different types of functions for ParDo.&lt;/li>
+&lt;li>&lt;strong>[Kotlin]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-kotlin">github.com/apache/beam-starter-kotlin&lt;/a> – Adapted to idiomatic Kotlin&lt;/li>
+&lt;li>&lt;strong>[Scala]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-scala">github.com/apache/beam-starter-scala&lt;/a> – Coming soon!&lt;/li>
+&lt;/ul>
+&lt;p>We have updated the &lt;a href="https://beam.apache.org/get-started/quickstart/java/">Java quickstart&lt;/a> to use the new starter project, and we&amp;rsquo;re working on updating the Python and Go quickstarts as well.&lt;/p>
+&lt;p>We hope you find this useful. Feedback and contributions are always welcome! So feel free to create a GitHub issue, or open a Pull Request to any of the starter project repositories.&lt;/p></description></item><item><title>Blog: Apache Beam 2.42.0</title><link>/blog/beam-2.42.0/</link><pubDate>Mon, 17 Oct 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.42.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5523,40 +5569,4 @@ us make sure that we&amp;rsquo;re providing the timestamp for each row properly:
 +---------------------+--------------+
 5 rows selected (10.142 seconds)
 &lt;/code>&lt;/pre>&lt;p>And voilà! We can start playing with some interesting streaming queries to our
-sequence generator.&lt;/p></description></item><item><title>Blog: Apache Beam Katas</title><link>/blog/beam-kata-release/</link><pubDate>Thu, 30 May 2019 00:00:01 -0800</pubDate><guid>/blog/beam-kata-release/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to announce
-&lt;a href="https://github.com/apache/beam/tree/master/learning/katas">Apache Beam Katas&lt;/a>, a set of
-interactive Beam coding exercises (i.e. &lt;a href="http://codekata.com/">code katas&lt;/a>) that can help you in
-learning Apache Beam concepts and programming model hands-on.&lt;/p>
-&lt;p>Beam Katas objective is to provide a series of structured hands-on learning experiences for learners
-to understand about Apache Beam and its SDKs by solving exercises with gradually increasing
-complexity. It is built based on
-&lt;a href="https://www.jetbrains.com/education/">JetBrains Educational Products&lt;/a>. Beam Katas is available for
-both Java and Python SDKs. Currently we have about 20 lessons that cover Apache Beam fundamentals,
-such as core transforms, common transforms, and simple use case (word count), with more katas to
-be added in the coming future.&lt;/p>
-&lt;p>To start with the courses, you can simply download
-&lt;a href="https://www.jetbrains.com/education/download/#section=idea">IntelliJ Edu&lt;/a> or
-&lt;a href="https://www.jetbrains.com/education/download/#section=pycharm-edu">PyCharm Edu&lt;/a> and then browse
-the integrated Stepik courses from the menu. Search for “Beam Katas” and once the course is loaded
-on the IDE, you’re good to go.&lt;/p>
-&lt;p>We have plans to add more katas covering more topics including some of the intermediate and
-advanced ones in the coming future, such as windowing, streaming, and use case patterns. We would
-also like to welcome you to &lt;a href="https://github.com/apache/beam">contribute&lt;/a> by building and adding more katas that you think would be
-useful for people to learn more about Apache Beam, and eventually become Beam Masters!&lt;/p>
-&lt;br/>
-&lt;img src="/images/blog/beam-kata/beam-kata-intellij-edu-1.png" alt="Beam Kata - IntelliJ Edu" width="363" height="350">
-&lt;img src="/images/blog/beam-kata/beam-kata-intellij-edu-2.png" alt="Beam Kata - IntelliJ Edu" width="455" height="350">
-&lt;img src="/images/blog/beam-kata/beam-kata-pycharm-edu-1.png" alt="Beam Kata - PyCharm Edu" width="363" height="350">
-&lt;img src="/images/blog/beam-kata/beam-kata-pycharm-edu-2.png" alt="Beam Kata - PyCharm Edu" width="459" height="350"></description></item></channel></rss>
+sequence generator.&lt;/p></description></item></channel></rss>
