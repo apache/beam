@@ -138,19 +138,37 @@ class Distribution implements MetricCell<number> {
   }
 
   merge(other) {
-    this.count += other.count;
-    this.sum += other.sum;
-    this.min = Math.min(this.min, other.min);
-    this.max = Math.max(this.max, other.max);
+    if (other.count == 0) {
+      return;
+    } else if (this.count == 0) {
+      this.count = other.count;
+      this.sum = other.sum;
+      this.min = other.min;
+      this.max = other.max;
+    } else {
+      this.count += other.count;
+      this.sum += other.sum;
+      this.min = Math.min(this.min, other.min);
+      this.max = Math.max(this.max, other.max);
+    }
   }
 
   extract() {
-    return {
-      count: this.count,
-      sum: this.sum,
-      min: this.min,
-      max: this.max,
-    };
+    if (this.count == 0) {
+      return {
+        count: 0,
+        sum: 0,
+        min: NaN,
+        max: NaN,
+      };
+    } else {
+      return {
+        count: this.count,
+        sum: this.sum,
+        min: this.min,
+        max: this.max,
+      };
+    }
   }
 }
 
@@ -162,13 +180,17 @@ metricTypes.set(
 /**
  * A ScopedMetricCell is a MetricCell together with its identifier(s).
  */
-class ScopedMetricCell {
+class ScopedMetricCell<T> {
+  is_set: boolean;
+
   constructor(
     public key: string,
     public transformId: string,
     public name: string,
-    public value: MetricCell<unknown>
-  ) {}
+    public value: MetricCell<T>
+  ) {
+    this.is_set = false;
+  }
 
   toEmptyMonitoringInfo(): MonitoringInfo {
     const info = this.value.toEmptyMonitoringInfo();
@@ -179,6 +201,15 @@ class ScopedMetricCell {
     }
     return info;
   }
+
+  update(value: T) {
+    this.is_set = true;
+    this.value.update(value);
+  }
+
+  reset() {
+    this.is_set = false;
+  }
 }
 
 /**
@@ -187,9 +218,9 @@ class ScopedMetricCell {
  * It can be re-used, but must be reset() between bundles.
  */
 export class MetricsContainer {
-  metrics = new Map<string, ScopedMetricCell>();
+  metrics = new Map<string, ScopedMetricCell<unknown>>();
 
-  getMetric(transformId: string, spec: MetricSpec): MetricCell<unknown> {
+  getMetric(transformId: string, spec: MetricSpec): ScopedMetricCell<unknown> {
     const key = spec.metricType + transformId.length + transformId + spec.name;
     var cell = this.metrics.get(key);
     if (cell === undefined) {
@@ -201,21 +232,23 @@ export class MetricsContainer {
       );
       this.metrics.set(key, cell);
     }
-    return cell.value;
+    return cell;
   }
 
   monitoringData(shortIdCache: MetricsShortIdCache): Map<string, Uint8Array> {
     return new Map(
-      Array.from(this.metrics.values()).map((metric) => [
-        shortIdCache.getShortId(metric),
-        metric.value.payload(),
-      ])
+      Array.from(this.metrics.values())
+        .filter((metric) => metric.is_set)
+        .map((metric) => [
+          shortIdCache.getShortId(metric),
+          metric.value.payload(),
+        ])
     );
   }
 
   reset(): void {
     for (const [_, cell] of this.metrics) {
-      cell.value.reset();
+      cell.reset();
     }
   }
 }
@@ -232,7 +265,7 @@ export class MetricsShortIdCache {
   private idToInfo = new Map<string, MonitoringInfo>();
   private keyToId = new Map<string, string>();
 
-  getShortId(metric: ScopedMetricCell): string {
+  getShortId(metric: ScopedMetricCell<unknown>): string {
     var shortId = this.keyToId.get(metric.key);
     if (shortId === undefined) {
       shortId = "m" + this.keyToId.size;
