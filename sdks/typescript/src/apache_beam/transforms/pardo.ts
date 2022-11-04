@@ -416,7 +416,7 @@ export function counter(name: string): Counter {
 }
 
 export function distribution(name: string): Metric<number> {
-  return new Metric("distribution", name);
+  return new Metric("beam:metric:user:distribution_int64:v1", name);
 }
 
 // TODO: (Extension) Add providers for state, timers,

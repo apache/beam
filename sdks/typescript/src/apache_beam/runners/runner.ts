@@ -27,14 +27,26 @@ export class PipelineResult {
   waitUntilFinish(duration?: number): Promise<JobState_Enum> {
     throw new Error("NotImplemented");
   }
+
   async rawMetrics(): Promise<MonitoringInfo[]> {
     throw new Error("NotImplemented");
   }
+
+  // TODO: Support filtering, slicing.
   async counters(): Promise<{ [key: string]: number }> {
     return Object.fromEntries(
       metrics.aggregateMetrics(
         await this.rawMetrics(),
         "beam:metric:user:sum_int64:v1"
+      )
+    );
+  }
+
+  async distributions(): Promise<{ [key: string]: number }> {
+    return Object.fromEntries(
+      metrics.aggregateMetrics(
+        await this.rawMetrics(),
+        "beam:metric:user:distribution_int64:v1"
       )
     );
   }
