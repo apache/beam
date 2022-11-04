@@ -43,7 +43,6 @@ export function createLoggingChannel(workerId: string, endpoint: string) {
     const seconds = Math.trunc(now_ms / 1000);
     const stageInfo = loggingLocalStorage.getStore() as LoggingStageInfo;
     return LogEntry.create({
-      // TODO: Try to capture, or at least infer, the log level.
       severity,
       message: line,
       timestamp: {
