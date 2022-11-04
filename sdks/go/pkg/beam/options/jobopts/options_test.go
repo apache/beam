@@ -69,7 +69,7 @@ func TestGetJobName(t *testing.T) {
 	}
 }
 
-func TestGetEnvironamentUrn(t *testing.T) {
+func TestGetEnvironmentUrn(t *testing.T) {
 	tests := []struct {
 		env string
 		urn string
