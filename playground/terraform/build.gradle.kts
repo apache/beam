@@ -377,6 +377,7 @@ task("takeConfig") {
    var registry = ""
    var ipaddrname = ""
    var d_tag = ""
+   var dns_name = ""
    var stdout = ByteArrayOutputStream()
    if (project.hasProperty("docker-tag")) {
         d_tag = project.property("docker-tag") as String
