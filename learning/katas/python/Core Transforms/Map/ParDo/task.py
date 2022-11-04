@@ -21,10 +21,12 @@
 #   context_line: 30
 #   categories:
 #     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transform
+#     - numbers
 
 import apache_beam as beam
-
-from log_elements import LogElements
 
 
 class MultiplyByTenDoFn(beam.DoFn):
@@ -37,5 +39,5 @@ with beam.Pipeline() as p:
 
   (p | beam.Create([1, 2, 3, 4, 5])
      | beam.ParDo(MultiplyByTenDoFn())
-     | LogElements())
+     | beam.LogElements())
 

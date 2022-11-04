@@ -17,13 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/components/horizontal_divider/horizontal_divider.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/fonts.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/pages/playground/components/feedback/feedback_dropdown_icon_button.dart';
+import 'package:playground_components/playground_components.dart';
 
 const double kTextFieldWidth = 365.0;
 const double kTextFieldHeight = 68.0;
@@ -46,8 +45,10 @@ class FeedbackDropdownContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final borderColor = Theme.of(context).extension<BeamThemeExtension>()!.borderColor;
+
     final OutlineInputBorder border = OutlineInputBorder(
-      borderSide: BorderSide(color: ThemeColors.of(context).lightGreyColor),
+      borderSide: BorderSide(color: borderColor),
       borderRadius: BorderRadius.circular(kMdBorderRadius),
     );
 
@@ -114,7 +115,7 @@ class FeedbackDropdownContent extends StatelessWidget {
                         enabledBorder: border,
                         contentPadding: const EdgeInsets.all(kMdSpacing),
                       ),
-                      cursorColor: ThemeColors.of(context).lightGreyColor,
+                      cursorColor: borderColor,
                       cursorWidth: kCursorSize,
                       onFieldSubmitted: (String filterText) {},
                       maxLines: 3,
@@ -124,7 +125,7 @@ class FeedbackDropdownContent extends StatelessWidget {
               ],
             ),
           ),
-          const HorizontalDivider(),
+          const BeamDivider(),
           Padding(
             padding: const EdgeInsets.only(
               top: kXlSpacing,
@@ -141,7 +142,7 @@ class FeedbackDropdownContent extends StatelessWidget {
                     color: Theme.of(context).backgroundColor,
                     borderRadius: BorderRadius.circular(kSmBorderRadius),
                     border: Border.all(
-                      color: ThemeColors.of(context).lightGreyColor,
+                      color: borderColor,
                     ),
                   ),
                   child: TextButton(

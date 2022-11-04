@@ -104,7 +104,7 @@ task sparkValidatesRunner {
 
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:java:container:java8:docker"
-  dependsOn ":runners:spark:2:job-server:shadowJar"
+  dependsOn ":runners:spark:3:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
     def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
@@ -112,7 +112,7 @@ task sparkValidatesRunner {
     ]
     def options = [
         "--runner spark",
-        "--spark_job_server_jar ${project(":runners:spark:2:job-server").shadowJar.archivePath}",
+        "--spark_job_server_jar ${project(":runners:spark:3:job-server").shadowJar.archivePath}",
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {

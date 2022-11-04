@@ -109,7 +109,7 @@ public class SparkRunnerDebuggerTest {
   public void debugStreamingPipeline() {
     PipelineOptions options = contextRule.configure(PipelineOptionsFactory.create());
     options.setRunner(SparkRunnerDebugger.class);
-    options.as(TestSparkPipelineOptions.class).setForceStreaming(true);
+    options.as(TestSparkPipelineOptions.class).setStreaming(true);
     Pipeline pipeline = Pipeline.create(options);
 
     KafkaIO.Read<String, String> read =

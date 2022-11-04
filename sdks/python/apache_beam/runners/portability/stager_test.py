@@ -832,6 +832,49 @@ class StagerTest(unittest.TestCase):
           self.assertTrue('.tar.gz' in f)
           self.assertTrue('.whl' not in f)
 
+  def test_populate_requirements_cache_with_local_files(self):
+    staging_dir = self.make_temp_dir()
+    requirements_cache_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
+    pkg_dir = self.make_temp_dir()
+
+    options = PipelineOptions()
+    self.update_options(options)
+
+    options.view_as(SetupOptions).requirements_cache = requirements_cache_dir
+    options.view_as(SetupOptions).requirements_file = os.path.join(
+        source_dir, stager.REQUIREMENTS_FILE)
+    local_package = os.path.join(pkg_dir, 'local_package.tar.gz')
+    self.create_temp_file(local_package, 'local-package-content')
+    self.create_temp_file(
+        os.path.join(source_dir, stager.REQUIREMENTS_FILE),
+        '\n'.join(['fake_pypi', local_package]))
+    with mock.patch('apache_beam.runners.portability.stager_test'
+                    '.stager.Stager._populate_requirements_cache',
+                    staticmethod(self._populate_requitements_cache_fake)):
+      options.view_as(SetupOptions).requirements_cache_only_sources = True
+      resources = self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)[1]
+
+      self.assertEqual(
+          sorted([
+              stager.REQUIREMENTS_FILE,
+              stager.EXTRA_PACKAGES_FILE,
+              'nothing.tar.gz',
+              'local_package.tar.gz'
+          ]),
+          sorted(resources))
+
+      with open(os.path.join(staging_dir, stager.REQUIREMENTS_FILE)) as fin:
+        requirements_contents = fin.read()
+      self.assertIn('fake_pypi', requirements_contents)
+      self.assertNotIn('local_package', requirements_contents)
+
+      with open(os.path.join(staging_dir, stager.EXTRA_PACKAGES_FILE)) as fin:
+        extra_packages_contents = fin.read()
+      self.assertNotIn('fake_pypi', extra_packages_contents)
+      self.assertIn('local_package', extra_packages_contents)
+
 
 class TestStager(stager.Stager):
   def stage_artifact(self, local_path_to_artifact, artifact_name, sha256):

@@ -20,7 +20,10 @@ import (
 	"io"
 	"reflect"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 type iter1[T any] struct {
@@ -104,6 +107,16 @@ func (v *iter2[T1, T2]) invoke(key *T1, value *T2) bool {
 	return true
 }
 
+func registerType(t reflect.Type) {
+	// strip the pointer if present.
+	t = reflectx.SkipPtr(t)
+	if _, ok := runtime.TypeKey(t); !ok {
+		return
+	}
+	runtime.RegisterType(t)
+	schema.RegisterType(t)
+}
+
 // Iter1 registers parameters from your DoFn with a
 // signature func(*T) bool and optimizes their execution.
 // This must be done by passing in type parameters of all inputs as constraints,
@@ -113,7 +126,9 @@ func Iter1[T any]() {
 	registerFunc := func(s exec.ReStream) exec.ReusableInput {
 		return &iter1[T]{s: s}
 	}
-	exec.RegisterInput(reflect.TypeOf(i).Elem(), registerFunc)
+	itT := reflect.TypeOf(i).Elem()
+	registerType(itT.In(0).Elem())
+	exec.RegisterInput(itT, registerFunc)
 }
 
 // Iter1 registers parameters from your DoFn with a
@@ -125,5 +140,8 @@ func Iter2[T1, T2 any]() {
 	registerFunc := func(s exec.ReStream) exec.ReusableInput {
 		return &iter2[T1, T2]{s: s}
 	}
-	exec.RegisterInput(reflect.TypeOf(i).Elem(), registerFunc)
+	itT := reflect.TypeOf(i).Elem()
+	registerType(itT.In(0).Elem())
+	registerType(itT.In(1).Elem())
+	exec.RegisterInput(itT, registerFunc)
 }
