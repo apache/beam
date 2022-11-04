@@ -23,6 +23,7 @@ import * as runnerApi from "../proto/beam_runner_api";
 import * as fnApi from "../proto/beam_fn_api";
 import { ProcessBundleDescriptor, RemoteGrpcPort } from "../proto/beam_fn_api";
 import { MultiplexingDataChannel, IDataChannel } from "./data";
+import { MetricsContainer } from "./metrics";
 import { loggingLocalStorage, LoggingStageInfo } from "./logging";
 import { StateProvider } from "./state";
 
@@ -109,7 +110,8 @@ export class OperatorContext {
     public getDataChannel: (string) => MultiplexingDataChannel,
     public getStateProvider: () => StateProvider,
     public getBundleId: () => string,
-    public loggingStageInfo: LoggingStageInfo
+    public loggingStageInfo: LoggingStageInfo,
+    public metricsContainer: MetricsContainer
   ) {
     this.pipelineContext = new PipelineContext(descriptor);
   }
@@ -579,6 +581,7 @@ class GenericParDoOperator implements IOperator {
   private originalContext: object | undefined;
   private augmentedContext: object | undefined;
   private paramProvider: ParamProviderImpl;
+  private metricsContainer: MetricsContainer;
 
   constructor(
     public transformId: string,
@@ -599,13 +602,15 @@ class GenericParDoOperator implements IOperator {
       spec,
       operatorContext
     );
+    this.metricsContainer = operatorContext.metricsContainer;
   }
 
   async startBundle() {
     this.paramProvider = new ParamProviderImpl(
       this.transformId,
       this.sideInputInfo,
-      this.getStateProvider
+      this.getStateProvider,
+      this.metricsContainer
     );
     this.augmentedContext = this.paramProvider.augmentContext(
       this.originalContext
@@ -654,12 +659,12 @@ class GenericParDoOperator implements IOperator {
           })
         );
       }
-      this_.paramProvider.update(undefined);
+      this_.paramProvider.setCurrentValue(undefined);
       return result.build();
     }
 
     // Update the context with any information specific to this window.
-    const updateContextResult = this.paramProvider.update(wvalue);
+    const updateContextResult = this.paramProvider.setCurrentValue(wvalue);
 
     // If we were able to do so without any deferred actions, process the
     // element immediately.
@@ -670,7 +675,7 @@ class GenericParDoOperator implements IOperator {
       // actions to complete and then process the element.
       return (async () => {
         await updateContextResult;
-        const update2 = this.paramProvider.update(wvalue);
+        const update2 = this.paramProvider.setCurrentValue(wvalue);
         if (update2 !== NonPromise) {
           throw new Error("Expected all promises to be resolved: " + update2);
         }
