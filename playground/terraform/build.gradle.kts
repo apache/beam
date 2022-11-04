@@ -479,7 +479,7 @@ task ("gkebackend") {
   dependsOn(helm)
   apply.mustRunAfter(init)
   takeConfig.mustRunAfter(apply)
-  push.mustRunAfter(takeConfig):
+  push.mustRunAfter(takeConfig)
   prepare.mustRunAfter(push)
   front.mustRunAfter(prepare)
   helm.mustRunAfter(front)
