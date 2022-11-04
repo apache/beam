@@ -3792,39 +3792,89 @@ the user ids from a `PCollection` of purchases one would write (using the `Selec
 purchases.apply(Select.fieldNames("userId"));
 {{< /highlight >}}
 
+{{< highlight py >}}
+input_pc = ... # {"user_id": ...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select("user_id")
+{{< /highlight >}}
+
 ##### **Nested fields**
 
+{{< paragraph class="language-py" >}}
+Support for Nested fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Nested fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
  shipping address one would write
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
 
+<!-- {{< highlight py >}}
+input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_address.post_code"]))
+{{< /highlight >}} -->
 ##### **Wildcards**
 
+{{< paragraph class="language-py" >}}
+Support for wildcards hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for wildcards hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 The * operator can be specified at any nesting level to represent all fields at that level. For example, to select all
 shipping-address fields one would write
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("shippingAddress.*"));
 {{< /highlight >}}
 
+<!--
+{{< highlight py >}}
+#TODO(https://github.com/apache/beam/issues/23275): Add support for projecting nested fields
+input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select("shipping_address.*"))
+{{< /highlight >}} -->
 ##### **Arrays**
 
+{{< paragraph class="language-java" >}}
 An array field, where the array element type is a row, can also have subfields of the element type addressed. When
 selected, the result is an array of the selected subfield type. For example
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Support for Array fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Array fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("transactions[].bank"));
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 Will result in a row containing an array field with element-type string, containing the list of banks for each
 transaction.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 While the use of  [] brackets in the selector is recommended, to make it clear that array elements are being selected,
 they can be omitted for brevity. In the future, array slicing will be supported, allowing selection of portions of the
 array.
+{{< /paragraph >}}
+
 
 ##### **Maps**
 
@@ -3858,6 +3908,14 @@ The following
 purchasesByType.apply(Select.fieldNames("purchases{}.userId"));
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for Map fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Map fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
 Will result in a row containing a map field with key-type string and value-type string. The selected map will contain
 all of the keys from the original map, and the values will be the userId contained in the purchase record.
 
@@ -3881,6 +3939,14 @@ could select only the userId and streetAddress fields as follows
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Support for Nested fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Nested fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 The resulting `PCollection` will have the following schema
 
@@ -3909,6 +3975,14 @@ The same is true for wildcard selections. The following
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("userId", "shippingAddress.*"));
 {{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Support for Wildcards hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for Wildcards hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 Will result in the following schema
 
@@ -3956,6 +4030,15 @@ selected field will appear as its own array field. For example
 purchases.apply(Select.fieldNames( "transactions.bank", "transactions.purchaseAmount"));
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for nested fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for nested fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 Will result in the following schema
 <table>
   <thead>
@@ -3976,6 +4059,7 @@ Will result in the following schema
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 Wildcard selections are equivalent to separately selecting each field.
 
@@ -3993,6 +4077,15 @@ Another use of the Select transform is to flatten a nested schema into a single 
 purchases.apply(Select.flattenedSchema());
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+Support for nested fields hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for nested fields hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 Will result in the following schema
 <table>
   <thead>
@@ -4045,21 +4138,48 @@ Will result in the following schema
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 ##### **Grouping aggregations**
 
+{{< paragraph class="language-java" >}}
 The `Group` transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
 those groupings, and storing the result of those aggregations in a new schema field. The output of the `Group` transform
 has a schema with one field corresponding to each aggregation performed.
+{{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
+The `GroupBy` transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
+those groupings, and storing the result of those aggregations in a new schema field. The output of the `GroupBy` transform
+has a schema with one field corresponding to each aggregation performed.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 The simplest usage of `Group` specifies no aggregations, in which case all inputs matching the provided set of fields
 are grouped together into an `ITERABLE` field. For example
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+The simplest usage of `GroupBy` specifies no aggregations, in which case all inputs matching the provided set of fields
+are grouped together into an `ITERABLE` field. For example
+{{< /paragraph >}}
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress"));
+purchases.apply(Group.byFieldNames("userId", "bank"));
 {{< /highlight >}}
 
+{{< highlight py >}}
+input_pc = ... # {"user_id": ...,"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.GroupBy('user_id','bank')
+{{< /highlight >}}
+
+{{< paragraph class="language-go" >}}
+Support for schema-aware grouping hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="lanuage-java" >}}
 The output schema of this is:
+{{< /paragraph >}}
 
 <table>
   <thead>
@@ -4071,7 +4191,7 @@ The output schema of this is:
   <tbody>
     <tr>
       <td>key</td>
-      <td>ROW{userId:STRING, streetAddress:STRING}</td>
+      <td>ROW{userId:STRING, bank:STRING}</td>
     </tr>
     <tr>
       <td>values</td>
@@ -4104,6 +4224,18 @@ purchases.apply(Group.byFieldNames("userId")
     .aggregateField("costCents", Top.<Long>largestLongsFn(10), "topPurchases"));
 {{< /highlight >}}
 
+{{< highlight py >}}
+input_pc = ... # {"user_id": ..., "item_Id": ..., "cost_cents": ...}
+output_pc = input_pc | beam.GroupBy("user_id")
+	.aggregate_field("item_id", CountCombineFn, "num_purchases")
+	.aggregate_field("cost_cents", sum, "total_spendcents")
+	.aggregate_field("cost_cents", TopCombineFn, "top_purchases")
+{{< /highlight >}}
+
+{{< paragraph class="language-go" >}}
+Support for schema-aware grouping hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
 The result of this aggregation will have the following schema:
 <table>
   <thead>
@@ -4135,6 +4267,14 @@ that are likely associated with that transaction (both the user and product matc
 "natural join" - one in which the same field names are used on both the left-hand and right-hand sides of the join -
 and is specified with the `using` keyword:
 
+{{< paragraph class="language-py" >}}
+Support for joins hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for joins hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
+
 {{< highlight java >}}
 PCollection<Transaction> transactions = readTransactions();
 PCollection<Review> reviews = readReviews();
@@ -4142,6 +4282,7 @@ PCollection<Row> joined = transactions.apply(
     Join.innerJoin(reviews).using("userId", "productId"));
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 The resulting schema is the following:
 <table>
   <thead>
@@ -4162,11 +4303,20 @@ The resulting schema is the following:
   </tbody>
 </table>
 <br/>
+{{< /paragraph >}}
 
 Each resulting row contains one Transaction and one Review that matched the join condition.
 
 If the fields to match in the two schemas have different names, then the on function can be used. For example, if the
 Review schema named those fields differently than the Transaction schema, then we could write the following:
+
+{{< paragraph class="language-py" >}}
+Support for joins hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for joins hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 PCollection<Row> joined = transactions.apply(
@@ -4187,6 +4337,14 @@ join record, providing a generalization of outer joins to joins with greater tha
 can optionally be expanded - providing individual joined records, as in the `Join` transform. The output can also be
 processed in unexpanded format - providing the join key along with Iterables of all records from each input that matched
 that key.
+
+{{< paragraph class="language-py" >}}
+Support for joins hasn't been developed for the Python SDK yet.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Support for joins hasn't been developed for the Go SDK yet.
+{{< /paragraph >}}
 
 ##### **Filtering events**
 
@@ -7282,7 +7440,18 @@ To create an SDK wrapper for use in a Python pipeline, do the following:
 
 #### 13.1.2. Creating cross-language Python transforms
 
-To make your Python transform usable with different SDK languages, you must create a Python module that registers an existing Python transform as a cross-language transform for use with the Python expansion service and calls into that existing transform to perform its intended operation.
+Any Python transforms defined in the scope of the expansion service should be accessible by specifying their fully qualified names. For example, you could use Python's `ReadFromText` transform in a Java pipeline with its fully qualified name `apache_beam.io.ReadFromText`:
+
+```java
+p.apply("Read",
+    PythonExternalTransform.<PBegin, PCollection<String>>from("apache_beam.io.ReadFromText")
+    .withKwarg("file_pattern", options.getInputFile())
+    .withKwarg("validate", false))
+```
+
+  > **Note:** `PythonExternalTransform` has other useful methods such as `withExtraPackages` for staging PyPI package dependencies and `withOutputCoder` for setting an output coder.
+
+Alternatively, you may want to create a Python module that registers an existing Python transform as a cross-language transform for use with the Python expansion service and calls into that existing transform to perform its intended operation. A registered URN can be used later in an expansion request for indicating an expansion target.
 
 **Defining the Python module**
 
@@ -7336,7 +7505,7 @@ $ export PORT_FOR_EXPANSION_SERVICE=12345
 3. Import any modules that contain transforms to be made available using the expansion service.
 
     {{< highlight >}}
-$ python -m apache_beam.runners.portability.expansion_service_test -p $PORT_FOR_EXPANSION_SERVICE
+$ python -m apache_beam.runners.portability.expansion_service_test -p $PORT_FOR_EXPANSION_SERVICE --pickle_library=cloudpickle
     {{< /highlight >}}
 
 4. This expansion service is now ready to serve up transforms on the address `localhost:$PORT_FOR_EXPANSION_SERVICE`.
@@ -7393,7 +7562,29 @@ Depending on the SDK language of the pipeline, you can use a high-level SDK-wrap
 
 #### 13.2.1. Using cross-language transforms in a Java pipeline
 
-Currently, to access cross-language transforms from the Java SDK, you have to use the lower-level [External](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) class.
+Users have three options to use cross-language transforms in a Java pipeline. At the highest level of abstraction, some popular Python transforms are accessible through dedicated Java wrapper transforms. For example, the Java SDK has the `DataframeTransform` class, which uses the Python SDK's `DataframeTransform`, and it has the `RunInference` class, which uses the Python SDK's `RunInference`, and so on. When an SDK-specific wrapper transform is not available for a target Python transform, you can use the lower-level [PythonExternalTransform](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java) class instead by specifying the fully qualified name of the Python transform. If you want to try external transforms from SDKs other than Python (including Java SDK itself), you can also use the lowest-level [External](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) class.
+
+**Using an SDK wrapper**
+
+To use a cross-language transform through an SDK wrapper, import the module for the SDK wrapper and call it from your pipeline, as shown in the example:
+
+```java
+import org.apache.beam.sdk.extensions.python.transforms.DataframeTransform;
+
+input.apply(DataframeTransform.of("lambda df: df.groupby('a').sum()").withIndexes())
+```
+
+**Using the PythonExternalTransform class**
+
+When an SDK-specific wrapper is not available, you can access the Python cross-language transform through the `PythonExternalTransform` class by specifying the fully qualified name and the constructor arguments of the target Python transform.
+
+```java
+input.apply(
+    PythonExternalTransform.<PCollection<Row>, PCollection<Row>>from(
+        "apache_beam.dataframe.transforms.DataframeTransform")
+    .withKwarg("func", PythonCallableSource.of("lambda df: df.groupby('a').sum()"))
+    .withKwarg("include_indexes", true))
+```
 
 **Using the External class**
 
@@ -7608,3 +7799,238 @@ Dataflow supports multi-language pipelines through the Dataflow Runner v2 backen
 ### 13.4 Tips and Troubleshooting {#x-lang-transform-tips-troubleshooting}
 
 For additional tips and troubleshooting information, see [here](https://cwiki.apache.org/confluence/display/BEAM/Multi-language+Pipelines+Tips).
+
+## 14 Batched DoFns {#batched-dofns}
+{{< language-switcher java py go typescript >}}
+
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Batched DoFns enable users to create modular, composable components that
+operate on batches of multiple logical elements. These DoFns can leverage
+vectorized Python libraries, like numpy, scipy, and pandas, which operate on
+batches of data for efficiency.
+{{< /paragraph >}}
+
+### 14.1 Basics {#batched-dofn-basics}
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+A trivial Batched DoFn might look like this:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+class MultiplyByTwo(beam.DoFn):
+  # Type
+  def process_batch(self, batch: np.ndarray) -> Iterator[np.ndarray]:
+    yield batch * 2
+
+  # Declare what the element-wise output type is
+  def infer_output_type(self, input_element_type):
+    return input_element_type
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+This DoFn can be used in a Beam pipeline that otherwise operates on individual
+elements. Beam will implicitly buffer elements and create numpy arrays on the
+input side, and on the output side it will explode the numpy arrays back into
+individual elements:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+(p | beam.Create([1, 2, 3, 4]).with_output_types(np.int64)
+   | beam.ParDo(MultiplyByTwo()) # Implicit buffering and batch creation
+   | beam.Map(lambda x: x/3))  # Implicit batch explosion
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Note that we use
+[`PTransform.with_output_types`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform.with_output_types) to
+set the _element-wise_ typehint for the output of `beam.Create`. Then, when
+`MultiplyByTwo` is applied to this `PCollection`, Beam recognizes that
+`np.ndarray` is an acceptable batch type to use in conjunction with `np.int64`
+elements.  We will use numpy typehints like these throughout this guide, but
+Beam supports typehints from other libraries as well, see [Supported Batch
+Types](#batched-dofn-types).
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+In the previous case, Beam will implicitly create and explode batches at the
+input and output boundaries. However, if Batched DoFns with equivalent types are
+chained together, this batch creation and explosion will be elided. The batches
+will be passed straight through! This makes it much simpler to efficiently
+compose transforms that operate on batches.
+{{< /paragraph >}}
+
+{{< highlight py >}}
+(p | beam.Create([1, 2, 3, 4]).with_output_types(np.int64)
+   | beam.ParDo(MultiplyByTwo()) # Implicit buffering and batch creation
+   | beam.ParDo(MultiplyByTwo()) # Batches passed through
+   | beam.ParDo(MultiplyByTwo()))
+{{< /highlight >}}
+
+### 14.2 Element-wise Fallback {#batched-dofn-elementwise}
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+For some DoFns you may be able to provide both a batched and an element-wise
+implementation of your desired logic. You can do this by simply defining both
+`process` and `process_batch`:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+class MultiplyByTwo(beam.DoFn):
+  def process(self, element: np.int64) -> Iterator[np.int64]:
+    # Multiply an individual int64 by 2
+    yield batch * 2
+
+  def process_batch(self, batch: np.ndarray) -> Iterator[np.ndarray]:
+    # Multiply a _batch_ of int64s by 2
+    yield batch * 2
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+When executing this DoFn, Beam will select the best implementation to use given
+the context. Generally, if the inputs to a DoFn are already batched Beam will
+use the batched implementation; otherwise it will use the element-wise
+implementation defined in the `process` method.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Note that, in this case, there is no need to define `infer_output_type`. This is
+because Beam can get the output type from the typehint on `process`.
+{{< /paragraph >}}
+
+
+
+### 14.3 Batch Production vs. Batch Consumption {#batched-dofn-batch-production}
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+By convention, Beam assumes that the `process_batch` method, which consumes
+batched inputs, will also produce batched outputs. Similarly, Beam assumes the
+`process` method will produce individual elements. This can be overridden with
+the [`@beam.DoFn.yields_elements`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.yields_elements) and
+[`@beam.DoFn.yields_batches`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.yields_batches) decorators. For example:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+# Consumes elements, produces batches
+class ReadFromFile(beam.DoFn):
+
+  @beam.DoFn.yields_batches
+  def process(self, path: str) -> Iterator[np.ndarray]:
+    ...
+    yield array
+  
+
+  # Declare what the element-wise output type is
+  def infer_output_type(self):
+    return np.int64
+
+# Consumes batches, produces elements
+class WriteToFile(beam.DoFn):
+  @beam.DoFn.yields_elements
+  def process_batch(self, batch: np.ndarray) -> Iterator[str]:
+    ...
+    yield output_path
+{{< /highlight >}}
+
+### 14.4 Supported Batch Types {#batched-dofn-types}
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+We’ve used numpy types in the Batched DoFn implementations in this guide &ndash;
+`np.int64 ` as the element typehint and `np.ndarray` as the corresponding
+batch typehint &ndash; but Beam supports typehints from other libraries as well.
+{{< /paragraph >}}
+
+#### [numpy](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/typehints/batch.py)
+| Element Typehint | Batch Typehint |
+| ---------------- | -------------- |
+| Numeric types (`int`, `np.int32`, `bool`, ...) | np.ndarray (or NumpyArray) |
+
+#### [pandas](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/typehints/pandas_type_compatibility.py)
+| Element Typehint | Batch Typehint |
+| ---------------- | -------------- |
+| Numeric types (`int`, `np.int32`, `bool`, ...) | `pd.Series` |
+| `bytes` | |
+| `Any` | |
+| [Beam Schema Types](#schemas) | `pd.DataFrame` |
+
+#### Other types?
+If there are other batch types you would like to use with Batched DoFns, please
+[file an issue](https://github.com/apache/beam/issues/new/choose).
+
+### 14.5 Dynamic Batch Input and Output Types {#batched-dofn-dynamic-types}
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+For some Batched DoFns, it may not be sufficient to declare batch types
+statically, with typehints on `process` and/or `process_batch`. You may need to
+declare these types dynamically. You can do this by overriding the
+[`get_input_batch_type`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.get_input_batch_type)
+and
+[`get_output_batch_type`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.get_output_batch_type)
+methods on your DoFn:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+# Utilize Beam's parameterized NumpyArray typehint
+from apache_beam.typehints.batch import NumpyArray
+
+class MultipyByTwo(beam.DoFn):
+  # No typehints needed
+  def process_batch(self, batch):
+    yield batch * 2
+
+  def get_input_batch_type(self, input_element_type):
+    return NumpyArray[input_element_type]
+
+  def get_output_batch_type(self, input_element_type):
+    return NumpyArray[input_element_type]
+
+  def infer_output_type(self, input_element_type):
+    return input_element_type
+{{< /highlight >}}
+
+### 14.6 Batches and Event-time Semantics {#batched-dofn-event-time}
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Currently, batches must have a single set of timing information (event time,
+windows, etc...) that applies to every logical element in the batch. There is
+currently no mechanism to create batches that span multiple timestamps. However,
+it is possible to retrieve this timing information in Batched DoFn
+implementations. This information can be accessed by using the conventional
+`DoFn.*Param` attributes:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+class RetrieveTimingDoFn(beam.DoFn):
+
+  def process_batch(
+    self,
+    batch: np.ndarray,
+    timestamp=beam.DoFn.TimestampParam,
+    pane_info=beam.DoFn.PaneInfoParam,
+   ) -> Iterator[np.ndarray]:
+     ...
+
+  def infer_output_type(self, input_type):
+    return input_type
+{{< /highlight >}}
