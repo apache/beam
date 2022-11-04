@@ -334,6 +334,17 @@ task("InitInfrastructure") {
     apply.mustRunAfter(init)
 }
 
+task ("indexcreate") {
+    group = "deploy"
+    val indexpath = "../index.yaml"
+    doLast{
+    exec {
+        executable("gcloud")
+    args("app", "deploy", indexpath)
+    }
+   }
+}
+
 /* build, push, deploy Frontend app */
 task("deployFrontend") {
     group = "deploy"
@@ -465,6 +476,7 @@ task ("gkebackend") {
   group = "deploy"
   val init = tasks.getByName("terraformInit")
   val apply = tasks.getByName("terraformApplyInf")
+  val indexcreate = tasks.getByName("indexcreate")
   val takeConfig = tasks.getByName("takeConfig")
   val prepare = tasks.getByName("prepareConfig")
   val front = tasks.getByName("pushFront")
@@ -472,26 +484,17 @@ task ("gkebackend") {
   val helm = tasks.getByName("helmInstallPlayground")
   dependsOn(init)
   dependsOn(apply)
+  dependsOn(indexcreate)
   dependsOn(takeConfig)
   dependsOn(push)
   dependsOn(prepare)
   dependsOn(front)
   dependsOn(helm)
   apply.mustRunAfter(init)
-  takeConfig.mustRunAfter(apply)
+  indexcreate.mustRunAfter(apply)
+  takeConfig.mustRunAfter(indexcreate)
   push.mustRunAfter(takeConfig)
   prepare.mustRunAfter(push)
   front.mustRunAfter(prepare)
   helm.mustRunAfter(front)
-}
-
-task ("indexcreate") {
-    group = "deploy"
-    val indexpath = "../index.yaml"
-    doLast{
-    exec {
-        executable("gcloud")
-    args("app", "deploy", indexpath)
-    }
-   }
 }
