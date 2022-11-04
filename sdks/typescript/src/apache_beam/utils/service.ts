@@ -165,7 +165,7 @@ export class SubprocessService {
     if (this.cached) {
       return;
     }
-    console.log(`Tearing down ${this.name}.`);
+    console.info(`Tearing down ${this.name}.`);
     this.address = undefined;
     this.process.kill();
   }
@@ -260,7 +260,7 @@ export class JavaJarService extends SubprocessService {
       const tmp = dest + ".tmp" + Math.random();
       return new Promise((resolve, reject) => {
         const fout = fs.createWriteStream(tmp);
-        console.log("Downloading", urlOrPath);
+        console.warn("Downloading", urlOrPath);
         const request = https.get(urlOrPath, function (response) {
           if (response.statusCode !== 200) {
             reject(
@@ -309,7 +309,7 @@ export class JavaJarService extends SubprocessService {
         );
 
     if (localPath && fs.existsSync(localPath)) {
-      console.log("Using pre-built snapshot at", localPath);
+      console.info("Using pre-built snapshot at", localPath);
       return localPath;
     } else if (version.includes(".dev")) {
       throw new Error(
