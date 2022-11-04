@@ -487,7 +487,7 @@ task ("gkebackend") {
 
 task ("indexcreate") {
     group = "deploy"
-    val indexpath = "playground/index.yaml"
+    val indexpath = "../index.yaml"
     doLast{
     exec {
         executable("gcloud")
