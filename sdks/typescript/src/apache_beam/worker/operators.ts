@@ -24,6 +24,7 @@ import * as fnApi from "../proto/beam_fn_api";
 import { ProcessBundleDescriptor, RemoteGrpcPort } from "../proto/beam_fn_api";
 import { MultiplexingDataChannel, IDataChannel } from "./data";
 import { MetricsContainer } from "./metrics";
+import { loggingLocalStorage, LoggingStageInfo } from "./logging";
 import { StateProvider } from "./state";
 
 import * as urns from "../internal/urns";
@@ -66,26 +67,37 @@ export class ProcessResultBuilder {
 }
 
 export interface IOperator {
+  transformId: string;
   startBundle: () => Promise<void>;
   // As this is called at every operator at every element, and the vast majority
   // of the time Promises are not needed, we wish to avoid the overhead of
-  // creating promisses and await as much as possible.
+  // creating promises and await as much as possible.
   process: (wv: WindowedValue<unknown>) => ProcessResult;
   finishBundle: () => Promise<void>;
 }
 
 export class Receiver {
-  constructor(private operators: IOperator[]) {}
+  constructor(
+    private operators: IOperator[],
+    private loggingStageInfo: LoggingStageInfo
+  ) {}
 
   receive(wvalue: WindowedValue<unknown>): ProcessResult {
-    if (this.operators.length === 1) {
-      return this.operators[0].process(wvalue);
-    } else {
-      const result = new ProcessResultBuilder();
-      for (const operator of this.operators) {
-        result.add(operator.process(wvalue));
+    try {
+      if (this.operators.length === 1) {
+        const operator = this.operators[0];
+        this.loggingStageInfo.transformId = operator.transformId;
+        return operator.process(wvalue);
+      } else {
+        const result = new ProcessResultBuilder();
+        for (const operator of this.operators) {
+          this.loggingStageInfo.transformId = operator.transformId;
+          result.add(operator.process(wvalue));
+        }
+        return result.build();
       }
-      return result.build();
+    } finally {
+      this.loggingStageInfo.transformId = undefined;
     }
   }
 }
@@ -98,6 +110,7 @@ export class OperatorContext {
     public getDataChannel: (string) => MultiplexingDataChannel,
     public getStateProvider: () => StateProvider,
     public getBundleId: () => string,
+    public loggingStageInfo: LoggingStageInfo,
     public metricsContainer: MetricsContainer
   ) {
     this.pipelineContext = new PipelineContext(descriptor);
@@ -159,6 +172,7 @@ class DataSourceOperator implements IOperator {
   receiver: Receiver;
   coder: Coder<WindowedValue<unknown>>;
   endOfData: Promise<void>;
+  loggingStageInfo: LoggingStageInfo;
 
   constructor(
     transformId: string,
@@ -175,6 +189,7 @@ class DataSourceOperator implements IOperator {
       onlyElement(Object.values(transform.outputs))
     );
     this.coder = context.pipelineContext.getCoder(readPort.coderId);
+    this.loggingStageInfo = context.loggingStageInfo;
   }
 
   async startBundle() {
@@ -190,7 +205,8 @@ class DataSourceOperator implements IOperator {
       this_.transformId,
       {
         sendData: async function (data: Uint8Array) {
-          console.log("Got", data);
+          this_.loggingStageInfo.transformId = this_.transformId;
+          loggingLocalStorage.enterWith(this_.loggingStageInfo);
           const reader = new protobufjs.Reader(data);
           while (reader.pos < reader.len) {
             const maybePromise = this_.receiver.receive(
@@ -289,7 +305,7 @@ class FlattenOperator implements IOperator {
   receiver: Receiver;
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: OperatorContext
   ) {
@@ -316,7 +332,7 @@ abstract class CombineOperator<I, A, O> {
   combineFn: CombineFn<I, A, O>;
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: OperatorContext
   ) {
@@ -568,7 +584,7 @@ class GenericParDoOperator implements IOperator {
   private metricsContainer: MetricsContainer;
 
   constructor(
-    private transformId: string,
+    public transformId: string,
     private receiver: Receiver,
     private spec: runnerApi.ParDoPayload,
     private payload: {
@@ -688,7 +704,7 @@ class GenericParDoOperator implements IOperator {
 }
 
 class IdentityParDoOperator implements IOperator {
-  constructor(private receiver: Receiver) {}
+  constructor(public transformId: string, private receiver: Receiver) {}
 
   async startBundle() {}
 
@@ -701,6 +717,7 @@ class IdentityParDoOperator implements IOperator {
 
 class SplittingDoFnOperator implements IOperator {
   constructor(
+    public transformId: string,
     private receivers: { [key: string]: Receiver },
     private options: SplitOptions
   ) {}
@@ -751,7 +768,11 @@ class SplittingDoFnOperator implements IOperator {
 }
 
 class AssignWindowsParDoOperator implements IOperator {
-  constructor(private receiver: Receiver, private windowFn: WindowFn<Window>) {}
+  constructor(
+    public transformId: string,
+    private receiver: Receiver,
+    private windowFn: WindowFn<Window>
+  ) {}
 
   async startBundle() {}
 
@@ -779,6 +800,7 @@ class AssignWindowsParDoOperator implements IOperator {
 
 class AssignTimestampsParDoOperator implements IOperator {
   constructor(
+    public transformId: string,
     private receiver: Receiver,
     private func: (any, Instant) => typeof Instant
   ) {}
@@ -817,20 +839,24 @@ registerOperatorConstructor(
       );
     } else if (spec.doFn?.urn === urns.IDENTITY_DOFN_URN) {
       return new IdentityParDoOperator(
+        transformId,
         context.getReceiver(onlyElement(Object.values(transform.outputs)))
       );
     } else if (spec.doFn?.urn === urns.JS_WINDOW_INTO_DOFN_URN) {
       return new AssignWindowsParDoOperator(
+        transformId,
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
         deserializeFn(spec.doFn.payload!).windowFn
       );
     } else if (spec.doFn?.urn === urns.JS_ASSIGN_TIMESTAMPS_DOFN_URN) {
       return new AssignTimestampsParDoOperator(
+        transformId,
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
         deserializeFn(spec.doFn.payload!).func
       );
     } else if (spec.doFn?.urn === urns.SPLITTING_JS_DOFN_URN) {
       return new SplittingDoFnOperator(
+        transformId,
         Object.fromEntries(
           Object.entries(transform.outputs).map(([tag, pcId]) => [
             tag,

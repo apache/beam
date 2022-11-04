@@ -41,6 +41,7 @@ import {
 } from "../proto/beam_fn_api.grpc-server";
 
 import { MultiplexingDataChannel, IDataChannel } from "./data";
+import { loggingLocalStorage, LoggingStageInfo } from "./logging";
 import { MetricsContainer, MetricsShortIdCache } from "./metrics";
 import {
   MultiplexingStateChannel,
@@ -89,7 +90,7 @@ export class Worker {
     this.controlChannel = this.controlClient.control(metadata);
     this.controlChannel.on("data", this.handleRequest.bind(this));
     this.controlChannel.on("end", () => {
-      console.log("Control channel closed.");
+      console.warn("Control channel closed.");
       for (const dataChannel of this.dataChannels.values()) {
         try {
           // Best effort.
@@ -113,13 +114,12 @@ export class Worker {
   }
 
   async handleRequest(request) {
-    console.log(request);
     if (request.request.oneofKind === "processBundle") {
       return this.process(request);
     } else if (request.request.oneofKind === "processBundleProgress") {
       return this.controlChannel.write(await this.progress(request));
     } else {
-      console.log("Unknown instruction type: ", request);
+      console.error("Unknown instruction type: ", request);
       return this.controlChannel.write({
         instructionId: request.instructionId,
         error: "Unknown instruction type: " + request.request.oneofKind,
@@ -293,6 +293,7 @@ export class BundleProcessor {
   getStateChannel: ((string) => MultiplexingStateChannel) | StateProvider;
   currentBundleId?: string;
   stateProvider?: StateProvider;
+  loggingStageInfo: LoggingStageInfo = {};
   metricsContainer: MetricsContainer;
 
   constructor(
@@ -328,7 +329,10 @@ export class BundleProcessor {
       if (!this_.receivers.has(pcollectionId)) {
         this_.receivers.set(
           pcollectionId,
-          new Receiver((consumers.get(pcollectionId) || []).map(getOperator))
+          new Receiver(
+            (consumers.get(pcollectionId) || []).map(getOperator),
+            this_.loggingStageInfo
+          )
         );
       }
       return this_.receivers.get(pcollectionId)!;
@@ -346,6 +350,7 @@ export class BundleProcessor {
               this_.getDataChannel,
               this_.getStateProvider.bind(this_),
               this_.getBundleId.bind(this_),
+              this_.loggingStageInfo,
               this_.metricsContainer
             )
           )
@@ -395,17 +400,24 @@ export class BundleProcessor {
     console.debug("Processing ", this.descriptor.id, "for", instructionId);
     this.metricsContainer.reset();
     this.currentBundleId = instructionId;
+    this.loggingStageInfo.instructionId = instructionId;
+    loggingLocalStorage.enterWith(this.loggingStageInfo);
     // We must await these in reverse topological order.
     for (const o of this.topologicallyOrderedOperators.slice().reverse()) {
+      this.loggingStageInfo.transformId = o.transformId;
       await o.startBundle();
     }
+    this.loggingStageInfo.transformId = undefined;
     // Now finish bundles all the bundles.
     // Note that process is not directly called on any operator here.
     // Instead, process is triggered by elements coming over the
     // data stream and/or operator start/finishBundle methods.
     for (const o of this.topologicallyOrderedOperators) {
+      this.loggingStageInfo.transformId = o.transformId;
       await o.finishBundle();
     }
+    this.loggingStageInfo.transformId = undefined;
+    this.loggingStageInfo.instructionId = undefined;
     this.currentBundleId = undefined;
     this.stateProvider = undefined;
   }
