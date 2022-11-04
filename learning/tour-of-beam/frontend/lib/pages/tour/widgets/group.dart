@@ -25,7 +25,7 @@ import '../controllers/content_tree.dart';
 import 'group_nodes.dart';
 import 'group_title.dart';
 
-class GroupWidget extends StatefulWidget {
+class GroupWidget extends StatelessWidget {
   final GroupModel group;
   final ContentTreeController contentTreeController;
 
@@ -35,46 +35,43 @@ class GroupWidget extends StatefulWidget {
   });
 
   @override
-  State<GroupWidget> createState() => _GroupWidgetState();
-}
-
-class _GroupWidgetState extends State<GroupWidget> {
-  @override
   Widget build(BuildContext context) {
-    final isExpanded =
-        widget.contentTreeController.expandedIds.contains(widget.group.id);
+    return AnimatedBuilder(
+      animation: contentTreeController,
+      builder: (context, child) {
+        final isExpanded = contentTreeController.expandedIds.contains(group.id);
 
-    return ExpansionTileWrapper(
-      ExpansionTile(
-        key: Key('${widget.group.id}$isExpanded'),
-        initiallyExpanded: isExpanded,
-        tilePadding: EdgeInsets.zero,
-        onExpansionChanged: (expand) {
-          /// Since expandedIds is also used for expansion, it needs to be
-          /// updated to prevent the tile to stay collapsed on title tap.
-          if (!expand) {
-            widget.contentTreeController.expandedIds.remove(widget.group.id);
-            setState(() {});
-          }
-        },
-        title: GroupTitleWidget(
-          group: widget.group,
-          onTap: () {
-            widget.contentTreeController.openNode(widget.group);
-            // Couldn't make it rebuild reliably with AnimatedBuilder
-            setState(() {});
-          },
-        ),
-        childrenPadding: const EdgeInsets.only(
-          left: BeamSizes.size24,
-        ),
-        children: [
-          GroupNodesWidget(
-            nodes: widget.group.nodes,
-            contentTreeController: widget.contentTreeController,
+        return ExpansionTileWrapper(
+          ExpansionTile(
+            key: Key('${group.id}$isExpanded'),
+            initiallyExpanded: isExpanded,
+            tilePadding: EdgeInsets.zero,
+            onExpansionChanged: (isExpanding) {
+              /// Since expandedIds is also used for expansion,
+              /// it needs to be updated to prevent the tile from
+              /// remaining collapsed after taps on title.
+              if (!isExpanding) {
+                contentTreeController.markGroupAsCollapsed(group);
+              }
+            },
+            title: GroupTitleWidget(
+              group: group,
+              onTap: () {
+                contentTreeController.openNode(group);
+              },
+            ),
+            childrenPadding: const EdgeInsets.only(
+              left: BeamSizes.size24,
+            ),
+            children: [
+              GroupNodesWidget(
+                nodes: group.nodes,
+                contentTreeController: contentTreeController,
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

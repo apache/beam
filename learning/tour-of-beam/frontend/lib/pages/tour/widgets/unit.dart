@@ -24,7 +24,7 @@ import '../../../models/unit.dart';
 import '../controllers/content_tree.dart';
 import 'tour_progress_indicator.dart';
 
-class UnitWidget extends StatefulWidget {
+class UnitWidget extends StatelessWidget {
   final UnitModel unit;
   final ContentTreeController contentTreeController;
 
@@ -34,50 +34,35 @@ class UnitWidget extends StatefulWidget {
   });
 
   @override
-  State<UnitWidget> createState() => _UnitWidgetState();
-}
-
-class _UnitWidgetState extends State<UnitWidget> {
-  @override
-  void initState() {
-    super.initState();
-    widget.contentTreeController.addListener(_rebuild);
-  }
-
-  @override
-  void dispose() {
-    widget.contentTreeController.removeListener(_rebuild);
-    super.dispose();
-  }
-
-  void _rebuild() {
-    setState(() {});
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final bool isSelected =
-        widget.contentTreeController.currentNode?.id == widget.unit.id;
-    return ClickableWidget(
-      onTap: () => widget.contentTreeController.openNode(widget.unit),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).selectedRowColor : null,
-          borderRadius: BorderRadius.circular(BeamSizes.size3),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
-        child: Row(
-          children: [
-            TourProgressIndicator(
-              assetPath: Assets.svg.unitProgress0,
-              isSelected: isSelected,
+    return AnimatedBuilder(
+      animation: contentTreeController,
+      builder: (context, child) {
+        final bool isSelected =
+            contentTreeController.currentNode?.id == unit.id;
+
+        return ClickableWidget(
+          onTap: () => contentTreeController.openNode(unit),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isSelected ? Theme.of(context).selectedRowColor : null,
+              borderRadius: BorderRadius.circular(BeamSizes.size3),
             ),
-            Expanded(
-              child: Text(widget.unit.title),
+            padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
+            child: Row(
+              children: [
+                TourProgressIndicator(
+                  assetPath: Assets.svg.unitProgress0,
+                  isSelected: isSelected,
+                ),
+                Expanded(
+                  child: Text(unit.title),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

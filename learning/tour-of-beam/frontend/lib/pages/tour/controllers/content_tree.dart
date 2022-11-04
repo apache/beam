@@ -68,6 +68,11 @@ class ContentTreeController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void markGroupAsCollapsed(GroupModel group) {
+    expandedIds.remove(group.id);
+    notifyListeners();
+  }
+
   List<String> _getNodeAncestors(NodeModel node, List<String> ancestors) {
     if (node.parent != null) {
       ancestors.add(node.parent!.id);
