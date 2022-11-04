@@ -187,8 +187,8 @@ public class TikaIO {
     }
 
     /**
-     * Sets a content typehints to make the file parser detection more efficient. Overrides the
-     * content typehints in {@link #withInputMetadata}, if any.
+     * Sets a content typehint to make the file parser detection more efficient. Overrides the
+     * content typehint in {@link #withInputMetadata}, if any.
      */
     public ParseFiles withContentTypeHint(String contentTypeHint) {
       checkNotNull(contentTypeHint, "contentTypeHint can not be null.");
