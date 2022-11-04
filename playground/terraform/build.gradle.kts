@@ -486,10 +486,12 @@ task ("gkebackend") {
 }
 
 task ("indexcreate") {
-   // group = "deploy"
-   // val indexpath = "playground/index.yaml"
-   // exec {
-    //   commandLine = listOf("gcloud", "app", "deploy", indexpath)
-   //}
-   println("hello")
+    group = "deploy"
+    val indexpath = "playground/index.yaml"
+    doLast{
+    exec {
+        executable("gcloud")
+    args("app", "deploy", indexpath)
+    }
+   }
 }
