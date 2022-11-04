@@ -17,28 +17,24 @@
  */
 
 import { PTransform, withName } from "./transform";
-import { impulse } from "./internal";
-import * as utils from "./utils";
+import { groupBy } from "./group_and_combine";
 import { Root, PCollection } from "../pvalue";
 
 /**
  * A Ptransform that represents a 'static' source with a list of elements passed at construction time. It
  * returns a PCollection that contains the elements in the input list.
  */
-export function create<T>(
-  elements: T[],
-  reshuffle: boolean = true
-): PTransform<Root, PCollection<T>> {
-  function create(root: Root): PCollection<T> {
-    const pcoll = root
-      .apply(impulse())
-      .flatMap(withName("ExtractElements", (_) => elements));
-    if (elements.length > 1 && reshuffle) {
-      return pcoll.apply(utils.reshuffle());
-    } else {
-      return pcoll;
-    }
+export function reshuffle<T>(): PTransform<PCollection<T>, PCollection<T>> {
+  function reshuffle(input: PCollection<T>): PCollection<T> {
+    return input
+      .apply(
+        withName(
+          "groupByRandomKey",
+          groupBy((x) => Math.random())
+        )
+      )
+      .flatMap(withName("dropKeys", (kvs) => kvs.value));
   }
 
-  return create;
+  return reshuffle;
 }
