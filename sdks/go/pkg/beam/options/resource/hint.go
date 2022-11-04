@@ -143,6 +143,10 @@ func (h minRamHint) MergeWith(outer Hint) Hint {
 	return h
 }
 
+func (h minRamHint) String() string {
+	return fmt.Sprintf("min_ram=%v", humanize.Bytes(uint64(h.value)))
+}
+
 // Accelerator hints that this scope should be put in a machine with a given accelerator.
 //
 // Hints for accelerators will have formats that are runner specific.
@@ -175,4 +179,8 @@ func (h acceleratorHint) Payload() []byte {
 // MergeWith an outer acceleratorHint by keeping this hint.
 func (h acceleratorHint) MergeWith(outer Hint) Hint {
 	return h
+}
+
+func (h acceleratorHint) String() string {
+	return fmt.Sprintf("accelerator=%v", h.value)
 }
