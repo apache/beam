@@ -485,7 +485,7 @@ task ("gkebackend") {
   helm.mustRunAfter(front)
 }
 
-task ("indexCreate") {
+task ("indexcreate") {
     group = "deploy"
     val indexpath = "playground/index.yaml"
     exec {
