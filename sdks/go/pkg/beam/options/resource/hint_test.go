@@ -211,7 +211,7 @@ func TestHints_NilHints(t *testing.T) {
 		t.Errorf("nil equal test: (nil).Equal(hs) = %v, want %v", got, want)
 	}
 
-	if got, want := hs1.MergeWithOuter(hs2), Hints(nil); !got.Equal(want) {
+	if got, want := hs1.MergeWithOuter(hs2), (Hints{}); !got.Equal(want) {
 		t.Errorf("nils equal test: (nil).Equal(nil) = %v, want %v", got, want)
 	}
 	if got, want := hs.MergeWithOuter(hs2), hs; !got.Equal(want) {

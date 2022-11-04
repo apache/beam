@@ -25,39 +25,31 @@ import (
 	"strconv"
 )
 
-// NewHints produces a hints map from a list of hints. If there are multiple hints
-// with the same URN, the last one in the list is used.
-func NewHints(hs ...Hint) Hints {
-	hints := Hints{}
-	for _, h := range hs {
-		hints[h.URN()] = h
-	}
-	return hints
-}
-
 // Hints contains a list of hints for a given scope.
-type Hints map[string]Hint
+type Hints struct {
+	h map[string]Hint
+}
 
 // MergeWithOuter produces a new list of Hints from this Hints, and the Hints from the outer scope.
 func (hs Hints) MergeWithOuter(outer Hints) Hints {
-	if len(outer) == 0 {
+	if len(outer.h) == 0 {
 		return hs
 	}
-	if len(hs) == 0 {
+	if len(hs.h) == 0 {
 		return outer
 	}
-	merged := Hints{}
-	for k, o := range outer {
-		if h, ok := hs[k]; ok {
-			merged[k] = h.MergeWith(o)
+	merged := Hints{h: map[string]Hint{}}
+	for k, o := range outer.h {
+		if h, ok := hs.h[k]; ok {
+			merged.h[k] = h.MergeWith(o)
 		} else {
-			merged[k] = o
+			merged.h[k] = o
 		}
 	}
 	// Always include any from the base, not already merged from outer.
-	for k, h := range hs {
-		if _, ok := outer[k]; !ok {
-			merged[k] = h
+	for k, h := range hs.h {
+		if _, ok := outer.h[k]; !ok {
+			merged.h[k] = h
 		}
 	}
 	return merged
@@ -66,22 +58,30 @@ func (hs Hints) MergeWithOuter(outer Hints) Hints {
 // Equal checks if two sets of hints are identical. A hint is identical to another if their payloads
 // are the same for a given URN.
 func (hs Hints) Equal(other Hints) bool {
-	if len(hs) != len(other) {
+	if len(hs.h) != len(other.h) {
 		return false
 	}
-	for k, h := range hs {
-		o, ok := other[k]
+	for k, h := range hs.h {
+		o, ok := other.h[k]
 		if !ok {
 			return false
 		}
-		hp := h.Payload()
-		op := o.Payload()
-		if !bytes.Equal(hp, op) {
+		if !bytes.Equal(h.Payload(), o.Payload()) {
 			return false
 		}
 	}
 
 	return true
+}
+
+// NewHints produces a hints map from a list of hints. If there are multiple hints
+// with the same URN, the last one in the list is used.
+func NewHints(hs ...Hint) Hints {
+	hints := Hints{h: map[string]Hint{}}
+	for _, h := range hs {
+		hints.h[h.URN()] = h
+	}
+	return hints
 }
 
 type Hint interface {
