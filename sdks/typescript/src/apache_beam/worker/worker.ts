@@ -331,7 +331,8 @@ export class BundleProcessor {
           pcollectionId,
           new Receiver(
             (consumers.get(pcollectionId) || []).map(getOperator),
-            this_.loggingStageInfo
+            this_.loggingStageInfo,
+            this_.metricsContainer.elementCountMetric(pcollectionId)
           )
         );
       }

@@ -79,10 +79,12 @@ export interface IOperator {
 export class Receiver {
   constructor(
     private operators: IOperator[],
-    private loggingStageInfo: LoggingStageInfo
+    private loggingStageInfo: LoggingStageInfo,
+    private elementCounter: { update: (number) => void }
   ) {}
 
   receive(wvalue: WindowedValue<unknown>): ProcessResult {
+    this.elementCounter.update(1);
     try {
       if (this.operators.length === 1) {
         const operator = this.operators[0];
