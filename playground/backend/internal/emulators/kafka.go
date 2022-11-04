@@ -65,16 +65,12 @@ func NewKafkaMockCluster() (*KafkaMockCluster, error) {
 		select {
 		case <-workTicker.C:
 			if _, err = net.DialTimeout(networkType, bootstrapServers, pauseDuration); err == nil {
-				workTicker.Stop()
-				globalTicker.Stop()
 				return &KafkaMockCluster{
 					cluster: cluster,
 					host:    bootstrapServersArr[0],
 					port:    bootstrapServersArr[1]}, nil
 			}
 		case <-globalTicker.C:
-			workTicker.Stop()
-			globalTicker.Stop()
 			return nil, errors.New("timeout while a mock cluster is starting")
 		}
 	}
@@ -111,49 +107,68 @@ func (kp *KafkaProducer) ProduceDatasets(datasets []*cloud_bucket.DatasetDTO) er
 	}
 	defer kp.producer.Close()
 	for _, dataset := range datasets {
-		topicName := dataset.Dataset.Options[constants.TopicNameKey]
-		topic := new(string)
-		*topic = topicName
-
-		ext := filepath.Ext(dataset.Dataset.DatasetPath)
-		var entries []map[string]interface{}
-		switch ext {
-		case jsonExt:
-			err := json.Unmarshal(dataset.Data, &entries)
-			if err != nil {
-				return fmt.Errorf("failed to parse a dataset in json format, err: %v", err)
-			}
-			break
-		case avroExt:
-			ocfReader, err := goavro.NewOCFReader(strings.NewReader(string(dataset.Data)))
-			if err != nil {
-				return fmt.Errorf("failed to parse a dataset in avro format, err: %v", err)
-			}
-			for ocfReader.Scan() {
-				record, err := ocfReader.Read()
-				if err != nil {
-					return fmt.Errorf("failed to read a file in avro format, err: %v", err)
-				}
-				entries = append(entries, record.(map[string]interface{}))
-			}
-			break
-		default:
-			return errors.New("wrong dataset extension")
+		topic := getTopic(dataset)
+		entries, err := unmarshallDatasets(dataset)
+		if err != nil {
+			return err
 		}
-
-		for _, entry := range entries {
-			entryBytes, err := json.Marshal(entry)
-			if err != nil {
-				return fmt.Errorf("failed to marshal data, err: %v", err)
-			}
-			if err := kp.producer.Produce(&kafka.Message{
-				TopicPartition: kafka.TopicPartition{Topic: topic, Partition: 0},
-				Value:          entryBytes},
-				nil,
-			); err != nil {
-				return errors.New("failed to produce data to a topic")
-			}
+		err = produce(entries, kp, topic)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func produce(entries []map[string]interface{}, kp *KafkaProducer, topic *string) error {
+	for _, entry := range entries {
+		entryBytes, err := json.Marshal(entry)
+		if err != nil {
+			return fmt.Errorf("failed to marshal data, err: %v", err)
+		}
+		if err := kp.producer.Produce(&kafka.Message{
+			TopicPartition: kafka.TopicPartition{Topic: topic, Partition: 0},
+			Value:          entryBytes},
+			nil,
+		); err != nil {
+			return errors.New("failed to produce data to a topic")
+		}
+	}
+	return nil
+}
+
+func getTopic(dataset *cloud_bucket.DatasetDTO) *string {
+	topicName := dataset.Dataset.Options[constants.TopicNameKey]
+	topic := new(string)
+	*topic = topicName
+	return topic
+}
+
+func unmarshallDatasets(dataset *cloud_bucket.DatasetDTO) ([]map[string]interface{}, error) {
+	ext := filepath.Ext(dataset.Dataset.DatasetPath)
+	var entries []map[string]interface{}
+	switch ext {
+	case jsonExt:
+		err := json.Unmarshal(dataset.Data, &entries)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse a dataset in json format, err: %v", err)
+		}
+		break
+	case avroExt:
+		ocfReader, err := goavro.NewOCFReader(strings.NewReader(string(dataset.Data)))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse a dataset in avro format, err: %v", err)
+		}
+		for ocfReader.Scan() {
+			record, err := ocfReader.Read()
+			if err != nil {
+				return nil, fmt.Errorf("failed to read a file in avro format, err: %v", err)
+			}
+			entries = append(entries, record.(map[string]interface{}))
+		}
+		break
+	default:
+		return nil, errors.New("wrong dataset extension")
+	}
+	return entries, nil
 }

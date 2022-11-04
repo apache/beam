@@ -27,12 +27,12 @@ import (
 	"google.golang.org/api/option"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/constants"
-	"beam.apache.org/playground/backend/internal/logger"
 )
 
 const (
-	timeout = 5 * time.Second
+	timeout       = 5 * time.Second
+	gcsPrefix     = "gs://"
+	gcsFullPrefix = "https://storage.googleapis.com/"
 )
 
 type CloudStorage struct {
@@ -57,23 +57,15 @@ func (cs *CloudStorage) GetDatasets(ctx context.Context, bucketName string, data
 
 	bucket := cs.client.Bucket(bucketName)
 
-	var rc storage.Reader
-	defer func(rc *storage.Reader) {
-		err := rc.Close()
-		if err != nil {
-			logger.Error(err.Error())
-		}
-	}(&rc)
-	result := make([]*DatasetDTO, 0, len(datasets))
+	result := make([]*DatasetDTO, 0)
 	for _, dataset := range datasets {
 		if len(dataset.DatasetPath) == 0 {
 			return nil, errors.New("dataset path not found")
 		}
-		elements := strings.Split(dataset.DatasetPath, constants.CloudPathDelimiter)
-		if len(elements) < 3 {
-			return nil, errors.New("wrong the cloud storage uri")
+		_, obj, err := parseGCSUri(dataset.DatasetPath)
+		if err != nil {
+			return nil, err
 		}
-		obj := fmt.Sprintf("%s%s%s", elements[len(elements)-2], constants.CloudPathDelimiter, elements[len(elements)-1])
 		rc, err := bucket.Object(obj).NewReader(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("error while getting a dataset. path: %s. error: %v", dataset.DatasetPath, err)
@@ -89,6 +81,33 @@ func (cs *CloudStorage) GetDatasets(ctx context.Context, bucketName string, data
 	}
 
 	return result, nil
+}
+
+func parseGCSUri(uri string) (bucket, obj string, err error) {
+	shortPrefix := strings.HasPrefix(uri, gcsPrefix)
+	fullPrefix := strings.HasPrefix(uri, gcsFullPrefix)
+	if !shortPrefix && !fullPrefix {
+		return "", "", errors.New("gcs uri has an invalid prefix")
+	}
+	if shortPrefix {
+		uri = uri[len(gcsPrefix):]
+		i := strings.IndexByte(uri, '/')
+		if i == -1 {
+			return "", "", errors.New("gcs: no object name")
+		}
+		bucket, obj = uri[:i], uri[i+1:]
+		return bucket, obj, err
+	}
+	if fullPrefix {
+		uri = uri[len(gcsFullPrefix):]
+		i := strings.IndexByte(uri, '/')
+		if i == -1 {
+			return "", "", errors.New("gcs: no object name")
+		}
+		bucket, obj = uri[:i], uri[i+1:]
+		return bucket, obj, err
+	}
+	return "", "", errors.New("gcs: no object name")
 }
 
 type DatasetDTO struct {
