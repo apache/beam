@@ -43,7 +43,6 @@ import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
 import org.apache.beam.sdk.io.cdap.streaming.EmployeeReceiver;
 import org.apache.beam.sdk.io.cdap.streaming.EmployeeStreamingSource;
-import org.apache.beam.sdk.io.sparkreceiver.ReceiverBuilder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -185,9 +184,7 @@ public class CdapIOTest {
     EmployeeConfig pluginConfig =
         new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();
     MappingUtils.registerStreamingPlugin(
-        EmployeeStreamingSource.class,
-        Long::valueOf,
-        new ReceiverBuilder<>(EmployeeReceiver.class).withConstructorArgs(pluginConfig));
+        EmployeeStreamingSource.class, Long::valueOf, EmployeeReceiver.class);
 
     CdapIO.Read<String, String> read =
         CdapIO.<String, String>read()

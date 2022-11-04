@@ -24,6 +24,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.hubspot.common.SourceHubspotConfig;
 import io.cdap.plugin.hubspot.source.batch.HubspotBatchSource;
+import io.cdap.plugin.hubspot.source.streaming.HubspotReceiver;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSource;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceBatchSource;
@@ -34,8 +35,11 @@ import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSourceConfig;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.apache.beam.examples.complete.cdap.utils.GetOffsetUtils;
 import org.apache.beam.sdk.io.cdap.CdapIO;
 import org.apache.beam.sdk.io.cdap.ConfigWrapper;
+import org.apache.beam.sdk.io.cdap.MappingUtils;
+import org.apache.beam.sdk.io.cdap.Plugin;
 import org.apache.hadoop.io.NullWritable;
 
 /** Different input transformations over the processed data in the pipeline. */
@@ -96,11 +100,15 @@ public class FormatInputTransform {
         new ConfigWrapper<>(HubspotStreamingSourceConfig.class)
             .withParams(pluginConfigParams)
             .build();
-
     checkStateNotNull(pluginConfig, "Plugin config can't be null.");
 
+    MappingUtils.registerStreamingPlugin(
+        HubspotStreamingSource.class,
+        GetOffsetUtils.getOffsetFnForHubspot(),
+        HubspotReceiver.class);
+
     return CdapIO.<NullWritable, String>read()
-        .withCdapPluginClass(HubspotStreamingSource.class)
+        .withCdapPlugin(Plugin.createStreaming(HubspotStreamingSource.class))
         .withPluginConfig(pluginConfig)
         .withKeyClass(NullWritable.class)
         .withValueClass(String.class);

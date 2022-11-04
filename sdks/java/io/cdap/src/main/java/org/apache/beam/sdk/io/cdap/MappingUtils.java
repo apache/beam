@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.gson.Gson;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.hubspot.sink.batch.HubspotBatchSink;
@@ -28,8 +26,6 @@ import io.cdap.plugin.hubspot.sink.batch.HubspotOutputFormat;
 import io.cdap.plugin.hubspot.source.batch.HubspotBatchSource;
 import io.cdap.plugin.hubspot.source.batch.HubspotInputFormat;
 import io.cdap.plugin.hubspot.source.batch.HubspotInputFormatProvider;
-import io.cdap.plugin.hubspot.source.streaming.HubspotReceiver;
-import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSource;
 import io.cdap.plugin.salesforce.plugin.sink.batch.SalesforceBatchSink;
 import io.cdap.plugin.salesforce.plugin.sink.batch.SalesforceOutputFormat;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceBatchSource;
@@ -44,22 +40,15 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.io.sparkreceiver.ReceiverBuilder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeToken;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.spark.streaming.receiver.Receiver;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Util class for mapping plugins. */
 public class MappingUtils {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MappingUtils.class);
-  private static final String HUBSPOT_ID_FIELD = "vid";
-  private static final Gson GSON = new Gson();
-
   private static final Map<
-          Class<?>, Pair<SerializableFunction<?, Long>, ReceiverBuilder<?, ? extends Receiver<?>>>>
+          Class<?>, Pair<SerializableFunction<?, Long>, Class<? extends Receiver<?>>>>
       REGISTERED_PLUGINS;
 
   static {
@@ -87,8 +76,6 @@ public class MappingUtils {
     } else if (pluginClass.equals(ServiceNowSource.class)) {
       return Plugin.createBatch(
           pluginClass, ServiceNowInputFormat.class, SourceInputFormatProvider.class);
-    } else if (pluginClass.equals(HubspotStreamingSource.class)) {
-      return Plugin.createStreaming(pluginClass);
     }
     throw new UnsupportedOperationException(
         String.format("Given plugin class '%s' is not supported!", pluginClass.getName()));
@@ -97,18 +84,13 @@ public class MappingUtils {
   /** Gets a {@link ReceiverBuilder} by CDAP {@link Plugin} class. */
   @SuppressWarnings("unchecked")
   static <V> ReceiverBuilder<V, ? extends Receiver<V>> getReceiverBuilderByPluginClass(
-      Class<?> pluginClass, PluginConfig pluginConfig, Class<V> valueClass) {
+      Class<?> pluginClass, PluginConfig pluginConfig) {
     checkArgument(pluginClass != null, "Plugin class can not be null!");
     checkArgument(pluginConfig != null, "Plugin config can not be null!");
-    checkArgument(valueClass != null, "Value class can not be null!");
-    if (pluginClass.equals(HubspotStreamingSource.class) && String.class.equals(valueClass)) {
-      ReceiverBuilder<?, ? extends Receiver<?>> receiverBuilder =
-          new ReceiverBuilder<>(HubspotReceiver.class).withConstructorArgs(pluginConfig);
-      return (ReceiverBuilder<V, ? extends Receiver<V>>) receiverBuilder;
-    }
     if (REGISTERED_PLUGINS.containsKey(pluginClass)) {
-      return (ReceiverBuilder<V, ? extends Receiver<V>>)
-          REGISTERED_PLUGINS.get(pluginClass).getRight();
+      Class<? extends Receiver<V>> receiverClass =
+          (Class<? extends Receiver<V>>) REGISTERED_PLUGINS.get(pluginClass).getRight();
+      return new ReceiverBuilder<>(receiverClass).withConstructorArgs(pluginConfig);
     }
     throw new UnsupportedOperationException(
         String.format("Given plugin class '%s' is not supported!", pluginClass.getName()));
@@ -121,26 +103,8 @@ public class MappingUtils {
   public static <V> void registerStreamingPlugin(
       Class<?> pluginClass,
       SerializableFunction<V, Long> getOffsetFn,
-      ReceiverBuilder<V, ? extends Receiver<V>> receiverBuilder) {
-    REGISTERED_PLUGINS.put(pluginClass, new ImmutablePair<>(getOffsetFn, receiverBuilder));
-  }
-
-  private static SerializableFunction<String, Long> getOffsetFnForHubspot() {
-    return input -> {
-      if (input != null) {
-        try {
-          HashMap<String, Object> json =
-              GSON.fromJson(input, new TypeToken<HashMap<String, Object>>() {}.getType());
-          checkArgumentNotNull(json, "Can not get JSON from Hubspot input string");
-          Object id = json.get(HUBSPOT_ID_FIELD);
-          checkArgumentNotNull(id, "Can not get ID from Hubspot input string");
-          return ((Double) id).longValue();
-        } catch (Exception e) {
-          LOG.error("Can not get offset from json", e);
-        }
-      }
-      return 0L;
-    };
+      Class<? extends Receiver<V>> receiverClass) {
+    REGISTERED_PLUGINS.put(pluginClass, new ImmutablePair<>(getOffsetFn, receiverClass));
   }
 
   /**
@@ -148,11 +112,7 @@ public class MappingUtils {
    * Plugin} class.
    */
   @SuppressWarnings("unchecked")
-  static <V> SerializableFunction<V, Long> getOffsetFnForPluginClass(
-      Class<?> pluginClass, Class<V> valueClass) {
-    if (pluginClass.equals(HubspotStreamingSource.class) && String.class.equals(valueClass)) {
-      return (SerializableFunction<V, Long>) getOffsetFnForHubspot();
-    }
+  static <V> SerializableFunction<V, Long> getOffsetFnForPluginClass(Class<?> pluginClass) {
     if (REGISTERED_PLUGINS.containsKey(pluginClass)) {
       return (SerializableFunction<V, Long>) REGISTERED_PLUGINS.get(pluginClass).getLeft();
     }
