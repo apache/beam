@@ -435,7 +435,7 @@ class DecoratorsTest(unittest.TestCase):
     def fn2(a: int) -> int:
       return a
 
-    _ = ['a', 'b', 'c'] | Map(fn2)  # Doesn't raise - no input type hints.
+    _ = ['a', 'b', 'c'] | Map(fn2)  # Doesn't raise - no input typehints.
 
 
 if __name__ == '__main__':

@@ -17,13 +17,13 @@
 
 """Type hinting decorators allowing static or runtime type-checking for the SDK.
 
-This module defines decorators which utilize the type-hints defined in
+This module defines decorators which utilize the typehints defined in
 'type_hints.py' to allow annotation of the types of function arguments and
 return values.
 
-Type-hints for functions are annotated using two separate decorators. One is for
+typehints for functions are annotated using two separate decorators. One is for
 type-hinting the types of function arguments, the other for type-hinting the
-function return value. Type-hints can either be specified in the form of
+function return value. typehints can either be specified in the form of
 positional arguments::
 
   @with_input_types(int, int)
@@ -61,7 +61,7 @@ Example usage for type-hinting both arguments and return values::
   def int_to_str(a):
     return str(a)
 
-The valid type-hint for such as function looks like the following::
+The valid typehint for such as function looks like the following::
 
   @with_input_types(a=int, b=int)
   def foo((a, b)):
@@ -70,7 +70,7 @@ The valid type-hint for such as function looks like the following::
 Notice that we hint the type of each unpacked argument independently, rather
 than hinting the type of the tuple as a whole (Tuple[int, int]).
 
-Optionally, type-hints can be type-checked at runtime. To toggle this behavior
+Optionally, typehints can be type-checked at runtime. To toggle this behavior
 this module defines two functions: 'enable_run_time_type_checking' and
 'disable_run_time_type_checking'. NOTE: for this toggle behavior to work
 properly it must appear at the top of the module where all functions are
@@ -164,14 +164,14 @@ def get_signature(func):
 
 
 def no_annotations(fn):
-  """Decorator that prevents Beam from using type hint annotations on a
+  """Decorator that prevents Beam from using typehint annotations on a
   callable."""
   setattr(fn, '_beam_no_annotations', True)
   return fn
 
 
 def disable_type_annotations():
-  """Prevent Beam from using type hint annotations to determine input and output
+  """Prevent Beam from using typehint annotations to determine input and output
   types of transforms.
 
   This setting applies globally.
@@ -184,7 +184,7 @@ TRACEBACK_LIMIT = 5
 
 
 class IOTypeHints(NamedTuple):
-  """Encapsulates all type hint information about a Beam construct.
+  """Encapsulates all typehint information about a Beam construct.
 
   This should primarily be used via the WithTypeHints mixin class, though
   may also be attached to other objects (such as Python functions).
@@ -404,7 +404,7 @@ class IOTypeHints(NamedTuple):
     Only affects instances with simple output types, otherwise is a no-op.
     Does not modify self.
 
-    Designed to be used with type hints from callables of ParDo, FlatMap, DoFn.
+    Designed to be used with typehints from callables of ParDo, FlatMap, DoFn.
     Output type may be Optional[T], in which case the result of stripping T is
     used as the output type.
     Output type may be None/NoneType, in which case nothing is done.
@@ -496,7 +496,7 @@ class IOTypeHints(NamedTuple):
 
 
 class WithTypeHints(object):
-  """A mixin class that provides the ability to set and retrieve type hints.
+  """A mixin class that provides the ability to set and retrieve typehints.
   """
   def __init__(self, *unused_args, **unused_kwargs):
     self._type_hints = IOTypeHints.empty()
@@ -512,12 +512,12 @@ class WithTypeHints(object):
       return self._type_hints
 
   def get_type_hints(self):
-    """Gets and/or initializes type hints for this object.
+    """Gets and/or initializes typehints for this object.
 
-    If type hints have not been set, attempts to initialize type hints in this
+    If typehints have not been set, attempts to initialize typehints in this
     order:
     - Using self.default_type_hints().
-    - Using self.__class__ type hints.
+    - Using self.__class__ typehints.
     """
     return (
         self._get_or_create_type_hints().with_defaults(
@@ -557,7 +557,7 @@ def _positional_arg_hints(arg, hints):
 
   E.g. for lambda ((a, b), c): None the single positional argument is (as
   returned by inspect) [[a, b], c] which should have type
-  Tuple[Tuple[Int, Any], float] when applied to the type hints
+  Tuple[Tuple[Int, Any], float] when applied to the typehints
   {a: int, b: Any, c: float}.
   """
   if isinstance(arg, list):
@@ -635,7 +635,7 @@ def _normalize_var_keyword_hint(hint, arg_name):
 def getcallargs_forhints(func, *type_args, **type_kwargs):
   """Bind type_args and type_kwargs to func.
 
-  Works like inspect.getcallargs, with some modifications to support type hint
+  Works like inspect.getcallargs, with some modifications to support typehint
   checks.
   For unbound args, will use annotations and fall back to Any (or variants of
   Any).
@@ -684,7 +684,7 @@ def getcallargs_forhints(func, *type_args, **type_kwargs):
 def get_type_hints(fn):
   # type: (Any) -> IOTypeHints
 
-  """Gets the type hint associated with an arbitrary object fn.
+  """Gets the typehint associated with an arbitrary object fn.
 
   Always returns a valid IOTypeHints object, creating one if necessary.
   """
@@ -707,14 +707,14 @@ def get_type_hints(fn):
 def with_input_types(*positional_hints, **keyword_hints):
   # type: (*Any, **Any) -> Callable[[T], T]
 
-  """A decorator that type-checks defined type-hints with passed func arguments.
+  """A decorator that type-checks defined typehints with passed func arguments.
 
   All type-hinted arguments can be specified using positional arguments,
   keyword arguments, or a mix of both. Additionaly, all function arguments must
   be type-hinted in totality if even one parameter is type-hinted.
 
   Once fully decorated, if the arguments passed to the resulting function
-  violate the type-hint constraints defined, a :class:`TypeCheckError`
+  violate the typehint constraints defined, a :class:`TypeCheckError`
   detailing the error will be raised.
 
   To be used as:
@@ -740,7 +740,7 @@ def with_input_types(*positional_hints, **keyword_hints):
       [(i + 1, j + 1) for (i,j) in ls]
 
   Args:
-    *positional_hints: Positional type-hints having identical order as the
+    *positional_hints: Positional typehints having identical order as the
       function's formal arguments. Values for this argument must either be a
       built-in Python type or an instance of a
       :class:`~apache_beam.typehints.typehints.TypeConstraint` created by
@@ -757,14 +757,14 @@ def with_input_types(*positional_hints, **keyword_hints):
 
   Raises:
     :class:`ValueError`: If not all function arguments have
-      corresponding type-hints specified. Or if the inner wrapper function isn't
+      corresponding typehints specified. Or if the inner wrapper function isn't
       passed a function object.
-    :class:`TypeCheckError`: If the any of the passed type-hint
+    :class:`TypeCheckError`: If the any of the passed typehint
       constraints are not a type or
       :class:`~apache_beam.typehints.typehints.TypeConstraint` instance.
 
   Returns:
-    The original function decorated such that it enforces type-hint constraints
+    The original function decorated such that it enforces typehint constraints
     for all received function arguments.
   """
 
@@ -793,16 +793,16 @@ def with_input_types(*positional_hints, **keyword_hints):
 def with_output_types(*return_type_hint, **kwargs):
   # type: (*Any, **Any) -> Callable[[T], T]
 
-  """A decorator that type-checks defined type-hints for return values(s).
+  """A decorator that type-checks defined typehints for return values(s).
 
   This decorator will type-check the return value(s) of the decorated function.
 
-  Only a single type-hint is accepted to specify the return type of the return
+  Only a single typehint is accepted to specify the return type of the return
   value. If the function to be decorated has multiple return values, then one
   should use: ``Tuple[type_1, type_2]`` to annotate the types of the return
   values.
 
-  If the ultimate return value for the function violates the specified type-hint
+  If the ultimate return value for the function violates the specified typehint
   a :class:`TypeCheckError` will be raised detailing the type-constraint
   violation.
 
@@ -822,7 +822,7 @@ def with_output_types(*return_type_hint, **kwargs):
     def parse_ints(ints):
       return {Coordinate(i, i) for i in ints}
 
-  Or with a simple type-hint:
+  Or with a simple typehint:
 
   .. testcode::
 
@@ -833,7 +833,7 @@ def with_output_types(*return_type_hint, **kwargs):
       return not p if p else p
 
   Args:
-    *return_type_hint: A type-hint specifying the proper return type of the
+    *return_type_hint: A typehint specifying the proper return type of the
       function. This argument should either be a built-in Python type or an
       instance of a :class:`~apache_beam.typehints.typehints.TypeConstraint`
       created by 'indexing' a
@@ -845,10 +845,10 @@ def with_output_types(*return_type_hint, **kwargs):
       or the length of **return_type_hint** is greater than ``1``. Or if the
       inner wrapper function isn't passed a function object.
     :class:`TypeCheckError`: If the **return_type_hint** object is
-      in invalid type-hint.
+      in invalid typehint.
 
   Returns:
-    The original function decorated such that it enforces type-hint constraints
+    The original function decorated such that it enforces typehint constraints
     for all return values.
   """
   if kwargs:
@@ -878,7 +878,7 @@ def with_output_types(*return_type_hint, **kwargs):
 
 def _check_instance_type(
     type_constraint, instance, var_name=None, verbose=False):
-  """A helper function to report type-hint constraint violations.
+  """A helper function to report typehint constraint violations.
 
   Args:
     type_constraint: An instance of a 'TypeConstraint' or a built-in Python
@@ -911,7 +911,7 @@ def _check_instance_type(
 
 
 def _interleave_type_check(type_constraint, var_name=None):
-  """Lazily type-check the type-hint for a lazily generated sequence type.
+  """Lazily type-check the typehint for a lazily generated sequence type.
 
   This function can be applied as a decorator or called manually in a curried
   manner:

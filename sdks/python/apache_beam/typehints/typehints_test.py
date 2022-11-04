@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for the type-hint objects and decorators."""
+"""Unit tests for the typehint objects and decorators."""
 
 # pytype: skip-file
 
@@ -1157,7 +1157,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     def int_to_str(a):
       return str(a)
 
-    # The function call below violates the argument type-hint above, but won't
+    # The function call below violates the argument typehint above, but won't
     # result in an exception since run-time type-checking was disabled above.
     self.assertEqual('a', int_to_str('a'))
 
@@ -1178,7 +1178,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
       return a
 
     # The return value of the function above violates the return-type
-    # type-hint above, but won't result in an exception since run-time
+    # typehint above, but won't result in an exception since run-time
     # type-checking was disabled above.
     self.assertEqual(9, int_to_str(9))
 

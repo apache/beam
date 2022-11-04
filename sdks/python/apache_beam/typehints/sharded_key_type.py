@@ -17,7 +17,7 @@
 
 """Type constraint for `ShardedKey`.
 
-Can be used like a type-hint, for instance,
+Can be used like a typehint, for instance,
   'ShardedKeyType[int]'
   'ShardedKeyType[Tuple[T]]'
 

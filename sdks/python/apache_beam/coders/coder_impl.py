@@ -24,7 +24,7 @@ allow conditional (compiled/pure) implementations, which can be used to
 encode many elements with minimal overhead.
 
 This module may be optionally compiled with Cython, using the corresponding
-coder_impl.pxd file for type hints.  In particular, because CoderImpls are
+coder_impl.pxd file for typehints.  In particular, because CoderImpls are
 never pickled and sent across the wire (unlike Coders themselves) the workers
 can use compiled Impls even if the main program does not (or vice versa).
 

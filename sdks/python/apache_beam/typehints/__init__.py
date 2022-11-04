@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""A package defining the syntax and decorator semantics for type-hints."""
+"""A package defining the syntax and decorator semantics for typehints."""
 
 # pylint: disable=wildcard-import
 from apache_beam.typehints.typehints import *

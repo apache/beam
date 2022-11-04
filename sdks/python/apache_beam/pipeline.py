@@ -657,7 +657,7 @@ class Pipeline(object):
 
     if label:
       # Fix self.label as it is inspected by some PTransform operations
-      # (e.g. to produce error messages for type hint violations).
+      # (e.g. to produce error messages for typehint violations).
       old_label, transform.label = transform.label, label
       try:
         return self.apply(transform, pvalueish)
@@ -793,7 +793,7 @@ class Pipeline(object):
     elif isinstance(result_pcollection, pvalue.DoOutputsTuple):
       # {Single, multi}-input, multi-output inference.
       # TODO(https://github.com/apache/beam/issues/18957): Add support for
-      #   tagged type hints.
+      #   tagged typehints.
       #   https://github.com/apache/beam/pull/9810#discussion_r338765251
       for pcoll in result_pcollection:
         if pcoll.element_type is None:

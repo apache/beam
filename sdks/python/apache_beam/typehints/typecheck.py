@@ -283,13 +283,13 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     transform = applied_transform.transform
     full_label = applied_transform.full_label
 
-    # Store output type hints in current transform
+    # Store output typehints in current transform
     output_type_hints = self.get_output_type_hints(transform)
     if output_type_hints:
       transform._add_type_constraint_from_consumer(
           full_label, output_type_hints)
 
-    # Store input type hints in producer transform
+    # Store input typehints in producer transform
     input_type_hints = self.get_input_type_hints(transform)
     if input_type_hints and len(applied_transform.inputs):
       producer = applied_transform.inputs[0].producer

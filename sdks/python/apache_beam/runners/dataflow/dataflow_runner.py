@@ -686,12 +686,12 @@ class DataflowRunner(PipelineRunner):
       element_type = transform_node.outputs[output_tag].element_type
     elif len(transform_node.outputs) == 1:
       output_tag = DataflowRunner._only_element(transform_node.outputs.keys())
-      # TODO(robertwb): Handle type hints for multi-output transforms.
+      # TODO(robertwb): Handle typehints for multi-output transforms.
       element_type = transform_node.outputs[output_tag].element_type
 
     else:
       # TODO(silviuc): Remove this branch (and assert) when typehints are
-      # propagated everywhere. Returning an 'Any' as type hint will trigger
+      # propagated everywhere. Returning an 'Any' as typehint will trigger
       # usage of the fallback coder (i.e., cPickler).
       element_type = typehints.Any
     if window_value:

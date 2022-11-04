@@ -33,7 +33,7 @@ starting with Beam SDK version 2.5.0.
 
 ## Python type safety
 
-Python is a dynamically-typed language with no static type checking. The Beam SDK for Python uses type hints during pipeline construction and runtime to try to emulate the correctness guarantees achieved by true static typing. [Ensuring Python Type Safety](/documentation/sdks/python-type-safety) walks through how to use type hints, which help you to catch potential bugs up front with the [Direct Runner](/documentation/runners/direct/).
+Python is a dynamically-typed language with no static type checking. The Beam SDK for Python uses typehints during pipeline construction and runtime to try to emulate the correctness guarantees achieved by true static typing. [Ensuring Python Type Safety](/documentation/sdks/python-type-safety) walks through how to use typehints, which help you to catch potential bugs up front with the [Direct Runner](/documentation/runners/direct/).
 
 ## Managing Python pipeline dependencies
 

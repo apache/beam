@@ -43,7 +43,7 @@ class TypeInferenceError(ValueError):
 
 
 def instance_to_type(o):
-  """Given a Python object o, return the corresponding type hint.
+  """Given a Python object o, return the corresponding typehint.
   """
   t = type(o)
   if o is None:
@@ -206,7 +206,7 @@ def union(a, b):
 
 
 def finalize_hints(type_hint):
-  """Sets type hint for empty data structures to Any."""
+  """Sets typehint for empty data structures to Any."""
   def visitor(tc, unused_arg):
     if isinstance(tc, typehints.DictConstraint):
       empty_union = typehints.Union[()]

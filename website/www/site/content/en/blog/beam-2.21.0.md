@@ -36,7 +36,7 @@ for example usage.
 * Python SDK: Added integration tests and updated batch write functionality for Google Cloud Spanner transform ([BEAM-8949](https://issues.apache.org/jira/browse/BEAM-8949)).
 
 ## New Features / Improvements
-* Python SDK will now use Python 3 type annotations as pipeline type hints.
+* Python SDK will now use Python 3 type annotations as pipeline typehints.
 ([#10717](https://github.com/apache/beam/pull/10717))
 
     If you suspect that this feature is causing your pipeline to fail, calling

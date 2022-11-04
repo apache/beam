@@ -22,24 +22,24 @@ type-hinting function arguments, function return types, or PTransform object
 themselves. TypeHint's defined in the module can be used to implement either
 static or run-time type-checking in regular Python code.
 
-Type-hints are defined by 'indexing' a type-parameter into a defined
+typehints are defined by 'indexing' a type-parameter into a defined
 CompositeTypeHint instance:
 
   * 'List[int]'.
 
-Valid type-hints are partitioned into two categories: simple, and composite.
+Valid typehints are partitioned into two categories: simple, and composite.
 
-Simple type hints are type hints based on a subset of Python primitive types:
+Simple typehints are typehints based on a subset of Python primitive types:
 int, bool, float, str, object, None, and bytes. No other primitive types are
 allowed.
 
-Composite type-hints are reserved for hinting the types of container-like
-Python objects such as 'list'. Composite type-hints can be parameterized by an
-inner simple or composite type-hint, using the 'indexing' syntax. In order to
+Composite typehints are reserved for hinting the types of container-like
+Python objects such as 'list'. Composite typehints can be parameterized by an
+inner simple or composite typehint, using the 'indexing' syntax. In order to
 avoid conflicting with the namespace of the built-in container types, when
-specifying this category of type-hints, the first letter should be capitalized.
-The following composite type-hints are permitted. NOTE: 'T' can be any of the
-type-hints listed or a simple Python type:
+specifying this category of typehints, the first letter should be capitalized.
+The following composite typehints are permitted. NOTE: 'T' can be any of the
+typehints listed or a simple Python type:
 
   * Any
   * Union[T, T, T]
@@ -54,11 +54,11 @@ type-hints listed or a simple Python type:
   * Iterator[T]
   * Generator[T]
 
-Type-hints can be nested, allowing one to define type-hints for complex types:
+typehints can be nested, allowing one to define typehints for complex types:
 
   * 'List[Tuple[int, int, str]]
 
-In addition, type-hints can be used to implement run-time type-checking via the
+In addition, typehints can be used to implement run-time type-checking via the
 'type_check' method on each TypeConstraint.
 
 """
@@ -141,7 +141,7 @@ class TypeConstraint(object):
         this :class:`TypeConstraint`. Subclasses of
         :class:`TypeConstraint` are free to raise any of the subclasses of
         :class:`TypeError` defined above, depending on
-        the manner of the type hint error.
+        the manner of the typehint error.
 
     All :class:`TypeConstraint` sub-classes must define this method in other
     for the class object to be created.
@@ -311,7 +311,7 @@ class SequenceTypeConstraint(IndexableTypeConstraint):
 
 
 class CompositeTypeHint(object):
-  """The base-class for all created type-hint classes defined below.
+  """The base-class for all created typehint classes defined below.
 
   CompositeTypeHint's serve primarily as TypeConstraint factories. They are
   only required to define a single method: '__getitem__' which should return a
@@ -319,10 +319,10 @@ class CompositeTypeHint(object):
   type-checking.
 
   '__getitem__' is used as a factory function in order to provide a familiar
-  API for defining type-hints. The ultimate result is that one will be able to
-  use: CompositeTypeHint[type_parameter] to create a type-hint object that
+  API for defining typehints. The ultimate result is that one will be able to
+  use: CompositeTypeHint[type_parameter] to create a typehint object that
   behaves like any other Python object. This allows one to create
-  'type-aliases' by assigning the returned type-hints to a variable.
+  'type-aliases' by assigning the returned typehints to a variable.
 
     * Example: 'Coordinates = List[Tuple[int, int]]'
   """
@@ -426,7 +426,7 @@ def check_constraint(type_constraint, object_instance):
 
 
 class AnyTypeConstraint(TypeConstraint):
-  """An Any type-hint.
+  """An Any typehint.
 
   Any is intended to be used as a "don't care" when hinting the types of
   function arguments or return types. All other TypeConstraint's are equivalent
@@ -480,7 +480,7 @@ class TypeVariable(AnyTypeConstraint):
 
 
 class UnionHint(CompositeTypeHint):
-  """A Union type-hint. Union[X, Y] accepts instances of type X OR type Y.
+  """A Union typehint. Union[X, Y] accepts instances of type X OR type Y.
 
   Duplicate type parameters are ignored. Additonally, Nested Union hints will
   be flattened out. For example:
@@ -491,7 +491,7 @@ class UnionHint(CompositeTypeHint):
   instance of any of the parameterized 'union_types' for a Union.
 
   Union[X] is disallowed, and all type parameters will be sanity checked to
-  ensure compatibility with nested type-hints.
+  ensure compatibility with nested typehints.
 
   When comparing two Union hints, ordering is enforced before comparison.
 
@@ -569,7 +569,7 @@ class UnionHint(CompositeTypeHint):
     if not isinstance(type_params, (abc.Iterable, set)):
       raise TypeError('Cannot create Union without a sequence of types.')
 
-    # Flatten nested Union's and duplicated repeated type hints.
+    # Flatten nested Union's and duplicated repeated typehints.
     params = set()
     dict_union = None
     for t in type_params:
@@ -601,7 +601,7 @@ UnionConstraint = UnionHint.UnionConstraint
 
 
 class OptionalHint(UnionHint):
-  """An Option type-hint. Optional[X] accepts instances of X or None.
+  """An Option typehint. Optional[X] accepts instances of X or None.
 
   The Optional[X] factory function proxies to Union[X, type(None)]
   """
@@ -632,16 +632,16 @@ def get_concrete_type_from_nullable(typehint):
 
 
 class TupleHint(CompositeTypeHint):
-  """A Tuple type-hint.
+  """A Tuple typehint.
 
-  Tuple can accept 1 or more type-hint parameters.
+  Tuple can accept 1 or more typehint parameters.
 
   Tuple[X, Y] represents a tuple of *exactly* two elements, with the first
   being of type 'X' and the second an instance of type 'Y'.
 
     * (1, 2) satisfies Tuple[int, int]
 
-  Additionally, one is able to type-hint an arbitary length, homogeneous tuple
+  Additionally, one is able to typehint an arbitary length, homogeneous tuple
   by passing the Ellipsis (...) object as the second parameter.
 
   As an example, Tuple[str, ...] indicates a tuple of any length with each
@@ -767,7 +767,7 @@ TupleSequenceConstraint = TupleHint.TupleSequenceConstraint
 
 
 class ListHint(CompositeTypeHint):
-  """A List type-hint.
+  """A List typehint.
 
   List[X] represents an instance of a list populated by a single homogeneous
   type. The parameterized type 'X' can either be a built-in Python type or an
@@ -792,16 +792,16 @@ ListConstraint = ListHint.ListConstraint
 
 
 class KVHint(CompositeTypeHint):
-  """A KV type-hint, represents a Key-Value pair of a particular type.
+  """A KV typehint, represents a Key-Value pair of a particular type.
 
-  Internally, KV[X, Y] proxies to Tuple[X, Y]. A KV type-hint accepts only
+  Internally, KV[X, Y] proxies to Tuple[X, Y]. A KV typehint accepts only
   accepts exactly two type-parameters. The first represents the required
   key-type and the second the required value-type.
   """
   def __getitem__(self, type_params):
     if not isinstance(type_params, tuple):
       raise TypeError(
-          'Parameter to KV type-hint must be a tuple of types: '
+          'Parameter to KV typehint must be a tuple of types: '
           'KV[.., ..].')
 
     if len(type_params) != 2:
@@ -814,13 +814,13 @@ class KVHint(CompositeTypeHint):
 
 
 def key_value_types(kv):
-  """Returns the key and value type of a KV type-hint.
+  """Returns the key and value type of a KV typehint.
 
   Args:
     kv: An instance of a TypeConstraint sub-class.
   Returns:
-    A tuple: (key_type, value_type) if the passed type-hint is an instance of a
-    KV type-hint, and (Any, Any) otherwise.
+    A tuple: (key_type, value_type) if the passed typehint is an instance of a
+    KV typehint, and (Any, Any) otherwise.
   """
   if isinstance(kv, TupleHint.TupleConstraint):
     return kv.tuple_types
@@ -828,7 +828,7 @@ def key_value_types(kv):
 
 
 class DictHint(CompositeTypeHint):
-  """A Dict type-hint.
+  """A Dict typehint.
 
   Dict[K, V] Represents a dictionary where all keys are of a particular type
   and all values are of another (possible the same) type.
@@ -949,10 +949,10 @@ DictConstraint = DictHint.DictConstraint
 
 
 class SetHint(CompositeTypeHint):
-  """A Set type-hint.
+  """A Set typehint.
 
 
-  Set[X] defines a type-hint for a set of homogeneous types. 'X' may be either a
+  Set[X] defines a typehint for a set of homogeneous types. 'X' may be either a
   built-in Python type or a another nested TypeConstraint.
   """
   class SetTypeConstraint(SequenceTypeConstraint):
@@ -973,9 +973,9 @@ SetTypeConstraint = SetHint.SetTypeConstraint
 
 
 class FrozenSetHint(CompositeTypeHint):
-  """A FrozenSet type-hint.
+  """A FrozenSet typehint.
 
-  FrozenSet[X] defines a type-hint for a set of homogeneous types. 'X' may be
+  FrozenSet[X] defines a typehint for a set of homogeneous types. 'X' may be
   either a  built-in Python type or a another nested TypeConstraint.
 
   This is a mirror copy of SetHint - consider refactoring common functionality.
@@ -999,9 +999,9 @@ FrozenSetTypeConstraint = FrozenSetHint.FrozenSetTypeConstraint
 
 
 class IterableHint(CompositeTypeHint):
-  """An Iterable type-hint.
+  """An Iterable typehint.
 
-  Iterable[X] defines a type-hint for an object implementing an '__iter__'
+  Iterable[X] defines a typehint for an object implementing an '__iter__'
   method which yields objects which are all of the same type.
   """
   class IterableTypeConstraint(SequenceTypeConstraint):
@@ -1038,11 +1038,11 @@ IterableTypeConstraint = IterableHint.IterableTypeConstraint
 
 
 class IteratorHint(CompositeTypeHint):
-  """An Iterator type-hint.
+  """An Iterator typehint.
 
-  Iterator[X] defines a type-hint for an object implementing both '__iter__'
+  Iterator[X] defines a typehint for an object implementing both '__iter__'
   and a 'next' method which yields objects which are all of the same type. Type
-  checking a type-hint of this type is deferred in order to avoid depleting the
+  checking a typehint of this type is deferred in order to avoid depleting the
   underlying lazily generated sequence. See decorators.interleave_type_check for
   further information.
   """
@@ -1141,7 +1141,7 @@ class WindowedTypeConstraint(TypeConstraint, metaclass=GetitemConstructor):
 
 
 class GeneratorHint(IteratorHint):
-  """A Generator type hint.
+  """A Generator typehint.
 
   Subscriptor is in the form [yield_type, send_type, return_type], however
   only yield_type is supported. The 2 others are expected to be None.
@@ -1158,7 +1158,7 @@ class GeneratorHint(IteratorHint):
     return self.IteratorTypeConstraint(yield_type)
 
 
-# Create the actual instances for all defined type-hints above.
+# Create the actual instances for all defined typehints above.
 Any = AnyTypeConstraint()
 Union = UnionHint()
 Optional = OptionalHint()

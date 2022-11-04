@@ -1901,7 +1901,7 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if hasattr(fn, '__name__'):
     wrapper.__name__ = fn.__name__
 
-  # Proxy the type-hint information from the original function to this new
+  # Proxy the typehint information from the original function to this new
   # wrapped function.
   type_hints = get_type_hints(fn).with_defaults(
       typehints.decorators.IOTypeHints.from_callable(fn))
@@ -1972,13 +1972,13 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   else:
     wrapper = lambda x: [fn(*x)]
 
-  # Proxy the type-hint information from the original function to this new
+  # Proxy the typehint information from the original function to this new
   # wrapped function.
   type_hints = get_type_hints(fn).with_defaults(
       typehints.decorators.IOTypeHints.from_callable(fn))
   if type_hints.input_types is not None:
     # TODO(BEAM-14052): ignore input hints, as we do not have enough
-    # information to infer the input type hint of the wrapper function.
+    # information to infer the input typehint of the wrapper function.
     pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
@@ -2050,13 +2050,13 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   else:
     wrapper = lambda x: fn(*x)
 
-  # Proxy the type-hint information from the original function to this new
+  # Proxy the typehint information from the original function to this new
   # wrapped function.
   type_hints = get_type_hints(fn).with_defaults(
       typehints.decorators.IOTypeHints.from_callable(fn))
   if type_hints.input_types is not None:
     # TODO(BEAM-14052): ignore input hints, as we do not have enough
-    # information to infer the input type hint of the wrapper function.
+    # information to infer the input typehint of the wrapper function.
     pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
@@ -2290,14 +2290,14 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if hasattr(fn, '__name__'):
     wrapper.__name__ = fn.__name__
 
-  # Get type hints from this instance or the callable. Do not use output type
+  # Get typehints from this instance or the callable. Do not use output type
   # hints from the callable (which should be bool if set).
   fn_type_hints = typehints.decorators.IOTypeHints.from_callable(fn)
   if fn_type_hints is not None:
     fn_type_hints = fn_type_hints.with_output_types()
   type_hints = get_type_hints(fn).with_defaults(fn_type_hints)
 
-  # Proxy the type-hint information from the function being wrapped, setting the
+  # Proxy the typehint information from the function being wrapped, setting the
   # output type to be the same as the input type.
   if type_hints.input_types is not None:
     wrapper = with_input_types(
@@ -2795,7 +2795,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
       return key, value
 
     cold, hot = pcoll | ParDo(SplitHotCold()).with_outputs('hot', main='cold')
-    cold.element_type = typehints.Any  # No multi-output type hints.
+    cold.element_type = typehints.Any  # No multi-output typehints.
     precombined_hot = (
         hot
         # Avoid double counting that may happen with stacked accumulating mode.

@@ -234,7 +234,7 @@ class _GroupByKey(PTransform):
 
     input_type = pcoll.element_type
     if input_type is not None:
-      # Initialize type-hints used below to enforce type-checking and to
+      # Initialize typehints used below to enforce type-checking and to
       # pass downstream to further PTransforms.
       key_type, value_type = trivial_inference.key_value_types(input_type)
       # Enforce the input to a GBK has a KV element type.

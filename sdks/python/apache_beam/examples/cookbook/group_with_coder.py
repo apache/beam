@@ -100,13 +100,13 @@ def run(args=None, save_main_session=True):
     (  # pylint: disable=expression-not-assigned
         p
         | ReadFromText(known_args.input)
-        # The get_players function is annotated with a type hint above,
+        # The get_players function is annotated with a typehint above,
         # so the type system knows the output type of the following operation
         # is a key-value pair of a Player and an int. Please see the
         # documentation for details on types that are inferred automatically
-        # as well as other ways to specify type hints.
+        # as well as other ways to specify typehints.
         | beam.Map(get_players)
-        # The output type hint of the previous step is used to infer that the
+        # The output typehint of the previous step is used to infer that the
         # key type of the following operation is the Player type. Since a
         # custom coder is registered for the Player class above,
         # a PlayerCoder will be used to encode Player objects as keys for this

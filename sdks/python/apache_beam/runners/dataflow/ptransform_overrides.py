@@ -188,7 +188,7 @@ class NativeReadPTransformOverride(PTransformOverride):
       def expand(self, pbegin):
         return pvalue.PCollection.from_(pbegin)
 
-    # Use the source's coder type hint as this replacement's output. Otherwise,
+    # Use the source's coder typehint as this replacement's output. Otherwise,
     # the typing information is not properly forwarded to the DataflowRunner and
     # will choose the incorrect coder for this transform.
     return Read(ptransform.source).with_output_types(

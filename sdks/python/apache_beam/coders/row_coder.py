@@ -62,7 +62,7 @@ class RowCoder(FastCoder):
     """
     self.schema = schema
 
-    # Eagerly generate type hint to escalate any issues with the Schema proto
+    # Eagerly generate typehints to escalate any issues with the Schema proto
     self._type_hint = named_tuple_from_schema(self.schema)
 
     # Use non-null coders because null values are represented separately

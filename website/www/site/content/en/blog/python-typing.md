@@ -47,7 +47,7 @@ sophisticated codebase like Beam easier to comprehend and navigate in your
 favorite IDE.
 
 Second, we've added support for Python 3 type annotations. This allows SDK
-users to specify a DoFn's type hints in one place.
+users to specify a DoFn's typehints in one place.
 We've also expanded Beam's support of `typing` module types.
 
 For more background see:

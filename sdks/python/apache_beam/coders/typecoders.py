@@ -43,7 +43,7 @@ Registering a coder class is made with a register_coder() call::
   ...
   coders.registry.register_coder(Xyz, XyzCoder)
 
-Additionally, DoFns and PTransforms may need type hints. This is not always
+Additionally, DoFns and PTransforms may need typehints. This is not always
 necessary since there is functionality to infer the return types of DoFns by
 analyzing the code. For instance, for the function below the return type of
 'Xyz' will be inferred::

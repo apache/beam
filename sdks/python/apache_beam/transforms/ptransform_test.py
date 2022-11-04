@@ -2849,7 +2849,7 @@ class TestPTransformFn(TypeHintTestCase):
       _ = (p | beam.Create([1, 2]) | MyTransform().with_output_types(int))
 
   def test_type_hints_arg(self):
-    # Tests passing type hints via the magic 'type_hints' argument name.
+    # Tests passing typehints via the magic 'type_hints' argument name.
     @beam.ptransform_fn
     def MyTransform(pcoll, type_hints, test_arg):
       self.assertEqual(test_arg, 'test')

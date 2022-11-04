@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for the type-hint objects and decorators."""
+"""Unit tests for the typehint objects and decorators."""
 
 # pytype: skip-file
 
@@ -145,7 +145,7 @@ class MainInputTest(unittest.TestCase):
     self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
 
   def test_typed_dofn_instance(self):
-    # Type hints applied to DoFn instance take precedence over decorators and
+    # typehints applied to DoFn instance take precedence over decorators and
     # process annotations.
     @typehints.with_input_types(typehints.Tuple[int, int])
     @typehints.with_output_types(int)
@@ -168,7 +168,7 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
 
   def test_typed_callable_instance(self):
-    # Type hints applied to ParDo instance take precedence over callable
+    # typehints applied to ParDo instance take precedence over callable
     # decorators and annotations.
     @typehints.with_input_types(typehints.Tuple[int, int])
     @typehints.with_output_types(typehints.Generator[int])
@@ -270,8 +270,8 @@ class MainInputTest(unittest.TestCase):
       assert_that(res_odd, equal_to([1, 3]), label='odd_check')
 
   def test_typed_ptransform_fn_pre_hints(self):
-    # Test that type hints are propagated to the created PTransform.
-    # Decorator appears before type hints. This is the more common style.
+    # Test that typehints are propagated to the created PTransform.
+    # Decorator appears before typehints. This is the more common style.
     @beam.ptransform_fn
     @typehints.with_input_types(int)
     def MyMap(pcoll):
@@ -282,8 +282,8 @@ class MainInputTest(unittest.TestCase):
       _ = ['a'] | MyMap()
 
   def test_typed_ptransform_fn_post_hints(self):
-    # Test that type hints are propagated to the created PTransform.
-    # Decorator appears after type hints. This style is required for Cython
+    # Test that typehints are propagated to the created PTransform.
+    # Decorator appears after typehints. This style is required for Cython
     # functions, since they don't accept assigning attributes to them.
     @typehints.with_input_types(int)
     @beam.ptransform_fn
@@ -409,7 +409,7 @@ class MainInputTest(unittest.TestCase):
     self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
 
   def test_typed_ptransform_fn(self):
-    # Test that type hints are propagated to the created PTransform.
+    # Test that typehints are propagated to the created PTransform.
     @beam.ptransform_fn
     @typehints.with_input_types(int)
     def MyMap(pcoll):
@@ -756,7 +756,7 @@ class SideInputTest(unittest.TestCase):
     # side-inputs.
     # TODO(https://github.com/apache/beam/issues/19824): There's a bug with
     #   trivial_inference inferring the output type when side-inputs are used
-    #   (their type hints are not passed). Remove with_output_types(...) when
+    #   (their typehints are not passed). Remove with_output_types(...) when
     #   this bug is fixed.
     result = (['a', 'b', 'c']
               | beam.Map(lambda *args: args, 5).with_input_types(
@@ -862,7 +862,7 @@ class CustomTransformTest(unittest.TestCase):
       self.test_input | self.CustomTransform().with_output_types(out0=int)
 
   def test_flat_type_hint(self):
-    # Type hint is applied to both.
+    # typehint is applied to both.
     ({
         'in0': ['a', 'b', 'c'], 'in1': ['x', 'y', 'z']
     }

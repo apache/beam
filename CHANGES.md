@@ -794,7 +794,7 @@
 * In Interactive Beam, ib.show() and ib.collect() now have "n" and "duration" as parameters. These mean read only up to "n" elements and up to "duration" seconds of data read from the recording ([BEAM-10603](https://issues.apache.org/jira/browse/BEAM-10603)).
 * Initial preview of [Dataframes](https://s.apache.org/simpler-python-pipelines-2020#slide=id.g905ac9257b_1_21) support.
     See also example at apache_beam/examples/wordcount_dataframe.py
-* Fixed support for type hints on `@ptransform_fn` decorators in the Python SDK.
+* Fixed support for typehints on `@ptransform_fn` decorators in the Python SDK.
   ([BEAM-4091](https://issues.apache.org/jira/browse/BEAM-4091))
   This has not enabled by default to preserve backwards compatibility; use the
   `--type_check_additional=ptransform_fn` flag to enable. It may be enabled by
@@ -848,7 +848,7 @@
 * WriteToBigQuery transforms now require a GCS location to be provided through either
   custom_gcs_temp_location in the constructor of WriteToBigQuery or the fallback option
   --temp_location, or pass method="STREAMING_INSERTS" to WriteToBigQuery ([BEAM-6928](https://issues.apache.org/jira/browse/BEAM-6928)).
-* Python SDK now understands `typing.FrozenSet` type hints, which are not interchangeable with `typing.Set`. You may need to update your pipelines if type checking fails. ([BEAM-10197](https://issues.apache.org/jira/browse/BEAM-10197))
+* Python SDK now understands `typing.FrozenSet` typehints, which are not interchangeable with `typing.Set`. You may need to update your pipelines if type checking fails. ([BEAM-10197](https://issues.apache.org/jira/browse/BEAM-10197))
 
 ## Known issues
 
@@ -948,7 +948,7 @@ for example usage.
 * Python SDK: Added integration tests and updated batch write functionality for Google Cloud Spanner transform ([BEAM-8949](https://issues.apache.org/jira/browse/BEAM-8949)).
 
 ## New Features / Improvements
-* Python SDK will now use Python 3 type annotations as pipeline type hints.
+* Python SDK will now use Python 3 type annotations as pipeline typehints.
 ([#10717](https://github.com/apache/beam/pull/10717))
 
     If you suspect that this feature is causing your pipeline to fail, calling

@@ -742,7 +742,7 @@ class CodersTest(unittest.TestCase):
       self.check_coder(coder, ShardedKey(key, b''))
       self.check_coder(coder, ShardedKey(key, b'123'))
 
-      # Test type hints
+      # Test typehints
       self.assertTrue(
           isinstance(
               coder.to_type_hint(), sharded_key_type.ShardedKeyTypeConstraint))

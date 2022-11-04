@@ -227,7 +227,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   /**
    * Specifies the field type of arguments.
    *
-   * <p>Type hints are especially useful for logical types since type inference does not work well
+   * <p>typehints are especially useful for logical types since type inference does not work well
    * for logical types.
    *
    * @param argType A class object for the argument type.

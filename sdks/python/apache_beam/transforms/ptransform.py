@@ -382,7 +382,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     return get_type_hints(self.__class__).with_defaults(fn_type_hints)
 
   def with_input_types(self, input_type_hint):
-    """Annotates the input type of a :class:`PTransform` with a type-hint.
+    """Annotates the input type of a :class:`PTransform` with a typehint.
 
     Args:
       input_type_hint (type): An instance of an allowed built-in type, a custom
@@ -390,7 +390,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
         :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
     Raises:
-      TypeError: If **input_type_hint** is not a valid type-hint.
+      TypeError: If **input_type_hint** is not a valid typehint.
         See
         :obj:`apache_beam.typehints.typehints.validate_composite_type_param()`
         for further details.
@@ -407,14 +407,14 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     return super().with_input_types(input_type_hint)
 
   def with_output_types(self, type_hint):
-    """Annotates the output type of a :class:`PTransform` with a type-hint.
+    """Annotates the output type of a :class:`PTransform` with a typehint.
 
     Args:
       type_hint (type): An instance of an allowed built-in type, a custom class,
         or a :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
     Raises:
-      TypeError: If **type_hint** is not a valid type-hint. See
+      TypeError: If **type_hint** is not a valid typehint. See
         :obj:`~apache_beam.typehints.typehints.validate_composite_type_param()`
         for further details.
 
@@ -787,7 +787,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
   def _add_type_constraint_from_consumer(self, full_label, input_type_hints):
     # type: (str, Tuple[str, Any]) -> None
 
-    """Adds a consumer transform's input type hints to our output type
+    """Adds a consumer transform's input typehints to our output type
     constraints, which is used during performance runtime type-checking.
     """
     pass
@@ -868,7 +868,7 @@ class PTransformWithSideInputs(PTransform):
     self.args = pickler.loads(pickler.dumps(self.args))
     self.kwargs = pickler.loads(pickler.dumps(self.kwargs))
 
-    # For type hints, because loads(dumps(class)) != class.
+    # For typehints, because loads(dumps(class)) != class.
     self.fn = self._cached_fn
 
   def with_input_types(
@@ -890,7 +890,7 @@ class PTransformWithSideInputs(PTransform):
       FlatMap().with_input_types(int, int, bool)
 
     Raises:
-      :class:`TypeError`: If **type_hint** is not a valid type-hint.
+      :class:`TypeError`: If **type_hint** is not a valid typehint.
         See
         :func:`~apache_beam.typehints.typehints.validate_composite_type_param`
         for further details.
@@ -1050,7 +1050,7 @@ def ptransform_fn(fn):
   operator (i.e., `|`) will inject the pcoll argument in its proper place
   (first argument if no label was specified and second argument otherwise).
 
-  Type hint support needs to be enabled via the
+  Typehint support needs to be enabled via the
   --type_check_additional=ptransform_fn flag in Beam 2.
   If CustomMapper is a Cython function, you can still specify input and output
   types provided the decorators appear before @ptransform_fn.
@@ -1060,10 +1060,10 @@ def ptransform_fn(fn):
   def callable_ptransform_factory(*args, **kwargs):
     res = _PTransformFnPTransform(fn, *args, **kwargs)
     if ptransform_fn_typehints_enabled:
-      # Apply type hints applied before or after the ptransform_fn decorator,
+      # Apply typehints applied before or after the ptransform_fn decorator,
       # falling back on PTransform defaults.
       # If the @with_{input,output}_types decorator comes before ptransform_fn,
-      # the type hints get applied to this function. If it comes after they will
+      # the typehints get applied to this function. If it comes after they will
       # get applied to fn, and @wraps will copy the _type_hints attribute to
       # this function.
       type_hints = get_type_hints(callable_ptransform_factory)

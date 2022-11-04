@@ -653,7 +653,7 @@ class Operation(object):
   def _get_runtime_performance_hints(self):
     # type: () -> Optional[Dict[Optional[str], Tuple[Optional[str], Any]]]
 
-    """Returns any type hints required for performance runtime
+    """Returns any typehints required for performance runtime
     type-checking."""
     return None
 

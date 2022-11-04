@@ -63,11 +63,11 @@ type constraints during pipeline execution. If you ran the code from before with
 `runtime_type_check` on, you would receive the following error message:
 
 ```
-Type hint violation for 'ParDo(MultiplyByTwo)': requires <class 'int'> but got <class 'str'> for element
+typehint violation for 'ParDo(MultiplyByTwo)': requires <class 'int'> but got <class 'str'> for element
 ```
 
 This is an actionable error message - it tells you that either your code has a bug
-or that your declared type hints are incorrect. Sounds simple enough, so what's the catch?
+or that your declared typehints are incorrect. Sounds simple enough, so what's the catch?
 
 _It is soooo slowwwwww._ See for yourself.
 
@@ -117,10 +117,10 @@ sampling rate (up to a fixed minimum).
 moves the type check to a Cython-optimized, non-decorated portion of the codebase. For reference,
 Cython is a programming language that gives C-like performance to Python code.
 
-3. Finally, we use a single mega type hint to type-check only the output values of transforms
+3. Finally, we use a single mega typehint to type-check only the output values of transforms
 instead of type-checking both the input and output values separately. This mega typehint is composed of
 the original transform's output type constraints along with all consumer transforms' input type
-constraints. Using this mega type hint allows us to reduce overhead while simultaneously allowing
+constraints. Using this mega typehint allows us to reduce overhead while simultaneously allowing
 us to throw _more actionable errors_. For instance, consider the following error (which was
 generated from the old RTC system):
 ```
@@ -129,13 +129,13 @@ Runtime type violation detected within ParDo(DownstreamDoFn): Type-hint for argu
 
 This error tells us that the `DownstreamDoFn` received an `int` when it was expecting a `str`, but doesn't tell us
 who created that `int` in the first place. Who is the offending upstream transform that's responsible for
-this `int`? Presumably, _that_ transform's output type hints were too expansive (e.g. `Any`) or otherwise non-existent because
+this `int`? Presumably, _that_ transform's output typehints were too expansive (e.g. `Any`) or otherwise non-existent because
 no error was thrown during the runtime type check of its output.
 
 The problem here boils down to a lack of context. If we knew who our consumers were when type
 checking our output, we could simultaneously type check our output value against our output type
 constraints and every consumers' input type constraints to know whether there is _any_ possibility
-for a mismatch. This is exactly what the mega type hint does, and it allows us to throw errors
+for a mismatch. This is exactly what the mega typehint does, and it allows us to throw errors
 at the point of declaration rather than the point of exception, saving you valuable time
 while providing higher quality error messages.
 

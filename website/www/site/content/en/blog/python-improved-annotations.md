@@ -24,7 +24,7 @@ limitations under the License.
 -->
 
 The importance of static type checking in a dynamically
-typed language like Python is not up for debate. Type hints
+typed language like Python is not up for debate. typehints
 allow developers to leverage a strong typing system to:
  - write better code,
  - self-document ambiguous programming logic, and
@@ -35,10 +35,10 @@ the `typehints` module of Beam's Python SDK, including support
 for typed PCollections and Python 3 style annotations on PTransforms.
 
 # Improved Annotations
-Today, you have the option to declare type hints on PTransforms using either
+Today, you have the option to declare typehints on PTransforms using either
 class decorators or inline functions.
 
-For instance, a PTransform with decorated type hints might look like this:
+For instance, a PTransform with decorated typehints might look like this:
 ```
 @beam.typehints.with_input_types(int)
 @beam.typehints.with_output_types(str)
@@ -59,12 +59,12 @@ strings = numbers | beam.ParDo(IntToStr()).with_input_types(int).with_output_typ
 ```
 
 Both methods have problems. Class decorators are syntax-heavy,
-requiring two additional lines of code, whereas inline functions provide type hints
+requiring two additional lines of code, whereas inline functions provide typehints
 that aren't reusable across other instances of the same transform. Additionally, both
 methods are incompatible with static type checkers like MyPy.
 
 With Python 3 annotations however, we can subvert these problems to provide a
-clean and reusable type hint experience. Our previous transform now looks like this:
+clean and reusable typehint experience. Our previous transform now looks like this:
 ```
 class IntToStr(beam.PTransform):
     def expand(self, pcoll: PCollection[int]) -> PCollection[str]:
@@ -73,7 +73,7 @@ class IntToStr(beam.PTransform):
 strings = numbers | beam.ParDo(IntToStr())
 ```
 
-These type hints will actively hook into the internal Beam typing system to
+These typehints will actively hook into the internal Beam typing system to
 play a role in pipeline type checking, and runtime type checking.
 
 So how does this work?
@@ -85,7 +85,7 @@ parameterized with either zero types (denoted `PCollection`) or one type (denote
 - A PCollection with one type can have any nested type (e.g. `Union[int, str]`).
 
 Internally, Beam's typing system makes these annotations compatible with other
-type hints by removing the outer PCollection container.
+typehints by removing the outer PCollection container.
 
 ## PBegin, PDone, None
 Finally, besides PCollection, a valid annotation on the `expand(...)` method of a PTransform is
@@ -102,7 +102,7 @@ class SaveResults(beam.PTransform):
 # Next Steps
 What are you waiting for.. start using annotations on your transforms!
 
-For more background on type hints in Python, see:
+For more background on typehints in Python, see:
 [Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/).
 
 Finally, please

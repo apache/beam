@@ -122,7 +122,7 @@ class RuntimeTypeCheckTest(unittest.TestCase):
                              lines)
 
   def test_wrapper_pipeline_type_check(self):
-    # Verifies that type hints are not masked by the wrapper. What actually
+    # Verifies that typehints are not masked by the wrapper. What actually
     # happens is that the wrapper is applied during self.p.run() (not invoked
     # in this case), while pipeline type checks happen during pipeline creation.
     # Thus, the wrapper does not have to implement: default_type_hints,
@@ -306,7 +306,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
 
     # This will raise a type check error in IntToInt even though the actual
     # type check error won't happen until StrToInt. The user will be told that
-    # StrToInt's input type hints were not satisfied while running IntToInt.
+    # StrToInt's input typehints were not satisfied while running IntToInt.
     with self.assertRaises(TypeCheckError) as e:
       (
           self.p

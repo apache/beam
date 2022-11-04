@@ -312,7 +312,7 @@ class TypeHintsTest(unittest.TestCase):
       evens = numbers | beam.Filter(lambda x: x % 2 == 0).with_input_types(int)
       # [END type_hints_takes]
 
-    # Type hints can be declared on DoFns and callables as well, rather
+    # typehints can be declared on DoFns and callables as well, rather
     # than where they're used, to be more self contained.
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_do_fn]
@@ -372,7 +372,7 @@ class TypeHintsTest(unittest.TestCase):
       p.run()
 
     # To catch this early, we can annotate process() with the expected types.
-    # Beam will then use these as type hints and perform type checking before
+    # Beam will then use these as typehints and perform type checking before
     # the pipeline starts.
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_do_fn_annotations]
