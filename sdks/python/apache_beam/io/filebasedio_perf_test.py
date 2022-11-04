@@ -86,7 +86,7 @@ class CreateFolderFn(beam.DoFn):
     self.folder = folder
 
   def process(self, element):
-    from apache_beam.io.filesystems import FileSystems
+    from apache_beam.io.filesystems import FileSystems  # pylint: disable=reimported
     filesystem = FileSystems.get_filesystem(self.folder)
     if filesystem.has_dirs() and not filesystem.exists(self.folder):
       filesystem.mkdirs(self.folder)
