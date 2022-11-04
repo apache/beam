@@ -379,6 +379,9 @@ task("takeConfig") {
    var d_tag = ""
    var dns_name = ""
    var stdout = ByteArrayOutputStream()
+   if (project.hasProperty("dns-name")) {
+   dns_name = project.property("dns-name") as String
+      }
    if (project.hasProperty("docker-tag")) {
         d_tag = project.property("docker-tag") as String
    }
