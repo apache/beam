@@ -625,10 +625,10 @@ class AssignTimestamps(beam.DoFn):
 class FetchMetrics:
   @staticmethod
   def fetch_from_bq(
-      project_name,
-      table,
-      dataset,
-      metric_name: str,
+      project_name=None,
+      table=None,
+      dataset=None,
+      metric_name: str = None,
       limit=1000,
       query_template=None) -> pd.DataFrame:
     if not query_template:

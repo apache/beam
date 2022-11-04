@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import argparse
 import json
 import os
 import time
@@ -219,14 +220,45 @@ class ChangePointAnalysis:
 
 
 class RunChangePointAnalysis:
-  def __init__(self, change_point_sibling_distance: int = 2):
-    self.change_point_sibling_distance = change_point_sibling_distance
+  def __init__(self, args):
+    self.change_point_sibling_distance = args.change_point_sibling_distance
+    self.changepoint_to_recent_run_window = (
+        args.changepoint_to_recent_run_window)
+    self.test_name = sys.argv[0]
 
-  def _get_latest_sibling_change_point(self, test_name, metric_name):
-    raise NotImplementedError
+  def has_latest_sibling_change_point(
+      self, metric_values, metric_name, sibling_indexes_to_search) -> bool:
+    query_template = """
+    SELECT * FROM {project}.{dataset}.{table}
+    WHERE {metric_name_id} = '{metric_name}'
+    ORDER BY {timestamp} DESC
+    LIMIT 10
+    """.format(
+        project=BQ_PROJECT_NAME,
+        dataset=BQ_DATASET,
+        metric_name_id=METRIC_NAME,
+        metric_name=metric_name,
+        timestamp=SUBMIT_TIMESTAMP_LABEL,
+        table=self.test_name)
+    df = FetchMetrics.fetch_from_bq(query_template=query_template)
+    latest_change_point = df[CHANGE_POINT_LABEL]
 
-  def _find_sibling_change_point(self, changepoint_index,
-                                 metric_values) -> Optional[int]:
+    for sibling_index in sibling_indexes_to_search:
+      # Verify the logic.
+      if metric_values[sibling_index] == latest_change_point:
+        return True
+
+    return False
+
+  def is_changepoint_in_valid_window(self, change_point_index: int) -> bool:
+    # If the change point is more than N runs behind the most recent run
+    # then don't raise an alert for it.
+    if self.changepoint_to_recent_run_window > change_point_index:
+      return True
+    return False
+
+  def has_sibling_change_point(
+      self, changepoint_index, metric_values, metric_name) -> Optional[int]:
     """
     Finds the sibling change point index. If not,
     returns the original changepoint index.
@@ -235,9 +267,6 @@ class RunChangePointAnalysis:
     changepoint, within the distance of change_point_sibling_distance.
     For sibling changepoint, a GitHub issue is already created.
     """
-    ########################################################
-    # TODO: Implement logic to find sibling change point.
-    ########################################################
 
     # Search backward from the current changepoint
     sibling_indexes_to_search = []
@@ -250,9 +279,14 @@ class RunChangePointAnalysis:
         sibling_indexes_to_search.append(i)
     # Look for change points within change_point_sibling_distance.
     # Return the first change point found.
-    # for sibling_index in sibling_indexes_to_search:
-    #   raise NotImplementedError
-    return 0
+    alert_new_issue = self.has_latest_sibling_change_point(
+        metric_values=metric_values,
+        metric_name=metric_name,
+        sibling_indexes_to_search=sibling_indexes_to_search)
+
+    if not alert_new_issue:
+      return False
+    return True
 
   def run(self, file_path):
     test_name = sys.argv[0]
@@ -277,12 +311,13 @@ class RunChangePointAnalysis:
       change_points_idx.sort(reverse=True)
       change_point_index = change_points_idx[0]
 
-      sibling_change_point_index = self._find_sibling_change_point(
-          change_point_index, metric_values=metric_values)
+      if not self.changepoint_to_recent_run_window(change_point_index):
+        return
 
-      create_perf_alert = True
-      if sibling_change_point_index:
-        create_perf_alert = False
+      create_perf_alert = self.has_sibling_change_point(
+          change_point_index,
+          metric_values=metric_values,
+          metric_name=metric_name)
 
       if create_perf_alert:
         gh_issue = GitHubIssues()
@@ -316,8 +351,25 @@ class RunChangePointAnalysis:
 
 
 if __name__ == '__main__':
-  # TODO: Add argparse.
   logging.basicConfig(level=logging.INFO)
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--change_point_sibling_distance',
+      type=int,
+      default=2,
+      help='Search for a sibling changepoint in both directions '
+      'from the current change point index.')
+  parser.add_argument(
+      'changepoint_to_recent_run_window',
+      type=int,
+      default=7,
+      help='Only allow creating alerts when regression '
+      'happens if the run corresponding to the regressions is '
+      'within changepoint_to_recent_run_window.')
+  known_args, unknown_args = parser.parse_known_args()
+
+  _LOGGER.warning('Discarding unknown arguments : %s ' % unknown_args)
   file_path = os.path.join(
       os.path.dirname(os.path.abspath(__file__)), 'tests_config.yaml')
-  RunChangePointAnalysis().run(file_path=file_path)
+  RunChangePointAnalysis(known_args).run(file_path=file_path, )
