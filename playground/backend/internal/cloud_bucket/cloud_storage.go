@@ -27,6 +27,7 @@ import (
 	"google.golang.org/api/option"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/logger"
 )
 
@@ -68,11 +69,11 @@ func (cs *CloudStorage) GetDatasets(ctx context.Context, bucketName string, data
 		if len(dataset.DatasetPath) == 0 {
 			return nil, errors.New("dataset path not found")
 		}
-		elements := strings.Split(dataset.DatasetPath, "/")
+		elements := strings.Split(dataset.DatasetPath, constants.CloudPathDelimiter)
 		if len(elements) < 3 {
 			return nil, errors.New("wrong the cloud storage uri")
 		}
-		obj := fmt.Sprintf("%s/%s", elements[len(elements)-2], elements[len(elements)-1])
+		obj := fmt.Sprintf("%s%s%s", elements[len(elements)-2], constants.CloudPathDelimiter, elements[len(elements)-1])
 		rc, err := bucket.Object(obj).NewReader(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("error while getting a dataset. path: %s. error: %v", dataset.DatasetPath, err)

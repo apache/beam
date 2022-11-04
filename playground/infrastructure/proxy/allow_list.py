@@ -29,6 +29,5 @@ ALLOWED_LIST = [
 ALLOWED_BUCKET_LIST = [
     "dataflow-samples",
     "beam-samples",
-    "apache-beam-samples",
-    "apache-beam-samples-test"
+    "apache-beam-samples"
 ]

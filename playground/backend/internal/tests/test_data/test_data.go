@@ -38,13 +38,16 @@ func DownloadCatalogsWithMockData(ctx context.Context) {
 	client, closeClientFunc := createDatastoreClient(ctx)
 	defer closeClientFunc()
 
+	datasetKeys, datasets := createDatasetEntities(ctx)
+	saveEntities(ctx, client, datasetKeys, datasets)
+
 	sdkKeys, sdks := createSDKEntities(ctx)
 	saveEntities(ctx, client, sdkKeys, sdks)
 
 	exampleKeys, examples := createExampleEntities(ctx)
 	saveEntities(ctx, client, exampleKeys, examples)
 
-	snippetKeys, snippets := createSnippetEntities(ctx, examples)
+	snippetKeys, snippets := createSnippetEntities(ctx, examples, datasetKeys)
 	saveEntities(ctx, client, snippetKeys, snippets)
 
 	fileKeys, files := createFileEntities(ctx, examples)
@@ -58,8 +61,9 @@ func RemoveCatalogsWithMockData(ctx context.Context) {
 	client, closeClientFunc := createDatastoreClient(ctx)
 	defer closeClientFunc()
 
+	datasetKeys, _ := createDatasetEntities(ctx)
 	exampleKeys, examples := createExampleEntities(ctx)
-	snippetKeys, _ := createSnippetEntities(ctx, examples)
+	snippetKeys, _ := createSnippetEntities(ctx, examples, datasetKeys)
 	fileKeys, _ := createFileEntities(ctx, examples)
 	objKeys, _ := createPCObjEntities(ctx, examples)
 
@@ -67,6 +71,15 @@ func RemoveCatalogsWithMockData(ctx context.Context) {
 	deleteEntities(ctx, client, snippetKeys)
 	deleteEntities(ctx, client, fileKeys)
 	deleteEntities(ctx, client, objKeys)
+	deleteEntities(ctx, client, datasetKeys)
+}
+
+func createDatasetEntities(ctx context.Context) ([]*datastore.Key, []*entity.DatasetEntity) {
+	dataset := &entity.DatasetEntity{
+		Link: "MOCK_LINK",
+	}
+	key := utils.GetDatasetKey(ctx, "MOCK_DATASET")
+	return []*datastore.Key{key}, []*entity.DatasetEntity{dataset}
 }
 
 func createSDKEntities(ctx context.Context) ([]*datastore.Key, []*entity.SDKEntity) {
@@ -88,7 +101,7 @@ func createSDKEntities(ctx context.Context) ([]*datastore.Key, []*entity.SDKEnti
 }
 
 func createExampleEntities(ctx context.Context) ([]*datastore.Key, []*entity.ExampleEntity) {
-	names := []string{"MOCK_DEFAULT_EXAMPLE", "MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3"}
+	names := []string{"MOCK_DEFAULT_EXAMPLE", "MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3", "MOCK_NAME_DATASET"}
 	keys := make([]*datastore.Key, 0)
 	examples := make([]*entity.ExampleEntity, 0)
 	for _, sdk := range pb.Sdk_name {
@@ -119,7 +132,7 @@ func createExampleEntity(ctx context.Context, name, sdk string) *entity.ExampleE
 	}
 }
 
-func createSnippetEntities(ctx context.Context, examples []*entity.ExampleEntity) ([]*datastore.Key, []*entity.SnippetEntity) {
+func createSnippetEntities(ctx context.Context, examples []*entity.ExampleEntity, datasetKeys []*datastore.Key) ([]*datastore.Key, []*entity.SnippetEntity) {
 	keys := make([]*datastore.Key, 0)
 	snippets := make([]*entity.SnippetEntity, 0)
 	now := time.Now()
@@ -134,10 +147,16 @@ func createSnippetEntities(ctx context.Context, examples []*entity.ExampleEntity
 			NumberOfFiles: 1,
 			Complexity:    pb.Complexity_COMPLEXITY_MEDIUM.String(),
 		}
+		if example.Name == "MOCK_NAME_DATASET" {
+			snippet.Datasets = append(snippet.Datasets, &entity.DatasetNestedEntity{
+				Config:   "{\"topic\": \"dataset\"}",
+				Dataset:  datasetKeys[0],
+				Emulator: "kafka",
+			})
+		}
 		keys = append(keys, key)
 		snippets = append(snippets, snippet)
 	}
-
 	return keys, snippets
 }
 

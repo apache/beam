@@ -238,7 +238,7 @@ func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEnti
 	}
 
 	//Retrieving datasets
-	datastoreQuery := datastore.NewQuery(constants.DatasetsKind).Namespace(utils.GetNamespace(ctx))
+	datastoreQuery := datastore.NewQuery(constants.DatasetKind).Namespace(utils.GetNamespace(ctx))
 	var datasets []*entity.DatasetEntity
 	if _, err = d.Client.GetAll(ctx, datastoreQuery, &datasets); err != nil {
 		logger.Errorf("Datastore: GetCatalog(): error during the getting datasets, err: %s\n", err.Error())
