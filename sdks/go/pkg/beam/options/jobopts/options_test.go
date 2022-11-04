@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
 )
 
 func TestGetEndpoint(t *testing.T) {
@@ -127,5 +128,22 @@ func TestGetSdkImageOverrides(t *testing.T) {
 	want := map[string]string{".*beam_go_sdk.*": "apache/beam_go_sdk:testing"}
 	if got := GetSdkImageOverrides(); reflect.DeepEqual(got, want) {
 		t.Errorf("GetSdkImageOverrides() = %v, want %v", got, want)
+	}
+}
+
+func TestGetPipelineResourceHints(t *testing.T) {
+	var hints stringSlice
+	hints.Set("min_ram=2GB")
+	hints.Set("accelerator=pedal_to_the_metal")
+	hints.Set("beam:resources:novel_execution:v1=jaguar")
+	hints.Set("min_ram=1GB")
+	ResourceHints = hints
+
+	want := resource.NewHints(resource.ParseMinRam("1GB"), resource.Accelerator("pedal_to_the_metal"), stringHint{
+		urn:   "beam:resources:novel_execution:v1",
+		value: "jaguar",
+	})
+	if got := GetPipelineResourceHints(); !got.Equal(want) {
+		t.Errorf("GetPipelineResourceHints() = %v, want %v", got, want)
 	}
 }
