@@ -69,32 +69,41 @@ func TestGetJobName(t *testing.T) {
 	}
 }
 
+// Also tests IsLoopback because it uses the same flag.
 func TestGetEnvironmentUrn(t *testing.T) {
 	tests := []struct {
-		env string
-		urn string
+		env        string
+		urn        string
+		isLoopback bool
 	}{
 		{
 			"PROCESS",
 			"beam:env:process:v1",
+			false,
 		},
 		{
 			"DOCKER",
 			"beam:env:docker:v1",
+			false,
 		},
 		{
 			"LOOPBACK",
 			"beam:env:external:v1",
+			true,
 		},
 		{
 			"",
 			"beam:env:docker:v1",
+			false,
 		},
 	}
 	for _, test := range tests {
 		EnvironmentType = &test.env
-		if gotUrn := GetEnvironmentUrn(context.Background()); gotUrn != test.urn {
-			t.Errorf("GetEnvironmentUrn(ctx) = %v, want %v", gotUrn, test.urn)
+		if got, want := GetEnvironmentUrn(context.Background()), test.urn; got != want {
+			t.Errorf("GetEnvironmentUrn(%v) = %v, want %v", test.env, got, want)
+		}
+		if got, want := IsLoopback(), test.isLoopback; got != want {
+			t.Errorf("IsLoopback(%v) = %v, want %v", test.env, got, want)
 		}
 	}
 }
@@ -145,5 +154,16 @@ func TestGetPipelineResourceHints(t *testing.T) {
 	})
 	if got := GetPipelineResourceHints(); !got.Equal(want) {
 		t.Errorf("GetPipelineResourceHints() = %v, want %v", got, want)
+	}
+}
+
+func TestGetExperiements(t *testing.T) {
+	*Experiments = ""
+	if got, want := GetExperiments(), []string(nil); !reflect.DeepEqual(got, want) {
+		t.Errorf("GetExperiments(\"\") = %v, want %v", got, want)
+	}
+	*Experiments = "better,faster,stronger"
+	if got, want := GetExperiments(), []string{"better", "faster", "stronger"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("GetExperiments(\"\") = %v, want %v", got, want)
 	}
 }
