@@ -278,10 +278,9 @@ public class CdapIO {
       if (cdapPlugin.isUnbounded()) {
         SparkReceiverIO.Read<V> reader =
             SparkReceiverIO.<V>read()
-                .withGetOffsetFn(getOffsetFnForPluginClass(cdapPlugin.getPluginClass(), valueClass))
+                .withGetOffsetFn(getOffsetFnForPluginClass(cdapPlugin.getPluginClass()))
                 .withSparkReceiverBuilder(
-                    getReceiverBuilderByPluginClass(
-                        cdapPlugin.getPluginClass(), pluginConfig, valueClass));
+                    getReceiverBuilderByPluginClass(cdapPlugin.getPluginClass(), pluginConfig));
         try {
           Coder<V> coder = input.getPipeline().getCoderRegistry().getCoder(valueClass);
           PCollection<V> values = input.apply(reader).setCoder(coder);
