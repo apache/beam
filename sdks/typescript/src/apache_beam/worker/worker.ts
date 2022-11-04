@@ -146,7 +146,7 @@ export class Worker {
         response: {
           oneofKind: "processBundleProgress",
           processBundleProgress: {
-            monitoringInfos: [...monitoringData.entries()].map(
+            monitoringInfos: Array.from(monitoringData.entries()).map(
               ([id, payload]) =>
                 this.metricsShortIdCache.asMonitoringInfo(id, payload)
             ),
@@ -201,6 +201,7 @@ export class Worker {
       const processor = this.aquireBundleProcessor(descriptorId);
       this.activeBundleProcessors.set(request.instructionId, processor);
       await processor.process(request.instructionId);
+      const monitoringData = processor.monitoringData(this.metricsShortIdCache);
       await this.respond({
         instructionId: request.instructionId,
         error: "",
@@ -208,9 +209,12 @@ export class Worker {
           oneofKind: "processBundle",
           processBundle: {
             residualRoots: [],
-            monitoringInfos: [],
             requiresFinalization: false,
-            monitoringData: {},
+            monitoringInfos: Array.from(monitoringData.entries()).map(
+              ([id, payload]) =>
+                this.metricsShortIdCache.asMonitoringInfo(id, payload)
+            ),
+            monitoringData: Object.fromEntries(monitoringData.entries()),
           },
         },
       });
