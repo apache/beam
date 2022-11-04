@@ -472,7 +472,8 @@ public class BigQueryIOReadTest implements Serializable {
                 ImmutableList.of(
                     new TableFieldSchema().setName("name").setType("STRING"),
                     new TableFieldSchema().setName("number").setType("INTEGER"),
-                    new TableFieldSchema().setName("numeric_num").setType("NUMERIC"))));
+                    new TableFieldSchema().setName("numeric_num").setType("NUMERIC"),
+                    new TableFieldSchema().setName("numeric_num2").setType("NUMERIC"))));
     sometable.setTableReference(
         new TableReference()
             .setProjectId("non-executing-project")
@@ -483,21 +484,29 @@ public class BigQueryIOReadTest implements Serializable {
     fakeDatasetService.createDataset("non-executing-project", "somedataset", "", "", null);
     fakeDatasetService.createTable(sometable);
 
-    byte[] bytes = new BigDecimal("10.223").unscaledValue().toByteArray();
+    BigDecimal bd1 = new BigDecimal("10.223");
+    bd1 = bd1.setScale(9, BigDecimal.ROUND_DOWN);
+    byte[] bytes = bd1.unscaledValue().toByteArray();
+    BigDecimal bd2 = new BigDecimal("-99.9999");
+    bd2 = bd2.setScale(9, BigDecimal.ROUND_DOWN);
+    byte[] bytes2 = bd2.unscaledValue().toByteArray();
     List<TableRow> records =
         Lists.newArrayList(
             new TableRow()
                 .set("name", "a")
                 .set("number", 1L)
-                .set("numeric_num", ByteBuffer.wrap(bytes)),
+                .set("numeric_num", ByteBuffer.wrap(bytes))
+                .set("numeric_num2", ByteBuffer.wrap(bytes2)),
             new TableRow()
                 .set("name", "b")
                 .set("number", 2L)
-                .set("numeric_num", ByteBuffer.wrap(bytes)),
+                .set("numeric_num", ByteBuffer.wrap(bytes))
+                .set("numeric_num2", ByteBuffer.wrap(bytes2)),
             new TableRow()
                 .set("name", "c")
                 .set("number", 3L)
-                .set("numeric_num", ByteBuffer.wrap(bytes)));
+                .set("numeric_num", ByteBuffer.wrap(bytes))
+                .set("numeric_num2", ByteBuffer.wrap(bytes2)));
     fakeDatasetService.insertAll(sometable.getTableReference(), records, null);
 
     FakeBigQueryServices fakeBqServices =
@@ -521,22 +530,29 @@ public class BigQueryIOReadTest implements Serializable {
               .withoutValidation();
       readTransform = useTemplateCompatibility ? read.withTemplateCompatibility() : read;
     }
-    PCollection<KV<String, Long>> output =
+    PCollection<MyData> output =
         p.apply(readTransform)
             .apply(
                 ParDo.of(
-                    new DoFn<TableRow, KV<String, Long>>() {
+                    new DoFn<TableRow, MyData>() {
                       @ProcessElement
                       public void processElement(ProcessContext c) throws Exception {
                         c.output(
-                            KV.of(
+                            new MyData(
                                 (String) c.element().get("name"),
-                                Long.valueOf((String) c.element().get("number"))));
+                                Long.valueOf((String) c.element().get("number")),
+                                new BigDecimal((String) c.element().get("numeric_num")),
+                                new BigDecimal((String) c.element().get("numeric_num2"))));
                       }
-                    }));
+                    }))
+            .setCoder(SerializableCoder.of(MyData.class));
 
     PAssert.that(output)
-        .containsInAnyOrder(ImmutableList.of(KV.of("a", 1L), KV.of("b", 2L), KV.of("c", 3L)));
+        .containsInAnyOrder(
+            ImmutableList.of(
+                new MyData("a", 1L, bd1, bd2),
+                new MyData("b", 2L, bd1, bd2),
+                new MyData("c", 3L, bd1, bd2)));
     p.run();
   }
 
