@@ -171,13 +171,11 @@ class ParDo(DaskBagOp):
 
       return results
 
-    x = (
+    return (
       input_bag
       .map(get_windowed_value, window_fn)
       .map_partitions(apply_dofn_to_bundle)
     )
-
-    return x
 
 
 class GroupByKey(DaskBagOp):
@@ -188,19 +186,15 @@ class GroupByKey(DaskBagOp):
 
     def value(item):
       k, v = item
-      d = [defenestrate(elm[1]) for elm in v]
-      return k, d
+      return k, [defenestrate(elm[1]) for elm in v]
 
-    y = input_bag.groupby(key).map(value)
-
-    return y
+    return input_bag.groupby(key).map(value)
 
 
 class Flatten(DaskBagOp):
   def apply(self, input_bag: t.List[db.Bag]) -> db.Bag:
     assert type(input_bag) is list, 'Must take a sequence of bags!'
-    c = db.concat(input_bag)
-    return c
+    return db.concat(input_bag)
 
 
 TRANSLATIONS = {
