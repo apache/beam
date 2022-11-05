@@ -26,8 +26,6 @@ import dataclasses
 import argparse
 import typing as t
 
-import dask
-
 from apache_beam import pvalue
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
@@ -162,6 +160,8 @@ class DaskRunner(BundleBasedDirectRunner):
     return False
 
   def run_pipeline(self, pipeline, options):
+    import dask
+
     # TODO(alxr): Create interactive notebook support.
     if is_in_notebook():
       raise NotImplementedError('interactive support will come later!')

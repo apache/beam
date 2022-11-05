@@ -116,7 +116,8 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       return x * 2, x
 
     with self.pipeline as p:
-      pcoll = p | beam.Create([1, 2, 1, 2, 3]) | beam.Map(double) | beam.GroupByKey()
+      pcoll = p | beam.Create([1, 2, 1, 2, 3
+                               ]) | beam.Map(double) | beam.GroupByKey()
       assert_that(pcoll, equal_to([(2, [1, 1]), (4, [2, 2]), (6, [3])]))
 
   def test_map_with_side_inputs(self):

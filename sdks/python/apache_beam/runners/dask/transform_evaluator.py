@@ -32,7 +32,6 @@ import typing as t
 import apache_beam
 from apache_beam import DoFn
 from apache_beam import TaggedOutput
-from apache_beam.internal import util
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.runners.common import DoFnContext
 from apache_beam.runners.common import DoFnInvoker
@@ -172,15 +171,12 @@ class ParDo(DaskBagOp):
       return results
 
     return (
-      input_bag
-      .map(get_windowed_value, window_fn)
-      .map_partitions(apply_dofn_to_bundle)
-    )
+        input_bag.map(get_windowed_value,
+                      window_fn).map_partitions(apply_dofn_to_bundle))
 
 
 class GroupByKey(DaskBagOp):
   def apply(self, input_bag: OpInput) -> db.Bag:
-
     def key(item):
       return item[0]
 
