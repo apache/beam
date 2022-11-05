@@ -16,16 +16,17 @@
     specific language governing permissions and limitations
     under the License.
 -->
+# SparkReceiverIO
 
-SparkReceiverIO contains I/O transforms which allow you to read messages from Spark Receiver (org.apache.spark.streaming.receiver.Receiver).
+SparkReceiverIO provides I/O transforms to read messages from an [Apache Spark Receiver](https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html) `org.apache.spark.streaming.receiver.Receiver` as an unbounded source.
 
-##Spark Receivers support
+## Prerequistes
 
-SparkReceiverIO supports Spark Receivers (Spark version 2.4) that implement [HasOffset](src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
+SparkReceiverIO supports [Spark Receivers](https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html) (Spark version 2.4) that implement [HasOffset](src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
 
 ## Dependencies
 
-To use SparkReceiverIO you must first add a dependency on `beam-sdks-java-io-sparkreceiver`.
+To use SparkReceiverIO, add a dependency on `beam-sdks-java-io-sparkreceiver`.
 
 ```maven
 <dependency>
@@ -37,6 +38,4 @@ To use SparkReceiverIO you must first add a dependency on `beam-sdks-java-io-spa
 
 ## Documentation
 
-The documentation is maintained in JavaDoc for SparkReceiverIO class. It includes
-usage examples and primary concepts.
-- [SparkReceiverIO.java](src/main/java/org/apache/beam/sdk/io/sparkreceiver/SparkReceiverIO.java)
+The documentation and usage examples are maintained in JavaDoc for [SparkReceiverIO class](src/main/java/org/apache/beam/sdk/io/sparkreceiver/SparkReceiverIO.java).

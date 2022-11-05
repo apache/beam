@@ -17,44 +17,56 @@
     under the License.
 -->
 
-CdapIO contains I/O transforms which allow you to read messages from CDAP plugins (see io.cdap.cdap.api.annotation.Plugin).
+# CdapIO
+CdapIO provides I/O transforms to for [CDAP](https://cdap.io/) plugins.
 
-##What is CDAP?
+## What is CDAP?
 
 [CDAP](https://cdap.io/) is an application platform for building and managing data applications in hybrid and multi-cloud environments.
 It enables developers, business analysts, and data scientists to use a visual rapid development environment and utilize common patterns,
 data, and application abstractions to accelerate the development of data applications, addressing a broader range of real-time and batch use cases.
 
-[CDAP plugins](https://github.com/data-integrations) have similar structures and patterns and might be several types:
-- Batch Source
-- Batch Sink
-- Streaming Source
+[CDAP plugins](https://github.com/data-integrations) types:
+- Batch source
+- Batch sink
+- Streaming source
 
-##Batch plugins support in CDAP IO
+To learn more about CDAP plugins please see [io.cdap.cdap.api.annotation.Plugin](https://javadoc.io/static/io.cdap.cdap/cdap-api/6.7.2/io/cdap/cdap/api/annotation/Plugin.html) and [Data Integrations](https://github.com/data-integrations) plugins repository.
 
-Batch plugins support is implemented using [HadoopFormatIO](https://github.com/apache/beam/tree/master/sdks/java/io/hadoop-format).
+## CDAP Batch plugins support in CDAP IO
 
-CdapIO supports CDAP Batch plugins based on **Hadoop** *Input/OutputFormat*.
+CdapIO supports CDAP Batch plugins based on Hadoop `InputFormat` and `OutputFormat`. CDAP batch plugins support is implemented using [HadoopFormatIO](https://beam.apache.org/documentation/io/built-in/hadoop/), https://github.com/apache/beam/tree/master/sdks/java/io/hadoop-format.
 
-There are multiple CDAP Batch plugins that can be used just by *CDAP plugin class* without additional actions.
-Also, **any custom** Batch [Plugin](src/main/java/org/apache/beam/sdk/io/cdap/Plugin.java) can be used by passing corresponding *CDAP plugin class* and **Hadoop** *Format* and *FormatProvider* classes (*Input* for source / *Output* for sink).
+CdapIO currently supporta for the following CDAP Batch plugins by referencing `CDAP plugin` class:
+* [Hubspot](https://github.com/data-integrations/hubspot)
+* [Salesforce](https://github.com/data-integrations/salesforce)
+* [ServiceNow](https://github.com/data-integrations/servicenow-plugins)
+* [Zendesk](https://github.com/data-integrations/zendesk)
+
+To add CdapIO support for a new CDAP or custom Batch [Plugin](src/main/java/org/apache/beam/sdk/io/cdap/Plugin.java), pass corresponding classes:
+* `CDAP plugin`
+* Hadoop `InputFormat` for source
+* Hadoop `OutputFormat` for sink
+* Hadoop `FormatProvider`.
 
 To learn more please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete).
 
-##Streaming plugins support in CDAP IO
+## CDAP Streaming plugins support in CDAP IO
 
-Streaming plugins support is implemented using [SparkReceiverIO](https://github.com/apache/beam/tree/master/sdks/java/io/sparkreceiver).
+CdapIO supports CDAP Streaming plugins based on [Apache Spark Receiver](https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html) `org.apache.spark.streaming.receiver.Receiver`. CDAP streaming plugins support is implemented using [SparkReceiverIO](https://github.com/apache/beam/tree/master/sdks/java/io/sparkreceiver).
 
-CdapIO supports CDAP Streaming plugins based on custom *SparkReceiver*(org.apache.spark.streaming.receiver.Receiver) that implements [HasOffset](https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
+CdapIO supports CDAP Streaming plugins based on [Spark Receiver](https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html) `org.apache.spark.streaming.receiver.Receiver`  that implements [HasOffset](https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
 
-There are several Streaming plugins that can be used just by *CDAP plugin class* without any additional actions.
-Also, **any custom** Streaming [Plugin](src/main/java/org/apache/beam/sdk/io/cdap/Plugin.java) can be used by registering it via [MappingUtils](src/main/java/org/apache/beam/sdk/io/cdap/MappingUtils.java).
+CdapIO currently supporta for the following CDAP Streaming plugin by referencing `CDAP plugin` class:
+* [Hubspot](https://github.com/data-integrations/hubspot)
+
+To add CdapIO support for a new or custom CDAP Streaming SparkReceiver [Plugin](src/main/java/org/apache/beam/sdk/io/cdap/Plugin.java), register the new plugin via [MappingUtils](src/main/java/org/apache/beam/sdk/io/cdap/MappingUtils.java).
 
 To learn more please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete).
 
 ## Dependencies
 
-To use CdapIO you must first add a dependency on `beam-sdks-java-io-cdap`.
+To use CdapIO please add a dependency on `beam-sdks-java-io-cdap`.
 
 ```maven
 <dependency>
@@ -66,6 +78,4 @@ To use CdapIO you must first add a dependency on `beam-sdks-java-io-cdap`.
 
 ## Documentation
 
-The documentation is maintained in JavaDoc for CdapIO class. It includes
-usage examples and primary concepts.
-- [CdapIO.java](src/main/java/org/apache/beam/sdk/io/cdap/CdapIO.java)
+The documentation and usage examples are maintained in JavaDoc for [CdapIO.java](src/main/java/org/apache/beam/sdk/io/cdap/CdapIO.java).
