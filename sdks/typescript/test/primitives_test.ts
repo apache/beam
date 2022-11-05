@@ -53,23 +53,23 @@ before(async function () {
 after(() => subprocessCache.stopAll());
 
 export function suite(runner: beam.Runner = new DirectRunner()) {
-//   describe("testing.assertDeepEqual", function () {
-//     // The tests below won't catch failures if this doesn't fail.
-//     it("fails on bad assert", async function () {
-//       // TODO: There's probably a more idiomatic way to test failures.
-//       var seenError = false;
-//       try {
-//         await runner.run((root) => {
-//           const pcolls = root
-//             .apply(beam.create([1, 2, 3]))
-//             .apply(testing.assertDeepEqual([1, 2]));
-//         });
-//       } catch (Error) {
-//         seenError = true;
-//       }
-//       assert.equal(true, seenError);
-//     });
-//   });
+  describe("testing.assertDeepEqual", function () {
+    // The tests below won't catch failures if this doesn't fail.
+    it("fails on bad assert", async function () {
+      // TODO: There's probably a more idiomatic way to test failures.
+      var seenError = false;
+      try {
+        await runner.run((root) => {
+          const pcolls = root
+            .apply(beam.create([1, 2, 3]))
+            .apply(testing.assertDeepEqual([1, 2]));
+        });
+      } catch (Error) {
+        seenError = true;
+      }
+      assert.equal(true, seenError);
+    });
+  });
 
   describe("runs basic transforms", function () {
     it("runs a map", async function () {
@@ -109,36 +109,36 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
       });
     });
 
-//     it("runs a map with counters", async function () {
-//       const result = await new DirectRunner().run((root) => {
-//         root
-//           .apply(beam.create([1, 2, 3]))
-//           .map(
-//             withName(
-//               "mapWithCounter",
-//               pardo.withContext(
-//                 (x: number, context) => {
-//                   context.myCounter.increment(x);
-//                   context.myDist.update(x);
-//                   return x * x;
-//                 },
-//                 {
-//                   myCounter: pardo.counter("myCounter"),
-//                   myDist: pardo.distribution("myDist"),
-//                 }
-//               )
-//             )
-//           )
-//           .apply(testing.assertDeepEqual([1, 4, 9]));
-//       });
-//       assert.deepEqual((await result.counters()).myCounter, 1 + 2 + 3);
-//       assert.deepEqual((await result.distributions()).myDist, {
-//         count: 3,
-//         sum: 6,
-//         min: 1,
-//         max: 3,
-//       });
-//     });
+    it("runs a map with counters", async function () {
+      const result = await new DirectRunner().run((root) => {
+        root
+          .apply(beam.create([1, 2, 3]))
+          .map(
+            withName(
+              "mapWithCounter",
+              pardo.withContext(
+                (x: number, context) => {
+                  context.myCounter.increment(x);
+                  context.myDist.update(x);
+                  return x * x;
+                },
+                {
+                  myCounter: pardo.counter("myCounter"),
+                  myDist: pardo.distribution("myDist"),
+                }
+              )
+            )
+          )
+          .apply(testing.assertDeepEqual([1, 4, 9]));
+      });
+      assert.deepEqual((await result.counters()).myCounter, 1 + 2 + 3);
+      assert.deepEqual((await result.distributions()).myDist, {
+        count: 3,
+        sum: 6,
+        min: 1,
+        max: 3,
+      });
+    });
 
     it("runs a map with singleton side input", async function () {
       await runner.run((root) => {
@@ -285,16 +285,37 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
 
 describe("primitives module", function () {
   describe("direct runner", suite.bind(this));
-  //   if (process.env.BEAM_SERVICE_OVERRIDES) {
-  //     describe("portable runner @ulr", () => {
-  //       suite.bind(this)(loopbackRunner());
-  //     });
-  //   }
-  describe("all at once", async () => {
-    const runner = new MultiPipelineRunner(new DirectRunner());
-    suite.bind(this)(runner);
-    after(async () => {
+
+  if (process.env.BEAM_SERVICE_OVERRIDES) {
+    describe("portable runner @ulr", () => {
+      suite.bind(this)(loopbackRunner());
+    });
+  }
+
+  describe("multi-pipeline @dataflow", async () => {
+    const runner = new MultiPipelineRunner(
+      require("../src/apache_beam/runners/dataflow").dataflowRunner({
+        project: "apache-beam-testing",
+        tempLocation: "gs://temp-storage-for-end-to-end-tests/temp-it",
+        region: "us-central1",
+      })
+    );
+
+    beforeEach(function () {
+      if (
+        this.test!.title.includes("fails") ||
+        this.test!.title.includes("counter")
+      ) {
+        this.skip();
+      }
+      runner.setNextTestName(this.test!.title.match(/([^"]+)"$/)![1]);
+    });
+
+    after(async function () {
+      this.timeout(10 * 60 * 1000 /* 10 min */);
       console.log(await runner.reallyRunPipelines());
     });
+
+    suite.bind(this)(runner);
   });
 });

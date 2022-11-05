@@ -33,6 +33,8 @@ class FakePipelineResult extends PipelineResult {
 export class MultiPipelineRunner extends Runner {
   allPipelines?: runnerApi.Pipeline;
   counter: number = 0;
+  nextTestName?: string;
+  usedTestNames: Set<string> = new Set();
 
   constructor(
     private underlying: Runner,
@@ -41,17 +43,31 @@ export class MultiPipelineRunner extends Runner {
     super();
   }
 
+  setNextTestName(name: string) {
+    var counter = 1;
+    var nextTestName = name;
+    while (this.usedTestNames.has(nextTestName)) {
+      counter++;
+      nextTestName = name + counter;
+    }
+    this.nextTestName = nextTestName;
+  }
+
   async runAsync(
     pipeline: (root: Root) => PValue<any> | Promise<PValue<any>>,
     options?: PipelineOptions
   ): Promise<PipelineResult> {
-    const uniqueName = this.getPrefix();
-    const p = new Pipeline(uniqueName);
+    if (this.nextTestName === undefined) {
+      this.setNextTestName("pipeline");
+    }
+    this.usedTestNames.add(this.nextTestName!);
+    const p = new Pipeline(this.getPrefix());
     await new Root(p).applyAsync(
-      withName(uniqueName, async (root) => {
+      withName(this.nextTestName!, async (root) => {
         await pipeline(root);
       })
     );
+    this.nextTestName = undefined;
     return this.runPipeline(p.getProto());
   }
 
@@ -105,7 +121,7 @@ export class MultiPipelineRunner extends Runner {
         if (dest[id] === undefined) {
           dest[id] = proto;
         } else if (dest[id] != proto) {
-          require('assert').deepEqual(dest[id], proto);
+          require("assert").deepEqual(dest[id], proto);
           throw new Error("Expected distinct components: " + id);
         }
       }
@@ -130,9 +146,12 @@ export class MultiPipelineRunner extends Runner {
       pipeline.components?.environments,
       this.allPipelines.components?.environments
     );
-    this.allPipelines.requirements =
-      [...new Set([...this.allPipelines.rootTransformIds, ...pipeline.requirements])];
-    this.allPipelines.rootTransformIds =
-      [...this.allPipelines.rootTransformIds, ...pipeline.rootTransformIds];
+    this.allPipelines.requirements = [
+      ...new Set([...this.allPipelines.requirements, ...pipeline.requirements]),
+    ];
+    this.allPipelines.rootTransformIds = [
+      ...this.allPipelines.rootTransformIds,
+      ...pipeline.rootTransformIds,
+    ];
   }
 }

@@ -68,7 +68,7 @@ export class DirectRunner extends Runner {
     return [...this.unsupportedFeaturesIter(pipeline, options)];
   }
 
-  *unsupportedFeaturesIter(proto : runnerApi.Pipeline, options: Object = {}) {
+  *unsupportedFeaturesIter(proto: runnerApi.Pipeline, options: Object = {}) {
     for (const requirement of proto.requirements) {
       if (!SUPPORTED_REQUIREMENTS.includes(requirement)) {
         yield requirement;
@@ -102,7 +102,7 @@ export class DirectRunner extends Runner {
     }
   }
 
-  async runPipeline(p : runnerApi.Pipeline): Promise<PipelineResult> {
+  async runPipeline(p: runnerApi.Pipeline): Promise<PipelineResult> {
     const stateProvider = new InMemoryStateProvider();
     const stateCacheRef = uuid.v4();
     DirectRunner.inMemoryStatesRefs.set(stateCacheRef, stateProvider);
