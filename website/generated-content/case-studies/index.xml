@@ -1217,7 +1217,51 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;p>Developed at Spotify and built on top of Apache Beam for Python, Klio is an open source framework that lets researchers and engineers build smarter data pipelines for processing audio and other media files, easily and at scale.&lt;/p></description></item><item><title>Case-Studies: ML6</title><link>/case-studies/ml6/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/ml6/</guid><description>
+&lt;p>Developed at Spotify and built on top of Apache Beam for Python, Klio is an open source framework that lets researchers and engineers build smarter data pipelines for processing audio and other media files, easily and at scale.&lt;/p></description></item><item><title>Case-Studies: Linkedin</title><link>/case-studies/linkedin/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/linkedin/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--></description></item><item><title>Case-Studies: LiveRamp</title><link>/case-studies/liveramp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/liveramp/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--></description></item><item><title>Case-Studies: ML6</title><link>/case-studies/ml6/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/ml6/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--></description></item><item><title>Case-Studies: Neo4j</title><link>/case-studies/neo4j/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/neo4j/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--></description></item><item><title>Case-Studies: Orange</title><link>/case-studies/orange/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/orange/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1240,7 +1284,40 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;p>Scio is a Scala API for Apache Beam and Google Cloud Dataflow inspired by Apache Spark and Scalding.&lt;/p></description></item><item><title>Case-Studies: Strivr</title><link>/case-studies/strivr/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/strivr/</guid><description>
+&lt;p>Scio is a Scala API for Apache Beam and Google Cloud Dataflow inspired by Apache Spark and Scalding.&lt;/p></description></item><item><title>Case-Studies: Snowflake</title><link>/case-studies/snowflake/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/snowflake/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--></description></item><item><title>Case-Studies: Spotify</title><link>/case-studies/spotify/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/spotify/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--></description></item><item><title>Case-Studies: Strivr</title><link>/case-studies/strivr/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/strivr/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--></description></item><item><title>Case-Studies: Talend</title><link>/case-studies/talend/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/talend/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1315,6 +1392,28 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 --></description></item><item><title>Case-Studies: Wizeline</title><link>/case-studies/wizeline/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/wizeline/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--></description></item><item><title>Case-Studies: Yahoo</title><link>/case-studies/yahoo/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/yahoo/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--></description></item><item><title>Case-Studies: Zillow</title><link>/case-studies/zillow/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/zillow/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
