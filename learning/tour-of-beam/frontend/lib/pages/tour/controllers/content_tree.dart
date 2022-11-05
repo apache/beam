@@ -73,13 +73,14 @@ class ContentTreeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<String> _getNodeAncestors(NodeModel node, List<String> ancestors) {
+  List<String> _getNodeAncestors(NodeModel node, List<String> ancestorIds) {
     if (node.parent != null) {
-      ancestors.add(node.parent!.id);
-      return _getNodeAncestors(node.parent!, ancestors);
-    } else {
-      return ancestors.reversed.toList();
+      return _getNodeAncestors(
+        node.parent!,
+        [...ancestorIds, node.parent!.id],
+      );
     }
+    return ancestorIds.reversed.toList();
   }
 
   void _onContentTreeCacheChange() {
