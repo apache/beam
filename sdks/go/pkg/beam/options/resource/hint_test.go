@@ -222,15 +222,26 @@ func TestHints_MergeWithOuter(t *testing.T) {
 }
 
 func TestHints_Payloads(t *testing.T) {
-	hs := NewHints(MinRamBytes(2e9), Accelerator("type:jeans;count1;"))
+	{
+		hs := NewHints(MinRamBytes(2e9), Accelerator("type:jeans;count1;"))
 
-	got := hs.Payloads()
-	want := map[string][]byte{
-		"beam:resources:min_ram_bytes:v1": []byte("2000000000"),
-		"beam:resources:accelerator:v1":   []byte("type:jeans;count1;"),
+		got := hs.Payloads()
+		want := map[string][]byte{
+			"beam:resources:min_ram_bytes:v1": []byte("2000000000"),
+			"beam:resources:accelerator:v1":   []byte("type:jeans;count1;"),
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("hs.Payloads() = %v, want %v", got, want)
+		}
 	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("hs.Payloads() = %v, want %v", got, want)
+
+	{
+		var emptyHints Hints
+		got := emptyHints.Payloads()
+		want := map[string][]byte{}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("emptyHints.Payloads() = %v, want %v", got, want)
+		}
 	}
 }
 
