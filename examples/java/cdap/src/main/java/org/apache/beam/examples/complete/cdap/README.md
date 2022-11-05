@@ -15,14 +15,12 @@
     under the License.
 -->
 
-# Apache Beam pipeline examples to ingest data from CDAP plugin to TXT file
+# Apache Beam pipeline examples for CdapIO and CDAP plugins
 
-This directory contains set of [Apache Beam](https://beam.apache.org/) pipeline examples that create a pipeline to read data
-from a [CDAP](https://cdap.atlassian.net/wiki/spaces/DOCS/overview?homepageId=379748484) plugin
-and write data into .txt file (and vice versa).
+This directory contains set of [Apache Beam](https://beam.apache.org/) pipeline examples to read data
+from a [CDAP plugin](https://github.com/data-integrations) and write data into .txt file (and vice versa).
 
 Supported CDAP plugins:
-
 - [Hubspot](https://github.com/data-integrations/hubspot)
 - [Salesforce](https://github.com/data-integrations/salesforce)
 - [ServiceNow](https://github.com/data-integrations/servicenow-plugins)
@@ -50,6 +48,13 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.Cdap
      -Dexec.args="--<argument>=<value> --<argument>=<value>"
 ```
 
+`CdapHubspotToTxt` pipeline parameters:
+- `apikey` - Hubspot OAuth2 API Key
+- `objectType` - Hubspot objects to pull supported by CDAP [Hubspot Batch Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsource.md)
+- `txtFilePath` - output path.
+
+Please see CDAP [Hubspot Batch Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsource.md) for more information.
+
 To execute this pipeline, specify the parameters in the following format:
 
 ```bash
@@ -68,6 +73,13 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.Cdap
      -Dexec.args="--<argument>=<value> --<argument>=<value>"
 ```
 
+`CdapHubspotStreamingToTxt` pipeline parameters:
+- `apikey` - Hubspot OAuth2 API Key
+- `objectType` - Hubspot objects to pull supported by CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md)
+- `txtFilePath` - output path.
+
+Please see CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md) for more information.
+
 To execute this pipeline, specify the parameters in the following format:
 
 ```bash
@@ -85,6 +97,14 @@ Gradle 'executeCdap' task allows to run the pipeline via the following command:
 gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.TxtToCdapHubspot \
      -Dexec.args="--<argument>=<value> --<argument>=<value>"
 ```
+
+`TxtToCdapHubspot` pipeline parameters:
+- `apikey` - Hubspot OAuth2 API Key
+- `objectType` - Hubspot objects to pull supported by [Hubspot Streaming Sink](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsink.md)
+- `txtFilePath` - input file path
+- `locksDirPath`
+
+Please see CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md) for more information.
 
 To execute this pipeline, specify the parameters in the following format:
 
@@ -120,6 +140,8 @@ To execute this pipeline, specify the parameters in the following format:
  --outputTxtFilePath=your-path-to-file
 ```
 
+Please see CDAP [ServiceNow Batch Source](https://github.com/data-integrations/servicenow-plugins/blob/develop/docs/ServiceNow-batchsource.md) for more information.
+
 ## Running the CdapSalesforceToTxt pipeline example
 
 Gradle 'executeCdap' task allows to run the pipeline via the following command:
@@ -142,6 +164,8 @@ To execute this pipeline, specify the parameters in the following format:
  --referenceName=your-reference-name \
  --txtFilePath=your-path-to-file
 ```
+
+Please see CDAP [Salesforce Batch Source](https://github.com/data-integrations/servicenow-plugins/blob/develop/docs/ServiceNow-batchsource.md) for more information.
 
 ## Running the TxtToCdapSalesforce pipeline example
 
@@ -170,6 +194,7 @@ To execute this pipeline, specify the parameters in the following format:
  --maxBytesPerBatch=9999999 \
  --locksDirPath=your-path
 ```
+Please see CDAP [Salesforce Batch Sink](https://github.com/data-integrations/salesforce/blob/develop/docs/Salesforce-batchsink.md) for more information.
 
 ## Running the CdapZendeskToTxt pipeline example
 
@@ -195,3 +220,4 @@ To execute this pipeline, specify the parameters in the following format:
  --objectsToPull=your-objects-to-pull (example: Groups) \
  --outputTxtFilePath=your-path-to-file
 ```
+Please see CDAP [Zendesk Batch Source](https://github.com/data-integrations/zendesk/blob/develop/docs/Zendesk-batchsource.md) for more information.
