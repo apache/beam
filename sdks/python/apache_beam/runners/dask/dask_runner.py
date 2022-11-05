@@ -26,6 +26,8 @@ import dataclasses
 import argparse
 import typing as t
 
+import dask
+
 from apache_beam import pvalue
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
@@ -179,5 +181,6 @@ class DaskRunner(BundleBasedDirectRunner):
     dask_visitor = self.to_dask_bag_visitor()
     pipeline.visit(dask_visitor)
 
-    futures = client.compute(list(dask_visitor.bags.values()))
+    opt = dask.optimize(dask_visitor.bags.values())
+    futures = client.compute(opt)
     return DaskRunnerResult(client, futures)

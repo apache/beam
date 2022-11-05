@@ -188,7 +188,8 @@ class GroupByKey(DaskBagOp):
 
     def value(item):
       k, v = item
-      return k, [defenestrate(elm[1]) for elm in v]
+      d = [defenestrate(elm[1]) for elm in v]
+      return k, d
 
     y = input_bag.groupby(key).map(value)
 
