@@ -170,13 +170,12 @@ class ParDo(DaskBagOp):
 
       return results
 
-    return (
-        input_bag.map(get_windowed_value,
-                      window_fn).map_partitions(apply_dofn_to_bundle))
+    return input_bag.map(get_windowed_value,
+                         window_fn).map_partitions(apply_dofn_to_bundle)
 
 
 class GroupByKey(DaskBagOp):
-  def apply(self, input_bag: OpInput) -> db.Bag:
+  def apply(self, input_bag: db.Bag) -> db.Bag:
     def key(item):
       return item[0]
 
