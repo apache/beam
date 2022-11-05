@@ -158,19 +158,20 @@ class ParDo(DaskBagOp):
       for it in items:
         do_fn_invoker.invoke_process(it)
 
-      # Get results from the main receiver.
-      results = [v.value for v in tagged_receivers[None].values]
+      results = [v.value for v in tagged_receivers.values]
 
       do_fn_invoker.invoke_finish_bundle()
       do_fn_invoker.invoke_teardown()
 
       return results
 
-    return (
-      input_bag.map(get_windowed_value, window_fn)
+    x = (
+      input_bag
+      .map(get_windowed_value, window_fn)
       .map_partitions(apply_dofn_to_bundle)
-      .flatten()
     )
+
+    return x
 
 
 #
