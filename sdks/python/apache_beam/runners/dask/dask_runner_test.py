@@ -74,6 +74,11 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       pcoll = p | beam.Create([1])
       assert_that(pcoll, equal_to([1]))
 
+  def test_create_multiple(self):
+    with self.pipeline as p:
+      pcoll = p | beam.Create([1, 2, 3])
+      assert_that(pcoll, equal_to([1, 2, 3]))
+
   def test_create_and_map(self):
     def double(x):
       return x * 2
@@ -82,6 +87,14 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       pcoll = p | beam.Create([1]) | beam.Map(double)
       assert_that(pcoll, equal_to([2]))
 
+  def test_create_and_map_multiple(self):
+    def double(x):
+      return x * 2
+
+    with self.pipeline as p:
+      pcoll = p | beam.Create([1, 2]) | beam.Map(double)
+      assert_that(pcoll, equal_to([2, 4]))
+
   def test_create_map_and_groupby(self):
     def double(x):
       return x * 2, x
@@ -89,6 +102,14 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
     with self.pipeline as p:
       pcoll = p | beam.Create([1]) | beam.Map(double) | beam.GroupByKey()
       assert_that(pcoll, equal_to([(2, [1])]))
+
+  def test_create_map_and_groupby_multiple(self):
+    def double(x):
+      return x * 2, x
+
+    with self.pipeline as p:
+      pcoll = p | beam.Create([1, 2, 1, 2, 3]) | beam.Map(double) | beam.GroupByKey()
+      assert_that(pcoll, equal_to([(2, [1, 1]), (4, [2, 2]), (3, [6])]))
 
   def test_map_with_side_inputs(self):
     def mult_by(x, y):

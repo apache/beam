@@ -67,6 +67,12 @@ def get_windowed_value(item: t.Any, window_fn: WindowFn) -> WindowedValue:
   return windowed_value
 
 
+def defenestrate(x):
+  if isinstance(x, WindowedValue):
+    return x.value
+  return x
+
+
 @dataclasses.dataclass
 class TaggingReceiver(Receiver):
   tag: str
@@ -174,31 +180,26 @@ class ParDo(DaskBagOp):
     return x
 
 
-#
-# class Map(DaskBagOp):
-#   def apply(self, input_bag: OpInput) -> db.Bag:
-#     transform = t.cast(apache_beam.Map, self.transform)
-#     args, kwargs = util.insert_values_in_args(
-#       transform.args, transform.kwargs, transform.side_inputs)
-#     return input_bag.map(transform.fn.process, *args, **kwargs)
-
-
 class GroupByKey(DaskBagOp):
   def apply(self, input_bag: OpInput) -> db.Bag:
+
     def key(item):
       return item[0]
 
     def value(item):
       k, v = item
-      return k, [elm[1] for elm in v]
+      return k, [defenestrate(elm[1]) for elm in v]
 
-    return input_bag.groupby(key).map(value)
+    y = input_bag.groupby(key).map(value)
+
+    return y
 
 
 class Flatten(DaskBagOp):
   def apply(self, input_bag: t.List[db.Bag]) -> db.Bag:
     assert type(input_bag) is list, 'Must take a sequence of bags!'
-    return db.concat(input_bag)
+    c = db.concat(input_bag)
+    return c
 
 
 TRANSLATIONS = {
