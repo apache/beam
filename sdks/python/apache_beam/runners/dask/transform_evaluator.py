@@ -155,25 +155,31 @@ class ParDo(DaskBagOp):
       do_fn_invoker.invoke_setup()
       do_fn_invoker.invoke_start_bundle()
 
-      to_proc = list(items) + tagged_receivers.values
-      results = [do_fn_invoker.invoke_process(it) for it in to_proc]
+      for it in items:
+        do_fn_invoker.invoke_process(it)
+
+      # Get results from the main receiver.
+      results = [v.value for v in tagged_receivers[None].values]
 
       do_fn_invoker.invoke_finish_bundle()
       do_fn_invoker.invoke_teardown()
 
       return results
 
-    return input_bag.map(
-        get_windowed_value,
-        window_fn).map_partitions(apply_dofn_to_bundle).flatten()
+    return (
+      input_bag.map(get_windowed_value, window_fn)
+      .map_partitions(apply_dofn_to_bundle)
+      .flatten()
+    )
 
 
-class Map(DaskBagOp):
-  def apply(self, input_bag: OpInput) -> db.Bag:
-    transform = t.cast(apache_beam.Map, self.transform)
-    args, kwargs = util.insert_values_in_args(
-      transform.args, transform.kwargs, transform.side_inputs)
-    return input_bag.map(transform.fn.process, *args, **kwargs)
+#
+# class Map(DaskBagOp):
+#   def apply(self, input_bag: OpInput) -> db.Bag:
+#     transform = t.cast(apache_beam.Map, self.transform)
+#     args, kwargs = util.insert_values_in_args(
+#       transform.args, transform.kwargs, transform.side_inputs)
+#     return input_bag.map(transform.fn.process, *args, **kwargs)
 
 
 class GroupByKey(DaskBagOp):
@@ -189,7 +195,7 @@ class GroupByKey(DaskBagOp):
 
 
 class Flatten(DaskBagOp):
-  def apply(self, input_bag: OpInput) -> db.Bag:
+  def apply(self, input_bag: t.List[db.Bag]) -> db.Bag:
     assert type(input_bag) is list, 'Must take a sequence of bags!'
     return db.concat(input_bag)
 
@@ -197,7 +203,6 @@ class Flatten(DaskBagOp):
 TRANSLATIONS = {
     _Create: Create,
     apache_beam.ParDo: ParDo,
-    apache_beam.Map: Map,
     _GroupByKeyOnly: GroupByKey,
     _Flatten: Flatten,
 }
