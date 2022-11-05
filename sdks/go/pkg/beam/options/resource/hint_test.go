@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"reflect"
 	"testing"
 
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -109,6 +110,7 @@ func TestParseMinRamHint_panic(t *testing.T) {
 	}()
 	ParseMinRam("a bad byte string")
 }
+
 // We copy the URN from the proto for use as a constant rather than perform a direct look up
 // each time, or increase initialization time. However we do need to validate that they are
 // correct, and match the standard hint urns, so that's done here.
@@ -216,6 +218,19 @@ func TestHints_MergeWithOuter(t *testing.T) {
 				t.Errorf("%v.MergeWithOuter(%v) = %v, want %v", test.inner, test.outer, got, want)
 			}
 		})
+	}
+}
+
+func TestHints_Payloads(t *testing.T) {
+	hs := NewHints(MinRamBytes(2e9), Accelerator("type:jeans;count1;"))
+
+	got := hs.Payloads()
+	want := map[string][]byte{
+		"beam:resources:min_ram_bytes:v1": []byte("2000000000"),
+		"beam:resources:accelerator:v1":   []byte("type:jeans;count1;"),
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("hs.Payloads() = %v, want %v", got, want)
 	}
 }
 

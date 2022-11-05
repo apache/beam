@@ -76,6 +76,14 @@ func (hs Hints) Equal(other Hints) bool {
 	return true
 }
 
+func (hs Hints) Payloads() map[string][]byte {
+	p := map[string][]byte{}
+	for k, h := range hs.h {
+		p[k] = h.Payload()
+	}
+	return p
+}
+
 // NewHints produces a hints map from a list of hints. If there are multiple hints
 // with the same URN, the last one in the list is used.
 func NewHints(hs ...Hint) Hints {
