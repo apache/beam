@@ -20,6 +20,7 @@ package spannerio
 import (
 	"context"
 	"fmt"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"reflect"
 	"strings"
 
@@ -144,9 +145,9 @@ func UseBatchSize(batchSize int) func(qo *writeOptions) error {
 // to be the schema type.
 // Note: Writes occur against a single worker machine.
 func Write(s beam.Scope, database, table string, col beam.PCollection, options ...func(*writeOptions) error) {
-	//if typex.IsCoGBK(col.Type()) || typex.IsKV(col.Type()) {
-	//	panic("Unsupported collection type.")
-	//}
+	if typex.IsCoGBK(col.Type()) || typex.IsKV(col.Type()) {
+		panic("Unsupported collection type - only normal structs supported for writing.")
+	}
 
 	writeOptions := writeOptions{
 		BatchSize: 1000, // default
