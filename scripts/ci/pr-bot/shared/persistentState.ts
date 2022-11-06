@@ -39,7 +39,7 @@ async function commitStateToRepo() {
       `Unable to get most recent repo contents, commit may fail: ${err}`
     );
   }
-  const changes = await exec.exec("git diff-index --quiet origin/pr-bot-state");
+  const changes = await exec.exec("git diff-index --quiet origin/pr-bot-state", [], {ignoreReturnCode: true});
   if (changes == 1) {
     await exec.exec("git add state/*");
     await exec.exec(`git commit -m "Updating config from bot"`);
