@@ -21,7 +21,7 @@ This table contains the currently available I/O transforms.
 
 Consult the [Programming Guide I/O section](/documentation/programming-guide#pipeline-io) for general usage instructions.
 
-{{< language-switcher java py go >}}
+{{< language-switcher java py go typescript >}}
 
 {{< io-matrix >}}
 

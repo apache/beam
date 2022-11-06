@@ -29,8 +29,11 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 
+import cloudpickle
+import dill
 import numpy as np
 from parameterized import parameterized
+from parameterized import parameterized_class
 
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
@@ -263,6 +266,76 @@ def get_test_beam_fieldtype_protos():
                                           string='str'))),
                           ]) for i,
                       typ in enumerate(all_primitives)
+                  ] + [
+                      schema_pb2.Field(
+                          name='nested',
+                          type=schema_pb2.FieldType(
+                              row_type=schema_pb2.RowType(
+                                  schema=schema_pb2.Schema(
+                                      fields=[
+                                          schema_pb2.Field(
+                                              name='nested_field',
+                                              type=schema_pb2.FieldType(
+                                                  atomic_type=schema_pb2.INT64,
+                                              ),
+                                              options=[
+                                                  schema_pb2.Option(
+                                                      name='a_nested_field_flag'
+                                                  ),
+                                              ]),
+                                      ],
+                                      options=[
+                                          schema_pb2.Option(
+                                              name='a_nested_schema_flag'),
+                                          schema_pb2.Option(
+                                              name='a_str',
+                                              type=schema_pb2.FieldType(
+                                                  atomic_type=schema_pb2.STRING
+                                              ),
+                                              value=schema_pb2.FieldValue(
+                                                  atomic_value=schema_pb2.
+                                                  AtomicTypeValue(
+                                                      string='str'))),
+                                      ],
+                                  ))),
+                      ),
+                  ]))),
+      schema_pb2.FieldType(
+          row_type=schema_pb2.RowType(
+              schema=schema_pb2.Schema(
+                  id='a-schema-with-optional-nested-struct',
+                  fields=[
+                      schema_pb2.Field(
+                          name='id',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.INT64)),
+                      schema_pb2.Field(
+                          name='nested_row',
+                          type=schema_pb2.FieldType(
+                              nullable=True,
+                              row_type=schema_pb2.RowType(
+                                  schema=schema_pb2.Schema(
+                                      id='the-nested-schema',
+                                      fields=[
+                                          schema_pb2.Field(
+                                              name='name',
+                                              type=schema_pb2.FieldType(
+                                                  atomic_type=schema_pb2.STRING)
+                                          ),
+                                          schema_pb2.Field(
+                                              name='optional_map',
+                                              type=schema_pb2.FieldType(
+                                                  nullable=True,
+                                                  map_type=schema_pb2.MapType(
+                                                      key_type=schema_pb2.
+                                                      FieldType(
+                                                          atomic_type=schema_pb2
+                                                          .STRING),
+                                                      value_type=schema_pb2.
+                                                      FieldType(
+                                                          atomic_type=schema_pb2
+                                                          .DOUBLE)))),
+                                      ]))))
                   ]))),
   ]
 
@@ -312,7 +385,7 @@ class SchemaTest(unittest.TestCase):
 
   def test_row_type_constraint_to_schema(self):
     result_type = typing_to_runner_api(
-        row_type.RowTypeConstraint([
+        row_type.RowTypeConstraint.from_fields([
             ('foo', np.int8),
             ('bar', float),
             ('baz', bytes),
@@ -337,7 +410,7 @@ class SchemaTest(unittest.TestCase):
     self.assertEqual(list(schema.fields), expected)
 
   def test_row_type_constraint_to_schema_with_options(self):
-    row_type_with_options = row_type.RowTypeConstraint(
+    row_type_with_options = row_type.RowTypeConstraint.from_fields(
         [
             ('foo', np.int8),
             ('bar', float),
@@ -382,15 +455,17 @@ class SchemaTest(unittest.TestCase):
 
   def test_row_type_constraint_to_schema_with_field_options(self):
     result_type = typing_to_runner_api(
-        row_type.RowTypeConstraint([
+        row_type.RowTypeConstraint.from_fields([
             ('foo', np.int8),
             ('bar', float),
             ('baz', bytes),
         ],
-                                   field_options={
-                                       'foo': [('some_metadata', 123),
-                                               ('some_flag', None)]
-                                   }))
+                                               field_options={
+                                                   'foo': [
+                                                       ('some_metadata', 123),
+                                                       ('some_flag', None)
+                                                   ]
+                                               }))
 
     self.assertIsInstance(result_type, schema_pb2.FieldType)
     self.assertEqual(result_type.WhichOneof("type_info"), "row_type")
@@ -529,20 +604,6 @@ class SchemaTest(unittest.TestCase):
         expected.row_type.schema.fields,
         typing_to_runner_api(MyCuteClass).row_type.schema.fields)
 
-  def test_generated_class_pickle(self):
-    schema = schema_pb2.Schema(
-        id="some-uuid",
-        fields=[
-            schema_pb2.Field(
-                name='name',
-                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
-            )
-        ])
-    user_type = named_tuple_from_schema(schema)
-    instance = user_type(name="test")
-
-    self.assertEqual(instance, pickle.loads(pickle.dumps(instance)))
-
   def test_user_type_annotated_with_id_after_conversion(self):
     MyCuteClass = NamedTuple('MyCuteClass', [
         ('name', str),
@@ -570,6 +631,78 @@ class SchemaTest(unittest.TestCase):
             schema_proto,
             # bypass schema cache
             schema_registry=SchemaTypeRegistry()))
+
+  def test_row_type_is_callable(self):
+    simple_row_type = row_type.RowTypeConstraint.from_fields([('foo', np.int64),
+                                                              ('bar', str)])
+    instance = simple_row_type(np.int64(35), 'baz')
+    self.assertIsInstance(instance, simple_row_type.user_type)
+    self.assertEqual(instance, (np.int64(35), 'baz'))
+
+
+@parameterized_class([
+    {
+        'pickler': pickle,
+    },
+    {
+        'pickler': dill,
+    },
+    {
+        'pickler': cloudpickle,
+    },
+])
+class PickleTest(unittest.TestCase):
+  def test_generated_class_pickle_instance(self):
+    schema = schema_pb2.Schema(
+        id="some-uuid",
+        fields=[
+            schema_pb2.Field(
+                name='name',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            )
+        ])
+    user_type = named_tuple_from_schema(schema)
+    instance = user_type(name="test")
+
+    self.assertEqual(instance, self.pickler.loads(self.pickler.dumps(instance)))
+
+  def test_generated_class_pickle(self):
+    if self.pickler in [pickle, dill]:
+      self.skipTest('https://github.com/apache/beam/issues/22714')
+
+    schema = schema_pb2.Schema(
+        id="some-uuid",
+        fields=[
+            schema_pb2.Field(
+                name='name',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            )
+        ])
+    user_type = named_tuple_from_schema(schema)
+
+    self.assertEqual(
+        user_type, self.pickler.loads(self.pickler.dumps(user_type)))
+
+  def test_generated_class_row_type_pickle(self):
+    row_proto = schema_pb2.FieldType(
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(
+                id="some-other-uuid",
+                fields=[
+                    schema_pb2.Field(
+                        name='name',
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.STRING),
+                    )
+                ])))
+    row_type_constraint = typing_from_runner_api(
+        row_proto, schema_registry=SchemaTypeRegistry())
+
+    self.assertIsInstance(row_type_constraint, row_type.RowTypeConstraint)
+
+    self.assertEqual(
+        row_type_constraint,
+        self.pickler.loads(self.pickler.dumps(row_type_constraint)))
 
 
 if __name__ == '__main__':

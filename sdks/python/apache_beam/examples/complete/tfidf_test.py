@@ -20,19 +20,13 @@
 # pytype: skip-file
 
 import logging
-import os
-import re
-import tempfile
 import unittest
-
-import pytest
 
 import apache_beam as beam
 from apache_beam.examples.complete import tfidf
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.testing.util import open_shards
 
 EXPECTED_RESULTS = set([
     ('ghi', '1.txt', 0.3662040962227032), ('abc', '1.txt', 0.0),
@@ -40,15 +34,8 @@ EXPECTED_RESULTS = set([
     ('def', '1.txt', 0.13515503603605478), ('def', '2.txt', 0.2027325540540822)
 ])
 
-EXPECTED_LINE_RE = r'\(u?\'([a-z]*)\', \(\'.*([0-9]\.txt)\', (.*)\)\)'
-
 
 class TfIdfTest(unittest.TestCase):
-  def create_file(self, path, contents):
-    logging.info('Creating temp file: %s', path)
-    with open(path, 'wb') as f:
-      f.write(contents.encode('utf-8'))
-
   def test_tfidf_transform(self):
     with TestPipeline() as p:
 
@@ -64,31 +51,6 @@ class TfIdfTest(unittest.TestCase):
       # a check that the result PCollection contains expected values.
       # To actually trigger the check the pipeline must be run (e.g. by
       # exiting the with context).
-
-  @pytest.mark.examples_postcommit
-  def test_basics(self):
-    # Setup the files with expected content.
-    temp_folder = tempfile.mkdtemp()
-    self.create_file(os.path.join(temp_folder, '1.txt'), 'abc def ghi')
-    self.create_file(os.path.join(temp_folder, '2.txt'), 'abc def')
-    self.create_file(os.path.join(temp_folder, '3.txt'), 'abc')
-    tfidf.run([
-        '--uris=%s/*' % temp_folder,
-        '--output',
-        os.path.join(temp_folder, 'result')
-    ],
-              save_main_session=False)
-    # Parse result file and compare.
-    results = []
-    with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
-      for line in result_file:
-        match = re.search(EXPECTED_LINE_RE, line)
-        logging.info('Result line: %s', line)
-        if match is not None:
-          results.append(
-              (match.group(1), match.group(2), float(match.group(3))))
-    logging.info('Computed results: %s', set(results))
-    self.assertEqual(set(results), EXPECTED_RESULTS)
 
 
 if __name__ == '__main__':

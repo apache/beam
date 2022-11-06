@@ -30,7 +30,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/examples/native_wordcap/nativepubsubio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/stringx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/pubsubx"
@@ -69,7 +68,9 @@ func main() {
 	s := p.Root()
 
 	col := nativepubsubio.Read(ctx, s, project, *input, sub.ID())
-	str := beam.ParDo(s, stringx.FromBytes, col)
+	str := beam.ParDo(s, func(b []byte) string {
+		return (string)(b)
+	}, col)
 	cap := beam.ParDo(s, strings.ToUpper, str)
 	debug.Print(s, cap)
 

@@ -436,6 +436,8 @@ public class JdbcIO {
 
     abstract @Nullable ValueProvider<Collection<String>> getConnectionInitSqls();
 
+    abstract @Nullable ClassLoader getDriverClassLoader();
+
     abstract @Nullable DataSource getDataSource();
 
     abstract Builder builder();
@@ -453,6 +455,8 @@ public class JdbcIO {
       abstract Builder setConnectionProperties(ValueProvider<String> connectionProperties);
 
       abstract Builder setConnectionInitSqls(ValueProvider<Collection<String>> connectionInitSqls);
+
+      abstract Builder setDriverClassLoader(ClassLoader driverClassLoader);
 
       abstract Builder setDataSource(DataSource dataSource);
 
@@ -539,6 +543,15 @@ public class JdbcIO {
       return builder().setConnectionInitSqls(connectionInitSqls).build();
     }
 
+    /**
+     * Sets the class loader instance to be used to load the JDBC driver. If not specified, the
+     * default class loader is used.
+     */
+    public DataSourceConfiguration withDriverClassLoader(ClassLoader driverClassLoader) {
+      checkArgument(driverClassLoader != null, "driverClassLoader can not be null");
+      return builder().setDriverClassLoader(driverClassLoader).build();
+    }
+
     void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
@@ -571,6 +584,9 @@ public class JdbcIO {
             && getConnectionInitSqls().get() != null
             && !getConnectionInitSqls().get().isEmpty()) {
           basicDataSource.setConnectionInitSqls(getConnectionInitSqls().get());
+        }
+        if (getDriverClassLoader() != null) {
+          basicDataSource.setDriverClassLoader(getDriverClassLoader());
         }
 
         return basicDataSource;
@@ -650,7 +666,13 @@ public class JdbcIO {
      * It should ONLY be used if the default value throws memory errors.
      */
     public ReadRows withFetchSize(int fetchSize) {
-      checkArgument(fetchSize > 0, "fetch size must be > 0");
+      // Note that api.java.sql.Statement#setFetchSize says it only accepts values >= 0
+      // and that MySQL supports using Integer.MIN_VALUE as a hint to stream the ResultSet instead
+      // of loading it into memory. See
+      // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-implementation-notes.html for additional details.
+      checkArgument(
+          fetchSize >= 0 || fetchSize == Integer.MIN_VALUE,
+          "fetch size must be >= 0 or equal to Integer.MIN_VALUE");
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
@@ -792,7 +814,13 @@ public class JdbcIO {
      * It should ONLY be used if the default value throws memory errors.
      */
     public Read<T> withFetchSize(int fetchSize) {
-      checkArgument(fetchSize > 0, "fetch size must be > 0");
+      // Note that api.java.sql.Statement#setFetchSize says it only accepts values >= 0
+      // and that MySQL supports using Integer.MIN_VALUE as a hint to stream the ResultSet instead
+      // of loading it into memory. See
+      // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-implementation-notes.html for additional details.
+      checkArgument(
+          fetchSize >= 0 || fetchSize == Integer.MIN_VALUE,
+          "fetch size must be >= 0 or equal to Integer.MIN_VALUE");
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
@@ -945,7 +973,13 @@ public class JdbcIO {
      * It should ONLY be used if the default value throws memory errors.
      */
     public ReadAll<ParameterT, OutputT> withFetchSize(int fetchSize) {
-      checkArgument(fetchSize > 0, "fetch size must be >0");
+      // Note that api.java.sql.Statement#setFetchSize says it only accepts values >= 0
+      // and that MySQL supports using Integer.MIN_VALUE as a hint to stream the ResultSet instead
+      // of loading it into memory. See
+      // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-implementation-notes.html for additional details.
+      checkArgument(
+          fetchSize >= 0 || fetchSize == Integer.MIN_VALUE,
+          "fetch size must be >= 0 or equal to Integer.MIN_VALUE");
       return toBuilder().setFetchSize(fetchSize).build();
     }
 

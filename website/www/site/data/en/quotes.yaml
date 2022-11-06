@@ -11,6 +11,11 @@
 # limitations under the License.
 
 #Cards with quotes will be displayed by the order listed, e.g., first card will display the first quote
+- text: Apache Beam is a central component to Intuit's Stream Processing Platform, which has driven 3x faster time-to-production for authoring a stream processing pipeline.
+  icon: icons/quote-icon.svg
+  logoUrl: images/case-study/intuit/intuit-quote.png
+  linkUrl: case-studies/intuit/index.html
+  linkText: Learn more
 - text: Apache Beam enabled real-time ML streaming feature generation and model execution playing a pivotal role in optimizing Lyft’s Marketplace ML predictions, processing ~4mil events per minute to generate ~100 features.
   icon: icons/quote-icon.svg
   logoUrl: images/case-study/lyft/lyft-quote.png

@@ -252,10 +252,7 @@ abstract class ReadFromKafkaDoFn<K, V>
   public OffsetRange initialRestriction(@Element KafkaSourceDescriptor kafkaSourceDescriptor) {
     Map<String, Object> updatedConsumerConfig =
         overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
-    try (Consumer<byte[], byte[]> offsetConsumer =
-        consumerFactoryFn.apply(
-            KafkaIOUtils.getOffsetConsumerConfig(
-                "initialOffset", offsetConsumerConfig, updatedConsumerConfig))) {
+    try (Consumer<byte[], byte[]> offsetConsumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
       ConsumerSpEL.evaluateAssign(
           offsetConsumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
       long startOffset;
@@ -346,6 +343,9 @@ abstract class ReadFromKafkaDoFn<K, V>
     // Stop processing current TopicPartition when it's time to stop.
     if (checkStopReadingFn != null
         && checkStopReadingFn.apply(kafkaSourceDescriptor.getTopicPartition())) {
+      // Attempt to claim the last element in the restriction, such that the restriction tracker
+      // doesn't throw an exception when checkDone is called
+      tracker.tryClaim(tracker.currentRestriction().getTo() - 1);
       return ProcessContinuation.stop();
     }
     Map<String, Object> updatedConsumerConfig =

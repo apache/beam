@@ -22,12 +22,14 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi.ArrayTypeValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.AtomicTypeValue;
@@ -42,18 +44,24 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.commons.lang3.ClassUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utility methods for translating schemas. */
@@ -64,9 +72,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class SchemaTranslation {
 
-  private static final String URN_BEAM_LOGICAL_DATETIME = "beam:logical_type:datetime:v1";
-  private static final String URN_BEAM_LOGICAL_DECIMAL = "beam:logical_type:decimal:v1";
+  private static final String URN_BEAM_LOGICAL_DECIMAL = FixedPrecisionNumeric.BASE_IDENTIFIER;
   private static final String URN_BEAM_LOGICAL_JAVASDK = "beam:logical_type:javasdk:v1";
+  private static final String URN_BEAM_LOGICAL_MILLIS_INSTANT =
+      SchemaApi.LogicalTypes.Enum.MILLIS_INSTANT
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(RunnerApi.beamUrn);
 
   // TODO(https://github.com/apache/beam/issues/19715): Populate this with a LogicalTypeRegistrar,
   // which includes a way to construct
@@ -74,9 +86,14 @@ public class SchemaTranslation {
   private static final ImmutableMap<String, Class<? extends LogicalType<?, ?>>>
       STANDARD_LOGICAL_TYPES =
           ImmutableMap.<String, Class<? extends LogicalType<?, ?>>>builder()
+              .put(FixedPrecisionNumeric.IDENTIFIER, FixedPrecisionNumeric.class)
               .put(MicrosInstant.IDENTIFIER, MicrosInstant.class)
               .put(SchemaLogicalType.IDENTIFIER, SchemaLogicalType.class)
               .put(PythonCallable.IDENTIFIER, PythonCallable.class)
+              .put(FixedBytes.IDENTIFIER, FixedBytes.class)
+              .put(VariableBytes.IDENTIFIER, VariableBytes.class)
+              .put(FixedString.IDENTIFIER, FixedString.class)
+              .put(VariableString.IDENTIFIER, VariableString.class)
               .build();
 
   public static SchemaApi.Schema schemaToProto(Schema schema, boolean serializeLogicalType) {
@@ -142,17 +159,10 @@ public class SchemaTranslation {
       case LOGICAL_TYPE:
         LogicalType logicalType = fieldType.getLogicalType();
         SchemaApi.LogicalType.Builder logicalTypeBuilder;
-        if (STANDARD_LOGICAL_TYPES.containsKey(logicalType.getIdentifier())) {
-          Preconditions.checkArgument(
-              logicalType.getArgumentType() == null,
-              "Logical type '%s' cannot be used as a logical type, it has a non-null argument type.",
-              logicalType.getIdentifier());
-          logicalTypeBuilder =
-              SchemaApi.LogicalType.newBuilder()
-                  .setRepresentation(
-                      fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType))
-                  .setUrn(logicalType.getIdentifier());
-        } else if (logicalType instanceof UnknownLogicalType) {
+        String identifier = logicalType.getIdentifier();
+        boolean isStandard = STANDARD_LOGICAL_TYPES.containsKey(identifier);
+
+        if (!isStandard && logicalType instanceof UnknownLogicalType) {
           logicalTypeBuilder =
               SchemaApi.LogicalType.newBuilder()
                   .setUrn(logicalType.getIdentifier())
@@ -168,14 +178,16 @@ public class SchemaTranslation {
                     fieldValueToProto(logicalType.getArgumentType(), logicalType.getArgument()));
           }
         } else {
+          // TODO(https://github.com/apache/beam/issues/19715): "javasdk" types should only
+          // be a last resort. Types defined in Beam should have their own URN, and there
+          // should be a mechanism for users to register their own types by URN.
+          String urn =
+              identifier.startsWith("beam:logical_type:") ? identifier : URN_BEAM_LOGICAL_JAVASDK;
           logicalTypeBuilder =
               SchemaApi.LogicalType.newBuilder()
                   .setRepresentation(
                       fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType))
-                  // TODO(https://github.com/apache/beam/issues/19715): "javasdk" types should only
-                  // be a last resort. Types defined in Beam should have their own URN, and there
-                  // should be a mechanism for users to register their own types by URN.
-                  .setUrn(URN_BEAM_LOGICAL_JAVASDK);
+                  .setUrn(urn);
           if (logicalType.getArgumentType() != null) {
             logicalTypeBuilder =
                 logicalTypeBuilder
@@ -185,7 +197,8 @@ public class SchemaTranslation {
                         fieldValueToProto(
                             logicalType.getArgumentType(), logicalType.getArgument()));
           }
-          if (serializeLogicalType) {
+          // No need to embed serialized bytes to payload for standard (known) logical type
+          if (!isStandard && serializeLogicalType) {
             logicalTypeBuilder =
                 logicalTypeBuilder.setPayload(
                     ByteString.copyFrom(SerializableUtils.serializeToByteArray(logicalType)));
@@ -198,11 +211,13 @@ public class SchemaTranslation {
       case DATETIME:
         builder.setLogicalType(
             SchemaApi.LogicalType.newBuilder()
-                .setUrn(URN_BEAM_LOGICAL_DATETIME)
+                .setUrn(URN_BEAM_LOGICAL_MILLIS_INSTANT)
                 .setRepresentation(fieldTypeToProto(FieldType.INT64, serializeLogicalType))
                 .build());
         break;
       case DECIMAL:
+        // DECIMAL without precision specified. Used as the representation type of
+        // FixedPrecisionNumeric logical type.
         builder.setLogicalType(
             SchemaApi.LogicalType.newBuilder()
                 .setUrn(URN_BEAM_LOGICAL_DECIMAL)
@@ -332,33 +347,82 @@ public class SchemaTranslation {
             fieldTypeFromProto(protoFieldType.getMapType().getKeyType()),
             fieldTypeFromProto(protoFieldType.getMapType().getValueType()));
       case LOGICAL_TYPE:
-        String urn = protoFieldType.getLogicalType().getUrn();
         SchemaApi.LogicalType logicalType = protoFieldType.getLogicalType();
+        String urn = logicalType.getUrn();
         Class<? extends LogicalType<?, ?>> logicalTypeClass = STANDARD_LOGICAL_TYPES.get(urn);
         if (logicalTypeClass != null) {
-          try {
-            return FieldType.logicalType(logicalTypeClass.getConstructor().newInstance());
-          } catch (NoSuchMethodException e) {
-            throw new RuntimeException(
-                String.format(
-                    "Standard logical type '%s' does not have a zero-argument constructor.", urn),
-                e);
-          } catch (IllegalAccessException e) {
-            throw new RuntimeException(
-                String.format(
-                    "Standard logical type '%s' has a zero-argument constructor, but it is not accessible.",
-                    urn),
-                e);
-          } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(
-                String.format(
-                    "Error instantiating logical type '%s' with zero-argument constructor.", urn),
-                e);
+          boolean hasArgument = logicalType.hasArgument();
+          if (hasArgument) {
+            // Logical type with argument. Construct from compatible of() method with single
+            // argument type is either a primitive, List, Map, or Row.
+            FieldType fieldType = fieldTypeFromProto(logicalType.getArgumentType());
+            Object fieldValue =
+                Objects.requireNonNull(fieldValueFromProto(fieldType, logicalType.getArgument()));
+            Class clazz = fieldValue.getClass();
+            if (ClassUtils.isPrimitiveWrapper(clazz)) {
+              // argument is a primitive wrapper type (e.g. Integer)
+              clazz = ClassUtils.wrapperToPrimitive(clazz);
+            } else if (fieldValue instanceof List) {
+              // argument is ArrayValue or iterableValue
+              clazz = List.class;
+            }
+            if (fieldValue instanceof Map) {
+              // argument is Map
+              clazz = Map.class;
+            } else if (fieldValue instanceof Row) {
+              // argument is Row
+              clazz = Row.class;
+            }
+            String objectName = clazz.getName();
+            try {
+              return FieldType.logicalType(
+                  logicalTypeClass.cast(
+                      logicalTypeClass.getMethod("of", clazz).invoke(null, fieldValue)));
+            } catch (NoSuchMethodException e) {
+              throw new RuntimeException(
+                  String.format(
+                      "Standard logical type '%s' does not have a static of('%s') method.",
+                      urn, objectName),
+                  e);
+            } catch (IllegalAccessException e) {
+              throw new RuntimeException(
+                  String.format(
+                      "Standard logical type '%s' has an of('%s') method, but it is not accessible.",
+                      urn, objectName),
+                  e);
+            } catch (InvocationTargetException e) {
+              throw new RuntimeException(
+                  String.format(
+                      "Error instantiating logical type '%s' with of('%s') method.",
+                      urn, objectName),
+                  e);
+            }
+          } else {
+            // Logical type without argument. Construct from constructor without parameter
+            try {
+              return FieldType.logicalType(logicalTypeClass.getConstructor().newInstance());
+            } catch (NoSuchMethodException e) {
+              throw new RuntimeException(
+                  String.format(
+                      "Standard logical type '%s' does not have a zero-argument constructor.", urn),
+                  e);
+            } catch (IllegalAccessException e) {
+              throw new RuntimeException(
+                  String.format(
+                      "Standard logical type '%s' has a zero-argument constructor, but it is not accessible.",
+                      urn),
+                  e);
+            } catch (ReflectiveOperationException e) {
+              throw new RuntimeException(
+                  String.format(
+                      "Error instantiating logical type '%s' with zero-argument constructor.", urn),
+                  e);
+            }
           }
         }
         // Special-case for DATETIME and DECIMAL which are logical types in portable representation,
         // but not yet in Java. (https://github.com/apache/beam/issues/19817)
-        if (urn.equals(URN_BEAM_LOGICAL_DATETIME)) {
+        if (urn.equals(URN_BEAM_LOGICAL_MILLIS_INSTANT)) {
           return FieldType.DATETIME;
         } else if (urn.equals(URN_BEAM_LOGICAL_DECIMAL)) {
           return FieldType.DECIMAL;

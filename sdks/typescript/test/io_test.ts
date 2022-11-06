@@ -59,13 +59,20 @@ before(() => {
 
 after(() => subprocessCache.stopAll());
 
+function xlang_it(name, fn) {
+  return (process.env.BEAM_SERVICE_OVERRIDES ? it : it.skip)(
+    name + " @xlang",
+    fn
+  );
+}
+
 // These depends on fixes that will be released in 2.40.
 // They can be run manually by setting an environment variable
-// expor tBEAM_SERVICE_OVERRIDES = '{python:*": "/path/to/dev/venv/bin/python"}'
+// export BEAM_SERVICE_OVERRIDES = '{python:*": "/path/to/dev/venv/bin/python"}'
 // TODO: Automatically set up/depend on such a venv in dev environments and/or
 // testing infra.
-xdescribe("IO Tests", function () {
-  it("textio file test", async function () {
+describe("IO Tests", function () {
+  xlang_it("textio file test", async function () {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "apache-beam-test"));
 
     await createRunner().run(async (root) => {
@@ -83,7 +90,7 @@ xdescribe("IO Tests", function () {
     });
   }).timeout(15000);
 
-  it("textio csv file test", async function () {
+  xlang_it("textio csv file test", async function () {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "apache-beam-test"));
 
     await createRunner().run(async (root) => {
@@ -103,7 +110,7 @@ xdescribe("IO Tests", function () {
     });
   }).timeout(15000);
 
-  it("textio json file test", async function () {
+  xlang_it("textio json file test", async function () {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "apache-beam-test"));
 
     await createRunner().run(async (root) => {
@@ -122,7 +129,7 @@ xdescribe("IO Tests", function () {
     });
   }).timeout(15000);
 
-  it("parquetio file test", async function () {
+  xlang_it("parquetio file test", async function () {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "apache-beam-test"));
 
     await createRunner().run(async (root) => {
@@ -153,7 +160,7 @@ xdescribe("IO Tests", function () {
     });
   }).timeout(15000);
 
-  it("avroio file test", async function () {
+  it.skip("avroio file test", async function () {
     // Requires access to a distributed filesystem.
     const options = {
       //      runner: "dataflow",
@@ -190,7 +197,7 @@ xdescribe("IO Tests", function () {
     });
   }).timeout(60000);
 
-  it("bigqueryio test", async function () {
+  it.skip("bigqueryio test", async function () {
     // This only passes when it is run on its own.
     // TODO: Figure out what is going on here.
     // The error is a java.lang.NullPointerException at
@@ -264,7 +271,7 @@ xdescribe("IO Tests", function () {
     }
   }).timeout(300000);
 
-  it("pubsub test", async function () {
+  it.skip("pubsub test", async function () {
     const options = {
       runner: "dataflow",
       project: "apache-beam-testing",

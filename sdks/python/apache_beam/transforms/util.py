@@ -83,6 +83,7 @@ __all__ = [
     'Distinct',
     'Keys',
     'KvSwap',
+    'LogElements',
     'Regex',
     'Reify',
     'RemoveDuplicates',
@@ -198,8 +199,7 @@ class CoGroupByKey(PTransform):
       input_value_types.append(value_type)
     output_key_type = typehints.Union[tuple(input_key_types)]
     iterable_input_value_types = tuple(
-        # TODO: Change List[t] to Iterable[t]
-        typehints.List[t] for t in input_value_types)
+        typehints.Iterable[t] for t in input_value_types)
 
     output_value_type = typehints.Dict[
         str, typehints.Union[iterable_input_value_types or [typehints.Any]]]
@@ -541,7 +541,7 @@ class _GlobalWindowsBatchingDoFn(DoFn):
     self._running_batch_size += self._element_size_fn(element)
     if self._running_batch_size >= self._target_batch_size:
       with self._batch_size_estimator.record_time(self._running_batch_size):
-        yield self._batch
+        yield window.GlobalWindows.windowed_value_at_end_of_window(self._batch)
       self._batch = []
       self._running_batch_size = 0
       self._target_batch_size = self._batch_size_estimator.next_batch_size()
@@ -549,7 +549,7 @@ class _GlobalWindowsBatchingDoFn(DoFn):
   def finish_bundle(self):
     if self._batch:
       with self._batch_size_estimator.record_time(self._running_batch_size):
-        yield window.GlobalWindows.windowed_value(self._batch)
+        yield window.GlobalWindows.windowed_value_at_end_of_window(self._batch)
       self._batch = None
       self._running_batch_size = 0
     self._target_batch_size = self._batch_size_estimator.next_batch_size()
@@ -1104,6 +1104,49 @@ class ToString(object):
 
   # An alias for Iterables.
   Kvs = Iterables
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
+class LogElements(PTransform):
+  """
+  PTransform for printing the elements of a PCollection.
+  """
+  class _LoggingFn(DoFn):
+    def __init__(self, prefix='', with_timestamp=False, with_window=False):
+      super().__init__()
+      self.prefix = prefix
+      self.with_timestamp = with_timestamp
+      self.with_window = with_window
+
+    def process(
+        self,
+        element,
+        timestamp=DoFn.TimestampParam,
+        window=DoFn.WindowParam,
+        **kwargs):
+      log_line = self.prefix + str(element)
+
+      if self.with_timestamp:
+        log_line += ', timestamp=' + repr(timestamp.to_rfc3339())
+
+      if self.with_window:
+        log_line += ', window(start=' + window.start.to_rfc3339()
+        log_line += ', end=' + window.end.to_rfc3339() + ')'
+
+      print(log_line)
+      yield element
+
+  def __init__(
+      self, label=None, prefix='', with_timestamp=False, with_window=False):
+    super().__init__(label)
+    self.prefix = prefix
+    self.with_timestamp = with_timestamp
+    self.with_window = with_window
+
+  def expand(self, input):
+    return input | ParDo(
+        self._LoggingFn(self.prefix, self.with_timestamp, self.with_window))
 
 
 class Reify(object):

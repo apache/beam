@@ -16,11 +16,17 @@
 package entity
 
 import (
-	"beam.apache.org/playground/backend/internal/utils"
 	"testing"
+
+	"cloud.google.com/go/datastore"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/constants"
 )
 
 func TestSnippet_ID(t *testing.T) {
+	sdkKey := datastore.NameKey(constants.SdkKind, pb.Sdk_SDK_GO.String(), nil)
+	sdkKey.Namespace = constants.Namespace
 	tests := []struct {
 		name    string
 		snip    *Snippet
@@ -31,7 +37,7 @@ func TestSnippet_ID(t *testing.T) {
 			name: "Snippet ID() in the usual case",
 			snip: &Snippet{
 				Snippet: &SnippetEntity{
-					Sdk:      utils.GetNameKey("pg_sdks", "SDK_GO", "Playground", nil),
+					Sdk:      sdkKey,
 					PipeOpts: "MOCK_OPTIONS",
 				},
 				Files: []*FileEntity{{

@@ -39,10 +39,14 @@ import numpy as np
 from apache_beam import coders
 from apache_beam.typehints import typehints
 
+__all__ = ['BatchConverter']
+
 B = TypeVar('B')
 E = TypeVar('E')
 
 BATCH_CONVERTER_REGISTRY: List[Callable[[type, type], 'BatchConverter']] = []
+
+__all__ = ['BatchConverter']
 
 
 class BatchConverter(Generic[B, E]):

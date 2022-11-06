@@ -24,6 +24,7 @@ import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.junit.Assert.assertThrows;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -43,8 +44,10 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderProviders;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -92,7 +95,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.experimental.runners.Enclosed;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -107,8 +109,6 @@ public class GroupByKeyTest implements Serializable {
   /** Shared test base class with setup/teardown helpers. */
   public abstract static class SharedTestBase {
     @Rule public transient TestPipeline p = TestPipeline.create();
-
-    @Rule public transient ExpectedException thrown = ExpectedException.none();
   }
 
   /** Tests validating basic {@link GroupByKey} scenarios. */
@@ -306,7 +306,6 @@ public class GroupByKeyTest implements Serializable {
 
     @Test
     public void testGroupByKeyNonDeterministic() throws Exception {
-
       List<KV<Map<String, String>, Integer>> ungroupedPairs = Arrays.asList();
 
       PCollection<KV<Map<String, String>, Integer>> input =
@@ -317,9 +316,31 @@ public class GroupByKeyTest implements Serializable {
                           MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()),
                           BigEndianIntegerCoder.of())));
 
-      thrown.expect(IllegalStateException.class);
-      thrown.expectMessage("must be deterministic");
-      input.apply(GroupByKey.create());
+      assertThrows(
+          "must be deterministic",
+          IllegalStateException.class,
+          () -> input.apply(GroupByKey.create()));
+    }
+
+    @Test
+    public void testGroupByKeyOutputCoderUnmodifiedAfterApplyAndBeforePipelineRun()
+        throws Exception {
+      List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
+
+      PCollection<KV<String, Integer>> input =
+          p.apply(
+              Create.of(ungroupedPairs)
+                  .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+
+      // Apply with a known good coder
+      PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
+
+      // Change the output to have a different coder that doesn't match the input coder types
+      output.setCoder(
+          KvCoder.of(
+              SerializableCoder.of(String.class), IterableCoder.of(BigEndianIntegerCoder.of())));
+      assertThrows(
+          "the GroupByKey requires its output coder", IllegalStateException.class, () -> p.run());
     }
 
     // AfterPane.elementCountAtLeast(1) is not OK
@@ -332,9 +353,8 @@ public class GroupByKeyTest implements Serializable {
                       .discardingFiredPanes()
                       .triggering(AfterPane.elementCountAtLeast(1)));
 
-      thrown.expect(IllegalArgumentException.class);
-      thrown.expectMessage("Unsafe trigger");
-      input.apply(GroupByKey.create());
+      assertThrows(
+          "Unsafe trigger", IllegalArgumentException.class, () -> input.apply(GroupByKey.create()));
     }
 
     // AfterWatermark.pastEndOfWindow() is OK with 0 allowed lateness
@@ -380,9 +400,8 @@ public class GroupByKeyTest implements Serializable {
                       .triggering(AfterWatermark.pastEndOfWindow())
                       .withAllowedLateness(Duration.millis(10)));
 
-      thrown.expect(IllegalArgumentException.class);
-      thrown.expectMessage("Unsafe trigger");
-      input.apply(GroupByKey.create());
+      assertThrows(
+          "Unsafe trigger", IllegalArgumentException.class, () -> input.apply(GroupByKey.create()));
     }
 
     // AfterWatermark.pastEndOfWindow().withEarlyFirings() is not OK with > 0 allowed lateness
@@ -398,9 +417,8 @@ public class GroupByKeyTest implements Serializable {
                               .withEarlyFirings(AfterPane.elementCountAtLeast(1)))
                       .withAllowedLateness(Duration.millis(10)));
 
-      thrown.expect(IllegalArgumentException.class);
-      thrown.expectMessage("Unsafe trigger");
-      input.apply(GroupByKey.create());
+      assertThrows(
+          "Unsafe trigger", IllegalArgumentException.class, () -> input.apply(GroupByKey.create()));
     }
 
     // AfterWatermark.pastEndOfWindow().withLateFirings() is always OK
@@ -423,7 +441,6 @@ public class GroupByKeyTest implements Serializable {
     @Test
     @Category(NeedsRunner.class)
     public void testRemerge() {
-
       List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
       PCollection<KV<String, Integer>> input =
@@ -450,7 +467,6 @@ public class GroupByKeyTest implements Serializable {
 
     @Test
     public void testGroupByKeyDirectUnbounded() {
-
       PCollection<KV<String, Integer>> input =
           p.apply(
               new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
@@ -464,12 +480,11 @@ public class GroupByKeyTest implements Serializable {
                 }
               });
 
-      thrown.expect(IllegalStateException.class);
-      thrown.expectMessage(
+      assertThrows(
           "GroupByKey cannot be applied to non-bounded PCollection in the GlobalWindow without "
-              + "a trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.");
-
-      input.apply("GroupByKey", GroupByKey.create());
+              + "a trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.",
+          IllegalStateException.class,
+          () -> input.apply("GroupByKey", GroupByKey.create()));
     }
 
     /**
@@ -480,7 +495,6 @@ public class GroupByKeyTest implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testTimestampCombinerEarliest() {
-
       p.apply(
               Create.timestamped(
                   TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
@@ -745,7 +759,6 @@ public class GroupByKeyTest implements Serializable {
     @Test
     @Category(NeedsRunner.class)
     public void testIdentityWindowFnPropagation() {
-
       List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
       PCollection<KV<String, Integer>> input =

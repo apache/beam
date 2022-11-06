@@ -391,7 +391,7 @@ examples:
 # import typing
 # import apache_beam as beam
 # class Test(typing.NamedTuple):
-#   f_map: typing.Mapping[str,int]
+#   f_map: typing.Mapping[str,typing.Optional[int]]
 # schema = beam.typehints.schemas.named_tuple_to_schema(Test)
 # coder = beam.coders.row_coder.RowCoder(schema)
 # print("payload = %s" % schema.SerializeToString())
@@ -452,6 +452,49 @@ coder:
   payload: "\n\x7f\n\x0bf_timestamp\x1ap:n\n#beam:logical_type:micros_instant:v1\x1aG2E\nC\n\r\n\x07seconds\x1a\x02\x10\x04\n\x0c\n\x06micros\x1a\x02\x10\x04\x12$4d3f6e8f-7412-4ad7-bfd9-b424a1664aef\n\x0e\n\x08f_string\x1a\x02\x10\x07\n\x0b\n\x05f_int\x1a\x02\x10\x04\x12$33dafd37-397c-4083-a84e-42177d122221"
 examples:
     "\x03\x00\x02\x00\xb6\x95\xd5\xf9\x05\xc0\xc4\x07\x1b2020-08-13T14:14:14.123456Z\xc0\xf7\x85\xda\xae\x98\xeb\x02": {f_timestamp: {seconds: 1597328054, micros: 123456}, f_string: "2020-08-13T14:14:14.123456Z", f_int: 1597328054123456}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_timestamp: logical(millis_instant), f_string: string, f_int: int64
+  payload: "\n:\n\x0bf_timestamp\x1a+:)\n#beam:logical_type:millis_instant:v1\x1a\x02\x10\x04\n\x0e\n\x08f_string\x1a\x02\x10\x07\n\x0b\n\x05f_int\x1a\x02\x10\x04\x12$80be749a-5700-4ede-89d8-dd9a4433a3f8"
+examples:
+  "\x03\x00\x80\x00\x01s\xe8+\xd7k\x182020-08-13T14:14:14.123Z\xeb\xae\xaf\xc1\xbe.": {f_timestamp: -9223370439526721685, f_string: "2020-08-13T14:14:14.123Z", f_int: 1597328054123}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_float: float32
+  payload: "\n\r\n\x07f_float\x1a\x02\x10\x05\x12$8c97b6c5-69e5-4733-907b-26cd8edae612"
+examples:
+  "\x01\x00\x00\x00\x00\x00": {f_float: "0.0"}
+  "\x01\x00?\x80\x00\x00": {f_float: "1.0"}
+  "\x01\x00@I\x0eV": {f_float: "3.1415"}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_float: float32, f_decimal: logical(decimal)
+  payload: "\n\r\n\x07f_float\x1a\x02\x10\x05\n1\n\tf_decimal\x1a$:\"\n\x1cbeam:logical_type:decimal:v1\x1a\x02\x10\t\x12$800c44ae-a1b7-4def-bbf6-6217cca89ec4"
+examples:
+  "\x02\x00\x00\x00\x00\x00\x01\x01\x00": {f_float: "0.0", f_decimal: "0.0"}
+  "\x02\x00?\x80\x00\x00\x01\x01\n": {f_float: "1.0", f_decimal: "1.0"}
+  "\x02\x00@I\x0eV\x04\x02z\xb7": {f_float: "3.1415", f_decimal: "3.1415"}
+  "\x02\x00\xc2\xc8>\xfa\x03\x03\xfex\xe5": {f_float: "-100.123", f_decimal: "-100.123"}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_char: logical(fixed_char(5)), f_varchar: logical(var_char(5)), f_bytes: logical(fixed_bytes(5)), f_varbytes: logical(var_bytes(5))
+  payload: "\n=\n\x06f_char\x1a3\x08\x01:/\n\x1fbeam:logical_type:fixed_char:v1\x1a\x02\x10\x07\"\x02\x10\x03*\x04\n\x02\x18\x05\nB\n\tf_varchar\x1a1\x08\x01:-\n\x1dbeam:logical_type:var_char:v1\x1a\x02\x10\x07\"\x02\x10\x03*\x04\n\x02\x18\n \x01(\x01\nC\n\x07f_bytes\x1a4\x08\x01:0\n beam:logical_type:fixed_bytes:v1\x1a\x02\x10\t\"\x02\x10\x03*\x04\n\x02\x18\x05 \x02(\x02\nD\n\nf_varbytes\x1a2\x08\x01:.\n\x1ebeam:logical_type:var_bytes:v1\x1a\x02\x10\t\"\x02\x10\x03*\x04\n\x02\x18\n \x03(\x03\x12$f0ffb3a4-f46f-41ca-a942-85e3e939452a"
+examples:
+  "\x04\x00\x05ABCDE\x05ABCDE\x05ABCDE\x05ABCDE": {f_char: "ABCDE", f_varchar: "ABCDE", f_bytes: "ABCDE", f_varbytes: "ABCDE"}
+  "\x04\x00\x05A\n   \x02A\n\x05A\n\x00\x00\x00\x02A\n": {f_char: "A\n   ", f_varchar: "A\n", f_bytes: "A\n\x00\x00\x00", f_varbytes: "A\n"}
+  "\x04\x01\x06\x05null?\x04null": {f_char: "null?", f_varchar: null, f_bytes: null, f_varbytes: "null"}
 
 ---
 

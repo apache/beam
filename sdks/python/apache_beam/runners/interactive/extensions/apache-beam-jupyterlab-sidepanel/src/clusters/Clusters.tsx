@@ -17,9 +17,11 @@ import { ISessionContext } from '@jupyterlab/apputils';
 import { Button } from '@rmwc/button';
 import {
   DataTable,
+  DataTableBody,
   DataTableContent,
-  DataTableRow,
-  DataTableHeadCell
+  DataTableHead,
+  DataTableHeadCell,
+  DataTableRow
 } from '@rmwc/data-table';
 
 import {
@@ -157,7 +159,7 @@ export class Clusters extends React.Component<IClustersProps, IClustersState> {
 
   deleteCluster(cluster_id: string): void {
     const deleteClusterCode =
-      'ie.current_env().clusters.delete_cluster' +
+      'ie.current_env().clusters.cleanup' +
       `(ie.current_env().inspector.get_cluster_master_url('${cluster_id}'))`;
     this.queryKernel(deleteClusterCode);
     if (this.state.defaultClusterId === cluster_id) {
@@ -262,15 +264,17 @@ export class Clusters extends React.Component<IClustersProps, IClustersState> {
           <div className="Clusters">
             <DataTable>
               <DataTableContent>
-                <DataTableRow>
-                  <DataTableHeadCell>Cluster</DataTableHeadCell>
-                  <DataTableHeadCell>Project</DataTableHeadCell>
-                  <DataTableHeadCell>Region</DataTableHeadCell>
-                  <DataTableHeadCell>Master URL</DataTableHeadCell>
-                  <DataTableHeadCell>Pipelines</DataTableHeadCell>
-                  <DataTableHeadCell>Dashboard Link</DataTableHeadCell>
-                </DataTableRow>
-                {clusters}
+                <DataTableHead>
+                  <DataTableRow>
+                    <DataTableHeadCell>Cluster</DataTableHeadCell>
+                    <DataTableHeadCell>Project</DataTableHeadCell>
+                    <DataTableHeadCell>Region</DataTableHeadCell>
+                    <DataTableHeadCell>Master URL</DataTableHeadCell>
+                    <DataTableHeadCell>Pipelines</DataTableHeadCell>
+                    <DataTableHeadCell>Dashboard Link</DataTableHeadCell>
+                  </DataTableRow>
+                </DataTableHead>
+                <DataTableBody>{clusters}</DataTableBody>
               </DataTableContent>
             </DataTable>
           </div>

@@ -25,7 +25,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,15 +33,12 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.Offset;
-import com.google.cloud.pubsublite.Partition;
-import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.testing.FakeApiService;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.util.Timestamps;
 import java.util.Optional;
-import java.util.function.Supplier;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -61,12 +57,8 @@ import org.mockito.Spy;
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
 public class SubscriptionPartitionProcessorImplTest {
-  private static final SubscriptionPartition PARTITION =
-      SubscriptionPartition.of(example(SubscriptionPath.class), example(Partition.class));
-
   @Spy RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   @Mock OutputReceiver<SequencedMessage> receiver;
-  @Mock Supplier<MemoryBufferedSubscriber> subscriberFactory;
 
   @Rule public Timeout globalTimeout = Timeout.seconds(30);
 
@@ -89,46 +81,26 @@ public class SubscriptionPartitionProcessorImplTest {
   @Before
   public void setUp() {
     initMocks(this);
-    when(subscriberFactory.get()).thenReturn(subscriber);
+    subscriber.startAsync().awaitRunning();
     when(tracker.currentRestriction()).thenReturn(initialRange());
-    doReturn(true).when(subscriber).isRunning();
     doReturn(example(Offset.class)).when(subscriber).fetchOffset();
   }
 
   private SubscriptionPartitionProcessor newProcessor() {
-    return new SubscriptionPartitionProcessorImpl(PARTITION, tracker, receiver, subscriberFactory);
+    return new SubscriptionPartitionProcessorImpl(tracker, receiver, subscriber);
   }
 
   @Test
-  public void lifecycle() {
+  public void create() {
     SubscriptionPartitionProcessor processor = newProcessor();
     assertEquals(ProcessContinuation.resume(), processor.run());
-    InOrder order = inOrder(subscriberFactory, subscriber);
-    order.verify(subscriberFactory).get();
+    InOrder order = inOrder(subscriber);
     order.verify(subscriber).fetchOffset();
     order.verify(subscriber).rebuffer();
   }
 
   @Test
-  public void lifecycleOffsetMismatch() {
-    MemoryBufferedSubscriber badSubscriber = spy(FakeSubscriber.class);
-    doReturn(Offset.of(example(Offset.class).value() + 1)).when(badSubscriber).fetchOffset();
-    doThrow(new RuntimeException("Ignored")).when(badSubscriber).awaitTerminated();
-    doReturn(badSubscriber, subscriber).when(subscriberFactory).get();
-    SubscriptionPartitionProcessor processor = newProcessor();
-    assertEquals(ProcessContinuation.resume(), processor.run());
-    InOrder order = inOrder(subscriberFactory, badSubscriber, subscriber);
-    order.verify(subscriberFactory).get();
-    order.verify(badSubscriber).fetchOffset();
-    order.verify(badSubscriber).stopAsync();
-    order.verify(badSubscriber).awaitTerminated();
-    order.verify(subscriberFactory).get();
-    order.verify(subscriber).fetchOffset();
-    order.verify(subscriber).rebuffer();
-  }
-
-  @Test
-  public void lifecycleRebufferThrows() throws Exception {
+  public void createRebufferThrows() throws Exception {
     doThrow(new CheckedApiException(Code.OUT_OF_RANGE).underlying).when(subscriber).rebuffer();
     assertThrows(ApiException.class, this::newProcessor);
   }

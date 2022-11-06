@@ -26,8 +26,10 @@ import re
 import time
 import unittest
 import warnings
+from datetime import datetime
 
 import pytest
+import pytz
 
 import apache_beam as beam
 from apache_beam import GroupByKey
@@ -226,6 +228,23 @@ class BatchElementsTest(unittest.TestCase):
               10,  # elements in [0, 30)
               10,
               7,  # elements in [30, 47)
+          ]))
+
+  def test_global_batch_timestamps(self):
+    # Assumes a single bundle
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create(range(3), reshuffle=False)
+          | util.BatchElements(min_batch_size=2, max_batch_size=2)
+          | beam.Map(
+              lambda batch,
+              timestamp=beam.DoFn.TimestampParam: (len(batch), timestamp)))
+      assert_that(
+          res,
+          equal_to([
+              (2, GlobalWindow().max_timestamp()),
+              (1, GlobalWindow().max_timestamp()),
           ]))
 
   def test_sized_batches(self):
@@ -1044,6 +1063,46 @@ class ToStringTest(unittest.TestCase):
       result = (
           p | beam.Create([("one", 1), ("two", 2)]) | util.ToString.Kvs(""))
       assert_that(result, equal_to(["one1", "two2"]))
+
+
+class LogElementsTest(unittest.TestCase):
+  @pytest.fixture(scope="function")
+  def _capture_stdout_log(request, capsys):
+    with TestPipeline() as p:
+      result = (
+          p | beam.Create([
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 1, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 2, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+          ])
+          | beam.WindowInto(FixedWindows(60))
+          | util.LogElements(
+              prefix='prefix_', with_window=True, with_timestamp=True))
+
+    request.captured_stdout = capsys.readouterr().out
+    return result
+
+  @pytest.mark.usefixtures("_capture_stdout_log")
+  def test_stdout_logs(self):
+    assert self.captured_stdout == \
+      ("prefix_event, timestamp='2022-10-01T00:00:00Z', "
+       "window(start=2022-10-01T00:00:00Z, end=2022-10-01T00:01:00Z)\n"
+       "prefix_event, timestamp='2022-10-02T00:00:00Z', "
+       "window(start=2022-10-02T00:00:00Z, end=2022-10-02T00:01:00Z)\n"), \
+      f'Received from stdout: {self.captured_stdout}'
+
+  def test_ptransform_output(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(['a', 'b', 'c'])
+          | util.LogElements(prefix='prefix_'))
+      assert_that(result, equal_to(['a', 'b', 'c']))
 
 
 class ReifyTest(unittest.TestCase):

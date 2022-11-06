@@ -54,7 +54,6 @@ import os
 import shutil
 import sys
 import tempfile
-from distutils.version import StrictVersion
 from typing import Callable
 from typing import List
 from typing import Optional
@@ -62,6 +61,7 @@ from typing import Tuple
 from urllib.parse import urlparse
 
 import pkg_resources
+from pkg_resources import parse_version
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
@@ -224,9 +224,14 @@ class Stager(object):
               'The file %s cannot be found. It was specified in the '
               '--requirements_file command line option.' %
               setup_options.requirements_file)
+        extra_packages, thinned_requirements_file = (
+            Stager._extract_local_packages(setup_options.requirements_file))
+        if extra_packages:
+          setup_options.extra_packages = (
+              setup_options.extra_packages or []) + extra_packages
         resources.append(
             Stager._create_file_stage_to_artifact(
-                setup_options.requirements_file, REQUIREMENTS_FILE))
+                thinned_requirements_file, REQUIREMENTS_FILE))
         # Populate cache with packages from the requirement file option and
         # stage the files in the cache.
         if not use_beam_default_container:
@@ -684,6 +689,25 @@ class Stager(object):
     return tmp_requirements_filename
 
   @staticmethod
+  def _extract_local_packages(requirements_file):
+    local_deps = []
+    pypi_deps = []
+    with open(requirements_file, 'r') as fin:
+      for line in fin:
+        dep = line.strip()
+        if os.path.exists(dep):
+          local_deps.append(dep)
+        else:
+          pypi_deps.append(dep)
+    if local_deps:
+      with tempfile.NamedTemporaryFile(suffix='-requirements.txt',
+                                       delete=False) as fout:
+        fout.write('\n'.join(pypi_deps).encode('utf-8'))
+        return local_deps, fout.name
+    else:
+      return [], requirements_file
+
+  @staticmethod
   def _get_platform_for_default_sdk_container():
     """
     Get the platform for apache beam SDK container based on Pip version.
@@ -698,7 +722,7 @@ class Stager(object):
     # addressed, download wheel based on glibc version in Beam's Python
     # Base image
     pip_version = pkg_resources.get_distribution('pip').version
-    if StrictVersion(pip_version) >= StrictVersion('19.3'):
+    if parse_version(pip_version) >= parse_version('19.3'):
       return 'manylinux2014_x86_64'
     else:
       return 'manylinux2010_x86_64'

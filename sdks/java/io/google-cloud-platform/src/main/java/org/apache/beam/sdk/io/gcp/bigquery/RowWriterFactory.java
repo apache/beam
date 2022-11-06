@@ -99,13 +99,13 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
 
     private final SerializableFunction<AvroWriteRequest<ElementT>, AvroT> toAvro;
     private final SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory;
-    private final @Nullable SerializableFunction<TableSchema, Schema> schemaFactory;
+    private final @Nullable SerializableFunction<@Nullable TableSchema, Schema> schemaFactory;
     private final @Nullable DynamicDestinations<?, DestinationT> dynamicDestinations;
 
     private AvroRowWriterFactory(
         SerializableFunction<AvroWriteRequest<ElementT>, AvroT> toAvro,
         SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory,
-        @Nullable SerializableFunction<TableSchema, Schema> schemaFactory,
+        @Nullable SerializableFunction<@Nullable TableSchema, Schema> schemaFactory,
         @Nullable DynamicDestinations<?, DestinationT> dynamicDestinations) {
       this.toAvro = toAvro;
       this.writerFactory = writerFactory;
@@ -115,7 +115,7 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
 
     AvroRowWriterFactory<ElementT, AvroT, DestinationT> prepare(
         DynamicDestinations<?, DestinationT> dynamicDestinations,
-        SerializableFunction<TableSchema, Schema> schemaFactory) {
+        SerializableFunction<@Nullable TableSchema, Schema> schemaFactory) {
       return new AvroRowWriterFactory<>(toAvro, writerFactory, schemaFactory, dynamicDestinations);
     }
 
@@ -135,10 +135,8 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
         throw new IllegalStateException(
             "createRowWriter called when schemaFactory is null; forgot to call prepare()?");
       }
+
       TableSchema tableSchema = dynamicDestinations.getSchema(destination);
-      if (tableSchema == null) {
-        throw new IllegalStateException("dynamicDestinations.getSchema returned null");
-      }
       Schema avroSchema = schemaFactory.apply(tableSchema);
       return new AvroRowWriter<>(tempFilePrefix, avroSchema, toAvro, writerFactory);
     }

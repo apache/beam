@@ -125,6 +125,7 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
 <span class="language-java">When executing your pipeline with the Cloud Dataflow Runner (Java), consider these common pipeline options.</span>
 <span class="language-py">When executing your pipeline with the Cloud Dataflow Runner (Python), consider these common pipeline options.</span>
 
+<div class="table-container-wrapper">
 <table class="table table-bordered">
 <tr>
   <th>Field</th>
@@ -205,6 +206,7 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
 
 
 </table>
+</div>
 
 See the reference documentation for the
 <span class="language-java">[DataflowPipelineOptions](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/runners/dataflow/options/DataflowPipelineOptions.html)</span>

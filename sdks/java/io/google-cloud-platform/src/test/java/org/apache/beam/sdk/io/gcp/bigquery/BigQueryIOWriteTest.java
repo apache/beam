@@ -64,6 +64,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
 import java.util.function.LongFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -104,8 +105,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -298,7 +301,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   public void writeDynamicDestinations(boolean schemas, boolean autoSharding) throws Exception {
     final Schema schema =
-        Schema.builder().addField("name", FieldType.STRING).addField("id", FieldType.INT32).build();
+        Schema.builder().addField("name", FieldType.STRING).addField("id", FieldType.INT64).build();
 
     final Pattern userPattern = Pattern.compile("([a-z]+)([0-9]+)");
 
@@ -339,10 +342,10 @@ public class BigQueryIOWriteTest implements Serializable {
                 checkState(matcher.matches());
                 return Row.withSchema(schema)
                     .addValue(matcher.group(1))
-                    .addValue(Integer.valueOf(matcher.group(2)))
+                    .addValue(Long.valueOf(matcher.group(2)))
                     .build();
               },
-              r -> r.getString(0) + r.getInt32(1));
+              r -> r.getString(0) + r.getInt64(1));
     }
 
     // Use a partition decorator to verify that partition decorators are supported.
@@ -1195,9 +1198,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testStreamingWriteWithAutoSharding() throws Exception {
-    if (useStorageApi) {
-      return;
-    }
     streamingWrite(true);
   }
 
@@ -1219,6 +1219,54 @@ public class BigQueryIOWriteTest implements Serializable {
             .withoutValidation();
     if (autoSharding) {
       write = write.withAutoSharding();
+    }
+    p.apply(
+            Create.of(
+                    new TableRow().set("name", "a").set("number", "1"),
+                    new TableRow().set("name", "b").set("number", "2"),
+                    new TableRow().set("name", "c").set("number", "3"),
+                    new TableRow().set("name", "d").set("number", "4"))
+                .withCoder(TableRowJsonCoder.of()))
+        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
+        .apply("WriteToBQ", write);
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(
+            new TableRow().set("name", "a").set("number", "1"),
+            new TableRow().set("name", "b").set("number", "2"),
+            new TableRow().set("name", "c").set("number", "3"),
+            new TableRow().set("name", "d").set("number", "4")));
+  }
+
+  @Test
+  public void testStorageApiWriteWithAutoSharding() throws Exception {
+    storageWrite(true);
+  }
+
+  private void storageWrite(boolean autoSharding) throws Exception {
+    if (!useStorageApi) {
+      return;
+    }
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+    if (autoSharding) {
+      write =
+          write
+              .withAutoSharding()
+              .withTriggeringFrequency(Duration.standardSeconds(5))
+              .withMethod(Method.STORAGE_WRITE_API);
     }
     p.apply(
             Create.of(
@@ -1281,10 +1329,10 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(
-            new TableRow().set("name", "a").set("number", "1"),
-            new TableRow().set("name", "b").set("number", "2"),
-            new TableRow().set("name", "c").set("number", "3"),
-            new TableRow().set("name", "d").set("number", "4")));
+            new TableRow().set("name", "a").set("number", 1),
+            new TableRow().set("name", "b").set("number", 2),
+            new TableRow().set("name", "c").set("number", 3),
+            new TableRow().set("name", "d").set("number", 4)));
   }
 
   @Test
@@ -1322,10 +1370,10 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(
-            new TableRow().set("name", "a").set("number", "1"),
-            new TableRow().set("name", "b").set("number", "2"),
-            new TableRow().set("name", "c").set("number", "3"),
-            new TableRow().set("name", "d").set("number", "4")));
+            new TableRow().set("name", "a").set("number", 1),
+            new TableRow().set("name", "b").set("number", 2),
+            new TableRow().set("name", "c").set("number", 3),
+            new TableRow().set("name", "d").set("number", 4)));
   }
 
   /**
@@ -1849,6 +1897,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .to(tableRef)
             .withMethod(method)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withAutoSchemaUpdate(true)
             .withTestServices(fakeBqServices)
             .withoutValidation());
 
@@ -1927,7 +1976,8 @@ public class BigQueryIOWriteTest implements Serializable {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set, not both.");
+        "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set, not"
+            + " both.");
     p.apply(Create.empty(INPUT_RECORD_CODER))
         .apply(
             BigQueryIO.<InputRecord>write()
@@ -2209,6 +2259,8 @@ public class BigQueryIOWriteTest implements Serializable {
         p.apply("CreateJobId", Create.of("jobId")).apply(View.asSingleton());
     List<PCollectionView<?>> sideInputs = ImmutableList.of(jobIdTokenView);
 
+    DynamicDestinations<String, String> dynamicDestinations = new IdentityDynamicTables();
+
     fakeJobService.setNumFailuresExpected(3);
     WriteTables<String> writeTables =
         new WriteTables<>(
@@ -2218,7 +2270,7 @@ public class BigQueryIOWriteTest implements Serializable {
             BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
             BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
             sideInputs,
-            new IdentityDynamicTables(),
+            dynamicDestinations,
             null,
             4,
             false,
@@ -2231,12 +2283,24 @@ public class BigQueryIOWriteTest implements Serializable {
     PCollection<KV<TableDestination, WriteTables.Result>> writeTablesOutput =
         writeTablesInput
             .apply(writeTables)
-            .setCoder(KvCoder.of(TableDestinationCoderV3.of(), WriteTables.ResultCoder.INSTANCE));
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), WriteTables.ResultCoder.INSTANCE))
+            .apply(
+                ParDo.of(
+                    new DoFn<
+                        KV<String, WriteTables.Result>,
+                        KV<TableDestination, WriteTables.Result>>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<String, WriteTables.Result> e,
+                          OutputReceiver<KV<TableDestination, WriteTables.Result>> o) {
+                        o.output(KV.of(dynamicDestinations.getTable(e.getKey()), e.getValue()));
+                      }
+                    }));
 
     PAssert.thatMultimap(writeTablesOutput)
         .satisfies(
             input -> {
-              assertEquals(input.keySet(), expectedTempTables.keySet());
+              assertEquals(expectedTempTables.keySet(), input.keySet());
               for (Map.Entry<TableDestination, Iterable<WriteTables.Result>> entry :
                   input.entrySet()) {
                 Iterable<String> tableNames =
@@ -2520,11 +2584,15 @@ public class BigQueryIOWriteTest implements Serializable {
     TableRow goodNested = new TableRow().set("number", "42");
     TableRow badNested = new TableRow().set("number", "nAn");
 
+    final String failValue = "failme";
     List<TableRow> goodRows =
         ImmutableList.of(
             new TableRow().set("name", "n1").set("number", "1"),
+            new TableRow().set("name", failValue).set("number", "1"),
             new TableRow().set("name", "n2").set("number", "2"),
-            new TableRow().set("name", "parent1").set("nested", goodNested));
+            new TableRow().set("name", failValue).set("number", "2"),
+            new TableRow().set("name", "parent1").set("nested", goodNested),
+            new TableRow().set("name", failValue).set("number", "1"));
     List<TableRow> badRows =
         ImmutableList.of(
             // Unknown field.
@@ -2551,6 +2619,11 @@ public class BigQueryIOWriteTest implements Serializable {
             // Invalid nested row
             new TableRow().set("name", "parent2").set("nested", badNested));
 
+    Function<TableRow, Boolean> shouldFailRow =
+        (Function<TableRow, Boolean> & Serializable)
+            tr -> tr.containsKey("name") && tr.get("name").equals(failValue);
+    fakeDatasetService.setShouldFailRow(shouldFailRow);
+
     WriteResult result =
         p.apply(Create.of(Iterables.concat(goodRows, badRows)))
             .apply(
@@ -2569,12 +2642,17 @@ public class BigQueryIOWriteTest implements Serializable {
             .apply(
                 MapElements.into(TypeDescriptor.of(TableRow.class))
                     .via(BigQueryStorageApiInsertError::getRow));
-    PAssert.that(deadRows).containsInAnyOrder(badRows);
+
+    PAssert.that(deadRows)
+        .containsInAnyOrder(
+            Iterables.concat(badRows, Iterables.filter(goodRows, shouldFailRow::apply)));
     p.run();
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table"),
-        containsInAnyOrder(Iterables.toArray(goodRows, TableRow.class)));
+        containsInAnyOrder(
+            Iterables.toArray(
+                Iterables.filter(goodRows, r -> !shouldFailRow.apply(r)), TableRow.class)));
   }
 
   @Test
@@ -2610,7 +2688,7 @@ public class BigQueryIOWriteTest implements Serializable {
           e.getMessage(),
           is(
               "Cannot use getFailedInsertsWithErr as this WriteResult "
-                  + "does not use extended errors. Use getFailedInserts instead"));
+                  + "does not use extended errors. Use getFailedInserts or getFailedStorageApiInserts instead"));
     }
 
     try {
@@ -2623,7 +2701,21 @@ public class BigQueryIOWriteTest implements Serializable {
           e.getMessage(),
           is(
               "Cannot use getFailedInserts as this WriteResult "
-                  + "uses extended errors information. Use getFailedInsertsWithErr instead"));
+                  + "uses extended errors information. Use getFailedInsertsWithErr or getFailedStorageApiInserts instead"));
+    }
+
+    try {
+      p.apply("Create3", Create.<TableRow>of(row1))
+          .apply("Write3", bqIoWrite.withSuccessfulInsertsPropagation(false))
+          .getSuccessfulInserts();
+      fail();
+    } catch (IllegalStateException e) {
+      assertThat(
+          e.getMessage(),
+          is(
+              "Retrieving successful inserts is only supported for streaming inserts. "
+                  + "Make sure withSuccessfulInsertsPropagation is correctly configured for "
+                  + "BigQueryIO.Write object."));
     }
   }
 

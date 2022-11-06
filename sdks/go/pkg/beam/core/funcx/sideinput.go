@@ -27,6 +27,7 @@ var (
 	errIllegalParametersInIter     = "All parameters in an iter must be universal type, container type, or concrete type"
 	errIllegalParametersInReIter   = "Output of a reiter must be valid iter type"
 	errIllegalParametersInMultiMap = "Output of a multimap must be valid iter type"
+	errIllegalEventTimeInIter      = "Iterators with timestamp values (<ET,V> and <ET, K, V>) are not valid, as side input time stamps are not preserved after windowing. See https://github.com/apache/beam/issues/22404 for more information."
 )
 
 // IsIter returns true iff the supplied type is a "single sweep functional iterator".
@@ -56,8 +57,10 @@ func IsMalformedIter(t reflect.Type) (bool, error) {
 //
 //     func (*int) bool                   returns {int}
 //     func (*string, *int) bool          returns {string, int}
-//     func (*typex.EventTime, *int) bool returns {typex.EventTime, int}
 //
+// EventTimes are not allowed in iterator types as per the Beam model
+// (see https://github.com/apache/beam/issues/22404) for more
+// information.
 func UnfoldIter(t reflect.Type) ([]reflect.Type, bool) {
 	types, ok, _ := unfoldIter(t)
 	return types, ok
@@ -78,8 +81,7 @@ func unfoldIter(t reflect.Type) ([]reflect.Type, bool, error) {
 	var ret []reflect.Type
 	skip := 0
 	if t.In(0).Kind() == reflect.Ptr && t.In(0).Elem() == typex.EventTimeType {
-		ret = append(ret, typex.EventTimeType)
-		skip = 1
+		return nil, false, errors.New(errIllegalEventTimeInIter)
 	}
 	if t.NumIn()-skip > 2 || t.NumIn() == skip {
 		return nil, false, nil

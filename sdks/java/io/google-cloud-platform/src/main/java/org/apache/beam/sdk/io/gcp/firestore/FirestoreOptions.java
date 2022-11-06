@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore;
 
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -45,4 +46,15 @@ public interface FirestoreOptions extends PipelineOptions {
    * @see com.google.cloud.firestore.FirestoreOptions.Builder#setEmulatorHost(java.lang.String)
    */
   void setEmulatorHost(String host);
+
+  /**
+   * The Firestore database ID to connect to. Note: named database is currently an internal feature
+   * in Firestore. Do not set this to anything other than "(default)".
+   */
+  @Description("Firestore database ID")
+  @Default.String("(default)")
+  String getFirestoreDb();
+
+  /** Set the Firestore database ID to connect to. */
+  void setFirestoreDb(String firestoreDb);
 }

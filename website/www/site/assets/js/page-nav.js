@@ -105,7 +105,7 @@ $(document).ready(function() {
           var items = $(".page-nav > #TableOfContents li");
           var itemTags = $('ul', items).siblings('a');
           var img = document.createElement("img");
-          img.src = "/images/arrow-expandable.svg";
+          img.src = "{{ "images/arrow-expandable.svg" | absURL }}";
           img.classList="rotate";
 
           $(itemTags).prepend(img);
