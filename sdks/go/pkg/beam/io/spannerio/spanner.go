@@ -18,14 +18,15 @@
 package spannerio
 
 import (
-	"cloud.google.com/go/spanner"
 	"context"
 	"fmt"
+	"reflect"
+	"strings"
+
+	"cloud.google.com/go/spanner"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"google.golang.org/api/iterator"
-	"reflect"
-	"strings"
 )
 
 func init() {
@@ -48,8 +49,6 @@ func columnsFromStruct(t reflect.Type) []string {
 // Read reads all rows from the given table. The table must have a schema
 // compatible with the given type, t, and Read returns a PCollection<t>. If the
 // table has more rows than t, then Read is implicitly a projection.
-// Note: Query will be executed on a single worker. Consider performance of query
-// and if downstream splitting is required add beam.Reshuffle.
 func Read(s beam.Scope, database, table string, t reflect.Type) beam.PCollection {
 	s = s.Scope("spanner.Read")
 
@@ -67,6 +66,8 @@ type queryOptions struct {
 
 // Query executes a query. The output must have a schema compatible with the given
 // type, t. It returns a PCollection<t>.
+// Note: Query will be executed on a single worker. Consider performance of query
+// and if downstream splitting is required add beam.Reshuffle.
 func Query(s beam.Scope, database, q string, t reflect.Type, options ...func(*queryOptions) error) beam.PCollection {
 	s = s.Scope("spanner.Query")
 	return query(s, database, q, t, options...)
