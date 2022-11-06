@@ -144,10 +144,6 @@ func UseBatchSize(batchSize int) func(qo *writeOptions) error {
 // to be the schema type.
 // Note: Writes occur against a single worker machine.
 func Write(s beam.Scope, database, table string, col beam.PCollection, options ...func(*writeOptions) error) {
-	//if typex.IsCoGBK(col.Type()) || typex.IsKV(col.Type()) {
-	//	panic("Unsupported collection type.")
-	//}
-
 	writeOptions := writeOptions{
 		BatchSize: 1000, // default
 	}
@@ -157,20 +153,17 @@ func Write(s beam.Scope, database, table string, col beam.PCollection, options .
 		}
 	}
 
-	t := col.Type().Type()
-
 	s = s.Scope("spanner.Write")
 
 	pre := beam.AddFixedKey(s, col)
 	post := beam.GroupByKey(s, pre)
-	beam.ParDo0(s, &writeFn{Database: database, Table: table, Type: beam.EncodedType{T: t}, Options: writeOptions}, post)
+	beam.ParDo0(s, &writeFn{Database: database, Table: table, Options: writeOptions}, post)
 }
 
 type writeFn struct {
-	Database string           `json:"database"` // Fully qualified identifier
-	Table    string           `json:"table"`    // The table to write to
-	Type     beam.EncodedType `json:"type"`     // Type is the encoded schema type.
-	Options  writeOptions     `json:"options"`  // Spanner write options
+	Database string       `json:"database"` // Fully qualified identifier
+	Table    string       `json:"table"`    // The table to write to
+	Options  writeOptions `json:"options"`  // Spanner write options
 }
 
 func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) bool) error {
