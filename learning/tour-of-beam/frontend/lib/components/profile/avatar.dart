@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../generated/assets.gen.dart';
 import 'profile_content.dart';
 
 class Avatar extends StatelessWidget {
@@ -33,7 +33,10 @@ class Avatar extends StatelessWidget {
       },
       child: CircleAvatar(
         backgroundColor: BeamColors.white,
-        foregroundImage: AssetImage(Assets.png.laptopLight.path),
+        // TODO(nausharipov): load an image from another domain
+        foregroundImage: NetworkImage(
+          FirebaseAuth.instance.currentUser!.photoURL!,
+        ),
       ),
     );
   }
@@ -42,13 +45,13 @@ class Avatar extends StatelessWidget {
     OverlayEntry? overlay;
     overlay = OverlayEntry(
       builder: (context) => DismissibleOverlay(
-        close: () {
-          overlay?.remove();
-        },
-        child: const Positioned(
+        close: overlay!.remove,
+        child: Positioned(
           right: BeamSizes.size10,
           top: BeamSizes.appBarHeight,
-          child: ProfileContent(),
+          child: ProfileContent(
+            closeOverlay: overlay.remove,
+          ),
         ),
       ),
     );

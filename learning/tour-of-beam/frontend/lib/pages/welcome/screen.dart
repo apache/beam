@@ -201,6 +201,8 @@ class _IntroText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = GetIt.instance.get<AuthNotifier>();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -229,9 +231,8 @@ class _IntroText extends StatelessWidget {
                     .copyWith(color: Theme.of(context).primaryColor),
                 recognizer: TapGestureRecognizer()
                   ..onTap = () async {
-                    // TODO(nausharipov): sign in
-                    final auth = GetIt.instance.get<AuthNotifier>();
-                    await auth.signIn();
+                    // TODO(nausharipov): popup with auth methods?
+                    await auth.signIn(AuthMethod.google);
                   },
               ),
               TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),

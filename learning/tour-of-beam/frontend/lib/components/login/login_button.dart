@@ -39,13 +39,13 @@ class LoginButton extends StatelessWidget {
     OverlayEntry? overlay;
     overlay = OverlayEntry(
       builder: (context) => DismissibleOverlay(
-        close: () {
-          overlay?.remove();
-        },
-        child: const Positioned(
+        close: overlay!.remove,
+        child: Positioned(
           right: BeamSizes.size10,
           top: BeamSizes.appBarHeight,
-          child: LoginContent(),
+          child: LoginContent(
+            closeOverlay: overlay.remove,
+          ),
         ),
       ),
     );
