@@ -39,7 +39,7 @@ async function commitStateToRepo() {
       `Unable to get most recent repo contents, commit may fail: ${err}`
     );
   }
-  await exec.exec("git diff-index --quiet HEAD || (git add state/* && git commit -m 'Updating config from bot' && git push origin pr-bot-state)");
+  await exec.exec("(git diff-index --quiet origin/pr-bot-state) || (git add state/* && git commit -m 'Updating config from bot' && git push origin pr-bot-state)");
 }
 
 export class PersistentState {
