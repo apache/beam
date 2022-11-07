@@ -16,7 +16,6 @@
 """
 Common helper module for CI/CD Steps
 """
-import ast
 import asyncio
 import logging
 import os
@@ -308,7 +307,7 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
         link=link)
 
     if tag.tag_as_dict.get(TagFields.datasets):
-        datasets_as_dict = ast.literal_eval(str(tag.tag_as_dict[TagFields.datasets]))
+        datasets_as_dict = tag.tag_as_dict[TagFields.datasets]
         datasets = []
         for key in datasets_as_dict:
             dataset = Dataset.from_dict(datasets_as_dict.get(key))
@@ -317,7 +316,7 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
         example.datasets = datasets
 
     if tag.tag_as_dict.get(TagFields.emulators):
-        emulators_as_dict = ast.literal_eval(str(tag.tag_as_dict[TagFields.emulators]))
+        emulators_as_dict = tag.tag_as_dict[TagFields.emulators]
         emulators = []
         for key in emulators_as_dict:
             emulator = Emulator.from_dict(emulators_as_dict.get(key))
