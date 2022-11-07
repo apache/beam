@@ -104,3 +104,22 @@ class PrecompiledObjectType extends $pb.ProtobufEnum {
   const PrecompiledObjectType._($core.int v, $core.String n) : super(v, n);
 }
 
+class Complexity extends $pb.ProtobufEnum {
+  static const Complexity COMPLEXITY_UNSPECIFIED = Complexity._(0, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'COMPLEXITY_UNSPECIFIED');
+  static const Complexity COMPLEXITY_BASIC = Complexity._(1, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'COMPLEXITY_BASIC');
+  static const Complexity COMPLEXITY_MEDIUM = Complexity._(2, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'COMPLEXITY_MEDIUM');
+  static const Complexity COMPLEXITY_ADVANCED = Complexity._(3, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'COMPLEXITY_ADVANCED');
+
+  static const $core.List<Complexity> values = <Complexity> [
+    COMPLEXITY_UNSPECIFIED,
+    COMPLEXITY_BASIC,
+    COMPLEXITY_MEDIUM,
+    COMPLEXITY_ADVANCED,
+  ];
+
+  static final $core.Map<$core.int, Complexity> _byValue = $pb.ProtobufEnum.initByValue(values);
+  static Complexity? valueOf($core.int value) => _byValue[value];
+
+  const Complexity._($core.int v, $core.String n) : super(v, n);
+}
+

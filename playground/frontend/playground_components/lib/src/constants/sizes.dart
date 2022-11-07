@@ -20,6 +20,7 @@ class BeamSizes {
   static const double size0 = 0;
   static const double size1 = 1;
   static const double size2 = 2;
+  static const double size3 = 3;
   static const double size4 = 4;
   static const double size6 = 6;
   static const double size8 = 8;

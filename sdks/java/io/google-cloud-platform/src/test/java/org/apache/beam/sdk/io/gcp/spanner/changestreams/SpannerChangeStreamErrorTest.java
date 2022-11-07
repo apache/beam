@@ -69,7 +69,6 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -136,7 +135,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://github.com/apache/beam/issues/21533")
   public void testUnavailableExceptionRetries() throws InterruptedException {
     DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
     options.setBlockOnRun(false);
@@ -164,7 +162,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         Thread.sleep(50);
       }
       // The pipeline continues making requests to Spanner to retry the Unavailable errors.
-      assertNull(result.waitUntilFinish(Duration.millis(5)));
+      assertNull(result.waitUntilFinish(Duration.millis(500)));
     } finally {
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.greaterThan(1));

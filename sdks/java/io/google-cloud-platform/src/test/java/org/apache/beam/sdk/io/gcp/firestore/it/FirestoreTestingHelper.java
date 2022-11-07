@@ -104,16 +104,12 @@ final class FirestoreTestingHelper implements TestRule {
     DataLayout value() default DataLayout.Shallow;
   }
 
-  private static final GcpOptions OPTIONS =
-      TestPipeline.testingPipelineOptions().as(GcpOptions.class);
-  private static final FirestoreOptions FIRESTORE_OPTIONS =
-      FirestoreOptions.newBuilder()
-          .setProjectId(OPTIONS.getProject())
-          .setCredentials(OPTIONS.getGcpCredential())
-          .build();
+  private final GcpOptions options;
+  private final org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions firestoreBeamOptions;
+  private final FirestoreOptions firestoreOptions;
 
-  private final Firestore fs = FIRESTORE_OPTIONS.getService();
-  private final FirestoreRpc rpc = (FirestoreRpc) FIRESTORE_OPTIONS.getRpc();
+  private final Firestore fs;
+  private final FirestoreRpc rpc;
   private final CleanupMode cleanupMode;
 
   private Class<?> testClass;
@@ -129,6 +125,19 @@ final class FirestoreTestingHelper implements TestRule {
       "initialization.fields.uninitialized") // testClass and testName are managed via #apply
   public FirestoreTestingHelper(CleanupMode cleanupMode) {
     this.cleanupMode = cleanupMode;
+    options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
+    firestoreBeamOptions =
+        TestPipeline.testingPipelineOptions()
+            .as(org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions.class);
+    firestoreOptions =
+        FirestoreOptions.newBuilder()
+            .setCredentials(options.getGcpCredential())
+            .setProjectId(options.getProject())
+            .setDatabaseId(firestoreBeamOptions.getFirestoreDb())
+            .build();
+
+    fs = firestoreOptions.getService();
+    rpc = (FirestoreRpc) firestoreOptions.getRpc();
   }
 
   @Override
@@ -174,7 +183,7 @@ final class FirestoreTestingHelper implements TestRule {
   String getDatabase() {
     return String.format(
         "projects/%s/databases/%s",
-        FIRESTORE_OPTIONS.getProjectId(), FIRESTORE_OPTIONS.getDatabaseId());
+        firestoreOptions.getProjectId(), firestoreOptions.getDatabaseId());
   }
 
   String getDocumentRoot() {

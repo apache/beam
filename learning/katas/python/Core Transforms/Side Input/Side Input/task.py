@@ -5,9 +5,9 @@
 #  to you under the Apache License, Version 2.0 (the
 #  "License"); you may not use this file except in compliance
 #  with the License.  You may obtain a copy of the License at
-# 
+#
 #      http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 #  Unless required by applicable law or agreed to in writing, software
 #  distributed under the License is distributed on an "AS IS" BASIS,
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,10 +21,13 @@
 #   context_line: 38
 #   categories:
 #     - Side Input
+#   complexity: MEDIUM
+#   tags:
+#     - transform
+#     - map
+#     - strings
 
 import apache_beam as beam
-
-from log_elements import LogElements
 
 
 class Person:
@@ -38,21 +41,16 @@ class Person:
 
 
 class EnrichCountryDoFn(beam.DoFn):
-
     def process(self, element, cities_to_countries):
-        yield Person(element.name, element.city,
-                     cities_to_countries[element.city])
+      yield Person(element.name, element.city, cities_to_countries[element.city])
 
 
 with beam.Pipeline() as p:
-
-  cities_to_countries = {
-      'Beijing': 'China',
-      'London': 'United Kingdom',
-      'San Francisco': 'United States',
-      'Singapore': 'Singapore',
-      'Sydney': 'Australia'
-  }
+  cities_to_countries = p | "Side input" >> beam.Create([('Beijing', 'China'),
+                                                         ('London', 'United Kingdom'),
+                                                         ('San Francisco', 'United States'),
+                                                         ('Singapore', 'Singapore'),
+                                                         ('Sydney', 'Australia')])
 
   persons = [
       Person('Henry', 'Singapore'),
@@ -63,6 +61,5 @@ with beam.Pipeline() as p:
   ]
 
   (p | beam.Create(persons)
-     | beam.ParDo(EnrichCountryDoFn(), cities_to_countries)
-     | LogElements())
-
+     | beam.ParDo(EnrichCountryDoFn(), beam.pvalue.AsDict(cities_to_countries))
+   | beam.LogElements())
