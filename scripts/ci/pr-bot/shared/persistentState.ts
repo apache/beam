@@ -40,7 +40,7 @@ async function commitStateToRepo() {
     );
   }
   // Print changes for observability
-  await exec.exec("git diff-index --quiet origin/pr-bot-state", [], {ignoreReturnCode: true});
+  await exec.exec("git diff-index origin/pr-bot-state state", [], {ignoreReturnCode: true});
   const changes = await exec.exec("git diff-index --quiet origin/pr-bot-state state", [], {ignoreReturnCode: true});
   if (changes == 1) {
     await exec.exec("git add state/*");
