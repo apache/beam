@@ -90,7 +90,7 @@ gcloud auth application-default login
 ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="env" (env - folder name which you created for configuration files)
 ```
 # Playground deployment:
-Afrer successfully deploying Playground infrastrcuture in the previous step, authenticate on Docker and Google Kubernetes Engine
+Afrer successfully deploying Playground infrastrcuture in the previous step, authenticate on Docker and Google Kubernetes Engine<br>
 The following command will authenticate us in the Docker registry
 ```
  gcloud auth configure-docker `chosen_region`-docker.pkg.dev
