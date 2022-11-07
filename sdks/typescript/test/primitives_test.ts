@@ -290,32 +290,51 @@ describe("primitives module", function () {
     describe("portable runner @ulr", () => {
       suite.bind(this)(loopbackRunner());
     });
+  } else {
+    it("Portable tests not run because BEAM_SERVICE_OVERRIDES not set.", function () {
+      this.skip();
+    });
   }
 
   describe("multi-pipeline @dataflow", async () => {
-    const runner = new MultiPipelineRunner(
-      require("../src/apache_beam/runners/dataflow").dataflowRunner({
-        project: "apache-beam-testing",
-        tempLocation: "gs://temp-storage-for-end-to-end-tests/temp-it",
-        region: "us-central1",
-      })
-    );
-
-    beforeEach(function () {
-      if (
-        this.test!.title.includes("fails") ||
-        this.test!.title.includes("counter")
-      ) {
-        this.skip();
+    if (process.env.GCP_PROJECT_ID) {
+      if (!process.env.BEAM_SERVICE_OVERRIDES) {
+        throw new Error("Please specify BEAM_SERVICE_OVERRIDES env var.");
       }
-      runner.setNextTestName(this.test!.title.match(/([^"]+)"$/)![1]);
-    });
+      if (!process.env.GCP_TESTING_BUCKET) {
+        throw new Error("Please specify GCP_REGION env var.");
+      }
+      if (!process.env.GCP_REGION) {
+        throw new Error("Please specify GCP_TESTING_BUCKET env var.");
+      }
+      const runner = new MultiPipelineRunner(
+        require("../src/apache_beam/runners/dataflow").dataflowRunner({
+          project: process.env.GCP_PROJECT_ID,
+          tempLocation: process.env.GCP_TESTING_BUCKET,
+          region: process.env.GCP_REGION,
+        })
+      );
 
-    after(async function () {
-      this.timeout(10 * 60 * 1000 /* 10 min */);
-      console.log(await runner.reallyRunPipelines());
-    });
+      beforeEach(function () {
+        if (
+          this.test!.title.includes("fails") ||
+          this.test!.title.includes("counter")
+        ) {
+          this.skip();
+        }
+        runner.setNextTestName(this.test!.title.match(/([^"]+)"$/)![1]);
+      });
 
-    suite.bind(this)(runner);
+      after(async function () {
+        this.timeout(10 * 60 * 1000 /* 10 min */);
+        console.log(await runner.reallyRunPipelines());
+      });
+
+      suite.bind(this)(runner);
+    } else {
+      it("Dataflow tests not run because GCP_PROJECT_ID not set.", function () {
+        this.skip();
+      });
+    }
   });
 });
