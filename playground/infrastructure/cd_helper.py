@@ -27,6 +27,7 @@ from config import Origin
 from datastore_client import DatastoreClient
 from grpc_client import GRPCClient
 from helper import Example, get_statuses
+from storage_client import StorageClient
 
 
 class CDHelper:
@@ -50,6 +51,8 @@ class CDHelper:
         """
         single_file_examples = list(filter(
             lambda example: example.tag.multifile is False, examples))
+        storage_client = StorageClient()
+        storage_client.set_dataset_path_for_examples(examples)
         logging.info("Start of executing only single-file Playground examples ...")
         asyncio.run(self._get_outputs(single_file_examples))
         logging.info("Finish of executing single-file Playground examples")

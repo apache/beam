@@ -28,9 +28,10 @@ Unit tests for the CD helper
 
 class TestCDHelper(unittest.TestCase):
 
+    @mock.patch("google.cloud.storage.Client")
     @mock.patch("cd_helper.CDHelper._save_to_datastore")
     @mock.patch("cd_helper.CDHelper._get_outputs")
-    def test_save_examples(self, mock_get_outputs, mock_save_to_datastore):
+    def test_save_examples(self, mock_get_outputs, mock_save_to_datastore, mock_cloud_storage):
         examples = test_utils._get_examples(1)
         helper = CDHelper(SDK_JAVA, Origin.PG_EXAMPLES)
         helper.save_examples(examples)

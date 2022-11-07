@@ -15,10 +15,11 @@
 import os
 from unittest.mock import call
 
-import pytest
 import mock
 
+from config import Dataset
 from storage_client import StorageClient
+from test_utils import _get_examples
 
 """
 Unit tests for the Cloud Storage client
@@ -26,24 +27,35 @@ Unit tests for the Cloud Storage client
 
 
 @mock.patch("google.cloud.storage.Client")
-def test_upload_dataset_when_dataset_bucket_name_not_set(mock_storage_client):
-    """
-    Test uploading a dataset to the cloud storage when the Dataset bucket name is not set
-    """
-    with pytest.raises(KeyError, match="DATASET_BUCKET_NAME environment variable should be specified in os"):
-        client = StorageClient()
-        client.upload_dataset("MOCK_FILE_NAME")
-
-
 @mock.patch.dict(os.environ, {"DATASET_BUCKET_NAME": "MOCK_BUCKET"}, clear=True)
-@mock.patch("google.cloud.storage.Client")
-def test_upload_dataset_in_the_usual_case(mock_storage_client):
+def test_set_dataset_path_for_examples_when_datasets_are_empty(mock_storage_client):
     """
-    Test uploading a dataset to the cloud storage in the usual case
+    Test setting a dataset path for examples when datasets are empty
     """
-
+    examples = _get_examples(2)
     client = StorageClient()
-    url = client.upload_dataset("MOCK_FILE_NAME")
-    assert url is not None
+    client.set_dataset_path_for_examples(examples)
+    mock_storage_client.bucket.assert_not_called()
+
+
+@mock.patch("google.cloud.storage.Client")
+@mock.patch.dict(os.environ, {"DATASET_BUCKET_NAME": "MOCK_BUCKET"}, clear=True)
+def test_set_dataset_path_for_examples_in_the_usual_case(mock_storage_client):
+    """
+    Test setting a dataset path for examples in the usual case
+    """
+    examples = _get_examples(1)
+    for example in examples:
+        datasets = []
+        dataset = Dataset(
+            format="MOCK_FORMAT",
+            location="MOCK_LOCATION",
+            name="MOCK_NAME"
+        )
+        datasets.append(dataset)
+        example.datasets = datasets
+    client = StorageClient()
+    client.set_dataset_path_for_examples(examples)
     calls = [call().bucket("MOCK_BUCKET")]
     mock_storage_client.assert_has_calls(calls, any_order=False)
+

@@ -28,6 +28,7 @@ from api.v1.api_pb2 import STATUS_COMPILE_ERROR, STATUS_ERROR, STATUS_RUN_ERROR,
 from config import Config, Origin
 from grpc_client import GRPCClient
 from helper import Example, get_statuses
+from storage_client import StorageClient
 
 
 class VerifyException(Exception):
@@ -55,6 +56,8 @@ class CIHelper:
         """
         single_file_examples = list(filter(
             lambda example: example.tag.multifile is False, examples))
+        storage_client = StorageClient()
+        storage_client.set_dataset_path_for_examples(examples)
         async with GRPCClient() as client:
             await get_statuses(client, single_file_examples)
             await self._verify_examples(client, single_file_examples, origin)
