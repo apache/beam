@@ -73,6 +73,9 @@ class SyntheticRecordToStrFn(beam.DoFn):
   """
   A DoFn that convert key-value bytes from synthetic source to string record.
 
+  It uses base64 to convert random bytes emitted from the synthetic source.
+  Therefore, every 3 bytes give 4 bytes long ascii characters.
+
   Output length = 4(ceil[len(key)/3] + ceil[len(value)/3]) + 1
   """
   def process(self, element):
