@@ -50,7 +50,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Fl
                 '--parallelism=4',
                 '--dataSize=1GB',
                 '--sourceType=PARQUET',
-                '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
+                '--dataDirectory=gs://beam-tpcds/datasets/parquet/nonpartitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/flink/',
                 '--tpcParallel=1',
                 '--queries=' + tpcdsQueriesArg
@@ -84,7 +84,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Flin
                 '--parallelism=4',
                 '--dataSize=1GB',
                 '--sourceType=PARQUET',
-                '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
+                '--dataDirectory=gs://beam-tpcds/datasets/parquet/nonpartitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/flink/',
                 '--tpcParallel=1',
                 '--queries=' + tpcdsQueriesArg

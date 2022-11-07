@@ -216,13 +216,10 @@
       <id>spark-runner</id>
       <!-- Makes the SparkRunner available when running a pipeline. Additionally,
            overrides some Spark dependencies to Beam-compatible versions. -->
-      <properties>
-        <netty.version>4.1.17.Final</netty.version>
-      </properties>
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-spark</artifactId>
+          <artifactId>beam-runners-spark-3</artifactId>
           <scope>runtime</scope>
           <exclusions>
             <exclusion>
@@ -238,7 +235,7 @@
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
-          <artifactId>spark-streaming_2.11</artifactId>
+          <artifactId>spark-streaming_2.12</artifactId>
           <scope>runtime</scope>
           <exclusions>
             <exclusion>
@@ -249,24 +246,9 @@
         </dependency>
         <dependency>
           <groupId>com.fasterxml.jackson.module</groupId>
-          <artifactId>jackson-module-scala_2.11</artifactId>
+          <artifactId>jackson-module-scala_2.12</artifactId>
           <version>${jackson.version}</version>
           <scope>runtime</scope>
-        </dependency>
-        <!-- [BEAM-3519] GCP IO exposes netty on its API surface, causing conflicts with runners -->
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
-          <exclusions>
-            <exclusion>
-              <groupId>io.grpc</groupId>
-              <artifactId>grpc-netty</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-handler</artifactId>
-            </exclusion>
-          </exclusions>
         </dependency>
       </dependencies>
     </profile>
@@ -340,6 +322,13 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+    </dependency>
+
+    <!-- Adds a dependency on the Python Multi-language pipelines API module. -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-python</artifactId>
+      <version>${beam.version}</version>
     </dependency>
 
     <!-- Dependencies below this line are specific dependencies needed by the examples code. -->

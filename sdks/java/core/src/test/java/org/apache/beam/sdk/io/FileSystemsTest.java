@@ -166,6 +166,34 @@ public class FileSystemsTest {
   }
 
   @Test
+  public void testCopySkipIfItExists() throws Exception {
+    Path srcPath1 = temporaryFolder.newFile().toPath();
+    Path srcPath2 = temporaryFolder.newFile().toPath();
+
+    Path destPath1 = srcPath1.resolveSibling("dest1");
+    Path destPath2 = srcPath2.resolveSibling("dest2");
+
+    createFileWithContent(srcPath1, "content1");
+    createFileWithContent(srcPath2, "content3");
+    createFileWithContent(destPath2, "content");
+
+    FileSystems.copy(
+        toResourceIds(ImmutableList.of(srcPath1, srcPath2), false /* isDirectory */),
+        toResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */),
+        MoveOptions.StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+
+    assertTrue(srcPath1.toFile().exists());
+    assertTrue(srcPath2.toFile().exists());
+    assertThat(
+        Files.readLines(destPath1.toFile(), StandardCharsets.UTF_8),
+        containsInAnyOrder("content1"));
+    // The file is overwritten because the content does not match.
+    assertThat(
+        Files.readLines(destPath2.toFile(), StandardCharsets.UTF_8),
+        containsInAnyOrder("content3"));
+  }
+
+  @Test
   public void testRenameIgnoreMissingFiles() throws Exception {
     Path srcPath1 = temporaryFolder.newFile().toPath();
     Path nonExistentPath = srcPath1.resolveSibling("non-existent");

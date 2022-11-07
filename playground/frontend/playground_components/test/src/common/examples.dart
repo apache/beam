@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:playground_components/src/enums/complexity.dart';
 import 'package:playground_components/src/models/example.dart';
 import 'package:playground_components/src/models/example_base.dart';
 import 'package:playground_components/src/models/sdk.dart';
@@ -23,35 +24,42 @@ import 'package:playground_components/src/models/sdk.dart';
 const exampleMock1 = Example(
   sdk: Sdk.python,
   source: 'ex1',
-  name: 'Example',
+  name: 'Example X1',
+  tags: ['tag1'],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
   pipelineOptions: '',
+  complexity: Complexity.basic,
 );
 
 const exampleMock2 = Example(
   sdk: Sdk.python,
   source: 'ex2',
   name: 'Kata',
+  tags: ['tag2'],
   type: ExampleType.kata,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
   pipelineOptions: '',
+  complexity: Complexity.basic,
 );
 
 const exampleWithoutSourceMock = ExampleBase(
   sdk: Sdk.python,
   name: 'Test example',
+  tags: [],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
   pipelineOptions: '',
+  complexity: Complexity.basic,
 );
 
 const exampleWithAllAdditionsMock = Example(
   sdk: Sdk.python,
   name: 'Test example',
+  tags: [],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
@@ -60,14 +68,17 @@ const exampleWithAllAdditionsMock = Example(
   logs: 'test outputs',
   graph: 'test outputs',
   pipelineOptions: '',
+  complexity: Complexity.basic,
 );
 
 const exampleMockGo = Example(
   sdk: Sdk.go,
   source: 'ex1',
   name: 'Example',
+  tags: [],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_GO/Category/Name',
   pipelineOptions: '',
+  complexity: Complexity.medium,
 );

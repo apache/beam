@@ -91,7 +91,7 @@ user=user-2, score=10, window=[2019-05-26T13:29:03.367Z..2019-05-26T13:29:13.367
 
 User #1 sees two events separated by 12 seconds. With standard sessions, the gap defaults to 10 seconds; both scores are in different sessions, so the scores aren't added.
 
-User #2 sees four events, seperated by two, seven, and three seconds, respectively. Since none of the gaps are greater than the default, the four events are in the same standard session and added together (18 points).
+User #2 sees four events, separated by two, seven, and three seconds, respectively. Since none of the gaps are greater than the default, the four events are in the same standard session and added together (18 points).
 
 #### Dynamic sessions
 The dynamic sessions specify a five-second gap, so they use the following windows and scores:

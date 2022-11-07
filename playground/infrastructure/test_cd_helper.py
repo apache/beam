@@ -15,6 +15,7 @@
 
 import unittest
 import mock
+from config import Origin
 
 import test_utils
 from api.v1.api_pb2 import SDK_JAVA
@@ -31,7 +32,7 @@ class TestCDHelper(unittest.TestCase):
     @mock.patch("cd_helper.CDHelper._get_outputs")
     def test_save_examples(self, mock_get_outputs, mock_save_to_datastore):
         examples = test_utils._get_examples(1)
-        helper = CDHelper()
-        helper.save_examples(examples, SDK_JAVA)
+        helper = CDHelper(SDK_JAVA, Origin.PG_EXAMPLES)
+        helper.save_examples(examples)
         mock_get_outputs.assert_called_once()
-        mock_save_to_datastore.assert_called_once_with(examples, SDK_JAVA)
+        mock_save_to_datastore.assert_called_once_with(examples)

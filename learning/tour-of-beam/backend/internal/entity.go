@@ -15,6 +15,14 @@
 
 package internal
 
+import "errors"
+
+var (
+	ErrNoUnit     = errors.New("unit not found")
+	ErrNoUser     = errors.New("user not found")
+	ErrPlayground = errors.New("playground error")
+)
+
 type SdkItem struct {
 	Id    string `json:"id"`
 	Title string `json:"title"`
@@ -33,8 +41,6 @@ type Unit struct {
 	Hints             []string `json:"hints,omitempty"`
 	TaskSnippetId     string   `json:"taskSnippetId,omitempty"`
 	SolutionSnippetId string   `json:"solutionSnippetId,omitempty"`
-	TaskName          string   `json:"-"`
-	SolutionName      string   `json:"-"`
 
 	// optional, user-specific
 	UserSnippetId string `json:"userSnippetId,omitempty"`
@@ -50,6 +56,7 @@ const (
 )
 
 type Group struct {
+	Id    string `json:"id"`
 	Title string `json:"title"`
 	Nodes []Node `json:"nodes"`
 }
@@ -75,4 +82,23 @@ type ContentTree struct {
 type CodeMessage struct {
 	Code    string `json:"code"`
 	Message string `json:"message,omitempty"`
+}
+
+type UnitProgress struct {
+	Id            string `json:"id"`
+	IsCompleted   bool   `json:"isCompleted"`
+	UserSnippetId string `json:"userSnippetId,omitempty"`
+}
+type SdkProgress struct {
+	Units []UnitProgress `json:"units"`
+}
+
+type UserCodeFile struct {
+	Name    string `json:"name"`
+	Content string `json:"content"`
+	IsMain  bool   `json:"isMain,omitempty"`
+}
+type UserCodeRequest struct {
+	Files           []UserCodeFile `json:"files"`
+	PipelineOptions string         `json:"pipelineOptions"`
 }

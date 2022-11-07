@@ -993,6 +993,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..a<$core.int>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'contextLine', $pb.PbFieldType.O3)
     ..aOB(9, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'defaultExample')
     ..e<Sdk>(10, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
+    ..e<Complexity>(11, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'complexity', $pb.PbFieldType.OE, defaultOrMaker: Complexity.COMPLEXITY_UNSPECIFIED, valueOf: Complexity.valueOf, enumValues: Complexity.values)
+    ..pPS(12, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'tags')
     ..hasRequiredFields = false
   ;
 
@@ -1008,6 +1010,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     $core.int? contextLine,
     $core.bool? defaultExample,
     Sdk? sdk,
+    Complexity? complexity,
+    $core.Iterable<$core.String>? tags,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -1039,6 +1043,12 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (sdk != null) {
       _result.sdk = sdk;
+    }
+    if (complexity != null) {
+      _result.complexity = complexity;
+    }
+    if (tags != null) {
+      _result.tags.addAll(tags);
     }
     return _result;
   }
@@ -1152,6 +1162,18 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   $core.bool hasSdk() => $_has(9);
   @$pb.TagNumber(10)
   void clearSdk() => clearField(10);
+
+  @$pb.TagNumber(11)
+  Complexity get complexity => $_getN(10);
+  @$pb.TagNumber(11)
+  set complexity(Complexity v) { setField(11, v); }
+  @$pb.TagNumber(11)
+  $core.bool hasComplexity() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearComplexity() => clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.List<$core.String> get tags => $_getList(11);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {
@@ -2014,6 +2036,7 @@ class SaveSnippetRequest extends $pb.GeneratedMessage {
     ..pc<SnippetFile>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'files', $pb.PbFieldType.PM, subBuilder: SnippetFile.create)
     ..e<Sdk>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
     ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
+    ..e<Complexity>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'complexity', $pb.PbFieldType.OE, defaultOrMaker: Complexity.COMPLEXITY_UNSPECIFIED, valueOf: Complexity.valueOf, enumValues: Complexity.values)
     ..hasRequiredFields = false
   ;
 
@@ -2022,6 +2045,7 @@ class SaveSnippetRequest extends $pb.GeneratedMessage {
     $core.Iterable<SnippetFile>? files,
     Sdk? sdk,
     $core.String? pipelineOptions,
+    Complexity? complexity,
   }) {
     final _result = create();
     if (files != null) {
@@ -2032,6 +2056,9 @@ class SaveSnippetRequest extends $pb.GeneratedMessage {
     }
     if (pipelineOptions != null) {
       _result.pipelineOptions = pipelineOptions;
+    }
+    if (complexity != null) {
+      _result.complexity = complexity;
     }
     return _result;
   }
@@ -2076,6 +2103,15 @@ class SaveSnippetRequest extends $pb.GeneratedMessage {
   $core.bool hasPipelineOptions() => $_has(2);
   @$pb.TagNumber(3)
   void clearPipelineOptions() => clearField(3);
+
+  @$pb.TagNumber(4)
+  Complexity get complexity => $_getN(3);
+  @$pb.TagNumber(4)
+  set complexity(Complexity v) { setField(4, v); }
+  @$pb.TagNumber(4)
+  $core.bool hasComplexity() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearComplexity() => clearField(4);
 }
 
 class SaveSnippetResponse extends $pb.GeneratedMessage {
@@ -2177,6 +2213,7 @@ class GetSnippetResponse extends $pb.GeneratedMessage {
     ..pc<SnippetFile>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'files', $pb.PbFieldType.PM, subBuilder: SnippetFile.create)
     ..e<Sdk>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
     ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
+    ..e<Complexity>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'complexity', $pb.PbFieldType.OE, defaultOrMaker: Complexity.COMPLEXITY_UNSPECIFIED, valueOf: Complexity.valueOf, enumValues: Complexity.values)
     ..hasRequiredFields = false
   ;
 
@@ -2185,6 +2222,7 @@ class GetSnippetResponse extends $pb.GeneratedMessage {
     $core.Iterable<SnippetFile>? files,
     Sdk? sdk,
     $core.String? pipelineOptions,
+    Complexity? complexity,
   }) {
     final _result = create();
     if (files != null) {
@@ -2195,6 +2233,9 @@ class GetSnippetResponse extends $pb.GeneratedMessage {
     }
     if (pipelineOptions != null) {
       _result.pipelineOptions = pipelineOptions;
+    }
+    if (complexity != null) {
+      _result.complexity = complexity;
     }
     return _result;
   }
@@ -2239,5 +2280,14 @@ class GetSnippetResponse extends $pb.GeneratedMessage {
   $core.bool hasPipelineOptions() => $_has(2);
   @$pb.TagNumber(3)
   void clearPipelineOptions() => clearField(3);
+
+  @$pb.TagNumber(4)
+  Complexity get complexity => $_getN(3);
+  @$pb.TagNumber(4)
+  set complexity(Complexity v) { setField(4, v); }
+  @$pb.TagNumber(4)
+  $core.bool hasComplexity() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearComplexity() => clearField(4);
 }
 

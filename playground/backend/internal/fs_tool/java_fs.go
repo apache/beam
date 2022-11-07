@@ -17,9 +17,16 @@ package fs_tool
 
 import (
 	"errors"
-	"github.com/google/uuid"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
+
+	"github.com/google/uuid"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/utils"
 )
 
 const (
@@ -43,6 +50,29 @@ func executableName(executableFileFolderPath string) (string, error) {
 	if len(dirEntries) < 1 {
 		return "", errors.New("number of executable files should be at least one")
 	}
-	//TODO need to find a class with a main method instead of using the last file
+
+	if len(dirEntries) == 1 {
+		return strings.Split(dirEntries[0].Name(), ".")[0], nil
+	}
+
+	for _, entry := range dirEntries {
+		content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", executableFileFolderPath, entry.Name()))
+		if err != nil {
+			logger.Error(fmt.Sprintf("error during file reading: %s", err.Error()))
+			break
+		}
+		ext := strings.Split(entry.Name(), ".")[1]
+		sdk := utils.ToSDKFromExt("." + ext)
+
+		if sdk == pb.Sdk_SDK_UNSPECIFIED {
+			logger.Error("invalid a file extension")
+			break
+		}
+
+		if utils.IsFileMain(string(content), sdk) {
+			return strings.Split(entry.Name(), ".")[0], nil
+		}
+	}
+
 	return strings.Split(dirEntries[len(dirEntries)-1].Name(), ".")[0], nil
 }

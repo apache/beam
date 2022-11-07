@@ -153,6 +153,7 @@ func setup() *grpc.Server {
 	// setup initial data
 	versions := []schema.Version{
 		new(migration.InitialStructure),
+		new(migration.AddingComplexityProperty),
 	}
 	dbSchema := schema.New(ctx, dbClient, appEnv, props, versions)
 	actualSchemaVersion, err := dbSchema.InitiateData()
@@ -1044,7 +1045,8 @@ func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
 				got.PrecompiledObject.PipelineOptions != "MOCK_P_OPTS" ||
 				got.PrecompiledObject.Link != "MOCK_PATH" ||
 				got.PrecompiledObject.Description != "MOCK_DESCR" ||
-				!got.PrecompiledObject.DefaultExample {
+				!got.PrecompiledObject.DefaultExample ||
+				got.PrecompiledObject.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
 				t.Error("PlaygroundController_GetPrecompiledObject() unexpected result")
 			}
 		})
@@ -1250,7 +1252,8 @@ func TestPlaygroundController_GetDefaultPrecompiledObject(t *testing.T) {
 				got.PrecompiledObject.PipelineOptions != "MOCK_P_OPTS" ||
 				got.PrecompiledObject.Link != "MOCK_PATH" ||
 				got.PrecompiledObject.Description != "MOCK_DESCR" ||
-				!got.PrecompiledObject.DefaultExample {
+				!got.PrecompiledObject.DefaultExample ||
+				got.PrecompiledObject.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
 				t.Error("PlaygroundController_GetDefaultPrecompiledObject() unexpected result")
 			}
 		})

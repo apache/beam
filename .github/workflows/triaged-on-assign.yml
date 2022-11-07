@@ -20,6 +20,8 @@ on:
 
 jobs:
   assign:
+    permissions:
+      issues: write
     name: Mark issue as triaged when assigned
     runs-on: ubuntu-latest
     steps:

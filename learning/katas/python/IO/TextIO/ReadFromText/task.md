@@ -40,3 +40,12 @@ transform and specify the path of the file(s) to be read.
   <a href="https://beam.apache.org/documentation/programming-guide/#pipeline-io-reading-data">
     "Reading input data"</a> section for more information.
 </div>
+
+Built-in I/Os
+-------------
+
+Beam SDKs provide many out of the box I/O transforms that can be used to read from many different
+sources and write to many different sinks.
+
+See the [Beam-provided I/O Transforms](https://beam.apache.org/documentation/io/built-in/) page
+for a list of the currently available I/O transforms.
