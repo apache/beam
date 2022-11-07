@@ -101,7 +101,7 @@ The following command will authenticate us in the Docker registry
 gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
 ```
 Find a Static IP in your GCP project>VPC Network>IP Addresses>pg-static-ip
-Add following DNS A records for the Static IP address:
+<br>Add following DNS A records for the Static IP address:
 ```
 * java.playground.zone
 * python.playground.zone
