@@ -103,6 +103,9 @@ gcloud container clusters get-credentials --region `chosen_location` `gke_name` 
 Please add NS records from your [Cloud DNS](https://cloud.google.com/dns/docs/records) (project_id>Cloud DNS>playground>NS records) to your domain registrator
 This step completes the configuration of the deployment environment.
 
+Add DNs A records for the following hosts:
+* Java.`YourName.your zone`
+
 To deploye the Beam Playground to the configured envrionment, please execute the following command (Ensure you are in the "beam" folder):
 ```
 ./gradlew playground:terraform:gkebackend -Pproject_environment="env" -Pdocker-tag="tag" -Pdns-name="PlaygroundDNS" (env - folder name which you created for configuration files, tag - image tag for backend, PlaygroundDNS - chosen DNS for Playground)
