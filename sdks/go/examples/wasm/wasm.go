@@ -124,6 +124,7 @@ func vToElemFn(v int32) elem {
 	}
 }
 
+// Concept #2 wrap wasm function execution within a DoFn.
 // wasmFn wraps a DoFn to execute a wasmer.io compiled wasm function
 type wasmFn struct {
 	fn wasmer.NativeFunction
