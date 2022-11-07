@@ -118,7 +118,7 @@ To deploy Beam Playground to the configured envrionment, please execute the foll
 ```
 ./gradlew playground:terraform:gkebackend -Pproject_environment="env" -Pdocker-tag="tag" -Pdns-name="PlaygroundDNS" (env - folder name which you created for configuration files, tag - image tag for backend, PlaygroundDNS - chosen DNS for Playground)
 ```
-During script execution, a Google managed certificate will be created (allow time for [provisioning the certificate](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs)).
+During script execution, a Google managed certificate will be created. [Provisioning might take up to 60 minutes](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs).
 
 Validation steps:
 1. Run "helm list" command in the console to ensure that status is "deployed":
