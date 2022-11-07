@@ -60,7 +60,10 @@ before(() => {
 after(() => subprocessCache.stopAll());
 
 function xlang_it(name, fn) {
-  return (process.env.BEAM_SERVICE_OVERRIDES ? it : it.skip)(name + ' @xlang', fn);
+  return (process.env.BEAM_SERVICE_OVERRIDES ? it : it.skip)(
+    name + " @xlang",
+    fn
+  );
 }
 
 // These depends on fixes that will be released in 2.40.

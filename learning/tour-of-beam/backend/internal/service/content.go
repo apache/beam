@@ -18,9 +18,11 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 	"beam.apache.org/learning/tour-of-beam/backend/internal/storage"
+	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api"
 )
 
 type IContent interface {
@@ -28,10 +30,12 @@ type IContent interface {
 	GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (tob.Unit, error)
 	GetUserProgress(ctx context.Context, sdk tob.Sdk, userId string) (tob.SdkProgress, error)
 	SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error
+	SaveUserCode(ctx context.Context, sdk tob.Sdk, unitId, uid string, userRequest tob.UserCodeRequest) error
 }
 
 type Svc struct {
-	Repo storage.Iface
+	Repo     storage.Iface
+	PgClient pb.PlaygroundServiceClient
 }
 
 func (s *Svc) GetContentTree(ctx context.Context, sdk tob.Sdk) (ct tob.ContentTree, err error) {
@@ -67,4 +71,14 @@ func (s *Svc) GetUserProgress(ctx context.Context, sdk tob.Sdk, userId string) (
 
 func (s *Svc) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error {
 	return s.Repo.SetUnitComplete(ctx, sdk, unitId, uid)
+}
+
+func (s *Svc) SaveUserCode(ctx context.Context, sdk tob.Sdk, unitId, uid string, userRequest tob.UserCodeRequest) error {
+	req := MakePgSaveRequest(userRequest, sdk)
+	resp, err := s.PgClient.SaveSnippet(ctx, &req)
+	if err != nil {
+		return err
+	}
+	fmt.Println("SaveSnippet response:", resp)
+	return s.Repo.SaveUserSnippetId(ctx, sdk, unitId, uid, resp.GetId())
 }

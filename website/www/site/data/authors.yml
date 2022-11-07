@@ -40,6 +40,9 @@ chamikara:
 damccorm:
   name: Danny McCormick
   email: dannymccormick@google.com
+davidcavazos:
+  name: David Cavazos
+  email: dcavazos@google.com
 davor:
   name: Davor Bonaci
   email: davor@apache.org

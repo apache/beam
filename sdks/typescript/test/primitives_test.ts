@@ -29,17 +29,50 @@ import * as combiners from "../src/apache_beam/transforms/combiners";
 import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 
 import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
-import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
+import { loopbackRunner } from "../src/apache_beam/runners/runner";
 import { Pipeline } from "../src/apache_beam/internal/pipeline";
 import * as testing from "../src/apache_beam/testing/assert";
 import * as windowings from "../src/apache_beam/transforms/windowings";
 import * as pardo from "../src/apache_beam/transforms/pardo";
 import { withName } from "../src/apache_beam/transforms";
+import * as service from "../src/apache_beam/utils/service";
 
-describe("primitives module", function () {
+let subprocessCache;
+before(async function () {
+  this.timeout(30000);
+  subprocessCache = service.SubprocessService.createCache();
+  if (process.env.BEAM_SERVICE_OVERRIDES) {
+    // Start it up here so we don't timeout any individual test.
+    await loopbackRunner().run(function pipeline(root) {
+      root.apply(beam.impulse());
+    });
+  }
+});
+
+after(() => subprocessCache.stopAll());
+
+export function suite(runner: beam.Runner = new DirectRunner()) {
+  describe("testing.assertDeepEqual", function () {
+    // The tests below won't catch failures if this doesn't fail.
+    it("fails on bad assert", async function () {
+      // TODO: There's probably a more idiomatic way to test failures.
+      var seenError = false;
+      try {
+        await runner.run((root) => {
+          const pcolls = root
+            .apply(beam.create([1, 2, 3]))
+            .apply(testing.assertDeepEqual([1, 2]));
+        });
+      } catch (Error) {
+        seenError = true;
+      }
+      assert.equal(true, seenError);
+    });
+  });
+
   describe("runs basic transforms", function () {
     it("runs a map", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         const pcolls = root
           .apply(beam.create([1, 2, 3]))
           .map((x) => x * x)
@@ -48,7 +81,7 @@ describe("primitives module", function () {
     });
 
     it("runs a flatmap", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         const pcolls = root
           .apply(beam.create(["a b", "c"]))
           .flatMap((s) => s.split(/ +/))
@@ -57,7 +90,7 @@ describe("primitives module", function () {
     });
 
     it("runs a Splitter", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         const pcolls = root
           .apply(beam.create([{ a: 1 }, { b: 10 }, { a: 2, b: 20 }]))
           .apply(beam.split(["a", "b"], { exclusive: false }));
@@ -67,7 +100,7 @@ describe("primitives module", function () {
     });
 
     it("runs a map with context", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         root
           .apply(beam.create([1, 2, 3]))
           .map((a: number, b: number) => a + b, 100)
@@ -75,8 +108,39 @@ describe("primitives module", function () {
       });
     });
 
+    it("runs a map with counters", async function () {
+      const result = await new DirectRunner().run((root) => {
+        root
+          .apply(beam.create([1, 2, 3]))
+          .map(
+            withName(
+              "mapWithCounter",
+              pardo.withContext(
+                (x: number, context) => {
+                  context.myCounter.increment(x);
+                  context.myDist.update(x);
+                  return x * x;
+                },
+                {
+                  myCounter: pardo.counter("myCounter"),
+                  myDist: pardo.distribution("myDist"),
+                }
+              )
+            )
+          )
+          .apply(testing.assertDeepEqual([1, 4, 9]));
+      });
+      assert.deepEqual((await result.counters()).myCounter, 1 + 2 + 3);
+      assert.deepEqual((await result.distributions()).myDist, {
+        count: 3,
+        sum: 6,
+        min: 1,
+        max: 3,
+      });
+    });
+
     it("runs a map with singleton side input", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         const input = root.apply(beam.create([1, 2, 1]));
         const sideInput = root.apply(
           beam.withName("createSide", beam.create([4]))
@@ -90,7 +154,7 @@ describe("primitives module", function () {
     });
 
     it("runs a map with a side input sharing input root", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         const input = root.apply(beam.create([1, 2, 1]));
         // TODO: Can this type be inferred?
         const sideInput: beam.PCollection<{ sum: number }> = input.apply(
@@ -105,7 +169,7 @@ describe("primitives module", function () {
     });
 
     it("runs a map with window-sensitive context", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         root
           .apply(beam.create([1, 2, 3, 4, 5, 10, 11, 12]))
           .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)))
@@ -114,19 +178,21 @@ describe("primitives module", function () {
           .map(
             withName(
               "MapWithContext",
-              // This is the function to apply.
-              (kv, context) => {
-                return {
-                  key: kv.key,
-                  value: kv.value,
-                  window_start_ms: context.window.lookup().start.low,
-                  a: context.other,
-                };
-              }
-            ),
-            // This is the context to pass as the second argument.
-            // At each element, window.get() will return the associated window.
-            { window: pardo.windowParam(), other: "A" }
+              pardo.withContext(
+                // This is the function to apply.
+                (kv, context) => {
+                  return {
+                    key: kv.key,
+                    value: kv.value,
+                    window_start_ms: context.window.lookup().start.low,
+                    a: context.other,
+                  };
+                },
+                // This is the context to pass as the second argument.
+                // At each element, window.get() will return the associated window.
+                { window: pardo.windowParam(), other: "A" }
+              )
+            )
           )
           .apply(
             testing.assertDeepEqual([
@@ -138,7 +204,7 @@ describe("primitives module", function () {
     });
 
     it("runs a WindowInto", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         root
           .apply(beam.create(["apple", "apricot", "banana"]))
           .apply(beam.windowInto(windowings.globalWindows()))
@@ -153,7 +219,7 @@ describe("primitives module", function () {
     });
 
     it("runs a WindowInto IntervalWindow", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         root
           .apply(beam.create([1, 2, 3, 4, 5, 10, 11, 12]))
           .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)))
@@ -214,4 +280,13 @@ describe("primitives module", function () {
       );
     });
   });
+}
+
+describe("primitives module", function () {
+  describe("direct runner", suite.bind(this));
+  if (process.env.BEAM_SERVICE_OVERRIDES) {
+    describe("portable runner @ulr", () => {
+      suite.bind(this)(loopbackRunner());
+    });
+  }
 });

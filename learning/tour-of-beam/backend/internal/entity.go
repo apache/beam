@@ -18,8 +18,9 @@ package internal
 import "errors"
 
 var (
-	ErrNoUnit = errors.New("unit not found")
-	ErrNoUser = errors.New("user not found")
+	ErrNoUnit     = errors.New("unit not found")
+	ErrNoUser     = errors.New("user not found")
+	ErrPlayground = errors.New("playground error")
 )
 
 type SdkItem struct {
@@ -90,4 +91,14 @@ type UnitProgress struct {
 }
 type SdkProgress struct {
 	Units []UnitProgress `json:"units"`
+}
+
+type UserCodeFile struct {
+	Name    string `json:"name"`
+	Content string `json:"content"`
+	IsMain  bool   `json:"isMain,omitempty"`
+}
+type UserCodeRequest struct {
+	Files           []UserCodeFile `json:"files"`
+	PipelineOptions string         `json:"pipelineOptions"`
 }
