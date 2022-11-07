@@ -1225,7 +1225,8 @@ class BundleManager(object):
     unique_names = set(
         t.unique_name for t in self.bundle_context_manager.
         process_bundle_descriptor.transforms.values())
-    for stage_name, candidate in reversed(self.bundle_context_manager.split_managers):
+    for stage_name, candidate in reversed(
+        self.bundle_context_manager.split_managers):
       if (stage_name in unique_names or
           (stage_name + '/Process') in unique_names):
         split_manager = candidate

@@ -302,8 +302,8 @@ describe("liquid sharding @ulr", function () {
           )
           .apply(
             // More than one "endOfBundle" output because we split.
-            // (We in fact should have split multiple times, but all the
-            // remainders get concatenated into the second bundle.
+            // (We in fact should have split this first bundle multiple times,
+            // but all the remainders get processed in a (single) second bundle.
             // Importantly, however, we verify that regardless of where the
             // splits occurred (if you print them, they're in an interesting
             // order), all elements are accounted for.)

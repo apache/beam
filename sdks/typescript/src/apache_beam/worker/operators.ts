@@ -263,6 +263,9 @@ export class DataSourceOperator implements IOperator {
     if (!this.started) {
       return undefined;
     }
+    // If we've already split, we know where the end of this bundle is.
+    // Otherwise, use the estimate the runner sent us (which is how much
+    // it expects to send us) as the end.
     const end =
       this.lastToProcessElement < Infinity
         ? this.lastToProcessElement
@@ -271,18 +274,28 @@ export class DataSourceOperator implements IOperator {
     if (this.lastProcessedElement >= end) {
       return undefined;
     }
+    // Split fractionOfRemainder of the way between our current position and
+    // the end.
     var targetLastToProcessElement = Math.floor(
       this.lastProcessedElement +
         (end - this.lastProcessedElement) * desiredSplit.fractionOfRemainder
     );
+    // If desiredSplit.allowedSplitPoints is populated, try to find the closest
+    // split point that's in this list.
     if (desiredSplit.allowedSplitPoints.length) {
       targetLastToProcessElement =
         Math.min(
           ...Array.from(desiredSplit.allowedSplitPoints)
-            .filter((index) => index >= targetLastToProcessElement + 1)
+            .filter(
+              (allowedSplitPoint) =>
+                allowedSplitPoint >= targetLastToProcessElement + 1
+            )
             .map(Number)
         ) - 1;
     }
+    // If we were able to find a valid, meaningful split point, record it
+    // as the last element that this bundle will process and return the
+    // remainder to the runner.
     if (
       this.lastProcessedElement <= targetLastToProcessElement &&
       targetLastToProcessElement < this.lastToProcessElement

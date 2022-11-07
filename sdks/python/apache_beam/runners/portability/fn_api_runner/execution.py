@@ -706,7 +706,7 @@ class FnApiRunnerExecutionContext(object):
                data_channel_coders: Dict[str, str],
                num_workers: int,
                uses_teststream: bool = False,
-               split_managers: Iterable[Tuple[str, Callable[[int], Iterable[float]]]] = ()
+               split_managers = ()  # type: Iterable[Tuple[str, Callable[[int], Iterable[float]]]]
               ) -> None:
     """
     :param worker_handler_manager: This class manages the set of worker

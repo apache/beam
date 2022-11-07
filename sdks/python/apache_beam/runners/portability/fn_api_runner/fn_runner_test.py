@@ -2133,6 +2133,9 @@ class FnApiRunnerSplitTest(unittest.TestCase):
           p
           | beam.Create(elements)
           | 'SplitMarker' >> beam.ParDo(BundleCountingDoFn()),
+          # We split the first bundle twice (once at 50%, and again at 50% of
+          # what was left). All returned split remainders get processed
+          # (together) in a (single) subsequent bundle.
           equal_to(elements + ['endOfBundle'] * 2))
 
   def verify_channel_split(self, split_result, last_primary, first_residual):
