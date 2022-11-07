@@ -70,7 +70,6 @@ region               = "us-east1"            #Set the deployment region
 location             = "us-east1-b"          #Select the deployment location from available in the specified region
 state_bucket         = "bucket_name"         #GCS bucket name for Beam Playground temp files, [terraform state file] (https://cloud.google.com/docs/terraform/resource-management/store-state)
 bucket_examples_name = "bucket_name-example" #GCS bucket name for Playground examples storage
-dnsname              = "your-dns-name."      #Variable for Playground DNS name (a dot at the end is required)
 ```
 * `state.tfbackend` environment variables:
 ```
