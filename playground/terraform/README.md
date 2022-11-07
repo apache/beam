@@ -120,7 +120,7 @@ To deploy Beam Playground to the configured envrionment, please execute the foll
 ```
 During script execution, a Google managed certificate will be created. [Provisioning might take up to 60 minutes](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs).
 
-Validation steps:
+# Environment validation steps:
 1. Run "helm list" command in the console to ensure that status is "deployed":
 ```
 NAME            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                          APP VERSION
