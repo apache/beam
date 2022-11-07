@@ -430,7 +430,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     start_time = _to_microseconds(self._clock.time_ns())
     try:
       result_generator = self._model_handler.run_inference(
-        batch, self._model, inference_args)
+          batch, self._model, inference_args)
     except BaseException as e:
       self._metrics_collector.failed_batches_counter.inc()
       raise e
