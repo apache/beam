@@ -103,8 +103,15 @@ gcloud container clusters get-credentials --region `chosen_location` `gke_name` 
 Please add NS records from your [Cloud DNS](https://cloud.google.com/dns/docs/records) (project_id>Cloud DNS>playground>NS records) to your domain registrator
 This step completes the configuration of the deployment environment.
 
-Add DNs A records for the following hosts:
-* Java.`YourName.your zone`
+Add DNS A records for the following hosts:
+* java.playground.zone
+* python.playground.zone
+* scio.playground.zone
+* go.playground.zone
+* router.playground.zone
+Where "playground.zone" - is your registerd DNS zone
+* [More about DNS zone registration](https://domains.google/get-started/domain-search/)
+* [More about A records in DNS](https://support.google.com/a/answer/2579934?hl=en)
 
 To deploye the Beam Playground to the configured envrionment, please execute the following command (Ensure you are in the "beam" folder):
 ```
