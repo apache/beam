@@ -42,7 +42,8 @@ OWNER = 'AnandInguva'
 REPO = 'beam'
 
 ID_LABEL = 'test_id'
-SUBMIT_TIMESTAMP_LABEL = 'timestamp'
+ISSUE_CREATION_TIMESTAMP_LABEL = 'issue_timestamp'
+CHANGEPOINT_TIMESTAMP_LABEL = 'change_point_timestamp'
 CHANGE_POINT_LABEL = 'change_point'
 TEST_NAME = 'test_name'
 METRIC_NAME = 'metric_name'
@@ -56,7 +57,12 @@ SCHEMA = [{
     'name': ID_LABEL, 'field_type': 'STRING', 'mode': 'REQUIRED'
 },
           {
-              'name': SUBMIT_TIMESTAMP_LABEL,
+              'name': ISSUE_CREATION_TIMESTAMP_LABEL,
+              'field_type': 'TIMESTAMP',
+              'mode': 'REQUIRED'
+          },
+          {
+              'name': CHANGEPOINT_TIMESTAMP_LABEL,
               'field_type': 'TIMESTAMP',
               'mode': 'REQUIRED'
           },
@@ -90,23 +96,16 @@ GH_ISSUE_LABELS = ['testing', 'P2']
 class Metric:
   def __init__(
       self,
-      submit_timestamp,
+      issue_creation_timestamp,
+      change_point_timestamp,
       test_name,
       metric_name,
       issue_number,
       issue_url,
       test_id,
       change_point):
-    """
-    Args:
-      submit_timestamp (float): date-time of saving metric to database.
-      test_name: Name of the perf test.
-      metric_name: metric_name
-      issue_url: URL to the GitHub issue.
-      test_id (uuid): unique id to identify test run.
-      change_point (object): Change point observed.
-    """
-    self.submit_timestamp = submit_timestamp
+    self.issue_creation_timestamp = issue_creation_timestamp
+    self.change_point_timestamp = change_point_timestamp
     self.test_name = test_name
     self.metric_name = metric_name
     self.issue_number = issue_number
@@ -116,7 +115,8 @@ class Metric:
 
   def as_dict(self):
     return {
-        SUBMIT_TIMESTAMP_LABEL: self.submit_timestamp,
+        ISSUE_CREATION_TIMESTAMP_LABEL: self.issue_creation_timestamp,
+        CHANGEPOINT_TIMESTAMP_LABEL: self.change_point_timestamp,
         TEST_NAME: self.test_name,
         METRIC_NAME: self.metric_name,
         ISSUE_NUMBER: self.issue_number,
@@ -166,7 +166,9 @@ class RunChangePointAnalysis:
       change_point_index: int,
       metric_values: List,
       metric_name: str,
-      test_name: str) -> Optional[Tuple[bool, Optional[int]]]:
+      test_name: str,
+      change_point_timestamp,
+  ) -> Optional[Tuple[bool, Optional[int]]]:
     """
     Finds the sibling change point index. If not,
     returns the original changepoint index.
@@ -197,7 +199,7 @@ class RunChangePointAnalysis:
         dataset=BQ_DATASET,
         metric_name_id=METRIC_NAME,
         metric_name=metric_name,
-        timestamp=SUBMIT_TIMESTAMP_LABEL,
+        timestamp=ISSUE_CREATION_TIMESTAMP_LABEL,
         table=test_name)
     try:
       df = FetchMetrics.fetch_from_bq(query_template=query_template)
@@ -205,15 +207,25 @@ class RunChangePointAnalysis:
       # If no table found, that means this is first performance regression
       # on the current test:metric.
       return True, None
-    latest_change_point = df[CHANGE_POINT_LABEL].tolist()[0]
+    previous_change_point = df[CHANGE_POINT_LABEL].tolist()[0]
+    previous_change_point_timestamp = df[CHANGEPOINT_TIMESTAMP_LABEL].tolist(
+    )[0]
     issue_number = df[ISSUE_NUMBER].tolist()[0]
 
-    alert_new_issue = True
+    # Check if the current changepoint is equal to the
+    # latest reported changepoint on GitHub Issues using the
+    # value and the timestamp. If it's the same,
+    # don't create or comment on issues.
+    if ((previous_change_point == metric_values[change_point_index]) and
+        (previous_change_point_timestamp == change_point_timestamp)):
+      return False, issue_number
+
+    alert = True
     for sibling_index in sibling_indexes_to_search:
-      if metric_values[sibling_index] == latest_change_point:
-        alert_new_issue = False
+      if metric_values[sibling_index] == previous_change_point:
+        alert = False
         break
-    return alert_new_issue, issue_number
+    return alert, issue_number
 
   def run(self, config_file_path):
     with open(config_file_path, 'r') as stream:
@@ -228,6 +240,7 @@ class RunChangePointAnalysis:
           metric_name=metric_name)
 
       metric_values = data[load_test_metrics_utils.VALUE_LABEL].to_list()
+      timestamps = data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL].tolist()
 
       change_point_analyzer = ChangePointAnalysis(
           metric_values, metric_name=metric_name)
@@ -239,8 +252,7 @@ class RunChangePointAnalysis:
       # always consider the latest change points
       change_points_idx.sort(reverse=True)
       change_point_index = change_points_idx[0]
-
-      # TODO: Logic to not file issues when the same changepoint is created.
+      change_point_timestamp = timestamps[change_point_index]
 
       if not self.is_changepoint_in_valid_window(change_point_index):
         # change point lies outside the window from the recent run.
@@ -248,11 +260,16 @@ class RunChangePointAnalysis:
         return
 
       create_alert, previous_issue_number = self.has_sibling_change_point(
-          change_point_index,
+          change_point_index=change_point_index,
           metric_values=metric_values,
           metric_name=metric_name,
-          test_name=test_name)
+          test_name=test_name,
+          change_point_timestamp=change_point_timestamp
+      )
 
+      logging.info("Create alert: %s" % create_alert)
+
+      # alert is created via comment on open issue or as a new issue.
       if create_alert:
         gh_issue = GitHubIssues()
         bq_metrics_publisher = BigQueryMetricsPublisher(
@@ -266,8 +283,7 @@ class RunChangePointAnalysis:
           title=TITLE_TEMPLATE.format(test_name, metric_name),
           description=gh_issue.issue_description(
               metric_name=metric_name,
-              timestamps=data[
-                  load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL].tolist(),
+              timestamps=timestamps,
               metric_values=metric_values,
               change_point_index=change_point_index,
               max_results_to_display=
@@ -276,13 +292,14 @@ class RunChangePointAnalysis:
           issue_number=previous_issue_number)
 
         metric_dict = Metric(
-            submit_timestamp=time.time(),
+            issue_creation_timestamp=time.time(),
             test_name=test_name,
             metric_name=metric_name,
             test_id=uuid.uuid4().hex,
             change_point=metric_values[change_point_index],
             issue_number=issue_number,
-            issue_url=issue_url)
+            issue_url=issue_url,
+            change_point_timestamp=timestamps[change_point_index])
         bq_metrics_publisher.publish([metric_dict.as_dict()])
 
     elif config['source'] == 'influxDB':
