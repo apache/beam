@@ -132,6 +132,9 @@
 ## Highlights
 
 * Added support for stateful DoFns to the Go SDK.
+* Added support for [Batched
+  DoFns](https://beam.apache.org/documentation/programming-guide/#batched-dofns)
+  to the Python SDK.
 
 ## New Features / Improvements
 
