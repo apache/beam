@@ -57,7 +57,10 @@ public interface CdapHubspotOptions extends PipelineOptions {
 
   void setTxtFilePath(String txtFilePath);
 
-  @Description("Locks directory path where locks will be stored.")
+  @Description(
+      "Locks directory path where locks will be stored."
+          + "This parameter is needed for Hadoop External Synchronization"
+          + "(mechanism for acquiring locks related to the write job).")
   String getLocksDirPath();
 
   void setLocksDirPath(String locksDirPath);
