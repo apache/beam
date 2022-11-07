@@ -181,9 +181,11 @@ class RunInferenceBaseTest(unittest.TestCase):
         run_result.wait_until_finish()
 
         metric_results = (
-            run_result.metrics().query(MetricsFilter().with_name('failed_batches_counter')))
+            run_result.metrics().query(
+                MetricsFilter().with_name('failed_batches_counter')))
         num_failed_batches_counter = metric_results['counters'][0]
-        self.assertEqual(num_failed_batches_counter.committed, 3) # !!!: This will need to be updated if default retry behavior is changed
+        self.assertEqual(num_failed_batches_counter.committed, 3)
+        # !!!: The above will need to be updated if default retry behavior is changed
 
   def test_failed_batches_counter_no_failures(self):
     pipeline = TestPipeline()
@@ -196,7 +198,8 @@ class RunInferenceBaseTest(unittest.TestCase):
     run_result.wait_until_finish()
 
     metric_results = (
-        run_result.metrics().query(MetricsFilter().with_name('failed_batches_counter')))
+        run_result.metrics().query(
+            MetricsFilter().with_name('failed_batches_counter')))
     self.assertEqual(len(metric_results['counters']), 0)
 
 
