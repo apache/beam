@@ -75,6 +75,7 @@ In order to automate and track the AI/ML workflows throughout your project, you 
 ## Examples
 
 You can find examples of end-to-end AI/ML pipelines for several use cases:
+* [ML Workflow Orchestration](/documentation/ml/orchestration): illustrates how ML workflows consisting of multiple steps can be orchestrated by using Kubeflow Pipelines and Tensorflow Extended.
 * [Multi model pipelines in Beam](/documentation/ml/multi-model-pipelines): explains how multi-model pipelines work and gives an overview of what you need to know to build one using the RunInference API.
 * [Online Clustering in Beam](/documentation/ml/online-clustering): demonstrates how to setup a realtime clustering pipeline that can read text from PubSub, convert the text into an embedding using a transformer based language model with the RunInference API, and cluster them using BIRCH with Stateful Processing.
 * [Anomaly Detection in Beam](/documentation/ml/anomaly-detection): demonstrates how to setup an anomaly detection pipeline that reads text from PubSub in real-time, and then detects anomaly using a trained HDBSCAN clustering model with the RunInference API.

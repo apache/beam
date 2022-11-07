@@ -7799,3 +7799,238 @@ Dataflow supports multi-language pipelines through the Dataflow Runner v2 backen
 ### 13.4 Tips and Troubleshooting {#x-lang-transform-tips-troubleshooting}
 
 For additional tips and troubleshooting information, see [here](https://cwiki.apache.org/confluence/display/BEAM/Multi-language+Pipelines+Tips).
+
+## 14 Batched DoFns {#batched-dofns}
+{{< language-switcher java py go typescript >}}
+
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Batched DoFns enable users to create modular, composable components that
+operate on batches of multiple logical elements. These DoFns can leverage
+vectorized Python libraries, like numpy, scipy, and pandas, which operate on
+batches of data for efficiency.
+{{< /paragraph >}}
+
+### 14.1 Basics {#batched-dofn-basics}
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+A trivial Batched DoFn might look like this:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+class MultiplyByTwo(beam.DoFn):
+  # Type
+  def process_batch(self, batch: np.ndarray) -> Iterator[np.ndarray]:
+    yield batch * 2
+
+  # Declare what the element-wise output type is
+  def infer_output_type(self, input_element_type):
+    return input_element_type
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+This DoFn can be used in a Beam pipeline that otherwise operates on individual
+elements. Beam will implicitly buffer elements and create numpy arrays on the
+input side, and on the output side it will explode the numpy arrays back into
+individual elements:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+(p | beam.Create([1, 2, 3, 4]).with_output_types(np.int64)
+   | beam.ParDo(MultiplyByTwo()) # Implicit buffering and batch creation
+   | beam.Map(lambda x: x/3))  # Implicit batch explosion
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Note that we use
+[`PTransform.with_output_types`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform.with_output_types) to
+set the _element-wise_ typehint for the output of `beam.Create`. Then, when
+`MultiplyByTwo` is applied to this `PCollection`, Beam recognizes that
+`np.ndarray` is an acceptable batch type to use in conjunction with `np.int64`
+elements.  We will use numpy typehints like these throughout this guide, but
+Beam supports typehints from other libraries as well, see [Supported Batch
+Types](#batched-dofn-types).
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+In the previous case, Beam will implicitly create and explode batches at the
+input and output boundaries. However, if Batched DoFns with equivalent types are
+chained together, this batch creation and explosion will be elided. The batches
+will be passed straight through! This makes it much simpler to efficiently
+compose transforms that operate on batches.
+{{< /paragraph >}}
+
+{{< highlight py >}}
+(p | beam.Create([1, 2, 3, 4]).with_output_types(np.int64)
+   | beam.ParDo(MultiplyByTwo()) # Implicit buffering and batch creation
+   | beam.ParDo(MultiplyByTwo()) # Batches passed through
+   | beam.ParDo(MultiplyByTwo()))
+{{< /highlight >}}
+
+### 14.2 Element-wise Fallback {#batched-dofn-elementwise}
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+For some DoFns you may be able to provide both a batched and an element-wise
+implementation of your desired logic. You can do this by simply defining both
+`process` and `process_batch`:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+class MultiplyByTwo(beam.DoFn):
+  def process(self, element: np.int64) -> Iterator[np.int64]:
+    # Multiply an individual int64 by 2
+    yield batch * 2
+
+  def process_batch(self, batch: np.ndarray) -> Iterator[np.ndarray]:
+    # Multiply a _batch_ of int64s by 2
+    yield batch * 2
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+When executing this DoFn, Beam will select the best implementation to use given
+the context. Generally, if the inputs to a DoFn are already batched Beam will
+use the batched implementation; otherwise it will use the element-wise
+implementation defined in the `process` method.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Note that, in this case, there is no need to define `infer_output_type`. This is
+because Beam can get the output type from the typehint on `process`.
+{{< /paragraph >}}
+
+
+
+### 14.3 Batch Production vs. Batch Consumption {#batched-dofn-batch-production}
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+By convention, Beam assumes that the `process_batch` method, which consumes
+batched inputs, will also produce batched outputs. Similarly, Beam assumes the
+`process` method will produce individual elements. This can be overridden with
+the [`@beam.DoFn.yields_elements`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.yields_elements) and
+[`@beam.DoFn.yields_batches`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.yields_batches) decorators. For example:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+# Consumes elements, produces batches
+class ReadFromFile(beam.DoFn):
+
+  @beam.DoFn.yields_batches
+  def process(self, path: str) -> Iterator[np.ndarray]:
+    ...
+    yield array
+  
+
+  # Declare what the element-wise output type is
+  def infer_output_type(self):
+    return np.int64
+
+# Consumes batches, produces elements
+class WriteToFile(beam.DoFn):
+  @beam.DoFn.yields_elements
+  def process_batch(self, batch: np.ndarray) -> Iterator[str]:
+    ...
+    yield output_path
+{{< /highlight >}}
+
+### 14.4 Supported Batch Types {#batched-dofn-types}
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+We’ve used numpy types in the Batched DoFn implementations in this guide &ndash;
+`np.int64 ` as the element typehint and `np.ndarray` as the corresponding
+batch typehint &ndash; but Beam supports typehints from other libraries as well.
+{{< /paragraph >}}
+
+#### [numpy](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/typehints/batch.py)
+| Element Typehint | Batch Typehint |
+| ---------------- | -------------- |
+| Numeric types (`int`, `np.int32`, `bool`, ...) | np.ndarray (or NumpyArray) |
+
+#### [pandas](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/typehints/pandas_type_compatibility.py)
+| Element Typehint | Batch Typehint |
+| ---------------- | -------------- |
+| Numeric types (`int`, `np.int32`, `bool`, ...) | `pd.Series` |
+| `bytes` | |
+| `Any` | |
+| [Beam Schema Types](#schemas) | `pd.DataFrame` |
+
+#### Other types?
+If there are other batch types you would like to use with Batched DoFns, please
+[file an issue](https://github.com/apache/beam/issues/new/choose).
+
+### 14.5 Dynamic Batch Input and Output Types {#batched-dofn-dynamic-types}
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+For some Batched DoFns, it may not be sufficient to declare batch types
+statically, with typehints on `process` and/or `process_batch`. You may need to
+declare these types dynamically. You can do this by overriding the
+[`get_input_batch_type`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.get_input_batch_type)
+and
+[`get_output_batch_type`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.get_output_batch_type)
+methods on your DoFn:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+# Utilize Beam's parameterized NumpyArray typehint
+from apache_beam.typehints.batch import NumpyArray
+
+class MultipyByTwo(beam.DoFn):
+  # No typehints needed
+  def process_batch(self, batch):
+    yield batch * 2
+
+  def get_input_batch_type(self, input_element_type):
+    return NumpyArray[input_element_type]
+
+  def get_output_batch_type(self, input_element_type):
+    return NumpyArray[input_element_type]
+
+  def infer_output_type(self, input_element_type):
+    return input_element_type
+{{< /highlight >}}
+
+### 14.6 Batches and Event-time Semantics {#batched-dofn-event-time}
+{{< paragraph class="language-go language-java language-typescript" >}}
+Batched DoFns are currently a Python-only feature.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Currently, batches must have a single set of timing information (event time,
+windows, etc...) that applies to every logical element in the batch. There is
+currently no mechanism to create batches that span multiple timestamps. However,
+it is possible to retrieve this timing information in Batched DoFn
+implementations. This information can be accessed by using the conventional
+`DoFn.*Param` attributes:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+class RetrieveTimingDoFn(beam.DoFn):
+
+  def process_batch(
+    self,
+    batch: np.ndarray,
+    timestamp=beam.DoFn.TimestampParam,
+    pane_info=beam.DoFn.PaneInfoParam,
+   ) -> Iterator[np.ndarray]:
+     ...
+
+  def infer_output_type(self, input_type):
+    return input_type
+{{< /highlight >}}

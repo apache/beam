@@ -298,19 +298,41 @@ func (d *DatastoreDb) GetUserProgress(ctx context.Context, sdk tob.Sdk, uid stri
 	return sdkProgress, nil
 }
 
-func (d *DatastoreDb) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error {
+func (d *DatastoreDb) upsertUnitProgress(ctx context.Context, sdk tob.Sdk, unitId, uid string, applyChanges func(*TbUnitProgress)) error {
 	userKey := pgNameKey(TbUserKind, uid, nil)
 	progressKey := datastoreKey(TbUserProgressKind, sdk, unitId, userKey)
-	progress := TbUnitProgress{
-		Sdk:         rootSdkKey(sdk),
-		UnitID:      unitId,
-		IsCompleted: true,
-	}
 
-	if _, err := d.Client.Put(ctx, progressKey, &progress); err != nil {
-		return fmt.Errorf("failed to create tb_user_progress: %w", err)
+	_, err := d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+		// default entity values
+		progress := TbUnitProgress{
+			Sdk:    rootSdkKey(sdk),
+			UnitID: unitId,
+		}
+		if err := tx.Get(progressKey, &progress); err != nil && err != datastore.ErrNoSuchEntity {
+			return err
+		}
+		applyChanges(&progress)
+		if _, err := tx.Put(progressKey, &progress); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upsert tb_user_progress: %w", err)
 	}
 	return nil
+}
+
+func (d *DatastoreDb) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error {
+	return d.upsertUnitProgress(ctx, sdk, unitId, uid, func(p *TbUnitProgress) {
+		p.IsCompleted = true
+	})
+}
+
+func (d *DatastoreDb) SaveUserSnippetId(ctx context.Context, sdk tob.Sdk, unitId, uid, snippetId string) error {
+	return d.upsertUnitProgress(ctx, sdk, unitId, uid, func(p *TbUnitProgress) {
+		p.SnippetId = snippetId
+	})
 }
 
 // check if the interface is implemented.

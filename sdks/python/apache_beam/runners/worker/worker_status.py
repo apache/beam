@@ -230,7 +230,7 @@ class FnApiWorkerStatusHandler(object):
   def _log_lull_in_bundle_processor(self, bundle_process_cache):
     while True:
       time.sleep(2 * 60)
-      if bundle_process_cache.active_bundle_processors:
+      if bundle_process_cache and bundle_process_cache.active_bundle_processors:
         for instruction in list(
             bundle_process_cache.active_bundle_processors.keys()):
           processor = bundle_process_cache.lookup(instruction)
