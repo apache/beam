@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Copied from:
+// https://github.com/wasmerio/wasmer-go/blob/master/examples/appendices/simple.rs
 #[no_mangle]
 pub extern "C" fn sum(x: i32, y: i32) -> i32 {
     x + y

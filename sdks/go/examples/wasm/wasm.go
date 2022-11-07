@@ -23,16 +23,15 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 	"github.com/wasmerio/wasmer-go/wasmer"
-	"io"
 )
 
 const (
@@ -61,7 +60,7 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	fn, err := loadWasmFunction(bytes.NewReader(simple), wasmFunctionName)
+	fn, err := loadWasmFunction(simple, wasmFunctionName)
 	if err != nil {
 		return fmt.Errorf("could not load wasm function")
 	}
@@ -89,16 +88,12 @@ type elem struct {
 	y int32
 }
 
-// Concept #1: Load a wasmer.io compiled wasm file and function.
+// Concept #1: Load a wasmer.io compiled wasm file []byte content and function.
 // This example is copied from https://pkg.go.dev/github.com/wasmerio/wasmer-go/wasmer#hdr-Examples
-func loadWasmFunction(wasmFile io.Reader, wasmFnName string) (wasmer.NativeFunction, error) {
+func loadWasmFunction(wasmBytes []byte, wasmFnName string) (wasmer.NativeFunction, error) {
 	engine := wasmer.NewEngine()
 	store := wasmer.NewStore(engine)
-	b, err := io.ReadAll(wasmFile)
-	if err != nil {
-		return nil, fmt.Errorf("could not read wasm file: %w", err)
-	}
-	module, err := wasmer.NewModule(store, b)
+	module, err := wasmer.NewModule(store, wasmBytes)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse wasm file: %w", err)
 	}
