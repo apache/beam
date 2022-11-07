@@ -83,9 +83,9 @@ def test_find_examples(mock_os_walk, mock_check_file, mock_check_no_nested, is_v
         assert not result
     else:
         with pytest.raises(
-            ValueError,
-            match="Some of the beam examples contain beam playground tag with "
-            "an incorrect format",
+              ValueError,
+              match="Some of the beam examples contain beam playground tag with "
+                    "an incorrect format",
         ):
             find_examples("/root", ["sub1", "sub2"], [], sdk=sdk)
 
@@ -117,9 +117,8 @@ def test_find_examples(mock_os_walk, mock_check_file, mock_check_no_nested, is_v
 
 
 @pytest.mark.asyncio
-@mock.patch("google.cloud.storage.Client")
 @mock.patch("helper._update_example_status")
-async def test_get_statuses(mock_update_example_status, mock_storage_client):
+async def test_get_statuses(mock_update_example_status):
     example = Example(
         name="file",
         complexity="MEDIUM",
@@ -135,7 +134,7 @@ async def test_get_statuses(mock_update_example_status, mock_storage_client):
     client = mock.sentinel
     await get_statuses(client, [example])
 
-    mock_update_example_status.assert_called_once_with(example, client, mock.ANY)
+    mock_update_example_status.assert_called_once_with(example, client)
 
 
 @mock.patch(
@@ -330,12 +329,9 @@ def test__get_name():
 
 
 @pytest.mark.asyncio
-@mock.patch("google.cloud.storage.Client")
 @mock.patch("grpc_client.GRPCClient.check_status")
 @mock.patch("grpc_client.GRPCClient.run_code")
-async def test__update_example_status(
-    mock_grpc_client_run_code, mock_grpc_client_check_status, mock_storage_client
-):
+async def test__update_example_status(mock_grpc_client_run_code, mock_grpc_client_check_status):
     example = Example(
         name="file",
         complexity="MEDIUM",
@@ -352,9 +348,7 @@ async def test__update_example_status(
     mock_grpc_client_run_code.return_value = "pipeline_id"
     mock_grpc_client_check_status.side_effect = [STATUS_VALIDATING, STATUS_FINISHED]
 
-    storage_client = StorageClient()
-
-    await _update_example_status(example, GRPCClient(), storage_client)
+    await _update_example_status(example, GRPCClient())
 
     assert example.pipeline_id == "pipeline_id"
     assert example.status == STATUS_FINISHED
@@ -393,8 +387,8 @@ def test_validate_examples_for_duplicates_by_name_when_examples_have_duplicates(
     examples_names = ["MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_1", "MOCK_NAME_3"]
     examples = list(map(lambda name: _create_example(name), examples_names))
     with pytest.raises(
-        ValidationException,
-        match="Examples have duplicate names.\nDuplicates: \n - path #1: MOCK_FILEPATH \n - path #2: MOCK_FILEPATH",
+          ValidationException,
+          match="Examples have duplicate names.\nDuplicates: \n - path #1: MOCK_FILEPATH \n - path #2: MOCK_FILEPATH",
     ):
         validate_examples_for_duplicates_by_name(examples)
 
@@ -403,7 +397,7 @@ def test_validate_example_fields_when_filepath_is_invalid():
     example = _create_example("MOCK_NAME")
     example.filepath = ""
     with pytest.raises(
-        ValidationException, match="Example doesn't have a file path field. Example: "
+          ValidationException, match="Example doesn't have a file path field. Example: "
     ):
         validate_example_fields(example)
 
@@ -411,8 +405,8 @@ def test_validate_example_fields_when_filepath_is_invalid():
 def test_validate_example_fields_when_name_is_invalid():
     example = _create_example("")
     with pytest.raises(
-        ValidationException,
-        match="Example doesn't have a name field. Path: MOCK_FILEPATH",
+          ValidationException,
+          match="Example doesn't have a name field. Path: MOCK_FILEPATH",
     ):
         validate_example_fields(example)
 
@@ -421,8 +415,8 @@ def test_validate_example_fields_when_sdk_is_invalid():
     example = _create_example("MOCK_NAME")
     example.sdk = SDK_UNSPECIFIED
     with pytest.raises(
-        ValidationException,
-        match="Example doesn't have a sdk field. Path: MOCK_FILEPATH",
+          ValidationException,
+          match="Example doesn't have a sdk field. Path: MOCK_FILEPATH",
     ):
         validate_example_fields(example)
 
@@ -431,8 +425,8 @@ def test_validate_example_fields_when_code_is_invalid():
     example = _create_example("MOCK_NAME")
     example.code = ""
     with pytest.raises(
-        ValidationException,
-        match="Example doesn't have a code field. Path: MOCK_FILEPATH",
+          ValidationException,
+          match="Example doesn't have a code field. Path: MOCK_FILEPATH",
     ):
         validate_example_fields(example)
 
@@ -441,8 +435,8 @@ def test_validate_example_fields_when_link_is_invalid():
     example = _create_example("MOCK_NAME")
     example.link = ""
     with pytest.raises(
-        ValidationException,
-        match="Example doesn't have a link field. Path: MOCK_FILEPATH",
+          ValidationException,
+          match="Example doesn't have a link field. Path: MOCK_FILEPATH",
     ):
         validate_example_fields(example)
 
@@ -451,8 +445,8 @@ def test_validate_example_fields_when_complexity_is_invalid():
     example = _create_example("MOCK_NAME")
     example.complexity = ""
     with pytest.raises(
-        ValidationException,
-        match="Example doesn't have a complexity field. Path: MOCK_FILEPATH",
+          ValidationException,
+          match="Example doesn't have a complexity field. Path: MOCK_FILEPATH",
     ):
         validate_example_fields(example)
 
@@ -462,8 +456,8 @@ def test_validate_example_fields_when_dataset_not_set_but_emulator_set():
     emulator = Emulator(topic=Topic(id="MOCK_ID", dataset="dataset"), name="kafka")
     example.emulators.append(emulator)
     with pytest.raises(
-        ValidationException,
-        match="Example has an emulators field but a datasets field not found. Path: MOCK_FILEPATH",
+          ValidationException,
+          match="Example has an emulators field but a datasets field not found. Path: MOCK_FILEPATH",
     ):
         validate_example_fields(example)
 
@@ -473,21 +467,8 @@ def test_validate_example_fields_when_emulator_not_set_but_dataset_set():
     dataset = Dataset(format="json", location="GCS", name="dataset")
     example.datasets.append(dataset)
     with pytest.raises(
-        ValidationException,
-        match="Example has a datasets field but an emulators field not found. Path: MOCK_FILEPATH",
-    ):
-        validate_example_fields(example)
-
-
-def test_validate_example_fields_when_topic_id_is_invalid():
-    example = _create_example("MOCK_NAME")
-    emulator = Emulator(topic=Topic(id="", dataset="dataset"), name="kafka")
-    dataset = Dataset(format="json", location="GCS", name="dataset")
-    example.datasets.append(dataset)
-    example.emulators.append(emulator)
-    with pytest.raises(
-        ValidationException,
-        match="Example has invalid emulator value. Path: MOCK_FILEPATH",
+          ValidationException,
+          match="Example has a datasets field but an emulators field not found. Path: MOCK_FILEPATH",
     ):
         validate_example_fields(example)
 
@@ -499,8 +480,8 @@ def test_validate_example_fields_when_topic_dataset_is_invalid():
     example.datasets.append(dataset)
     example.emulators.append(emulator)
     with pytest.raises(
-        ValidationException,
-        match="Example has invalid emulator value. Path: MOCK_FILEPATH",
+          ValidationException,
+          match="Example has invalid emulator value. Path: MOCK_FILEPATH",
     ):
         validate_example_fields(example)
 
@@ -512,8 +493,8 @@ def test_validate_example_fields_when_emulator_name_is_invalid():
     example.datasets.append(dataset)
     example.emulators.append(emulator)
     with pytest.raises(
-        ValidationException,
-        match="Example has invalid emulator value. Path: MOCK_FILEPATH",
+          ValidationException,
+          match="Example has invalid emulator value. Path: MOCK_FILEPATH",
     ):
         validate_example_fields(example)
 
@@ -525,8 +506,8 @@ def test_validate_example_fields_when_dataset_format_is_invalid():
     example.datasets.append(dataset)
     example.emulators.append(emulator)
     with pytest.raises(
-        ValidationException,
-        match="Example has invalid dataset value. Path: MOCK_FILEPATH",
+          ValidationException,
+          match="Example has invalid dataset value. Path: MOCK_FILEPATH",
     ):
         validate_example_fields(example)
 
@@ -538,8 +519,8 @@ def test_validate_example_fields_when_dataset_location_is_invalid():
     example.datasets.append(dataset)
     example.emulators.append(emulator)
     with pytest.raises(
-        ValidationException,
-        match="Example has invalid dataset value. Path: MOCK_FILEPATH",
+          ValidationException,
+          match="Example has invalid dataset value. Path: MOCK_FILEPATH",
     ):
         validate_example_fields(example)
 
@@ -551,8 +532,8 @@ def test_validate_example_fields_when_dataset_name_is_invalid():
     example.datasets.append(dataset)
     example.emulators.append(emulator)
     with pytest.raises(
-        ValidationException,
-        match="Example has invalid dataset value. Path: MOCK_FILEPATH",
+          ValidationException,
+          match="Example has invalid dataset value. Path: MOCK_FILEPATH",
     ):
         validate_example_fields(example)
 
@@ -568,9 +549,7 @@ def _create_example(name: str) -> Example:
     return _create_example_with_meta(name, object_meta)
 
 
-def _create_example_with_meta(
-    name: str, object_meta: Dict[str, Union[str, bool, List[str]]]
-) -> Example:
+def _create_example_with_meta(name: str, object_meta: Dict[str, Union[str, bool, List[str]]]) -> Example:
     example = Example(
         name=name,
         pipeline_id="MOCK_PIPELINE_ID",
