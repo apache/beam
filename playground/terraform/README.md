@@ -100,15 +100,11 @@ The following command will authenticate us in the Docker registry
 ```
 gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
 ```
-* We need to create database indexes for Beam Playground examples by the following command:
-```
-gcloud app deploy playground/index.yaml --project=`project_id`
-```
 Please add NS records from your [Cloud DNS](https://cloud.google.com/dns/docs/records) (project_id>Cloud DNS>playground>NS records) to your domain registrator
 This step completes the configuration of the deployment environment.
 
 To deploye the Beam Playground to the configured envrionment, please execute the following command (Ensure you are in the "beam" folder):
 ```
-./gradlew playground:terraform:gkebackend -Pproject_environment="env" -Pdocker-tag="tag" (env - folder name which you created for configuration files, tag - image tag for backend)
+./gradlew playground:terraform:gkebackend -Pproject_environment="env" -Pdocker-tag="tag" -Pdns-name="PlaygroundDNS" (env - folder name which you created for configuration files, tag - image tag for backend, PlaygroundDNS - chosen DNS for Playground)
 ```
 During script execution, a Google managed certificate will be created (allow time for [provisioning the certificate](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs)).
