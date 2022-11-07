@@ -469,7 +469,7 @@ func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb
 	if err != nil {
 		logger.Errorf("GetSnippet(): error during getting the snippet: %s", err.Error())
 		if errors.Is(err, datastore.ErrNoSuchEntity) {
-			return nil, cerrors.NotFoundError(errorTitleGetExample, resourceNotFoundErrMsg)
+			return nil, cerrors.NotFoundError(errorTitleGetSnippet, resourceNotFoundErrMsg)
 		}
 		return nil, cerrors.InternalError(errorTitleGetSnippet, "Failed to retrieve the snippet")
 	}
