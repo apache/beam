@@ -185,7 +185,7 @@ class RunInferenceBaseTest(unittest.TestCase):
                 MetricsFilter().with_name('failed_batches_counter')))
         num_failed_batches_counter = metric_results['counters'][0]
         self.assertEqual(num_failed_batches_counter.committed, 3)
-        # !!!: The above will need to be updated if default retry behavior is changed
+        # !!!: The above will need to be updated if retry behavior changes
 
   def test_failed_batches_counter_no_failures(self):
     pipeline = TestPipeline()
