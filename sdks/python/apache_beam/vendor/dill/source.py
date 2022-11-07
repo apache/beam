@@ -571,7 +571,7 @@ def dumpsource(object, alias='', new=False, enclose=True):
     create the object inside a function enclosure (thus minimizing
     any global namespace pollution).
     """
-    from dill import dumps
+    from apache_beam.vendor.dill import dumps
     pik = repr(dumps(object))
     code = 'import dill\n'
     if enclose:
