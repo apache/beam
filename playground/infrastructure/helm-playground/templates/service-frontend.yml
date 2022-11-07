@@ -18,7 +18,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: backend-frontend
+    app: frontend
     type: backend
   name: playground-frontend
   annotations:
@@ -30,5 +30,5 @@ spec:
     protocol: TCP
     targetPort: {{ .Values.service.targetPort }}
   selector:
-    app: backend-frontend
+    app: frontend
   type: {{ .Values.service.type }} 
