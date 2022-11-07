@@ -111,8 +111,8 @@ Find a Static IP in your GCP project>VPC Network>IP Addresses>pg-static-ip
 * playground.zone
 ```
 Where "playground.zone" is your registered DNS zone
-* [More about DNS zone registration](https://domains.google/get-started/domain-search/)
-* [More about A records in DNS](https://support.google.com/a/answer/2579934?hl=en)
+[More about DNS zone registration](https://domains.google/get-started/domain-search/)
+[More about A records in DNS](https://support.google.com/a/answer/2579934?hl=en)
 
 To deploy Beam Playground to the configured envrionment, please execute the following command (Ensure you are in the "beam" folder):
 ```
