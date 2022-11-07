@@ -41,6 +41,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -72,6 +74,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
   private static final String INPUT_ROWS_TAG = "INPUT_ROWS";
   private static final String OUTPUT_FAILED_ROWS_TAG = "FAILED_ROWS";
+  private static final String OUTPUT_ERRORS_TAG = "FAILED_ERRORS";
 
   @Override
   protected Class<BigQueryStorageWriteApiSchemaTransformConfiguration> configurationClass() {
@@ -248,7 +251,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
   static class BigQueryStorageWriteApiPCollectionRowTupleTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
     private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
-
     BigQueryStorageWriteApiPCollectionRowTupleTransform(BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
@@ -261,7 +263,28 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       WriteResult result = inputRows.apply(write);
 
-      return null;
+      Schema rowSchema = !Strings.isNullOrEmpty(configuration.getJsonSchema())
+          ? BigQueryUtils.fromTableSchema(BigQueryHelpers.fromJsonString(configuration.getJsonSchema(), TableSchema.class)) // get from input schema
+          : inputRows.getSchema(); // or get from PCollection
+
+      Schema errorSchema = Schema.of(Field.of("failed_row", FieldType.row(rowSchema)), Field.of("error_message", FieldType.STRING));
+
+      PCollection<BigQueryStorageApiInsertError> storageInsertErrors = result.getFailedStorageApiInserts();
+
+      // Errors consisting of failed rows along with their error message
+      PCollection<Row> errorRows = storageInsertErrors
+          .apply(MapElements.into(TypeDescriptor.of(Row.class)).via(
+              (storageError) -> Row.withSchema(errorSchema)
+                  .withFieldValue("failed_row", BigQueryUtils.toBeamRow(rowSchema, storageError.getRow()))
+                  .withFieldValue("error_message", storageError.getErrorMessage()).build()
+          ));
+
+      // Failed rows
+      PCollection<Row> failedRows = storageInsertErrors
+          .apply(MapElements.into(TypeDescriptor.of(Row.class)).via(
+              (storageError) -> BigQueryUtils.toBeamRow(rowSchema, storageError.getRow())));
+
+      return PCollectionRowTuple.of(OUTPUT_FAILED_ROWS_TAG, failedRows).and(OUTPUT_ERRORS_TAG, errorRows);
     }
 
     BigQueryIO.Write<Row> createStorageWriteApiTransform() {
