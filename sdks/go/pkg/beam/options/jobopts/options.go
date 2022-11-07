@@ -49,7 +49,7 @@ func init() {
 	flag.Var(&ResourceHints,
 		"resource_hints",
 		"Set whole pipeline level resource hints, accepting values of the format '<urn>=<value>'. "+
-			"Supports 'min_ram' and 'accelerator' hints. "+
+			"eg.'min_ram=12GB', 'beam:resources:accelerator:v1='runner_specific' "+
 			"In case of duplicate hint URNs, the last value specified will be used. "+
 			"See https://beam.apache.org/documentation/runtime/resource-hints/ for more information.")
 }
@@ -191,9 +191,9 @@ func GetPipelineResourceHints() resource.Hints {
 		}
 		var h resource.Hint
 		switch name {
-		case "min_ram":
+		case "min_ram", "beam:resources:min_ram_bytes:v1":
 			h = resource.ParseMinRam(val)
-		case "accelerator":
+		case "accelerator", "beam:resources:accelerator:v1":
 			h = resource.Accelerator(val)
 		default:
 			if strings.HasPrefix(name, "beam:resources:") {
@@ -222,6 +222,6 @@ func (h stringHint) Payload() []byte {
 	return []byte(h.value)
 }
 
-func (h stringHint) MergeWith(outer resource.Hint) resource.Hint {
+func (h stringHint) MergeWithOuter(outer resource.Hint) resource.Hint {
 	return h
 }

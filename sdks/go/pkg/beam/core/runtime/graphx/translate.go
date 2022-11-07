@@ -1127,6 +1127,10 @@ const defaultEnvId = "go"
 func (m *marshaller) addDefaultEnv() string {
 	if _, exists := m.environments[defaultEnvId]; !exists {
 		env := proto.Clone(m.opt.Environment).(*pipepb.Environment)
+		// If there's no environment set, we need to ignore
+		if env == nil {
+			return defaultEnvId
+		}
 		// Add the pipeline level resource hints here for now.
 		// TODO(https://github.com/apache/beam/issues/23893) move to a better place for
 		// scoped hints in next pass, which affect number of environments set by Go pipelines.

@@ -33,6 +33,8 @@ type Hints struct {
 }
 
 // MergeWithOuter produces a new list of Hints from this Hints, and the Hints from the outer scope.
+// Semantics are defined per hint urn, but by default the "inner" hint will be prefered over the
+// outer hint if both scopes have the same urn.
 func (hs Hints) MergeWithOuter(outer Hints) Hints {
 	if len(outer.h) == 0 {
 		return hs
@@ -43,7 +45,7 @@ func (hs Hints) MergeWithOuter(outer Hints) Hints {
 	merged := Hints{h: map[string]Hint{}}
 	for k, o := range outer.h {
 		if h, ok := hs.h[k]; ok {
-			merged.h[k] = h.MergeWith(o)
+			merged.h[k] = h.MergeWithOuter(o)
 		} else {
 			merged.h[k] = o
 		}
@@ -99,8 +101,8 @@ type Hint interface {
 	URN() string
 	// Payload returns the serialized version of this payload.
 	Payload() []byte
-	// MergeWith an outer scope hint.
-	MergeWith(outer Hint) Hint
+	// MergeWithOuter an outer scope hint.
+	MergeWithOuter(outer Hint) Hint
 }
 
 // MinRamBytes hints that this scope should be put in a machine with at least this many bytes of memory.
@@ -143,7 +145,7 @@ func (a minRamHint) Payload() []byte {
 }
 
 // MergeWith an outer minRamHints by keeping the maximum of the two byte amounts.
-func (h minRamHint) MergeWith(outer Hint) Hint {
+func (h minRamHint) MergeWithOuter(outer Hint) Hint {
 	// Intentional runtime panic from type assertion to catch hint merge errors.
 	if outer.(minRamHint).value > h.value {
 		return outer
@@ -184,8 +186,8 @@ func (h acceleratorHint) Payload() []byte {
 	return []byte(h.value)
 }
 
-// MergeWith an outer acceleratorHint by keeping this hint.
-func (h acceleratorHint) MergeWith(outer Hint) Hint {
+// MergeWithOuter an outer acceleratorHint by keeping this hint.
+func (h acceleratorHint) MergeWithOuter(outer Hint) Hint {
 	return h
 }
 

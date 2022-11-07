@@ -143,6 +143,8 @@ func TestGetSdkImageOverrides(t *testing.T) {
 func TestGetPipelineResourceHints(t *testing.T) {
 	var hints stringSlice
 	hints.Set("min_ram=2GB")
+	hints.Set("beam:resources:min_ram_bytes:v1=16GB")
+	hints.Set("beam:resources:accelerator:v1=cheetah")
 	hints.Set("accelerator=pedal_to_the_metal")
 	hints.Set("beam:resources:novel_execution:v1=jaguar")
 	hints.Set("min_ram=1GB")
