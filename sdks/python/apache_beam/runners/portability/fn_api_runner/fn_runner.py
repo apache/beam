@@ -1182,7 +1182,7 @@ class BundleManager(object):
                bundle_context_manager,  # type: execution.BundleContextManager
                progress_frequency=None,  # type: Optional[float]
                cache_token_generator=FnApiRunner.get_cache_token_generator(),
-               split_managers=(),
+               split_managers=()
               ):
     # type: (...) -> None
 
