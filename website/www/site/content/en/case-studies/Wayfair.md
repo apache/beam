@@ -1,6 +1,7 @@
 ---
 title: "Wayfair"
 icon: /images/logos/powered-by/Wayfair.png
+hasLink: "https://www.youtube.com/watch?v=ugyaBNdunDE&list=PL4dEBWmGSIU9OkXQU2OAXmITPLhiMSPRp&index=43"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

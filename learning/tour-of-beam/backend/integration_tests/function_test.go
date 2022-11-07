@@ -30,6 +30,7 @@ const (
 	PORT_GET_UNIT_CONTENT   = "PORT_GET_UNIT_CONTENT"
 	PORT_GET_USER_PROGRESS  = "PORT_GET_USER_PROGRESS"
 	PORT_POST_UNIT_COMPLETE = "PORT_POST_UNIT_COMPLETE"
+	PORT_POST_USER_CODE     = "PORT_POST_USER_CODE"
 )
 
 // scenarios:
@@ -38,12 +39,9 @@ const (
 // + Get content tree for non-existing SDK: 404 Not Found
 // + Get unit content for existing SDK, existing unitId
 // + Get unit content for non-existing SDK/unitId: 404 Not Found
-// TODO:
-// - Get content tree for a registered user
-// - Get unit content for a registered user
-// - Save user code/progress for a registered user
-// - (negative) Save user code/progress w/o user token/bad token
-// - (negative) Save user code/progress for non-existing SDK/unitId: 404 Not Found
+// + Save user code/progress for a registered user
+// + (negative) Save user code/progress w/o user token/bad token
+// + (negative) Save user code/progress for non-existing SDK/unitId: 404 Not Found
 
 func loadJson(path string, dst interface{}) error {
 	fh, err := os.Open(path)

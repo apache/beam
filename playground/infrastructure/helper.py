@@ -24,6 +24,7 @@ from collections import namedtuple
 from dataclasses import dataclass, fields, field
 from pathlib import PurePath
 from typing import List, Optional, Dict
+from api.v1 import api_pb2
 
 from tqdm.asyncio import tqdm
 import yaml
@@ -36,6 +37,7 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
     PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
 from config import Config, TagFields, PrecompiledExampleType, OptionalTagFields, Dataset, Emulator
 from grpc_client import GRPCClient
+from storage_client import StorageClient
 
 Tag = namedtuple(
     "Tag",
@@ -163,6 +165,7 @@ async def get_statuses(client: GRPCClient, examples: List[Example], concurrency:
         pipeline_id values.
     """
     tasks = []
+    storage_client = StorageClient()
     try:
         concurrency = int(os.environ["BEAM_CONCURRENCY"])
         logging.info("override default concurrency: %d", concurrency)
@@ -171,7 +174,7 @@ async def get_statuses(client: GRPCClient, examples: List[Example], concurrency:
 
     async with asyncio.Semaphore(concurrency):
         for example in examples:
-            tasks.append(_update_example_status(example, client))
+            tasks.append(_update_example_status(example, client, storage_client))
         await tqdm.gather(*tasks)
 
 
@@ -304,8 +307,8 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
         type=object_type,
         link=link)
 
-    datasets_as_dict: Dict[str, str] = _get_dict_by_field(tag, TagFields.datasets)
-    if datasets_as_dict:
+    if tag.tag_as_dict.get(TagFields.datasets):
+        datasets_as_dict = ast.literal_eval(str(tag.tag_as_dict[TagFields.datasets]))
         datasets = []
         for key in datasets_as_dict:
             dataset = Dataset.from_dict(datasets_as_dict.get(key))
@@ -313,8 +316,8 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
             datasets.append(dataset)
         example.datasets = datasets
 
-    emulators_as_dict: Dict[str, str] = _get_dict_by_field(tag, TagFields.emulators)
-    if emulators_as_dict:
+    if tag.tag_as_dict.get(TagFields.emulators):
+        emulators_as_dict = ast.literal_eval(str(tag.tag_as_dict[TagFields.emulators]))
         emulators = []
         for key in emulators_as_dict:
             emulator = Emulator.from_dict(emulators_as_dict.get(key))
@@ -324,12 +327,6 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
 
     validate_example_fields(example)
     return example
-
-
-def _get_dict_by_field(tag: ExampleTag, field: str) -> Dict[str, str]:
-    if tag.tag_as_dict.get(field):
-        return ast.literal_eval(str(tag.tag_as_dict[field]))
-    return {}
 
 
 def _validate(tag: dict, supported_categories: List[str]) -> bool:
@@ -436,7 +433,7 @@ def _get_name(filename: str) -> str:
     return filename.split(os.extsep)[0]
 
 
-async def _update_example_status(example: Example, client: GRPCClient):
+async def _update_example_status(example: Example, client: GRPCClient, storage_client: StorageClient):
     """
     Receive status for examples and update example.status and pipeline_id
 
@@ -450,8 +447,26 @@ async def _update_example_status(example: Example, client: GRPCClient):
         example: beam example for processing and updating status and pipeline_id.
         client: client to send requests to the server.
     """
+    datasets = []
+    if example.datasets and example.emulators:
+        dataset_tag = example.datasets[0]
+        emulator_tag = example.emulators[0]
+        options = {
+            "topic": emulator_tag.topic.id
+        }
+        file_name = f"{dataset_tag.name}.{dataset_tag.format}"
+        path = storage_client.upload_dataset(file_name)
+        dataset_tag.path = path
+        example.datasets[0] = dataset_tag
+        dataset = api_pb2.Dataset(
+            type=api_pb2.EmulatorType.Value(f"EMULATOR_TYPE_{emulator_tag.name.upper()}"),
+            options=options,
+            dataset_path=path
+        )
+        datasets.append(dataset)
+
     pipeline_id = await client.run_code(
-        example.code, example.sdk, example.tag.pipeline_options)
+        example.code, example.sdk, example.tag.pipeline_options, datasets)
     example.pipeline_id = pipeline_id
     status = await client.check_status(pipeline_id)
     while status in [STATUS_VALIDATING,
@@ -526,18 +541,15 @@ def validate_example_fields(example: Example):
         _log_and_rise_validation_err(f"Example has an emulators field but a datasets field not found. Path: {example.filepath}")
 
     dataset_names = []
-    if datasets:
-        for dataset in datasets:
-            location = dataset.location
-            dataset_format = dataset.format
-            if not location or not dataset_format or location not in ["GCS"] or dataset_format not in ["json", "avro"]:
-                _log_and_rise_validation_err(f"Example has invalid dataset value. Path: {example.filepath}")
-            dataset_names.append(dataset.name)
-
-    if emulators:
-        for emulator in emulators:
-            if emulator.name not in ["kafka"] or not emulator.topic or emulator.topic.dataset not in dataset_names or not emulator.topic.id:
-                _log_and_rise_validation_err(f"Example has invalid emulator value. Path: {example.filepath}")
+    for dataset in datasets:
+        location = dataset.location
+        dataset_format = dataset.format
+        if not location or not dataset_format or location not in ["GCS"] or dataset_format not in ["json", "avro"]:
+            _log_and_rise_validation_err(f"Example has invalid dataset value. Path: {example.filepath}")
+        dataset_names.append(dataset.name)
+    for emulator in emulators:
+        if emulator.name not in ["kafka"] or not emulator.topic or emulator.topic.dataset not in dataset_names or not emulator.topic.id:
+            _log_and_rise_validation_err(f"Example has invalid emulator value. Path: {example.filepath}")
 
 
 def _log_and_rise_validation_err(msg: str):

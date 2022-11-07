@@ -17,12 +17,39 @@
  */
 
 import { JobState_Enum } from "../proto/beam_job_api";
+import { MonitoringInfo } from "../proto/metrics";
 import { Pipeline } from "../internal/pipeline";
 import { Root, PValue } from "../pvalue";
 import { PipelineOptions } from "../options/pipeline_options";
+import * as metrics from "../worker/metrics";
 
-export interface PipelineResult {
-  waitUntilFinish(duration?: number): Promise<JobState_Enum>;
+export class PipelineResult {
+  waitUntilFinish(duration?: number): Promise<JobState_Enum> {
+    throw new Error("NotImplemented");
+  }
+
+  async rawMetrics(): Promise<MonitoringInfo[]> {
+    throw new Error("NotImplemented");
+  }
+
+  // TODO: Support filtering, slicing.
+  async counters(): Promise<{ [key: string]: number }> {
+    return Object.fromEntries(
+      metrics.aggregateMetrics(
+        await this.rawMetrics(),
+        "beam:metric:user:sum_int64:v1"
+      )
+    );
+  }
+
+  async distributions(): Promise<{ [key: string]: number }> {
+    return Object.fromEntries(
+      metrics.aggregateMetrics(
+        await this.rawMetrics(),
+        "beam:metric:user:distribution_int64:v1"
+      )
+    );
+  }
 }
 
 export function createRunner(options: any = {}): Runner {
@@ -103,10 +130,15 @@ export function defaultRunner(defaultOptions: Object): Runner {
       if (directRunner.unsupportedFeatures(pipeline, options).length === 0) {
         return directRunner.runPipeline(pipeline, options);
       } else {
-        return require("./universal")
-          .universalRunner({ environmentType: "LOOPBACK", ...defaultOptions })
-          .runPipeline(pipeline, options);
+        return loopbackRunner(defaultOptions).runPipeline(pipeline, options);
       }
     }
   })();
+}
+
+export function loopbackRunner(defaultOptions: Object = {}): Runner {
+  return require("./universal").universalRunner({
+    environmentType: "LOOPBACK",
+    ...defaultOptions,
+  });
 }

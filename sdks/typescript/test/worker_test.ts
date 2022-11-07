@@ -49,7 +49,7 @@ class Create implements operators.IOperator {
   receivers: operators.Receiver[];
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {
@@ -124,7 +124,7 @@ class Partition implements operators.IOperator {
   all: operators.Receiver;
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {

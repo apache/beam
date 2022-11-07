@@ -31,7 +31,6 @@ from config import Config, Origin, PrecompiledExample, DatastoreProps
 from helper import Example
 
 from api.v1.api_pb2 import Sdk, PrecompiledObjectType
-from storage_client import StorageClient
 
 
 class DatastoreException(Exception):
@@ -47,7 +46,6 @@ class DatastoreException(Exception):
 class DatastoreClient:
     """DatastoreClient is a datastore client for sending a request to the Google."""
     _datastore_client: datastore.Client
-    _storage_client: StorageClient
 
     def __init__(self):
         self._check_envs()
@@ -55,7 +53,6 @@ class DatastoreClient:
             namespace=DatastoreProps.NAMESPACE,
             project=Config.GOOGLE_CLOUD_PROJECT
         )
-        self._storage_client = StorageClient()
 
     def _check_envs(self):
         if Config.GOOGLE_CLOUD_PROJECT is None:
@@ -87,7 +84,6 @@ class DatastoreClient:
         examples_ids_before_updating = self._get_all_examples(sdk, origin)
 
         # loop through every example to save them to the Cloud Datastore
-
         for example in tqdm(examples_from_rep):
             sdk_key = self._get_key(DatastoreProps.SDK_KIND, Sdk.Name(example.sdk))
             example_id = self._make_example_id(origin, sdk, example.name)
@@ -102,8 +98,7 @@ class DatastoreClient:
                 dataset = example.datasets[0]
                 emulator = example.emulators[0]
                 file_name = f"{dataset.name}.{dataset.format}"
-                link = self._upload_dataset_to_bucket(file_name)
-                dataset = self._to_dataset_entity(file_name, link)
+                dataset = self._to_dataset_entity(file_name, dataset.path)
                 datasets.append(dataset)
                 dataset_nested_entity = self._to_dataset_nested_entity(file_name, example_id, emulator)
                 snippet_datasets = [dataset_nested_entity]
@@ -364,6 +359,3 @@ class DatastoreClient:
             extension = Config.SDK_TO_EXTENSION[sdk]
             return f"{filename}.{extension}"
         return name
-
-    def _upload_dataset_to_bucket(self, dataset_file_name: str) -> str:
-        return self._storage_client.upload_dataset(dataset_file_name)
