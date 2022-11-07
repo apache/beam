@@ -100,23 +100,35 @@ The following command will authenticate us in the Docker registry
 ```
 gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
 ```
-Please add NS records from your [Cloud DNS](https://cloud.google.com/dns/docs/records) (project_id>Cloud DNS>playground>NS records) to your domain registrator
-This step completes the configuration of the deployment environment.
-
-Add DNS A records for the following hosts:
+Find a Static IP in your GCP project>VPC Network>IP Addresses>pg-static-ip
+Add following DNS A records for the Static IP address:
 ```
 * java.playground.zone
 * python.playground.zone
 * scio.playground.zone
 * go.playground.zone
 * router.playground.zone
+* playground.zone
 ```
-Where "playground.zone" - is your registerd DNS zone
+Where "playground.zone" is your registered DNS zone
 * [More about DNS zone registration](https://domains.google/get-started/domain-search/)
 * [More about A records in DNS](https://support.google.com/a/answer/2579934?hl=en)
 
-To deploye the Beam Playground to the configured envrionment, please execute the following command (Ensure you are in the "beam" folder):
+To deploy Beam Playground to the configured envrionment, please execute the following command (Ensure you are in the "beam" folder):
 ```
 ./gradlew playground:terraform:gkebackend -Pproject_environment="env" -Pdocker-tag="tag" -Pdns-name="PlaygroundDNS" (env - folder name which you created for configuration files, tag - image tag for backend, PlaygroundDNS - chosen DNS for Playground)
 ```
 During script execution, a Google managed certificate will be created (allow time for [provisioning the certificate](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs)).
+
+Validation steps:
+1. Run "helm list" command in the console to ensure that status is "deployed":
+```
+NAME            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                          APP VERSION
+playground      default         1               your time                              deployed        playground-2.44.0-SNAPSHOT         1.0.0       
+```
+2. Run "kubectl get managedcertificate" command in the console to ensure that status is "Active"
+```
+NAME               AGE     STATUS
+GCP Project       time     Active
+```
+3. Open Beam Playground frontend webpage in your browser (e.g. https://playground.zone)
