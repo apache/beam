@@ -226,7 +226,10 @@ func setupExamplesCatalogFromDatastore(ctx context.Context, cacheService cache.C
 
 // setupDBStructure initializes the data structure
 func setupDBStructure(ctx context.Context, db db.Database, appEnv *environment.ApplicationEnvs, props *environment.Properties) error {
-	versions := []schema.Version{new(migration.InitialStructure)}
+	versions := []schema.Version{
+		new(migration.InitialStructure),
+		new(migration.AddingComplexityProperty),
+	}
 	dbSchema := schema.New(ctx, db, appEnv, props, versions)
 	actualSchemaVersion, err := dbSchema.InitiateData()
 	if err != nil {

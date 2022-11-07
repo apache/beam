@@ -44,20 +44,27 @@ func TestParse(t *testing.T) {
 
 func TestSerialize(t *testing.T) {
 	for _, s := range []struct {
-		expectedId, expectedTitle string
-		sdk                       Sdk
+		expectedId        string
+		expectedTitle     string
+		expectedStorageId string
+		sdk               Sdk
 	}{
-		{"go", "Go", SDK_GO},
-		{"python", "Python", SDK_PYTHON},
-		{"java", "Java", SDK_JAVA},
-		{"scio", "SCIO", SDK_SCIO},
-		{"", "", SDK_UNDEFINED},
+		{"go", "Go", "SDK_GO", SDK_GO},
+		{"python", "Python", "SDK_PYTHON", SDK_PYTHON},
+		{"java", "Java", "SDK_JAVA", SDK_JAVA},
+		{"scio", "SCIO", "SDK_SCIO", SDK_SCIO},
+		{"", "", "", SDK_UNDEFINED},
 	} {
 		assert.Equal(t, s.expectedId, s.sdk.String())
 		if s.sdk == SDK_UNDEFINED {
 			assert.Panics(t, func() { s.sdk.Title() })
 		} else {
 			assert.Equal(t, s.expectedTitle, s.sdk.Title())
+		}
+		if s.sdk == SDK_UNDEFINED {
+			assert.Panics(t, func() { s.sdk.StorageID() })
+		} else {
+			assert.Equal(t, s.expectedStorageId, s.sdk.StorageID())
 		}
 	}
 }

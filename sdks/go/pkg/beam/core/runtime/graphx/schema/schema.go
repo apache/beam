@@ -92,6 +92,7 @@ func getUUID(ut reflect.Type) string {
 // Registered returns whether the given type has been registered with
 // the schema package.
 func (r *Registry) Registered(ut reflect.Type) bool {
+	r.reconcileRegistrations()
 	_, ok := r.syntheticToUser[ut]
 	return ok
 }
@@ -118,7 +119,10 @@ func (r *Registry) reconcileRegistrations() (deferedErr error) {
 		check := func(ut reflect.Type) bool {
 			return coder.LookupCustomCoder(ut) != nil
 		}
-		if check(ut) || check(reflect.PtrTo(ut)) {
+		// We could have either a pointer or non pointer here,
+		// so we strip pointerness and then check both.
+		vT := reflectx.SkipPtr(ut)
+		if check(vT) && check(reflect.PtrTo(vT)) {
 			continue
 		}
 		if err := r.registerType(ut, map[reflect.Type]struct{}{}); err != nil {

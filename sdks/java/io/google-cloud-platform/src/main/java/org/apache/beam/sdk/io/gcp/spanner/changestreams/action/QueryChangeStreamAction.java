@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
@@ -189,7 +188,8 @@ public class QueryChangeStreamAction {
                     (DataChangeRecord) record,
                     tracker,
                     receiver,
-                    watermarkEstimator);
+                    watermarkEstimator,
+                    throughputEstimator);
           } else if (record instanceof HeartbeatRecord) {
             maybeContinuation =
                 heartbeatRecordAction.run(
@@ -202,12 +202,6 @@ public class QueryChangeStreamAction {
             LOG.error("[" + token + "] Unknown record type " + record.getClass());
             throw new IllegalArgumentException("Unknown record type " + record.getClass());
           }
-
-          // The size of a record is represented by the number of bytes needed for the
-          // string representation of the record. Here, we only try to achieve an estimate
-          // instead of an accurate throughput.
-          this.throughputEstimator.update(
-              Timestamp.now(), record.toString().getBytes(StandardCharsets.UTF_8).length);
 
           if (maybeContinuation.isPresent()) {
             LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);

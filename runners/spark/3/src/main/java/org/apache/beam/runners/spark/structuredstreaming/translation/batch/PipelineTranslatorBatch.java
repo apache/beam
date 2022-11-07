@@ -31,6 +31,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PInput;
@@ -64,10 +65,13 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
     TRANSFORM_TRANSLATORS.put(Impulse.class, new ImpulseTranslatorBatch());
     TRANSFORM_TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch<>());
     TRANSFORM_TRANSLATORS.put(Combine.Globally.class, new CombineGloballyTranslatorBatch<>());
+    TRANSFORM_TRANSLATORS.put(
+        Combine.GroupedValues.class, new CombineGroupedValuesTranslatorBatch<>());
     TRANSFORM_TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch<>());
 
-    // TODO: Do we need to have a dedicated translator for {@code Reshuffle} if it's deprecated?
-    // TRANSFORM_TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorBatch<>());
+    TRANSFORM_TRANSLATORS.put(
+        Reshuffle.ViaRandomKey.class, new ReshuffleTranslatorBatch.ViaRandomKey<>());
 
     TRANSFORM_TRANSLATORS.put(Flatten.PCollections.class, new FlattenTranslatorBatch<>());
 
@@ -96,6 +100,8 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
     if (transform == null) {
       return null;
     }
-    return TRANSFORM_TRANSLATORS.get(transform.getClass());
+    TransformTranslator<InT, OutT, TransformT> translator =
+        TRANSFORM_TRANSLATORS.get(transform.getClass());
+    return translator != null && translator.canTranslate(transform) ? translator : null;
   }
 }

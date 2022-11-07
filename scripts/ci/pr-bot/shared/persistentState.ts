@@ -39,9 +39,16 @@ async function commitStateToRepo() {
       `Unable to get most recent repo contents, commit may fail: ${err}`
     );
   }
-  await exec.exec("git add state/*");
-  await exec.exec(`git commit -m "Updating config from bot" --allow-empty`);
-  await exec.exec("git push origin pr-bot-state");
+  // Print changes for observability
+  await exec.exec("git status", [], {ignoreReturnCode: true});
+  const changes = await exec.exec("git diff --quiet origin/pr-bot-state state", [], {ignoreReturnCode: true});
+  if (changes == 1) {
+    await exec.exec("git add state/*");
+    await exec.exec(`git commit -m "Updating config from bot" --allow-empty`);
+    await exec.exec("git push origin pr-bot-state");
+  } else {
+    console.log("Skipping updating state branch since there are no changes to commit");
+  }
 }
 
 export class PersistentState {

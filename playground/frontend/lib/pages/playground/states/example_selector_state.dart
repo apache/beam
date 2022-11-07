@@ -22,27 +22,57 @@ import 'package:playground_components/playground_components.dart';
 class ExampleSelectorState with ChangeNotifier {
   final PlaygroundController _playgroundController;
   ExampleType _selectedFilterType;
-  String _filterText;
+  String _searchText;
   List<CategoryWithExamples> categories;
+  List<String> tags = [];
+  List<String> selectedTags = [];
 
   ExampleSelectorState(
     this._playgroundController,
     this.categories, [
     this._selectedFilterType = ExampleType.all,
-    this._filterText = '',
-  ]);
+    this._searchText = '',
+  ]) {
+    tags = _getTagsSortedByExampleCount(categories);
+  }
 
   ExampleType get selectedFilterType => _selectedFilterType;
 
-  String get filterText => _filterText;
+  String get searchText => _searchText;
 
   void setSelectedFilterType(ExampleType type) {
     _selectedFilterType = type;
     notifyListeners();
   }
 
-  void setFilterText(String text) {
-    _filterText = text;
+  void addSelectedTag(String tag) {
+    selectedTags.add(tag);
+    notifyListeners();
+  }
+
+  void removeSelectedTag(String tag) {
+    selectedTags.remove(tag);
+    notifyListeners();
+  }
+
+  List<String> _getTagsSortedByExampleCount(
+    List<CategoryWithExamples> categories,
+  ) {
+    Map<String, int> exampleCountByTag = {};
+    for (final category in categories) {
+      for (final example in category.examples) {
+        for (final tag in example.tags) {
+          exampleCountByTag[tag] = (exampleCountByTag[tag] ?? 0) + 1;
+        }
+      }
+    }
+    final tagEntries = exampleCountByTag.entries.toList()
+      ..sort((entry1, entry2) => entry2.value.compareTo(entry1.value));
+    return tagEntries.map((entry) => entry.key).toList();
+  }
+
+  void setSearchText(String text) {
+    _searchText = text;
     notifyListeners();
   }
 
@@ -51,56 +81,59 @@ class ExampleSelectorState with ChangeNotifier {
     notifyListeners();
   }
 
-  void sortCategories() {
+  void filterCategoriesWithExamples() {
     final categories = _playgroundController.exampleCache.getCategories(
       _playgroundController.sdk,
     );
-
-    final sortedCategories = categories
+    final filteredCategories = categories
         .map((category) => CategoryWithExamples(
             title: category.title,
-            examples: _sortCategoryExamples(category.examples)))
+            examples: _filterExamples(category.examples)))
         .where((category) => category.examples.isNotEmpty)
         .toList();
-    setCategories(sortedCategories);
+    setCategories(filteredCategories);
   }
 
-  List<ExampleBase> _sortCategoryExamples(List<ExampleBase> examples) {
-    final isAllFilterType = selectedFilterType == ExampleType.all;
-    final isFilterTextEmpty = filterText.isEmpty;
-    if (isAllFilterType && isFilterTextEmpty) {
+  List<ExampleBase> _filterExamples(List<ExampleBase> examples) {
+    final byType = filterExamplesByType(examples, selectedFilterType);
+    final byTags = filterExamplesByTags(byType);
+    final byName = filterExamplesByName(byTags);
+    return byName;
+  }
+
+  @visibleForTesting
+  List<ExampleBase> filterExamplesByTags(List<ExampleBase> examples) {
+    if (selectedTags.isEmpty) {
       return examples;
     }
-    if (!isAllFilterType && isFilterTextEmpty) {
-      return sortExamplesByType(
-        examples,
-        selectedFilterType,
-      );
+    List<ExampleBase> sorted = [];
+    for (var example in examples) {
+      if (example.tags.toSet().containsAll(selectedTags)) {
+        sorted.add(example);
+      }
     }
-    if (isAllFilterType && !isFilterTextEmpty) {
-      return sortExamplesByName(examples, filterText);
-    }
-    final sorted = sortExamplesByType(
-      examples,
-      selectedFilterType,
-    );
-    return sortExamplesByName(sorted, filterText);
+    return sorted;
   }
 
-  List<ExampleBase> sortExamplesByType(
+  @visibleForTesting
+  List<ExampleBase> filterExamplesByType(
     List<ExampleBase> examples,
     ExampleType type,
   ) {
+    if (type == ExampleType.all) {
+      return examples;
+    }
     return examples.where((element) => element.type == type).toList();
   }
 
-  List<ExampleBase> sortExamplesByName(
-    List<ExampleBase> examples,
-    String name,
-  ) {
+  @visibleForTesting
+  List<ExampleBase> filterExamplesByName(List<ExampleBase> examples) {
+    if (_searchText.isEmpty) {
+      return examples;
+    }
     return examples
         .where((example) =>
-            example.name.toLowerCase().contains(name.toLowerCase()))
+            example.name.toLowerCase().contains(_searchText.toLowerCase()))
         .toList();
   }
 }

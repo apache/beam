@@ -145,6 +145,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --disable_runner_v2)
+        DISABLE_RUNNER_V2="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --kms_key_name)
         KMS_KEY_NAME="$2"
         shift # past argument
@@ -265,6 +270,11 @@ if [[ -z $PIPELINE_OPTS ]]; then
 
   fi
 
+  # Add --disable_runner_v2 if provided
+  if [[ "$DISABLE_RUNNER_V2" = true ]]; then
+    opts+=("--experiments=disable_runner_v2")
+  fi
+
   if [[ ! -z "$KMS_KEY_NAME" ]]; then
     opts+=(
       "--kms_key_name=$KMS_KEY_NAME"
@@ -279,6 +289,10 @@ if [[ -z $PIPELINE_OPTS ]]; then
   PIPELINE_OPTS=$(IFS=" " ; echo "${opts[*]}")
 
 fi
+
+# Handle double quotes in PIPELINE_OPTS
+# add a backslash before `"` to keep it in command line options
+PIPELINE_OPTS=${PIPELINE_OPTS//\"/\\\"}
 
 ###########################################################################
 # Run tests and validate that jobs finish successfully.
