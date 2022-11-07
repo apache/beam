@@ -123,7 +123,7 @@ During script execution, a Google managed certificate will be created. [Provisio
 1. Run "helm list" command in the console to ensure that status is "deployed":
 ```
 NAME            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                          APP VERSION
-playground      default         1               your time                              deployed        playground-2.44.0-SNAPSHOT         1.0.0       
+playground      default         1               your time                              deployed        playground-2.44.0-SNAPSHOT         1.0.0
 ```
 2. Run "kubectl get managedcertificate" command in the console to ensure that status is "Active"
 ```
