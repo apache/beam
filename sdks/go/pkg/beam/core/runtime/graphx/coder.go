@@ -244,6 +244,10 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			}
 			// It's valid to have a KV<k,Iter<v>> without being a CoGBK, and validating if we need to change to
 			// a CoGBK is done at the DataSource, since that's when we can check against the downstream nodes.
+		case urnIntervalWindow:
+			// If interval window in a KV, this may be a mapping function.
+			// Special case since windows are not normally used directly as FullValues.
+			return coder.NewIntervalWindowCoder(), nil
 		}
 
 		value, err := b.Coder(id)

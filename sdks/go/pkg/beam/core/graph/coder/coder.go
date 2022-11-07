@@ -177,6 +177,7 @@ const (
 	Iterable           Kind = "I"
 	KV                 Kind = "KV"
 	LP                 Kind = "LP" // Explicitly length prefixed, likely at the runner's direction.
+	IWCValue           Kind = "IWCvalue"
 
 	Window Kind = "window" // A debug wrapper around a window coder.
 
@@ -292,6 +293,11 @@ func NewDouble() *Coder {
 // NewString returns a new string coder using the built-in scheme.
 func NewString() *Coder {
 	return &Coder{Kind: String, T: typex.New(reflectx.String)}
+}
+
+// NewIntervalWindowCoder returns a new IntervalWindow coder using the built-in scheme.
+func NewIntervalWindowCoder() *Coder {
+	return &Coder{Kind: IWCValue, T: typex.New(reflect.TypeOf((*struct{ Start, End int64 })(nil)).Elem())}
 }
 
 // IsW returns true iff the coder is for a WindowedValue.

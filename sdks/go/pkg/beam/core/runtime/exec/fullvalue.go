@@ -46,7 +46,7 @@ type FullValue struct {
 
 func (v *FullValue) String() string {
 	if v.Elm2 == nil {
-		return fmt.Sprintf("%v [@%v:%v:%v]", v.Elm, v.Timestamp, v.Windows, v.Pane)
+		return fmt.Sprintf("%v %T [@%v:%v:%v]", v.Elm, v.Elm, v.Timestamp, v.Windows, v.Pane)
 	}
 	return fmt.Sprintf("KV<%v,%v> [@%v:%v:%v]", v.Elm, v.Elm2, v.Timestamp, v.Windows, v.Pane)
 }
