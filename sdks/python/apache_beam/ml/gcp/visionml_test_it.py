@@ -47,7 +47,8 @@ class VisionMlTestIT(unittest.TestCase):
     IMAGES_TO_ANNOTATE = [
         'gs://apache-beam-samples/advanced_analytics/vision/sign.jpg'
     ]
-    IMAGE_CONTEXT = [vision.types.ImageContext(language_hints=['en'])]
+
+    IMAGE_CONTEXT = [vision.ImageContext({'language_hints': ['en']})]
 
     with TestPipeline(is_integration_test=True) as p:
       contexts = p | 'Create context' >> beam.Create(
@@ -57,7 +58,9 @@ class VisionMlTestIT(unittest.TestCase):
           p
           | beam.Create(IMAGES_TO_ANNOTATE)
           | AnnotateImage(
-              features=[vision.types.Feature(type='TEXT_DETECTION')],
+              features=[
+                  vision.Feature({'type_': vision.Feature.Type.TEXT_DETECTION})
+              ],
               context_side_input=beam.pvalue.AsDict(contexts))
           | beam.ParDo(extract))
 

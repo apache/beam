@@ -50,7 +50,7 @@ def psio_test = [
     num_workers               : 5,
     autoscaling_algorithm     : 'NONE',  // Disable autoscale the worker pool.
     pubsub_namespace_prefix   : 'pubsub_io_performance_',
-    wait_until_finish_duration: 1000 * 60 * 10, // in milliseconds
+    wait_until_finish_duration: 1000 * 60 * 12, // in milliseconds
   ]
 ]
 

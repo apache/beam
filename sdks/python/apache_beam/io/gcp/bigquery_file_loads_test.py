@@ -400,6 +400,23 @@ class TestPartitionFiles(unittest.TestCase):
 
 
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
+  def test_trigger_load_jobs_with_empty_files(self):
+    destination = "project:dataset.table"
+    empty_files = []
+    load_job_prefix = "test_prefix"
+
+    with beam.Pipeline() as p:
+      partitions = (
+          p
+          | beam.Create([(destination, empty_files)])
+          | beam.ParDo(bqfl.PartitionFiles(1000, 10)).with_outputs(
+              bqfl.PartitionFiles.MULTIPLE_PARTITIONS_TAG,
+              bqfl.PartitionFiles.SINGLE_PARTITION_TAG))
+
+      _ = (
+          partitions[bqfl.PartitionFiles.SINGLE_PARTITION_TAG]
+          | beam.ParDo(bqfl.TriggerLoadJobs(), load_job_prefix))
+
   def test_records_traverse_transform_with_mocks(self):
     destination = 'project1:dataset1.table1'
 
@@ -932,11 +949,12 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     bq_matcher = BigqueryFullResultStreamingMatcher(
         project=self.project,
         query="SELECT Integr FROM %s" % output_table,
-        data=[(i, ) for i in range(100)],
-        timeout=30)
+        data=[(i, ) for i in range(100)])
 
     args = self.test_pipeline.get_full_options_as_args(
-        streaming=True, allow_unsafe_triggers=True)
+        on_success_matcher=bq_matcher,
+        streaming=True,
+        allow_unsafe_triggers=True)
     with beam.Pipeline(argv=args) as p:
       stream_source = (
           TestStream().advance_watermark_to(0).advance_processing_time(
@@ -973,7 +991,9 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         data=[(i, ) for i in range(100)])
 
     args = self.test_pipeline.get_full_options_as_args(
-        streaming=True, allow_unsafe_triggers=True)
+        on_success_matcher=bq_matcher,
+        streaming=True,
+        allow_unsafe_triggers=True)
 
     # Override these parameters to induce copy jobs
     bqfl._DEFAULT_MAX_FILE_SIZE = 100
@@ -1025,7 +1045,9 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        streaming=True, allow_unsafe_triggers=True)
+        on_success_matcher=all_of(*pipeline_verifiers),
+        streaming=True,
+        allow_unsafe_triggers=True)
 
     with beam.Pipeline(argv=args) as p:
       stream_source = (

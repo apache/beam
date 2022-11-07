@@ -16,12 +16,14 @@
 package fs_tool
 
 import (
-	"beam.apache.org/playground/backend/internal/utils"
-	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/google/uuid"
+
+	"beam.apache.org/playground/backend/internal/utils"
 )
 
 func Test_newJavaLifeCycle(t *testing.T) {
@@ -135,6 +137,29 @@ func Test_executableName(t *testing.T) {
 			},
 			want:    "",
 			wantErr: true,
+		},
+		{
+			// Test case with calling sourceFileName method with multiple files where one of them is main
+			// As a result, want to receive a name that should be executed
+			name: "Multiple files where one of them is main",
+			prepare: func() {
+				compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
+				secondaryFilePath := filepath.Join(compiled, "temp.scala")
+				err := os.WriteFile(secondaryFilePath, []byte("TEMP_DATA"), 0600)
+				if err != nil {
+					panic(err)
+				}
+				primaryFilePath := filepath.Join(compiled, "main.scala")
+				err = os.WriteFile(primaryFilePath, []byte("object MinimalWordCount {def main(cmdlineArgs: Array[String]): Unit = {}}"), 0600)
+				if err != nil {
+					panic(err)
+				}
+			},
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "main",
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {

@@ -58,6 +58,7 @@ public class SparkSessionFactory {
     // We should not overwrite this value (or any user-defined spark configuration value) if the
     // user has already configured it.
     if (master != null
+        && !master.equals("local[*]")
         && master.startsWith("local[")
         && System.getProperty("spark.sql.shuffle.partitions") == null) {
       int numPartitions =

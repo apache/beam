@@ -41,6 +41,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.metrics.MetricsSystem;
@@ -147,7 +148,9 @@ public final class SparkStructuredStreamingRunner
 
     final TranslationContext translationContext = translatePipeline(pipeline);
 
-    final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    final ExecutorService executorService =
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalSpark-thread").build());
     final Future<?> submissionFuture =
         executorService.submit(
             () -> {

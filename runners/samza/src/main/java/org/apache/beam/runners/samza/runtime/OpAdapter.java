@@ -159,12 +159,12 @@ public class OpAdapter<InT, OutT, K>
     op.close();
   }
 
-  private static class OpEmitterImpl<OutT> implements OpEmitter<OutT> {
+  static class OpEmitterImpl<OutT> implements OpEmitter<OutT> {
     private final Queue<OpMessage<OutT>> outputQueue;
     private CompletionStage<Collection<OpMessage<OutT>>> outputFuture;
     private Instant outputWatermark;
 
-    private OpEmitterImpl() {
+    OpEmitterImpl() {
       outputQueue = new ConcurrentLinkedQueue<>();
     }
 

@@ -29,9 +29,9 @@ import '../repositories/example_repository.dart';
 import '../repositories/models/get_default_precompiled_object_request.dart';
 import '../repositories/models/get_precompiled_object_request.dart';
 import '../repositories/models/get_precompiled_objects_request.dart';
-import '../repositories/models/shared_file.dart';
 import '../repositories/models/get_snippet_request.dart';
 import '../repositories/models/save_snippet_request.dart';
+import '../repositories/models/shared_file.dart';
 
 /// A runtime cache for examples fetched from a repository.
 class ExampleCache extends ChangeNotifier {
@@ -114,9 +114,11 @@ class ExampleCache extends ChangeNotifier {
       name: result.files.first.name,
       path: id,
       description: '',
+      tags: [],
       type: ExampleType.example,
       source: result.files.first.code,
       pipelineOptions: result.pipelineOptions,
+      complexity: result.complexity,
     );
   }
 

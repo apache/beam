@@ -30,7 +30,7 @@ in Java pipelines.
 
 Beam also has a fancy new SQL command line that you can use to query your
 data interactively, be it Batch or Streaming. If you haven't tried it, check out
-[http://bit.ly/ExploreBeamSQL](https://bit.ly/ExploreBeamSQL).
+[https://bit.ly/ExploreBeamSQL](https://bit.ly/ExploreBeamSQL).
 
 A nice feature of the SQL CLI is that you can use `CREATE EXTERNAL TABLE`
 commands to *add* data sources to be accessed in the CLI. Currently, the CLI
