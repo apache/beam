@@ -30,7 +30,7 @@ import (
 func TestAcceleratorHint_MergeWith(t *testing.T) {
 	inner := acceleratorHint{value: "inner"}
 	outer := acceleratorHint{value: "outer"}
-	if got, want := inner.MergeWith(outer), inner; got != want {
+	if got, want := inner.MergeWithOuter(outer), inner; got != want {
 		t.Errorf("%v.MergeWith(%v) = %v, want %v", inner, outer, got, want)
 	}
 }
@@ -47,10 +47,10 @@ func TestMinRamBytesHint_MergeWith(t *testing.T) {
 	low := minRamHint{value: 2}
 	high := minRamHint{value: 12e7}
 
-	if got, want := low.MergeWith(high), high; got != want {
+	if got, want := low.MergeWithOuter(high), high; got != want {
 		t.Errorf("%v.MergeWith(%v) = %v, want %v", low, high, got, want)
 	}
-	if got, want := high.MergeWith(low), high; got != want {
+	if got, want := high.MergeWithOuter(low), high; got != want {
 		t.Errorf("%v.MergeWith(%v) = %v, want %v", high, low, got, want)
 	}
 }
@@ -149,7 +149,7 @@ func (customHint) Payload() []byte {
 	return []byte("custom")
 }
 
-func (h customHint) MergeWith(outer Hint) Hint {
+func (h customHint) MergeWithOuter(outer Hint) Hint {
 	return h
 }
 
