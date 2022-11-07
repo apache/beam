@@ -102,7 +102,7 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.TxtT
 - `apikey` - Hubspot OAuth2 API Key
 - `objectType` - Hubspot objects to pull supported by [Hubspot Streaming Sink](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsink.md)
 - `txtFilePath` - input file path
-- `locksDirPath`
+- `locksDirPath` - locks directory path where locks will be stored. This parameter is needed for Hadoop External Synchronization (mechanism for acquiring locks related to the write job).
 
 Please see CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md) for more information.
 
