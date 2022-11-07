@@ -20,7 +20,7 @@ package org.apache.beam.examples.complete.cdap;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapHubspotOptions;
+import org.apache.beam.examples.complete.cdap.options.CdapHubspotSinkOptions;
 import org.apache.beam.examples.complete.cdap.transforms.FormatOutputTransform;
 import org.apache.beam.examples.complete.cdap.utils.PluginConfigOptionsConverter;
 import org.apache.beam.sdk.Pipeline;
@@ -67,7 +67,7 @@ import org.slf4j.LoggerFactory;
  * --apikey=your-api-key \
  * --referenceName=your-reference-name \
  * --objectType=your-object-type \
- * --txtFilePath=your-path-to-input-file \
+ * --inputTxtFilePath=your-path-to-input-file \
  * --locksDirPath=your-path-to-locks-dir
  * }
  *
@@ -88,8 +88,8 @@ public class TxtToCdapHubspot {
    * @param args Command line arguments to the pipeline.
    */
   public static void main(String[] args) {
-    CdapHubspotOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(CdapHubspotOptions.class);
+    CdapHubspotSinkOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(CdapHubspotSinkOptions.class);
 
     checkStateNotNull(options.getLocksDirPath(), "locksDirPath can not be null!");
 
@@ -103,7 +103,7 @@ public class TxtToCdapHubspot {
    *
    * @param options arguments to the pipeline
    */
-  public static PipelineResult run(Pipeline pipeline, CdapHubspotOptions options) {
+  public static PipelineResult run(Pipeline pipeline, CdapHubspotSinkOptions options) {
     Map<String, Object> paramsMap =
         PluginConfigOptionsConverter.hubspotOptionsToParamsMap(options, false);
     LOG.info("Starting Txt-to-Cdap-Hubspot pipeline with parameters: {}", paramsMap);
@@ -116,7 +116,7 @@ public class TxtToCdapHubspot {
      */
 
     pipeline
-        .apply("readFromTxt", TextIO.read().from(options.getTxtFilePath()))
+        .apply("readFromTxt", TextIO.read().from(options.getInputTxtFilePath()))
         .apply(
             MapElements.into(new TypeDescriptor<KV<NullWritable, String>>() {})
                 .via(json -> KV.of(NullWritable.get(), json)))

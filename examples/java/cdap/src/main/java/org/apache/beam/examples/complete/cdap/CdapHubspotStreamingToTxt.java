@@ -19,7 +19,7 @@ package org.apache.beam.examples.complete.cdap;
 
 import com.google.gson.JsonElement;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapHubspotOptions;
+import org.apache.beam.examples.complete.cdap.options.CdapHubspotSourceOptions;
 import org.apache.beam.examples.complete.cdap.transforms.FormatInputTransform;
 import org.apache.beam.examples.complete.cdap.utils.JsonElementCoder;
 import org.apache.beam.examples.complete.cdap.utils.PluginConfigOptionsConverter;
@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
  * --apikey=your-api-key \
  * --referenceName=your-reference-name \
  * --objectType=Contacts \
- * --txtFilePath=your-path-to-output-file
+ * --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix
  * }
  *
  * By default this will run the pipeline locally with the DirectRunner. To change the runner, specify:
@@ -94,8 +94,8 @@ public class CdapHubspotStreamingToTxt {
    * @param args Command line arguments to the pipeline.
    */
   public static void main(String[] args) {
-    CdapHubspotOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(CdapHubspotOptions.class);
+    CdapHubspotSourceOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(CdapHubspotSourceOptions.class);
 
     // Create the pipeline
     Pipeline pipeline = Pipeline.create(options);
@@ -107,7 +107,7 @@ public class CdapHubspotStreamingToTxt {
    *
    * @param options arguments to the pipeline
    */
-  public static PipelineResult run(Pipeline pipeline, CdapHubspotOptions options) {
+  public static PipelineResult run(Pipeline pipeline, CdapHubspotSourceOptions options) {
     Map<String, Object> paramsMap =
         PluginConfigOptionsConverter.hubspotOptionsToParamsMap(options, true);
     LOG.info("Starting Cdap-Hubspot-streaming-to-txt pipeline with parameters: {}", paramsMap);
@@ -135,7 +135,10 @@ public class CdapHubspotStreamingToTxt {
         .apply(Values.create())
         .apply(
             "writeToTxt",
-            TextIO.write().withWindowedWrites().withNumShards(1).to(options.getTxtFilePath()));
+            TextIO.write()
+                .withWindowedWrites()
+                .withNumShards(1)
+                .to(options.getOutputTxtFilePathPrefix()));
 
     return pipeline.run();
   }

@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
  * --loginUrl=your-login-url \
  * --sObjectName=object-name \
  * --referenceName=your-reference-name \
- * --txtFilePath=your-path-to-file
+ * --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix
  * }
  *
  * By default this will run the pipeline locally with the DirectRunner. To change the runner, specify:
@@ -130,7 +130,7 @@ public class CdapSalesforceToTxt {
         .apply(MapValues.into(TypeDescriptors.strings()).via(LinkedHashMap::toString))
         .setCoder(KvCoder.of(SerializableCoder.of(Schema.class), StringUtf8Coder.of()))
         .apply(Values.create())
-        .apply("writeToTxt", TextIO.write().to(options.getTxtFilePath()));
+        .apply("writeToTxt", TextIO.write().to(options.getOutputTxtFilePathPrefix()));
 
     return pipeline.run();
   }
