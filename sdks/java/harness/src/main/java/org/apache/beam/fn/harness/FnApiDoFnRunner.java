@@ -266,21 +266,27 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private Object currentKey;
 
   /**
-   * Only valud during {@link
+   * Only valid during {@link
    * #processElementForWindowObservingSizedElementAndRestriction(WindowedValue)} and {@link
    * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
    */
   private List<BoundedWindow> currentWindows;
 
   /**
-   * Only valud during {@link
+   * The window index at which processing should stop. The window with this index should not be
+   * processed.
+   *
+   * <p>Only valid during {@link
    * #processElementForWindowObservingSizedElementAndRestriction(WindowedValue)} and {@link
    * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
    */
   private int windowStopIndex;
 
   /**
-   * Only valud during {@link
+   * The window index which is currently being processed. This should always be less than
+   * windowStopIndex.
+   *
+   * <p>Only valid during {@link
    * #processElementForWindowObservingSizedElementAndRestriction(WindowedValue)} and {@link
    * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
    */
@@ -964,51 +970,49 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private void processElementForWindowObservingTruncateRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
-    try {
-      windowCurrentIndex = -1;
-      windowStopIndex = currentElement.getWindows().size();
-      currentWindows = ImmutableList.copyOf(currentElement.getWindows());
-      while (true) {
-        synchronized (splitLock) {
-          windowCurrentIndex++;
-          if (windowCurrentIndex >= windowStopIndex) {
-            break;
-          }
-          currentRestriction = elem.getValue().getKey().getValue().getKey();
-          currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
-          currentWindow = currentWindows.get(windowCurrentIndex);
-          currentTracker =
-              RestrictionTrackers.observe(
-                  doFnInvoker.invokeNewTracker(processContext),
-                  new ClaimObserver<PositionT>() {
-                    @Override
-                    public void onClaimed(PositionT position) {}
+    windowCurrentIndex = -1;
+    windowStopIndex = currentElement.getWindows().size();
+    currentWindows = ImmutableList.copyOf(currentElement.getWindows());
+    while (true) {
+      synchronized (splitLock) {
+        windowCurrentIndex++;
+        if (windowCurrentIndex >= windowStopIndex) {
+          // Careful to reset the split state under the same synchronized block.
+          windowCurrentIndex = -1;
+          windowStopIndex = 0;
+          currentElement = null;
+          currentWindows = null;
+          currentRestriction = null;
+          currentWatermarkEstimatorState = null;
+          currentWindow = null;
+          currentTracker = null;
+          currentWatermarkEstimator = null;
+          initialWatermark = null;
+          break;
+        }
+        currentRestriction = elem.getValue().getKey().getValue().getKey();
+        currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
+        currentWindow = currentWindows.get(windowCurrentIndex);
+        currentTracker =
+            RestrictionTrackers.observe(
+                doFnInvoker.invokeNewTracker(processContext),
+                new ClaimObserver<PositionT>() {
+                  @Override
+                  public void onClaimed(PositionT position) {}
 
-                    @Override
-                    public void onClaimFailed(PositionT position) {}
-                  });
-          currentWatermarkEstimator =
-              WatermarkEstimators.threadSafe(
-                  doFnInvoker.invokeNewWatermarkEstimator(processContext));
-          initialWatermark = currentWatermarkEstimator.getWatermarkAndState().getKey();
-        }
-        TruncateResult<OutputT> truncatedRestriction =
-            doFnInvoker.invokeTruncateRestriction(processContext);
-        if (truncatedRestriction != null) {
-          processContext.output(truncatedRestriction.getTruncatedRestriction());
-        }
+                  @Override
+                  public void onClaimFailed(PositionT position) {}
+                });
+        currentWatermarkEstimator =
+            WatermarkEstimators.threadSafe(doFnInvoker.invokeNewWatermarkEstimator(processContext));
+        initialWatermark = currentWatermarkEstimator.getWatermarkAndState().getKey();
       }
-    } finally {
-      currentTracker = null;
-      currentElement = null;
-      currentRestriction = null;
-      currentWatermarkEstimatorState = null;
-      currentWatermarkEstimator = null;
-      currentWindow = null;
-      currentWindows = null;
-      initialWatermark = null;
+      TruncateResult<OutputT> truncatedRestriction =
+          doFnInvoker.invokeTruncateRestriction(processContext);
+      if (truncatedRestriction != null) {
+        processContext.output(truncatedRestriction.getTruncatedRestriction());
+      }
     }
-
     this.stateAccessor.finalizeState();
   }
 
@@ -1058,72 +1062,69 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private void processElementForWindowObservingSizedElementAndRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
-    try {
-      windowCurrentIndex = -1;
-      windowStopIndex = currentElement.getWindows().size();
-      currentWindows = ImmutableList.copyOf(currentElement.getWindows());
-      while (true) {
-        synchronized (splitLock) {
-          windowCurrentIndex++;
-          if (windowCurrentIndex >= windowStopIndex) {
-            return;
-          }
-          currentRestriction = elem.getValue().getKey().getValue().getKey();
-          currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
-          currentWindow = currentWindows.get(windowCurrentIndex);
-          currentTracker =
-              RestrictionTrackers.observe(
-                  doFnInvoker.invokeNewTracker(processContext),
-                  new ClaimObserver<PositionT>() {
-                    @Override
-                    public void onClaimed(PositionT position) {}
-
-                    @Override
-                    public void onClaimFailed(PositionT position) {}
-                  });
-          currentWatermarkEstimator =
-              WatermarkEstimators.threadSafe(
-                  doFnInvoker.invokeNewWatermarkEstimator(processContext));
-          initialWatermark = currentWatermarkEstimator.getWatermarkAndState().getKey();
-        }
-
-        // It is important to ensure that {@code splitLock} is not held during #invokeProcessElement
-        DoFn.ProcessContinuation continuation = doFnInvoker.invokeProcessElement(processContext);
-        // Ensure that all the work is done if the user tells us that they don't want to
-        // resume processing.
-        if (!continuation.shouldResume()) {
-          currentTracker.checkDone();
-          continue;
-        }
-
-        // Attempt to checkpoint the current restriction.
-        HandlesSplits.SplitResult splitResult =
-            trySplitForElementAndRestriction(0, continuation.resumeDelay());
-
-        /**
-         * After the user has chosen to resume processing later, either the restriction is already
-         * done and the user unknowingly claimed the last element or the Runner may have stolen the
-         * remainder of work through a split call so the above trySplit may return null. If so, the
-         * current restriction must be done.
-         */
-        if (splitResult == null) {
-          currentTracker.checkDone();
-          continue;
-        }
-        // Forward the split to the bundle level split listener.
-        splitListener.split(splitResult.getPrimaryRoots(), splitResult.getResidualRoots());
-      }
-    } finally {
+    windowCurrentIndex = -1;
+    windowStopIndex = currentElement.getWindows().size();
+    currentWindows = ImmutableList.copyOf(currentElement.getWindows());
+    while (true) {
       synchronized (splitLock) {
-        currentElement = null;
-        currentRestriction = null;
-        currentWatermarkEstimatorState = null;
-        currentWindow = null;
-        currentTracker = null;
-        currentWatermarkEstimator = null;
-        currentWindows = null;
-        initialWatermark = null;
+        windowCurrentIndex++;
+        if (windowCurrentIndex >= windowStopIndex) {
+          // Careful to reset the split state under the same synchronized block.
+          windowCurrentIndex = -1;
+          windowStopIndex = 0;
+          currentElement = null;
+          currentWindows = null;
+          currentRestriction = null;
+          currentWatermarkEstimatorState = null;
+          currentWindow = null;
+          currentTracker = null;
+          currentWatermarkEstimator = null;
+          initialWatermark = null;
+          return;
+        }
+        currentRestriction = elem.getValue().getKey().getValue().getKey();
+        currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
+        currentWindow = currentWindows.get(windowCurrentIndex);
+        currentTracker =
+            RestrictionTrackers.observe(
+                doFnInvoker.invokeNewTracker(processContext),
+                new ClaimObserver<PositionT>() {
+                  @Override
+                  public void onClaimed(PositionT position) {}
+
+                  @Override
+                  public void onClaimFailed(PositionT position) {}
+                });
+        currentWatermarkEstimator =
+            WatermarkEstimators.threadSafe(doFnInvoker.invokeNewWatermarkEstimator(processContext));
+        initialWatermark = currentWatermarkEstimator.getWatermarkAndState().getKey();
       }
+
+      // It is important to ensure that {@code splitLock} is not held during #invokeProcessElement
+      DoFn.ProcessContinuation continuation = doFnInvoker.invokeProcessElement(processContext);
+      // Ensure that all the work is done if the user tells us that they don't want to
+      // resume processing.
+      if (!continuation.shouldResume()) {
+        currentTracker.checkDone();
+        continue;
+      }
+
+      // Attempt to checkpoint the current restriction.
+      HandlesSplits.SplitResult splitResult =
+          trySplitForElementAndRestriction(0, continuation.resumeDelay());
+
+      /**
+       * After the user has chosen to resume processing later, either the restriction is already
+       * done and the user unknowingly claimed the last element or the Runner may have stolen the
+       * remainder of work through a split call so the above trySplit may return null. If so, the
+       * current restriction must be done.
+       */
+      if (splitResult == null) {
+        currentTracker.checkDone();
+        continue;
+      }
+      // Forward the split to the bundle level split listener.
+      splitListener.split(splitResult.getPrimaryRoots(), splitResult.getResidualRoots());
     }
   }
 
@@ -1153,7 +1154,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private Progress getProgress() {
     synchronized (splitLock) {
-      if (currentTracker instanceof RestrictionTracker.HasProgress) {
+      if (currentTracker instanceof RestrictionTracker.HasProgress && currentWindow != null) {
         return scaleProgress(
             ((HasProgress) currentTracker).getProgress(), windowCurrentIndex, windowStopIndex);
       }
@@ -1175,6 +1176,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   @VisibleForTesting
   static Progress scaleProgress(Progress progress, int currentWindowIndex, int stopWindowIndex) {
+    checkArgument(
+        currentWindowIndex < stopWindowIndex,
+        "Current window index (%s) must be less than stop window index (%s)",
+        currentWindowIndex,
+        stopWindowIndex);
+
     double totalWorkPerWindow = progress.getWorkCompleted() + progress.getWorkRemaining();
     double completed = totalWorkPerWindow * currentWindowIndex + progress.getWorkCompleted();
     double remaining =
