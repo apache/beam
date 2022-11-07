@@ -18,6 +18,7 @@
 """Unit tests for pandas batched type converters."""
 
 import unittest
+from typing import Any
 from typing import Optional
 
 import numpy as np
@@ -115,7 +116,7 @@ from apache_beam.typehints.batch import BatchConverter
                            dtype=pd.StringDtype()),
     },
 ])
-class DataFrameBatchConverterTest(unittest.TestCase):
+class PandasBatchConverterTest(unittest.TestCase):
   def create_batch_converter(self):
     return BatchConverter.from_typehints(
         element_type=self.element_typehint, batch_type=self.batch_typehint)
@@ -206,6 +207,29 @@ class DataFrameBatchConverterTest(unittest.TestCase):
 
   def test_hash(self):
     self.assertEqual(hash(self.create_batch_converter()), hash(self.converter))
+
+
+class PandasBatchConverterErrorsTest(unittest.TestCase):
+  @parameterized.expand([
+    (
+      Any,
+      row_type.RowTypeConstraint.from_fields([
+                    ("bar", Optional[float]),  # noqa: F821
+                    ("baz", Optional[str]),  # noqa: F821
+                    ]),
+      r'batch type must be pd\.Series or pd\.DataFrame',
+    ),
+    (
+      pd.DataFrame,
+      Any,
+      r'Element type must be compatible with Beam Schemas',
+    ),
+  ])
+  def test_construction_errors(
+      self, batch_typehint, element_typehint, error_regex):
+    with self.assertRaisesRegex(TypeError, error_regex):
+      BatchConverter.from_typehints(
+          element_type=element_typehint, batch_type=batch_typehint)
 
 
 if __name__ == '__main__':
