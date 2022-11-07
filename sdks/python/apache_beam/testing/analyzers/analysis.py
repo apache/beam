@@ -36,6 +36,8 @@ from signal_processing_algorithms.energy_statistics.energy_statistics import e_d
 
 BQ_PROJECT_NAME = 'apache-beam-testing'
 BQ_DATASET = 'beam-perf-storage'
+OWNER = 'apache'
+REPO = 'beam'
 
 ID_LABEL = 'test_id'
 SUBMIT_TIMESTAMP_LABEL = 'timestamp'
@@ -43,6 +45,7 @@ CHANGE_POINT_LABEL = 'change_point'
 TEST_NAME = 'test_name'
 METRIC_NAME = 'metric_name'
 ISSUE_URL = 'issue_url'
+MAX_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION = 25
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,7 +70,7 @@ SCHEMA = [{
           }]
 
 TITLE_TEMPLATE = """
-  Performance regression found in the test: {}
+  Performance Regression: {}:{}
 """
 # TODO: Add mean value before and mean value after.
 _METRIC_DESCRIPTION = """
@@ -193,14 +196,13 @@ class RunChangePointAnalysis:
 
     alert_new_issue = True
     for sibling_index in sibling_indexes_to_search:
-      # Verify the logic.
       if metric_values[sibling_index] == latest_change_point:
         alert_new_issue = False
         break
     return alert_new_issue
 
-  def run(self, file_path):
-    with open(file_path, 'r') as stream:
+  def run(self, config_file_path):
+    with open(config_file_path, 'r') as stream:
       config = yaml.safe_load(stream)
     metric_name = config['metric_name']
     test_name = config['test_name']
@@ -212,6 +214,7 @@ class RunChangePointAnalysis:
           metric_name=metric_name)
 
       metric_values = data[load_test_metrics_utils.VALUE_LABEL].to_list()
+
       change_point_analyzer = ChangePointAnalysis(
           metric_values, metric_name=metric_name)
       change_points_idx = change_point_analyzer.edivisive_means()
@@ -228,18 +231,25 @@ class RunChangePointAnalysis:
         # Ignore this changepoint.
         return
 
-      create_perf_alert = self.has_sibling_change_point(
+      create_alert = self.has_sibling_change_point(
           change_point_index,
           metric_values=metric_values,
           metric_name=metric_name,
           test_name=test_name)
 
-      if create_perf_alert:
+      if create_alert:
         gh_issue = GitHubIssues()
         try:
           response = gh_issue.create_or_update_issue(
-              title=TITLE_TEMPLATE.format(test_name),
-              description=change_point_analyzer.get_failing_test_description(),
+              title=TITLE_TEMPLATE.format(test_name, metric_name),
+              description=gh_issue.issue_description(
+                  metric_name=metric_name,
+                  timestamps=data[
+                      load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL].tolist(),
+                  metric_values=metric_values,
+                  change_point_index=change_point_index,
+                  max_results_to_display=
+                  MAX_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION),
               labels=GH_ISSUE_LABELS)
 
           bq_metrics_publisher = BigQueryMetricsPublisher(
@@ -265,13 +275,15 @@ class RunChangePointAnalysis:
 
 
 class GitHubIssues:
-  def __init__(self, owner='AnandInguva', repo='beam'):
+  def __init__(self, owner=OWNER, repo=REPO):
     self.owner = owner
     self.repo = repo
-    self._github_token = os.environ['GITHUB_TOKEN']
-    if not self._github_token:
+    try:
+      self._github_token = os.environ['GITHUB_TOKEN']
+    except KeyError as e:
       raise Exception(
-          'A Github Personal Access token is required to create Github Issues.')
+          '{} + A Github Personal Access token is required '
+          'to create Github Issues.'.format(e))
     self.headers = {
         "Authorization": 'token {}'.format(self._github_token),
         "Accept": "application/vnd.github+json"
@@ -336,7 +348,7 @@ class GitHubIssues:
   def issue_description(
       self,
       metric_name: str,
-      timestamps,
+      timestamps: List,
       metric_values: List,
       change_point_index: int,
       max_results_to_display: int = 25):
@@ -372,6 +384,6 @@ if __name__ == '__main__':
   known_args, unknown_args = parser.parse_known_args()
   if unknown_args:
     _LOGGER.warning('Discarding unknown arguments : %s ' % unknown_args)
-  file_path = os.path.join(
+  config_file_path = os.path.join(
       os.path.dirname(os.path.abspath(__file__)), 'tests_config.yaml')
-  RunChangePointAnalysis(known_args).run(file_path=file_path)
+  RunChangePointAnalysis(known_args).run(config_file_path=config_file_path)
