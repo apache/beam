@@ -104,11 +104,13 @@ Please add NS records from your [Cloud DNS](https://cloud.google.com/dns/docs/re
 This step completes the configuration of the deployment environment.
 
 Add DNS A records for the following hosts:
+```
 * java.playground.zone
 * python.playground.zone
 * scio.playground.zone
 * go.playground.zone
 * router.playground.zone
+```
 Where "playground.zone" - is your registerd DNS zone
 * [More about DNS zone registration](https://domains.google/get-started/domain-search/)
 * [More about A records in DNS](https://support.google.com/a/answer/2579934?hl=en)
