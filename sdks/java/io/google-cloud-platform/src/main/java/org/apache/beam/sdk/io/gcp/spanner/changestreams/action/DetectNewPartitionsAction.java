@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
-import com.google.common.base.Utf8;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
