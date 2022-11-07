@@ -16,126 +16,13 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"flag"
-	"io"
-	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
-
-const (
-	TIMEOUT_HTTP    = 10 * time.Second
-	TIMEOUT_STARTUP = 30 * time.Second
-)
-
-type EmulatorClient struct {
-	host   string
-	client *http.Client
-}
-
-func makeEmulatorCiient() *EmulatorClient {
-	return &EmulatorClient{
-		os.Getenv("FIREBASE_AUTH_EMULATOR_HOST"),
-		&http.Client{Timeout: TIMEOUT_HTTP},
-	}
-}
-
-func (e *EmulatorClient) waitApi() {
-	terminate := time.NewTimer(TIMEOUT_STARTUP)
-	tick := time.NewTicker(5 * time.Second)
-	for {
-		select {
-		case <-terminate.C:
-			log.Fatalf("timeout waiting for emulator")
-		case <-tick.C:
-			resp, err := e.do(http.MethodGet, "", nil)
-			if err != nil {
-				log.Println("emulator API:", err)
-				continue
-			}
-			parsed := struct {
-				AuthEmulator struct {
-					Ready bool `json:"ready"`
-				} `json:"authEmulator"`
-			}{}
-			err = json.Unmarshal(resp, &parsed)
-			if err != nil {
-				log.Println("emulator API bad response:", err)
-				continue
-			}
-			if parsed.AuthEmulator.Ready {
-				return
-			}
-		}
-	}
-}
-
-func (e *EmulatorClient) do(method, endpoint string, jsonBody map[string]string) ([]byte, error) {
-	url := "http://" + e.host
-	if endpoint > "" {
-		url += "/" + endpoint
-	}
-	var buf []byte
-	// handle nil jsonBody as no body
-	if jsonBody != nil {
-		buf, _ = json.Marshal(jsonBody)
-	}
-
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(buf))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("content-type", "application/json")
-
-	response, err := e.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Close the connection to reuse it
-	defer response.Body.Close()
-	// show the response in stdout
-	tee := io.TeeReader(response.Body, os.Stdout)
-
-	var out []byte
-	out, err = io.ReadAll(tee)
-	if err != nil {
-		return nil, err
-	}
-
-	return out, nil
-}
-
-// Get valid Firebase ID token
-// Simulate Frontend client authorization logic
-// Here, we use the simplest possible authorization: email/password
-// Firebase Admin SDK lacks methods to create a user and get ID token
-func (e *EmulatorClient) getIDToken() string {
-	// create a user (sign-up with dummy email/password)
-	endpoint := "identitytoolkit.googleapis.com/v1/accounts:signUp?key=anything_goes"
-	body := map[string]string{"email": "a@b.c", "password": "1q2w3e"}
-	resp, err := e.do(http.MethodPost, endpoint, body)
-	if err != nil {
-		log.Fatalf("emulator request error: %+v", err)
-	}
-
-	var parsed struct {
-		IdToken string `json:"idToken"`
-	}
-	err = json.Unmarshal(resp, &parsed)
-	if err != nil {
-		log.Fatalf("failed to parse output: %+v", err)
-	}
-
-	return parsed.IdToken
-}
 
 var emulator *EmulatorClient
 
@@ -152,7 +39,7 @@ func TestMain(m *testing.M) {
 func TestSaveGetProgress(t *testing.T) {
 	idToken := emulator.getIDToken()
 
-	t.Run("save", func(t *testing.T) {
+	t.Run("save_complete", func(t *testing.T) {
 		port := os.Getenv(PORT_POST_UNIT_COMPLETE)
 		if port == "" {
 			t.Fatal(PORT_POST_UNIT_COMPLETE, "env not set")
@@ -163,6 +50,47 @@ func TestSaveGetProgress(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+	})
+	t.Run("save_code", func(t *testing.T) {
+		port := os.Getenv(PORT_POST_USER_CODE)
+		if port == "" {
+			t.Fatal(PORT_POST_USER_CODE, "env not set")
+		}
+		url := "http://localhost:" + port
+		req := UserCodeRequest{
+			Files: []UserCodeFile{
+				{Name: "main.py", Content: "import sys; sys.exit(0)", IsMain: true},
+			},
+			PipelineOptions: "some opts",
+		}
+
+		_, err := PostUserCode(url, "python", "unit_id_2", idToken, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("save_code_fail", func(t *testing.T) {
+		port := os.Getenv(PORT_POST_USER_CODE)
+		if port == "" {
+			t.Fatal(PORT_POST_USER_CODE, "env not set")
+		}
+		url := "http://localhost:" + port
+		req := UserCodeRequest{
+			Files: []UserCodeFile{
+				// empty content doesn't pass validation
+				{Name: "main.py", Content: "", IsMain: true},
+			},
+			PipelineOptions: "some opts",
+		}
+
+		resp, err := PostUserCode(url, "python", "unit_id_1", idToken, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "INTERNAL_ERROR", resp.Code)
+		msg := "playground api error"
+		assert.Equal(t, msg, resp.Message[:len(msg)])
+
 	})
 	t.Run("get", func(t *testing.T) {
 		port := os.Getenv(PORT_GET_USER_PROGRESS)

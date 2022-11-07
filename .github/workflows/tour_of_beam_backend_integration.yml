@@ -23,11 +23,15 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['learning/tour-of-beam/backend/**']
+    paths: 
+      - 'learning/tour-of-beam/backend/**'
+      - 'playground/backend/**'
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['learning/tour-of-beam/backend/**']
+    paths: 
+      - 'learning/tour-of-beam/backend/**'
+      - 'playground/backend/**'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -43,12 +47,16 @@ env:
   DATASTORE_PROJECT_ID: demo-test-proj
   DATASTORE_EMULATOR_HOST: localhost:8081
   DATASTORE_EMULATOR_DATADIR: ./datadir
+  # playground API
+  PLAYGROUND_ROUTER_HOST: localhost:8000
+
   # GCF
   PORT_SDK_LIST: 8801
   PORT_GET_CONTENT_TREE: 8802
   PORT_GET_UNIT_CONTENT: 8803
   PORT_GET_USER_PROGRESS: 8804
   PORT_POST_UNIT_COMPLETE: 8805
+  PORT_POST_USER_CODE: 8806
 
 
 jobs:
@@ -63,7 +71,9 @@ jobs:
         with:
           # pin to the biggest Go version supported by Cloud Functions runtime
           go-version: '1.16'
-
+      - name: Build Playground router image
+        run: ./gradlew playground:backend:containers:router:docker
+        working-directory: ${{ env.GITHUB_WORKSPACE }}
       # 1. Start emulators
       - name: Start emulators
         run: docker-compose up -d
@@ -81,6 +91,8 @@ jobs:
         run: PORT=${{ env.PORT_GET_USER_PROGRESS }} FUNCTION_TARGET=getUserProgress ./tob_function &
       - name: Run postUnitComplete in background
         run: PORT=${{ env.PORT_POST_UNIT_COMPLETE }} FUNCTION_TARGET=postUnitComplete ./tob_function &
+      - name: Run postUserCode in background
+        run: PORT=${{ env.PORT_POST_USER_CODE }} FUNCTION_TARGET=postUserCode ./tob_function &
 
       # 3. Load data in datastore: run CD step on samples/learning-content
       - name: Run CI/CD to populate datastore

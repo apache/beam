@@ -43,7 +43,6 @@
 
 ## Bugfixes
 
-* Fixed JmsIO acknowledgment issue (https://github.com/apache/beam/issues/20814)
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 ## Known Issues
 
@@ -51,6 +50,15 @@
 -->
 
 # [2.44.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
 
@@ -62,6 +70,17 @@
 
 * `ParquetIO.withSplit` was removed since splittable reading has been the default behavior since 2.35.0. The effect of
   this change is to drop support for non-splittable reading ([#23832](https://github.com/apache/beam/issues/23832)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed JmsIO acknowledgment issue (https://github.com/apache/beam/issues/20814)
+* Fixed Beam SQL CalciteUtils (Java) and Cross-language JdbcIO (Python) did not support JDBC CHAR/VARCHAR, BINARY/VARBINARY logical types ([#23747](https://github.com/apache/beam/issues/23747), [#23526](https://github.com/apache/beam/issues/23526)).
+* Ensure iterated and emitted types are used with the generic register package are registered with the type and schema registries.(Go) ([#23889](https://github.com/apache/beam/pull/23889))
 
 # [2.43.0] - Unreleased
 

@@ -254,7 +254,7 @@ project.tasks.register("sparkExamples") {
     def testOpts = [
             "--log-cli-level=INFO",
     ]
-    def jobServerJar = "${rootDir}/runners/spark/2/job-server/build/libs/beam-runners-spark-3-job-server-${version}.jar"
+    def jobServerJar = "${rootDir}/runners/spark/3/job-server/build/libs/beam-runners-spark-3-job-server-${version}.jar"
     def pipelineOpts = [
             "--runner=SparkRunner",
             "--project=apache-beam-testing",

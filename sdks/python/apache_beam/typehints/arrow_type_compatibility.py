@@ -348,3 +348,37 @@ class PyarrowBatchConverter(BatchConverter):
   def __reduce__(self):
     return self._from_serialized_schema, (
         self._beam_schema.SerializeToString(), )
+
+
+class PyarrowArrayBatchConverter(BatchConverter):
+  def __init__(self, element_type: type):
+    super().__init__(pa.Array, element_type)
+    self._element_type = element_type
+    beam_fieldtype = typing_to_runner_api(element_type)
+    self._arrow_type = _arrow_type_from_beam_fieldtype(beam_fieldtype)
+
+  @staticmethod
+  @BatchConverter.register
+  def from_typehints(element_type,
+                     batch_type) -> Optional['PyarrowArrayBatchConverter']:
+    if batch_type == pa.Array:
+      return PyarrowArrayBatchConverter(element_type)
+
+    return None
+
+  def produce_batch(self, elements):
+    return pa.array(list(elements), type=self._arrow_type)
+
+  def explode_batch(self, batch: pa.Array):
+    """Convert an instance of B to Generator[E]."""
+    for val in batch:
+      yield val.as_py()
+
+  def combine_batches(self, batches: List[pa.Array]):
+    return pa.concat_arrays(batches)
+
+  def get_length(self, batch: pa.Array):
+    return batch.num_rows
+
+  def estimate_byte_size(self, batch: pa.Array):
+    return batch.nbytes

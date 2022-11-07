@@ -73,3 +73,7 @@ func (d *Mock) GetUserProgress(_ context.Context, sdk tob.Sdk, userId string) (s
 func (d *Mock) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error {
 	return nil
 }
+
+func (d *Mock) SaveUserSnippetId(ctx context.Context, sdk tob.Sdk, unitId, uid, snippetId string) error {
+	return nil
+}

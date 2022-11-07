@@ -188,7 +188,7 @@ python -m apache_beam.runners.portability.local_job_service_main -p $JOB_SERVER_
    (this guide requires that your JAVA_HOME is set to Java 11).
 
 ```
-./gradlew :sdks:java:container:java11:docker
+./gradlew :sdks:java:container:java11:docker -Pjava11Home=$JAVA_HOME
 ```
 
 5. Run the pipeline.
@@ -243,9 +243,9 @@ pip install apache-beam[gcp,dataframe]
 
 4. Run the following command
 
-   ```
-   python -m apache_beam.runners.portability.expansion_service_main -p <PORT> --fully_qualified_name_glob "*"
-   ```
+```
+python -m apache_beam.runners.portability.expansion_service_main -p <PORT> --fully_qualified_name_glob "*"
+```
 
 The command runs
 [expansion_service_main.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service_main.py), which starts the standard expansion service. When you use
