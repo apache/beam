@@ -51,7 +51,7 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.Cdap
 `CdapHubspotToTxt` pipeline parameters:
 - `apikey` - Hubspot OAuth2 API Key
 - `objectType` - Hubspot objects to pull supported by CDAP [Hubspot Batch Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsource.md)
-- `txtFilePath` - output path.
+- `outputTxtFilePathPrefix` - path to output folder with filename prefix. It will write a set of .txt files with names like {prefix}-###.
 
 Please see CDAP [Hubspot Batch Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsource.md) for more information.
 
@@ -61,7 +61,7 @@ To execute this pipeline, specify the parameters in the following format:
  --apikey=your-api-key \
  --referenceName=your-reference-name \
  --objectType=Contacts \
- --txtFilePath=your-path-to-output-file
+ --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix
 ```
 
 ## Running the CdapHubspotStreamingToTxt pipeline example
@@ -76,7 +76,7 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.Cdap
 `CdapHubspotStreamingToTxt` pipeline parameters:
 - `apikey` - Hubspot OAuth2 API Key
 - `objectType` - Hubspot objects to pull supported by CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md)
-- `txtFilePath` - output path.
+- `outputTxtFilePathPrefix` - path to output folder with filename prefix. It will write a set of .txt files with names like {prefix}-###.
 
 Please see CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md) for more information.
 
@@ -86,7 +86,7 @@ To execute this pipeline, specify the parameters in the following format:
  --apikey=your-api-key \
  --referenceName=your-reference-name \
  --objectType=Contacts \
- --txtFilePath=your-path-to-output-file
+ --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix
 ```
 
 ## Running the TxtToCdapHubspot pipeline example
@@ -101,7 +101,7 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.TxtT
 `TxtToCdapHubspot` pipeline parameters:
 - `apikey` - Hubspot OAuth2 API Key
 - `objectType` - Hubspot objects to pull supported by [Hubspot Streaming Sink](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsink.md)
-- `txtFilePath` - input file path
+- `inputTxtFilePath` - input .txt file path
 - `locksDirPath` - locks directory path where locks will be stored. This parameter is needed for Hadoop External Synchronization (mechanism for acquiring locks related to the write job).
 
 Please see CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md) for more information.
@@ -112,7 +112,7 @@ To execute this pipeline, specify the parameters in the following format:
  --apikey=your-api-key \
  --referenceName=your-reference-name \
  --objectType=your-object-type \
- --txtFilePath=your-path-to-input-file \
+ --inputTxtFilePath=your-path-to-input-txt-file \
  --locksDirPath=your-path-to-locks-dir
 ```
 
@@ -137,7 +137,7 @@ To execute this pipeline, specify the parameters in the following format:
  --tableName=your-table \
  --valueType=Actual \
  --referenceName=your-reference-name \
- --outputTxtFilePath=your-path-to-file
+ --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix
 ```
 
 Please see CDAP [ServiceNow Batch Source](https://github.com/data-integrations/servicenow-plugins/blob/develop/docs/ServiceNow-batchsource.md) for more information.
@@ -162,7 +162,7 @@ To execute this pipeline, specify the parameters in the following format:
  --loginUrl=your-login-url \
  --sObjectName=object-name \
  --referenceName=your-reference-name \
- --txtFilePath=your-path-to-file
+ --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix
 ```
 
 Please see CDAP [Salesforce Batch Source](https://github.com/data-integrations/servicenow-plugins/blob/develop/docs/ServiceNow-batchsource.md) for more information.
@@ -187,7 +187,7 @@ To execute this pipeline, specify the parameters in the following format:
  --loginUrl=your-login-url \
  --sObject=CustomObject__c \
  --referenceName=your-reference-name \
- --txtFilePath=your-path-to-file \
+ --inputTxtFilePath=your-path-to-txt-file \
  --operation=Insert \
  --errorHandling=Stop on error \
  --maxRecordsPerBatch=10 \
@@ -218,6 +218,6 @@ To execute this pipeline, specify the parameters in the following format:
  --connectTimeout=your-connection-timeout \
  --readTimeout=your-read-timeout \
  --objectsToPull=your-objects-to-pull (example: Groups) \
- --outputTxtFilePath=your-path-to-file
+ --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix
 ```
 Please see CDAP [Zendesk Batch Source](https://github.com/data-integrations/zendesk/blob/develop/docs/Zendesk-batchsource.md) for more information.

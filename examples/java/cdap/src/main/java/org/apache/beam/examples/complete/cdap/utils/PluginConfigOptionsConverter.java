@@ -54,6 +54,8 @@ public class PluginConfigOptionsConverter {
             .put(BaseHubspotConfig.OBJECT_TYPE, options.getObjectType())
             .put(Constants.Reference.REFERENCE_NAME, options.getReferenceName());
     if (isStreaming) {
+      // Pull frequency is not implemented in CdapIO, but still needs to be passed for
+      // HubspotStreamingSource plugin
       builder.put(HubspotStreamingSourceConfig.PULL_FREQUENCY, PullFrequency.MINUTES_15.getName());
     }
     return builder.build();

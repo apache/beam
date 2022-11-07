@@ -21,6 +21,11 @@ import io.cdap.plugin.salesforce.plugin.source.batch.util.SalesforceSourceConsta
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
 
+/**
+ * The {@link CdapSalesforceSourceOptions} interface provides the custom execution options passed by
+ * the executor at the command-line for {@link
+ * org.apache.beam.examples.complete.cdap.CdapSalesforceToTxt} example.
+ */
 public interface CdapSalesforceSourceOptions extends CdapSalesforceOptions {
 
   @Validation.Required
@@ -28,4 +33,12 @@ public interface CdapSalesforceSourceOptions extends CdapSalesforceOptions {
   String getSObjectName();
 
   void setSObjectName(String sObjectName);
+
+  @Validation.Required
+  @Description(
+      "Path to output folder with filename prefix."
+          + "It will write a set of .txt files with names like {prefix}-###.")
+  String getOutputTxtFilePathPrefix();
+
+  void setOutputTxtFilePathPrefix(String outputTxtFilePathPrefix);
 }

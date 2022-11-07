@@ -75,7 +75,7 @@ import org.slf4j.LoggerFactory;
  * --apiToken=your-token \
  * --objectsToPull=Groups \
  * --referenceName=your-reference-name \
- * --outputTxtFilePath=your-path-to-file
+ * --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix
  * }
  *
  * By default this will run the pipeline locally with the DirectRunner. To change the runner, specify:
@@ -133,7 +133,7 @@ public class CdapZendeskToTxt {
             KvCoder.of(
                 NullableCoder.of(WritableCoder.of(NullWritable.class)), StringUtf8Coder.of()))
         .apply(Values.create())
-        .apply("writeToTxt", TextIO.write().to(options.getOutputTxtFilePath()));
+        .apply("writeToTxt", TextIO.write().to(options.getOutputTxtFilePathPrefix()));
 
     return pipeline.run();
   }

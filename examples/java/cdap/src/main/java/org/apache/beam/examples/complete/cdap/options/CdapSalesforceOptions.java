@@ -23,6 +23,10 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
 
+/**
+ * The {@link CdapSalesforceOptions} interface provides the custom execution options passed by the
+ * executor at the command-line.
+ */
 public interface CdapSalesforceOptions extends PipelineOptions {
 
   @Validation.Required
@@ -66,10 +70,4 @@ public interface CdapSalesforceOptions extends PipelineOptions {
   String getLoginUrl();
 
   void setLoginUrl(String loginUrl);
-
-  @Validation.Required
-  @Description("Path to input/output .txt file.")
-  String getTxtFilePath();
-
-  void setTxtFilePath(String txtFilePath);
 }

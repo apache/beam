@@ -17,37 +17,28 @@
  */
 package org.apache.beam.examples.complete.cdap.options;
 
-import io.cdap.plugin.common.Constants;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
 
 /**
- * The {@link CdapHubspotOptions} interface provides the custom execution options passed by the
- * executor at the command-line.
+ * The {@link CdapHubspotSinkOptions} interface provides the custom execution options passed by the
+ * executor at the command-line for {@link org.apache.beam.examples.complete.cdap.TxtToCdapHubspot}
+ * example.
  */
-public interface CdapHubspotOptions extends PipelineOptions {
-
-  @Description("Hubspot api server url. If not specified then the default url will be used.")
-  String getApiServerUrl();
-
-  void setApiServerUrl(String apiServerUrl);
+public interface CdapHubspotSinkOptions extends CdapHubspotOptions {
 
   @Validation.Required
-  @Description("Hubspot OAuth2 API Key.")
-  String getApiKey();
+  @Description("Input .txt file path with Hubspot records.")
+  String getInputTxtFilePath();
 
-  void setApiKey(String apiKey);
-
-  @Validation.Required
-  @Description("Name of object to pull from Hubspot (e.g. Contacts).")
-  String getObjectType();
-
-  void setObjectType(String objectType);
+  void setInputTxtFilePath(String inputTxtFilePath);
 
   @Validation.Required
-  @Description(Constants.Reference.REFERENCE_NAME_DESCRIPTION)
-  String getReferenceName();
+  @Description(
+      "Locks directory path where locks will be stored."
+          + "This parameter is needed for Hadoop External Synchronization"
+          + "(mechanism for acquiring locks related to the write job).")
+  String getLocksDirPath();
 
-  void setReferenceName(String referenceName);
+  void setLocksDirPath(String locksDirPath);
 }

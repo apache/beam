@@ -25,7 +25,8 @@ import org.apache.beam.sdk.options.Validation;
 
 /**
  * The {@link CdapZendeskOptions} interface provides the custom execution options passed by the
- * executor at the command-line.
+ * executor at the command-line for {@link org.apache.beam.examples.complete.cdap.CdapZendeskToTxt}
+ * example.
  */
 public interface CdapZendeskOptions extends PipelineOptions {
 
@@ -90,10 +91,12 @@ public interface CdapZendeskOptions extends PipelineOptions {
   void setObjectsToPull(String objectsToPull);
 
   @Validation.Required
-  @Description("Path to output .txt file.")
-  String getOutputTxtFilePath();
+  @Description(
+      "Path to output folder with filename prefix."
+          + "It will write a set of .txt files with names like {prefix}-###.")
+  String getOutputTxtFilePathPrefix();
 
-  void setOutputTxtFilePath(String outputTxtFilePath);
+  void setOutputTxtFilePathPrefix(String outputTxtFilePathPrefix);
 
   @Validation.Required
   @Description(Constants.Reference.REFERENCE_NAME_DESCRIPTION)

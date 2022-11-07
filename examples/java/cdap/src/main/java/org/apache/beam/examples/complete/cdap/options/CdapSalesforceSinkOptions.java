@@ -20,6 +20,11 @@ package org.apache.beam.examples.complete.cdap.options;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
 
+/**
+ * The {@link CdapSalesforceSinkOptions} interface provides the custom execution options passed by
+ * the executor at the command-line for {@link
+ * org.apache.beam.examples.complete.cdap.TxtToCdapSalesforce} example.
+ */
 public interface CdapSalesforceSinkOptions extends CdapSalesforceOptions {
 
   @Validation.Required
@@ -64,6 +69,7 @@ public interface CdapSalesforceSinkOptions extends CdapSalesforceOptions {
 
   void setsObject(String sObject);
 
+  @Validation.Required
   @Description(
       "Locks directory path where locks will be stored."
           + "This parameter is needed for Hadoop External Synchronization"
@@ -71,4 +77,10 @@ public interface CdapSalesforceSinkOptions extends CdapSalesforceOptions {
   String getLocksDirPath();
 
   void setLocksDirPath(String locksDirPath);
+
+  @Validation.Required
+  @Description("Input .txt file path with Salesforce records.")
+  String getInputTxtFilePath();
+
+  void setInputTxtFilePath(String inputTxtFilePath);
 }

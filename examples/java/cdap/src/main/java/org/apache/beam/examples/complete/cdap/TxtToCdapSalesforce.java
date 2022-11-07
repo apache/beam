@@ -78,7 +78,7 @@ import org.slf4j.LoggerFactory;
  * --loginUrl=your-login-url \
  * --sObject=CustomObject__c \
  * --referenceName=your-reference-name \
- * --txtFilePath=your-path-to-file \
+ * --inputTxtFilePath=your-path-to-input-file \
  * --maxRecordsPerBatch=10 \
  * --maxBytesPerBatch=9999999 \
  * --operation=Insert \
@@ -132,7 +132,7 @@ public class TxtToCdapSalesforce {
      */
 
     pipeline
-        .apply("readFromTxt", TextIO.read().from(options.getTxtFilePath()))
+        .apply("readFromTxt", TextIO.read().from(options.getInputTxtFilePath()))
         .apply(
             MapElements.into(new TypeDescriptor<KV<NullWritable, CSVRecord>>() {})
                 .via(

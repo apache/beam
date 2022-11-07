@@ -24,7 +24,8 @@ import org.apache.beam.sdk.options.Validation;
 
 /**
  * The {@link CdapServiceNowOptions} interface provides the custom execution options passed by the
- * executor at the command-line.
+ * executor at the command-line for {@link
+ * org.apache.beam.examples.complete.cdap.CdapServiceNowToTxt} example.
  */
 public interface CdapServiceNowOptions extends PipelineOptions {
 
@@ -93,8 +94,10 @@ public interface CdapServiceNowOptions extends PipelineOptions {
   void setReferenceName(String referenceName);
 
   @Validation.Required
-  @Description("Path to output .txt file.")
-  String getOutputTxtFilePath();
+  @Description(
+      "Path to output folder with filename prefix."
+          + "It will write a set of .txt files with names like {prefix}-###.")
+  String getOutputTxtFilePathPrefix();
 
-  void setOutputTxtFilePath(String outputTxtFilePath);
+  void setOutputTxtFilePathPrefix(String outputTxtFilePathPrefix);
 }
