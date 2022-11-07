@@ -20,8 +20,10 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../auth/notifier.dart';
 import '../../components/builders/content_tree.dart';
 import '../../components/builders/sdks.dart';
 import '../../components/filler_text.dart';
@@ -199,6 +201,8 @@ class _IntroText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = GetIt.instance.get<AuthNotifier>();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -226,8 +230,9 @@ class _IntroText extends StatelessWidget {
                     .bodyLarge!
                     .copyWith(color: Theme.of(context).primaryColor),
                 recognizer: TapGestureRecognizer()
-                  ..onTap = () {
-                    // TODO(nausharipov): sign in
+                  ..onTap = () async {
+                    // TODO(nausharipov): popup with auth methods?
+                    await auth.signIn(AuthMethod.google);
                   },
               ),
               TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),

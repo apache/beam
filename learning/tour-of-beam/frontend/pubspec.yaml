@@ -31,11 +31,15 @@ dependencies:
   easy_localization: ^3.0.1
   easy_localization_ext: ^0.1.0
   easy_localization_loader: ^1.0.0
+  firebase_auth: ^4.1.1
+  firebase_core: ^2.1.1
   flutter: { sdk: flutter }
   flutter_markdown: ^0.6.12
+  flutter_secure_storage: ^6.0.0
   flutter_svg: ^1.0.3
   get_it: ^7.2.0
   google_fonts: ^3.0.1
+  google_sign_in: ^5.4.2
   http: ^0.13.5
   json_annotation: ^4.7.0
   markdown: ^6.0.1

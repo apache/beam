@@ -19,6 +19,7 @@
 import 'package:app_state/app_state.dart';
 import 'package:get_it/get_it.dart';
 
+import 'auth/notifier.dart';
 import 'cache/content_tree.dart';
 import 'cache/sdk.dart';
 import 'cache/unit_content.dart';
@@ -28,8 +29,13 @@ import 'router/page_factory.dart';
 import 'router/route_information_parser.dart';
 
 Future<void> initializeServiceLocator() async {
+  _initializeAuth();
   _initializeCaches();
   _initializeState();
+}
+
+void _initializeAuth() {
+  GetIt.instance.registerSingleton(AuthNotifier());
 }
 
 void _initializeCaches() {

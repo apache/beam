@@ -19,23 +19,30 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../auth/notifier.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
 
 class ProfileContent extends StatelessWidget {
-  const ProfileContent();
+  final void Function() closeOverlay;
+  const ProfileContent({
+    required this.closeOverlay,
+  });
 
   @override
   Widget build(BuildContext context) {
     return _Body(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _Info(),
-          BeamDivider(),
-          _Buttons(),
+        children: [
+          const _Info(),
+          const BeamDivider(),
+          _Buttons(
+            closeOverlay: closeOverlay,
+          ),
         ],
       ),
     );
@@ -85,10 +92,15 @@ class _Info extends StatelessWidget {
 }
 
 class _Buttons extends StatelessWidget {
-  const _Buttons();
+  final void Function() closeOverlay;
+  const _Buttons({
+    required this.closeOverlay,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final auth = GetIt.instance.get<AuthNotifier>();
+
     return Column(
       children: [
         _IconLabel(
@@ -105,7 +117,10 @@ class _Buttons extends StatelessWidget {
         ),
         const BeamDivider(),
         _IconLabel(
-          onTap: () {},
+          onTap: () async {
+            await auth.signOut();
+            closeOverlay();
+          },
           iconPath: Assets.svg.profileLogout,
           label: 'ui.signOut'.tr(),
         ),
