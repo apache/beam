@@ -97,6 +97,7 @@ public class CalciteUtils {
   public static final FieldType DOUBLE = FieldType.DOUBLE;
   public static final FieldType DECIMAL = FieldType.DECIMAL;
   public static final FieldType BOOLEAN = FieldType.BOOLEAN;
+  // TODO(https://github.com/apache/beam/issues/24019) Support sql types with arguments
   public static final FieldType VARBINARY = FieldType.BYTES;
   public static final FieldType VARCHAR = FieldType.STRING;
   public static final FieldType CHAR = FieldType.STRING;
@@ -143,6 +144,9 @@ public class CalciteUtils {
           .put(SqlTypeName.DOUBLE, DOUBLE)
           .put(SqlTypeName.DECIMAL, DECIMAL)
           .put(SqlTypeName.BOOLEAN, BOOLEAN)
+          // TODO(https://github.com/apache/beam/issues/24019) Support sql types with arguments
+          // Handle Calcite VARBINARY/BINARY/VARCHAR/CHAR with
+          // VariableBinary/FixedBinary/VariableString/FixedString logical types.
           .put(SqlTypeName.VARBINARY, VARBINARY)
           .put(SqlTypeName.BINARY, VARBINARY)
           .put(SqlTypeName.VARCHAR, VARCHAR)
