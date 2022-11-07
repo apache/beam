@@ -980,6 +980,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           // Careful to reset the split state under the same synchronized block.
           windowCurrentIndex = -1;
           windowStopIndex = 0;
+          currentElement = null;
           currentWindows = null;
           currentRestriction = null;
           currentWatermarkEstimatorState = null;
@@ -1071,6 +1072,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           // Careful to reset the split state under the same synchronized block.
           windowCurrentIndex = -1;
           windowStopIndex = 0;
+          currentElement = null;
           currentWindows = null;
           currentRestriction = null;
           currentWatermarkEstimatorState = null;
