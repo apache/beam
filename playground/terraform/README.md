@@ -95,7 +95,7 @@ The following command will authenticate us in the Docker registry
 ```
  gcloud auth configure-docker `chosen_region`-docker.pkg.dev
 ```
-* The following command will authenticate in GKE
+The following command will authenticate in GKE
 ```
 gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
 ```
