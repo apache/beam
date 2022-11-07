@@ -154,7 +154,6 @@ func TestValidateMutationFailsWhenGreaterThanHundredKOps(t *testing.T) {
 	}
 }
 
-
 // Examples:
 
 func ExampleWriteBatch() {
