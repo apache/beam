@@ -20,12 +20,14 @@ import os
 import time
 import uuid
 
+import google.api_core.exceptions
 import pandas as pd
 import requests
 import yaml
 import logging
 from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -35,8 +37,8 @@ from apache_beam.testing.load_tests.load_test_metrics_utils import FetchMetrics
 from signal_processing_algorithms.energy_statistics.energy_statistics import e_divisive
 
 BQ_PROJECT_NAME = 'apache-beam-testing'
-BQ_DATASET = 'beam-perf-storage'
-OWNER = 'apache'
+BQ_DATASET = 'beam_perf_storage'
+OWNER = 'AnandInguva'
 REPO = 'beam'
 
 ID_LABEL = 'test_id'
@@ -44,6 +46,7 @@ SUBMIT_TIMESTAMP_LABEL = 'timestamp'
 CHANGE_POINT_LABEL = 'change_point'
 TEST_NAME = 'test_name'
 METRIC_NAME = 'metric_name'
+ISSUE_NUMBER = 'issue_number'
 ISSUE_URL = 'issue_url'
 MAX_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION = 25
 
@@ -64,7 +67,9 @@ SCHEMA = [{
           }, {
               'name': METRIC_NAME, 'field_type': 'STRING', 'mode': 'REQUIRED'
           }, {
-              'name': TEST_NAME, 'field_type': 'FLOAT', 'mode': 'REQUIRED'
+              'name': TEST_NAME, 'field_type': 'STRING', 'mode': 'REQUIRED'
+          }, {
+              'name': ISSUE_NUMBER, 'field_type': 'INT64', 'mode': 'REQUIRED'
           }, {
               'name': ISSUE_URL, 'field_type': 'STRING', 'mode': 'REQUIRED'
           }]
@@ -88,6 +93,7 @@ class Metric:
       submit_timestamp,
       test_name,
       metric_name,
+      issue_number,
       issue_url,
       test_id,
       change_point):
@@ -103,6 +109,7 @@ class Metric:
     self.submit_timestamp = submit_timestamp
     self.test_name = test_name
     self.metric_name = metric_name
+    self.issue_number = issue_number
     self.issue_url = issue_url
     self.test_id = test_id
     self.change_point = change_point
@@ -112,9 +119,10 @@ class Metric:
         SUBMIT_TIMESTAMP_LABEL: self.submit_timestamp,
         TEST_NAME: self.test_name,
         METRIC_NAME: self.metric_name,
-        ISSUE_URL: self.issue_url,
+        ISSUE_NUMBER: self.issue_number,
         ID_LABEL: self.test_id,
-        CHANGE_POINT_LABEL: self.change_point
+        CHANGE_POINT_LABEL: self.change_point,
+        ISSUE_URL: self.issue_url
     }
 
 
@@ -158,7 +166,7 @@ class RunChangePointAnalysis:
       change_point_index: int,
       metric_values: List,
       metric_name: str,
-      test_name: str) -> Optional[int]:
+      test_name: str) -> Optional[Tuple[bool, Optional[int]]]:
     """
     Finds the sibling change point index. If not,
     returns the original changepoint index.
@@ -191,21 +199,27 @@ class RunChangePointAnalysis:
         metric_name=metric_name,
         timestamp=SUBMIT_TIMESTAMP_LABEL,
         table=test_name)
-    df = FetchMetrics.fetch_from_bq(query_template=query_template)
+    try:
+      df = FetchMetrics.fetch_from_bq(query_template=query_template)
+    except google.api_core.exceptions.NotFound:
+      # If no table found, that means this is first performance regression
+      # on the current test:metric.
+      return True, None
     latest_change_point = df[CHANGE_POINT_LABEL].tolist()[0]
+    issue_number = df[ISSUE_NUMBER].tolist()[0]
 
     alert_new_issue = True
     for sibling_index in sibling_indexes_to_search:
       if metric_values[sibling_index] == latest_change_point:
         alert_new_issue = False
         break
-    return alert_new_issue
+    return alert_new_issue, issue_number
 
   def run(self, config_file_path):
     with open(config_file_path, 'r') as stream:
       config = yaml.safe_load(stream)
     metric_name = config['metric_name']
-    test_name = config['test_name']
+    test_name = config['test_name'].replace('.', '_')
     if config['source'] == 'big_query':
       data: pd.DataFrame = FetchMetrics.fetch_from_bq(
           project_name=config['project'],
@@ -226,12 +240,14 @@ class RunChangePointAnalysis:
       change_points_idx.sort(reverse=True)
       change_point_index = change_points_idx[0]
 
-      if not self.changepoint_to_recent_run_window(change_point_index):
+      # TODO: Logic to not file issues when the same changepoint is created.
+
+      if not self.is_changepoint_in_valid_window(change_point_index):
         # change point lies outside the window from the recent run.
         # Ignore this changepoint.
         return
 
-      create_alert = self.has_sibling_change_point(
+      create_alert, previous_issue_number = self.has_sibling_change_point(
           change_point_index,
           metric_values=metric_values,
           metric_name=metric_name,
@@ -239,35 +255,36 @@ class RunChangePointAnalysis:
 
       if create_alert:
         gh_issue = GitHubIssues()
-        try:
-          response = gh_issue.create_or_update_issue(
-              title=TITLE_TEMPLATE.format(test_name, metric_name),
-              description=gh_issue.issue_description(
-                  metric_name=metric_name,
-                  timestamps=data[
-                      load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL].tolist(),
-                  metric_values=metric_values,
-                  change_point_index=change_point_index,
-                  max_results_to_display=
-                  MAX_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION),
-              labels=GH_ISSUE_LABELS)
-
-          bq_metrics_publisher = BigQueryMetricsPublisher(
-              project_name=BQ_PROJECT_NAME, dataset=BQ_DATASET, table=test_name)
-          metric_dict = Metric(
-              submit_timestamp=time.time(),
-              test_name=test_name,
+        bq_metrics_publisher = BigQueryMetricsPublisher(
+            project_name=BQ_PROJECT_NAME,
+            dataset=BQ_DATASET,
+            table=test_name,
+            bq_schema=SCHEMA)
+        # create on the issue or if the latest issue is already open
+        # comment on the issue.
+        issue_number, issue_url = gh_issue.create_or_update_issue(
+          title=TITLE_TEMPLATE.format(test_name, metric_name),
+          description=gh_issue.issue_description(
               metric_name=metric_name,
-              test_id=uuid.uuid4().hex,
-              change_point=metric_values[
-                  load_test_metrics_utils.METRICS_TYPE_LABEL]
-              [change_point_index],
-              issue_url=response['html_url'])
-          bq_metrics_publisher.publish(metric_dict.as_dict())
-        except:
-          raise Exception(
-              'Performance regression detected. Failed to file '
-              'a Github issue.')
+              timestamps=data[
+                  load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL].tolist(),
+              metric_values=metric_values,
+              change_point_index=change_point_index,
+              max_results_to_display=
+              MAX_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION),
+          labels=GH_ISSUE_LABELS,
+          issue_number=previous_issue_number)
+
+        metric_dict = Metric(
+            submit_timestamp=time.time(),
+            test_name=test_name,
+            metric_name=metric_name,
+            test_id=uuid.uuid4().hex,
+            change_point=metric_values[change_point_index],
+            issue_number=issue_number,
+            issue_url=issue_url)
+        bq_metrics_publisher.publish([metric_dict.as_dict()])
+
     elif config['source'] == 'influxDB':
       raise NotImplementedError
     else:
@@ -290,16 +307,24 @@ class GitHubIssues:
     }
 
   def create_or_update_issue(
-      self, title, description, labels: Optional[List] = None):
+      self,
+      title,
+      description,
+      labels: Optional[List] = None,
+      issue_number: Optional[int] = None):
     """
     Create an issue with title, description with a label.
     If an issue is already present, comment on the issue instead of
     creating a duplicate issue.
     """
-    # last_created_issue = self.search_issue_with_title(title, labels)
-    # if last_created_issue['total_count']:
-    #   self.comment_on_issue(last_created_issue=last_created_issue)
-    # else:
+    if issue_number:
+      commented_on_issue, response = self.comment_on_issue(
+          issue_number=issue_number, description=description)
+      if commented_on_issue:
+        return issue_number, response.json()['html_url']
+
+    # Issue number was not provided or Issue with provided number
+    # is closed. In that case, create a new issue.
     url = "https://api.github.com/repos/{}/{}/issues".format(
         self.owner, self.repo)
     data = {
@@ -312,38 +337,39 @@ class GitHubIssues:
       data['labels'] = labels
     response = requests.post(
         url=url, data=json.dumps(data), headers=self.headers).json()
-    return response
+    return response['number'], response['html_url']
 
-  def comment_on_issue(self, last_created_issue):
+  def comment_on_issue(self, issue_number,
+                       description) -> Tuple[bool, Optional[requests.Response]]:
     """
-    If there is an already present issue with the title name,
-    update that issue with the new description.
+    If there is an already created issue,
+    update that issue with a comment.
     """
-    items = last_created_issue['items'][0]
-    comment_url = items['comments_url']
-    issue_number = items['number']
-    _COMMENT = 'Creating comment on already created issue.'
-    data = {
-        'owner': self.owner,
-        'repo': self.repo,
-        'body': _COMMENT,
-        issue_number: issue_number,
-    }
-    requests.post(comment_url, json.dumps(data), headers=self.headers)
+    url = 'https://api.github.com/repos/{}/{}/issues/{}'.format(
+        self.owner, self.repo, issue_number)
+    open_issue_response = requests.get(
+        url,
+        json.dumps({
+            'owner': self.owner,
+            'repo': self.repo,
+            'issue_number': issue_number
+        }),
+        headers=self.headers).json()
 
-  def search_issue_with_title(self, title, labels=None):
-    """
-    Filter issues using title.
-    """
-    search_query = "repo:{}/{}+{} type:issue is:open".format(
-        self.owner, self.repo, title)
-    if labels:
-      for label in labels:
-        search_query = search_query + ' label:{}'.format(label)
-    query = "https://api.github.com/search/issues?q={}".format(search_query)
+    if open_issue_response['state'] == 'open':
+      data = {
+          'owner': self.owner,
+          'repo': self.repo,
+          'body': description,
+          issue_number: issue_number,
+      }
+      response = requests.post(
+          open_issue_response['comments_url'],
+          json.dumps(data),
+          headers=self.headers)
+      return True, response
 
-    response = requests.get(url=query, headers=self.headers)
-    return response.json()
+    return False, None
 
   def issue_description(
       self,
