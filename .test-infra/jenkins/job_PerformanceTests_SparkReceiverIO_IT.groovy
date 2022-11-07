@@ -78,7 +78,7 @@ job(jobName) {
       switches("--info")
       switches("-DintegrationTestPipelineOptions=\'${common.joinOptionsWithNestedJsonValues(pipelineOptions)}\'")
       switches("-DintegrationTestRunner=dataflow")
-      tasks(":sdks:java:io:sparkreceiver:integrationTest --tests org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIOIT")
+      tasks(":sdks:java:io:sparkreceiver:2:integrationTest --tests org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIOIT")
     }
   }
 }

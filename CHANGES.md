@@ -58,7 +58,7 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Support for Bigtable sink (Write and WriteBatch) added (Go) ([#23324](https://github.com/apache/beam/issues/23324)).
 
 ## New Features / Improvements
 

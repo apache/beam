@@ -130,10 +130,15 @@ export function defaultRunner(defaultOptions: Object): Runner {
       if (directRunner.unsupportedFeatures(pipeline, options).length === 0) {
         return directRunner.runPipeline(pipeline, options);
       } else {
-        return require("./universal")
-          .universalRunner({ environmentType: "LOOPBACK", ...defaultOptions })
-          .runPipeline(pipeline, options);
+        return loopbackRunner(defaultOptions).runPipeline(pipeline, options);
       }
     }
   })();
+}
+
+export function loopbackRunner(defaultOptions: Object = {}): Runner {
+  return require("./universal").universalRunner({
+    environmentType: "LOOPBACK",
+    ...defaultOptions,
+  });
 }

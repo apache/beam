@@ -19,6 +19,7 @@ import enum
 import pickle
 import sys
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import Optional
@@ -44,6 +45,9 @@ __all__ = [
     'SklearnModelHandlerNumpy',
     'SklearnModelHandlerPandas',
 ]
+
+NumpyInferenceFn = Callable[
+    [BaseEstimator, Sequence[numpy.ndarray], Optional[Dict[str, Any]]], Any]
 
 
 class ModelFileType(enum.Enum):
@@ -84,13 +88,24 @@ def _convert_to_result(
   return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
 
+def _default_numpy_inference_fn(
+    model: BaseEstimator,
+    batch: Sequence[numpy.ndarray],
+    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+  # vectorize data for better performance
+  vectorized_batch = numpy.stack(batch, axis=0)
+  return model.predict(vectorized_batch)
+
+
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                             PredictionResult,
                                             BaseEstimator]):
   def __init__(
       self,
       model_uri: str,
-      model_file_type: ModelFileType = ModelFileType.PICKLE):
+      model_file_type: ModelFileType = ModelFileType.PICKLE,
+      *,
+      inference_fn: NumpyInferenceFn = _default_numpy_inference_fn):
     """ Implementation of the ModelHandler interface for scikit-learn
     using numpy arrays as input.
 
@@ -102,9 +117,12 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_uri: The URI to where the model is saved.
       model_file_type: The method of serialization of the argument.
         default=pickle
+      inference_fn: The inference function to use.
+        default=_default_numpy_inference_fn
     """
     self._model_uri = model_uri
     self._model_file_type = model_file_type
+    self._model_inference_fn = inference_fn
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
@@ -128,9 +146,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Returns:
       An Iterable of type PredictionResult.
     """
-    # vectorize data for better performance
-    vectorized_batch = numpy.stack(batch, axis=0)
-    predictions = model.predict(vectorized_batch)
+    predictions = self._model_inference_fn(model, batch, inference_args)
 
     return _convert_to_result(batch, predictions)
 
@@ -149,6 +165,23 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     return 'BeamML_Sklearn'
 
 
+PandasInferenceFn = Callable[
+    [BaseEstimator, Sequence[pandas.DataFrame], Optional[Dict[str, Any]]], Any]
+
+
+def _default_pandas_inference_fn(
+    model: BaseEstimator,
+    batch: Sequence[pandas.DataFrame],
+    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+  # vectorize data for better performance
+  vectorized_batch = pandas.concat(batch, axis=0)
+  predictions = model.predict(vectorized_batch)
+  splits = [
+      vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
+  ]
+  return predictions, splits
+
+
 @experimental(extra_message="No backwards-compatibility guarantees.")
 class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
                                              PredictionResult,
@@ -156,7 +189,9 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
   def __init__(
       self,
       model_uri: str,
-      model_file_type: ModelFileType = ModelFileType.PICKLE):
+      model_file_type: ModelFileType = ModelFileType.PICKLE,
+      *,
+      inference_fn: PandasInferenceFn = _default_pandas_inference_fn):
     """Implementation of the ModelHandler interface for scikit-learn that
     supports pandas dataframes.
 
@@ -171,9 +206,12 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       model_uri: The URI to where the model is saved.
       model_file_type: The method of serialization of the argument.
         default=pickle
+      inference_fn: The inference function to use.
+        default=_default_pandas_inference_fn
     """
     self._model_uri = model_uri
     self._model_file_type = model_file_type
+    self._model_inference_fn = inference_fn
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
@@ -203,12 +241,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       if dataframe.shape[0] != 1:
         raise ValueError('Only dataframes with single rows are supported.')
 
-    # vectorize data for better performance
-    vectorized_batch = pandas.concat(batch, axis=0)
-    predictions = model.predict(vectorized_batch)
-    splits = [
-        vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
-    ]
+    predictions, splits = self._model_inference_fn(model, batch, inference_args)
 
     return _convert_to_result(splits, predictions)
 
