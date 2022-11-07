@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadata
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.DetectNewPartitionsRangeTracker;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -36,6 +37,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A SplittableDoFn (SDF) that is responsible for scheduling partitions to be queried. This
@@ -51,6 +54,7 @@ import org.joda.time.Instant;
 public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMetadata> {
 
   private static final long serialVersionUID = 1523712495885011374L;
+  private static final Logger LOG = LoggerFactory.getLogger(DetectNewPartitionsDoFn.class);
   private static final Duration DEFAULT_RESUME_DURATION = Duration.millis(100L);
 
   private final Duration resumeDuration;
@@ -58,6 +62,7 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
   private final ChangeStreamMetrics metrics;
+  private final ThroughputEstimator throughputEstimator;
   private transient DetectNewPartitionsAction detectNewPartitionsAction;
 
   /**
@@ -72,16 +77,20 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
    * @param mapperFactory the {@link MapperFactory} to construct {@link PartitionMetadataMapper}s
    * @param actionFactory the {@link ActionFactory} to construct actions
    * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
+   * @param throughputEstimator an estimator to calculate local throughput of the {@link
+   *     DetectNewPartitionsDoFn}
    */
   public DetectNewPartitionsDoFn(
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
-      ChangeStreamMetrics metrics) {
+      ChangeStreamMetrics metrics,
+      ThroughputEstimator throughputEstimator) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
     this.metrics = metrics;
+    this.throughputEstimator = throughputEstimator;
     this.resumeDuration = DEFAULT_RESUME_DURATION;
   }
 
@@ -109,9 +118,15 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
         TimestampUtils.previous(createdAt), com.google.cloud.Timestamp.MAX_VALUE);
   }
 
+  @GetSize
+  public double getSize() {
+    double throughput = throughputEstimator.get();
+    LOG.debug("Reported getSize() - throughput: " + throughput);
+    return throughput;
+  }
+
   @NewTracker
-  public DetectNewPartitionsRangeTracker restrictionTracker(
-      @Restriction TimestampRange restriction) {
+  public DetectNewPartitionsRangeTracker newTracker(@Restriction TimestampRange restriction) {
     return new DetectNewPartitionsRangeTracker(restriction);
   }
 
@@ -122,7 +137,11 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
     final PartitionMetadataMapper partitionMetadataMapper = mapperFactory.partitionMetadataMapper();
     this.detectNewPartitionsAction =
         actionFactory.detectNewPartitionsAction(
-            partitionMetadataDao, partitionMetadataMapper, metrics, resumeDuration);
+            partitionMetadataDao,
+            partitionMetadataMapper,
+            metrics,
+            throughputEstimator,
+            resumeDuration);
   }
 
   /**

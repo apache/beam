@@ -109,7 +109,7 @@ public class ActionFactory implements Serializable {
    * @param childPartitionsRecordAction action class to process {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord}s
    * @param metrics metrics gathering class
-   * @param throughputEstimator an estimator to calculate local throughput.
+   * @param throughputEstimator an estimator to calculate local throughput
    * @return single instance of the {@link QueryChangeStreamAction}
    */
   public synchronized QueryChangeStreamAction queryChangeStreamAction(
@@ -146,6 +146,7 @@ public class ActionFactory implements Serializable {
    * @param partitionMetadataMapper mapper class to transform partition metadata table rows into the
    *     Connector's domain models
    * @param metrics metrics gathering class
+   * @param throughputEstimator an estimator to calculate local throughput
    * @param resumeDuration specifies the periodic schedule to re-execute the action
    * @return single instance of the {@link DetectNewPartitionsAction}
    */
@@ -153,11 +154,16 @@ public class ActionFactory implements Serializable {
       PartitionMetadataDao partitionMetadataDao,
       PartitionMetadataMapper partitionMetadataMapper,
       ChangeStreamMetrics metrics,
+      ThroughputEstimator throughputEstimator,
       Duration resumeDuration) {
     if (detectNewPartitionsActionInstance == null) {
       detectNewPartitionsActionInstance =
           new DetectNewPartitionsAction(
-              partitionMetadataDao, partitionMetadataMapper, metrics, resumeDuration);
+              partitionMetadataDao,
+              partitionMetadataMapper,
+              metrics,
+              throughputEstimator,
+              resumeDuration);
     }
     return detectNewPartitionsActionInstance;
   }

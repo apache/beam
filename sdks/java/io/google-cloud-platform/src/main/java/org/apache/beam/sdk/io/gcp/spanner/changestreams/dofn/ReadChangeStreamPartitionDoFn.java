@@ -154,13 +154,13 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final BigDecimal throughput = BigDecimal.valueOf(this.throughputEstimator.get());
     LOG.debug(
         "Reported getSize() - remaining work: " + timeGapInSeconds + " throughput:" + throughput);
-    // Cap it at Double.MAX_VALUE to avoid an overflow.
     return timeGapInSeconds
         .multiply(throughput)
         // The multiplier is required because the job tries to reach the minimum number of workers
         // and this leads to a very high cpu utilization. The multiplier would increase the reported
         // size and help to reduce the cpu usage. In the future, this can become a custom parameter.
         .multiply(BigDecimal.valueOf(AUTOSCALING_SIZE_MULTIPLIER))
+        // Cap it at Double.MAX_VALUE to avoid an overflow.
         .min(BigDecimal.valueOf(Double.MAX_VALUE))
         .doubleValue();
   }

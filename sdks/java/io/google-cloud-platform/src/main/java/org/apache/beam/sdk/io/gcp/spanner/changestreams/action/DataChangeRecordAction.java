@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
 import com.google.cloud.Timestamp;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
@@ -35,8 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class is part of the process for {@link
- * org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF. It is
+ * This class is part of the process for {@link ReadChangeStreamPartitionDoFn} SDF. It is
  * responsible for processing {@link DataChangeRecord}s. The records will simply be emitted to the
  * received output receiver.
  */
@@ -62,14 +62,12 @@ public class DataChangeRecordAction {
    *
    * @param partition the current partition being processed
    * @param record the change stream data record received
-   * @param tracker the restriction tracker of the {@link
-   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
-   * @param outputReceiver the output receiver of the {@link
-   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
-   * @param watermarkEstimator the watermark estimator of the {@link
-   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
+   * @param tracker the restriction tracker of the {@link ReadChangeStreamPartitionDoFn} SDF
+   * @param outputReceiver the output receiver of the {@link ReadChangeStreamPartitionDoFn} SDF
+   * @param watermarkEstimator the watermark estimator of the {@link ReadChangeStreamPartitionDoFn}
+   *     SDF
    * @param throughputEstimator an estimator to calculate local throughput of the {@link
-   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn}.
+   *     ReadChangeStreamPartitionDoFn}.
    * @return {@link Optional#empty()} if the caller can continue processing more records. A non
    *     empty {@link Optional} with {@link ProcessContinuation#stop()} if this function was unable
    *     to claim the {@link ChildPartitionsRecord} timestamp

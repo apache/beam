@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
+import com.google.common.base.Utf8;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadata
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.DetectNewPartitionsRangeTracker;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -51,6 +53,7 @@ public class DetectNewPartitionsAction {
   private final PartitionMetadataDao dao;
   private final PartitionMetadataMapper mapper;
   private final ChangeStreamMetrics metrics;
+  private final ThroughputEstimator throughputEstimator;
   private final Duration resumeDuration;
 
   /** Constructs an action class for detecting / scheduling new partitions. */
@@ -58,10 +61,12 @@ public class DetectNewPartitionsAction {
       PartitionMetadataDao dao,
       PartitionMetadataMapper mapper,
       ChangeStreamMetrics metrics,
+      ThroughputEstimator throughputEstimator,
       Duration resumeDuration) {
     this.dao = dao;
     this.mapper = mapper;
     this.metrics = metrics;
+    this.throughputEstimator = throughputEstimator;
     this.resumeDuration = resumeDuration;
   }
 
@@ -191,6 +196,7 @@ public class DetectNewPartitionsAction {
 
       receiver.outputWithTimestamp(partition, new Instant(minWatermark.toSqlTimestamp()));
 
+      throughputEstimator.update(Timestamp.now(), Utf8.encodedLength(partition.toString()));
       metrics.incPartitionRecordCount();
       metrics.updatePartitionCreatedToScheduled(
           new Duration(
