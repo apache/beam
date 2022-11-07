@@ -137,6 +137,7 @@ class Dataset:
     format: str
     location: str
     name: str = ""
+    path: str = ""
 
 
 @dataclass_json

@@ -19,6 +19,7 @@
 """Generated protocol buffer code."""
 from google.protobuf.internal import enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
+from google.protobuf import descriptor_pool as _descriptor_pool
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
@@ -29,173 +30,18 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor.FileDescriptor(
-  name='api.proto',
-  package='api.v1',
-  syntax='proto3',
-  serialized_options=b'Z6beam.apache.org/playground/backend/internal;playground',
-  create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\tapi.proto\x12\x06\x61pi.v1\"R\n\x0eRunCodeRequest\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\x12\x18\n\x03sdk\x18\x02 \x01(\x0e\x32\x0b.api.v1.Sdk\x12\x18\n\x10pipeline_options\x18\x03 \x01(\t\"(\n\x0fRunCodeResponse\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"+\n\x12\x43heckStatusRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"5\n\x13\x43heckStatusResponse\x12\x1e\n\x06status\x18\x01 \x01(\x0e\x32\x0e.api.v1.Status\"3\n\x1aGetValidationOutputRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"-\n\x1bGetValidationOutputResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"4\n\x1bGetPreparationOutputRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\".\n\x1cGetPreparationOutputResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"0\n\x17GetCompileOutputRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"*\n\x18GetCompileOutputResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\",\n\x13GetRunOutputRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"&\n\x14GetRunOutputResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"+\n\x12GetRunErrorRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"%\n\x13GetRunErrorResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"\'\n\x0eGetLogsRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"!\n\x0fGetLogsResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"(\n\x0fGetGraphRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"!\n\x10GetGraphResponse\x12\r\n\x05graph\x18\x01 \x01(\t\"&\n\rCancelRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"\x10\n\x0e\x43\x61ncelResponse\"\xe1\x01\n\x11PrecompiledObject\x12\x12\n\ncloud_path\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x03 \x01(\t\x12+\n\x04type\x18\x04 \x01(\x0e\x32\x1d.api.v1.PrecompiledObjectType\x12\x18\n\x10pipeline_options\x18\x05 \x01(\t\x12\x0c\n\x04link\x18\x06 \x01(\t\x12\x11\n\tmultifile\x18\x07 \x01(\x08\x12\x14\n\x0c\x63ontext_line\x18\x08 \x01(\x05\x12\x17\n\x0f\x64\x65\x66\x61ult_example\x18\t \x01(\x08\"\xb2\x01\n\nCategories\x12\x18\n\x03sdk\x18\x01 \x01(\x0e\x32\x0b.api.v1.Sdk\x12/\n\ncategories\x18\x02 \x03(\x0b\x32\x1b.api.v1.Categories.Category\x1aY\n\x08\x43\x61tegory\x12\x15\n\rcategory_name\x18\x01 \x01(\t\x12\x36\n\x13precompiled_objects\x18\x02 \x03(\x0b\x32\x19.api.v1.PrecompiledObject\"J\n\x1cGetPrecompiledObjectsRequest\x12\x18\n\x03sdk\x18\x01 \x01(\x0e\x32\x0b.api.v1.Sdk\x12\x10\n\x08\x63\x61tegory\x18\x02 \x01(\t\"1\n\x1bGetPrecompiledObjectRequest\x12\x12\n\ncloud_path\x18\x01 \x01(\t\"5\n\x1fGetPrecompiledObjectCodeRequest\x12\x12\n\ncloud_path\x18\x01 \x01(\t\"7\n!GetPrecompiledObjectOutputRequest\x12\x12\n\ncloud_path\x18\x01 \x01(\t\"5\n\x1fGetPrecompiledObjectLogsRequest\x12\x12\n\ncloud_path\x18\x01 \x01(\t\"6\n GetPrecompiledObjectGraphRequest\x12\x12\n\ncloud_path\x18\x01 \x01(\t\">\n\"GetDefaultPrecompiledObjectRequest\x12\x18\n\x03sdk\x18\x01 \x01(\x0e\x32\x0b.api.v1.Sdk\"K\n\x1dGetPrecompiledObjectsResponse\x12*\n\x0esdk_categories\x18\x01 \x03(\x0b\x32\x12.api.v1.Categories\"U\n\x1cGetPrecompiledObjectResponse\x12\x35\n\x12precompiled_object\x18\x01 \x01(\x0b\x32\x19.api.v1.PrecompiledObject\"0\n GetPrecompiledObjectCodeResponse\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\"4\n\"GetPrecompiledObjectOutputResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"2\n GetPrecompiledObjectLogsResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"2\n!GetPrecompiledObjectGraphResponse\x12\r\n\x05graph\x18\x01 \x01(\t\"\\\n#GetDefaultPrecompiledObjectResponse\x12\x35\n\x12precompiled_object\x18\x01 \x01(\x0b\x32\x19.api.v1.PrecompiledObject*R\n\x03Sdk\x12\x13\n\x0fSDK_UNSPECIFIED\x10\x00\x12\x0c\n\x08SDK_JAVA\x10\x01\x12\n\n\x06SDK_GO\x10\x02\x12\x0e\n\nSDK_PYTHON\x10\x03\x12\x0c\n\x08SDK_SCIO\x10\x04*\xb8\x02\n\x06Status\x12\x16\n\x12STATUS_UNSPECIFIED\x10\x00\x12\x15\n\x11STATUS_VALIDATING\x10\x01\x12\x1b\n\x17STATUS_VALIDATION_ERROR\x10\x02\x12\x14\n\x10STATUS_PREPARING\x10\x03\x12\x1c\n\x18STATUS_PREPARATION_ERROR\x10\x04\x12\x14\n\x10STATUS_COMPILING\x10\x05\x12\x18\n\x14STATUS_COMPILE_ERROR\x10\x06\x12\x14\n\x10STATUS_EXECUTING\x10\x07\x12\x13\n\x0fSTATUS_FINISHED\x10\x08\x12\x14\n\x10STATUS_RUN_ERROR\x10\t\x12\x10\n\x0cSTATUS_ERROR\x10\n\x12\x16\n\x12STATUS_RUN_TIMEOUT\x10\x0b\x12\x13\n\x0fSTATUS_CANCELED\x10\x0c*\xae\x01\n\x15PrecompiledObjectType\x12\'\n#PRECOMPILED_OBJECT_TYPE_UNSPECIFIED\x10\x00\x12#\n\x1fPRECOMPILED_OBJECT_TYPE_EXAMPLE\x10\x01\x12 \n\x1cPRECOMPILED_OBJECT_TYPE_KATA\x10\x02\x12%\n!PRECOMPILED_OBJECT_TYPE_UNIT_TEST\x10\x03\x32\xfe\x0b\n\x11PlaygroundService\x12:\n\x07RunCode\x12\x16.api.v1.RunCodeRequest\x1a\x17.api.v1.RunCodeResponse\x12\x46\n\x0b\x43heckStatus\x12\x1a.api.v1.CheckStatusRequest\x1a\x1b.api.v1.CheckStatusResponse\x12I\n\x0cGetRunOutput\x12\x1b.api.v1.GetRunOutputRequest\x1a\x1c.api.v1.GetRunOutputResponse\x12:\n\x07GetLogs\x12\x16.api.v1.GetLogsRequest\x1a\x17.api.v1.GetLogsResponse\x12=\n\x08GetGraph\x12\x17.api.v1.GetGraphRequest\x1a\x18.api.v1.GetGraphResponse\x12\x46\n\x0bGetRunError\x12\x1a.api.v1.GetRunErrorRequest\x1a\x1b.api.v1.GetRunErrorResponse\x12^\n\x13GetValidationOutput\x12\".api.v1.GetValidationOutputRequest\x1a#.api.v1.GetValidationOutputResponse\x12\x61\n\x14GetPreparationOutput\x12#.api.v1.GetPreparationOutputRequest\x1a$.api.v1.GetPreparationOutputResponse\x12U\n\x10GetCompileOutput\x12\x1f.api.v1.GetCompileOutputRequest\x1a .api.v1.GetCompileOutputResponse\x12\x37\n\x06\x43\x61ncel\x12\x15.api.v1.CancelRequest\x1a\x16.api.v1.CancelResponse\x12\x64\n\x15GetPrecompiledObjects\x12$.api.v1.GetPrecompiledObjectsRequest\x1a%.api.v1.GetPrecompiledObjectsResponse\x12\x61\n\x14GetPrecompiledObject\x12#.api.v1.GetPrecompiledObjectRequest\x1a$.api.v1.GetPrecompiledObjectResponse\x12m\n\x18GetPrecompiledObjectCode\x12\'.api.v1.GetPrecompiledObjectCodeRequest\x1a(.api.v1.GetPrecompiledObjectCodeResponse\x12s\n\x1aGetPrecompiledObjectOutput\x12).api.v1.GetPrecompiledObjectOutputRequest\x1a*.api.v1.GetPrecompiledObjectOutputResponse\x12m\n\x18GetPrecompiledObjectLogs\x12\'.api.v1.GetPrecompiledObjectLogsRequest\x1a(.api.v1.GetPrecompiledObjectLogsResponse\x12p\n\x19GetPrecompiledObjectGraph\x12(.api.v1.GetPrecompiledObjectGraphRequest\x1a).api.v1.GetPrecompiledObjectGraphResponse\x12v\n\x1bGetDefaultPrecompiledObject\x12*.api.v1.GetDefaultPrecompiledObjectRequest\x1a+.api.v1.GetDefaultPrecompiledObjectResponseB8Z6beam.apache.org/playground/backend/internal;playgroundb\x06proto3'
-)
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\tapi.proto\x12\x06\x61pi.v1\"\xa2\x01\n\x07\x44\x61taset\x12\"\n\x04type\x18\x01 \x01(\x0e\x32\x14.api.v1.EmulatorType\x12-\n\x07options\x18\x02 \x03(\x0b\x32\x1c.api.v1.Dataset.OptionsEntry\x12\x14\n\x0c\x64\x61taset_path\x18\x03 \x01(\t\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"u\n\x0eRunCodeRequest\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\x12\x18\n\x03sdk\x18\x02 \x01(\x0e\x32\x0b.api.v1.Sdk\x12\x18\n\x10pipeline_options\x18\x03 \x01(\t\x12!\n\x08\x64\x61tasets\x18\x04 \x03(\x0b\x32\x0f.api.v1.Dataset\"(\n\x0fRunCodeResponse\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"+\n\x12\x43heckStatusRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"5\n\x13\x43heckStatusResponse\x12\x1e\n\x06status\x18\x01 \x01(\x0e\x32\x0e.api.v1.Status\"3\n\x1aGetValidationOutputRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"-\n\x1bGetValidationOutputResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"4\n\x1bGetPreparationOutputRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\".\n\x1cGetPreparationOutputResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"0\n\x17GetCompileOutputRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"*\n\x18GetCompileOutputResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\",\n\x13GetRunOutputRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"&\n\x14GetRunOutputResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"+\n\x12GetRunErrorRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"%\n\x13GetRunErrorResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"\'\n\x0eGetLogsRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"!\n\x0fGetLogsResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"(\n\x0fGetGraphRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"!\n\x10GetGraphResponse\x12\r\n\x05graph\x18\x01 \x01(\t\"&\n\rCancelRequest\x12\x15\n\rpipeline_uuid\x18\x01 \x01(\t\"\x10\n\x0e\x43\x61ncelResponse\"\xd4\x02\n\x11PrecompiledObject\x12\x12\n\ncloud_path\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x03 \x01(\t\x12+\n\x04type\x18\x04 \x01(\x0e\x32\x1d.api.v1.PrecompiledObjectType\x12\x18\n\x10pipeline_options\x18\x05 \x01(\t\x12\x0c\n\x04link\x18\x06 \x01(\t\x12\x11\n\tmultifile\x18\x07 \x01(\x08\x12\x14\n\x0c\x63ontext_line\x18\x08 \x01(\x05\x12\x17\n\x0f\x64\x65\x66\x61ult_example\x18\t \x01(\x08\x12\x18\n\x03sdk\x18\n \x01(\x0e\x32\x0b.api.v1.Sdk\x12&\n\ncomplexity\x18\x0b \x01(\x0e\x32\x12.api.v1.Complexity\x12\x0c\n\x04tags\x18\x0c \x03(\t\x12!\n\x08\x64\x61tasets\x18\r \x03(\x0b\x32\x0f.api.v1.Dataset\"\xb2\x01\n\nCategories\x12\x18\n\x03sdk\x18\x01 \x01(\x0e\x32\x0b.api.v1.Sdk\x12/\n\ncategories\x18\x02 \x03(\x0b\x32\x1b.api.v1.Categories.Category\x1aY\n\x08\x43\x61tegory\x12\x15\n\rcategory_name\x18\x01 \x01(\t\x12\x36\n\x13precompiled_objects\x18\x02 \x03(\x0b\x32\x19.api.v1.PrecompiledObject\"J\n\x1cGetPrecompiledObjectsRequest\x12\x18\n\x03sdk\x18\x01 \x01(\x0e\x32\x0b.api.v1.Sdk\x12\x10\n\x08\x63\x61tegory\x18\x02 \x01(\t\"1\n\x1bGetPrecompiledObjectRequest\x12\x12\n\ncloud_path\x18\x01 \x01(\t\"5\n\x1fGetPrecompiledObjectCodeRequest\x12\x12\n\ncloud_path\x18\x01 \x01(\t\"7\n!GetPrecompiledObjectOutputRequest\x12\x12\n\ncloud_path\x18\x01 \x01(\t\"5\n\x1fGetPrecompiledObjectLogsRequest\x12\x12\n\ncloud_path\x18\x01 \x01(\t\"6\n GetPrecompiledObjectGraphRequest\x12\x12\n\ncloud_path\x18\x01 \x01(\t\">\n\"GetDefaultPrecompiledObjectRequest\x12\x18\n\x03sdk\x18\x01 \x01(\x0e\x32\x0b.api.v1.Sdk\"K\n\x1dGetPrecompiledObjectsResponse\x12*\n\x0esdk_categories\x18\x01 \x03(\x0b\x32\x12.api.v1.Categories\"U\n\x1cGetPrecompiledObjectResponse\x12\x35\n\x12precompiled_object\x18\x01 \x01(\x0b\x32\x19.api.v1.PrecompiledObject\"0\n GetPrecompiledObjectCodeResponse\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\"4\n\"GetPrecompiledObjectOutputResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"2\n GetPrecompiledObjectLogsResponse\x12\x0e\n\x06output\x18\x01 \x01(\t\"2\n!GetPrecompiledObjectGraphResponse\x12\r\n\x05graph\x18\x01 \x01(\t\"\\\n#GetDefaultPrecompiledObjectResponse\x12\x35\n\x12precompiled_object\x18\x01 \x01(\x0b\x32\x19.api.v1.PrecompiledObject\"=\n\x0bSnippetFile\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x01(\t\x12\x0f\n\x07is_main\x18\x03 \x01(\x08\"\x94\x01\n\x12SaveSnippetRequest\x12\"\n\x05\x66iles\x18\x01 \x03(\x0b\x32\x13.api.v1.SnippetFile\x12\x18\n\x03sdk\x18\x02 \x01(\x0e\x32\x0b.api.v1.Sdk\x12\x18\n\x10pipeline_options\x18\x03 \x01(\t\x12&\n\ncomplexity\x18\x04 \x01(\x0e\x32\x12.api.v1.Complexity\"!\n\x13SaveSnippetResponse\x12\n\n\x02id\x18\x01 \x01(\t\"\x1f\n\x11GetSnippetRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\x94\x01\n\x12GetSnippetResponse\x12\"\n\x05\x66iles\x18\x01 \x03(\x0b\x32\x13.api.v1.SnippetFile\x12\x18\n\x03sdk\x18\x02 \x01(\x0e\x32\x0b.api.v1.Sdk\x12\x18\n\x10pipeline_options\x18\x03 \x01(\t\x12&\n\ncomplexity\x18\x04 \x01(\x0e\x32\x12.api.v1.Complexity*R\n\x03Sdk\x12\x13\n\x0fSDK_UNSPECIFIED\x10\x00\x12\x0c\n\x08SDK_JAVA\x10\x01\x12\n\n\x06SDK_GO\x10\x02\x12\x0e\n\nSDK_PYTHON\x10\x03\x12\x0c\n\x08SDK_SCIO\x10\x04*\xb8\x02\n\x06Status\x12\x16\n\x12STATUS_UNSPECIFIED\x10\x00\x12\x15\n\x11STATUS_VALIDATING\x10\x01\x12\x1b\n\x17STATUS_VALIDATION_ERROR\x10\x02\x12\x14\n\x10STATUS_PREPARING\x10\x03\x12\x1c\n\x18STATUS_PREPARATION_ERROR\x10\x04\x12\x14\n\x10STATUS_COMPILING\x10\x05\x12\x18\n\x14STATUS_COMPILE_ERROR\x10\x06\x12\x14\n\x10STATUS_EXECUTING\x10\x07\x12\x13\n\x0fSTATUS_FINISHED\x10\x08\x12\x14\n\x10STATUS_RUN_ERROR\x10\t\x12\x10\n\x0cSTATUS_ERROR\x10\n\x12\x16\n\x12STATUS_RUN_TIMEOUT\x10\x0b\x12\x13\n\x0fSTATUS_CANCELED\x10\x0c*\xae\x01\n\x15PrecompiledObjectType\x12\'\n#PRECOMPILED_OBJECT_TYPE_UNSPECIFIED\x10\x00\x12#\n\x1fPRECOMPILED_OBJECT_TYPE_EXAMPLE\x10\x01\x12 \n\x1cPRECOMPILED_OBJECT_TYPE_KATA\x10\x02\x12%\n!PRECOMPILED_OBJECT_TYPE_UNIT_TEST\x10\x03*n\n\nComplexity\x12\x1a\n\x16\x43OMPLEXITY_UNSPECIFIED\x10\x00\x12\x14\n\x10\x43OMPLEXITY_BASIC\x10\x01\x12\x15\n\x11\x43OMPLEXITY_MEDIUM\x10\x02\x12\x17\n\x13\x43OMPLEXITY_ADVANCED\x10\x03*F\n\x0c\x45mulatorType\x12\x1d\n\x19\x45MULATOR_TYPE_UNSPECIFIED\x10\x00\x12\x17\n\x13\x45MULATOR_TYPE_KAFKA\x10\x01\x32\x8b\r\n\x11PlaygroundService\x12:\n\x07RunCode\x12\x16.api.v1.RunCodeRequest\x1a\x17.api.v1.RunCodeResponse\x12\x46\n\x0b\x43heckStatus\x12\x1a.api.v1.CheckStatusRequest\x1a\x1b.api.v1.CheckStatusResponse\x12I\n\x0cGetRunOutput\x12\x1b.api.v1.GetRunOutputRequest\x1a\x1c.api.v1.GetRunOutputResponse\x12:\n\x07GetLogs\x12\x16.api.v1.GetLogsRequest\x1a\x17.api.v1.GetLogsResponse\x12=\n\x08GetGraph\x12\x17.api.v1.GetGraphRequest\x1a\x18.api.v1.GetGraphResponse\x12\x46\n\x0bGetRunError\x12\x1a.api.v1.GetRunErrorRequest\x1a\x1b.api.v1.GetRunErrorResponse\x12^\n\x13GetValidationOutput\x12\".api.v1.GetValidationOutputRequest\x1a#.api.v1.GetValidationOutputResponse\x12\x61\n\x14GetPreparationOutput\x12#.api.v1.GetPreparationOutputRequest\x1a$.api.v1.GetPreparationOutputResponse\x12U\n\x10GetCompileOutput\x12\x1f.api.v1.GetCompileOutputRequest\x1a .api.v1.GetCompileOutputResponse\x12\x37\n\x06\x43\x61ncel\x12\x15.api.v1.CancelRequest\x1a\x16.api.v1.CancelResponse\x12\x64\n\x15GetPrecompiledObjects\x12$.api.v1.GetPrecompiledObjectsRequest\x1a%.api.v1.GetPrecompiledObjectsResponse\x12\x61\n\x14GetPrecompiledObject\x12#.api.v1.GetPrecompiledObjectRequest\x1a$.api.v1.GetPrecompiledObjectResponse\x12m\n\x18GetPrecompiledObjectCode\x12\'.api.v1.GetPrecompiledObjectCodeRequest\x1a(.api.v1.GetPrecompiledObjectCodeResponse\x12s\n\x1aGetPrecompiledObjectOutput\x12).api.v1.GetPrecompiledObjectOutputRequest\x1a*.api.v1.GetPrecompiledObjectOutputResponse\x12m\n\x18GetPrecompiledObjectLogs\x12\'.api.v1.GetPrecompiledObjectLogsRequest\x1a(.api.v1.GetPrecompiledObjectLogsResponse\x12p\n\x19GetPrecompiledObjectGraph\x12(.api.v1.GetPrecompiledObjectGraphRequest\x1a).api.v1.GetPrecompiledObjectGraphResponse\x12v\n\x1bGetDefaultPrecompiledObject\x12*.api.v1.GetDefaultPrecompiledObjectRequest\x1a+.api.v1.GetDefaultPrecompiledObjectResponse\x12\x46\n\x0bSaveSnippet\x12\x1a.api.v1.SaveSnippetRequest\x1a\x1b.api.v1.SaveSnippetResponse\x12\x43\n\nGetSnippet\x12\x19.api.v1.GetSnippetRequest\x1a\x1a.api.v1.GetSnippetResponseB8Z6beam.apache.org/playground/backend/internal;playgroundb\x06proto3')
 
-_SDK = _descriptor.EnumDescriptor(
-  name='Sdk',
-  full_name='api.v1.Sdk',
-  filename=None,
-  file=DESCRIPTOR,
-  create_key=_descriptor._internal_create_key,
-  values=[
-    _descriptor.EnumValueDescriptor(
-      name='SDK_UNSPECIFIED', index=0, number=0,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='SDK_JAVA', index=1, number=1,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='SDK_GO', index=2, number=2,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='SDK_PYTHON', index=3, number=3,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='SDK_SCIO', index=4, number=4,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-  ],
-  containing_type=None,
-  serialized_options=None,
-  serialized_start=2213,
-  serialized_end=2295,
-)
-_sym_db.RegisterEnumDescriptor(_SDK)
-
+_SDK = DESCRIPTOR.enum_types_by_name['Sdk']
 Sdk = enum_type_wrapper.EnumTypeWrapper(_SDK)
-_STATUS = _descriptor.EnumDescriptor(
-  name='Status',
-  full_name='api.v1.Status',
-  filename=None,
-  file=DESCRIPTOR,
-  create_key=_descriptor._internal_create_key,
-  values=[
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_UNSPECIFIED', index=0, number=0,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_VALIDATING', index=1, number=1,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_VALIDATION_ERROR', index=2, number=2,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_PREPARING', index=3, number=3,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_PREPARATION_ERROR', index=4, number=4,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_COMPILING', index=5, number=5,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_COMPILE_ERROR', index=6, number=6,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_EXECUTING', index=7, number=7,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_FINISHED', index=8, number=8,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_RUN_ERROR', index=9, number=9,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_ERROR', index=10, number=10,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_RUN_TIMEOUT', index=11, number=11,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='STATUS_CANCELED', index=12, number=12,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-  ],
-  containing_type=None,
-  serialized_options=None,
-  serialized_start=2298,
-  serialized_end=2610,
-)
-_sym_db.RegisterEnumDescriptor(_STATUS)
-
+_STATUS = DESCRIPTOR.enum_types_by_name['Status']
 Status = enum_type_wrapper.EnumTypeWrapper(_STATUS)
-_PRECOMPILEDOBJECTTYPE = _descriptor.EnumDescriptor(
-  name='PrecompiledObjectType',
-  full_name='api.v1.PrecompiledObjectType',
-  filename=None,
-  file=DESCRIPTOR,
-  create_key=_descriptor._internal_create_key,
-  values=[
-    _descriptor.EnumValueDescriptor(
-      name='PRECOMPILED_OBJECT_TYPE_UNSPECIFIED', index=0, number=0,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='PRECOMPILED_OBJECT_TYPE_EXAMPLE', index=1, number=1,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='PRECOMPILED_OBJECT_TYPE_KATA', index=2, number=2,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-    _descriptor.EnumValueDescriptor(
-      name='PRECOMPILED_OBJECT_TYPE_UNIT_TEST', index=3, number=3,
-      serialized_options=None,
-      type=None,
-      create_key=_descriptor._internal_create_key),
-  ],
-  containing_type=None,
-  serialized_options=None,
-  serialized_start=2613,
-  serialized_end=2787,
-)
-_sym_db.RegisterEnumDescriptor(_PRECOMPILEDOBJECTTYPE)
-
+_PRECOMPILEDOBJECTTYPE = DESCRIPTOR.enum_types_by_name['PrecompiledObjectType']
 PrecompiledObjectType = enum_type_wrapper.EnumTypeWrapper(_PRECOMPILEDOBJECTTYPE)
+_COMPLEXITY = DESCRIPTOR.enum_types_by_name['Complexity']
+Complexity = enum_type_wrapper.EnumTypeWrapper(_COMPLEXITY)
+_EMULATORTYPE = DESCRIPTOR.enum_types_by_name['EmulatorType']
+EmulatorType = enum_type_wrapper.EnumTypeWrapper(_EMULATORTYPE)
 SDK_UNSPECIFIED = 0
 SDK_JAVA = 1
 SDK_GO = 2
@@ -218,1327 +64,72 @@ PRECOMPILED_OBJECT_TYPE_UNSPECIFIED = 0
 PRECOMPILED_OBJECT_TYPE_EXAMPLE = 1
 PRECOMPILED_OBJECT_TYPE_KATA = 2
 PRECOMPILED_OBJECT_TYPE_UNIT_TEST = 3
-
-
-
-_RUNCODEREQUEST = _descriptor.Descriptor(
-  name='RunCodeRequest',
-  full_name='api.v1.RunCodeRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='code', full_name='api.v1.RunCodeRequest.code', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='sdk', full_name='api.v1.RunCodeRequest.sdk', index=1,
-      number=2, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='pipeline_options', full_name='api.v1.RunCodeRequest.pipeline_options', index=2,
-      number=3, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=21,
-  serialized_end=103,
-)
-
-
-_RUNCODERESPONSE = _descriptor.Descriptor(
-  name='RunCodeResponse',
-  full_name='api.v1.RunCodeResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='pipeline_uuid', full_name='api.v1.RunCodeResponse.pipeline_uuid', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=105,
-  serialized_end=145,
-)
-
-
-_CHECKSTATUSREQUEST = _descriptor.Descriptor(
-  name='CheckStatusRequest',
-  full_name='api.v1.CheckStatusRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='pipeline_uuid', full_name='api.v1.CheckStatusRequest.pipeline_uuid', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=147,
-  serialized_end=190,
-)
-
-
-_CHECKSTATUSRESPONSE = _descriptor.Descriptor(
-  name='CheckStatusResponse',
-  full_name='api.v1.CheckStatusResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='status', full_name='api.v1.CheckStatusResponse.status', index=0,
-      number=1, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=192,
-  serialized_end=245,
-)
-
-
-_GETVALIDATIONOUTPUTREQUEST = _descriptor.Descriptor(
-  name='GetValidationOutputRequest',
-  full_name='api.v1.GetValidationOutputRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='pipeline_uuid', full_name='api.v1.GetValidationOutputRequest.pipeline_uuid', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=247,
-  serialized_end=298,
-)
-
-
-_GETVALIDATIONOUTPUTRESPONSE = _descriptor.Descriptor(
-  name='GetValidationOutputResponse',
-  full_name='api.v1.GetValidationOutputResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='output', full_name='api.v1.GetValidationOutputResponse.output', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=300,
-  serialized_end=345,
-)
-
-
-_GETPREPARATIONOUTPUTREQUEST = _descriptor.Descriptor(
-  name='GetPreparationOutputRequest',
-  full_name='api.v1.GetPreparationOutputRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='pipeline_uuid', full_name='api.v1.GetPreparationOutputRequest.pipeline_uuid', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=347,
-  serialized_end=399,
-)
-
-
-_GETPREPARATIONOUTPUTRESPONSE = _descriptor.Descriptor(
-  name='GetPreparationOutputResponse',
-  full_name='api.v1.GetPreparationOutputResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='output', full_name='api.v1.GetPreparationOutputResponse.output', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=401,
-  serialized_end=447,
-)
-
-
-_GETCOMPILEOUTPUTREQUEST = _descriptor.Descriptor(
-  name='GetCompileOutputRequest',
-  full_name='api.v1.GetCompileOutputRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='pipeline_uuid', full_name='api.v1.GetCompileOutputRequest.pipeline_uuid', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=449,
-  serialized_end=497,
-)
-
-
-_GETCOMPILEOUTPUTRESPONSE = _descriptor.Descriptor(
-  name='GetCompileOutputResponse',
-  full_name='api.v1.GetCompileOutputResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='output', full_name='api.v1.GetCompileOutputResponse.output', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=499,
-  serialized_end=541,
-)
-
-
-_GETRUNOUTPUTREQUEST = _descriptor.Descriptor(
-  name='GetRunOutputRequest',
-  full_name='api.v1.GetRunOutputRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='pipeline_uuid', full_name='api.v1.GetRunOutputRequest.pipeline_uuid', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=543,
-  serialized_end=587,
-)
-
-
-_GETRUNOUTPUTRESPONSE = _descriptor.Descriptor(
-  name='GetRunOutputResponse',
-  full_name='api.v1.GetRunOutputResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='output', full_name='api.v1.GetRunOutputResponse.output', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=589,
-  serialized_end=627,
-)
-
-
-_GETRUNERRORREQUEST = _descriptor.Descriptor(
-  name='GetRunErrorRequest',
-  full_name='api.v1.GetRunErrorRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='pipeline_uuid', full_name='api.v1.GetRunErrorRequest.pipeline_uuid', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=629,
-  serialized_end=672,
-)
-
-
-_GETRUNERRORRESPONSE = _descriptor.Descriptor(
-  name='GetRunErrorResponse',
-  full_name='api.v1.GetRunErrorResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='output', full_name='api.v1.GetRunErrorResponse.output', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=674,
-  serialized_end=711,
-)
-
-
-_GETLOGSREQUEST = _descriptor.Descriptor(
-  name='GetLogsRequest',
-  full_name='api.v1.GetLogsRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='pipeline_uuid', full_name='api.v1.GetLogsRequest.pipeline_uuid', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=713,
-  serialized_end=752,
-)
-
-
-_GETLOGSRESPONSE = _descriptor.Descriptor(
-  name='GetLogsResponse',
-  full_name='api.v1.GetLogsResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='output', full_name='api.v1.GetLogsResponse.output', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=754,
-  serialized_end=787,
-)
-
-
-_GETGRAPHREQUEST = _descriptor.Descriptor(
-  name='GetGraphRequest',
-  full_name='api.v1.GetGraphRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='pipeline_uuid', full_name='api.v1.GetGraphRequest.pipeline_uuid', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=789,
-  serialized_end=829,
-)
-
-
-_GETGRAPHRESPONSE = _descriptor.Descriptor(
-  name='GetGraphResponse',
-  full_name='api.v1.GetGraphResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='graph', full_name='api.v1.GetGraphResponse.graph', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=831,
-  serialized_end=864,
-)
-
-
-_CANCELREQUEST = _descriptor.Descriptor(
-  name='CancelRequest',
-  full_name='api.v1.CancelRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='pipeline_uuid', full_name='api.v1.CancelRequest.pipeline_uuid', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=866,
-  serialized_end=904,
-)
-
-
-_CANCELRESPONSE = _descriptor.Descriptor(
-  name='CancelResponse',
-  full_name='api.v1.CancelResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=906,
-  serialized_end=922,
-)
-
-
-_PRECOMPILEDOBJECT = _descriptor.Descriptor(
-  name='PrecompiledObject',
-  full_name='api.v1.PrecompiledObject',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='cloud_path', full_name='api.v1.PrecompiledObject.cloud_path', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='name', full_name='api.v1.PrecompiledObject.name', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='description', full_name='api.v1.PrecompiledObject.description', index=2,
-      number=3, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='type', full_name='api.v1.PrecompiledObject.type', index=3,
-      number=4, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='pipeline_options', full_name='api.v1.PrecompiledObject.pipeline_options', index=4,
-      number=5, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='link', full_name='api.v1.PrecompiledObject.link', index=5,
-      number=6, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='multifile', full_name='api.v1.PrecompiledObject.multifile', index=6,
-      number=7, type=8, cpp_type=7, label=1,
-      has_default_value=False, default_value=False,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='context_line', full_name='api.v1.PrecompiledObject.context_line', index=7,
-      number=8, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='default_example', full_name='api.v1.PrecompiledObject.default_example', index=8,
-      number=9, type=8, cpp_type=7, label=1,
-      has_default_value=False, default_value=False,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=925,
-  serialized_end=1150,
-)
-
-
-_CATEGORIES_CATEGORY = _descriptor.Descriptor(
-  name='Category',
-  full_name='api.v1.Categories.Category',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='category_name', full_name='api.v1.Categories.Category.category_name', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='precompiled_objects', full_name='api.v1.Categories.Category.precompiled_objects', index=1,
-      number=2, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1242,
-  serialized_end=1331,
-)
-
-_CATEGORIES = _descriptor.Descriptor(
-  name='Categories',
-  full_name='api.v1.Categories',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='sdk', full_name='api.v1.Categories.sdk', index=0,
-      number=1, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='categories', full_name='api.v1.Categories.categories', index=1,
-      number=2, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[_CATEGORIES_CATEGORY, ],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1153,
-  serialized_end=1331,
-)
-
-
-_GETPRECOMPILEDOBJECTSREQUEST = _descriptor.Descriptor(
-  name='GetPrecompiledObjectsRequest',
-  full_name='api.v1.GetPrecompiledObjectsRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='sdk', full_name='api.v1.GetPrecompiledObjectsRequest.sdk', index=0,
-      number=1, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='category', full_name='api.v1.GetPrecompiledObjectsRequest.category', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1333,
-  serialized_end=1407,
-)
-
-
-_GETPRECOMPILEDOBJECTREQUEST = _descriptor.Descriptor(
-  name='GetPrecompiledObjectRequest',
-  full_name='api.v1.GetPrecompiledObjectRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='cloud_path', full_name='api.v1.GetPrecompiledObjectRequest.cloud_path', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1409,
-  serialized_end=1458,
-)
-
-
-_GETPRECOMPILEDOBJECTCODEREQUEST = _descriptor.Descriptor(
-  name='GetPrecompiledObjectCodeRequest',
-  full_name='api.v1.GetPrecompiledObjectCodeRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='cloud_path', full_name='api.v1.GetPrecompiledObjectCodeRequest.cloud_path', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1460,
-  serialized_end=1513,
-)
-
-
-_GETPRECOMPILEDOBJECTOUTPUTREQUEST = _descriptor.Descriptor(
-  name='GetPrecompiledObjectOutputRequest',
-  full_name='api.v1.GetPrecompiledObjectOutputRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='cloud_path', full_name='api.v1.GetPrecompiledObjectOutputRequest.cloud_path', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1515,
-  serialized_end=1570,
-)
-
-
-_GETPRECOMPILEDOBJECTLOGSREQUEST = _descriptor.Descriptor(
-  name='GetPrecompiledObjectLogsRequest',
-  full_name='api.v1.GetPrecompiledObjectLogsRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='cloud_path', full_name='api.v1.GetPrecompiledObjectLogsRequest.cloud_path', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1572,
-  serialized_end=1625,
-)
-
-
-_GETPRECOMPILEDOBJECTGRAPHREQUEST = _descriptor.Descriptor(
-  name='GetPrecompiledObjectGraphRequest',
-  full_name='api.v1.GetPrecompiledObjectGraphRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='cloud_path', full_name='api.v1.GetPrecompiledObjectGraphRequest.cloud_path', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1627,
-  serialized_end=1681,
-)
-
-
-_GETDEFAULTPRECOMPILEDOBJECTREQUEST = _descriptor.Descriptor(
-  name='GetDefaultPrecompiledObjectRequest',
-  full_name='api.v1.GetDefaultPrecompiledObjectRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='sdk', full_name='api.v1.GetDefaultPrecompiledObjectRequest.sdk', index=0,
-      number=1, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1683,
-  serialized_end=1745,
-)
-
-
-_GETPRECOMPILEDOBJECTSRESPONSE = _descriptor.Descriptor(
-  name='GetPrecompiledObjectsResponse',
-  full_name='api.v1.GetPrecompiledObjectsResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='sdk_categories', full_name='api.v1.GetPrecompiledObjectsResponse.sdk_categories', index=0,
-      number=1, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1747,
-  serialized_end=1822,
-)
-
-
-_GETPRECOMPILEDOBJECTRESPONSE = _descriptor.Descriptor(
-  name='GetPrecompiledObjectResponse',
-  full_name='api.v1.GetPrecompiledObjectResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='precompiled_object', full_name='api.v1.GetPrecompiledObjectResponse.precompiled_object', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1824,
-  serialized_end=1909,
-)
-
-
-_GETPRECOMPILEDOBJECTCODERESPONSE = _descriptor.Descriptor(
-  name='GetPrecompiledObjectCodeResponse',
-  full_name='api.v1.GetPrecompiledObjectCodeResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='code', full_name='api.v1.GetPrecompiledObjectCodeResponse.code', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1911,
-  serialized_end=1959,
-)
-
-
-_GETPRECOMPILEDOBJECTOUTPUTRESPONSE = _descriptor.Descriptor(
-  name='GetPrecompiledObjectOutputResponse',
-  full_name='api.v1.GetPrecompiledObjectOutputResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='output', full_name='api.v1.GetPrecompiledObjectOutputResponse.output', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1961,
-  serialized_end=2013,
-)
-
-
-_GETPRECOMPILEDOBJECTLOGSRESPONSE = _descriptor.Descriptor(
-  name='GetPrecompiledObjectLogsResponse',
-  full_name='api.v1.GetPrecompiledObjectLogsResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='output', full_name='api.v1.GetPrecompiledObjectLogsResponse.output', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=2015,
-  serialized_end=2065,
-)
-
-
-_GETPRECOMPILEDOBJECTGRAPHRESPONSE = _descriptor.Descriptor(
-  name='GetPrecompiledObjectGraphResponse',
-  full_name='api.v1.GetPrecompiledObjectGraphResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='graph', full_name='api.v1.GetPrecompiledObjectGraphResponse.graph', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=2067,
-  serialized_end=2117,
-)
-
-
-_GETDEFAULTPRECOMPILEDOBJECTRESPONSE = _descriptor.Descriptor(
-  name='GetDefaultPrecompiledObjectResponse',
-  full_name='api.v1.GetDefaultPrecompiledObjectResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='precompiled_object', full_name='api.v1.GetDefaultPrecompiledObjectResponse.precompiled_object', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=2119,
-  serialized_end=2211,
-)
-
-_RUNCODEREQUEST.fields_by_name['sdk'].enum_type = _SDK
-_CHECKSTATUSRESPONSE.fields_by_name['status'].enum_type = _STATUS
-_PRECOMPILEDOBJECT.fields_by_name['type'].enum_type = _PRECOMPILEDOBJECTTYPE
-_CATEGORIES_CATEGORY.fields_by_name['precompiled_objects'].message_type = _PRECOMPILEDOBJECT
-_CATEGORIES_CATEGORY.containing_type = _CATEGORIES
-_CATEGORIES.fields_by_name['sdk'].enum_type = _SDK
-_CATEGORIES.fields_by_name['categories'].message_type = _CATEGORIES_CATEGORY
-_GETPRECOMPILEDOBJECTSREQUEST.fields_by_name['sdk'].enum_type = _SDK
-_GETDEFAULTPRECOMPILEDOBJECTREQUEST.fields_by_name['sdk'].enum_type = _SDK
-_GETPRECOMPILEDOBJECTSRESPONSE.fields_by_name['sdk_categories'].message_type = _CATEGORIES
-_GETPRECOMPILEDOBJECTRESPONSE.fields_by_name['precompiled_object'].message_type = _PRECOMPILEDOBJECT
-_GETDEFAULTPRECOMPILEDOBJECTRESPONSE.fields_by_name['precompiled_object'].message_type = _PRECOMPILEDOBJECT
-DESCRIPTOR.message_types_by_name['RunCodeRequest'] = _RUNCODEREQUEST
-DESCRIPTOR.message_types_by_name['RunCodeResponse'] = _RUNCODERESPONSE
-DESCRIPTOR.message_types_by_name['CheckStatusRequest'] = _CHECKSTATUSREQUEST
-DESCRIPTOR.message_types_by_name['CheckStatusResponse'] = _CHECKSTATUSRESPONSE
-DESCRIPTOR.message_types_by_name['GetValidationOutputRequest'] = _GETVALIDATIONOUTPUTREQUEST
-DESCRIPTOR.message_types_by_name['GetValidationOutputResponse'] = _GETVALIDATIONOUTPUTRESPONSE
-DESCRIPTOR.message_types_by_name['GetPreparationOutputRequest'] = _GETPREPARATIONOUTPUTREQUEST
-DESCRIPTOR.message_types_by_name['GetPreparationOutputResponse'] = _GETPREPARATIONOUTPUTRESPONSE
-DESCRIPTOR.message_types_by_name['GetCompileOutputRequest'] = _GETCOMPILEOUTPUTREQUEST
-DESCRIPTOR.message_types_by_name['GetCompileOutputResponse'] = _GETCOMPILEOUTPUTRESPONSE
-DESCRIPTOR.message_types_by_name['GetRunOutputRequest'] = _GETRUNOUTPUTREQUEST
-DESCRIPTOR.message_types_by_name['GetRunOutputResponse'] = _GETRUNOUTPUTRESPONSE
-DESCRIPTOR.message_types_by_name['GetRunErrorRequest'] = _GETRUNERRORREQUEST
-DESCRIPTOR.message_types_by_name['GetRunErrorResponse'] = _GETRUNERRORRESPONSE
-DESCRIPTOR.message_types_by_name['GetLogsRequest'] = _GETLOGSREQUEST
-DESCRIPTOR.message_types_by_name['GetLogsResponse'] = _GETLOGSRESPONSE
-DESCRIPTOR.message_types_by_name['GetGraphRequest'] = _GETGRAPHREQUEST
-DESCRIPTOR.message_types_by_name['GetGraphResponse'] = _GETGRAPHRESPONSE
-DESCRIPTOR.message_types_by_name['CancelRequest'] = _CANCELREQUEST
-DESCRIPTOR.message_types_by_name['CancelResponse'] = _CANCELRESPONSE
-DESCRIPTOR.message_types_by_name['PrecompiledObject'] = _PRECOMPILEDOBJECT
-DESCRIPTOR.message_types_by_name['Categories'] = _CATEGORIES
-DESCRIPTOR.message_types_by_name['GetPrecompiledObjectsRequest'] = _GETPRECOMPILEDOBJECTSREQUEST
-DESCRIPTOR.message_types_by_name['GetPrecompiledObjectRequest'] = _GETPRECOMPILEDOBJECTREQUEST
-DESCRIPTOR.message_types_by_name['GetPrecompiledObjectCodeRequest'] = _GETPRECOMPILEDOBJECTCODEREQUEST
-DESCRIPTOR.message_types_by_name['GetPrecompiledObjectOutputRequest'] = _GETPRECOMPILEDOBJECTOUTPUTREQUEST
-DESCRIPTOR.message_types_by_name['GetPrecompiledObjectLogsRequest'] = _GETPRECOMPILEDOBJECTLOGSREQUEST
-DESCRIPTOR.message_types_by_name['GetPrecompiledObjectGraphRequest'] = _GETPRECOMPILEDOBJECTGRAPHREQUEST
-DESCRIPTOR.message_types_by_name['GetDefaultPrecompiledObjectRequest'] = _GETDEFAULTPRECOMPILEDOBJECTREQUEST
-DESCRIPTOR.message_types_by_name['GetPrecompiledObjectsResponse'] = _GETPRECOMPILEDOBJECTSRESPONSE
-DESCRIPTOR.message_types_by_name['GetPrecompiledObjectResponse'] = _GETPRECOMPILEDOBJECTRESPONSE
-DESCRIPTOR.message_types_by_name['GetPrecompiledObjectCodeResponse'] = _GETPRECOMPILEDOBJECTCODERESPONSE
-DESCRIPTOR.message_types_by_name['GetPrecompiledObjectOutputResponse'] = _GETPRECOMPILEDOBJECTOUTPUTRESPONSE
-DESCRIPTOR.message_types_by_name['GetPrecompiledObjectLogsResponse'] = _GETPRECOMPILEDOBJECTLOGSRESPONSE
-DESCRIPTOR.message_types_by_name['GetPrecompiledObjectGraphResponse'] = _GETPRECOMPILEDOBJECTGRAPHRESPONSE
-DESCRIPTOR.message_types_by_name['GetDefaultPrecompiledObjectResponse'] = _GETDEFAULTPRECOMPILEDOBJECTRESPONSE
-DESCRIPTOR.enum_types_by_name['Sdk'] = _SDK
-DESCRIPTOR.enum_types_by_name['Status'] = _STATUS
-DESCRIPTOR.enum_types_by_name['PrecompiledObjectType'] = _PRECOMPILEDOBJECTTYPE
-_sym_db.RegisterFileDescriptor(DESCRIPTOR)
+COMPLEXITY_UNSPECIFIED = 0
+COMPLEXITY_BASIC = 1
+COMPLEXITY_MEDIUM = 2
+COMPLEXITY_ADVANCED = 3
+EMULATOR_TYPE_UNSPECIFIED = 0
+EMULATOR_TYPE_KAFKA = 1
+
+
+_DATASET = DESCRIPTOR.message_types_by_name['Dataset']
+_DATASET_OPTIONSENTRY = _DATASET.nested_types_by_name['OptionsEntry']
+_RUNCODEREQUEST = DESCRIPTOR.message_types_by_name['RunCodeRequest']
+_RUNCODERESPONSE = DESCRIPTOR.message_types_by_name['RunCodeResponse']
+_CHECKSTATUSREQUEST = DESCRIPTOR.message_types_by_name['CheckStatusRequest']
+_CHECKSTATUSRESPONSE = DESCRIPTOR.message_types_by_name['CheckStatusResponse']
+_GETVALIDATIONOUTPUTREQUEST = DESCRIPTOR.message_types_by_name['GetValidationOutputRequest']
+_GETVALIDATIONOUTPUTRESPONSE = DESCRIPTOR.message_types_by_name['GetValidationOutputResponse']
+_GETPREPARATIONOUTPUTREQUEST = DESCRIPTOR.message_types_by_name['GetPreparationOutputRequest']
+_GETPREPARATIONOUTPUTRESPONSE = DESCRIPTOR.message_types_by_name['GetPreparationOutputResponse']
+_GETCOMPILEOUTPUTREQUEST = DESCRIPTOR.message_types_by_name['GetCompileOutputRequest']
+_GETCOMPILEOUTPUTRESPONSE = DESCRIPTOR.message_types_by_name['GetCompileOutputResponse']
+_GETRUNOUTPUTREQUEST = DESCRIPTOR.message_types_by_name['GetRunOutputRequest']
+_GETRUNOUTPUTRESPONSE = DESCRIPTOR.message_types_by_name['GetRunOutputResponse']
+_GETRUNERRORREQUEST = DESCRIPTOR.message_types_by_name['GetRunErrorRequest']
+_GETRUNERRORRESPONSE = DESCRIPTOR.message_types_by_name['GetRunErrorResponse']
+_GETLOGSREQUEST = DESCRIPTOR.message_types_by_name['GetLogsRequest']
+_GETLOGSRESPONSE = DESCRIPTOR.message_types_by_name['GetLogsResponse']
+_GETGRAPHREQUEST = DESCRIPTOR.message_types_by_name['GetGraphRequest']
+_GETGRAPHRESPONSE = DESCRIPTOR.message_types_by_name['GetGraphResponse']
+_CANCELREQUEST = DESCRIPTOR.message_types_by_name['CancelRequest']
+_CANCELRESPONSE = DESCRIPTOR.message_types_by_name['CancelResponse']
+_PRECOMPILEDOBJECT = DESCRIPTOR.message_types_by_name['PrecompiledObject']
+_CATEGORIES = DESCRIPTOR.message_types_by_name['Categories']
+_CATEGORIES_CATEGORY = _CATEGORIES.nested_types_by_name['Category']
+_GETPRECOMPILEDOBJECTSREQUEST = DESCRIPTOR.message_types_by_name['GetPrecompiledObjectsRequest']
+_GETPRECOMPILEDOBJECTREQUEST = DESCRIPTOR.message_types_by_name['GetPrecompiledObjectRequest']
+_GETPRECOMPILEDOBJECTCODEREQUEST = DESCRIPTOR.message_types_by_name['GetPrecompiledObjectCodeRequest']
+_GETPRECOMPILEDOBJECTOUTPUTREQUEST = DESCRIPTOR.message_types_by_name['GetPrecompiledObjectOutputRequest']
+_GETPRECOMPILEDOBJECTLOGSREQUEST = DESCRIPTOR.message_types_by_name['GetPrecompiledObjectLogsRequest']
+_GETPRECOMPILEDOBJECTGRAPHREQUEST = DESCRIPTOR.message_types_by_name['GetPrecompiledObjectGraphRequest']
+_GETDEFAULTPRECOMPILEDOBJECTREQUEST = DESCRIPTOR.message_types_by_name['GetDefaultPrecompiledObjectRequest']
+_GETPRECOMPILEDOBJECTSRESPONSE = DESCRIPTOR.message_types_by_name['GetPrecompiledObjectsResponse']
+_GETPRECOMPILEDOBJECTRESPONSE = DESCRIPTOR.message_types_by_name['GetPrecompiledObjectResponse']
+_GETPRECOMPILEDOBJECTCODERESPONSE = DESCRIPTOR.message_types_by_name['GetPrecompiledObjectCodeResponse']
+_GETPRECOMPILEDOBJECTOUTPUTRESPONSE = DESCRIPTOR.message_types_by_name['GetPrecompiledObjectOutputResponse']
+_GETPRECOMPILEDOBJECTLOGSRESPONSE = DESCRIPTOR.message_types_by_name['GetPrecompiledObjectLogsResponse']
+_GETPRECOMPILEDOBJECTGRAPHRESPONSE = DESCRIPTOR.message_types_by_name['GetPrecompiledObjectGraphResponse']
+_GETDEFAULTPRECOMPILEDOBJECTRESPONSE = DESCRIPTOR.message_types_by_name['GetDefaultPrecompiledObjectResponse']
+_SNIPPETFILE = DESCRIPTOR.message_types_by_name['SnippetFile']
+_SAVESNIPPETREQUEST = DESCRIPTOR.message_types_by_name['SaveSnippetRequest']
+_SAVESNIPPETRESPONSE = DESCRIPTOR.message_types_by_name['SaveSnippetResponse']
+_GETSNIPPETREQUEST = DESCRIPTOR.message_types_by_name['GetSnippetRequest']
+_GETSNIPPETRESPONSE = DESCRIPTOR.message_types_by_name['GetSnippetResponse']
+Dataset = _reflection.GeneratedProtocolMessageType('Dataset', (_message.Message,), {
+
+  'OptionsEntry' : _reflection.GeneratedProtocolMessageType('OptionsEntry', (_message.Message,), {
+    'DESCRIPTOR' : _DATASET_OPTIONSENTRY,
+    '__module__' : 'api_pb2'
+    # @@protoc_insertion_point(class_scope:api.v1.Dataset.OptionsEntry)
+    })
+  ,
+  'DESCRIPTOR' : _DATASET,
+  '__module__' : 'api_pb2'
+  # @@protoc_insertion_point(class_scope:api.v1.Dataset)
+  })
+_sym_db.RegisterMessage(Dataset)
+_sym_db.RegisterMessage(Dataset.OptionsEntry)
 
 RunCodeRequest = _reflection.GeneratedProtocolMessageType('RunCodeRequest', (_message.Message,), {
   'DESCRIPTOR' : _RUNCODEREQUEST,
@@ -1800,192 +391,146 @@ GetDefaultPrecompiledObjectResponse = _reflection.GeneratedProtocolMessageType('
   })
 _sym_db.RegisterMessage(GetDefaultPrecompiledObjectResponse)
 
+SnippetFile = _reflection.GeneratedProtocolMessageType('SnippetFile', (_message.Message,), {
+  'DESCRIPTOR' : _SNIPPETFILE,
+  '__module__' : 'api_pb2'
+  # @@protoc_insertion_point(class_scope:api.v1.SnippetFile)
+  })
+_sym_db.RegisterMessage(SnippetFile)
 
-DESCRIPTOR._options = None
+SaveSnippetRequest = _reflection.GeneratedProtocolMessageType('SaveSnippetRequest', (_message.Message,), {
+  'DESCRIPTOR' : _SAVESNIPPETREQUEST,
+  '__module__' : 'api_pb2'
+  # @@protoc_insertion_point(class_scope:api.v1.SaveSnippetRequest)
+  })
+_sym_db.RegisterMessage(SaveSnippetRequest)
 
-_PLAYGROUNDSERVICE = _descriptor.ServiceDescriptor(
-  name='PlaygroundService',
-  full_name='api.v1.PlaygroundService',
-  file=DESCRIPTOR,
-  index=0,
-  serialized_options=None,
-  create_key=_descriptor._internal_create_key,
-  serialized_start=2790,
-  serialized_end=4324,
-  methods=[
-  _descriptor.MethodDescriptor(
-    name='RunCode',
-    full_name='api.v1.PlaygroundService.RunCode',
-    index=0,
-    containing_service=None,
-    input_type=_RUNCODEREQUEST,
-    output_type=_RUNCODERESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='CheckStatus',
-    full_name='api.v1.PlaygroundService.CheckStatus',
-    index=1,
-    containing_service=None,
-    input_type=_CHECKSTATUSREQUEST,
-    output_type=_CHECKSTATUSRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetRunOutput',
-    full_name='api.v1.PlaygroundService.GetRunOutput',
-    index=2,
-    containing_service=None,
-    input_type=_GETRUNOUTPUTREQUEST,
-    output_type=_GETRUNOUTPUTRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetLogs',
-    full_name='api.v1.PlaygroundService.GetLogs',
-    index=3,
-    containing_service=None,
-    input_type=_GETLOGSREQUEST,
-    output_type=_GETLOGSRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetGraph',
-    full_name='api.v1.PlaygroundService.GetGraph',
-    index=4,
-    containing_service=None,
-    input_type=_GETGRAPHREQUEST,
-    output_type=_GETGRAPHRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetRunError',
-    full_name='api.v1.PlaygroundService.GetRunError',
-    index=5,
-    containing_service=None,
-    input_type=_GETRUNERRORREQUEST,
-    output_type=_GETRUNERRORRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetValidationOutput',
-    full_name='api.v1.PlaygroundService.GetValidationOutput',
-    index=6,
-    containing_service=None,
-    input_type=_GETVALIDATIONOUTPUTREQUEST,
-    output_type=_GETVALIDATIONOUTPUTRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetPreparationOutput',
-    full_name='api.v1.PlaygroundService.GetPreparationOutput',
-    index=7,
-    containing_service=None,
-    input_type=_GETPREPARATIONOUTPUTREQUEST,
-    output_type=_GETPREPARATIONOUTPUTRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetCompileOutput',
-    full_name='api.v1.PlaygroundService.GetCompileOutput',
-    index=8,
-    containing_service=None,
-    input_type=_GETCOMPILEOUTPUTREQUEST,
-    output_type=_GETCOMPILEOUTPUTRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='Cancel',
-    full_name='api.v1.PlaygroundService.Cancel',
-    index=9,
-    containing_service=None,
-    input_type=_CANCELREQUEST,
-    output_type=_CANCELRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetPrecompiledObjects',
-    full_name='api.v1.PlaygroundService.GetPrecompiledObjects',
-    index=10,
-    containing_service=None,
-    input_type=_GETPRECOMPILEDOBJECTSREQUEST,
-    output_type=_GETPRECOMPILEDOBJECTSRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetPrecompiledObject',
-    full_name='api.v1.PlaygroundService.GetPrecompiledObject',
-    index=11,
-    containing_service=None,
-    input_type=_GETPRECOMPILEDOBJECTREQUEST,
-    output_type=_GETPRECOMPILEDOBJECTRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetPrecompiledObjectCode',
-    full_name='api.v1.PlaygroundService.GetPrecompiledObjectCode',
-    index=12,
-    containing_service=None,
-    input_type=_GETPRECOMPILEDOBJECTCODEREQUEST,
-    output_type=_GETPRECOMPILEDOBJECTCODERESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetPrecompiledObjectOutput',
-    full_name='api.v1.PlaygroundService.GetPrecompiledObjectOutput',
-    index=13,
-    containing_service=None,
-    input_type=_GETPRECOMPILEDOBJECTOUTPUTREQUEST,
-    output_type=_GETPRECOMPILEDOBJECTOUTPUTRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetPrecompiledObjectLogs',
-    full_name='api.v1.PlaygroundService.GetPrecompiledObjectLogs',
-    index=14,
-    containing_service=None,
-    input_type=_GETPRECOMPILEDOBJECTLOGSREQUEST,
-    output_type=_GETPRECOMPILEDOBJECTLOGSRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetPrecompiledObjectGraph',
-    full_name='api.v1.PlaygroundService.GetPrecompiledObjectGraph',
-    index=15,
-    containing_service=None,
-    input_type=_GETPRECOMPILEDOBJECTGRAPHREQUEST,
-    output_type=_GETPRECOMPILEDOBJECTGRAPHRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetDefaultPrecompiledObject',
-    full_name='api.v1.PlaygroundService.GetDefaultPrecompiledObject',
-    index=16,
-    containing_service=None,
-    input_type=_GETDEFAULTPRECOMPILEDOBJECTREQUEST,
-    output_type=_GETDEFAULTPRECOMPILEDOBJECTRESPONSE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-])
-_sym_db.RegisterServiceDescriptor(_PLAYGROUNDSERVICE)
+SaveSnippetResponse = _reflection.GeneratedProtocolMessageType('SaveSnippetResponse', (_message.Message,), {
+  'DESCRIPTOR' : _SAVESNIPPETRESPONSE,
+  '__module__' : 'api_pb2'
+  # @@protoc_insertion_point(class_scope:api.v1.SaveSnippetResponse)
+  })
+_sym_db.RegisterMessage(SaveSnippetResponse)
 
-DESCRIPTOR.services_by_name['PlaygroundService'] = _PLAYGROUNDSERVICE
+GetSnippetRequest = _reflection.GeneratedProtocolMessageType('GetSnippetRequest', (_message.Message,), {
+  'DESCRIPTOR' : _GETSNIPPETREQUEST,
+  '__module__' : 'api_pb2'
+  # @@protoc_insertion_point(class_scope:api.v1.GetSnippetRequest)
+  })
+_sym_db.RegisterMessage(GetSnippetRequest)
 
+GetSnippetResponse = _reflection.GeneratedProtocolMessageType('GetSnippetResponse', (_message.Message,), {
+  'DESCRIPTOR' : _GETSNIPPETRESPONSE,
+  '__module__' : 'api_pb2'
+  # @@protoc_insertion_point(class_scope:api.v1.GetSnippetResponse)
+  })
+_sym_db.RegisterMessage(GetSnippetResponse)
+
+_PLAYGROUNDSERVICE = DESCRIPTOR.services_by_name['PlaygroundService']
+if _descriptor._USE_C_DESCRIPTORS == False:
+
+  DESCRIPTOR._options = None
+  DESCRIPTOR._serialized_options = b'Z6beam.apache.org/playground/backend/internal;playground'
+  _DATASET_OPTIONSENTRY._options = None
+  _DATASET_OPTIONSENTRY._serialized_options = b'8\001'
+  _SDK._serialized_start=2961
+  _SDK._serialized_end=3043
+  _STATUS._serialized_start=3046
+  _STATUS._serialized_end=3358
+  _PRECOMPILEDOBJECTTYPE._serialized_start=3361
+  _PRECOMPILEDOBJECTTYPE._serialized_end=3535
+  _COMPLEXITY._serialized_start=3537
+  _COMPLEXITY._serialized_end=3647
+  _EMULATORTYPE._serialized_start=3649
+  _EMULATORTYPE._serialized_end=3719
+  _DATASET._serialized_start=22
+  _DATASET._serialized_end=184
+  _DATASET_OPTIONSENTRY._serialized_start=138
+  _DATASET_OPTIONSENTRY._serialized_end=184
+  _RUNCODEREQUEST._serialized_start=186
+  _RUNCODEREQUEST._serialized_end=303
+  _RUNCODERESPONSE._serialized_start=305
+  _RUNCODERESPONSE._serialized_end=345
+  _CHECKSTATUSREQUEST._serialized_start=347
+  _CHECKSTATUSREQUEST._serialized_end=390
+  _CHECKSTATUSRESPONSE._serialized_start=392
+  _CHECKSTATUSRESPONSE._serialized_end=445
+  _GETVALIDATIONOUTPUTREQUEST._serialized_start=447
+  _GETVALIDATIONOUTPUTREQUEST._serialized_end=498
+  _GETVALIDATIONOUTPUTRESPONSE._serialized_start=500
+  _GETVALIDATIONOUTPUTRESPONSE._serialized_end=545
+  _GETPREPARATIONOUTPUTREQUEST._serialized_start=547
+  _GETPREPARATIONOUTPUTREQUEST._serialized_end=599
+  _GETPREPARATIONOUTPUTRESPONSE._serialized_start=601
+  _GETPREPARATIONOUTPUTRESPONSE._serialized_end=647
+  _GETCOMPILEOUTPUTREQUEST._serialized_start=649
+  _GETCOMPILEOUTPUTREQUEST._serialized_end=697
+  _GETCOMPILEOUTPUTRESPONSE._serialized_start=699
+  _GETCOMPILEOUTPUTRESPONSE._serialized_end=741
+  _GETRUNOUTPUTREQUEST._serialized_start=743
+  _GETRUNOUTPUTREQUEST._serialized_end=787
+  _GETRUNOUTPUTRESPONSE._serialized_start=789
+  _GETRUNOUTPUTRESPONSE._serialized_end=827
+  _GETRUNERRORREQUEST._serialized_start=829
+  _GETRUNERRORREQUEST._serialized_end=872
+  _GETRUNERRORRESPONSE._serialized_start=874
+  _GETRUNERRORRESPONSE._serialized_end=911
+  _GETLOGSREQUEST._serialized_start=913
+  _GETLOGSREQUEST._serialized_end=952
+  _GETLOGSRESPONSE._serialized_start=954
+  _GETLOGSRESPONSE._serialized_end=987
+  _GETGRAPHREQUEST._serialized_start=989
+  _GETGRAPHREQUEST._serialized_end=1029
+  _GETGRAPHRESPONSE._serialized_start=1031
+  _GETGRAPHRESPONSE._serialized_end=1064
+  _CANCELREQUEST._serialized_start=1066
+  _CANCELREQUEST._serialized_end=1104
+  _CANCELRESPONSE._serialized_start=1106
+  _CANCELRESPONSE._serialized_end=1122
+  _PRECOMPILEDOBJECT._serialized_start=1125
+  _PRECOMPILEDOBJECT._serialized_end=1465
+  _CATEGORIES._serialized_start=1468
+  _CATEGORIES._serialized_end=1646
+  _CATEGORIES_CATEGORY._serialized_start=1557
+  _CATEGORIES_CATEGORY._serialized_end=1646
+  _GETPRECOMPILEDOBJECTSREQUEST._serialized_start=1648
+  _GETPRECOMPILEDOBJECTSREQUEST._serialized_end=1722
+  _GETPRECOMPILEDOBJECTREQUEST._serialized_start=1724
+  _GETPRECOMPILEDOBJECTREQUEST._serialized_end=1773
+  _GETPRECOMPILEDOBJECTCODEREQUEST._serialized_start=1775
+  _GETPRECOMPILEDOBJECTCODEREQUEST._serialized_end=1828
+  _GETPRECOMPILEDOBJECTOUTPUTREQUEST._serialized_start=1830
+  _GETPRECOMPILEDOBJECTOUTPUTREQUEST._serialized_end=1885
+  _GETPRECOMPILEDOBJECTLOGSREQUEST._serialized_start=1887
+  _GETPRECOMPILEDOBJECTLOGSREQUEST._serialized_end=1940
+  _GETPRECOMPILEDOBJECTGRAPHREQUEST._serialized_start=1942
+  _GETPRECOMPILEDOBJECTGRAPHREQUEST._serialized_end=1996
+  _GETDEFAULTPRECOMPILEDOBJECTREQUEST._serialized_start=1998
+  _GETDEFAULTPRECOMPILEDOBJECTREQUEST._serialized_end=2060
+  _GETPRECOMPILEDOBJECTSRESPONSE._serialized_start=2062
+  _GETPRECOMPILEDOBJECTSRESPONSE._serialized_end=2137
+  _GETPRECOMPILEDOBJECTRESPONSE._serialized_start=2139
+  _GETPRECOMPILEDOBJECTRESPONSE._serialized_end=2224
+  _GETPRECOMPILEDOBJECTCODERESPONSE._serialized_start=2226
+  _GETPRECOMPILEDOBJECTCODERESPONSE._serialized_end=2274
+  _GETPRECOMPILEDOBJECTOUTPUTRESPONSE._serialized_start=2276
+  _GETPRECOMPILEDOBJECTOUTPUTRESPONSE._serialized_end=2328
+  _GETPRECOMPILEDOBJECTLOGSRESPONSE._serialized_start=2330
+  _GETPRECOMPILEDOBJECTLOGSRESPONSE._serialized_end=2380
+  _GETPRECOMPILEDOBJECTGRAPHRESPONSE._serialized_start=2382
+  _GETPRECOMPILEDOBJECTGRAPHRESPONSE._serialized_end=2432
+  _GETDEFAULTPRECOMPILEDOBJECTRESPONSE._serialized_start=2434
+  _GETDEFAULTPRECOMPILEDOBJECTRESPONSE._serialized_end=2526
+  _SNIPPETFILE._serialized_start=2528
+  _SNIPPETFILE._serialized_end=2589
+  _SAVESNIPPETREQUEST._serialized_start=2592
+  _SAVESNIPPETREQUEST._serialized_end=2740
+  _SAVESNIPPETRESPONSE._serialized_start=2742
+  _SAVESNIPPETRESPONSE._serialized_end=2775
+  _GETSNIPPETREQUEST._serialized_start=2777
+  _GETSNIPPETREQUEST._serialized_end=2808
+  _GETSNIPPETRESPONSE._serialized_start=2811
+  _GETSNIPPETRESPONSE._serialized_end=2959
+  _PLAYGROUNDSERVICE._serialized_start=3722
+  _PLAYGROUNDSERVICE._serialized_end=5397
 # @@protoc_insertion_point(module_scope)
