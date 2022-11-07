@@ -116,7 +116,7 @@ Where "playground.zone" is your registered DNS zone<br>
 
 To deploy Beam Playground to the configured envrionment, please execute the following command (Ensure you are in the "beam" folder):
 ```
-./gradlew playground:terraform:gkebackend -Pproject_environment="env" -Pdocker-tag="tag" -Pdns-name="PlaygroundDNS" (env - folder name which you created for configuration files, tag - image tag for backend, PlaygroundDNS - chosen DNS for Playground)
+./gradlew playground:terraform:gkebackend -Pproject_environment="env" -Pdocker-tag="tag" -Pdns-name="playground.zone" (env - folder name which you created for configuration files, tag - image tag for backend, playground.zone - chosen DNS for Playground)
 ```
 During script execution, a Google managed certificate will be created. [Provisioning might take up to 60 minutes](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs).
 
