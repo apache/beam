@@ -390,7 +390,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.43.0'
+    project.version = '2.44.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -467,7 +467,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
     def gax_version = "2.19.2"
     def google_clients_version = "2.0.0"
-    def google_cloud_bigdataoss_version = "2.2.8"
+    def google_cloud_bigdataoss_version = "2.2.6"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
     def google_cloud_spanner_version = "6.31.2"
     def google_code_gson_version = "2.9.1"
@@ -499,6 +499,10 @@ class BeamModulePlugin implements Plugin<Project> {
     def testcontainers_version = "1.16.3"
     def arrow_version = "5.0.0"
     def jmh_version = "1.34"
+
+    // Export Spark versions, so they are defined in a single place only
+    project.ext.spark2_version = spark2_version
+    project.ext.spark3_version = spark3_version
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -542,6 +546,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_http_client_spi               : "software.amazon.awssdk:http-client-spi:$aws_java_sdk2_version",
         aws_java_sdk2_regions                       : "software.amazon.awssdk:regions:$aws_java_sdk2_version",
         aws_java_sdk2_utils                         : "software.amazon.awssdk:utils:$aws_java_sdk2_version",
+        aws_java_sdk2_profiles                      : "software.amazon.awssdk:profiles:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         byte_buddy                                  : "net.bytebuddy:byte-buddy:1.12.14",
@@ -599,7 +604,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
-        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/25.2.0/artifact_details.html
+        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/26.1.3/artifact_details.html
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.1.3",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
@@ -721,6 +726,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_mysql                        : "org.testcontainers:mysql:$testcontainers_version",
         testcontainers_gcloud                       : "org.testcontainers:gcloud:$testcontainers_version",
+        testcontainers_rabbitmq                     : "org.testcontainers:rabbitmq:$testcontainers_version",
         vendored_grpc_1_48_1                        : "org.apache.beam:beam-vendor-grpc-1_48_1:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
@@ -909,6 +915,18 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
+        // Use --release 8 when targeting Java 8 and running on JDK > 8
+        //
+        // Consider migrating compilation and testing to use JDK 9+ and setting '--release=8' as
+        // the default allowing 'applyJavaNature' to override it for the few modules that need JDK 9+
+        // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
+        if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
+        && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
+          options.compilerArgs += ['--release', '8']
+          // TODO(https://github.com/apache/beam/issues/23901): Fix
+          // optimizerOuterThis breakage
+          options.compilerArgs += ['-XDoptimizeOuterThis=false']
+        }
         // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
         // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
         options.compilerArgs -= [
@@ -977,10 +995,10 @@ class BeamModulePlugin implements Plugin<Project> {
           'org.checkerframework.checker.nullness.NullnessChecker'
         ]
 
-        if (parseBooleanProperty(project, 'enableCheckerFramework') || project.jenkins.isCIBuild) {
-          skipCheckerFramework = false
-        } else {
+        if (!parseBooleanProperty(project, 'enableCheckerFramework') && !project.jenkins.isCIBuild) {
           skipCheckerFramework = true
+        } else {
+          skipCheckerFramework = false
         }
 
         // Always exclude checkerframework on tests. It's slow, and it often
@@ -1915,9 +1933,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testRuntimeOnly it.project(path: ":runners:spark:2", configuration: "testRuntimeMigration")
-          testRuntimeOnly project.library.java.spark_core
-          testRuntimeOnly project.library.java.spark_streaming
+          testRuntimeOnly it.project(path: ":runners:spark:3", configuration: "testRuntimeMigration")
 
           // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
           project.configurations.testRuntimeClasspath {
@@ -2597,7 +2613,8 @@ class BeamModulePlugin implements Plugin<Project> {
             // We should use double quote around the arg value if it contains series
             // of flags joined with space. Otherwise, commandline parsing of the
             // shell script will be broken.
-            v = "\"${v.replace('"', '')}\""
+            // Remove all double quotes except those followed with a backslash.
+            v = "\"${v.replaceAll('(?<!\\\\)"', '')}\""
           }
           argList.add("--$k $v")
         }
@@ -2674,7 +2691,7 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn = [installGcpTest]
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
-            ':runners:spark:2:job-server:shadowJar',
+            ':runners:spark:3:job-server:shadowJar',
             ':sdks:python:container:py37:docker',
             ':sdks:python:container:py38:docker',
             ':sdks:python:container:py39:docker',
@@ -2690,7 +2707,7 @@ class BeamModulePlugin implements Plugin<Project> {
               "--parallelism=2",
               "--sdk_worker_parallelism=1",
               "--flink_job_server_jar=${project.project(flinkJobServerProject).shadowJar.archivePath}",
-              "--spark_job_server_jar=${project.project(':runners:spark:2:job-server').shadowJar.archivePath}",
+              "--spark_job_server_jar=${project.project(':runners:spark:3:job-server').shadowJar.archivePath}",
             ]
             if (isStreaming)
               options += [

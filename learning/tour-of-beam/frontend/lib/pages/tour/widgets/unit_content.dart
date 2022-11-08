@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown/markdown.dart' as md;
+import 'package:playground_components/playground_components.dart';
 
 import '../../../models/unit_content.dart';
 
@@ -30,6 +32,52 @@ class UnitContentWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MarkdownBody(data: unitContent.description);
+    return Markdown(
+      selectable: true,
+      data: unitContent.description,
+      builders: {
+        'code': CodeBuilder(),
+      },
+      styleSheet:
+          Theme.of(context).extension<BeamThemeExtension>()!.markdownStyle,
+    );
+  }
+}
+
+class CodeBuilder extends MarkdownElementBuilder {
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    final String textContent = element.textContent;
+    final bool isCodeBlock = textContent.contains('\n');
+    if (isCodeBlock) {
+      /// codeblockDecoration is applied
+      return null;
+    }
+    return _InlineCode(text: textContent);
+  }
+}
+
+class _InlineCode extends StatelessWidget {
+  final String text;
+  const _InlineCode({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: BeamSizes.size3,
+        vertical: BeamSizes.size1,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context)
+            .extension<BeamThemeExtension>()!
+            .codeBackgroundColor,
+        borderRadius: BorderRadius.circular(BeamSizes.size3),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: Theme.of(context).primaryColor),
+      ),
+    );
   }
 }

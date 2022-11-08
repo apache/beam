@@ -64,6 +64,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
 import java.util.function.LongFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -2583,11 +2584,15 @@ public class BigQueryIOWriteTest implements Serializable {
     TableRow goodNested = new TableRow().set("number", "42");
     TableRow badNested = new TableRow().set("number", "nAn");
 
+    final String failValue = "failme";
     List<TableRow> goodRows =
         ImmutableList.of(
             new TableRow().set("name", "n1").set("number", "1"),
+            new TableRow().set("name", failValue).set("number", "1"),
             new TableRow().set("name", "n2").set("number", "2"),
-            new TableRow().set("name", "parent1").set("nested", goodNested));
+            new TableRow().set("name", failValue).set("number", "2"),
+            new TableRow().set("name", "parent1").set("nested", goodNested),
+            new TableRow().set("name", failValue).set("number", "1"));
     List<TableRow> badRows =
         ImmutableList.of(
             // Unknown field.
@@ -2614,6 +2619,11 @@ public class BigQueryIOWriteTest implements Serializable {
             // Invalid nested row
             new TableRow().set("name", "parent2").set("nested", badNested));
 
+    Function<TableRow, Boolean> shouldFailRow =
+        (Function<TableRow, Boolean> & Serializable)
+            tr -> tr.containsKey("name") && tr.get("name").equals(failValue);
+    fakeDatasetService.setShouldFailRow(shouldFailRow);
+
     WriteResult result =
         p.apply(Create.of(Iterables.concat(goodRows, badRows)))
             .apply(
@@ -2632,12 +2642,17 @@ public class BigQueryIOWriteTest implements Serializable {
             .apply(
                 MapElements.into(TypeDescriptor.of(TableRow.class))
                     .via(BigQueryStorageApiInsertError::getRow));
-    PAssert.that(deadRows).containsInAnyOrder(badRows);
+
+    PAssert.that(deadRows)
+        .containsInAnyOrder(
+            Iterables.concat(badRows, Iterables.filter(goodRows, shouldFailRow::apply)));
     p.run();
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table"),
-        containsInAnyOrder(Iterables.toArray(goodRows, TableRow.class)));
+        containsInAnyOrder(
+            Iterables.toArray(
+                Iterables.filter(goodRows, r -> !shouldFailRow.apply(r)), TableRow.class)));
   }
 
   @Test

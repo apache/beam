@@ -165,6 +165,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
       assert_that(res, equal_to([6, 12, 18]))
 
+  @unittest.skip('https://github.com/apache/beam/issues/23944')
   def test_batch_pardo_trigger_flush(self):
     try:
       utils.check_compiled('apache_beam.coders.coder_impl')
@@ -368,6 +369,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
       assert_that(res, equal_to([6, 12, 12, 18, 18, 18]))
 
+  @unittest.skip('https://github.com/apache/beam/issues/23944')
   def test_pardo_large_input(self):
     try:
       utils.check_compiled('apache_beam.coders.coder_impl')

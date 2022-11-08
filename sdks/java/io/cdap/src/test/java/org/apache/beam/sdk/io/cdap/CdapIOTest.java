@@ -27,18 +27,34 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.direct.DirectOptions;
+import org.apache.beam.runners.direct.DirectRunner;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.cdap.batch.EmployeeBatchSink;
+import org.apache.beam.sdk.io.cdap.batch.EmployeeBatchSource;
+import org.apache.beam.sdk.io.cdap.batch.EmployeeInputFormat;
+import org.apache.beam.sdk.io.cdap.batch.EmployeeInputFormatProvider;
+import org.apache.beam.sdk.io.cdap.batch.EmployeeOutputFormat;
+import org.apache.beam.sdk.io.cdap.batch.EmployeeOutputFormatProvider;
 import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
+import org.apache.beam.sdk.io.cdap.streaming.EmployeeReceiver;
+import org.apache.beam.sdk.io.cdap.streaming.EmployeeStreamingSource;
+import org.apache.beam.sdk.io.sparkreceiver.ReceiverBuilder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.mapreduce.OutputCommitter;
+import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -74,7 +90,7 @@ public class CdapIOTest {
     CdapIO.Read<String, String> read =
         CdapIO.<String, String>read()
             .withCdapPlugin(
-                Plugin.create(
+                Plugin.createBatch(
                     EmployeeBatchSource.class,
                     EmployeeInputFormat.class,
                     EmployeeInputFormatProvider.class))
@@ -125,7 +141,7 @@ public class CdapIOTest {
   public void testReadExpandingFailsMissingCdapPluginClass() {
     PBegin testPBegin = PBegin.in(TestPipeline.create());
     CdapIO.Read<String, String> read = CdapIO.read();
-    assertThrows(IllegalArgumentException.class, () -> read.expand(testPBegin));
+    assertThrows(IllegalStateException.class, () -> read.expand(testPBegin));
   }
 
   @Test
@@ -136,13 +152,13 @@ public class CdapIOTest {
   }
 
   @Test
-  public void testReadingData() {
+  public void testReadFromCdapBatchPlugin() {
     EmployeeConfig pluginConfig =
         new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();
     CdapIO.Read<String, String> read =
         CdapIO.<String, String>read()
             .withCdapPlugin(
-                Plugin.create(
+                Plugin.createBatch(
                     EmployeeBatchSource.class,
                     EmployeeInputFormat.class,
                     EmployeeInputFormatProvider.class))
@@ -154,9 +170,41 @@ public class CdapIOTest {
     for (int i = 1; i < EmployeeInputFormat.NUM_OF_TEST_EMPLOYEE_RECORDS; i++) {
       expected.add(KV.of(String.valueOf(i), EmployeeInputFormat.EMPLOYEE_NAME_PREFIX + i));
     }
-    PCollection<KV<String, String>> actual = p.apply("ReadTest", read);
+    PCollection<KV<String, String>> actual = p.apply("ReadBatchTest", read);
     PAssert.that(actual).containsInAnyOrder(expected);
     p.run();
+  }
+
+  @Test
+  public void testReadFromCdapStreamingPlugin() {
+    DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
+    options.setBlockOnRun(false);
+    options.setRunner(DirectRunner.class);
+    Pipeline p = Pipeline.create(options);
+
+    EmployeeConfig pluginConfig =
+        new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();
+    MappingUtils.registerStreamingPlugin(
+        EmployeeStreamingSource.class,
+        Long::valueOf,
+        new ReceiverBuilder<>(EmployeeReceiver.class).withConstructorArgs(pluginConfig));
+
+    CdapIO.Read<String, String> read =
+        CdapIO.<String, String>read()
+            .withCdapPlugin(Plugin.createStreaming(EmployeeStreamingSource.class))
+            .withPluginConfig(pluginConfig)
+            .withKeyClass(String.class)
+            .withValueClass(String.class);
+
+    List<String> storedRecords = EmployeeReceiver.getStoredRecords();
+
+    PCollection<String> actual =
+        p.apply("ReadStreamingTest", read)
+            .setCoder(KvCoder.of(NullableCoder.of(StringUtf8Coder.of()), StringUtf8Coder.of()))
+            .apply(Values.create());
+
+    PAssert.that(actual).containsInAnyOrder(storedRecords);
+    p.run().waitUntilFinish(Duration.standardSeconds(15));
   }
 
   @Test
@@ -167,7 +215,7 @@ public class CdapIOTest {
     CdapIO.Write<String, String> write =
         CdapIO.<String, String>write()
             .withCdapPlugin(
-                Plugin.create(
+                Plugin.createBatch(
                     EmployeeBatchSink.class,
                     EmployeeOutputFormat.class,
                     EmployeeOutputFormatProvider.class))
@@ -230,7 +278,7 @@ public class CdapIOTest {
     PCollection<KV<String, String>> testPCollection =
         Create.empty(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())).expand(testPBegin);
     CdapIO.Write<String, String> write = CdapIO.write();
-    assertThrows(IllegalArgumentException.class, () -> write.expand(testPCollection));
+    assertThrows(IllegalStateException.class, () -> write.expand(testPCollection));
   }
 
   @Test
@@ -241,7 +289,7 @@ public class CdapIOTest {
   }
 
   @Test
-  public void testWritingData() throws IOException {
+  public void testWriteWithCdapBatchSinkPlugin() throws IOException {
     List<KV<String, String>> data = new ArrayList<>();
     for (int i = 0; i < EmployeeInputFormat.NUM_OF_TEST_EMPLOYEE_RECORDS; i++) {
       data.add(KV.of(String.valueOf(i), EmployeeInputFormat.EMPLOYEE_NAME_PREFIX + i));
@@ -254,10 +302,10 @@ public class CdapIOTest {
         "Write",
         CdapIO.<String, String>write()
             .withCdapPlugin(
-                Plugin.create(
+                Plugin.createBatch(
                     EmployeeBatchSink.class,
                     EmployeeOutputFormat.class,
-                    EmployeeInputFormatProvider.class))
+                    EmployeeOutputFormatProvider.class))
             .withPluginConfig(pluginConfig)
             .withKeyClass(String.class)
             .withValueClass(String.class)
