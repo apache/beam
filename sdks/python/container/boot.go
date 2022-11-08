@@ -75,17 +75,10 @@ const (
 
 func main() {
 	flag.Parse()
-	if err := launchSDKProcess(); err != nil {
-		log.Fatal(err)
-	}
-}
 
-func launchSDKProcess() error {
 	if *setupOnly {
-		if err := processArtifactsInSetupOnlyMode(); err != nil {
-			log.Fatalf("Setup unsuccessful with error: %v", err)
-		}
-		return nil
+		processArtifactsInSetupOnlyMode()
+		os.Exit(0)
 	}
 
 	if *workerPool == true {
@@ -108,6 +101,12 @@ func launchSDKProcess() error {
 		log.Fatalf("No provision endpoint provided.")
 	}
 
+	if err := launchSDKProcess(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func launchSDKProcess() error {
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
 
 	info, err := provision.Info(ctx, *provisionEndpoint)
@@ -384,7 +383,7 @@ func joinPaths(dir string, paths ...string) []string {
 // process the provided artifacts and skip the actual worker program start up.
 // The mode is useful for building new images with dependencies pre-installed so
 // that the installation can be skipped at the pipeline runtime.
-func processArtifactsInSetupOnlyMode() error {
+func processArtifactsInSetupOnlyMode() {
 	if *artifacts == "" {
 		log.Fatal("No --artifacts provided along with --setup_only flag.")
 	}
@@ -418,5 +417,4 @@ func processArtifactsInSetupOnlyMode() error {
 	if setupErr := installSetupPackages(files, workDir, []string{requirementsFile}); setupErr != nil {
 		log.Fatalf("Failed to install required packages: %v", setupErr)
 	}
-	return nil
 }
