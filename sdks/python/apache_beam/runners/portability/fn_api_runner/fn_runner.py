@@ -42,6 +42,7 @@ from typing import MutableMapping
 from typing import Optional
 from typing import Set
 from typing import Tuple
+from typing import Type
 from typing import TypeVar
 from typing import Union
 
@@ -903,7 +904,7 @@ class FnApiRunner(runner.PipelineRunner):
     cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
     if bundle_context_manager.num_workers == 1:
       # Avoid thread/processor pools for increased performance and debugability.
-      bundle_manager_type = BundleManager
+      bundle_manager_type = BundleManager  # type: Union[Type[BundleManager], Type[ParallelBundleManager]]
     elif bundle_context_manager.stage.is_stateful():
       # State is keyed, and a single key cannot be processed concurrently.
       # Alternatively, we could arrange to partition work by key.
@@ -1220,8 +1221,8 @@ class BundleManager(object):
       timer_out.write(timer)
     timer_out.close()
 
-  def _select_split_manager(self):
-    """TODO(pabloem) WHAT DOES THIS DO"""
+  def _select_split_manager(self) -> Optional[Callable[[int], Iterable[float]]]:
+    """Returns the split manager, if any, associated with this stage."""
     unique_names = set(
         t.unique_name for t in self.bundle_context_manager.
         process_bundle_descriptor.transforms.values())
@@ -1229,12 +1230,9 @@ class BundleManager(object):
         self.bundle_context_manager.split_managers):
       if (stage_name in unique_names or
           (stage_name + '/Process') in unique_names):
-        split_manager = candidate
-        break
-    else:
-      split_manager = None
+        return candidate
 
-    return split_manager
+    return None
 
   def _generate_splits_for_testing(self,
                                    split_manager,

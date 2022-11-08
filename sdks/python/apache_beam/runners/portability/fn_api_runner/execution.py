@@ -37,6 +37,7 @@ from typing import Iterator
 from typing import List
 from typing import MutableMapping
 from typing import Optional
+from typing import Sequence
 from typing import Set
 from typing import Tuple
 from typing import TypeVar
@@ -706,7 +707,7 @@ class FnApiRunnerExecutionContext(object):
                data_channel_coders: Dict[str, str],
                num_workers: int,
                uses_teststream: bool = False,
-               split_managers = ()  # type: Iterable[Tuple[str, Callable[[int], Iterable[float]]]]
+               split_managers = ()  # type: Sequence[Tuple[str, Callable[[int], Iterable[float]]]]
               ) -> None:
     """
     :param worker_handler_manager: This class manages the set of worker
@@ -1011,7 +1012,7 @@ class BundleContextManager(object):
                execution_context, # type: FnApiRunnerExecutionContext
                stage,  # type: translations.Stage
                num_workers,  # type: int
-               split_managers,
+               split_managers,  # type: Sequence[Tuple[str, Callable[[int], Iterable[float]]]]
               ):
     # type: (...) -> None
     self.execution_context = execution_context

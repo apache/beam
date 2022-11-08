@@ -2113,10 +2113,10 @@ class FnApiRunnerSplitTest(unittest.TestCase):
 
   def test_time_based_split_manager(self):
 
-    elements = list(range(100))
+    elements = [str(x) for x in range(100)]
 
     class BundleCountingDoFn(beam.DoFn):
-      def process(self, element) -> Iterator[object]:
+      def process(self, element):
         time.sleep(0.001)
         yield element
 
