@@ -27,7 +27,7 @@ require (
 	cloud.google.com/go/datastore v1.9.0
 	cloud.google.com/go/profiler v0.3.0
 	cloud.google.com/go/pubsub v1.26.0
-	cloud.google.com/go/storage v1.27.0
+	cloud.google.com/go/storage v1.28.0
 	github.com/docker/go-connections v0.4.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-sql-driver/mysql v1.6.0
