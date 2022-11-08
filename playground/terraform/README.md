@@ -56,7 +56,7 @@ Ensure that the account has at least following privileges:
 6. Apache Beam Git repository cloned locally
 
 # Prepare deployment configuration:
-Playground uses `terraform.tfvars` located in `playground/terraform/environment/environment_name` to define variables specific to an environment (e.g., prod, test, staging).<br> 
+Playground uses `terraform.tfvars` located in `playground/terraform/environment/environment_name` to define variables specific to an environment (e.g., prod, test, staging).<br>
 1. Create a folder (further referred as `environment_name`) to define a new environment and place configuration files into it:
 
 * `terraform.tfvars` environment variables:
@@ -110,7 +110,7 @@ gcloud container clusters get-credentials --region `chosen_location` `gke_name` 
 ```
 Start the following command from the top level repository folder ("beam") to deploy the Payground infrastructure:
 ```
-./gradlew playground:terraform:gkebackend -Pproject_environment="environment_name" -Pdocker-tag="tag" -Pdns-name="playground.zone" 
+./gradlew playground:terraform:gkebackend -Pproject_environment="environment_name" -Pdocker-tag="tag" -Pdns-name="playground.zone"
 ```
 Where tag - image tag for backend, playground.zone - chosen DNS for Playground
 
