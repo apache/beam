@@ -28,10 +28,9 @@ from helper import Example, Tag
 
 
 @pytest.mark.asyncio
-@mock.patch("google.cloud.storage.Client")
 @mock.patch("ci_helper.CIHelper._verify_examples")
 @mock.patch("ci_helper.get_statuses")
-async def test_verify_examples(mock_get_statuses, mock_verify_examples, mock_cloud_storage):
+async def test_verify_examples(mock_get_statuses, mock_verify_examples):
     helper = CIHelper()
     await helper.verify_examples([], Origin.PG_EXAMPLES)
 

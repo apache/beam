@@ -13,26 +13,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import mock
-from config import Origin
-
-import test_utils
-from api.v1.api_pb2 import SDK_JAVA
-from cd_helper import CDHelper
-
 """
-Unit tests for the CD helper
+Module contains methods to work with repository
 """
+import logging
+import os
+from typing import List
+
+from config import RepoProps
+
+from helper import Example
 
 
-class TestCDHelper(unittest.TestCase):
-
-    @mock.patch("cd_helper.CDHelper._save_to_datastore")
-    @mock.patch("cd_helper.CDHelper._get_outputs")
-    def test_save_examples(self, mock_get_outputs, mock_save_to_datastore):
-        examples = test_utils._get_examples(1)
-        helper = CDHelper(SDK_JAVA, Origin.PG_EXAMPLES)
-        helper.save_examples(examples)
-        mock_get_outputs.assert_called_once()
-        mock_save_to_datastore.assert_called_once_with(examples)
+def set_dataset_path_for_examples(examples: List[Example]):
+    for example in examples:
+        if example.datasets:
+            dataset_tag = example.datasets[0]
+            file_name = f"{dataset_tag.name}.{dataset_tag.format}"
+            dataset_path = f"{RepoProps.DATASET_REP_ROOT}/{file_name}"
+            if not os.path.isfile(dataset_path):
+                logging.error("File not found at the specified path: %s", dataset_path)
+                raise FileNotFoundError
+            dataset_tag.path = dataset_path
+            example.datasets[0] = dataset_tag
