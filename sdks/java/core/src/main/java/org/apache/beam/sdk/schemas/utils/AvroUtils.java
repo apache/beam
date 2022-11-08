@@ -113,7 +113,7 @@ public class AvroUtils {
   }
 
   // Unwrap an AVRO schema into the base type an whether it is nullable.
-  static class TypeWithNullability {
+  public static class TypeWithNullability {
     public final org.apache.avro.Schema type;
     public final boolean nullable;
 
