@@ -17,16 +17,15 @@
     under the License.
 -->
 # Playground deployment on GCP
+This guide shows you how to deploy full Playground environment on Google Cloud Platform (GCP) environment.
 
 ## Prerequisites:
 
 ### Following items need to be setup for Playground deployment on GCP:
-1. [GCP project](https://cloud.google.com/)
+1. [GCP project]([https://cloud.google.com/](https://cloud.google.com/resource-manager/docs/creating-managing-projects))
 
-2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_
-
-***Google Cloud preparation steps:***
-After creating or identified an existing project for deployment, please be sure that your account has at least following privileges:
+2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_:
+Ensure that the account has at least following privileges:
    - App Engine Admin
    - App Engine Creator
    - Artifact Registry Administrator
@@ -45,9 +44,7 @@ After creating or identified an existing project for deployment, please be sure 
 
 4. DNS name for your Playground deployment instance
 
-***Development environment preparation steps:***
-
-During the Operation system preparation steps, you will need to install Java, Kubernetes, HELM, Docker, Terraform, gcloud CLI
+5. OS with installed software listed below:
 
 * [Java](https://adoptopenjdk.net/)
 * [Kubernetes Command Line Interface](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
@@ -56,10 +53,11 @@ During the Operation system preparation steps, you will need to install Java, Ku
 * [Terraform](https://www.terraform.io/downloads)
 * [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 
-After Development environment preparation steps completed, navigate to the "beam" folder in your development environment.
+6. Apache Beam Git repository cloned locally
 
-# Deployment environment:
-Playground uses `terraform.tfvars` located in `playground/terraform/environment/environment_name` to define all infrastructure environment (like staging, production, etc.). Create a folder `environment_name` and place all configuration files inside to add a new environment.
+# Prepare deployment configuration:
+Playground uses `terraform.tfvars` located in `playground/terraform/environment/environment_name` to define variables specific to an environment (e.g., prod, test, staging).<br> 
+1. Create a folder (further referred as environment_name) to define a new environment and place configuration files into it:
 
 * `terraform.tfvars` environment variables:
 ```
@@ -75,59 +73,58 @@ bucket_examples_name = "bucket_name-example" #GCS bucket name for Playground exa
 ```
 bucket               = "bucket_name"         #input bucket name - will be used for terraform tfstate file
 ```
-Then, configure authentication for the Google Cloud Platform:
-
-* The following commands allows us to configure account and project
+2. Configure authentication for the Google Cloud Platform
 ```
 gcloud init
 ```
 ```
 gcloud auth application-default login
 ```
-# Infrastructure deployment:
+# Deploy Playground infrastructure:
 * To deploy the Payground infrastructure, use the following command (please be sure that you are in the "beam" folder):
 ```
-./gradlew playground:terraform:InitInfrastructure -Pproject_environment="env" (env - folder name which you created for configuration files)
-```
-# Playground deployment:
-Afrer successfully deploying Playground infrastrcuture in the previous step, authenticate on Docker and Google Kubernetes Engine<br>
-The following command will authenticate us in the Docker registry
-```
- gcloud auth configure-docker `chosen_region`-docker.pkg.dev
-```
-The following command will authenticate in GKE
-```
-gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
+./gradlew playground:terraform:InitInfrastructure -Pproject_environment="environment_name"
 ```
 Find a Static IP in your GCP project>VPC Network>IP Addresses>pg-static-ip
-<br>Add following DNS A records for the Static IP address:
+<br>Add following DNS A records for the discovered static IP address:
 ```
-* java.playground.zone
-* python.playground.zone
-* scio.playground.zone
-* go.playground.zone
-* router.playground.zone
-* playground.zone
+java.playground.zone
+python.playground.zone
+scio.playground.zone
+go.playground.zone
+router.playground.zone
+playground.zone
 ```
-Where "playground.zone" is your registered DNS zone<br>
+Where "playground.zone" is the registered DNS zone<br>
 [More about DNS zone registration](https://domains.google/get-started/domain-search/)<br>
 [More about A records in DNS](https://support.google.com/a/answer/2579934?hl=en)
 
+# Deploy Playground to Kubernetes:
+1. Run the following command to authenticate in the Docker registry
+```
+ gcloud auth configure-docker `chosen_region`-docker.pkg.dev
+```
+2. Run the following command to authenticate in GKE
+```
+gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
+```
 To deploy Beam Playground to the configured envrionment, please execute the following command (Ensure you are in the "beam" folder):
 ```
-./gradlew playground:terraform:gkebackend -Pproject_environment="env" -Pdocker-tag="tag" -Pdns-name="playground.zone" (env - folder name which you created for configuration files, tag - image tag for backend, playground.zone - chosen DNS for Playground)
+./gradlew playground:terraform:gkebackend -Pproject_environment="environment_name" -Pdocker-tag="tag" -Pdns-name="playground.zone" 
 ```
+Where tag - image tag for backend, playground.zone - chosen DNS for Playground
+
 During script execution, a Google managed certificate will be created. [Provisioning might take up to 60 minutes](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs).
 
-# Environment validation steps:
+# Validate deployed Playground:
 1. Run "helm list" command in the console to ensure that status is "deployed":
 ```
-NAME            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                          APP VERSION
-playground      default         1               your time                              deployed        playground-2.44.0-SNAPSHOT         1.0.0
+NAME            NAMESPACE  REVISION        UPDATED         STATUS          CHART                          APP VERSION
+playground      default       1            your time      deployed        playground-2.44.0-SNAPSHOT         1.0.0
 ```
 2. Run "kubectl get managedcertificate" command in the console to ensure that status is "Active"
 ```
 NAME               AGE     STATUS
 GCP Project       time     Active
 ```
-3. Open Beam Playground frontend webpage in your browser (e.g. https://playground.zone)
+3. Open Beam Playground frontend webpage in a web browser (e.g. https://playground.zone) to ensure that Playground frontend page is available
