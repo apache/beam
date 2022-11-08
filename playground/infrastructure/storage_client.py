@@ -31,6 +31,7 @@ from helper import Example
 class StorageClient:
     """StorageClient is a storage client for sending a request to the Google."""
     _storage_client: storage.Client
+    bucket_key = "DATASET_BUCKET_NAME"
 
     def __init__(self):
         self._storage_client = storage.Client()
@@ -45,11 +46,18 @@ class StorageClient:
                 example.datasets[0] = dataset_tag
 
     def _upload_dataset(self, dataset_file_name: str) -> str:
-        bucket_name = os.getenv("DATASET_BUCKET_NAME")
+        bucket_name = os.getenv(self.bucket_key)
         if not bucket_name:
-            raise KeyError("DATASET_BUCKET_NAME environment variable should be specified in os")
+            logging.error("Environment variable %s not found", self.bucket_key)
+            raise KeyError(f"{self.bucket_key} environment variable should be specified in os")
         bucket = self._storage_client.bucket(bucket_name)
         blob = bucket.blob(f"{StorageProps.DATASET_GCS_ROOT}/{dataset_file_name}")
-        blob.upload_from_filename(f"{StorageProps.DATASET_REP_ROOT}/{dataset_file_name}")
+        dataset_path = f"{StorageProps.DATASET_REP_ROOT}/{dataset_file_name}"
+        if not os.path.isfile(dataset_path):
+            logging.error("File not found at the specified path: %s", dataset_path)
+            raise FileNotFoundError
+        blob.upload_from_filename(dataset_path)
+        blob.cache_control = "no-store"
+        blob.patch()
         logging.info("Dataset uploaded to %s bucket", bucket_name)
         return blob.public_url

@@ -16,6 +16,7 @@ import os
 from unittest.mock import call
 
 import mock
+import pytest
 
 from config import Dataset
 from storage_client import StorageClient
@@ -28,7 +29,8 @@ Unit tests for the Cloud Storage client
 
 @mock.patch("google.cloud.storage.Client")
 @mock.patch.dict(os.environ, {"DATASET_BUCKET_NAME": "MOCK_BUCKET"}, clear=True)
-def test_set_dataset_path_for_examples_when_datasets_are_empty(mock_storage_client):
+@mock.patch("os.path.isfile", return_value=True)
+def test_set_dataset_path_for_examples_when_datasets_are_empty(mock_file_check, mock_storage_client):
     """
     Test setting a dataset path for examples when datasets are empty
     """
@@ -40,11 +42,32 @@ def test_set_dataset_path_for_examples_when_datasets_are_empty(mock_storage_clie
 
 @mock.patch("google.cloud.storage.Client")
 @mock.patch.dict(os.environ, {"DATASET_BUCKET_NAME": "MOCK_BUCKET"}, clear=True)
-def test_set_dataset_path_for_examples_in_the_usual_case(mock_storage_client):
+def test_set_dataset_path_for_examples_when_dataset_path_is_bad(mock_storage_client):
+    """
+    Test setting a dataset path for examples when dataset path is wrong
+    """
+    with pytest.raises(FileNotFoundError):
+        examples = _get_examples_with_datasets(1)
+        client = StorageClient()
+        client.set_dataset_path_for_examples(examples)
+
+
+@mock.patch("google.cloud.storage.Client")
+@mock.patch.dict(os.environ, {"DATASET_BUCKET_NAME": "MOCK_BUCKET"}, clear=True)
+@mock.patch("os.path.isfile", return_value=True)
+def test_set_dataset_path_for_examples_in_the_usual_case(mock_file_check, mock_storage_client):
     """
     Test setting a dataset path for examples in the usual case
     """
-    examples = _get_examples(1)
+    examples = _get_examples_with_datasets(1)
+    client = StorageClient()
+    client.set_dataset_path_for_examples(examples)
+    calls = [call().bucket("MOCK_BUCKET")]
+    mock_storage_client.assert_has_calls(calls, any_order=False)
+
+
+def _get_examples_with_datasets(number_of_examples: int):
+    examples = _get_examples(number_of_examples)
     for example in examples:
         datasets = []
         dataset = Dataset(
@@ -54,8 +77,4 @@ def test_set_dataset_path_for_examples_in_the_usual_case(mock_storage_client):
         )
         datasets.append(dataset)
         example.datasets = datasets
-    client = StorageClient()
-    client.set_dataset_path_for_examples(examples)
-    calls = [call().bucket("MOCK_BUCKET")]
-    mock_storage_client.assert_has_calls(calls, any_order=False)
-
+    return examples
