@@ -63,6 +63,9 @@ See the &lt;a href="/get-started/downloads/#2420-2022-10-17">download page&lt;/a
 &lt;h2 id="highlights">Highlights&lt;/h2>
 &lt;ul>
 &lt;li>Added support for stateful DoFns to the Go SDK.&lt;/li>
+&lt;li>Added support for &lt;a href="https://beam.apache.org/documentation/programming-guide/#batched-dofns">Batched
+DoFns&lt;/a>
+to the Python SDK.&lt;/li>
 &lt;/ul>
 &lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
 &lt;ul>
