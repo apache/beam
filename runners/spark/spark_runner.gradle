@@ -181,7 +181,13 @@ dependencies {
   runtimeOnly library.java.jackson_module_scala_2_12
   // Force paranamer 2.8 to avoid issues when using Scala 2.12
   runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
-  provided library.java.hadoop_common
+  if (project.property("spark_version").startsWith("3.2")) {
+    // Use shaded Hadoop client jars for Spark 3.2.x:
+    //  - https://issues.apache.org/jira/browse/SPARK-33212
+    provided "org.apache.hadoop:hadoop-client-api:3.3.1"
+  } else {
+    provided library.java.hadoop_common
+  }
   provided library.java.commons_io
   provided library.java.hamcrest
   provided "com.esotericsoftware:kryo-shaded:4.0.2"
