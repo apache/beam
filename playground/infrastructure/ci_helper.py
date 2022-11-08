@@ -28,7 +28,7 @@ from api.v1.api_pb2 import STATUS_COMPILE_ERROR, STATUS_ERROR, STATUS_RUN_ERROR,
 from config import Config, Origin
 from grpc_client import GRPCClient
 from helper import Example, get_statuses
-from storage_client import StorageClient
+from repository import set_dataset_path_for_examples
 
 
 class VerifyException(Exception):
@@ -46,6 +46,7 @@ class CIHelper:
 
     It is used to find and verify correctness if beam examples/katas/tests.
     """
+
     async def verify_examples(self, examples: List[Example], origin: Origin):
         """
         Verify correctness of beam examples.
@@ -56,13 +57,12 @@ class CIHelper:
         """
         single_file_examples = list(filter(
             lambda example: example.tag.multifile is False, examples))
-        storage_client = StorageClient()
-        storage_client.set_dataset_path_for_examples(examples)
+        set_dataset_path_for_examples(single_file_examples)
         async with GRPCClient() as client:
             await get_statuses(client, single_file_examples)
             await self._verify_examples(client, single_file_examples, origin)
 
-    async def _verify_examples(self, client: any,  examples: List[Example], origin: Origin):
+    async def _verify_examples(self, client: any, examples: List[Example], origin: Origin):
         """
         Verify statuses of beam examples and the number of found default examples.
 

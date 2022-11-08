@@ -31,8 +31,7 @@ Unit tests for the Cloud Datastore client
 
 @mock.patch("config.Config.GOOGLE_CLOUD_PROJECT")
 @mock.patch("google.cloud.datastore.Client")
-@mock.patch("google.cloud.storage.Client")
-def test_save_to_cloud_datastore_when_schema_version_not_found(mock_storage_client, mock_datastore_client, mock_config_project):
+def test_save_to_cloud_datastore_when_schema_version_not_found(mock_datastore_client, mock_config_project):
     """
     Test saving examples to the cloud datastore when the schema version not found
     """
@@ -62,9 +61,7 @@ def test_save_to_cloud_datastore_when_google_cloud_project_id_not_set():
 @mock.patch("datastore_client.DatastoreClient._get_actual_schema_version_key")
 @mock.patch("config.Config.GOOGLE_CLOUD_PROJECT")
 @mock.patch("google.cloud.datastore.Client")
-@mock.patch("google.cloud.storage.Client")
 def test_save_to_cloud_datastore_in_the_usual_case(
-      mock_storage_client,
       mock_client,
       mock_config_project,
       mock_get_schema,

@@ -333,11 +333,11 @@ class DatastoreClient:
         )
         return file_entity
 
-    def _to_dataset_entity(self, dataset_id: str, link: str):
+    def _to_dataset_entity(self, dataset_id: str, path: str):
         dataset_entity = datastore.Entity(self._get_dataset_key(dataset_id))
         dataset_entity.update(
             {
-                "link": link
+                "path": path
             }
         )
         return dataset_entity
