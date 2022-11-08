@@ -92,7 +92,6 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Decreased TextSource CPU utilization by 2.3x (Java) ([#23193](https://github.com/apache/beam/issues/23193)).
 * Fixed bug when using SpannerIO with RuntimeValueProvider options (Java) ([#22146](https://github.com/apache/beam/issues/22146)).
 * Fixed issue for unicode rendering on WriteToBigQuery ([#10785](https://github.com/apache/beam/issues/10785))
@@ -102,14 +101,16 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Dataframe wrapper added in Go SDK via Cross-Language (with automatic expansion service). (Go) ([#23384](https://github.com/apache/beam/issues/23384)).
 * Name all Java threads to aid in debugging ([#23049](https://github.com/apache/beam/issues/23049)).
 * An initial implementation of a runner that allows us to run Beam pipelines on Dask. (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
+* Allow configuring GCP OAuth scopes via pipeline options. This unblocks usages of Beam IOs that require additional scopes.
+  For example, this feature makes it possible to access Google Drive backed tables in BigQuery ([#23290](https://github.com/apache/beam/issues/23290)).
 
 ## Breaking Changes
 
-* Python SDK CoGroupByKey outputs an iterable allowing for arbitrarily large results. [#21556](https://github.com/apache/beam/issues/21556) Beam users may see an error on transforms downstream from CoGroupByKey. Users must change methods expecting a List to expect an Iterable going forward. See [document](https://docs.google.com/document/d/1RIzm8-g-0CyVsPb6yasjwokJQFoKHG4NjRUcKHKINu0) for information and fixes.
+* CoGroupByKey transform in Python SDK has changed the output typehint. The typehint component representing grouped values changed from List to Iterable,
+  which more accurately reflects the nature of the arbitrarily large output collection. [#21556](https://github.com/apache/beam/issues/21556) Beam users may see an error on transforms downstream from CoGroupByKey. Users must change methods expecting a List to expect an Iterable going forward. See [document](https://docs.google.com/document/d/1RIzm8-g-0CyVsPb6yasjwokJQFoKHG4NjRUcKHKINu0) for information and fixes.
 * The PortableRunner for Spark assumes Spark 3 as default Spark major version unless configured otherwise using `--spark_version`.
   Spark 2 support is deprecated and will be removed soon ([#23728](https://github.com/apache/beam/issues/23728)).
 
@@ -119,7 +120,6 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Fixed Python cross-language JDBC IO Connector cannot read or write rows containing Numeric/Decimal type values ([#19817](https://github.com/apache/beam/issues/19817)).
 
 ## Known Issues
