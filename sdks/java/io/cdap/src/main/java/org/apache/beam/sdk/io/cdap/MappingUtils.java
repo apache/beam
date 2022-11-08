@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.cdap;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.hubspot.sink.batch.HubspotBatchSink;
 import io.cdap.plugin.hubspot.sink.batch.HubspotOutputFormat;
@@ -36,27 +35,12 @@ import io.cdap.plugin.servicenow.source.ServiceNowSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormat;
 import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormatProvider;
-import java.util.HashMap;
-import java.util.Map;
-import org.apache.beam.sdk.io.sparkreceiver.ReceiverBuilder;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.spark.streaming.receiver.Receiver;
 
 /** Util class for mapping plugins. */
 public class MappingUtils {
 
-  private static final Map<
-          Class<?>, Pair<SerializableFunction<?, Long>, Class<? extends Receiver<?>>>>
-      REGISTERED_PLUGINS;
-
-  static {
-    REGISTERED_PLUGINS = new HashMap<>();
-  }
-
   /** Gets a {@link Plugin} by its class. */
-  static Plugin getPluginByClass(Class<?> pluginClass) {
+  static <K, V> Plugin<K, V> getPluginByClass(Class<?> pluginClass) {
     checkArgument(pluginClass != null, "Plugin class can not be null!");
     if (pluginClass.equals(SalesforceBatchSource.class)) {
       return Plugin.createBatch(
@@ -76,45 +60,6 @@ public class MappingUtils {
     } else if (pluginClass.equals(ServiceNowSource.class)) {
       return Plugin.createBatch(
           pluginClass, ServiceNowInputFormat.class, SourceInputFormatProvider.class);
-    }
-    throw new UnsupportedOperationException(
-        String.format("Given plugin class '%s' is not supported!", pluginClass.getName()));
-  }
-
-  /** Gets a {@link ReceiverBuilder} by CDAP {@link Plugin} class. */
-  @SuppressWarnings("unchecked")
-  static <V> ReceiverBuilder<V, ? extends Receiver<V>> getReceiverBuilderByPluginClass(
-      Class<?> pluginClass, PluginConfig pluginConfig) {
-    checkArgument(pluginClass != null, "Plugin class can not be null!");
-    checkArgument(pluginConfig != null, "Plugin config can not be null!");
-    if (REGISTERED_PLUGINS.containsKey(pluginClass)) {
-      Class<? extends Receiver<V>> receiverClass =
-          (Class<? extends Receiver<V>>) REGISTERED_PLUGINS.get(pluginClass).getRight();
-      return new ReceiverBuilder<>(receiverClass).withConstructorArgs(pluginConfig);
-    }
-    throw new UnsupportedOperationException(
-        String.format("Given plugin class '%s' is not supported!", pluginClass.getName()));
-  }
-
-  /**
-   * Register new CDAP Streaming {@link Plugin} class providing corresponding {@param getOffsetFn}
-   * and {@param receiverBuilder} params.
-   */
-  public static <V> void registerStreamingPlugin(
-      Class<?> pluginClass,
-      SerializableFunction<V, Long> getOffsetFn,
-      Class<? extends Receiver<V>> receiverClass) {
-    REGISTERED_PLUGINS.put(pluginClass, new ImmutablePair<>(getOffsetFn, receiverClass));
-  }
-
-  /**
-   * Gets a {@link SerializableFunction} that defines how to get record offset for CDAP {@link
-   * Plugin} class.
-   */
-  @SuppressWarnings("unchecked")
-  static <V> SerializableFunction<V, Long> getOffsetFnForPluginClass(Class<?> pluginClass) {
-    if (REGISTERED_PLUGINS.containsKey(pluginClass)) {
-      return (SerializableFunction<V, Long>) REGISTERED_PLUGINS.get(pluginClass).getLeft();
     }
     throw new UnsupportedOperationException(
         String.format("Given plugin class '%s' is not supported!", pluginClass.getName()));

@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
-import static org.apache.beam.sdk.io.cdap.MappingUtils.getOffsetFnForPluginClass;
 import static org.apache.beam.sdk.io.cdap.MappingUtils.getPluginByClass;
-import static org.apache.beam.sdk.io.cdap.MappingUtils.getReceiverBuilderByPluginClass;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -32,6 +30,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.hadoop.format.HDFSSynchronization;
 import org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO;
+import org.apache.beam.sdk.io.sparkreceiver.ReceiverBuilder;
 import org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -45,6 +44,7 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.OutputFormat;
+import org.apache.spark.streaming.receiver.Receiver;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -150,7 +150,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>{@link Plugin} is the Wrapper class for the Cdap Plugin. It contains main information about
  * the Plugin. The object of the {@link Plugin} class can be created with the {@link
- * Plugin#createStreaming(Class)} method. Method requires {@link
+ * Plugin#createStreaming(Class, SerializableFunction, Class)} method. Method requires {@link
  * io.cdap.cdap.etl.api.streaming.StreamingSource} class parameter.
  *
  * <p>Every Cdap Plugin has its {@link PluginConfig} class with necessary fields to configure the
@@ -193,7 +193,7 @@ public class CdapIO {
 
     abstract @Nullable PluginConfig getPluginConfig();
 
-    abstract @Nullable Plugin getCdapPlugin();
+    abstract @Nullable Plugin<K, V> getCdapPlugin();
 
     /**
      * Depending on selected {@link HadoopFormatIO} type ({@link InputFormat} or {@link
@@ -219,7 +219,7 @@ public class CdapIO {
 
       abstract Builder<K, V> setPluginConfig(PluginConfig config);
 
-      abstract Builder<K, V> setCdapPlugin(Plugin plugin);
+      abstract Builder<K, V> setCdapPlugin(Plugin<K, V> plugin);
 
       abstract Builder<K, V> setKeyClass(Class<K> keyClass);
 
@@ -229,7 +229,7 @@ public class CdapIO {
     }
 
     /** Sets a CDAP {@link Plugin}. */
-    public Read<K, V> withCdapPlugin(Plugin plugin) {
+    public Read<K, V> withCdapPlugin(Plugin<K, V> plugin) {
       checkArgument(plugin != null, "Cdap plugin can not be null");
       return toBuilder().setCdapPlugin(plugin).build();
     }
@@ -237,7 +237,7 @@ public class CdapIO {
     /** Sets a CDAP Plugin class. */
     public Read<K, V> withCdapPluginClass(Class<?> cdapPluginClass) {
       checkArgument(cdapPluginClass != null, "Cdap plugin class can not be null");
-      Plugin plugin = MappingUtils.getPluginByClass(cdapPluginClass);
+      Plugin<K, V> plugin = MappingUtils.getPluginByClass(cdapPluginClass);
       return toBuilder().setCdapPlugin(plugin).build();
     }
 
@@ -261,7 +261,7 @@ public class CdapIO {
 
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
-      Plugin cdapPlugin = getCdapPlugin();
+      Plugin<K, V> cdapPlugin = getCdapPlugin();
       checkStateNotNull(cdapPlugin, "withCdapPluginClass() is required");
 
       PluginConfig pluginConfig = getPluginConfig();
@@ -276,11 +276,15 @@ public class CdapIO {
       cdapPlugin.withConfig(pluginConfig);
 
       if (cdapPlugin.isUnbounded()) {
+        SerializableFunction<V, Long> getOffsetFn = cdapPlugin.getGetOffsetFn();
+        checkStateNotNull(getOffsetFn, "Plugin get offset function can't be null!");
+        ReceiverBuilder<V, ? extends Receiver<V>> receiverBuilder = cdapPlugin.getReceiverBuilder();
+        checkStateNotNull(receiverBuilder, "Plugin Receiver builder can't be null!");
+
         SparkReceiverIO.Read<V> reader =
             SparkReceiverIO.<V>read()
-                .withGetOffsetFn(getOffsetFnForPluginClass(cdapPlugin.getPluginClass()))
-                .withSparkReceiverBuilder(
-                    getReceiverBuilderByPluginClass(cdapPlugin.getPluginClass(), pluginConfig));
+                .withGetOffsetFn(getOffsetFn)
+                .withSparkReceiverBuilder(receiverBuilder);
         try {
           Coder<V> coder = input.getPipeline().getCoderRegistry().getCoder(valueClass);
           PCollection<V> values = input.apply(reader).setCoder(coder);
@@ -306,7 +310,7 @@ public class CdapIO {
 
     abstract @Nullable PluginConfig getPluginConfig();
 
-    abstract @Nullable Plugin getCdapPlugin();
+    abstract @Nullable Plugin<K, V> getCdapPlugin();
 
     /**
      * Depending on selected {@link HadoopFormatIO} type ({@link InputFormat} or {@link
@@ -340,7 +344,7 @@ public class CdapIO {
 
       abstract Builder<K, V> setPluginConfig(PluginConfig config);
 
-      abstract Builder<K, V> setCdapPlugin(Plugin plugin);
+      abstract Builder<K, V> setCdapPlugin(Plugin<K, V> plugin);
 
       abstract Builder<K, V> setKeyClass(Class<K> keyClass);
 
@@ -352,7 +356,7 @@ public class CdapIO {
     }
 
     /** Sets a CDAP {@link Plugin}. */
-    public Write<K, V> withCdapPlugin(Plugin plugin) {
+    public Write<K, V> withCdapPlugin(Plugin<K, V> plugin) {
       checkArgument(plugin != null, "Cdap plugin can not be null");
       return toBuilder().setCdapPlugin(plugin).build();
     }
@@ -360,7 +364,7 @@ public class CdapIO {
     /** Sets a CDAP Plugin class. */
     public Write<K, V> withCdapPluginClass(Class<?> cdapPluginClass) {
       checkArgument(cdapPluginClass != null, "Cdap plugin class can not be null");
-      Plugin plugin = getPluginByClass(cdapPluginClass);
+      Plugin<K, V> plugin = getPluginByClass(cdapPluginClass);
       return toBuilder().setCdapPlugin(plugin).build();
     }
 
@@ -390,7 +394,7 @@ public class CdapIO {
 
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
-      Plugin cdapPlugin = getCdapPlugin();
+      Plugin<K, V> cdapPlugin = getCdapPlugin();
       checkStateNotNull(cdapPlugin, "withCdapPluginClass() is required");
 
       PluginConfig pluginConfig = getPluginConfig();

@@ -38,7 +38,6 @@ import java.util.Map;
 import org.apache.beam.examples.complete.cdap.utils.GetOffsetUtils;
 import org.apache.beam.sdk.io.cdap.CdapIO;
 import org.apache.beam.sdk.io.cdap.ConfigWrapper;
-import org.apache.beam.sdk.io.cdap.MappingUtils;
 import org.apache.beam.sdk.io.cdap.Plugin;
 import org.apache.hadoop.io.NullWritable;
 
@@ -102,13 +101,12 @@ public class FormatInputTransform {
             .build();
     checkStateNotNull(pluginConfig, "Plugin config can't be null.");
 
-    MappingUtils.registerStreamingPlugin(
-        HubspotStreamingSource.class,
-        GetOffsetUtils.getOffsetFnForHubspot(),
-        HubspotReceiver.class);
-
     return CdapIO.<NullWritable, String>read()
-        .withCdapPlugin(Plugin.createStreaming(HubspotStreamingSource.class))
+        .withCdapPlugin(
+            Plugin.createStreaming(
+                HubspotStreamingSource.class,
+                GetOffsetUtils.getOffsetFnForHubspot(),
+                HubspotReceiver.class))
         .withPluginConfig(pluginConfig)
         .withKeyClass(NullWritable.class)
         .withValueClass(String.class);

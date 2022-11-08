@@ -97,7 +97,7 @@ public class CdapIOTest {
             .withKeyClass(String.class)
             .withValueClass(String.class);
 
-    Plugin cdapPlugin = read.getCdapPlugin();
+    Plugin<String, String> cdapPlugin = read.getCdapPlugin();
     assertNotNull(cdapPlugin);
     assertEquals(EmployeeBatchSource.class, cdapPlugin.getPluginClass());
     assertEquals(EmployeeInputFormat.class, cdapPlugin.getFormatClass());
@@ -183,12 +183,15 @@ public class CdapIOTest {
 
     EmployeeConfig pluginConfig =
         new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();
-    MappingUtils.registerStreamingPlugin(
-        EmployeeStreamingSource.class, Long::valueOf, EmployeeReceiver.class);
 
     CdapIO.Read<String, String> read =
         CdapIO.<String, String>read()
-            .withCdapPlugin(Plugin.createStreaming(EmployeeStreamingSource.class))
+            .withCdapPlugin(
+                Plugin.createStreaming(
+                    EmployeeStreamingSource.class,
+                    Long::valueOf,
+                    EmployeeReceiver.class,
+                    config -> new Object[] {config}))
             .withPluginConfig(pluginConfig)
             .withKeyClass(String.class)
             .withValueClass(String.class);
@@ -221,7 +224,7 @@ public class CdapIOTest {
             .withValueClass(String.class)
             .withLocksDirPath(tmpFolder.getRoot().getAbsolutePath());
 
-    Plugin cdapPlugin = write.getCdapPlugin();
+    Plugin<String, String> cdapPlugin = write.getCdapPlugin();
     assertNotNull(cdapPlugin);
     assertNotNull(write.getLocksDirPath());
     assertEquals(EmployeeBatchSink.class, cdapPlugin.getPluginClass());
