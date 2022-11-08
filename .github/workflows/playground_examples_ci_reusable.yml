@@ -149,6 +149,7 @@ jobs:
           BEAM_EXAMPLE_CATEGORIES: "../categories.yaml"
           SERVER_ADDRESS: localhost:8080
           BEAM_CONCURRENCY: 4
+          DATASET_BUCKET_NAME: apache-beam-samples
 
       - name: Get SDK runner logs
         if: ${{ always() }}
