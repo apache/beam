@@ -29,6 +29,7 @@ resource "google_cloudbuild_trigger" "builder" {
   }
   // Disabled because we only want to run it manually
   disabled = true
+
   service_account = var.cloudbuild_sa_id
   filename = "cloudbuild/configs/playground-infrastructure/cloudbuild.yaml"
 
