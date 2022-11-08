@@ -151,7 +151,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>{@link Plugin} is the Wrapper class for the Cdap Plugin. It contains main information about
  * the Plugin. The object of the {@link Plugin} class can be created with the {@link
  * Plugin#createStreaming(Class, SerializableFunction, Class)} method. Method requires {@link
- * io.cdap.cdap.etl.api.streaming.StreamingSource} class parameter.
+ * io.cdap.cdap.etl.api.streaming.StreamingSource} class, {@code getOffsetFn} which is a {@link
+ * SerializableFunction} that defines how to get {@code Long offset} from {@code V record}, Spark
+ * {@link Receiver} class parameters.
  *
  * <p>Every Cdap Plugin has its {@link PluginConfig} class with necessary fields to configure the
  * Plugin. You can set the {@link Map} of your parameters with the {@link
@@ -169,7 +171,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * // Read using CDAP streaming plugin
  * p.apply("ReadStreaming",
  * CdapIO.<String, String>read()
- *             .withCdapPlugin(Plugin.createStreaming(EmployeeStreamingSource.class))
+ *             .withCdapPlugin(
+ *                Plugin.createStreaming(
+ *                     EmployeeStreamingSource.class,
+ *                     Long::valueOf,
+ *                     EmployeeReceiver.class))
  *             .withPluginConfig(pluginConfig)
  *             .withKeyClass(String.class)
  *             .withValueClass(String.class));

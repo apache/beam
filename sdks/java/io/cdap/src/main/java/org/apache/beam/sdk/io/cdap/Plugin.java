@@ -73,6 +73,7 @@ public abstract class Plugin<K, V> {
   /** Gets InputFormatProvider or OutputFormatProvider class for a plugin. */
   public @Nullable abstract Class<?> getFormatProviderClass();
 
+  /** Gets Spark {@link Receiver} class for a CDAP plugin. */
   public @Nullable abstract Class<? extends Receiver<V>> getReceiverClass();
 
   /**
@@ -81,6 +82,10 @@ public abstract class Plugin<K, V> {
    */
   public @Nullable abstract SerializableFunction<V, Long> getGetOffsetFn();
 
+  /**
+   * Gets a {@link SerializableFunction} that defines how to get constructor arguments for {@link
+   * Receiver} using {@link PluginConfig}.
+   */
   public @Nullable abstract SerializableFunction<PluginConfig, Object[]>
       getGetReceiverArgsFromConfigFn();
 
@@ -202,6 +207,7 @@ public abstract class Plugin<K, V> {
     }
   }
 
+  /** Initializes {@link BatchContextImpl} for CDAP plugin. */
   public static BatchContextImpl initContext(Class<?> cdapPluginClass) {
     // Init context and determine input or output
     Class<?> contextClass;
@@ -261,7 +267,13 @@ public abstract class Plugin<K, V> {
         .withConstructorArgs(getReceiverArgsFromConfigFn.apply(pluginConfig));
   }
 
-  /** Creates a batch plugin instance. */
+  /**
+   * Creates a batch plugin instance.
+   *
+   * @param newPluginClass class of the CDAP plugin {@link io.cdap.cdap.api.annotation.Plugin}.
+   * @param newFormatClass Hadoop Input or Output format class.
+   * @param newFormatProviderClass Hadoop Input or Output format provider class.
+   */
   public static <K, V> Plugin<K, V> createBatch(
       Class<?> newPluginClass, Class<?> newFormatClass, Class<?> newFormatProviderClass) {
     return Plugin.<K, V>builder()
@@ -273,7 +285,16 @@ public abstract class Plugin<K, V> {
         .build();
   }
 
-  /** Creates a streaming plugin instance. */
+  /**
+   * Creates a streaming plugin instance.
+   *
+   * @param newPluginClass class of the CDAP plugin {@link io.cdap.cdap.api.plugin.Plugin}.
+   * @param getOffsetFn {@link SerializableFunction} that defines how to get record offset for CDAP
+   *     {@link io.cdap.cdap.api.annotation.Plugin} class.
+   * @param receiverClass Spark {@link Receiver} class for a CDAP plugin.
+   * @param getReceiverArgsFromConfigFn {@link SerializableFunction} that defines how to get
+   *     constructor arguments for {@link Receiver} using {@link PluginConfig}.
+   */
   public static <K, V> Plugin<K, V> createStreaming(
       Class<?> newPluginClass,
       SerializableFunction<V, Long> getOffsetFn,
@@ -292,6 +313,11 @@ public abstract class Plugin<K, V> {
   /**
    * Creates a streaming plugin instance with default function for getting args for {@link
    * Receiver}.
+   *
+   * @param newPluginClass class of the CDAP plugin {@link io.cdap.cdap.api.plugin.Plugin}.
+   * @param getOffsetFn {@link SerializableFunction} that defines how to get record offset for CDAP
+   *     {@link io.cdap.cdap.api.annotation.Plugin} class.
+   * @param receiverClass Spark {@link Receiver} class for a CDAP plugin.
    */
   public static <K, V> Plugin<K, V> createStreaming(
       Class<?> newPluginClass,
