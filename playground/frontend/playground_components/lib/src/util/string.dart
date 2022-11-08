@@ -16,21 +16,8 @@
  * limitations under the License.
  */
 
-import '../api/v1/api.pbgrpc.dart' as g;
-import '../enums/complexity.dart';
-
-extension GrpcComplecity on g.Complexity {
-  Complexity? get model {
-    switch (this) {
-      case g.Complexity.COMPLEXITY_BASIC:
-        return Complexity.basic;
-      case g.Complexity.COMPLEXITY_MEDIUM:
-        return Complexity.medium;
-      case g.Complexity.COMPLEXITY_ADVANCED:
-        return Complexity.advanced;
-      case g.Complexity.COMPLEXITY_UNSPECIFIED:
-        return null;
-    }
-    throw Exception('Unknown complexity: $this');
+extension StringExtension on String {
+  List<String> splitNotEmpty(Pattern pattern) {
+    return split(pattern).where((s) => s.isNotEmpty).toList(growable: false);
   }
 }

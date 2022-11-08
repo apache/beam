@@ -19,7 +19,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 
-import '../enums/complexity.dart';
 import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
@@ -29,22 +28,39 @@ class SnippetEditingController extends ChangeNotifier {
   final Sdk sdk;
   final CodeController codeController;
   Example? _selectedExample;
-  String _pipelineOptions;
+  String _pipelineOptions = '';
 
   SnippetEditingController({
     required this.sdk,
-    Example? selectedExample,
-    String pipelineOptions = '',
-  })  : codeController = CodeController(
+  }) : codeController = CodeController(
           language: sdk.highlightMode,
+          namedSectionParser: const BracketsStartEndNamedSectionParser(),
           webSpaceFix: false,
-        ),
-        _selectedExample = selectedExample,
-        _pipelineOptions = pipelineOptions;
+        );
 
   set selectedExample(Example? value) {
     _selectedExample = value;
     setSource(_selectedExample?.source ?? '');
+
+    codeController.readOnlySectionNames =
+        value?.viewOptions.readOnlySectionNames.toSet() ?? const {};
+
+    codeController.visibleSectionNames =
+        value?.viewOptions.showSectionNames.toSet() ?? const {};
+
+    if (value?.viewOptions.foldCommentAtLineZero ?? false) {
+      codeController.foldCommentAtLineZero();
+    }
+
+    if (value?.viewOptions.foldImports ?? false) {
+      codeController.foldImports();
+    }
+
+    final unfolded = value?.viewOptions.unfoldSectionNames ?? const [];
+    if (unfolded.isNotEmpty) {
+      codeController.foldOutsideSections(unfolded);
+    }
+
     _pipelineOptions = _selectedExample?.pipelineOptions ?? '';
     notifyListeners();
   }
@@ -82,15 +98,18 @@ class SnippetEditingController extends ChangeNotifier {
     //  user-shared examples, and an empty editor,
     //  https://github.com/apache/beam/issues/23252
     return ContentExampleLoadingDescriptor(
+      complexity: _selectedExample?.complexity,
       content: codeController.fullText,
       name: _selectedExample?.name,
-      complexity: _selectedExample?.complexity ?? Complexity.unspecified,
       sdk: sdk,
     );
   }
 
   void setSource(String source) {
-    codeController.text = source;
+    codeController.readOnlySectionNames = const {};
+    codeController.visibleSectionNames = const {};
+
+    codeController.fullText = source;
     codeController.historyController.deleteHistory();
   }
 }
