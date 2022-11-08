@@ -49,7 +49,6 @@ from helper import (
     ValidationException,
     validate_example_fields,
 )
-from storage_client import StorageClient
 
 
 def test_check_for_nested():
