@@ -38,7 +38,7 @@ from signal_processing_algorithms.energy_statistics.energy_statistics import e_d
 
 BQ_PROJECT_NAME = 'apache-beam-testing'
 BQ_DATASET = 'beam_perf_storage'
-OWNER = 'AnandInguva'
+OWNER = 'apache'
 REPO = 'beam'
 
 ID_LABEL = 'test_id'
@@ -279,8 +279,6 @@ class RunChangePointAnalysis:
       # alert is created via comment on open issue or as a new issue.
       if create_alert:
         gh_issue = GitHubIssues()
-        # create on the issue or if the latest issue is already open
-        # comment on the issue.
         issue_number, issue_url = gh_issue.create_or_update_issue(
           title=TITLE_TEMPLATE.format(test_name, metric_name),
           description=gh_issue.issue_description(
