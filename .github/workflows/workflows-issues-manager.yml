@@ -19,20 +19,13 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 */12 * * *'
-  push:
-    branches: ['feat/issues-workflow']
 
 jobs:
   workflows_validation:
     name: Workflows Issues Manager
-    permissions:
-      contents: write
-      pull-requests: write
-      checks: read
-      issues: read
-      statuses: read
+    permissions: write-all
     # Don't run on forks
-#    if: github.repository == 'apache/beam'
+    if: github.repository == 'apache/beam'
     runs-on: [self-hosted, ubuntu-20.04]
     steps:
       - name: Checkout code
@@ -49,37 +42,43 @@ jobs:
             const { getRepoWorkflows } = require('./scripts/ci/workflows-issues-manager/workflows.js');
             const workflows = await getRepoWorkflows({github, context});
             
-            const output = workflows.map(({id, name}) => `${id} | ${name}`);
-            console.log('REPO WORKFLOW');
-            console.log(output);
+            console.log('REPO WORKFLOWS');
+            console.table(workflows, ['id', 'name']);
              
             return workflows;
 
-      - name: Identify flaky workflows and create issues
+      - name: Identify unstable workflows and create issues
         uses: actions/github-script@v6
         with:
           script: |
-            const { splitWorkflows, createIssuesForWorkflows, closeIssuesForWorkflows } = require('./scripts/ci/workflow-issues-manager/index.js');
+            const { splitWorkflows, createIssuesForWorkflows, closeIssuesForWorkflows } = require('./scripts/ci/workflows-issues-manager/index.js');
             
             const workflows = ${{ steps.workflows-result.outputs.result }};
+
+            console.log('WORKFLOWS RUNS');
+            console.log('-'.repeat(150));
             const { unstable, stable, permared } = await splitWorkflows({github, context}, workflows);
+
+
+            console.log('\n\n', 'SPLITTED WORKFLOWS');
+            console.log('-'.repeat(150));
+
+            console.log('\n', 'UNSTABLE WORKFLOWS');
+            console.table(unstable.map(({workflow}) => workflow), ['id', 'name']);
+            console.log('\n', 'STABLE WORKFLOWS');
+            console.table(stable.map(({workflow}) => workflow), ['id', 'name']);
+            console.log('\n', 'PERMARED WORKFLOWS');
+            console.table(permared.map(({workflow}) => workflow), ['id', 'name']);
             
-            const outputUnstable = unstable.map(({workflow}) => `${workflow.id} | ${workflow.name}`);
-            console.log('UNSTABLE WORKFLOWS');
-            console.log(outputUnstable);
-            
-            const outputStable = stable.map(({workflow}) => `${workflow.id} | ${workflow.name}`);
-            console.log('STABLE WORKFLOWS');
-            console.log(outputStable);
-            
-            const outputPermared = permared.map(({workflow}) => `${workflow.id} | ${workflow.name}`);
-            console.log('PERMARED WORKFLOWS');
-            console.log(outputPermared);
-            
+            console.log('\n\n', 'CREATED/CLOSED ISSUES');
+            console.log('-'.repeat(150));
             const resultUnstable = await createIssuesForWorkflows({github, context}, unstable);
             const resultPermared = await createIssuesForWorkflows({github, context}, permared);
             const resultStable = await closeIssuesForWorkflows({github, context}, stable);
             
-            console.log('UNSTABLE RESULT', resultUnstable); 
-            console.log('PERMARED RESULT', resultPermared);
-            console.log('STABLE RESULT', resultStable);
+            console.log('\n', 'UNSTABLE RESULT');
+            console.table(resultUnstable, ['id', 'name', 'issue_status', 'issue_url']);
+            console.log('\n', 'PERMARED RESULT');
+            console.table(resultPermared, ['id', 'name', 'issue_status', 'issue_url']);
+            console.log('\n', 'STABLE RESULT');
+            console.table(resultStable, ['id', 'name', 'issue_status', 'issue_url']);

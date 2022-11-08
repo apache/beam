@@ -1,7 +1,24 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 const { ISSUES_MANAGER_TAG } = require("./constants.js");
 const { getRepoWorkflows, getRunsForWorkflow } = require("./workflows.js");
-const { getRepoIssues, closeIssue, createIssue} = require("./issues");
-
+const { getRepoIssues, closeIssue, createIssue } = require("./issues");
 
 const checkConclusions = (conclusions) => {
   return ({ conclusion }) => {
@@ -9,8 +26,8 @@ const checkConclusions = (conclusions) => {
   };
 };
 
-const filterRuns = (runs, conclusions) => {
-  return runs.filter((run) => conclusions.includes(run.conclusion));
+const filterRuns = (runs, conclusions, events) => {
+  return runs.filter(({conclusion, event}) => conclusions.includes(conclusion) && events.includes(event));
 };
 
 const splitWorkflows = async ({ github, context }, workflows) => {
@@ -19,15 +36,14 @@ const splitWorkflows = async ({ github, context }, workflows) => {
   let stable = [];
   let permared = [];
 
-  //TODO: make it parallel
   for (const workflow of workflows) {
+    //Gets runs for an specific workflow on master, triggered by push and schedule events, with the
+    //given conclusions (skipped, canceled, etc., are omitted)
     const { workflow_runs } = await getRunsForWorkflow({ github, context }, workflow);
-    let filteredRuns = filterRuns(workflow_runs, ["success", "failure", "timed_out"]);
+    let filteredRuns = filterRuns(workflow_runs, ["success", "failure", "timed_out"], ["push", 'schedule']);
 
-    const output = filteredRuns.map(
-      ({ id, name, conclusion, event, head_branch }) => `${id} | ${name} | ${conclusion} | ${event} |${head_branch}`
-    );
-    console.log("FILTERED WORKFLOW RUNS", output);
+    console.log("\n", workflow.name);
+    console.table(filteredRuns, ["id", "conclusion", "event", "head_branch"]);
 
     lastKRuns.push({
       workflow,
@@ -73,23 +89,22 @@ const createIssuesForWorkflows = async ({ github, context }, workflows) => {
   let results = [];
 
   issues = await getRepoIssues({ github, context });
-  issues = filterIssuesByTag(issues, ISSUE_MANAGER_TAG); //Discards issues that are PRs and not created by the workflow issues manager
+  issues = filterIssuesByTag(issues, ISSUES_MANAGER_TAG); //Discards issues that are PRs and not created by the workflow issues manager
 
   const issuesByWorkflowId = getIssuesByWorkflowId(issues);
 
   for (const { workflow } of workflows) {
-    let status = undefined;
-    let issue_url = undefined;
+    let issue_status, issue_url;
 
     if (workflow.id in issuesByWorkflowId) {
       issue_url = issuesByWorkflowId[workflow.id].html_url;
-      status = `EXISTENT -> ${issue_url}`;
+      issue_status = "EXISTENT";
     } else {
       issue_url = await createIssue({ github, context }, workflow);
-      status = `CREATED -> ${issue_url}`;
+      issue_status = "CREATED";
     }
 
-    results.push({ workflow, status });
+    results.push({ ...workflow, issue_status, issue_url });
   }
 
   return results;
@@ -105,18 +120,17 @@ const closeIssuesForWorkflows = async ({ github, context }, workflows) => {
   const issuesByWorkflowId = getIssuesByWorkflowId(issues);
 
   for (const { workflow } of workflows) {
-    let status = undefined;
-    let issue_url = undefined;
+    let issue_status, issue_url;
 
     if (workflow.id in issuesByWorkflowId) {
       let issue = issuesByWorkflowId[workflow.id];
       issue_url = await closeIssue({ github, context }, issue);
-      status = `CLOSED ISSUE -> ${issue_url}`;
+      issue_status = "CLOSED";
     } else {
-      status = "NO ACTION";
+      issue_status = "SKIPPED";
     }
 
-    results.push({ workflow, status });
+    results.push({ ...workflow, issue_status, issue_url });
   }
 
   return results;
