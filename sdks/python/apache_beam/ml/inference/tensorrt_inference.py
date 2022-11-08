@@ -166,40 +166,42 @@ class TensorRTEngine:
 
 
 TensorRTInferenceFn = Callable[
-    [Sequence[np.ndarray], TensorRTEngine, Optional[Dict[str, Any]]], Iterable[PredictionResult]]
+    [Sequence[np.ndarray], TensorRTEngine, Optional[Dict[str, Any]]],
+    Iterable[PredictionResult]]
+
 
 def _default_tensorRT_inference_fn(
-      batch: Sequence[np.ndarray],
-      engine: TensorRTEngine,
-      inference_args: Optional[Dict[str, Any]] = None
-  ) -> Iterable[PredictionResult]:
+    batch: Sequence[np.ndarray],
+    engine: TensorRTEngine,
+    inference_args: Optional[Dict[str,
+                                  Any]] = None) -> Iterable[PredictionResult]:
   from cuda import cuda
   (
-    engine,
-    context,
-    context_lock,
-    inputs,
-    outputs,
-    gpu_allocations,
-    cpu_allocations,
-    stream) = engine.get_engine_attrs()
+      engine,
+      context,
+      context_lock,
+      inputs,
+      outputs,
+      gpu_allocations,
+      cpu_allocations,
+      stream) = engine.get_engine_attrs()
 
   # Process I/O and execute the network
   with context_lock:
     _assign_or_fail(
         cuda.cuMemcpyHtoDAsync(
-          inputs[0]['allocation'],
-              np.ascontiguousarray(batch),
-              inputs[0]['size'],
-              stream))
+            inputs[0]['allocation'],
+            np.ascontiguousarray(batch),
+            inputs[0]['size'],
+            stream))
     context.execute_async_v2(gpu_allocations, stream)
     for output in range(len(cpu_allocations)):
-        _assign_or_fail(
-            cuda.cuMemcpyDtoHAsync(
-                cpu_allocations[output],
-                outputs[output]['allocation'],
-                outputs[output]['size'],
-                stream))
+      _assign_or_fail(
+          cuda.cuMemcpyDtoHAsync(
+              cpu_allocations[output],
+              outputs[output]['allocation'],
+              outputs[output]['size'],
+              stream))
     _assign_or_fail(cuda.cuStreamSynchronize(stream))
 
     return [
@@ -208,16 +210,17 @@ def _default_tensorRT_inference_fn(
         x in enumerate(batch)
     ]
 
+
 @experimental(extra_message="No backwards-compatibility guarantees.")
 class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
                                               PredictionResult,
                                               TensorRTEngine]):
   def __init__(
-      self, 
-      min_batch_size: int, 
-      max_batch_size: int, 
-      *, 
-      inference_fn: TensorRTInferenceFn = _default_tensorRT_inference_fn, 
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      *,
+      inference_fn: TensorRTInferenceFn = _default_tensorRT_inference_fn,
       **kwargs):
     """Implementation of the ModelHandler interface for TensorRT.
 
