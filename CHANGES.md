@@ -62,6 +62,8 @@
 
 ## New Features / Improvements
 
+* Beam now provides a portable "runner" that can render pipeline graphs with
+  graphviz.  See `python -m apache_beam.runners.render --help` for more details.
 * Local packages can now be used as dependencies in the requirements.txt file, rather
   than requiring them to be passed separately via the `--extra_package` option.
   ([#23684](https://github.com/apache/beam/pull/23684))
