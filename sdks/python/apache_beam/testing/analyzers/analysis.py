@@ -49,7 +49,9 @@ TEST_NAME = 'test_name'
 METRIC_NAME = 'metric_name'
 ISSUE_NUMBER = 'issue_number'
 ISSUE_URL = 'issue_url'
-MAX_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION = 25
+# number of results to display on the issue description
+# from change point index in both directions
+NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION = 10
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,12 +87,10 @@ TITLE_TEMPLATE = """
 """
 # TODO: Add mean value before and mean value after.
 _METRIC_DESCRIPTION = """
-  Affected metric: {}
+  Affected metric: `{}`
 """
-_METRIC_INFO = """
-  timestamp: {} metric_name: {}, metric_value: {}
-"""
-GH_ISSUE_LABELS = ['testing', 'P2']
+_METRIC_INFO = "timestamp: {}, metric_value: `{}`"
+GH_ISSUE_LABELS = ['perf-alerts']
 
 
 class Metric:
@@ -247,6 +247,8 @@ class RunChangePointAnalysis:
       change_points_idx = change_point_analyzer.edivisive_means()
 
       if not change_points_idx:
+        logging.info(
+            'No Performance regression found for the test: %s' % test_name)
         return
 
       # always consider the latest change points
@@ -257,6 +259,11 @@ class RunChangePointAnalysis:
       if not self.is_changepoint_in_valid_window(change_point_index):
         # change point lies outside the window from the recent run.
         # Ignore this changepoint.
+        logging.info(
+            'Performance regression found for the test: %s. '
+            'Not creating an alert since the Change Point'
+            'lies outside the '
+            'changepoint_to_recent_run_window distance' % test_name)
         return
 
       create_alert, previous_issue_number = self.has_sibling_change_point(
@@ -272,11 +279,6 @@ class RunChangePointAnalysis:
       # alert is created via comment on open issue or as a new issue.
       if create_alert:
         gh_issue = GitHubIssues()
-        bq_metrics_publisher = BigQueryMetricsPublisher(
-            project_name=BQ_PROJECT_NAME,
-            dataset=BQ_DATASET,
-            table=test_name,
-            bq_schema=SCHEMA)
         # create on the issue or if the latest issue is already open
         # comment on the issue.
         issue_number, issue_url = gh_issue.create_or_update_issue(
@@ -287,9 +289,13 @@ class RunChangePointAnalysis:
               metric_values=metric_values,
               change_point_index=change_point_index,
               max_results_to_display=
-              MAX_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION),
+              NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION),
           labels=GH_ISSUE_LABELS,
           issue_number=previous_issue_number)
+
+        logging.info(
+            'Performance regression is alerted on issue #%s. Link to '
+            'the issue: %s' % (issue_number, issue_url))
 
         metric_dict = Metric(
             issue_creation_timestamp=time.time(),
@@ -300,7 +306,19 @@ class RunChangePointAnalysis:
             issue_number=issue_number,
             issue_url=issue_url,
             change_point_timestamp=timestamps[change_point_index])
+
+        bq_metrics_publisher = BigQueryMetricsPublisher(
+            project_name=BQ_PROJECT_NAME,
+            dataset=BQ_DATASET,
+            table=test_name,
+            bq_schema=SCHEMA)
+        # Add a small delay once the table is created
+        # https://github.com/googleapis/google-cloud-go/issues/975
+        time.sleep(30)
         bq_metrics_publisher.publish([metric_dict.as_dict()])
+        logging.info(
+            'GitHub metadata is published to Big Query Dataset %s'
+            ', table %s' % (BQ_DATASET, test_name))
 
     elif config['source'] == 'influxDB':
       raise NotImplementedError
@@ -394,16 +412,24 @@ class GitHubIssues:
       timestamps: List,
       metric_values: List,
       change_point_index: int,
-      max_results_to_display: int = 25):
+      max_results_to_display: int = 5):
     # TODO: Add mean and median before and after the changepoint index.
+    indices_to_display = []
+    upper_bound = min(
+        change_point_index + max_results_to_display, len(metric_values))
+    for i in range(change_point_index, upper_bound):
+      indices_to_display.append(i)
+    lower_bound = max(0, change_point_index - max_results_to_display)
+    for i in range(lower_bound, change_point_index):
+      indices_to_display.append(i)
+    indices_to_display.sort()
     description = _METRIC_DESCRIPTION.format(metric_name) + 2 * '\n'
-    for i in range(min(len(metric_values), max_results_to_display)):
+    for i in indices_to_display:
       description += _METRIC_INFO.format(
-          timestamps[i], metric_name, metric_values[i])
+          timestamps[i].ctime(), metric_values[i])
       if i == change_point_index:
         description += ' <---- Anomaly'
       description += '\n'
-
     return description
 
 

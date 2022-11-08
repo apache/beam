@@ -34,10 +34,14 @@ def FakeData(query_template):
   metric_name = 'fake_metric_name'
   change_point = 0
   test_name = 'fake_test'
+  change_point_timestamp = 'timestamp'
   df = pd.DataFrame([{
       analysis.CHANGE_POINT_LABEL: change_point,
       analysis.TEST_NAME: test_name,
       analysis.METRIC_NAME: metric_name,
+      analysis.CHANGEPOINT_TIMESTAMP_LABEL: change_point_timestamp,
+      analysis.ISSUE_NUMBER: '1',
+      analysis.ISSUE_URL: 'Fake URL'
   }])
   return df
 
@@ -103,12 +107,13 @@ class TestChangePointAnalysis(unittest.TestCase):
           change_point_index=change_point_index,
           metric_values=self.single_change_point_series,
           metric_name=metric_name,
-          test_name=test_name)
+          test_name=test_name,
+          change_point_timestamp=None)
 
       if change_point_sibling_distance == 6:
         # 0 is the last change point
         # when distance == 6, the window size increase and the window
         # includes 0, therefore returns alert_new_issue False.
-        self.assertEqual(alert_new_issue, False)
+        self.assertEqual(alert_new_issue[0], False)
       else:
-        self.assertEqual(alert_new_issue, True)
+        self.assertEqual(alert_new_issue[0], True)
