@@ -60,7 +60,7 @@ Embedding example:
     {{ $editable := 1 }}{{ if isset .Params "editable" }}{{ $editable = index .Params "editable" }}{{ end }}
     <div class="code-snippet code-snippet-playground">
         <iframe
-            src="http://localhost:40000/embedded?editable={{ $editable }}&examples={{ $snippets }}"
+            src="https://play.beam.apache.org/embedded?editable={{ $editable }}&examples={{ $snippets }}"
             width="100%"
             height="{{ .Get "height" }}"
             class="playground"

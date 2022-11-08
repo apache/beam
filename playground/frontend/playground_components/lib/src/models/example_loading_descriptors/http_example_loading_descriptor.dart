@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 
-import '../../../playground_components.dart';
+import '../sdk.dart';
+import 'example_loading_descriptor.dart';
 
 class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   final Sdk sdk;
