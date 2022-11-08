@@ -18,7 +18,10 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
 import com.google.cloud.Timestamp;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Optional;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
@@ -30,7 +33,6 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +44,11 @@ import org.slf4j.LoggerFactory;
  */
 public class DataChangeRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(DataChangeRecordAction.class);
+  private final AvroCoder<DataChangeRecord> coder;
+
+  public DataChangeRecordAction() {
+    coder = AvroCoder.of(DataChangeRecord.class);
+  }
 
   /**
    * This is the main processing function for a {@link DataChangeRecord}. It returns an {@link
@@ -94,12 +101,19 @@ public class DataChangeRecordAction {
     outputReceiver.outputWithTimestamp(record, commitInstant);
     watermarkEstimator.setWatermark(commitInstant);
 
-    // The size of a record is represented by the number of bytes needed for the
-    // string representation of the record. Here, we only try to achieve an estimate
-    // instead of an accurate throughput.
-    throughputEstimator.update(Timestamp.now(), Utf8.encodedLength(record.toString()));
+    throughputEstimator.update(Timestamp.now(), getBytes(record));
 
     LOG.debug("[" + token + "] Data record action completed successfully");
     return Optional.empty();
+  }
+
+  private long getBytes(DataChangeRecord record) {
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+      coder.encode(record, baos);
+
+      return baos.size();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

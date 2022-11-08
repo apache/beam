@@ -26,9 +26,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
+import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ModType;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ValueCaptureType;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -63,8 +66,23 @@ public class DataChangeRecordActionTest {
     final String partitionToken = "partitionToken";
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
     final Instant instant = new Instant(timestamp.toSqlTimestamp().getTime());
-    final DataChangeRecord record = mock(DataChangeRecord.class);
-    when(record.getCommitTimestamp()).thenReturn(timestamp);
+    final DataChangeRecord record =
+        new DataChangeRecord(
+            partitionToken,
+            timestamp,
+            "transactionId",
+            false,
+            "recordSequence",
+            "tableName",
+            Collections.emptyList(),
+            Collections.emptyList(),
+            ModType.INSERT,
+            ValueCaptureType.OLD_AND_NEW_VALUES,
+            10,
+            1,
+            "tag",
+            false,
+            null);
     when(tracker.tryClaim(timestamp)).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
