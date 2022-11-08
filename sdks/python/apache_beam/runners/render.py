@@ -38,6 +38,9 @@ get written to the given output (overwriting any previously existing file).
 If `--render_port` is set to a non-negative value, a local http server will
 be started which allows for interactive exploration of the pipeline graph.
 
+As an alternative to starting a job server, a single pipeline can be rendered
+by passing a pipeline proto file to `--pipeline_proto`.
+
 Requires the that graphviz dot executable be available in the path.
 """
 
@@ -56,7 +59,11 @@ import threading
 import time
 import urllib.parse
 
+from google.protobuf import json_format
+from google.protobuf import text_format
+
 from apache_beam.options import pipeline_options
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.portability import local_job_service
 from apache_beam.runners.portability import local_job_service_main
@@ -438,9 +445,47 @@ def run(argv):
       type=int,
       default=0,
       help='port on which to serve the job api')
+  parser.add_argument(
+      '--pipeline_proto', help='file containing the beam pipeline definition')
   RenderOptions._add_argparse_args(parser)
   options = parser.parse_args(argv)
 
+  if options.pipeline_proto:
+    render_one(options)
+  else:
+    run_server(options)
+
+
+def render_one(options):
+  if options.pipeline_proto == '-':
+    content = sys.stdin.buffer.read()
+    if content[0] == b'{':
+      ext = '.json'
+    else:
+      try:
+        content.decode('utf-8')
+        ext = '.textproto'
+      except UnicodeDecodeError:
+        ext = '.pb'
+  else:
+    with open(options.pipeline_proto, 'rb') as fin:
+      content = fin.read()
+    ext = os.path.splitext(options.pipeline_proto)[-1]
+
+  if ext == '.textproto':
+    pipeline_proto = text_format.Parse(content, beam_runner_api_pb2.Pipeline())
+  elif ext == '.json':
+    pipeline_proto = json_format.Parse(content, beam_runner_api_pb2.Pipeline())
+  else:
+    pipeline_proto = beam_runner_api_pb2.Pipeline.ParseFromString(content)
+
+  RenderRunner().run_pipeline(
+      None,
+      pipeline_options.PipelineOptions(**vars(options)),
+      self._pipeline_proto)
+
+
+def run_server(options):
   class RenderBeamJob(local_job_service.BeamJob):
     def _invoke_runner(self):
       return RenderRunner().run_pipeline(
