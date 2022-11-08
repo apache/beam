@@ -74,18 +74,16 @@ const (
 )
 
 func main() {
-	if err := mainError(); err != nil {
-		log.Print(err)
-		os.Exit(1)
+	flag.Parse()
+	if err := launchSDKProcess(); err != nil {
+		log.Fatal(err)
 	}
 }
 
-func mainError() error {
-	flag.Parse()
-
+func launchSDKProcess() error {
 	if *setupOnly {
 		if err := processArtifactsInSetupOnlyMode(); err != nil {
-			return fmt.Errorf("Setup unsuccessful with error: %v", err)
+			log.Fatalf("Setup unsuccessful with error: %v", err)
 		}
 		return nil
 	}
@@ -100,21 +98,21 @@ func mainError() error {
 			"--container_executable=/opt/apache/beam/boot",
 		}
 		log.Printf("Starting worker pool %v: python %v", workerPoolId, strings.Join(args, " "))
-		return fmt.Errorf("Python SDK worker pool exited: %v", execx.Execute("python", args...))
+		log.Fatalf("Python SDK worker pool exited: %v", execx.Execute("python", args...))
 	}
 
 	if *id == "" {
-		return fmt.Errorf("No id provided.")
+		log.Fatalf("No id provided.")
 	}
 	if *provisionEndpoint == "" {
-		return fmt.Errorf("No provision endpoint provided.")
+		log.Fatalf("No provision endpoint provided.")
 	}
 
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
 
 	info, err := provision.Info(ctx, *provisionEndpoint)
 	if err != nil {
-		return fmt.Errorf("Failed to obtain provisioning information: %v", err)
+		log.Fatalf("Failed to obtain provisioning information: %v", err)
 	}
 	log.Printf("Provision info:\n%v", info)
 
@@ -130,13 +128,13 @@ func mainError() error {
 	}
 
 	if *loggingEndpoint == "" {
-		return fmt.Errorf("No logging endpoint provided.")
+		log.Fatalf("No logging endpoint provided.")
 	}
 	if *artifactEndpoint == "" {
-		return fmt.Errorf("No artifact endpoint provided.")
+		log.Fatalf("No artifact endpoint provided.")
 	}
 	if *controlEndpoint == "" {
-		return fmt.Errorf("No control endpoint provided.")
+		log.Fatalf("No control endpoint provided.")
 	}
 
 	log.Printf("Initializing python harness: %v", strings.Join(os.Args, " "))
@@ -145,7 +143,7 @@ func mainError() error {
 
 	options, err := provision.ProtoToJSON(info.GetPipelineOptions())
 	if err != nil {
-		return fmt.Errorf("Failed to convert pipeline options: %v", err)
+		log.Fatalf("Failed to convert pipeline options: %v", err)
 	}
 
 	// (2) Retrieve and install the staged packages.
