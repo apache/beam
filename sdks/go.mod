@@ -54,7 +54,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require cloud.google.com/go/bigtable v1.16.0
+require cloud.google.com/go/bigtable v1.17.0
 
 require (
 	cloud.google.com/go v0.104.0 // indirect
