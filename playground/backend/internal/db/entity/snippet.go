@@ -54,7 +54,7 @@ type SnippetEntity struct {
 
 type DatasetEntity struct {
 	Key  *datastore.Key `datastore:"__key__"`
-	Link string         `datastore:"link"`
+	Path string         `datastore:"path"`
 }
 
 type DatasetNestedEntity struct {

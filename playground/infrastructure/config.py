@@ -119,8 +119,7 @@ class DatastoreProps:
 
 
 @dataclass(frozen=True)
-class StorageProps:
-    DATASET_GCS_ROOT = "datasets"
+class RepoProps:
     DATASET_REP_ROOT = "../backend/datasets"
 
 
