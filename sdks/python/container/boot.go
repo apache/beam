@@ -91,7 +91,11 @@ func main() {
 			"--container_executable=/opt/apache/beam/boot",
 		}
 		log.Printf("Starting worker pool %v: python %v", workerPoolId, strings.Join(args, " "))
-		log.Fatalf("Python SDK worker pool exited: %v", execx.Execute("python", args...))
+		if err := execx.Execute("python", args...); err != nil {
+			log.Fatalf("Python SDK worker pool exited with error: %v", err)
+		}
+		log.Print("Python SDK worker pool exited.")
+		os.Exit(0)
 	}
 
 	if *id == "" {
