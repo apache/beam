@@ -16,7 +16,9 @@
 name: Playground Examples CI
 
 on:
-  push:
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: 'v*'
     paths:
      - .github/workflows/playground_examples_ci_reusable.yml
      - .github/workflows/playground_examples_ci.yml

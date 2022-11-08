@@ -74,3 +74,4 @@ jobs:
           SERVER_ADDRESS: https://backend-${{ env.SDK }}-beta-dot-apache-beam-testing.appspot.com
           BEAM_USE_WEBGRPC: yes
           BEAM_CONCURRENCY: 4
+          DATASET_BUCKET_NAME: apache-beam-samples

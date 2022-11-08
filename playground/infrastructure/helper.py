@@ -16,7 +16,6 @@
 """
 Common helper module for CI/CD Steps
 """
-import ast
 import asyncio
 import logging
 import os
@@ -37,7 +36,6 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
     PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
 from config import Config, TagFields, PrecompiledExampleType, OptionalTagFields, Dataset, Emulator
 from grpc_client import GRPCClient
-from storage_client import StorageClient
 
 Tag = namedtuple(
     "Tag",
@@ -165,7 +163,6 @@ async def get_statuses(client: GRPCClient, examples: List[Example], concurrency:
         pipeline_id values.
     """
     tasks = []
-    storage_client = StorageClient()
     try:
         concurrency = int(os.environ["BEAM_CONCURRENCY"])
         logging.info("override default concurrency: %d", concurrency)
@@ -174,7 +171,7 @@ async def get_statuses(client: GRPCClient, examples: List[Example], concurrency:
 
     async with asyncio.Semaphore(concurrency):
         for example in examples:
-            tasks.append(_update_example_status(example, client, storage_client))
+            tasks.append(_update_example_status(example, client))
         await tqdm.gather(*tasks)
 
 
@@ -308,7 +305,7 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
         link=link)
 
     if tag.tag_as_dict.get(TagFields.datasets):
-        datasets_as_dict = ast.literal_eval(str(tag.tag_as_dict[TagFields.datasets]))
+        datasets_as_dict = tag.tag_as_dict[TagFields.datasets]
         datasets = []
         for key in datasets_as_dict:
             dataset = Dataset.from_dict(datasets_as_dict.get(key))
@@ -317,7 +314,7 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
         example.datasets = datasets
 
     if tag.tag_as_dict.get(TagFields.emulators):
-        emulators_as_dict = ast.literal_eval(str(tag.tag_as_dict[TagFields.emulators]))
+        emulators_as_dict = tag.tag_as_dict[TagFields.emulators]
         emulators = []
         for key in emulators_as_dict:
             emulator = Emulator.from_dict(emulators_as_dict.get(key))
@@ -433,7 +430,7 @@ def _get_name(filename: str) -> str:
     return filename.split(os.extsep)[0]
 
 
-async def _update_example_status(example: Example, client: GRPCClient, storage_client: StorageClient):
+async def _update_example_status(example: Example, client: GRPCClient):
     """
     Receive status for examples and update example.status and pipeline_id
 
@@ -454,14 +451,10 @@ async def _update_example_status(example: Example, client: GRPCClient, storage_c
         options = {
             "topic": emulator_tag.topic.id
         }
-        file_name = f"{dataset_tag.name}.{dataset_tag.format}"
-        path = storage_client.upload_dataset(file_name)
-        dataset_tag.path = path
-        example.datasets[0] = dataset_tag
         dataset = api_pb2.Dataset(
             type=api_pb2.EmulatorType.Value(f"EMULATOR_TYPE_{emulator_tag.name.upper()}"),
             options=options,
-            dataset_path=path
+            dataset_path=dataset_tag.path
         )
         datasets.append(dataset)
 
@@ -548,7 +541,7 @@ def validate_example_fields(example: Example):
             _log_and_rise_validation_err(f"Example has invalid dataset value. Path: {example.filepath}")
         dataset_names.append(dataset.name)
     for emulator in emulators:
-        if emulator.name not in ["kafka"] or not emulator.topic or emulator.topic.dataset not in dataset_names or not emulator.topic.id:
+        if not (emulator.name == "kafka" and emulator.topic.dataset in dataset_names):
             _log_and_rise_validation_err(f"Example has invalid emulator value. Path: {example.filepath}")
 
 
