@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
@@ -177,5 +178,57 @@ public class LogicalTypesTest {
     decimal = BigDecimal.valueOf(100_000_000_001L, scale);
     row = Row.withSchema(schema).addValues(decimal).build();
     assertEquals(decimal, row.getLogicalTypeValue(0, BigDecimal.class));
+  }
+
+  @Test
+  public void testFixedBytes() {
+    FixedBytes fixedBytes = FixedBytes.of(5);
+
+    // check argument valid case, with padding
+    byte[] resultBytes = fixedBytes.toInputType(new byte[] {0x1, 0x2, 0x3});
+    assertArrayEquals(new byte[] {0x1, 0x2, 0x3, 0x0, 0x0}, resultBytes);
+
+    // check argument invalid case
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> fixedBytes.toInputType(new byte[] {0x1, 0x2, 0x3, 0x4, 0x5, 0x6}));
+  }
+
+  @Test
+  public void testVariableBytes() {
+    VariableBytes variableBytes = VariableBytes.of(5);
+
+    // check argument valid case, no padding
+    byte[] resultBytes = variableBytes.toInputType(new byte[] {0x1, 0x2, 0x3});
+    assertArrayEquals(new byte[] {0x1, 0x2, 0x3}, resultBytes);
+
+    // check argument invalid case
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> variableBytes.toInputType(new byte[] {0x1, 0x2, 0x3, 0x4, 0x5, 0x6}));
+  }
+
+  @Test
+  public void testFixedString() {
+    FixedString fixedString = FixedString.of(5);
+
+    // check argument valid case, with padding
+    String resultString = fixedString.toInputType("123");
+    assertEquals("123  ", resultString);
+
+    // check argument invalid case
+    assertThrows(IllegalArgumentException.class, () -> fixedString.toInputType("123456"));
+  }
+
+  @Test
+  public void testVariableString() {
+    VariableString varibaleString = VariableString.of(5);
+
+    // check argument valid case, no padding
+    String resultString = varibaleString.toInputType("123");
+    assertEquals("123", resultString);
+
+    // check argument invalid case
+    assertThrows(IllegalArgumentException.class, () -> varibaleString.toInputType("123456"));
   }
 }

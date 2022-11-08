@@ -33,6 +33,7 @@ import { Runner, PipelineResult } from "./runner";
 import * as worker from "../worker/worker";
 import * as operators from "../worker/operators";
 import { createStateKey } from "../worker/pardo_context";
+import * as metrics from "../worker/metrics";
 import * as state from "../worker/state";
 import { parDo } from "../transforms/pardo";
 import {
@@ -103,8 +104,6 @@ export class DirectRunner extends Runner {
   }
 
   async runPipeline(p): Promise<PipelineResult> {
-    // console.dir(p.proto, { depth: null });
-
     const stateProvider = new InMemoryStateProvider();
     const stateCacheRef = uuid.v4();
     DirectRunner.inMemoryStatesRefs.set(stateCacheRef, stateProvider);
@@ -128,10 +127,18 @@ export class DirectRunner extends Runner {
       );
       await processor.process("bundle_id");
 
-      return {
-        waitUntilFinish: (duration?: number) =>
-          Promise.resolve(JobState_Enum.DONE),
-      };
+      return new (class DirectPipelineResult extends PipelineResult {
+        waitUntilFinish(duration?: number) {
+          return Promise.resolve(JobState_Enum.DONE);
+        }
+        async rawMetrics() {
+          const shortIdCache = new metrics.MetricsShortIdCache();
+          const monitoringData = processor.monitoringData(shortIdCache);
+          return Array.from(monitoringData.entries()).map(([id, payload]) =>
+            shortIdCache.asMonitoringInfo(id, payload)
+          );
+        }
+      })();
     } finally {
       DirectRunner.inMemoryStatesRefs.delete(stateCacheRef);
     }
@@ -143,7 +150,7 @@ class DirectImpulseOperator implements operators.IOperator {
   receiver: operators.Receiver;
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {
@@ -181,7 +188,7 @@ class DirectGbkOperator implements operators.IOperator {
   windowCoder: Coder<Window>;
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {
@@ -394,7 +401,7 @@ class CollectSideOperator implements operators.IOperator {
   elementCoder: Coder<unknown>;
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {
@@ -457,7 +464,7 @@ class BufferOperator implements operators.IOperator {
   elements: WindowedValue<unknown>[];
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {

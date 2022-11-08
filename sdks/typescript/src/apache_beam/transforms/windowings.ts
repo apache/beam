@@ -90,7 +90,6 @@ export function slidingWindows(
       ? `slidingWindows(${sizeSeconds}, ${periodSeconds})`
       : `slidingWindows(${sizeSeconds}, ${periodSeconds}, ${offsetSeconds})`,
     assignWindows: (t: Instant) => {
-      console.log(sizeMillis, periodMillis);
       let start = t.sub(t.sub(offsetMillis).mod(periodMillis));
       const windows: IntervalWindow[] = [];
       while (t.compare(start.add(sizeMillis)) < 0) {

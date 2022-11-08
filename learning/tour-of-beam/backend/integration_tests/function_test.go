@@ -25,9 +25,12 @@ import (
 )
 
 const (
-	PORT_SDK_LIST         = "PORT_SDK_LIST"
-	PORT_GET_CONTENT_TREE = "PORT_GET_CONTENT_TREE"
-	PORT_GET_UNIT_CONTENT = "PORT_GET_UNIT_CONTENT"
+	PORT_SDK_LIST           = "PORT_SDK_LIST"
+	PORT_GET_CONTENT_TREE   = "PORT_GET_CONTENT_TREE"
+	PORT_GET_UNIT_CONTENT   = "PORT_GET_UNIT_CONTENT"
+	PORT_GET_USER_PROGRESS  = "PORT_GET_USER_PROGRESS"
+	PORT_POST_UNIT_COMPLETE = "PORT_POST_UNIT_COMPLETE"
+	PORT_POST_USER_CODE     = "PORT_POST_USER_CODE"
 )
 
 // scenarios:
@@ -36,12 +39,9 @@ const (
 // + Get content tree for non-existing SDK: 404 Not Found
 // + Get unit content for existing SDK, existing unitId
 // + Get unit content for non-existing SDK/unitId: 404 Not Found
-// TODO:
-// - Get content tree for a registered user
-// - Get unit content for a registered user
-// - Save user code/progress for a registered user
-// - (negative) Save user code/progress w/o user token/bad token
-// - (negative) Save user code/progress for non-existing SDK/unitId: 404 Not Found
+// + Save user code/progress for a registered user
+// + (negative) Save user code/progress w/o user token/bad token
+// + (negative) Save user code/progress for non-existing SDK/unitId: 404 Not Found
 
 func loadJson(path string, dst interface{}) error {
 	fh, err := os.Open(path)
@@ -115,22 +115,34 @@ func TestNegative(t *testing.T) {
 	for i, params := range []struct {
 		portEnvName string
 		queryParams map[string]string
+		headers     map[string]string
 		expected    ErrorResponse
 	}{
-		{PORT_GET_CONTENT_TREE, nil,
+		{PORT_GET_CONTENT_TREE, nil, nil,
 			ErrorResponse{
 				Code:    "BAD_FORMAT",
 				Message: "unknown sdk",
 			},
 		},
-		{PORT_GET_CONTENT_TREE, map[string]string{"sdk": "scio"},
+		{PORT_GET_CONTENT_TREE, map[string]string{"sdk": "scio"}, nil,
 			// TODO: actually here should be a NOT_FOUND error
 			ErrorResponse{Code: "INTERNAL_ERROR", Message: "storage error"},
 		},
-		{PORT_GET_UNIT_CONTENT, map[string]string{"sdk": "python", "unitId": "unknown_unitId"},
+		{PORT_GET_UNIT_CONTENT, map[string]string{"sdk": "python", "id": "unknown_unitId"},
+			nil,
 			ErrorResponse{
 				Code:    "NOT_FOUND",
 				Message: "unit not found",
+			},
+		},
+		// bad authorization header we can test w/o Firebase auth emulator
+		// for functional tests see auth_test.go
+		{PORT_GET_USER_PROGRESS,
+			map[string]string{"sdk": "python"},
+			map[string]string{"authorization": "bad_header"},
+			ErrorResponse{
+				Code:    "UNAUTHORIZED",
+				Message: "bad auth header",
 			},
 		},
 	} {
@@ -142,7 +154,7 @@ func TestNegative(t *testing.T) {
 		url := "http://localhost:" + port
 
 		var resp ErrorResponse
-		err := Get(&resp, url, params.queryParams)
+		err := Get(&resp, url, params.queryParams, params.headers)
 		if err != nil {
 			t.Fatal(err)
 		}
