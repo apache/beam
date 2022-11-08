@@ -63,8 +63,9 @@
 ## New Features / Improvements
 
 * Local packages can now be used as dependencies in the requirements.txt file, rather
-  than requiring them to be passed separately via the `--extra_package` option.
-  ([#23684](https://github.com/apache/beam/pull/23684))
+  than requiring them to be passed separately via the `--extra_package` option
+  (Python) ([#23684](https://github.com/apache/beam/pull/23684)).
+* Pipeline Resource Hints now supported via `--resource_hints` flag (Go) [#23990](https://github.com/apache/beam/pull/23990).
 
 ## Breaking Changes
 
