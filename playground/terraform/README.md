@@ -66,7 +66,7 @@ network_name         = "network_name"        #GCP VPC Network Name for Playgroun
 gke_name             = "playground-backend"  #Playground GKE Cluster name
 region               = "us-east1"            #Set the deployment region
 location             = "us-east1-b"          #Select the deployment location from available in the specified region
-state_bucket         = "bucket_name"         #GCS bucket name for Beam Playground temp files, [terraform state file](https://cloud.google.com/docs/terraform/resource-management/store-state)
+state_bucket         = "bucket_name"         #GCS bucket name for Beam Playground temp files
 bucket_examples_name = "bucket_name-example" #GCS bucket name for Playground examples storage
 ```
 * `state.tfbackend` environment variables:
