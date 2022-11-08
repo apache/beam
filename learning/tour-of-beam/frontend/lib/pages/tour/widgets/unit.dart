@@ -38,8 +38,7 @@ class UnitWidget extends StatelessWidget {
     return AnimatedBuilder(
       animation: contentTreeController,
       builder: (context, child) {
-        final bool isSelected =
-            contentTreeController.currentNode?.id == unit.id;
+        final isSelected = contentTreeController.currentNode?.id == unit.id;
 
         return ClickableWidget(
           onTap: () => contentTreeController.openNode(unit),

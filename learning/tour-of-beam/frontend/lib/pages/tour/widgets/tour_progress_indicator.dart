@@ -32,6 +32,8 @@ class TourProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
+
     return Padding(
       padding: const EdgeInsets.only(
         left: BeamSizes.size4,
@@ -40,12 +42,8 @@ class TourProgressIndicator extends StatelessWidget {
       child: SvgPicture.asset(
         assetPath,
         color: isSelected
-            ? Theme.of(context)
-                .extension<BeamThemeExtension>()!
-                .selectedProgressColor
-            : Theme.of(context)
-                .extension<BeamThemeExtension>()!
-                .unselectedProgressColor,
+            ? ext.selectedProgressColor
+            : ext.unselectedProgressColor,
       ),
     );
   }

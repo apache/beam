@@ -47,12 +47,10 @@ class GroupWidget extends StatelessWidget {
             initiallyExpanded: isExpanded,
             tilePadding: EdgeInsets.zero,
             onExpansionChanged: (isExpanding) {
-              /// Since expandedIds is also used for expansion,
-              /// it needs to be updated to prevent the tile from
-              /// remaining collapsed after taps on title.
-              if (!isExpanding) {
-                contentTreeController.markGroupAsCollapsed(group);
-              }
+              contentTreeController.updateExpandedIds(
+                group,
+                isExpanding: isExpanding,
+              );
             },
             title: GroupTitleWidget(
               group: group,

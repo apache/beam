@@ -30,14 +30,17 @@ class ContentTreeController extends ChangeNotifier {
   List<String> _treeIds;
   NodeModel? _currentNode;
   final _contentTreeCache = GetIt.instance.get<ContentTreeCache>();
-  final expandedIds = <String>{};
+  final _expandedIds = <String>{};
+
+  Set<String> get expandedIds => _expandedIds;
 
   ContentTreeController({
     required String initialSdkId,
     List<String> initialTreeIds = const [],
   })  : _sdkId = initialSdkId,
         _treeIds = initialTreeIds {
-    expandedIds.addAll(initialTreeIds);
+    _expandedIds.addAll(initialTreeIds);
+
     _contentTreeCache.addListener(_onContentTreeCacheChange);
     _onContentTreeCacheChange();
   }
@@ -48,8 +51,8 @@ class ContentTreeController extends ChangeNotifier {
   NodeModel? get currentNode => _currentNode;
 
   void openNode(NodeModel node) {
-    if (!expandedIds.contains(node.id)) {
-      expandedIds.add(node.id);
+    if (!_expandedIds.contains(node.id)) {
+      _expandedIds.add(node.id);
     }
 
     if (node == _currentNode) {
@@ -68,8 +71,12 @@ class ContentTreeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void markGroupAsCollapsed(GroupModel group) {
-    expandedIds.remove(group.id);
+  void updateExpandedIds(GroupModel group, {required bool isExpanding}) {
+    if (isExpanding) {
+      _expandedIds.add(group.id);
+    } else {
+      _expandedIds.remove(group.id);
+    }
     notifyListeners();
   }
 
