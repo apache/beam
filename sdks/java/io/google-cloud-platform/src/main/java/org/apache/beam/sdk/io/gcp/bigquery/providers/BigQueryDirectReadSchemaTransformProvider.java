@@ -78,7 +78,7 @@ public class BigQueryDirectReadSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return String.format("bigquery:direct-read");
+    return String.format("beam:transform:org.apache.beam:bigquery_storage_read:v1");
   }
 
   @Override
