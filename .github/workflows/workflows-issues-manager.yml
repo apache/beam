@@ -13,24 +13,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Flaky Workflows Validation
+name: Workflows Issues Manager
 
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 */12 * * *'
   push:
-    branches: ['issues-workflow']
-#  pull_request:
-#    branches: ['master']
-#    types: ['closed']
+    branches: ['feat/issues-workflow']
 
 jobs:
-  issues_validation:
-    name: Flaky Workflows Validation
+  workflows_validation:
+    name: Workflows Issues Manager
     permissions:
-      issues: write
-    if: github.repository == 'apache/beam'
+      contents: write
+      pull-requests: write
+      checks: read
+      issues: read
+      statuses: read
+    # Don't run on forks
+#    if: github.repository == 'apache/beam'
     runs-on: [self-hosted, ubuntu-20.04]
     steps:
       - name: Checkout code
@@ -44,7 +46,7 @@ jobs:
         id: workflows-result
         with:
           script: |
-            const { getRepoWorkflows } = require('./.github/scripts/workflow-issues-manager.js');
+            const { getRepoWorkflows } = require('./scripts/ci/workflows-issues-manager/workflows.js');
             const workflows = await getRepoWorkflows({github, context});
             
             const output = workflows.map(({id, name}) => `${id} | ${name}`);
@@ -57,8 +59,7 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const { splitWorkflows } = require('./.github/scripts/workflow-issues-manager.js');
-            const { createIssuesForWorkflows, closeIssuesForWorkflows } = require('./.github/scripts/workflow-issues-manager.js');
+            const { splitWorkflows, createIssuesForWorkflows, closeIssuesForWorkflows } = require('./scripts/ci/workflow-issues-manager/index.js');
             
             const workflows = ${{ steps.workflows-result.outputs.result }};
             const { unstable, stable, permared } = await splitWorkflows({github, context}, workflows);

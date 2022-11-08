@@ -12,6 +12,6 @@ const WORKFLOW_LABELS = {
   "PostCommit Go VR Flink": "label4,label5",
 };
 
-const ISSUE_MANAGER_TAG = "ISSUE_MANAGER";
+const ISSUES_MANAGER_TAG = "ISSUES_MANAGER";
 
-module.exports = { DEFAULT_K, MIN_RUNS, ISSUE_MANAGER_TAG, WORKFLOW_LABELS };
+module.exports = { DEFAULT_K, MIN_RUNS, ISSUES_MANAGER_TAG, WORKFLOW_LABELS };
