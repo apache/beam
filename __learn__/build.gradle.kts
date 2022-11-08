@@ -299,6 +299,7 @@ tasks.register("pythonDockerBuildPreCommit") {
   dependsOn(":sdks:python:container:py37:docker")
   dependsOn(":sdks:python:container:py38:docker")
   dependsOn(":sdks:python:container:py39:docker")
+  dependsOn(":sdks:python:container:py310:docker")
 }
 
 tasks.register("pythonLintPreCommit") {
