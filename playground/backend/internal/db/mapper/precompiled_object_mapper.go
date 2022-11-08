@@ -169,7 +169,7 @@ func toDatasetDTO(datasetsMap map[string]*entity.DatasetEntity, snippet *entity.
 		configString[strK] = strV
 	}
 	return &dto.DatasetDTO{
-		Path:     datasetsMap[snippet.Datasets[0].Dataset.Name].Link,
+		Path:     datasetsMap[snippet.Datasets[0].Dataset.Name].Path,
 		Config:   configString,
 		Emulator: pb.EmulatorType(pb.EmulatorType_value[fmt.Sprintf("EMULATOR_TYPE_%s", strings.ToUpper(snippet.Datasets[0].Emulator))]),
 	}, nil
