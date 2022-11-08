@@ -19,15 +19,37 @@
 #
 set -euo pipefail
 
-STALE_IMAGES=$(gcloud container images list-tags \
-gcr.io/apache-beam-testing/prebuilt_beam_sdk/beam_python_prebuilt_sdk \
---sort-by=TIMESTAMP  --filter="timestamp.datetime < $(date --iso-8601=s -d '1 day ago')" \
---format="get(digest)")
+REPOSITORIES=(prebuilt_beam_sdk/beam_python_prebuilt_sdk beam-sdk beam_portability)
+
+echo $REPOSITORIES
+
+for repository in ${REPOSITORIES[@]}; do
+  echo IMAGES FOR REPO ${repository}
+  IMAGE_NAMES+=$(gcloud container images list --repository=gcr.io/apache-beam-testing/${repository} --format="get(name)")
+done
+
+echo $IMAGE_NAMES
+
+for image_name in ${IMAGE_NAMES[@]}; do
+  echo IMAGES FOR image ${image_name}
+  echo "Command" gcloud container images list-tags \
+  ${image_name} \
+  --sort-by=TIMESTAMP  --filter="timestamp.datetime < $(date --iso-8601=s -d '5 days ago')" \
+  --format="get(digest)"
+  STALE_IMAGES_CURRENT=$(gcloud container images list-tags \
+   ${image_name} \
+    --sort-by=TIMESTAMP  --filter="timestamp.datetime < $(date --iso-8601=s -d '5 days ago')" \
+    --format="get(digest)")
+  STALE_IMAGES+=$STALE_IMAGES_CURRENT
+  for current in ${STALE_IMAGES_CURRENT[@]}; do
+    echo "Deleting image. Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
+    gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q
+  done
+done
+
 
 if [[ ${STALE_IMAGES} ]]; then
-  for digest in ${STALE_IMAGES}; do
-    gcloud container images delete gcr.io/apache-beam-testing/prebuilt_beam_sdk/beam_python_prebuilt_sdk@"$digest" --force-delete-tags -q
-  done
+  echo "Deleted multiple images"
 else
   echo "No stale prebuilt container images found."
 fi
