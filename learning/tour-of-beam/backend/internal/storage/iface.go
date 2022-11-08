@@ -26,4 +26,9 @@ type Iface interface {
 	SaveContentTrees(ctx context.Context, trees []tob.ContentTree) error
 
 	GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (*tob.Unit, error)
+
+	SaveUser(ctx context.Context, uid string) error
+	GetUserProgress(ctx context.Context, sdk tob.Sdk, uid string) (*tob.SdkProgress, error)
+	SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error
+	SaveUserSnippetId(ctx context.Context, sdk tob.Sdk, unitId, uid, snippetId string) error
 }

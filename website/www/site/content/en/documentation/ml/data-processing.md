@@ -53,6 +53,8 @@ ib.collect(beam_df.describe())
 ib.collect(beam_df.isnull())
 ```
 
+For a full end-to-end example on how to implement data exploration and data preprocessing with Beam and the DataFrame API for your AI/ML project, you can follow the [Beam Dataframe API tutorial for AI/ML](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml/dataframe_api_preprocessing.ipynb).
+
 ## Data pipeline for ML
 A typical data preprocessing pipeline consists of the following steps:
 1. Reading and writing data: read/write the data from your filesystem, database or messaging queue. Beam has a rich set of [IO connectors](https://beam.apache.org/documentation/io/built-in/) for ingesting and writing data.

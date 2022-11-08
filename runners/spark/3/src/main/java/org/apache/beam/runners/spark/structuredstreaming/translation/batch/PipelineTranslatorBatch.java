@@ -65,6 +65,8 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
     TRANSFORM_TRANSLATORS.put(Impulse.class, new ImpulseTranslatorBatch());
     TRANSFORM_TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch<>());
     TRANSFORM_TRANSLATORS.put(Combine.Globally.class, new CombineGloballyTranslatorBatch<>());
+    TRANSFORM_TRANSLATORS.put(
+        Combine.GroupedValues.class, new CombineGroupedValuesTranslatorBatch<>());
     TRANSFORM_TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch<>());
 
     TRANSFORM_TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorBatch<>());
@@ -98,6 +100,8 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
     if (transform == null) {
       return null;
     }
-    return TRANSFORM_TRANSLATORS.get(transform.getClass());
+    TransformTranslator<InT, OutT, TransformT> translator =
+        TRANSFORM_TRANSLATORS.get(transform.getClass());
+    return translator != null && translator.canTranslate(transform) ? translator : null;
   }
 }

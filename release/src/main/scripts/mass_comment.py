@@ -61,7 +61,6 @@ COMMENTS_TO_ADD = [
     "Run Java Examples_Flink",
     "Run Java Examples_Spark",
     "Run Java Flink PortableValidatesRunner Streaming",
-    "Run Java Portability examples on Dataflow with Java 11",
     "Run Java PostCommit",
     "Run Java PreCommit",
     "Run Java Samza PortableValidatesRunner",

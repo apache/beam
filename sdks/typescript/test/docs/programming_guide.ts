@@ -36,14 +36,29 @@ import {
   pythonCallable,
 } from "../../src/apache_beam/transforms/python";
 import * as service from "../../src/apache_beam/utils/service";
+import { loopbackRunner } from "../../src/apache_beam/runners/runner";
 import { assertDeepEqual } from "../../src/apache_beam/testing/assert";
 
 let subprocessCache;
-before(() => {
+before(async function () {
+  this.timeout(30000);
   subprocessCache = service.SubprocessService.createCache();
+  if (process.env.BEAM_SERVICE_OVERRIDES) {
+    // Start it up here so we don't timeout any individual test.
+    await loopbackRunner().run(function pipeline(root) {
+      root.apply(beam.impulse());
+    });
+  }
 });
 
 after(() => subprocessCache.stopAll());
+
+function needs_ulr_it(name, fn) {
+  return (process.env.BEAM_SERVICE_OVERRIDES ? it : it.skip)(
+    name + " @ulr",
+    fn
+  );
+}
 
 describe("Programming Guide Tested Samples", function () {
   describe("Pipelines", function () {
@@ -593,8 +608,7 @@ describe("Programming Guide Tested Samples", function () {
       });
     });
 
-    // TODO: Enable cross-language after next release or set up dev virtual env.
-    xit("session_windows", async function () {
+    needs_ulr_it("session_windows", async function () {
       await beam.createRunner().run(async (root: beam.Root) => {
         const pcoll = root
           .apply(beam.create([1, 2, 600, 1800, 1900]))
@@ -680,8 +694,8 @@ describe("Programming Guide Tested Samples", function () {
   });
 
   // TODO: Enable cross-language after next release or set up dev virtual env.
-  xdescribe("MultiLangauge", function () {
-    it("python_map", async function () {
+  describe("MultiLangauge", function () {
+    needs_ulr_it("python_map", async function () {
       await beam.createRunner().run(async (root: beam.Root) => {
         const pcoll = root.apply(
           beam.create([
@@ -711,7 +725,7 @@ describe("Programming Guide Tested Samples", function () {
       });
     }).timeout(10000);
 
-    it("stateful_dofn", async function () {
+    needs_ulr_it("stateful_dofn", async function () {
       await beam.createRunner().run(async (root: beam.Root) => {
         // [START stateful_dofn]
         const pcoll = root.apply(
@@ -759,7 +773,7 @@ describe("Programming Guide Tested Samples", function () {
       });
     }).timeout(10000);
 
-    it("cross_lang_transform", async function () {
+    needs_ulr_it("cross_lang_transform", async function () {
       await beam.createRunner().run(async (root: beam.Root) => {
         const pcoll = root.apply(beam.create(["a", "bb"]));
         // [START cross_lang_transform]
