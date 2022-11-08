@@ -81,11 +81,11 @@ gcloud init
 gcloud auth application-default login
 ```
 # Deploy Playground infrastructure:
-* Start the following command from the top level repository folder ("beam") to deploy the Payground infrastructure:
+1. Start the following command from the top level repository folder ("beam") to deploy the Payground infrastructure:
 ```
 ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="environment_name"
 ```
-Find a Static IP in your GCP project>VPC Network>IP Addresses>pg-static-ip
+2. Find a Static IP in your GCP project>VPC Network>IP Addresses>pg-static-ip
 <br>Add following DNS A records for the discovered static IP address:
 ```
 java.playground.zone
@@ -100,11 +100,11 @@ Where "playground.zone" is the registered DNS zone<br>
 [More about A records in DNS](https://support.google.com/a/answer/2579934?hl=en)
 
 # Deploy Playground to Kubernetes:
-1. Run the following command to authenticate in the Docker registry
+1. Run the following command to authenticate in the Docker registry:
 ```
  gcloud auth configure-docker `chosen_region`-docker.pkg.dev
 ```
-2. Run the following command to authenticate in GKE
+2. Run the following command to authenticate in GKE:
 ```
 gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
 ```
@@ -122,7 +122,7 @@ During script execution, a Google managed certificate will be created. [Provisio
 NAME            NAMESPACE  REVISION        UPDATED         STATUS          CHART                          APP VERSION
 playground      default       1            your time      deployed        playground-2.44.0-SNAPSHOT         1.0.0
 ```
-2. Run "kubectl get managedcertificate" command in the console to ensure that status is "Active"
+2. Run "kubectl get managedcertificate" command in the console to ensure that status is "Active":
 ```
 NAME               AGE     STATUS
 GCP Project       time     Active
