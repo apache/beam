@@ -19,7 +19,7 @@ output "cloudbuild_sa_id" {
   value = google_service_account.cloudbuild_service_account_id.id
 }
 
-output "next_step_custom_message_hack" {
+output "connect_githubrepo_to_cloudbuild" {
   value = <<EOF
 
 Navigate to https://console.cloud.google.com/cloud-build/triggers/connect?project=${var.project_id}

@@ -15,6 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+output "cloudbuild_trigger_name" {
+  value = google_cloudbuild_trigger.builder.name
+}
+
 output "next_step_custom_message_hack" {
   value = <<EOF
 

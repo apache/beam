@@ -31,6 +31,6 @@ resource "google_cloudbuild_trigger" "builder" {
   disabled = true
 
   service_account = var.cloudbuild_sa_id
-  filename = "cloudbuild/configs/playground-infrastructure/cloudbuild.yaml"
+  filename = "playground/infrastructure/cloudbuild/cloudbuild.yaml"
 
   }
