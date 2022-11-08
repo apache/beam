@@ -22,6 +22,7 @@ import 'package:flutter_code_editor/flutter_code_editor.dart';
 import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
+import '../models/example_view_options.dart';
 import '../models/sdk.dart';
 
 class SnippetEditingController extends ChangeNotifier {
@@ -42,27 +43,31 @@ class SnippetEditingController extends ChangeNotifier {
     _selectedExample = value;
     setSource(_selectedExample?.source ?? '');
 
-    codeController.readOnlySectionNames =
-        value?.viewOptions.readOnlySectionNames.toSet() ?? const {};
-
-    codeController.visibleSectionNames =
-        value?.viewOptions.showSectionNames.toSet() ?? const {};
-
-    if (value?.viewOptions.foldCommentAtLineZero ?? false) {
-      codeController.foldCommentAtLineZero();
-    }
-
-    if (value?.viewOptions.foldImports ?? false) {
-      codeController.foldImports();
-    }
-
-    final unfolded = value?.viewOptions.unfoldSectionNames ?? const [];
-    if (unfolded.isNotEmpty) {
-      codeController.foldOutsideSections(unfolded);
+    final viewOptions = value?.viewOptions;
+    if (viewOptions != null) {
+      _applyViewOptions(viewOptions);
     }
 
     _pipelineOptions = _selectedExample?.pipelineOptions ?? '';
     notifyListeners();
+  }
+
+  void _applyViewOptions(ExampleViewOptions options) {
+    codeController.readOnlySectionNames = options.readOnlySectionNames.toSet();
+    codeController.visibleSectionNames = options.showSectionNames.toSet();
+
+    if (options.foldCommentAtLineZero) {
+      codeController.foldCommentAtLineZero();
+    }
+
+    if (options.foldImports) {
+      codeController.foldImports();
+    }
+
+    final unfolded = options.unfoldSectionNames;
+    if (unfolded.isNotEmpty) {
+      codeController.foldOutsideSections(unfolded);
+    }
   }
 
   Example? get selectedExample => _selectedExample;
