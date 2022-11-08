@@ -82,13 +82,12 @@
 * Fixed Beam SQL CalciteUtils (Java) and Cross-language JdbcIO (Python) did not support JDBC CHAR/VARCHAR, BINARY/VARBINARY logical types ([#23747](https://github.com/apache/beam/issues/23747), [#23526](https://github.com/apache/beam/issues/23526)).
 * Ensure iterated and emitted types are used with the generic register package are registered with the type and schema registries.(Go) ([#23889](https://github.com/apache/beam/pull/23889))
 
-# [2.43.0] - Unreleased
+# [2.43.0] - 2022-11-08
 
 ## Highlights
 
 * Python 3.10 support in Apache Beam ([#21458](https://github.com/apache/beam/issues/21458)).
 * An initial implementation of a runner that allows us to run Beam pipelines on Dask. Try it out and give us feedback! (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
-
 
 ## I/Os
 
@@ -106,6 +105,7 @@
 * An initial implementation of a runner that allows us to run Beam pipelines on Dask. (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
 * Allow configuring GCP OAuth scopes via pipeline options. This unblocks usages of Beam IOs that require additional scopes.
   For example, this feature makes it possible to access Google Drive backed tables in BigQuery ([#23290](https://github.com/apache/beam/issues/23290)).
+* An example for using Python RunInference from Java ([#23290](https://github.com/apache/beam/pull/23619)).
 
 ## Breaking Changes
 
@@ -114,18 +114,9 @@
 * The PortableRunner for Spark assumes Spark 3 as default Spark major version unless configured otherwise using `--spark_version`.
   Spark 2 support is deprecated and will be removed soon ([#23728](https://github.com/apache/beam/issues/23728)).
 
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
-
 ## Bugfixes
 
 * Fixed Python cross-language JDBC IO Connector cannot read or write rows containing Numeric/Decimal type values ([#19817](https://github.com/apache/beam/issues/19817)).
-
-## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
-
 
 # [2.42.0] - 2022-10-17
 
