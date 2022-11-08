@@ -16,21 +16,21 @@
 #
 import argparse
 import json
+import logging
 import os
 import time
 import uuid
-
-import google.api_core.exceptions
-import pandas as pd
-import requests
-import yaml
-import logging
 from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
 
+import google.api_core.exceptions
 import numpy as np
+import pandas as pd
+import requests
+import yaml
+
 from apache_beam.testing.load_tests import load_test_metrics_utils
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsPublisher
 from apache_beam.testing.load_tests.load_test_metrics_utils import FetchMetrics

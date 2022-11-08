@@ -117,3 +117,8 @@ class TestChangePointAnalysis(unittest.TestCase):
         self.assertEqual(alert_new_issue[0], False)
       else:
         self.assertEqual(alert_new_issue[0], True)
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.DEBUG)
+  unittest.main()
