@@ -38,6 +38,12 @@ __all__ = [
     'PytorchModelHandlerKeyedTensor',
 ]
 
+TensorInferenceFn = Callable[
+    [Sequence[torch.Tensor], torch.nn.Module, Optional[Dict[str, Any]]], Iterable[PredictionResult]]
+
+KeyedTensorInferenceFn = Callable[
+    [Sequence[Dict[str, torch.Tensor]], torch.nn.Module, Optional[Dict[str, Any]]], Iterable[PredictionResult]]
+
 
 def _load_model(
     model_class: torch.nn.Module, state_dict_path, device, **model_params):
@@ -99,6 +105,8 @@ def _convert_to_result(
     ]
   return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
+def _default_tensor_inference_fn(batch: Sequence[torch.Tensor], model: torch.nn.Module, inference_args: Optional[Dict[str, Any]] = None) -> Iterable[PredictionResult]:
+  return
 
 class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
                                              PredictionResult,
@@ -108,7 +116,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       state_dict_path: str,
       model_class: Callable[..., torch.nn.Module],
       model_params: Dict[str, Any],
-      device: str = 'CPU'):
+      device: str = 'CPU',
+      *,
+      inference_fn: TensorInferenceFn = _default_tensor_inference_fn):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage::
@@ -127,6 +137,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       device: the device on which you wish to run the model. If
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
+      inference_fn: the inference function to use.
+        default=_default_tensor_inference_fn.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with PyTorch 1.9 and 1.10.
@@ -140,6 +152,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_params = model_params
+    self._inference_fn=inference_fn
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
@@ -205,6 +218,14 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     pass
 
 
+def _default_keyed_tensor_inference_fn(
+  batch: Sequence[Dict[str, torch.Tensor]],
+  model: torch.nn.Module,
+  inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
+  return
+
+
 @experimental(extra_message="No backwards-compatibility guarantees.")
 class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
                                                   PredictionResult,
@@ -214,7 +235,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       state_dict_path: str,
       model_class: Callable[..., torch.nn.Module],
       model_params: Dict[str, Any],
-      device: str = 'CPU'):
+      device: str = 'CPU',
+      *,
+      inference_fn: KeyedTensorInferenceFn = _default_keyed_tensor_inference_fn):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage::
@@ -237,6 +260,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       device: the device on which you wish to run the model. If
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
+      inference_fn: the inference function to use. 
+        default=_default_keyed_tensor_inference_fn
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with PyTorch 1.9 and 1.10.
@@ -250,6 +275,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_params = model_params
+    self._inference_fn=inference_fn
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
