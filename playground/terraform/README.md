@@ -22,9 +22,9 @@ This guide shows you how to deploy full Playground environment on Google Cloud P
 ## Prerequisites:
 
 ### Following items need to be setup for Playground deployment on GCP:
-1. [GCP project]([https://cloud.google.com/](https://cloud.google.com/resource-manager/docs/creating-managing-projects))
+1. [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
 
-2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_:
+2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
 Ensure that the account has at least following privileges:
    - App Engine Admin
    - App Engine Creator
@@ -57,7 +57,7 @@ Ensure that the account has at least following privileges:
 
 # Prepare deployment configuration:
 Playground uses `terraform.tfvars` located in `playground/terraform/environment/environment_name` to define variables specific to an environment (e.g., prod, test, staging).<br> 
-1. Create a folder (further referred as environment_name) to define a new environment and place configuration files into it:
+1. Create a folder (further referred as `environment_name`) to define a new environment and place configuration files into it:
 
 * `terraform.tfvars` environment variables:
 ```
@@ -81,7 +81,7 @@ gcloud init
 gcloud auth application-default login
 ```
 # Deploy Playground infrastructure:
-* To deploy the Payground infrastructure, use the following command (please be sure that you are in the "beam" folder):
+* Start the following command from the top level repository folder ("beam") to deploy the Payground infrastructure:
 ```
 ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="environment_name"
 ```
@@ -108,7 +108,7 @@ Where "playground.zone" is the registered DNS zone<br>
 ```
 gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
 ```
-To deploy Beam Playground to the configured envrionment, please execute the following command (Ensure you are in the "beam" folder):
+Start the following command from the top level repository folder ("beam") to deploy the Payground infrastructure:
 ```
 ./gradlew playground:terraform:gkebackend -Pproject_environment="environment_name" -Pdocker-tag="tag" -Pdns-name="playground.zone" 
 ```
