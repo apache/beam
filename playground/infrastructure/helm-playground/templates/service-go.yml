@@ -29,6 +29,10 @@ spec:
   - port: {{ .Values.service.port }}
     protocol: TCP
     targetPort: {{ .Values.service.targetPort }}
+  - name: redis
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
   selector:
     app: backend-go
   type: {{ .Values.service.type }} 
