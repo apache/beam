@@ -37,6 +37,7 @@ try:
   import torch
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
+  from apache_beam.ml.inference.pytorch_inference import default_tensor_inference_fn
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 except ImportError:
@@ -108,12 +109,14 @@ KEYED_TORCH_DICT_OUT_PREDICTIONS = [
 class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandlerTensor):
   def __init__(self, device):
     self._device = device
+    self._inference_fn = default_tensor_inference_fn
 
 
 class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
     PytorchModelHandlerKeyedTensor):
   def __init__(self, device):
     self._device = device
+    self._inference_fn = default_tensor_inference_fn
 
 
 def _compare_prediction_result(x, y):

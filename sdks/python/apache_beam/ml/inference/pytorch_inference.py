@@ -111,7 +111,7 @@ def _convert_to_result(
   return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
 
-def _default_tensor_inference_fn(
+def default_tensor_inference_fn(
     batch: Sequence[torch.Tensor],
     model: torch.nn.Module,
     device: str,
@@ -136,7 +136,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       model_params: Dict[str, Any],
       device: str = 'CPU',
       *,
-      inference_fn: TensorInferenceFn = _default_tensor_inference_fn):
+      inference_fn: TensorInferenceFn = default_tensor_inference_fn):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage::
