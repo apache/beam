@@ -119,7 +119,11 @@ class BigQueryQueryHelper {
       }
 
       // Step 2: Create a temporary dataset in the query location only if the user has not specified
-      // a temp dataset.
+      // a temp dataset. The temp table name may be deterministic but the query job ID has to be
+      // non-deterministic to protect against retries. If BigQuery sees a repeated query job ID, it
+      // will be skipped.
+      String tempTableID =
+          BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY);
       String queryJobId =
           BigQueryResourceNaming.createJobIdPrefix(
               options.getJobName(), stepUuid, JobType.QUERY, BigQueryHelpers.randomUUIDString());
@@ -129,7 +133,7 @@ class BigQueryQueryHelper {
               options.getBigQueryProject() == null
                   ? options.getProject()
                   : options.getBigQueryProject(),
-              queryJobId,
+              tempTableID,
               queryTempDatasetOpt);
 
       boolean beamToCreateTempDataset = !queryTempDatasetOpt.isPresent();
