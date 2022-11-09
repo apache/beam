@@ -126,9 +126,25 @@ gsutil cat gs://$GCP_BUCKET/multi-language-beam/output*
 
 #### Instructions for running the Java pipeline at HEAD (Beam 2.41.0 and 2.42.0).
 
+* Activate a new virtual environment following
+[these instructions](https://beam.apache.org/get-started/quickstart-py/#create-and-activate-a-virtual-environment).
+
+* 2. Install Apache Beam package with gcp support and the `sklearn` package.
+
+```
+pip install apache-beam[gcp]
+pip install sklearn
+```
+
+* Startup the expansion service
+
+```
+python -m apache_beam.runners.portability.expansion_service_main -p <PORT> --fully_qualified_name_glob "*"
+```
+
 * Make sure that Docker is installed and available on your system.
 
-* Build and push Python and Java Docker containers.
+* In a different shell, build and push Python and Java Docker containers.
 
 ```
 export DOCKER_ROOT=<Docker root>
@@ -137,7 +153,7 @@ export DOCKER_ROOT=<Docker root>
 
 docker push $DOCKER_ROOT/beam_python3.8_sdk:latest
 
-./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest
+./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest -Pjava11Home=$JAVA_HOME
 
 docker push $DOCKER_ROOT/beam_java11_sdk:latest
 ```
@@ -149,6 +165,10 @@ Note that we override both the Java and Python SDK harness containers here.
 export GCP_PROJECT=<GCP project>
 export GCP_BUCKET=<GCP bucket>
 export GCP_REGION=<GCP region>
+export EXPANSION_SERVICE_PORT=<PORT>
+
+# This removes any existing output.
+gsutil rm gs://$GCP_BUCKET/multi-language-beam/output*
 
 ./gradlew :examples:multi-language:sklearnMinstClassification --args=" \
 --runner=DataflowRunner \
@@ -157,6 +177,7 @@ export GCP_REGION=<GCP region>
 --output=gs://$GCP_BUCKET/multi-language-beam/output \
 --sdkContainerImage=$DOCKER_ROOT/beam_java11_sdk:latest \
 --sdkHarnessContainerImageOverrides=.*python.*,$DOCKER_ROOT/beam_python3.8_sdk:latest \
+--expansionService=localhost:$EXPANSION_SERVICE_PORT \
 --region=${GCP_REGION}"
 ```
 

@@ -2,8 +2,11 @@
     "units": [
         {
             "id": "unit_id_1",
-            "isCompleted": true,
-            "userSnippetId": ""
+            "isCompleted": true
+        },
+        {
+            "id": "unit_id_2",
+            "userSnippetId": "QY2dskTNu_w"
         }
     ]
 }

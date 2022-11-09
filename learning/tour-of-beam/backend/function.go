@@ -15,6 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
+//go:generate protoc -I ../../../playground/api/v1 --go_out=playground_api --go_opt=paths=source_relative api.proto
+//go:generate protoc -I ../../../playground/api/v1 --go-grpc_out=playground_api --go-grpc_opt=paths=source_relative api.proto
+//go:generate moq -rm -out playground_api/mock.go playground_api PlaygroundServiceClient
+
 package tob
 
 import (
@@ -29,13 +33,18 @@ import (
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 	"beam.apache.org/learning/tour-of-beam/backend/internal/service"
 	"beam.apache.org/learning/tour-of-beam/backend/internal/storage"
+	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api"
 	"cloud.google.com/go/datastore"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	grpc_status "google.golang.org/grpc/status"
 )
 
 var (
-	svc  service.IContent
-	auth *Authorizer
+	svc      service.IContent
+	auth     *Authorizer
+	pgClient pb.PlaygroundServiceClient
 )
 
 // Helper to format http error messages.
@@ -69,11 +78,31 @@ func MakeRepo(ctx context.Context) storage.Iface {
 	}
 }
 
+func MakePlaygroundClient(ctx context.Context) pb.PlaygroundServiceClient {
+	// dependencies
+	// required:
+	// * TOB_MOCK: use mock implementation
+	// OR
+	// * PLAYGROUND_ROUTER_HOST: playground API host/port
+	if os.Getenv("TOB_MOCK") > "" {
+		fmt.Println("Using mock playground client")
+		return pb.GetMockClient()
+	} else {
+		host := os.Getenv("PLAYGROUND_ROUTER_HOST")
+		cc, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("fail to dial playground: %v", err)
+		}
+		return pb.NewPlaygroundServiceClient(cc)
+	}
+}
+
 func init() {
 	ctx := context.Background()
 
 	repo := MakeRepo(ctx)
-	svc = &service.Svc{Repo: repo}
+	pgClient = MakePlaygroundClient(ctx)
+	svc = &service.Svc{Repo: repo, PgClient: pgClient}
 	auth = MakeAuthorizer(ctx, repo)
 	commonGet := Common(http.MethodGet)
 	commonPost := Common(http.MethodPost)
@@ -85,6 +114,7 @@ func init() {
 
 	functions.HTTP("getUserProgress", commonGet(ParseSdkParam(auth.ParseAuthHeader(getUserProgress))))
 	functions.HTTP("postUnitComplete", commonPost(ParseSdkParam(auth.ParseAuthHeader(postUnitComplete))))
+	functions.HTTP("postUserCode", commonPost(ParseSdkParam(auth.ParseAuthHeader(postUserCode))))
 }
 
 // Get list of SDK names
@@ -170,6 +200,32 @@ func postUnitComplete(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid s
 	if err != nil {
 		log.Println("Set unit complete error:", err)
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
+		return
+	}
+
+	fmt.Fprint(w, "{}")
+}
+
+// Save user code for unit
+func postUserCode(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid string) {
+	unitId := r.URL.Query().Get("id")
+
+	var userCodeRequest tob.UserCodeRequest
+	err := json.NewDecoder(r.Body).Decode(&userCodeRequest)
+	if err != nil {
+		log.Println("body decode error:", err)
+		finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, "bad request body")
+		return
+	}
+
+	err = svc.SaveUserCode(r.Context(), sdk, unitId, uid, userCodeRequest)
+	if err != nil {
+		log.Println("Save user code error:", err)
+		message := "storage error"
+		if st, ok := grpc_status.FromError(err); ok {
+			message = fmt.Sprintf("playground api error: %s", st)
+		}
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, message)
 		return
 	}
 
