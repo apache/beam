@@ -19,10 +19,11 @@ import os
 import sys
 import time
 import re
-from datetime import datetime
-
 import requests
 import psycopg2
+
+from datetime import datetime
+from github import GithubIntegration 
 
 DB_HOST = os.environ['DB_HOST']
 DB_PORT = os.environ['DB_PORT']
@@ -52,7 +53,7 @@ CREATE TABLE IF NOT EXISTS {GH_WORKFLOWS_TABLE_NAME} (
     job10 text
 )
 """
-def githubWorkflowsGrafanaSync(args):
+def githubWorkflowsGrafanaSync(data,context):
     print('Started')
 
     print('Updating table with recent workflow runs')
@@ -77,6 +78,16 @@ def initDbConnection():
             i = i + 1
     return connection
 
+def getToken():
+    git_integration = GithubIntegration(
+    os.environ["GH_APP_ID"],
+    os.environ["GH_PEM_KEY"])
+
+    token=git_integration.get_access_token(
+            os.environ["GH_APP_INSTALLATION_ID"]
+        ).token
+    return token
+
 def fetchWorkflowData():
     '''Return a json with all the workflows and the latests
     ten executions'''
@@ -99,6 +110,7 @@ def fetchWorkflowData():
         url = "https://api.github.com/repos/apache/beam/actions/workflows/"
         queryOptions = { 'branch' : 'master', 'per_page' : GH_WORKFLOWS_NUMBER_EXECUTIONS,
                     'page' :'1', 'exclude_pull_request':True }
+        #headers = {'Authorization': 'Bearer {}'.format(getToken())}
         for key in listOfWorkflows:
             response = requests.get(url = "{}{}/runs".format(url,key),
                                 params=queryOptions)
