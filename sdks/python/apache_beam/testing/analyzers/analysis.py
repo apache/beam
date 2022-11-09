@@ -20,6 +20,7 @@ import logging
 import os
 import time
 import uuid
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -38,7 +39,7 @@ from signal_processing_algorithms.energy_statistics.energy_statistics import e_d
 
 BQ_PROJECT_NAME = 'apache-beam-testing'
 BQ_DATASET = 'beam_perf_storage'
-OWNER = 'apache'
+OWNER = 'AnandInguva'
 REPO = 'beam'
 
 ID_LABEL = 'test_id'
@@ -355,7 +356,7 @@ class GitHubIssues:
       title,
       description,
       labels: Optional[List] = None,
-      issue_number: Optional[int] = None):
+      issue_number: Optional[int] = None) -> Tuple[int, str]:
     """
     Create an issue with title, description with a label.
     If an issue is already present, comment on the issue instead of
@@ -365,7 +366,7 @@ class GitHubIssues:
       commented_on_issue, response = self.comment_on_issue(
           issue_number=issue_number, description=description)
       if commented_on_issue:
-        return issue_number, response.json()['html_url']
+        return issue_number, response['html_url']
 
     # Issue number was not provided or Issue with provided number
     # is closed. In that case, create a new issue.
@@ -384,7 +385,7 @@ class GitHubIssues:
     return response['number'], response['html_url']
 
   def comment_on_issue(self, issue_number,
-                       description) -> Tuple[bool, Optional[requests.Response]]:
+                       description) -> Tuple[bool, Optional[Dict]]:
     """
     If there is an already created issue,
     update that issue with a comment.
@@ -398,9 +399,10 @@ class GitHubIssues:
             'repo': self.repo,
             'issue_number': issue_number
         }),
-        headers=self.headers).json()
-
-    if open_issue_response['state'] == 'open':
+        headers=self.headers)
+    status_code = open_issue_response.status_code
+    open_issue_response = open_issue_response.json()
+    if status_code == 200 and open_issue_response['state'] == 'open':
       data = {
           'owner': self.owner,
           'repo': self.repo,
@@ -411,7 +413,7 @@ class GitHubIssues:
           open_issue_response['comments_url'],
           json.dumps(data),
           headers=self.headers)
-      return True, response
+      return True, response.json()
 
     return False, None
 

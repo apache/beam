@@ -628,7 +628,7 @@ class FetchMetrics:
       project_name=None,
       table=None,
       dataset=None,
-      metric_name: str = None,
+      metric_name=None,
       limit=1000,
       query_template=None) -> pd.DataFrame:
     if not query_template:
