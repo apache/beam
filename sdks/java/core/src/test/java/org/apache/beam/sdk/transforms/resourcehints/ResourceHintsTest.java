@@ -43,7 +43,7 @@ public class ResourceHintsTest implements Serializable {
                 .hints()
                 .get("beam:resources:min_ram_bytes:v1")
                 .toBytes(),
-            StandardCharsets.US_ASCII));
+            StandardCharsets.UTF_8));
   }
 
   @Test
@@ -76,7 +76,7 @@ public class ResourceHintsTest implements Serializable {
                 .hints()
                 .get("beam:resources:accelerator:v1")
                 .toBytes(),
-            StandardCharsets.US_ASCII));
+            StandardCharsets.UTF_8));
   }
 
   @Test

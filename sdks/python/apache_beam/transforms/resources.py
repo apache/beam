@@ -99,7 +99,7 @@ class ResourceHint:
   def _parse_str(value):
     if not isinstance(value, str):
       raise ValueError("Input must be a string.")
-    return value.encode('ascii')
+    return value.encode('utf-8')
 
   @staticmethod
   def _parse_int(value):
@@ -107,7 +107,7 @@ class ResourceHint:
       value = int(value)
     if not isinstance(value, int):
       raise ValueError("Input must be an integer.")
-    return str(value).encode('ascii')
+    return str(value).encode('utf-8')
 
   @staticmethod
   def _parse_storage_size_str(value):
@@ -143,11 +143,11 @@ class ResourceHint:
     multiplier = units[suffix]
     value = value[:-len(suffix)]
 
-    return str(round(float(value) * multiplier)).encode('ascii')
+    return str(round(float(value) * multiplier)).encode('utf-8')
 
   @staticmethod
   def _use_max(v1, v2):
-    return str(max(int(v1), int(v2))).encode('ascii')
+    return str(max(int(v1), int(v2))).encode('utf-8')
 
 
 class AcceleratorHint(ResourceHint):

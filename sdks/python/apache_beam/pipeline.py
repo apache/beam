@@ -1120,7 +1120,7 @@ class AppliedPTransform(object):
         if isinstance(a, bytes):
           return a
         elif isinstance(a, str):
-          return a.encode('ascii')
+          return a.encode('utf-8')
         elif isinstance(a, message.Message):
           return a.SerializeToString()
         else:

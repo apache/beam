@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.resourcehints;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -28,7 +29,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardResourceHints;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ProtocolMessageEnum;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -168,7 +168,7 @@ public class ResourceHints {
 
     @Override
     public byte[] toBytes() {
-      return String.valueOf(value).getBytes(Charsets.US_ASCII);
+      return String.valueOf(value).getBytes(StandardCharsets.UTF_8);
     }
   }
 
@@ -185,7 +185,7 @@ public class ResourceHints {
 
     @Override
     public byte[] toBytes() {
-      return value.getBytes(Charsets.US_ASCII);
+      return value.getBytes(StandardCharsets.UTF_8);
     }
 
     @Override
