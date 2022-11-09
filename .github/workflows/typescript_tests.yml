@@ -128,6 +128,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - check_gcp_variables
+    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
     strategy:
       fail-fast: false
     steps:
