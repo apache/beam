@@ -122,7 +122,7 @@ func (r *Registry) reconcileRegistrations() (deferedErr error) {
 		// We could have either a pointer or non pointer here,
 		// so we strip pointerness and then check both.
 		vT := reflectx.SkipPtr(ut)
-		if check(vT) && check(reflect.PtrTo(vT)) {
+		if check(vT) || check(reflect.PtrTo(vT)) {
 			continue
 		}
 		if err := r.registerType(ut, map[reflect.Type]struct{}{}); err != nil {
