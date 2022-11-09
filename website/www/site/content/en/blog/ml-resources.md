@@ -34,17 +34,21 @@ documentation and notebooks to make it easier to use these new features
 and to show how Beam can be used to solve common Machine Learning problems.
 We're now happy to present this new and improved Beam ML experience!
 
-<img class="center-block"
-     src="/images/blog/ensemble-model-notebook.png"
-     alt="Example ensemble notebook with RunInference">
-
 To get started, we encourage you to visit Beam's new [AI/ML landing page](https://beam.apache.org/documentation/ml/overview/).
 We've got plenty of content on things like [multi-model pipelines](https://beam.apache.org/documentation/ml/multi-model-pipelines/),
 [performing inference with metrics](https://beam.apache.org/documentation/ml/runinference-metrics/),
 [online training](https://beam.apache.org/documentation/ml/online-clustering/), and much more.
 
+<img class="center-block"
+     src="/images/blog/ml-landing.png"
+     alt="ML landing page">
+
 We've also introduced a number of example [Jupyter Notebooks](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml)
 showing how to use built in beam transforms like `RunInference` and `Beam Dataframes`.
+
+<img class="center-block"
+     src="/images/blog/ensemble-model-notebook.png"
+     alt="Example ensemble notebook with RunInference">
 
 We hope you find this useful! As always, if you see any areas for improvement, please [open an issue](https://github.com/apache/beam/issues/new/choose)
 or a [pull request](https://github.com/apache/beam/pulls)!
