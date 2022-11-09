@@ -164,8 +164,9 @@ class BatchConverterErrorsTest(unittest.TestCase):
       (
           np.array,
           np.int64,
-          (r'batch type must be np\.ndarray or '
-           r'beam\.typehints\.batch\.NumpyArray\[\.\.\]'),
+          (
+              r'batch type must be np\.ndarray or '
+              r'beam\.typehints\.batch\.NumpyArray\[\.\.\]'),
       ),
       (
           NumpyArray[np.int64, (3, N, 2)],
