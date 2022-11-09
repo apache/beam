@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import collections
 import sys
 import threading
 import types
@@ -109,6 +110,10 @@ class PicklerTest(unittest.TestCase):
 from apache_beam.internal.module_test import DataClass
 self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     ''')
+
+  def test_named_type(self):
+      MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
+      self.assertEqual(loads(dumps([MyNamedTuple(1, 2)])), [MyNamedTuple(1, 2)])
 
 
 if __name__ == '__main__':

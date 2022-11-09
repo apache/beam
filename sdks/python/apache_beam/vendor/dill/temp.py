@@ -130,7 +130,7 @@ def load(file, **kwds):
     >>> dill.temp.load(dumpfile)
     [1, 2, 3, 4, 5]
     """
-    import dill as pickle
+    import apache_beam.vendor.dill as pickle
     mode = kwds.pop('mode', 'rb')
     name = getattr(file, 'name', file) # name=file.name or name=file (if str)
     return pickle.load(open(name, mode=mode, **kwds))
@@ -159,7 +159,7 @@ Optional kwds:
 
 NOTE: Keep the return value for as long as you want your file to exist !
     """
-    import dill as pickle
+    import apache_beam.vendor.dill as pickle
     import tempfile
     file = tempfile.NamedTemporaryFile(**kwds)
     pickle.dump(object, file)
@@ -175,7 +175,7 @@ def loadIO(buffer, **kwds):
     >>> dill.temp.loadIO(dumpfile)
     [1, 2, 3, 4, 5]
     """
-    import dill as pickle
+    import apache_beam.vendor.dill as pickle
     if PY3:
         from io import BytesIO as StringIO
     else:
@@ -192,7 +192,7 @@ Loads with "dill.temp.loadIO".  Returns the buffer object.
     >>> dill.temp.loadIO(dumpfile)
     [1, 2, 3, 4, 5]
     """
-    import dill as pickle
+    import apache_beam.vendor.dill as pickle
     if PY3:
         from io import BytesIO as StringIO
     else:
