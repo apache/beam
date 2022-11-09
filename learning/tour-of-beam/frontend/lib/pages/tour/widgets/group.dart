@@ -70,10 +70,11 @@ class _StatelessExpansionTile extends StatelessWidget {
         initiallyExpanded: isExpanded,
         tilePadding: EdgeInsets.zero,
         onExpansionChanged: (isExpanding) {
-          contentTreeController.updateExpandedIds(
-            group,
-            isExpanding: isExpanding,
-          );
+          if (isExpanding) {
+            contentTreeController.expandGroup(group);
+          } else {
+            contentTreeController.collapseGroup(group);
+          }
         },
         title: GroupTitleWidget(
           group: group,

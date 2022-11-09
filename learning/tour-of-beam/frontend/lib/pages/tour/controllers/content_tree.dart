@@ -71,12 +71,13 @@ class ContentTreeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateExpandedIds(GroupModel group, {required bool isExpanding}) {
-    if (isExpanding) {
-      _expandedIds.add(group.id);
-    } else {
-      _expandedIds.remove(group.id);
-    }
+  void expandGroup(GroupModel group) {
+    _expandedIds.add(group.id);
+    notifyListeners();
+  }
+
+  void collapseGroup(GroupModel group) {
+    _expandedIds.remove(group.id);
     notifyListeners();
   }
 
