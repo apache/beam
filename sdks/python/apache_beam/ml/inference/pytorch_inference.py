@@ -39,7 +39,7 @@ __all__ = [
 ]
 
 TensorInferenceFn = Callable[
-    [Sequence[torch.Tensor], torch.nn.Module, Optional[Dict[str, Any]]],
+    [Sequence[torch.Tensor], torch.nn.Module, str, Optional[Dict[str, Any]]],
     Iterable[PredictionResult]]
 
 KeyedTensorInferenceFn = Callable[[
@@ -114,12 +114,14 @@ def _convert_to_result(
 def _default_tensor_inference_fn(
     batch: Sequence[torch.Tensor],
     model: torch.nn.Module,
+    device: str,
     inference_args: Optional[Dict[str,
                                   Any]] = None) -> Iterable[PredictionResult]:
   # torch.no_grad() mitigates GPU memory issues
   # https://github.com/apache/beam/issues/22811
   with torch.no_grad():
     batched_tensors = torch.stack(batch)
+    batched_tensors = _convert_to_device(batched_tensors, device)
     predictions = model(batched_tensors, **inference_args)
     return _convert_to_result(batch, predictions)
 
@@ -208,8 +210,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """
     inference_args = {} if not inference_args else inference_args
 
-    converted_tensors = _convert_to_device(batch, self._device)
-    return self._inference_fn(converted_tensors, model, inference_args)
+    return self._inference_fn(batch, model, self._device, inference_args)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
