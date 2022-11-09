@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.BytesEstimator.AVERAGE_PARTITION_SIZE;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.AVERAGE_PARTITION_BYTES_SIZE;
 
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
@@ -119,7 +119,7 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
     final com.google.cloud.Timestamp readTimestamp = restriction.getFrom();
     final PartitionMetadataDao dao = daoFactory.getPartitionMetadataDao();
     final long partitionsToSchedule = dao.countPartitionsCreatedAfter(readTimestamp);
-    final long size = partitionsToSchedule * AVERAGE_PARTITION_SIZE;
+    final long size = partitionsToSchedule * AVERAGE_PARTITION_BYTES_SIZE;
 
     LOG.debug(
         "getSize() = "
@@ -127,8 +127,8 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
             + " ("
             + partitionsToSchedule
             + " partitionsToSchedule * "
-            + AVERAGE_PARTITION_SIZE
-            + " averagePartitionSize)");
+            + AVERAGE_PARTITION_BYTES_SIZE
+            + " averagePartitionBytesSize)");
     return size;
   }
 

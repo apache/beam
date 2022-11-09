@@ -38,43 +38,23 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 public class PartitionMetadata implements Serializable {
 
   private static final long serialVersionUID = 995720273301116075L;
-
-  /** * Estimates the size in bytes of partition metadata objects when encoded using Avro. */
-  public static class BytesEstimator {
-    /**
-     * We use a bogus partition here to estimate the average size of a partition metadata record.
-     *
-     * <p>The only dynamically allocated size field here is the "parentTokens", which is a set and
-     * can expand. In practice, however, partitions have 1 to 2 parents at most.
-     */
-    public static final long AVERAGE_PARTITION_SIZE =
-        sizeOf(
-            PartitionMetadata.newBuilder()
-                .setPartitionToken(InitialPartition.PARTITION_TOKEN)
-                .setParentTokens(Sets.newHashSet("fake_parent"))
-                .setStartTimestamp(Timestamp.now())
-                .setHeartbeatMillis(1_000L)
-                .setState(State.CREATED)
-                .setWatermark(Timestamp.now())
-                .setCreatedAt(Timestamp.now())
-                .build());
-
-    /**
-     * Estimates the size in bytes of a partition when encoded using Avro.
-     *
-     * @param partition the partition to get the size of
-     * @return the number of bytes of the encoded object
-     */
-    public static long sizeOf(PartitionMetadata partition) {
-      final AvroCoder<PartitionMetadata> coder = AvroCoder.of(PartitionMetadata.class);
-      try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-        coder.encode(partition, baos);
-        return baos.size();
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-  }
+  /**
+   * We use a bogus partition here to estimate the average size of a partition metadata record.
+   *
+   * <p>The only dynamically allocated size field here is the "parentTokens", which is a set and
+   * can expand. In practice, however, partitions have 1 to 2 parents at most.
+   */
+  public static final long AVERAGE_PARTITION_BYTES_SIZE = PartitionMetadata
+      .newBuilder()
+      .setPartitionToken(InitialPartition.PARTITION_TOKEN)
+      .setParentTokens(Sets.newHashSet("fake_parent"))
+      .setStartTimestamp(Timestamp.now())
+      .setHeartbeatMillis(1_000L)
+      .setState(State.CREATED)
+      .setWatermark(Timestamp.now())
+      .setCreatedAt(Timestamp.now())
+      .build()
+      .bytesSize();
 
   /**
    * The state at which a partition can be in the system:
@@ -226,6 +206,22 @@ public class PartitionMetadata implements Serializable {
   /** The time at which the connector finished processing this partition. */
   public @Nullable Timestamp getFinishedAt() {
     return finishedAt;
+  }
+
+  /**
+   * Estimates the size in bytes of a partition when encoded using Avro.
+   *
+   * @return the number of bytes of the encoded object
+   * @throws EncodingException when there was an error serializing the object to Avro
+   */
+  public long bytesSize() {
+    final AvroCoder<PartitionMetadata> coder = AvroCoder.of(PartitionMetadata.class);
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+      coder.encode(this, baos);
+      return baos.size();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /** Transforms the instance into a builder, so field values can be modified. */

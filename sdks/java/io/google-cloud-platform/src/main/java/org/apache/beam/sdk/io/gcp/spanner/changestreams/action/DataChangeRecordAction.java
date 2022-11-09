@@ -18,10 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
 import com.google.cloud.Timestamp;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.Optional;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
@@ -44,11 +41,6 @@ import org.slf4j.LoggerFactory;
  */
 public class DataChangeRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(DataChangeRecordAction.class);
-  private final AvroCoder<DataChangeRecord> coder;
-
-  public DataChangeRecordAction() {
-    coder = AvroCoder.of(DataChangeRecord.class);
-  }
 
   /**
    * This is the main processing function for a {@link DataChangeRecord}. It returns an {@link
@@ -101,19 +93,9 @@ public class DataChangeRecordAction {
     outputReceiver.outputWithTimestamp(record, commitInstant);
     watermarkEstimator.setWatermark(commitInstant);
 
-    throughputEstimator.update(Timestamp.now(), getBytes(record));
+    throughputEstimator.update(Timestamp.now(), record.bytesSize());
 
     LOG.debug("[" + token + "] Data record action completed successfully");
     return Optional.empty();
-  }
-
-  private long getBytes(DataChangeRecord record) {
-    try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-      coder.encode(record, baos);
-
-      return baos.size();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 }
