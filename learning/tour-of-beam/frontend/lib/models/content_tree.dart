@@ -22,19 +22,17 @@ import 'node.dart';
 import 'parent_node.dart';
 
 class ContentTreeModel extends ParentNodeModel {
-  final String sdk;
   final List<ModuleModel> modules;
 
-  String get sdkId => sdk;
+  String get sdkId => id;
 
   @override
   List<NodeModel> get nodes => modules;
 
   const ContentTreeModel({
-    required this.sdk,
+    required super.id,
     required this.modules,
   }) : super(
-          id: sdk,
           parent: null,
           title: '',
           nodes: modules,
@@ -42,7 +40,7 @@ class ContentTreeModel extends ParentNodeModel {
 
   ContentTreeModel.fromResponse(GetContentTreeResponse response)
       : this(
-          sdk: response.sdkId,
+          id: response.sdkId,
           modules: response.modules
               .map(ModuleModel.fromResponse)
               .toList(growable: false),

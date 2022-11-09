@@ -41,35 +41,56 @@ class GroupWidget extends StatelessWidget {
       builder: (context, child) {
         final isExpanded = contentTreeController.expandedIds.contains(group.id);
 
-        return ExpansionTileWrapper(
-          ExpansionTile(
-            key: Key('${group.id}$isExpanded'),
-            initiallyExpanded: isExpanded,
-            tilePadding: EdgeInsets.zero,
-            onExpansionChanged: (isExpanding) {
-              contentTreeController.updateExpandedIds(
-                group,
-                isExpanding: isExpanding,
-              );
-            },
-            title: GroupTitleWidget(
-              group: group,
-              onTap: () {
-                contentTreeController.openNode(group);
-              },
-            ),
-            childrenPadding: const EdgeInsets.only(
-              left: BeamSizes.size24,
-            ),
-            children: [
-              GroupNodesWidget(
-                nodes: group.nodes,
-                contentTreeController: contentTreeController,
-              ),
-            ],
-          ),
+        return _StatelessExpansionTile(
+          contentTreeController: contentTreeController,
+          group: group,
+          isExpanded: isExpanded,
         );
       },
+    );
+  }
+}
+
+class _StatelessExpansionTile extends StatelessWidget {
+  final GroupModel group;
+  final ContentTreeController contentTreeController;
+  final bool isExpanded;
+
+  const _StatelessExpansionTile({
+    required this.group,
+    required this.contentTreeController,
+    required this.isExpanded,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTileWrapper(
+      ExpansionTile(
+        key: Key('${group.id}$isExpanded'),
+        initiallyExpanded: isExpanded,
+        tilePadding: EdgeInsets.zero,
+        onExpansionChanged: (isExpanding) {
+          contentTreeController.updateExpandedIds(
+            group,
+            isExpanding: isExpanding,
+          );
+        },
+        title: GroupTitleWidget(
+          group: group,
+          onTap: () {
+            contentTreeController.openNode(group);
+          },
+        ),
+        childrenPadding: const EdgeInsets.only(
+          left: BeamSizes.size24,
+        ),
+        children: [
+          GroupNodesWidget(
+            nodes: group.nodes,
+            contentTreeController: contentTreeController,
+          ),
+        ],
+      ),
     );
   }
 }
