@@ -25,7 +25,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -48,13 +47,13 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
   abstract @Nullable DataSourceConfiguration getDataSourceConfiguration();
 
-  abstract @Nullable ValueProvider<String> getQuery();
+  abstract @Nullable String getQuery();
 
-  abstract @Nullable ValueProvider<String> getTable();
+  abstract @Nullable String getTable();
 
   abstract @Nullable StatementPreparator getStatementPreparator();
 
-  abstract @Nullable ValueProvider<Boolean> getOutputParallelization();
+  abstract @Nullable Boolean getOutputParallelization();
 
   abstract @Nullable RowMapper<T> getRowMapper();
 
@@ -64,13 +63,13 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
   abstract static class Builder<T> {
     abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration dataSourceConfiguration);
 
-    abstract Builder<T> setQuery(ValueProvider<String> query);
+    abstract Builder<T> setQuery(String query);
 
-    abstract Builder<T> setTable(ValueProvider<String> table);
+    abstract Builder<T> setTable(String table);
 
     abstract Builder<T> setStatementPreparator(StatementPreparator statementPreparator);
 
-    abstract Builder<T> setOutputParallelization(ValueProvider<Boolean> outputParallelization);
+    abstract Builder<T> setOutputParallelization(Boolean outputParallelization);
 
     abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
 
@@ -84,20 +83,10 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
   public Read<T> withQuery(String query) {
     checkNotNull(query, "query can not be null");
-    return withQuery(ValueProvider.StaticValueProvider.of(query));
-  }
-
-  public Read<T> withQuery(ValueProvider<String> query) {
-    checkNotNull(query, "query can not be null");
     return toBuilder().setQuery(query).build();
   }
 
   public Read<T> withTable(String table) {
-    checkNotNull(table, "table can not be null");
-    return withTable(ValueProvider.StaticValueProvider.of(table));
-  }
-
-  public Read<T> withTable(ValueProvider<String> table) {
     checkNotNull(table, "table can not be null");
     return toBuilder().setTable(table).build();
   }
@@ -112,12 +101,6 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
    * default is to parallelize and should only be changed if this is known to be unnecessary.
    */
   public Read<T> withOutputParallelization(Boolean outputParallelization) {
-    checkNotNull(outputParallelization, "outputParallelization can not be null");
-    return withOutputParallelization(ValueProvider.StaticValueProvider.of(outputParallelization));
-  }
-
-  /** Same as {@link #withOutputParallelization(Boolean)} but accepting a ValueProvider. */
-  public Read<T> withOutputParallelization(ValueProvider<Boolean> outputParallelization) {
     checkNotNull(outputParallelization, "outputParallelization can not be null");
     return toBuilder().setOutputParallelization(outputParallelization).build();
   }

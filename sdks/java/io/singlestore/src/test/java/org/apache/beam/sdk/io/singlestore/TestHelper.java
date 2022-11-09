@@ -21,7 +21,6 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.common.TestRow;
-import org.apache.beam.sdk.options.ValueProvider;
 
 public class TestHelper {
   public static class TestRowMapper implements RowMapper<TestRow> {
@@ -43,28 +42,28 @@ public class TestHelper {
 
   public abstract static class MockDataSourceConfiguration extends DataSourceConfiguration {
     @Override
-    ValueProvider<String> getEndpoint() {
-      return ValueProvider.StaticValueProvider.of("localhost");
+    String getEndpoint() {
+      return "localhost";
     }
 
     @Override
-    ValueProvider<String> getDatabase() {
-      return ValueProvider.StaticValueProvider.of("db");
+    String getDatabase() {
+      return "db";
     }
 
     @Override
-    ValueProvider<String> getConnectionProperties() {
-      return ValueProvider.StaticValueProvider.of("");
+    String getConnectionProperties() {
+      return "";
     }
 
     @Override
-    ValueProvider<String> getUsername() {
-      return ValueProvider.StaticValueProvider.of("admin");
+    String getUsername() {
+      return "admin";
     }
 
     @Override
-    ValueProvider<String> getPassword() {
-      return ValueProvider.StaticValueProvider.of("secretPass");
+    String getPassword() {
+      return "secretPass";
     }
   }
 }

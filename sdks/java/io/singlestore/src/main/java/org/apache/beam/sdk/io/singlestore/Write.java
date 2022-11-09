@@ -34,7 +34,6 @@ import javax.sql.DataSource;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -54,9 +53,9 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
 
   abstract @Nullable DataSourceConfiguration getDataSourceConfiguration();
 
-  abstract @Nullable ValueProvider<String> getTable();
+  abstract @Nullable String getTable();
 
-  abstract @Nullable ValueProvider<Integer> getBatchSize();
+  abstract @Nullable Integer getBatchSize();
 
   abstract @Nullable UserDataMapper<T> getUserDataMapper();
 
@@ -66,9 +65,9 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
   abstract static class Builder<T> {
     abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration dataSourceConfiguration);
 
-    abstract Builder<T> setTable(ValueProvider<String> table);
+    abstract Builder<T> setTable(String table);
 
-    abstract Builder<T> setBatchSize(ValueProvider<Integer> batchSize);
+    abstract Builder<T> setBatchSize(Integer batchSize);
 
     abstract Builder<T> setUserDataMapper(UserDataMapper<T> userDataMapper);
 
@@ -81,11 +80,6 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   public Write<T> withTable(String table) {
-    checkNotNull(table, "table can not be null");
-    return withTable(ValueProvider.StaticValueProvider.of(table));
-  }
-
-  public Write<T> withTable(ValueProvider<String> table) {
     checkNotNull(table, "table can not be null");
     return toBuilder().setTable(table).build();
   }
@@ -101,12 +95,6 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
    * @param batchSize maximum number of rows that is written by one SQL statement
    */
   public Write<T> withBatchSize(Integer batchSize) {
-    checkNotNull(batchSize, "batchSize can not be null");
-    return withBatchSize(ValueProvider.StaticValueProvider.of(batchSize));
-  }
-
-  /** Same as {@link #withBatchSize(Integer)} but accepting a ValueProvider. */
-  public Write<T> withBatchSize(ValueProvider<Integer> batchSize) {
     checkNotNull(batchSize, "batchSize can not be null");
     return toBuilder().setBatchSize(batchSize).build();
   }

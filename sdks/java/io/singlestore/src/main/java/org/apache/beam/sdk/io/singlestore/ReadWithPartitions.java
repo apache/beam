@@ -28,7 +28,6 @@ import java.sql.Statement;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -47,13 +46,13 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
 
   abstract @Nullable DataSourceConfiguration getDataSourceConfiguration();
 
-  abstract @Nullable ValueProvider<String> getQuery();
+  abstract @Nullable String getQuery();
 
-  abstract @Nullable ValueProvider<String> getTable();
+  abstract @Nullable String getTable();
 
   abstract @Nullable RowMapper<T> getRowMapper();
 
-  abstract @Nullable ValueProvider<Integer> getInitialNumReaders();
+  abstract @Nullable Integer getInitialNumReaders();
 
   abstract Builder<T> toBuilder();
 
@@ -61,13 +60,13 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
   abstract static class Builder<T> {
     abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration dataSourceConfiguration);
 
-    abstract Builder<T> setQuery(ValueProvider<String> query);
+    abstract Builder<T> setQuery(String query);
 
-    abstract Builder<T> setTable(ValueProvider<String> table);
+    abstract Builder<T> setTable(String table);
 
     abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
 
-    abstract Builder<T> setInitialNumReaders(ValueProvider<Integer> initialNumReaders);
+    abstract Builder<T> setInitialNumReaders(Integer initialNumReaders);
 
     abstract ReadWithPartitions<T> build();
   }
@@ -79,20 +78,10 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
 
   public ReadWithPartitions<T> withQuery(String query) {
     checkNotNull(query, "query can not be null");
-    return withQuery(ValueProvider.StaticValueProvider.of(query));
-  }
-
-  public ReadWithPartitions<T> withQuery(ValueProvider<String> query) {
-    checkNotNull(query, "query can not be null");
     return toBuilder().setQuery(query).build();
   }
 
   public ReadWithPartitions<T> withTable(String table) {
-    checkNotNull(table, "table can not be null");
-    return withTable(ValueProvider.StaticValueProvider.of(table));
-  }
-
-  public ReadWithPartitions<T> withTable(ValueProvider<String> table) {
     checkNotNull(table, "table can not be null");
     return toBuilder().setTable(table).build();
   }
@@ -104,12 +93,6 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
 
   /** Pre-split initial restriction and start initialNumReaders reading at the very beginning. */
   public ReadWithPartitions<T> withInitialNumReaders(Integer initialNumReaders) {
-    checkNotNull(initialNumReaders, "initialNumReaders can not be null");
-    return withInitialNumReaders(ValueProvider.StaticValueProvider.of(initialNumReaders));
-  }
-
-  /** Same as {@link #withInitialNumReaders(Integer)} but accepting a ValueProvider. */
-  public ReadWithPartitions<T> withInitialNumReaders(ValueProvider<Integer> initialNumReaders) {
     checkNotNull(initialNumReaders, "initialNumReaders can not be null");
     return toBuilder().setInitialNumReaders(initialNumReaders).build();
   }

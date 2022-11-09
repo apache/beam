@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.singlestore;
 
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
@@ -127,9 +126,7 @@ public class SingleStoreIO {
    * @param <T> Type of the data to be read.
    */
   public static <T> Read<T> read() {
-    return new AutoValue_Read.Builder<T>()
-        .setOutputParallelization(ValueProvider.StaticValueProvider.of(true))
-        .build();
+    return new AutoValue_Read.Builder<T>().setOutputParallelization(true).build();
   }
 
   /**

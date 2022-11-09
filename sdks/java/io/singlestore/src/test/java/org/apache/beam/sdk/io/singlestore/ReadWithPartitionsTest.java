@@ -27,7 +27,6 @@ import java.sql.Statement;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.common.TestRow;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -109,8 +108,7 @@ public class ReadWithPartitionsTest {
     dataSourceConfiguration =
         Mockito.mock(DataSourceConfiguration.class, Mockito.withSettings().serializable());
     Mockito.when(dataSourceConfiguration.getDataSource()).thenReturn(dataSource);
-    Mockito.when(dataSourceConfiguration.getDatabase())
-        .thenReturn(ValueProvider.StaticValueProvider.of("db"));
+    Mockito.when(dataSourceConfiguration.getDatabase()).thenReturn("db");
   }
 
   @Test

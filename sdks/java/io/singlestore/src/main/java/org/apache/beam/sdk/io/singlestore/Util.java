@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.singlestore;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -62,12 +61,7 @@ public class Util {
     }
   }
 
-  public static String getSelectQuery(
-      @Nullable ValueProvider<String> tableProvider,
-      @Nullable ValueProvider<String> queryProvider) {
-    String table = (tableProvider == null) ? null : tableProvider.get();
-    String query = (queryProvider == null) ? null : queryProvider.get();
-
+  public static String getSelectQuery(@Nullable String table, @Nullable String query) {
     if (table != null && query != null) {
       throw new IllegalArgumentException("withTable() can not be used together with withQuery()");
     } else if (table != null) {
@@ -80,27 +74,11 @@ public class Util {
   }
 
   public static <OutputT> OutputT getRequiredArgument(
-      @Nullable ValueProvider<OutputT> provider, String errorMessage) {
-    if (provider == null) {
-      throw new IllegalArgumentException(errorMessage);
-    }
-    return getRequiredArgument(provider.get(), errorMessage);
-  }
-
-  public static <OutputT> OutputT getRequiredArgument(
       @Nullable OutputT value, String errorMessage) {
     if (value == null) {
       throw new IllegalArgumentException(errorMessage);
     }
     return value;
-  }
-
-  public static <OutputT> OutputT getArgumentWithDefault(
-      @Nullable ValueProvider<OutputT> provider, OutputT defaultValue) {
-    if (provider == null) {
-      return defaultValue;
-    }
-    return getArgumentWithDefault(provider.get(), defaultValue);
   }
 
   public static <OutputT> OutputT getArgumentWithDefault(

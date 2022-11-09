@@ -26,7 +26,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.common.TestRow;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.junit.Test;
@@ -104,44 +103,17 @@ public class UtilTest {
     assertThrows(
         errorMessage, IllegalArgumentException.class, () -> Util.getSelectQuery(null, null));
     assertThrows(
-        errorMessage,
-        IllegalArgumentException.class,
-        () ->
-            Util.getSelectQuery(
-                ValueProvider.StaticValueProvider.of(null),
-                ValueProvider.StaticValueProvider.of(null)));
-    assertThrows(
-        errorMessage,
-        IllegalArgumentException.class,
-        () -> Util.getSelectQuery(null, ValueProvider.StaticValueProvider.of(null)));
-    assertThrows(
-        errorMessage,
-        IllegalArgumentException.class,
-        () -> Util.getSelectQuery(ValueProvider.StaticValueProvider.of(null), null));
+        errorMessage, IllegalArgumentException.class, () -> Util.getSelectQuery(null, null));
   }
 
   @Test
   public void testGetSelectQueryNonNullQuery() {
-    assertEquals(
-        "SELECT * FROM table",
-        Util.getSelectQuery(null, ValueProvider.StaticValueProvider.of("SELECT * FROM table")));
-    assertEquals(
-        "SELECT * FROM table",
-        Util.getSelectQuery(
-            ValueProvider.StaticValueProvider.of(null),
-            ValueProvider.StaticValueProvider.of("SELECT * FROM table")));
+    assertEquals("SELECT * FROM table", Util.getSelectQuery(null, "SELECT * FROM table"));
   }
 
   @Test
   public void testGetSelectQueryNonNullTable() {
-    assertEquals(
-        "SELECT * FROM `ta``ble`",
-        Util.getSelectQuery(ValueProvider.StaticValueProvider.of("ta`ble"), null));
-    assertEquals(
-        "SELECT * FROM `tab``le`",
-        Util.getSelectQuery(
-            ValueProvider.StaticValueProvider.of("tab`le"),
-            ValueProvider.StaticValueProvider.of(null)));
+    assertEquals("SELECT * FROM `ta``ble`", Util.getSelectQuery("ta`ble", null));
   }
 
   @Test
@@ -149,10 +121,7 @@ public class UtilTest {
     assertThrows(
         "withTable() can not be used together with withQuery()",
         IllegalArgumentException.class,
-        () ->
-            Util.getSelectQuery(
-                ValueProvider.StaticValueProvider.of("table"),
-                ValueProvider.StaticValueProvider.of("SELECT * FROM table")));
+        () -> Util.getSelectQuery("table", "SELECT * FROM table"));
   }
 
   @Test
@@ -161,34 +130,21 @@ public class UtilTest {
         "ERROR!!!",
         IllegalArgumentException.class,
         () -> Util.getRequiredArgument(null, "ERROR!!!"));
-    assertThrows(
-        "ERROR!!!",
-        IllegalArgumentException.class,
-        () -> Util.getRequiredArgument(ValueProvider.StaticValueProvider.of(null), "ERROR!!!"));
   }
 
   @Test
   public void testGetRequiredArgument() {
     assertEquals("value", Util.getRequiredArgument("value", "ERROR!!!"));
-    assertEquals(
-        "value",
-        Util.getRequiredArgument(ValueProvider.StaticValueProvider.of("value"), "ERROR!!!"));
   }
 
   @Test
   public void testGetArgumentWithDefaultReturnsDefault() {
     assertEquals("default", Util.getArgumentWithDefault(null, "default"));
-    assertEquals(
-        "default",
-        Util.getArgumentWithDefault(ValueProvider.StaticValueProvider.of(null), "default"));
   }
 
   @Test
   public void testGetArgumentWithDefault() {
     assertEquals("value", Util.getArgumentWithDefault("value", "default"));
-    assertEquals(
-        "value",
-        Util.getArgumentWithDefault(ValueProvider.StaticValueProvider.of("value"), "default"));
   }
 
   @Test

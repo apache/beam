@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import javax.sql.DataSource;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -33,69 +32,49 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @AutoValue
 public abstract class DataSourceConfiguration implements Serializable {
-  abstract @Nullable ValueProvider<String> getEndpoint();
+  abstract @Nullable String getEndpoint();
 
-  abstract @Nullable ValueProvider<String> getUsername();
+  abstract @Nullable String getUsername();
 
-  abstract @Nullable ValueProvider<String> getPassword();
+  abstract @Nullable String getPassword();
 
-  abstract @Nullable ValueProvider<String> getDatabase();
+  abstract @Nullable String getDatabase();
 
-  abstract @Nullable ValueProvider<String> getConnectionProperties();
+  abstract @Nullable String getConnectionProperties();
 
   abstract Builder builder();
 
   @AutoValue.Builder
   abstract static class Builder {
-    abstract Builder setEndpoint(ValueProvider<String> endpoint);
+    abstract Builder setEndpoint(String endpoint);
 
-    abstract Builder setUsername(ValueProvider<String> username);
+    abstract Builder setUsername(String username);
 
-    abstract Builder setPassword(ValueProvider<String> password);
+    abstract Builder setPassword(String password);
 
-    abstract Builder setDatabase(ValueProvider<String> database);
+    abstract Builder setDatabase(String database);
 
-    abstract Builder setConnectionProperties(ValueProvider<String> connectionProperties);
+    abstract Builder setConnectionProperties(String connectionProperties);
 
     abstract DataSourceConfiguration build();
   }
 
   public static DataSourceConfiguration create(String endpoint) {
     checkNotNull(endpoint, "endpoint can not be null");
-    return create(ValueProvider.StaticValueProvider.of(endpoint));
-  }
-
-  public static DataSourceConfiguration create(ValueProvider<String> endpoint) {
-    checkNotNull(endpoint, "endpoint can not be null");
     return new AutoValue_DataSourceConfiguration.Builder().setEndpoint(endpoint).build();
   }
 
   public DataSourceConfiguration withUsername(String username) {
-    checkNotNull(username, "username can not be null");
-    return withUsername(ValueProvider.StaticValueProvider.of(username));
-  }
-
-  public DataSourceConfiguration withUsername(ValueProvider<String> username) {
     checkNotNull(username, "username can not be null");
     return builder().setUsername(username).build();
   }
 
   public DataSourceConfiguration withPassword(String password) {
     checkNotNull(password, "password can not be null");
-    return withPassword(ValueProvider.StaticValueProvider.of(password));
-  }
-
-  public DataSourceConfiguration withPassword(ValueProvider<String> password) {
-    checkNotNull(password, "password can not be null");
     return builder().setPassword(password).build();
   }
 
   public DataSourceConfiguration withDatabase(String database) {
-    checkNotNull(database, "database can not be null");
-    return withDatabase(ValueProvider.StaticValueProvider.of(database));
-  }
-
-  public DataSourceConfiguration withDatabase(ValueProvider<String> database) {
     checkNotNull(database, "database can not be null");
     return builder().setDatabase(database).build();
   }
@@ -111,13 +90,6 @@ public abstract class DataSourceConfiguration implements Serializable {
    * href="https://docs.singlestore.com/managed-service/en/developer-resources/connect-with-application-development-tools/connect-with-java-jdbc/the-singlestore-jdbc-driver.html#connection-string-parameters">...</a>}
    */
   public DataSourceConfiguration withConnectionProperties(String connectionProperties) {
-    checkNotNull(connectionProperties, "connectionProperties can not be null");
-    return withConnectionProperties(ValueProvider.StaticValueProvider.of(connectionProperties));
-  }
-
-  /** Same as {@link #withConnectionProperties(String)} but accepting a ValueProvider. */
-  public DataSourceConfiguration withConnectionProperties(
-      ValueProvider<String> connectionProperties) {
     checkNotNull(connectionProperties, "connectionProperties can not be null");
     return builder().setConnectionProperties(connectionProperties).build();
   }
@@ -139,8 +111,8 @@ public abstract class DataSourceConfiguration implements Serializable {
     String database = Util.getArgumentWithDefault(getDatabase(), "");
     String connectionProperties = Util.getArgumentWithDefault(getConnectionProperties(), "");
     connectionProperties += (connectionProperties.isEmpty() ? "" : ";") + "allowLocalInfile=TRUE";
-    String username = Util.getArgumentWithDefault(getUsername(), "");
-    String password = Util.getArgumentWithDefault(getPassword(), "");
+    String username = getUsername();
+    String password = getPassword();
 
     BasicDataSource basicDataSource = new BasicDataSource();
     basicDataSource.setDriverClassName("com.singlestore.jdbc.Driver");
