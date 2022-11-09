@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -685,19 +684,6 @@ func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) (string, error) {
 		Spec:          spec,
 		Inputs:        inputs,
 		EnvironmentId: m.addDefaultEnv(),
-	}
-
-	// Add the coders for output types in the marshaller even if expanded is nil
-	// to set the output coder request field in expansion request for python external transforms.
-	names := strings.Split(spec.Urn, ":")
-	if len(names) > 2 && names[2] == "python" {
-		for _, out := range edge.Output {
-			cID, err := m.coders.Add(out.To.Coder)
-			if err != nil {
-				return "", errors.Wrapf(err, "failed to add output coder to coder registry: %v", m.coders)
-			}
-			out.To.Coder.ID = cID
-		}
 	}
 
 	if edge.External.Expanded != nil {

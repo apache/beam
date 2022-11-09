@@ -36,8 +36,11 @@ import com.google.bigtable.v2.Mutation;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import org.apache.avro.specific.SpecificDatumReader;
@@ -149,6 +152,40 @@ public class BigQueryIOReadTest implements Serializable {
                 }
               };
 
+  private static class MyData implements Serializable {
+    private String name;
+    private Long number;
+    private BigDecimal numeric;
+    private BigDecimal numeric2;
+
+    public MyData(String name, Long number, BigDecimal numeric, BigDecimal numeric2) {
+      this.name = name;
+      this.number = number;
+      this.numeric = numeric;
+      this.numeric2 = numeric2;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      MyData myData = (MyData) o;
+      return number.equals(myData.number)
+          && name.equals(myData.name)
+          && numeric.equals(myData.numeric)
+          && numeric2.equals(myData.numeric2);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(name, number, numeric, numeric2);
+    }
+  }
+
   private void checkSetsProject(String projectId) throws Exception {
     fakeDatasetService.createDataset(projectId, "dataset-id", "", "", null);
     String tableId = "sometable";
@@ -163,47 +200,89 @@ public class BigQueryIOReadTest implements Serializable {
                     .setFields(
                         ImmutableList.of(
                             new TableFieldSchema().setName("name").setType("STRING"),
-                            new TableFieldSchema().setName("number").setType("INTEGER")))));
+                            new TableFieldSchema().setName("number").setType("INTEGER"),
+                            new TableFieldSchema().setName("numeric_num").setType("NUMERIC"),
+                            new TableFieldSchema()
+                                .setName("numeric_num2")
+                                .setType("NUMERIC")
+                                .setScale(2L)
+                                .setPrecision(3L)))));
 
     FakeBigQueryServices fakeBqServices =
         new FakeBigQueryServices()
             .withJobService(new FakeJobService())
             .withDatasetService(fakeDatasetService);
 
+    BigDecimal bd1 = new BigDecimal("123456789.123456789");
+    bd1 = bd1.setScale(9, BigDecimal.ROUND_DOWN);
+    BigDecimal bd2 = new BigDecimal("-98789.54767119977");
+    bd2 = bd2.setScale(9, BigDecimal.ROUND_DOWN);
+    BigDecimal bd3 = new BigDecimal("10.99");
+    bd3 = bd3.setScale(9, BigDecimal.ROUND_DOWN);
+    BigDecimal bd4 = new BigDecimal("2.98123232");
+    bd4 = bd4.setScale(2, BigDecimal.ROUND_DOWN);
+
     List<TableRow> expected =
         ImmutableList.of(
-            new TableRow().set("name", "a").set("number", 1L),
-            new TableRow().set("name", "b").set("number", 2L),
-            new TableRow().set("name", "c").set("number", 3L),
-            new TableRow().set("name", "d").set("number", 4L),
-            new TableRow().set("name", "e").set("number", 5L),
-            new TableRow().set("name", "f").set("number", 6L));
+            new TableRow()
+                .set("name", "a")
+                .set("number", 1L)
+                .set("numeric_num", ByteBuffer.wrap(bd1.unscaledValue().toByteArray()))
+                .set("numeric_num2", ByteBuffer.wrap(bd4.unscaledValue().toByteArray())),
+            new TableRow()
+                .set("name", "b")
+                .set("number", 2L)
+                .set("numeric_num", ByteBuffer.wrap(bd2.unscaledValue().toByteArray()))
+                .set("numeric_num2", ByteBuffer.wrap(bd4.unscaledValue().toByteArray())),
+            new TableRow()
+                .set("name", "c")
+                .set("number", 3L)
+                .set("numeric_num", ByteBuffer.wrap(bd3.unscaledValue().toByteArray()))
+                .set("numeric_num2", ByteBuffer.wrap(bd4.unscaledValue().toByteArray())),
+            new TableRow()
+                .set("name", "d")
+                .set("number", 4L)
+                .set("numeric_num", ByteBuffer.wrap(bd3.unscaledValue().toByteArray()))
+                .set("numeric_num2", ByteBuffer.wrap(bd4.unscaledValue().toByteArray())),
+            new TableRow()
+                .set("name", "e")
+                .set("number", 5L)
+                .set("numeric_num", ByteBuffer.wrap(bd3.unscaledValue().toByteArray()))
+                .set("numeric_num2", ByteBuffer.wrap(bd4.unscaledValue().toByteArray())),
+            new TableRow()
+                .set("name", "f")
+                .set("number", 6L)
+                .set("numeric_num", ByteBuffer.wrap(bd3.unscaledValue().toByteArray()))
+                .set("numeric_num2", ByteBuffer.wrap(bd4.unscaledValue().toByteArray())));
     fakeDatasetService.insertAll(tableReference, expected, null);
 
     TableReference tableRef = new TableReference().setDatasetId("dataset-id").setTableId(tableId);
 
-    PCollection<KV<String, Long>> output =
+    PCollection<MyData> output =
         p.apply(BigQueryIO.read().from(tableRef).withTestServices(fakeBqServices))
             .apply(
                 ParDo.of(
-                    new DoFn<TableRow, KV<String, Long>>() {
+                    new DoFn<TableRow, MyData>() {
                       @ProcessElement
                       public void processElement(ProcessContext c) throws Exception {
                         c.output(
-                            KV.of(
+                            new MyData(
                                 (String) c.element().get("name"),
-                                Long.valueOf((String) c.element().get("number"))));
+                                Long.valueOf((String) c.element().get("number")),
+                                new BigDecimal((String) c.element().get("numeric_num")),
+                                new BigDecimal((String) c.element().get("numeric_num2"))));
                       }
-                    }));
+                    }))
+            .setCoder(SerializableCoder.of(MyData.class));
     PAssert.that(output)
         .containsInAnyOrder(
             ImmutableList.of(
-                KV.of("a", 1L),
-                KV.of("b", 2L),
-                KV.of("c", 3L),
-                KV.of("d", 4L),
-                KV.of("e", 5L),
-                KV.of("f", 6L)));
+                new MyData("a", 1L, bd1, bd4),
+                new MyData("b", 2L, bd2, bd4),
+                new MyData("c", 3L, bd3, bd4),
+                new MyData("d", 4L, bd3, bd4),
+                new MyData("e", 5L, bd3, bd4),
+                new MyData("f", 6L, bd3, bd4)));
     p.run();
   }
 
@@ -392,7 +471,9 @@ public class BigQueryIOReadTest implements Serializable {
             .setFields(
                 ImmutableList.of(
                     new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER"))));
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("numeric_num").setType("NUMERIC"),
+                    new TableFieldSchema().setName("numeric_num2").setType("NUMERIC"))));
     sometable.setTableReference(
         new TableReference()
             .setProjectId("non-executing-project")
@@ -403,11 +484,29 @@ public class BigQueryIOReadTest implements Serializable {
     fakeDatasetService.createDataset("non-executing-project", "somedataset", "", "", null);
     fakeDatasetService.createTable(sometable);
 
+    BigDecimal bd1 = new BigDecimal("10.223");
+    bd1 = bd1.setScale(9, BigDecimal.ROUND_DOWN);
+    byte[] bytes = bd1.unscaledValue().toByteArray();
+    BigDecimal bd2 = new BigDecimal("-99.9999");
+    bd2 = bd2.setScale(9, BigDecimal.ROUND_DOWN);
+    byte[] bytes2 = bd2.unscaledValue().toByteArray();
     List<TableRow> records =
         Lists.newArrayList(
-            new TableRow().set("name", "a").set("number", 1L),
-            new TableRow().set("name", "b").set("number", 2L),
-            new TableRow().set("name", "c").set("number", 3L));
+            new TableRow()
+                .set("name", "a")
+                .set("number", 1L)
+                .set("numeric_num", ByteBuffer.wrap(bytes))
+                .set("numeric_num2", ByteBuffer.wrap(bytes2)),
+            new TableRow()
+                .set("name", "b")
+                .set("number", 2L)
+                .set("numeric_num", ByteBuffer.wrap(bytes))
+                .set("numeric_num2", ByteBuffer.wrap(bytes2)),
+            new TableRow()
+                .set("name", "c")
+                .set("number", 3L)
+                .set("numeric_num", ByteBuffer.wrap(bytes))
+                .set("numeric_num2", ByteBuffer.wrap(bytes2)));
     fakeDatasetService.insertAll(sometable.getTableReference(), records, null);
 
     FakeBigQueryServices fakeBqServices =
@@ -431,22 +530,29 @@ public class BigQueryIOReadTest implements Serializable {
               .withoutValidation();
       readTransform = useTemplateCompatibility ? read.withTemplateCompatibility() : read;
     }
-    PCollection<KV<String, Long>> output =
+    PCollection<MyData> output =
         p.apply(readTransform)
             .apply(
                 ParDo.of(
-                    new DoFn<TableRow, KV<String, Long>>() {
+                    new DoFn<TableRow, MyData>() {
                       @ProcessElement
                       public void processElement(ProcessContext c) throws Exception {
                         c.output(
-                            KV.of(
+                            new MyData(
                                 (String) c.element().get("name"),
-                                Long.valueOf((String) c.element().get("number"))));
+                                Long.valueOf((String) c.element().get("number")),
+                                new BigDecimal((String) c.element().get("numeric_num")),
+                                new BigDecimal((String) c.element().get("numeric_num2"))));
                       }
-                    }));
+                    }))
+            .setCoder(SerializableCoder.of(MyData.class));
 
     PAssert.that(output)
-        .containsInAnyOrder(ImmutableList.of(KV.of("a", 1L), KV.of("b", 2L), KV.of("c", 3L)));
+        .containsInAnyOrder(
+            ImmutableList.of(
+                new MyData("a", 1L, bd1, bd2),
+                new MyData("b", 2L, bd1, bd2),
+                new MyData("c", 3L, bd1, bd2)));
     p.run();
   }
 

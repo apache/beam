@@ -59,17 +59,19 @@
 ## I/Os
 
 * Support for Bigtable sink (Write and WriteBatch) added (Go) ([#23324](https://github.com/apache/beam/issues/23324)).
+* S3 implementation of the Beam filesystem (Go) ([#23991](https://github.com/apache/beam/issues/23991)).
 
 ## New Features / Improvements
 
 * Local packages can now be used as dependencies in the requirements.txt file, rather
-  than requiring them to be passed separately via the `--extra_package` option.
-  ([#23684](https://github.com/apache/beam/pull/23684))
+  than requiring them to be passed separately via the `--extra_package` option
+  (Python) ([#23684](https://github.com/apache/beam/pull/23684)).
+* Pipeline Resource Hints now supported via `--resource_hints` flag (Go) ([#23990](https://github.com/apache/beam/pull/23990)).
 
 ## Breaking Changes
 
 * `ParquetIO.withSplit` was removed since splittable reading has been the default behavior since 2.35.0. The effect of
-  this change is to drop support for non-splittable reading ([#23832](https://github.com/apache/beam/issues/23832)).
+  this change is to drop support for non-splittable reading (Java)([#23832](https://github.com/apache/beam/issues/23832)).
 
 ## Deprecations
 
@@ -78,7 +80,7 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Fixed JmsIO acknowledgment issue (https://github.com/apache/beam/issues/20814)
+* Fixed JmsIO acknowledgment issue (Java) ([#20814](https://github.com/apache/beam/issues/20814))
 * Fixed Beam SQL CalciteUtils (Java) and Cross-language JdbcIO (Python) did not support JDBC CHAR/VARCHAR, BINARY/VARBINARY logical types ([#23747](https://github.com/apache/beam/issues/23747), [#23526](https://github.com/apache/beam/issues/23526)).
 * Ensure iterated and emitted types are used with the generic register package are registered with the type and schema registries.(Go) ([#23889](https://github.com/apache/beam/pull/23889))
 

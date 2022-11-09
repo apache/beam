@@ -28,6 +28,10 @@ require (
 	cloud.google.com/go/profiler v0.3.0
 	cloud.google.com/go/pubsub v1.26.0
 	cloud.google.com/go/storage v1.28.0
+	github.com/aws/aws-sdk-go-v2 v1.7.1
+	github.com/aws/aws-sdk-go-v2/config v1.5.0
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.3.2
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.11.1
 	github.com/docker/go-connections v0.4.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-sql-driver/mysql v1.6.0
@@ -67,6 +71,15 @@ require (
 	github.com/Microsoft/hcsshim v0.9.4 // indirect
 	github.com/apache/arrow/go/arrow v0.0.0-20200730104253-651201b0f516 // indirect
 	github.com/apache/thrift v0.14.2 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.3.1 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.3.0 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.1.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.2.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.2.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.5.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.3.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.6.0 // indirect
+	github.com/aws/smithy-go v1.6.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -86,6 +99,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.2.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.13.1 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/moby/sys/mount v0.3.3 // indirect
