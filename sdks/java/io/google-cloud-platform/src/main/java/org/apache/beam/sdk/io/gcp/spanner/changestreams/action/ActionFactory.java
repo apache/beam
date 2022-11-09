@@ -146,7 +146,6 @@ public class ActionFactory implements Serializable {
    * @param partitionMetadataMapper mapper class to transform partition metadata table rows into the
    *     Connector's domain models
    * @param metrics metrics gathering class
-   * @param throughputEstimator an estimator to calculate local throughput
    * @param resumeDuration specifies the periodic schedule to re-execute the action
    * @return single instance of the {@link DetectNewPartitionsAction}
    */
@@ -154,16 +153,11 @@ public class ActionFactory implements Serializable {
       PartitionMetadataDao partitionMetadataDao,
       PartitionMetadataMapper partitionMetadataMapper,
       ChangeStreamMetrics metrics,
-      ThroughputEstimator throughputEstimator,
       Duration resumeDuration) {
     if (detectNewPartitionsActionInstance == null) {
       detectNewPartitionsActionInstance =
           new DetectNewPartitionsAction(
-              partitionMetadataDao,
-              partitionMetadataMapper,
-              metrics,
-              throughputEstimator,
-              resumeDuration);
+              partitionMetadataDao, partitionMetadataMapper, metrics, resumeDuration);
     }
     return detectNewPartitionsActionInstance;
   }

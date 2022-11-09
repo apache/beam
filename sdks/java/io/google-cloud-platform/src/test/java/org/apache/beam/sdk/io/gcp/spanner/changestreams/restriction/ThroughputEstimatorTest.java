@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator.WINDOW_SIZE_SECONDS;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -43,70 +45,71 @@ public class ThroughputEstimatorTest {
 
   @Test
   public void testThroughputCalculation() {
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(2, 0), 10);
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(3, 0), 20);
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(5, 0), 30);
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(10, 0), 40); // Exclusive
+    assertEquals(6D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(11, 0)), DELTA);
+
     estimator.update(Timestamp.ofTimeSecondsAndNanos(20, 0), 10);
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(30, 0), 20);
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(59, 0), 30);
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(60, 0), 40); // Exclusive
-    assertEquals(20D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(61, 0)), DELTA);
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(21, 0), 20);
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(21, 0), 10);
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(29, 0), 40); // Exclusive
+    assertEquals(4D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(30, 0)), DELTA);
 
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(100, 0), 10);
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(110, 0), 20);
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(110, 0), 10);
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(140, 0), 40); // Exclusive
-    assertEquals(20D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(141, 0)), DELTA);
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(31, 0), 10);
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(35, 0), 40); // Exclusive
+    assertEquals(1D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(41, 0)), DELTA);
 
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(201, 0), 10);
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(250, 0), 40); // Exclusive
-    assertEquals(10D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(261, 0)), DELTA);
-
-    assertEquals(0D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(350, 0)), DELTA);
+    assertEquals(0D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(50, 0)), DELTA);
   }
 
   @Test
   public void testThroughputIsAccumulatedWithin60SecondsWindow() {
-    List<ImmutablePair<Timestamp, Long>> pairs = generateTestData(100, 0, 60, Long.MAX_VALUE);
-    pairs.sort((a, b) -> a.getLeft().compareTo(b.getLeft()));
+    List<ImmutablePair<Timestamp, Long>> pairs = generateTestData(100, 0, 10, Long.MAX_VALUE);
+    pairs.sort(Comparator.comparing(ImmutablePair::getLeft));
 
-    final long count = pairs.stream().map(ImmutablePair::getLeft).distinct().count();
     BigDecimal sum = BigDecimal.valueOf(0L);
     for (ImmutablePair<Timestamp, Long> pair : pairs) {
       sum = sum.add(BigDecimal.valueOf(pair.getRight()));
     }
-    final BigDecimal want = sum.divide(BigDecimal.valueOf(count), MathContext.DECIMAL128);
+    final BigDecimal want =
+        sum.divide(BigDecimal.valueOf(WINDOW_SIZE_SECONDS), MathContext.DECIMAL128);
 
-    for (int i = 0; i < pairs.size(); i++) {
-      estimator.update(pairs.get(i).getLeft(), pairs.get(i).getRight());
+    for (ImmutablePair<Timestamp, Long> pair : pairs) {
+      estimator.update(pair.getLeft(), pair.getRight());
     }
 
     // This is needed to push the current window into the queue.
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(60, 0), 10);
-    double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(60, 0));
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(10, 0), 10);
+    double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(10, 0));
     assertEquals(want.doubleValue(), actual, DELTA);
   }
 
   @Test
-  public void testThroughputIsAccumulatedWithin300SecondsWindow() {
+  public void testThroughputIsAccumulatedWithin50SecondsWindow() {
     List<ImmutablePair<Timestamp, Long>> excludedPairs =
-        generateTestData(300, 0, 240, Long.MAX_VALUE);
+        generateTestData(300, 0, 40, Long.MAX_VALUE);
     List<ImmutablePair<Timestamp, Long>> expectedPairs =
-        generateTestData(50, 240, 300, Long.MAX_VALUE);
+        generateTestData(50, 40, 50, Long.MAX_VALUE);
     List<ImmutablePair<Timestamp, Long>> pairs =
-        Stream.concat(excludedPairs.stream(), expectedPairs.stream()).collect(Collectors.toList());
-    pairs.sort((a, b) -> a.getLeft().compareTo(b.getLeft()));
+        Stream.concat(excludedPairs.stream(), expectedPairs.stream())
+            .sorted(Comparator.comparing(ImmutablePair::getLeft))
+            .collect(Collectors.toList());
 
-    final long count = expectedPairs.stream().map(ImmutablePair::getLeft).distinct().count();
     BigDecimal sum = BigDecimal.valueOf(0L);
     for (ImmutablePair<Timestamp, Long> pair : expectedPairs) {
       sum = sum.add(BigDecimal.valueOf(pair.getRight()));
     }
-    final BigDecimal want = sum.divide(BigDecimal.valueOf(count), MathContext.DECIMAL128);
-    for (int i = 0; i < pairs.size(); i++) {
-      estimator.update(pairs.get(i).getLeft(), pairs.get(i).getRight());
+    final BigDecimal want =
+        sum.divide(BigDecimal.valueOf(WINDOW_SIZE_SECONDS), MathContext.DECIMAL128);
+    for (ImmutablePair<Timestamp, Long> pair : pairs) {
+      estimator.update(pair.getLeft(), pair.getRight());
     }
 
     // This is needed to push the current window into the queue.
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(300, 0), 10);
-    double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(300, 0));
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(50, 0), 10);
+    double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(50, 0));
     assertEquals(want.doubleValue(), actual, DELTA);
   }
 

@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State.CREATED;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -35,13 +34,11 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -52,7 +49,6 @@ public class DetectNewPartitionsActionTest {
   private PartitionMetadataDao dao;
   private PartitionMetadataMapper mapper;
   private ChangeStreamMetrics metrics;
-  private ThroughputEstimator throughputEstimator;
   private Duration resumeDuration;
   private RestrictionTracker<TimestampRange, Timestamp> tracker;
   private TimestampRange restriction;
@@ -65,15 +61,13 @@ public class DetectNewPartitionsActionTest {
     dao = mock(PartitionMetadataDao.class);
     mapper = mock(PartitionMetadataMapper.class);
     metrics = mock(ChangeStreamMetrics.class);
-    throughputEstimator = mock(ThroughputEstimator.class);
     resumeDuration = Duration.standardSeconds(1);
     tracker = mock(RestrictionTracker.class);
     restriction = mock(TimestampRange.class);
     receiver = mock(OutputReceiver.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
 
-    action =
-        new DetectNewPartitionsAction(dao, mapper, metrics, throughputEstimator, resumeDuration);
+    action = new DetectNewPartitionsAction(dao, mapper, metrics, resumeDuration);
 
     when(tracker.currentRestriction()).thenReturn(restriction);
   }
@@ -86,26 +80,12 @@ public class DetectNewPartitionsActionTest {
     final ResultSet resultSet = mock(ResultSet.class);
     final Timestamp partitionCreatedAt = Timestamp.ofTimeMicroseconds(15L);
     final Timestamp partitionScheduledAt = Timestamp.ofTimeMicroseconds(30L);
-    final PartitionMetadata partition1 =
-        PartitionMetadata.newBuilder()
-            .setParentTokens(Sets.newHashSet("parent"))
-            .setPartitionToken("token1")
-            .setStartTimestamp(Timestamp.ofTimeMicroseconds(11L))
-            .setCreatedAt(partitionCreatedAt)
-            .setHeartbeatMillis(3000L)
-            .setState(CREATED)
-            .setWatermark(minWatermark)
-            .build();
-    final PartitionMetadata partition2 =
-        PartitionMetadata.newBuilder()
-            .setParentTokens(Sets.newHashSet("parent"))
-            .setPartitionToken("token2")
-            .setStartTimestamp(Timestamp.ofTimeMicroseconds(12L))
-            .setCreatedAt(partitionCreatedAt)
-            .setHeartbeatMillis(3000L)
-            .setState(CREATED)
-            .setWatermark(minWatermark)
-            .build();
+    final PartitionMetadata partition1 = mock(PartitionMetadata.class, RETURNS_DEEP_STUBS);
+    final PartitionMetadata partition2 = mock(PartitionMetadata.class, RETURNS_DEEP_STUBS);
+    when(partition1.getPartitionToken()).thenReturn("token1");
+    when(partition1.getCreatedAt()).thenReturn(partitionCreatedAt);
+    when(partition2.getPartitionToken()).thenReturn("token2");
+    when(partition2.getCreatedAt()).thenReturn(partitionCreatedAt);
     when(restriction.getFrom()).thenReturn(from);
     when(dao.getUnfinishedMinWatermark()).thenReturn(minWatermark);
     when(dao.getAllPartitionsCreatedAfter(from)).thenReturn(resultSet);
@@ -119,7 +99,6 @@ public class DetectNewPartitionsActionTest {
     assertEquals(ProcessContinuation.resume().withResumeDelay(resumeDuration), continuation);
     verify(watermarkEstimator).setWatermark(minWatermarkInstant);
     verify(receiver, times(2)).outputWithTimestamp(any(), eq(minWatermarkInstant));
-    verify(throughputEstimator, times(2)).update(any(), anyLong());
   }
 
   @Test
@@ -138,7 +117,6 @@ public class DetectNewPartitionsActionTest {
     assertEquals(ProcessContinuation.resume().withResumeDelay(resumeDuration), continuation);
     verify(watermarkEstimator).setWatermark(minWatermarkInstant);
     verify(receiver, never()).outputWithTimestamp(any(), any());
-    verify(throughputEstimator, never()).update(any(), anyLong());
   }
 
   @Test
@@ -152,6 +130,5 @@ public class DetectNewPartitionsActionTest {
     assertEquals(ProcessContinuation.stop(), continuation);
     verify(watermarkEstimator, never()).setWatermark(any());
     verify(receiver, never()).outputWithTimestamp(any(), any());
-    verify(throughputEstimator, never()).update(any(), anyLong());
   }
 }

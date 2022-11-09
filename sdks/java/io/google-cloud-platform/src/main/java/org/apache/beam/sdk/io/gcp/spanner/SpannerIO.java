@@ -1633,9 +1633,7 @@ public class SpannerIO {
               : getInclusiveEndAt();
       final MapperFactory mapperFactory = new MapperFactory();
       final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
-      final ThroughputEstimator readChangeStreamPartitionThroughputEstimator =
-          new ThroughputEstimator();
-      final ThroughputEstimator detectNewPartitionsThroughputEstimator = new ThroughputEstimator();
+      final ThroughputEstimator throughputEstimator = new ThroughputEstimator();
       final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.HIGH);
       final DaoFactory daoFactory =
           new DaoFactory(
@@ -1650,19 +1648,10 @@ public class SpannerIO {
       final InitializeDoFn initializeDoFn =
           new InitializeDoFn(daoFactory, mapperFactory, startTimestamp, endTimestamp);
       final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-          new DetectNewPartitionsDoFn(
-              daoFactory,
-              mapperFactory,
-              actionFactory,
-              metrics,
-              detectNewPartitionsThroughputEstimator);
+          new DetectNewPartitionsDoFn(daoFactory, mapperFactory, actionFactory, metrics);
       final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
           new ReadChangeStreamPartitionDoFn(
-              daoFactory,
-              mapperFactory,
-              actionFactory,
-              metrics,
-              readChangeStreamPartitionThroughputEstimator);
+              daoFactory, mapperFactory, actionFactory, metrics, throughputEstimator);
       final PostProcessingMetricsDoFn postProcessingMetricsDoFn =
           new PostProcessingMetricsDoFn(metrics);
 

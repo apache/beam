@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.BytesEstimator.AVERAGE_PARTITION_SIZE;
+
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.DetectNewPartitionsAction;
@@ -27,7 +29,6 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadata
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.DetectNewPartitionsRangeTracker;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -62,7 +63,6 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
   private final ChangeStreamMetrics metrics;
-  private final ThroughputEstimator throughputEstimator;
   private transient DetectNewPartitionsAction detectNewPartitionsAction;
 
   /**
@@ -77,20 +77,16 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
    * @param mapperFactory the {@link MapperFactory} to construct {@link PartitionMetadataMapper}s
    * @param actionFactory the {@link ActionFactory} to construct actions
    * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
-   * @param throughputEstimator an estimator to calculate local throughput of the {@link
-   *     DetectNewPartitionsDoFn}
    */
   public DetectNewPartitionsDoFn(
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
-      ChangeStreamMetrics metrics,
-      ThroughputEstimator throughputEstimator) {
+      ChangeStreamMetrics metrics) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
     this.metrics = metrics;
-    this.throughputEstimator = throughputEstimator;
     this.resumeDuration = DEFAULT_RESUME_DURATION;
   }
 
@@ -119,10 +115,21 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
   }
 
   @GetSize
-  public double getSize() {
-    double throughput = throughputEstimator.get();
-    LOG.debug("Reported getSize() - throughput: " + throughput);
-    return throughput;
+  public double getSize(@Restriction TimestampRange restriction) {
+    final com.google.cloud.Timestamp readTimestamp = restriction.getFrom();
+    final PartitionMetadataDao dao = daoFactory.getPartitionMetadataDao();
+    final long partitionsToSchedule = dao.countPartitionsCreatedAfter(readTimestamp);
+    final long size = partitionsToSchedule * AVERAGE_PARTITION_SIZE;
+
+    LOG.debug(
+        "getSize() = "
+            + size
+            + " ("
+            + partitionsToSchedule
+            + " partitionsToSchedule * "
+            + AVERAGE_PARTITION_SIZE
+            + " averagePartitionSize)");
+    return size;
   }
 
   @NewTracker
@@ -137,11 +144,7 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
     final PartitionMetadataMapper partitionMetadataMapper = mapperFactory.partitionMetadataMapper();
     this.detectNewPartitionsAction =
         actionFactory.detectNewPartitionsAction(
-            partitionMetadataDao,
-            partitionMetadataMapper,
-            metrics,
-            throughputEstimator,
-            resumeDuration);
+            partitionMetadataDao, partitionMetadataMapper, metrics, resumeDuration);
   }
 
   /**
