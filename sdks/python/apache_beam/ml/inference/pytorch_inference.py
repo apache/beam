@@ -39,10 +39,15 @@ __all__ = [
 ]
 
 TensorInferenceFn = Callable[
-    [Sequence[torch.Tensor], torch.nn.Module, Optional[Dict[str, Any]]], Iterable[PredictionResult]]
+    [Sequence[torch.Tensor], torch.nn.Module, Optional[Dict[str, Any]]],
+    Iterable[PredictionResult]]
 
-KeyedTensorInferenceFn = Callable[
-    [Sequence[Dict[str, torch.Tensor]], torch.nn.Module, Optional[Dict[str, Any]]], Iterable[PredictionResult]]
+KeyedTensorInferenceFn = Callable[[
+    Sequence[Dict[str, torch.Tensor]],
+    torch.nn.Module,
+    Optional[Dict[str, Any]]
+],
+                                  Iterable[PredictionResult]]
 
 
 def _load_model(
@@ -105,8 +110,10 @@ def _convert_to_result(
     ]
   return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
+
 #def _default_tensor_inference_fn(batch: Sequence[torch.Tensor], model: torch.nn.Module, inference_args: Optional[Dict[str, Any]] = None) -> Iterable[PredictionResult]:
- # return
+# return
+
 
 class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
                                              PredictionResult,
@@ -214,10 +221,10 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
 
 
 def _default_keyed_tensor_inference_fn(
-  batch: Sequence[Dict[str, torch.Tensor]],
-  model: torch.nn.Module,
-  inference_args: Optional[Dict[str, Any]] = None
-  ) -> Iterable[PredictionResult]:
+    batch: Sequence[Dict[str, torch.Tensor]],
+    model: torch.nn.Module,
+    inference_args: Optional[Dict[str,
+                                  Any]] = None) -> Iterable[PredictionResult]:
   return
 
 
@@ -232,7 +239,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       model_params: Dict[str, Any],
       device: str = 'CPU',
       *,
-      inference_fn: KeyedTensorInferenceFn = _default_keyed_tensor_inference_fn):
+      inference_fn: KeyedTensorInferenceFn = _default_keyed_tensor_inference_fn
+  ):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage::
@@ -270,7 +278,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_params = model_params
-    self._inference_fn=inference_fn
+    self._inference_fn = inference_fn
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
