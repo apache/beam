@@ -83,8 +83,10 @@ gcloud auth application-default login
 # Deploy Playground infrastructure:
 1. Start the following command from the top level repository folder ("beam") to deploy the Payground infrastructure:
 ```
-./gradlew playground:terraform:InitInfrastructure -Pproject_environment="environment_name"
+./gradlew playground:terraform:InitInfrastructure -Pproject_environment="environment_name" -Pdns-name="playground.zone"
 ```
+Where playground.zone - chosen DNS for Playground
+
 2. Find a Static IP in your GCP project>VPC Network>IP Addresses>pg-static-ip
 <br>Add following DNS A records for the discovered static IP address:
 ```
