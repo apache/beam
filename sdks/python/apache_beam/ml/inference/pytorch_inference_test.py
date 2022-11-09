@@ -116,7 +116,6 @@ class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
     PytorchModelHandlerKeyedTensor):
   def __init__(self, device):
     self._device = device
-    self._inference_fn = default_tensor_inference_fn
 
 
 def _compare_prediction_result(x, y):
