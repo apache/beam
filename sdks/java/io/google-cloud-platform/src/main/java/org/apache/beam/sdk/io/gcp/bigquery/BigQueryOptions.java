@@ -156,4 +156,20 @@ public interface BigQueryOptions
   Long getStorageWriteApiMaxRequestSize();
 
   void setStorageWriteApiMaxRequestSize(Long value);
+
+  @Description("Enable/Disable dynamic work rebalancing in BigQuery Stream Source.")
+  @Default.Boolean(true)
+  Boolean getDynamicWorkflowRebalancingEnabled();
+
+  void setDynamicWorkflowRebalancingEnabled(Boolean value);
+
+  @Description(
+      "Initial number of streams to create in a Read API Session."
+          + "-1 : Dataflow will decide the appropriate number of streams (DEFAULT)."
+          + "0  : BigQuery Read API will pick the maximum number of streams supported by the table."
+          + "> 0: Specifies the number of streams in the Read Session.")
+  @Default.Integer(-1)
+  int getReadSessionInitialStreamCount();
+
+  void setReadSessionInitialStreamCount(int value);
 }

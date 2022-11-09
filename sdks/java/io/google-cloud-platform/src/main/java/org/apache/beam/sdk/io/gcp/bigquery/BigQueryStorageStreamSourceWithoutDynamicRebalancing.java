@@ -52,18 +52,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session. */
-class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
+class BigQueryStorageStreamSourceWithoutDynamicRebalancing<T> extends BoundedSource<T> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageStreamSource.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageStreamSourceWithoutDynamicRebalancing.class);
 
-  public static <T> BigQueryStorageStreamSource<T> create(
+  public static <T> BigQueryStorageStreamSourceWithoutDynamicRebalancing<T> create(
       ReadSession readSession,
       ReadStream readStream,
       TableSchema tableSchema,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    return new BigQueryStorageStreamSource<>(
+    return new BigQueryStorageStreamSourceWithoutDynamicRebalancing<>(
         readSession,
         readStream,
         toJsonString(Preconditions.checkArgumentNotNull(tableSchema, "tableSchema")),
@@ -76,8 +76,8 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
    * Creates a new source with the same properties as this one, except with a different {@link
    * ReadStream}.
    */
-  public BigQueryStorageStreamSource<T> fromExisting(ReadStream newReadStream) {
-    return new BigQueryStorageStreamSource<>(
+  public BigQueryStorageStreamSourceWithoutDynamicRebalancing<T> fromExisting(ReadStream newReadStream) {
+    return new BigQueryStorageStreamSourceWithoutDynamicRebalancing<>(
         readSession, newReadStream, jsonTableSchema, parseFn, outputCoder, bqServices);
   }
 
@@ -88,7 +88,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
   private final Coder<T> outputCoder;
   private final BigQueryServices bqServices;
 
-  private BigQueryStorageStreamSource(
+  private BigQueryStorageStreamSourceWithoutDynamicRebalancing(
       ReadSession readSession,
       ReadStream readStream,
       String jsonTableSchema,
@@ -127,8 +127,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
   @Override
   public List<? extends BoundedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) {
-    // A stream source can't be split without reading from it due to server-side liquid sharding.
-    // TODO: Implement dynamic work rebalancing.
+    // This version of the BigQuery Stream Source does NOT support dynamic work rebalancing.
     return ImmutableList.of(this);
   }
 
@@ -149,16 +148,14 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private final SerializableFunction<SchemaAndRecord, T> parseFn;
     private final StorageClient storageClient;
     private final TableSchema tableSchema;
-    private final BigQueryOptions bqOptions;
 
-    private BigQueryStorageStreamSource<T> source;
+    private BigQueryStorageStreamSourceWithoutDynamicRebalancing<T> source;
     private @Nullable BigQueryServerStream<ReadRowsResponse> responseStream = null;
     private @Nullable Iterator<ReadRowsResponse> responseIterator = null;
     private @Nullable T current = null;
     private long currentOffset;
 
     // Values used for progress reporting.
-    private boolean splitPossible = true;
     private double fractionConsumed;
     private double progressAtResponseStart;
     private double progressAtResponseEnd;
@@ -169,7 +166,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private @Nullable ServiceCallMetric serviceCallMetric;
 
     private BigQueryStorageStreamReader(
-        BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
+        BigQueryStorageStreamSourceWithoutDynamicRebalancing<T> source, BigQueryOptions options) throws IOException {
       this.source = source;
       this.reader = BigQueryStorageReaderFactory.getReader(source.readSession);
       this.parseFn = source.parseFn;
@@ -180,12 +177,11 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       this.progressAtResponseEnd = 0d;
       this.rowsConsumedFromCurrentResponse = 0L;
       this.totalRowsInCurrentResponse = 0L;
-      this.bqOptions = options.as(BigQueryOptions.class);
     }
 
     @Override
     public synchronized boolean start() throws IOException {
-      BigQueryStorageStreamSource<T> source = getCurrentSource();
+      BigQueryStorageStreamSourceWithoutDynamicRebalancing<T> source = getCurrentSource();
 
       ReadRowsRequest request =
           ReadRowsRequest.newBuilder()
@@ -270,9 +266,9 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       fractionConsumed =
           progressAtResponseStart
               + (progressAtResponseEnd - progressAtResponseStart)
-                  * rowsConsumedFromCurrentResponse
-                  * 1.0
-                  / totalRowsInCurrentResponse;
+              * rowsConsumedFromCurrentResponse
+              * 1.0
+              / totalRowsInCurrentResponse;
 
       return true;
     }
@@ -296,112 +292,15 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public synchronized BigQueryStorageStreamSource<T> getCurrentSource() {
+    public synchronized BigQueryStorageStreamSourceWithoutDynamicRebalancing<T> getCurrentSource() {
       return source;
     }
 
     @Override
     @SuppressWarnings("ReturnValueIgnored")
     public @Nullable BoundedSource<T> splitAtFraction(double fraction) {
-      // Because superclass cannot have preconditions around these variables, cannot use
-      // @RequiresNonNull
-      if (!bqOptions.getDynamicWorkflowRebalancingEnabled()) {
-        return null;
-      }
-      Preconditions.checkStateNotNull(responseStream);
-      BigQueryServerStream<ReadRowsResponse> responseStream = this.responseStream;
-      Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls").inc();
-      LOG.debug(
-          "Received BigQuery Storage API split request for stream {} at fraction {}.",
-          source.readStream.getName(),
-          fraction);
-
-      if (fraction <= 0.0 || fraction >= 1.0) {
-        LOG.info("BigQuery Storage API does not support splitting at fraction {}", fraction);
-        return null;
-      }
-
-      if (!splitPossible) {
-        return null;
-      }
-
-      SplitReadStreamRequest splitRequest =
-          SplitReadStreamRequest.newBuilder()
-              .setName(source.readStream.getName())
-              .setFraction((float) fraction)
-              .build();
-
-      SplitReadStreamResponse splitResponse = storageClient.splitReadStream(splitRequest);
-      if (!splitResponse.hasPrimaryStream() || !splitResponse.hasRemainderStream()) {
-        // No more splits are possible!
-        Metrics.counter(
-                BigQueryStorageStreamReader.class,
-                "split-at-fraction-calls-failed-due-to-impossible-split-point")
-            .inc();
-        LOG.info(
-            "BigQuery Storage API stream {} cannot be split at {}.",
-            source.readStream.getName(),
-            fraction);
-        splitPossible = false;
-        return null;
-      }
-
-      // We may be able to split this source. Before continuing, we pause the reader thread and
-      // replace its current source with the primary stream iff the reader has not moved past
-      // the split point.
-      synchronized (this) {
-        BigQueryServerStream<ReadRowsResponse> newResponseStream;
-        Iterator<ReadRowsResponse> newResponseIterator;
-        try {
-          newResponseStream =
-              storageClient.readRows(
-                  ReadRowsRequest.newBuilder()
-                      .setReadStream(splitResponse.getPrimaryStream().getName())
-                      .setOffset(currentOffset + 1)
-                      .build(),
-                  source.readSession.getTable());
-          newResponseIterator = newResponseStream.iterator();
-          // The following line is required to trigger the `FailedPreconditionException` on which
-          // the SplitReadStream validation logic depends. Removing it will cause incorrect
-          // split operations to succeed.
-          newResponseIterator.hasNext();
-        } catch (FailedPreconditionException e) {
-          // The current source has already moved past the split point, so this split attempt
-          // is unsuccessful.
-          Metrics.counter(
-                  BigQueryStorageStreamReader.class,
-                  "split-at-fraction-calls-failed-due-to-bad-split-point")
-              .inc();
-          LOG.info(
-              "BigQuery Storage API split of stream {} abandoned because the primary stream is to "
-                  + "the left of the split fraction {}.",
-              source.readStream.getName(),
-              fraction);
-          return null;
-        } catch (Exception e) {
-          Metrics.counter(
-                  BigQueryStorageStreamReader.class,
-                  "split-at-fraction-calls-failed-due-to-other-reasons")
-              .inc();
-          LOG.error("BigQuery Storage API stream split failed.", e);
-          return null;
-        }
-
-        // Cancels the parent stream before replacing it with the primary stream.
-        responseStream.cancel();
-        source = source.fromExisting(splitResponse.getPrimaryStream());
-        responseStream = newResponseStream;
-        responseIterator = newResponseIterator;
-        reader.resetBuffer();
-      }
-
-      Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")
-          .inc();
-      LOG.info(
-          "Successfully split BigQuery Storage API stream at {}. Split response: {}",
-          fraction,
-          splitResponse);
-      return source.fromExisting(splitResponse.getRemainderStream());
+      // This version of the BigQuery Stream Source does NOT support dynamic work rebalancing.
+      return null;
     }
 
     @Override

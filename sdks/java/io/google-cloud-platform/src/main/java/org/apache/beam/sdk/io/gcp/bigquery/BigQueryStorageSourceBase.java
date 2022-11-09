@@ -59,7 +59,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
   /**
    * The minimum number of streams which will be requested when creating a read session, regardless
-   * of the desired bundle size. Note that the server may still choose to return fewer than ten
+   * of the desired bundle size. Note that the server may still choose to return fewer than 10
    * streams based on the layout of the table.
    */
   private static final int MIN_SPLIT_COUNT = 10;
@@ -134,12 +134,15 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     }
 
     int streamCount = 0;
-    if (desiredBundleSizeBytes > 0) {
-      long tableSizeBytes = (targetTable != null) ? targetTable.getNumBytes() : 0;
-      streamCount = (int) Math.min(tableSizeBytes / desiredBundleSizeBytes, MAX_SPLIT_COUNT);
+    if (bqOptions.getReadSessionInitialStreamCount() == -1) {
+      if (desiredBundleSizeBytes > 0) {
+        long tableSizeBytes = (targetTable != null) ? targetTable.getNumBytes() : 0;
+        streamCount = (int) Math.min(tableSizeBytes / desiredBundleSizeBytes, MAX_SPLIT_COUNT);
+      }
+      streamCount = Math.max(streamCount, MIN_SPLIT_COUNT);
+    } else {
+      streamCount = bqOptions.getReadSessionInitialStreamCount();
     }
-
-    streamCount = Math.max(streamCount, MIN_SPLIT_COUNT);
 
     CreateReadSessionRequest createReadSessionRequest =
         CreateReadSessionRequest.newBuilder()
