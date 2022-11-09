@@ -90,7 +90,7 @@ _METRIC_DESCRIPTION = """
   Affected metric: `{}`
 """
 _METRIC_INFO = "timestamp: {}, metric_value: `{}`"
-GH_ISSUE_LABELS = ['perf-alerts']
+ISSUE_LABELS = ['perf-alerts']
 
 
 class Metric:
@@ -276,18 +276,23 @@ class RunChangePointAnalysis:
           "Create alert for the test %s: %s" % (test_name, create_alert))
 
       # alert is created via comment on open issue or as a new issue.
+      if 'labels' in config:
+        labels = config['labels']
+      else:
+        labels = ISSUE_LABELS
+
       if create_alert:
         gh_issue = GitHubIssues()
         issue_number, issue_url = gh_issue.create_or_update_issue(
           title=TITLE_TEMPLATE.format(test_name, metric_name),
           description=gh_issue.issue_description(
-              metric_name=metric_name,
-              timestamps=timestamps,
-              metric_values=metric_values,
-              change_point_index=change_point_index,
-              max_results_to_display=
-              NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION),
-          labels=GH_ISSUE_LABELS,
+          metric_name=metric_name,
+          timestamps=timestamps,
+          metric_values=metric_values,
+          change_point_index=change_point_index,
+          max_results_to_display=NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION
+          ),
+          labels=labels,
           issue_number=previous_issue_number)
 
         logging.info(

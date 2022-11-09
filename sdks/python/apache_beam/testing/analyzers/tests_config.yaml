@@ -21,6 +21,8 @@ test_1:
   metrics_table: torch_inference_imagenet_results_resnet152
   project: apache-beam-testing
   metric_name: mean_load_model_latency_milli_secs
+  labels:
+    - perf_alert
 
 test_2:
   test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
@@ -29,3 +31,5 @@ test_2:
   metrics_table: torch_inference_imagenet_results_resnet101
   project: apache-beam-testing
   metric_name: mean_load_model_latency_milli_secs
+  labels:
+    - perf_alert
