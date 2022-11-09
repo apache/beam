@@ -35,7 +35,7 @@ and to show how Beam can be used to solve common Machine Learning problems.
 We're now happy to present this new and improved Beam ML experience!
 
 <img class="center-block"
-     src="/images/blog/ensemble-model-notebook.png.png"
+     src="/images/blog/ensemble-model-notebook.png"
      alt="Example ensemble notebook with RunInference">
 
 To get started, we encourage you to visit Beam's new [AI/ML landing page](https://beam.apache.org/documentation/ml/overview/).
