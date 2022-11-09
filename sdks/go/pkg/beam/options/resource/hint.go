@@ -78,6 +78,7 @@ func (hs Hints) Equal(other Hints) bool {
 	return true
 }
 
+// Payloads retuns a map from all hint URNs to the serialized byte representation of their payloads.
 func (hs Hints) Payloads() map[string][]byte {
 	p := map[string][]byte{}
 	for k, h := range hs.h {
@@ -96,6 +97,7 @@ func NewHints(hs ...Hint) Hints {
 	return hints
 }
 
+// Hint contains all the information about a given resource hint.
 type Hint interface {
 	// URN returns the name for this hint.
 	URN() string
@@ -105,55 +107,55 @@ type Hint interface {
 	MergeWithOuter(outer Hint) Hint
 }
 
-// MinRamBytes hints that this scope should be put in a machine with at least this many bytes of memory.
+// MinRAMBytes hints that this scope should be put in a machine with at least this many bytes of memory.
 //
 // Hints are advisory only and runners may not respect them.
 //
 // See https://beam.apache.org/documentation/runtime/resource-hints/ for more information about
 // resource hints.
-func MinRamBytes(v uint64) Hint {
-	return minRamHint{value: int64(v)}
+func MinRAMBytes(v uint64) Hint {
+	return minRAMHint{value: int64(v)}
 }
 
-// ParseMinRam converts various byte units, including MB, GB, MiB, and GiB into a hint.
-// An invalid byte size format will cause ParseMinRam to panic.
+// ParseMinRAM converts various byte units, including MB, GB, MiB, and GiB into a hint.
+// An invalid byte size format will cause ParseMinRAM to panic.
 //
 // Hints are advisory only and runners may not respect them.
 //
 // See https://beam.apache.org/documentation/runtime/resource-hints/ for more information about
 // resource hints.
-func ParseMinRam(v string) Hint {
+func ParseMinRAM(v string) Hint {
 	b, err := humanize.ParseBytes(v)
 	if err != nil {
-		panic(fmt.Sprintf("resource.ParseMinRam: unable to parse %q: %v", v, err))
+		panic(fmt.Sprintf("resource.ParseMinRAM: unable to parse %q: %v", v, err))
 	}
-	return MinRamBytes(b)
+	return MinRAMBytes(b)
 }
 
-type minRamHint struct {
+type minRAMHint struct {
 	value int64
 }
 
-func (minRamHint) URN() string {
+func (minRAMHint) URN() string {
 	return "beam:resources:min_ram_bytes:v1"
 }
 
-func (a minRamHint) Payload() []byte {
+func (h minRAMHint) Payload() []byte {
 	// Go strings are utf8, and if the string is ascii,
 	// byte conversion handles that directly.
-	return []byte(strconv.FormatInt(a.value, 10))
+	return []byte(strconv.FormatInt(h.value, 10))
 }
 
-// MergeWith an outer minRamHints by keeping the maximum of the two byte amounts.
-func (h minRamHint) MergeWithOuter(outer Hint) Hint {
+// MergeWith an outer minRAMHints by keeping the maximum of the two byte amounts.
+func (h minRAMHint) MergeWithOuter(outer Hint) Hint {
 	// Intentional runtime panic from type assertion to catch hint merge errors.
-	if outer.(minRamHint).value > h.value {
+	if outer.(minRAMHint).value > h.value {
 		return outer
 	}
 	return h
 }
 
-func (h minRamHint) String() string {
+func (h minRAMHint) String() string {
 	return fmt.Sprintf("min_ram=%v", humanize.Bytes(uint64(h.value)))
 }
 

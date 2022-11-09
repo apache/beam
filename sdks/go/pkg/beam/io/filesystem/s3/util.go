@@ -22,8 +22,8 @@ import (
 	"strings"
 )
 
-// parseUri deconstructs the S3 uri in the format 's3://bucket/key' to (bucket, key)
-func parseUri(uri string) (string, string, error) {
+// parseURI deconstructs the S3 uri in the format 's3://bucket/key' to (bucket, key)
+func parseURI(uri string) (string, string, error) {
 	parsed, err := url.Parse(uri)
 	if err != nil {
 		return "", "", err
@@ -46,8 +46,8 @@ func parseUri(uri string) (string, string, error) {
 	return bucket, key, nil
 }
 
-// makeUri constructs an S3 uri from the bucket and key to the format 's3://bucket/key'
-func makeUri(bucket string, key string) string {
+// makeURI constructs an S3 uri from the bucket and key to the format 's3://bucket/key'
+func makeURI(bucket string, key string) string {
 	return fmt.Sprintf("s3://%s/%s", bucket, key)
 }
 

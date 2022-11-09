@@ -54,7 +54,7 @@ func (f *fs) Close() error {
 
 // List returns a slice of the files in the filesystem that match the glob pattern.
 func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
-	bucket, keyPattern, err := parseUri(glob)
+	bucket, keyPattern, err := parseURI(glob)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing S3 uri: %v", err)
 	}
@@ -66,7 +66,7 @@ func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
 
 	uris := make([]string, len(keys))
 	for i, key := range keys {
-		uris[i] = makeUri(bucket, key)
+		uris[i] = makeURI(bucket, key)
 	}
 
 	return uris, nil
@@ -111,7 +111,7 @@ func (f *fs) listObjectKeys(
 // OpenRead returns a new io.ReadCloser to read contents from the file. The caller must call Close
 // on the returned io.ReadCloser when done reading.
 func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, error) {
-	bucket, key, err := parseUri(filename)
+	bucket, key, err := parseURI(filename)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing S3 uri %s: %v", filename, err)
 	}
@@ -131,7 +131,7 @@ func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, erro
 // OpenWrite returns a new io.WriteCloser to write contents to the file. The caller must call Close
 // on the returned io.WriteCloser when done writing.
 func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, error) {
-	bucket, key, err := parseUri(filename)
+	bucket, key, err := parseURI(filename)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing S3 uri %s: %v", filename, err)
 	}
@@ -141,7 +141,7 @@ func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, er
 
 // Size returns the size of the file.
 func (f *fs) Size(ctx context.Context, filename string) (int64, error) {
-	bucket, key, err := parseUri(filename)
+	bucket, key, err := parseURI(filename)
 	if err != nil {
 		return -1, fmt.Errorf("error parsing S3 uri %s: %v", filename, err)
 	}
@@ -160,7 +160,7 @@ func (f *fs) Size(ctx context.Context, filename string) (int64, error) {
 
 // Remove removes the file from the filesystem.
 func (f *fs) Remove(ctx context.Context, filename string) error {
-	bucket, key, err := parseUri(filename)
+	bucket, key, err := parseURI(filename)
 	if err != nil {
 		return fmt.Errorf("error parsing S3 uri %s: %v", filename, err)
 	}
@@ -178,13 +178,13 @@ func (f *fs) Remove(ctx context.Context, filename string) error {
 
 // Copy copies the file from the old path to the new path.
 func (f *fs) Copy(ctx context.Context, oldpath, newpath string) error {
-	sourceBucket, sourceKey, err := parseUri(oldpath)
+	sourceBucket, sourceKey, err := parseURI(oldpath)
 	if err != nil {
 		return fmt.Errorf("error parsing S3 source uri %s: %v", oldpath, err)
 	}
 
 	copySource := fmt.Sprintf("%s/%s", sourceBucket, sourceKey)
-	destBucket, destKey, err := parseUri(newpath)
+	destBucket, destKey, err := parseURI(newpath)
 	if err != nil {
 		return fmt.Errorf("error parsing S3 destination uri %s: %v", newpath, err)
 	}
