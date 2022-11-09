@@ -243,7 +243,8 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
     DataSourceConfiguration.populateDisplayData(getDataSourceConfiguration(), builder);
     builder.addIfNotNull(DisplayData.item("query", getQuery()));
     builder.addIfNotNull(DisplayData.item("table", getTable()));
-    builder.addIfNotNull(DisplayData.item("rowMapper", SingleStoreUtil.getClassNameOrNull(getRowMapper())));
+    builder.addIfNotNull(
+        DisplayData.item("rowMapper", SingleStoreUtil.getClassNameOrNull(getRowMapper())));
     builder.addIfNotNull(DisplayData.item("initialNumReaders", getInitialNumReaders()));
   }
 }

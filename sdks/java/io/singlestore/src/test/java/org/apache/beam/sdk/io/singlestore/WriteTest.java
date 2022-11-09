@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.singlestore;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,13 +30,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.TestRow;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.commons.dbcp2.DelegatingStatement;
@@ -59,8 +63,7 @@ public class WriteTest {
 
   private static final int EXPECTED_ROW_COUNT = 1000;
 
-  private static final List<TestRow> writtenRows =
-      Collections.synchronizedList(new ArrayList<TestRow>());
+  private static final List<TestRow> writtenRows = Collections.synchronizedList(new ArrayList<>());
 
   private static class SetInputStream implements Serializable, Answer<Void> {
     InputStream inputStream;
@@ -79,15 +82,12 @@ public class WriteTest {
   private static class ExecuteUpdate implements Serializable, Answer<Integer> {
     SetInputStream inputStreamSetter;
 
-    private static AtomicInteger executionsNumber = new AtomicInteger(0);
-
     ExecuteUpdate(SetInputStream inputStreamSetter) {
       this.inputStreamSetter = inputStreamSetter;
     }
 
     @Override
     public Integer answer(InvocationOnMock invocation) {
-      executionsNumber.incrementAndGet();
       InputStream s = inputStreamSetter.getInputStream();
       StringBuilder csvBuilder = new StringBuilder();
       byte[] b = new byte[100];
@@ -114,15 +114,7 @@ public class WriteTest {
 
         writtenRows.add(TestRow.create(id, name));
       }
-      return 1;
-    }
-
-    public static int getExecutionsNumber() {
-      return executionsNumber.get();
-    }
-
-    public static void resetExecutionsNumber() {
-      executionsNumber = new AtomicInteger(0);
+      return rows.size();
     }
   }
 
@@ -134,7 +126,6 @@ public class WriteTest {
 
   @After
   public void cleanup() {
-    ExecuteUpdate.resetExecutionsNumber();
     writtenRows.clear();
   }
 
@@ -162,7 +153,7 @@ public class WriteTest {
   }
 
   @Before
-  public void init() throws SQLException {
+  public void init() {
 
     dataSourceConfiguration =
         Mockito.mock(
@@ -171,19 +162,40 @@ public class WriteTest {
     Mockito.doAnswer(new GetDataSource()).when(dataSourceConfiguration).getDataSource();
   }
 
+  private static class BatchSizeChecker implements SerializableFunction<Iterable<Integer>, Void> {
+    Integer maxBatchSize;
+
+    BatchSizeChecker(Integer maxBatchSize) {
+      this.maxBatchSize = maxBatchSize;
+    }
+
+    @Override
+    public Void apply(Iterable<Integer> input) {
+      for (Integer batchSize : input) {
+        assertTrue(batchSize <= maxBatchSize);
+      }
+      return null;
+    }
+  }
+
   @Test
   public void testWrite() {
     int batchSize = EXPECTED_ROW_COUNT / 3 + 1;
 
-    pipeline
-        .apply(GenerateSequence.from(0).to(EXPECTED_ROW_COUNT))
-        .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
-        .apply(
-            SingleStoreIO.<TestRow>write()
-                .withDataSourceConfiguration(dataSourceConfiguration)
-                .withTable("t")
-                .withUserDataMapper(new TestHelper.TestUserDataMapper())
-                .withBatchSize(batchSize));
+    PCollection<Integer> rows =
+        pipeline
+            .apply(GenerateSequence.from(0).to(EXPECTED_ROW_COUNT))
+            .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
+            .apply(
+                SingleStoreIO.<TestRow>write()
+                    .withDataSourceConfiguration(dataSourceConfiguration)
+                    .withTable("t")
+                    .withUserDataMapper(new TestHelper.TestUserDataMapper())
+                    .withBatchSize(batchSize));
+
+    PAssert.thatSingleton(rows.apply("Sum All", Sum.integersGlobally()))
+        .isEqualTo(EXPECTED_ROW_COUNT);
+    PAssert.that(rows).satisfies(new BatchSizeChecker(batchSize));
 
     pipeline.run();
 
@@ -192,35 +204,45 @@ public class WriteTest {
 
   @Test
   public void testWriteSmallBatchSize() {
-    pipeline
-        .apply(GenerateSequence.from(0).to(EXPECTED_ROW_COUNT))
-        .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
-        .apply(
-            SingleStoreIO.<TestRow>write()
-                .withDataSourceConfiguration(dataSourceConfiguration)
-                .withTable("t")
-                .withUserDataMapper(new TestHelper.TestUserDataMapper())
-                .withBatchSize(1));
+    PCollection<Integer> rows =
+        pipeline
+            .apply(GenerateSequence.from(0).to(EXPECTED_ROW_COUNT))
+            .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
+            .apply(
+                SingleStoreIO.<TestRow>write()
+                    .withDataSourceConfiguration(dataSourceConfiguration)
+                    .withTable("t")
+                    .withUserDataMapper(new TestHelper.TestUserDataMapper())
+                    .withBatchSize(1));
+
+    PAssert.thatSingleton(rows.apply("Sum All", Sum.integersGlobally()))
+        .isEqualTo(EXPECTED_ROW_COUNT);
+    PAssert.that(rows).satisfies(new BatchSizeChecker(1));
 
     pipeline.run();
 
-    assertEquals(EXPECTED_ROW_COUNT, ExecuteUpdate.getExecutionsNumber());
     checkRows();
   }
 
   @Test
   public void testWriteBigBatchSize() {
-    pipeline
-        .apply(GenerateSequence.from(0).to(EXPECTED_ROW_COUNT))
-        .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
-        .apply(
-            SingleStoreIO.<TestRow>write()
-                .withDataSourceConfiguration(dataSourceConfiguration)
-                .withTable("t")
-                .withUserDataMapper(new TestHelper.TestUserDataMapper())
-                .withBatchSize(EXPECTED_ROW_COUNT));
+    PCollection<Integer> rows =
+        pipeline
+            .apply(GenerateSequence.from(0).to(EXPECTED_ROW_COUNT))
+            .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
+            .apply(
+                SingleStoreIO.<TestRow>write()
+                    .withDataSourceConfiguration(dataSourceConfiguration)
+                    .withTable("t")
+                    .withUserDataMapper(new TestHelper.TestUserDataMapper())
+                    .withBatchSize(EXPECTED_ROW_COUNT));
+
+    PAssert.thatSingleton(rows.apply("Sum All", Sum.integersGlobally()))
+        .isEqualTo(EXPECTED_ROW_COUNT);
+    PAssert.that(rows).satisfies(new BatchSizeChecker(EXPECTED_ROW_COUNT));
 
     pipeline.run();
+
     checkRows();
   }
 

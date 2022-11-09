@@ -46,6 +46,7 @@ import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.BeforeClass;
@@ -196,15 +197,19 @@ public class SingleStoreIOIT {
   @Rule public TestPipeline pipelineReadWithPartitions = TestPipeline.create();
 
   private PipelineResult runWrite() {
-    pipelineWrite
-        .apply(GenerateSequence.from(0).to(numberOfRows))
-        .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
-        .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
-        .apply(
-            SingleStoreIO.<TestRow>write()
-                .withDataSourceConfiguration(dataSourceConfiguration)
-                .withTable(tableName)
-                .withUserDataMapper(new TestHelper.TestUserDataMapper()));
+    PCollection<Integer> writtenRows =
+        pipelineWrite
+            .apply(GenerateSequence.from(0).to(numberOfRows))
+            .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
+            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
+            .apply(
+                SingleStoreIO.<TestRow>write()
+                    .withDataSourceConfiguration(dataSourceConfiguration)
+                    .withTable(tableName)
+                    .withUserDataMapper(new TestHelper.TestUserDataMapper()));
+
+    PAssert.thatSingleton(writtenRows.apply("Sum All", Sum.integersGlobally()))
+        .isEqualTo(numberOfRows);
 
     return pipelineWrite.run();
   }

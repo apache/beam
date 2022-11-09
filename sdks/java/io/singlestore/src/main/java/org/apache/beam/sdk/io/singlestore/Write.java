@@ -33,20 +33,18 @@ import java.util.List;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.dbcp2.DelegatingStatement;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 @AutoValue
-public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
+public abstract class Write<T> extends PTransform<PCollection<T>, PCollection<Integer>> {
 
   private static final int DEFAULT_BATCH_SIZE = 100000;
   private static final int BUFFER_SIZE = 524288;
@@ -100,17 +98,18 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   @Override
-  public PDone expand(PCollection<T> input) {
+  public PCollection<Integer> expand(PCollection<T> input) {
     DataSourceConfiguration dataSourceConfiguration =
         SingleStoreUtil.getRequiredArgument(
             getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
     String table = SingleStoreUtil.getRequiredArgument(getTable(), "withTable() is required");
     UserDataMapper<T> userDataMapper =
-        SingleStoreUtil.getRequiredArgument(getUserDataMapper(), "withUserDataMapper() is required");
+        SingleStoreUtil.getRequiredArgument(
+            getUserDataMapper(), "withUserDataMapper() is required");
     int batchSize = SingleStoreUtil.getArgumentWithDefault(getBatchSize(), DEFAULT_BATCH_SIZE);
     checkArgument(batchSize > 0, "batchSize should be greater then 0");
 
-    input
+    return input
         .apply(
             ParDo.of(
                 new DoFn<T, List<String>>() {
@@ -121,10 +120,7 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
                 }))
         .setCoder(ListCoder.of(StringUtf8Coder.of()))
         .apply(ParDo.of(new BatchFn<>(batchSize)))
-        .apply(ParDo.of(new WriteFn<Void>(dataSourceConfiguration, table)))
-        .setCoder(VoidCoder.of());
-
-    return PDone.in(input.getPipeline());
+        .apply(ParDo.of(new WriteFn(dataSourceConfiguration, table)));
   }
 
   private static class BatchFn<ParameterT> extends DoFn<ParameterT, Iterable<ParameterT>> {
@@ -153,7 +149,7 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
     }
   }
 
-  private static class WriteFn<OutputT> extends DoFn<Iterable<List<String>>, OutputT> {
+  private static class WriteFn extends DoFn<Iterable<List<String>>, Integer> {
     DataSourceConfiguration dataSourceConfiguration;
     String table;
 
@@ -213,9 +209,13 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
                   });
 
           dataWritingThread.start();
-          stmt.executeUpdate(
-              String.format(
-                  "LOAD DATA LOCAL INFILE '###.tsv' INTO TABLE %s", SingleStoreUtil.escapeIdentifier(table)));
+          Integer rows =
+              stmt.executeUpdate(
+                  String.format(
+                      "LOAD DATA LOCAL INFILE '###.tsv' INTO TABLE %s",
+                      SingleStoreUtil.escapeIdentifier(table)));
+
+          context.output(rows);
           dataWritingThread.join();
 
           if (writeException[0] != null) {
@@ -238,6 +238,7 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
     builder.addIfNotNull(DisplayData.item("table", getTable()));
     builder.addIfNotNull(DisplayData.item("batchSize", getBatchSize()));
     builder.addIfNotNull(
-        DisplayData.item("userDataMapper", SingleStoreUtil.getClassNameOrNull(getUserDataMapper())));
+        DisplayData.item(
+            "userDataMapper", SingleStoreUtil.getClassNameOrNull(getUserDataMapper())));
   }
 }

@@ -51,7 +51,8 @@ public class SingleStoreUtilTest {
 
   @Test
   public void testEscapeIdentifierWithSpecialCharacters() {
-    assertEquals("`a````sdasd`` asd`` ad```", SingleStoreUtil.escapeIdentifier("a``sdasd` asd` ad`"));
+    assertEquals(
+        "`a````sdasd`` asd`` ad```", SingleStoreUtil.escapeIdentifier("a``sdasd` asd` ad`"));
   }
 
   @Test
@@ -67,7 +68,8 @@ public class SingleStoreUtilTest {
   @Test
   public void testEscapeStringWithSpecialCharacters() {
     assertEquals(
-        "'a\\'\\'sdasd\\' \\\\asd\\' \\\\ad\\''", SingleStoreUtil.escapeString("a''sdasd' \\asd' \\ad'"));
+        "'a\\'\\'sdasd\\' \\\\asd\\' \\\\ad\\''",
+        SingleStoreUtil.escapeString("a''sdasd' \\asd' \\ad'"));
   }
 
   private static class TestRowMapper implements RowMapper<TestRow> {
@@ -101,14 +103,19 @@ public class SingleStoreUtilTest {
   public void testGetSelectQueryAllNulls() {
     String errorMessage = "One of withTable() or withQuery() is required";
     assertThrows(
-        errorMessage, IllegalArgumentException.class, () -> SingleStoreUtil.getSelectQuery(null, null));
+        errorMessage,
+        IllegalArgumentException.class,
+        () -> SingleStoreUtil.getSelectQuery(null, null));
     assertThrows(
-        errorMessage, IllegalArgumentException.class, () -> SingleStoreUtil.getSelectQuery(null, null));
+        errorMessage,
+        IllegalArgumentException.class,
+        () -> SingleStoreUtil.getSelectQuery(null, null));
   }
 
   @Test
   public void testGetSelectQueryNonNullQuery() {
-    assertEquals("SELECT * FROM table", SingleStoreUtil.getSelectQuery(null, "SELECT * FROM table"));
+    assertEquals(
+        "SELECT * FROM table", SingleStoreUtil.getSelectQuery(null, "SELECT * FROM table"));
   }
 
   @Test

@@ -230,8 +230,10 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
     builder.addIfNotNull(DisplayData.item("query", getQuery()));
     builder.addIfNotNull(DisplayData.item("table", getTable()));
     builder.addIfNotNull(
-        DisplayData.item("statementPreparator", SingleStoreUtil.getClassNameOrNull(getStatementPreparator())));
+        DisplayData.item(
+            "statementPreparator", SingleStoreUtil.getClassNameOrNull(getStatementPreparator())));
     builder.addIfNotNull(DisplayData.item("outputParallelization", getOutputParallelization()));
-    builder.addIfNotNull(DisplayData.item("rowMapper", SingleStoreUtil.getClassNameOrNull(getRowMapper())));
+    builder.addIfNotNull(
+        DisplayData.item("rowMapper", SingleStoreUtil.getClassNameOrNull(getRowMapper())));
   }
 }
