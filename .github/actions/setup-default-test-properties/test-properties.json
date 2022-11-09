@@ -19,19 +19,5 @@
   },
   "GoTestProperties": {
     "SUPPORTED_VERSIONS": ["1.18"]
-  },
-  "NexmarkTestsProperties": {
-    "BIGQUERY_TABLE": "nexmark",
-    "BIGQUERY_DATASET": "nexmark",
-    "PROJECT": "apache-beam-testing",
-    "RESOURCE_NAMEMODE": "QUERY_RUNNER_AND_MODE",
-    "EXPORT_SUMMARY_TO_BIGQUERY": true,
-    "TEMP_LOCATION": "gs://temp-storage-for-perf-tests/nexmark",
-    "INFLUX_DATABASE": "beam_test_metrics",
-    "INFLUX_HOST": "http://10.128.0.96:8086",
-    "BASE_INFLUX_MEASUREMENT": "nexmark",
-    "EXPORT_SUMMARY_TO_INFLUXDB": true,
-    "INFLUX_RETENTION_POLICY": "forever",
-    "FLINK_VERSION": "1.13"
   }
 }
