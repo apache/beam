@@ -127,6 +127,12 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 
 ### Release Preparation and Validation Workflows
 
+#### Choose RC Commit - [choose_rc_commit.yml](.github/workflows/choose_rc_commit.yml)
+
+| Job              | Description                                                                                         | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|------------------|-----------------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Choose RC Commit | Chooses a commit to be the basis of a release candidate and pushes a new tagged commit for that RC. | No               | No                    | No            | No                       |
+
 #### Verify Release Build - [verify_release_build.yml](.github/workflows/verify_release_build.yml)
 
 | Job                          | Description                                                                                   | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
