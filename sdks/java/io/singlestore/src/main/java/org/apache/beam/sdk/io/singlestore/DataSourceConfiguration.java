@@ -23,6 +23,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -107,8 +108,8 @@ public abstract class DataSourceConfiguration implements Serializable {
   }
 
   public DataSource getDataSource() {
-    String endpoint =
-        SingleStoreUtil.getRequiredArgument(getEndpoint(), "endpoint can not be null");
+    String endpoint = getEndpoint();
+    Preconditions.checkArgumentNotNull(endpoint, "endpoint can not be null");
     String database = SingleStoreUtil.getArgumentWithDefault(getDatabase(), "");
     String connectionProperties =
         SingleStoreUtil.getArgumentWithDefault(getConnectionProperties(), "");

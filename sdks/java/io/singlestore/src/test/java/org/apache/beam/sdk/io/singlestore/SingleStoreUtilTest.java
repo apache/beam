@@ -132,19 +132,6 @@ public class SingleStoreUtilTest {
   }
 
   @Test
-  public void testGetRequiredArgumentError() {
-    assertThrows(
-        "ERROR!!!",
-        IllegalArgumentException.class,
-        () -> SingleStoreUtil.getRequiredArgument(null, "ERROR!!!"));
-  }
-
-  @Test
-  public void testGetRequiredArgument() {
-    assertEquals("value", SingleStoreUtil.getRequiredArgument("value", "ERROR!!!"));
-  }
-
-  @Test
   public void testGetArgumentWithDefaultReturnsDefault() {
     assertEquals("default", SingleStoreUtil.getArgumentWithDefault(null, "default"));
   }

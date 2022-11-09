@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -112,11 +113,11 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
   @Override
   public PCollection<T> expand(PBegin input) {
-    DataSourceConfiguration dataSourceConfiguration =
-        SingleStoreUtil.getRequiredArgument(
-            getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
-    RowMapper<T> rowMapper =
-        SingleStoreUtil.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
+    DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
+    Preconditions.checkArgumentNotNull(
+        dataSourceConfiguration, "withDataSourceConfiguration() is required");
+    RowMapper<T> rowMapper = getRowMapper();
+    Preconditions.checkArgumentNotNull(rowMapper, "withRowMapper() is required");
     String actualQuery = SingleStoreUtil.getSelectQuery(getTable(), getQuery());
 
     Coder<T> coder =

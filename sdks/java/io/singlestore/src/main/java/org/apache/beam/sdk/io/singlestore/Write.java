@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.dbcp2.DelegatingStatement;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -99,13 +100,13 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PCollection<In
 
   @Override
   public PCollection<Integer> expand(PCollection<T> input) {
-    DataSourceConfiguration dataSourceConfiguration =
-        SingleStoreUtil.getRequiredArgument(
-            getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
-    String table = SingleStoreUtil.getRequiredArgument(getTable(), "withTable() is required");
-    UserDataMapper<T> userDataMapper =
-        SingleStoreUtil.getRequiredArgument(
-            getUserDataMapper(), "withUserDataMapper() is required");
+    DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
+    Preconditions.checkArgumentNotNull(
+        dataSourceConfiguration, "withDataSourceConfiguration() is required");
+    String table = getTable();
+    Preconditions.checkArgumentNotNull(table, "withTable() is required");
+    UserDataMapper<T> userDataMapper = getUserDataMapper();
+    Preconditions.checkArgumentNotNull(userDataMapper, "withUserDataMapper() is required");
     int batchSize = SingleStoreUtil.getArgumentWithDefault(getBatchSize(), DEFAULT_BATCH_SIZE);
     checkArgument(batchSize > 0, "batchSize should be greater then 0");
 

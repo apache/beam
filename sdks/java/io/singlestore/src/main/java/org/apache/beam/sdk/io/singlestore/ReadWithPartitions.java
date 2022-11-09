@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -99,15 +100,15 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
 
   @Override
   public PCollection<T> expand(PBegin input) {
-    DataSourceConfiguration dataSourceConfiguration =
-        SingleStoreUtil.getRequiredArgument(
-            getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
-    String database =
-        SingleStoreUtil.getRequiredArgument(
-            dataSourceConfiguration.getDatabase(),
-            "withDatabase() is required for DataSourceConfiguration in order to perform readWithPartitions");
-    RowMapper<T> rowMapper =
-        SingleStoreUtil.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
+    DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
+    Preconditions.checkArgumentNotNull(
+        dataSourceConfiguration, "withDataSourceConfiguration() is required");
+    String database = dataSourceConfiguration.getDatabase();
+    Preconditions.checkArgumentNotNull(
+        database,
+        "withDatabase() is required for DataSourceConfiguration in order to perform readWithPartitions");
+    RowMapper<T> rowMapper = getRowMapper();
+    Preconditions.checkArgumentNotNull(rowMapper, "withRowMapper() is required");
 
     int initialNumReaders = SingleStoreUtil.getArgumentWithDefault(getInitialNumReaders(), 1);
     checkArgument(

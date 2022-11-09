@@ -73,14 +73,6 @@ public class SingleStoreUtil {
     }
   }
 
-  public static <OutputT> OutputT getRequiredArgument(
-      @Nullable OutputT value, String errorMessage) {
-    if (value == null) {
-      throw new IllegalArgumentException(errorMessage);
-    }
-    return value;
-  }
-
   public static <OutputT> OutputT getArgumentWithDefault(
       @Nullable OutputT value, OutputT defaultValue) {
     if (value == null) {
