@@ -214,7 +214,6 @@ public class DataChangeRecord implements ChangeStreamRecord {
    * Estimates the size in bytes of a record when encoded using Avro.
    *
    * @return the number of bytes of the encoded object
-   * @throws EncodingException when there was an error serializing the object to Avro
    */
   public long bytesSize() {
     final AvroCoder<DataChangeRecord> coder = AvroCoder.of(DataChangeRecord.class);

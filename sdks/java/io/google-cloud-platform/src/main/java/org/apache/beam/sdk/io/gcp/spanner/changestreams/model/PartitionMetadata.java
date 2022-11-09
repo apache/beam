@@ -41,20 +41,20 @@ public class PartitionMetadata implements Serializable {
   /**
    * We use a bogus partition here to estimate the average size of a partition metadata record.
    *
-   * <p>The only dynamically allocated size field here is the "parentTokens", which is a set and
-   * can expand. In practice, however, partitions have 1 to 2 parents at most.
+   * <p>The only dynamically allocated size field here is the "parentTokens", which is a set and can
+   * expand. In practice, however, partitions have 1 to 2 parents at most.
    */
-  public static final long AVERAGE_PARTITION_BYTES_SIZE = PartitionMetadata
-      .newBuilder()
-      .setPartitionToken(InitialPartition.PARTITION_TOKEN)
-      .setParentTokens(Sets.newHashSet("fake_parent"))
-      .setStartTimestamp(Timestamp.now())
-      .setHeartbeatMillis(1_000L)
-      .setState(State.CREATED)
-      .setWatermark(Timestamp.now())
-      .setCreatedAt(Timestamp.now())
-      .build()
-      .bytesSize();
+  public static final long AVERAGE_PARTITION_BYTES_SIZE =
+      PartitionMetadata.newBuilder()
+          .setPartitionToken(InitialPartition.PARTITION_TOKEN)
+          .setParentTokens(Sets.newHashSet("fake_parent"))
+          .setStartTimestamp(Timestamp.now())
+          .setHeartbeatMillis(1_000L)
+          .setState(State.CREATED)
+          .setWatermark(Timestamp.now())
+          .setCreatedAt(Timestamp.now())
+          .build()
+          .bytesSize();
 
   /**
    * The state at which a partition can be in the system:
@@ -212,7 +212,6 @@ public class PartitionMetadata implements Serializable {
    * Estimates the size in bytes of a partition when encoded using Avro.
    *
    * @return the number of bytes of the encoded object
-   * @throws EncodingException when there was an error serializing the object to Avro
    */
   public long bytesSize() {
     final AvroCoder<PartitionMetadata> coder = AvroCoder.of(PartitionMetadata.class);
