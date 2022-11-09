@@ -204,8 +204,6 @@ class Stager(object):
     use_beam_default_container = options.view_as(
         WorkerOptions).sdk_container_image is None
 
-    pickler.set_library(setup_options.pickle_library)
-
     # We can skip boot dependencies: apache beam sdk, python packages from
     # requirements.txt, python packages from extra_packages and workflow tarball
     # if we know we are using a dependency pre-installed sdk container image.
