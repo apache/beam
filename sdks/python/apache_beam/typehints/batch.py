@@ -198,8 +198,7 @@ class NumpyBatchConverter(BatchConverter):
       if not batch_type == np.ndarray:
         raise TypeError(
             "batch type must be np.ndarray or "
-            "beam.typehints.batch.NumpyArray[..]"
-        )
+            "beam.typehints.batch.NumpyArray[..]")
       batch_type = NumpyArray[element_type.dtype, (N, )]
 
     if not batch_type.dtype == element_type.dtype:
