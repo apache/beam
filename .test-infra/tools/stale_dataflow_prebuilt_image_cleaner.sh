@@ -26,6 +26,7 @@ echo $REPOSITORIES
 for repository in ${REPOSITORIES[@]}; do
   echo IMAGES FOR REPO ${repository}
   IMAGE_NAMES+=$(gcloud container images list --repository=gcr.io/apache-beam-testing/${repository} --format="get(name)")
+  IMAGE_NAMES+=" "
 done
 
 echo $IMAGE_NAMES
