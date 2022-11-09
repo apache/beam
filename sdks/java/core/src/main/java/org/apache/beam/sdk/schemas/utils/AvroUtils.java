@@ -810,6 +810,8 @@ public class AvroUtils {
       if (logicalType instanceof LogicalTypes.Decimal) {
         fieldType = FieldType.DECIMAL;
       } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
+        // TODO(https://github.com/apache/beam/issues/19215) DATETIME primitive will be removed when
+        // fully migrates to java.time lib from joda-time
         fieldType = FieldType.DATETIME;
       } else if (logicalType instanceof LogicalTypes.TimestampMicros) {
         fieldType = FieldType.logicalType(SqlTypes.TIMESTAMP);
@@ -925,6 +927,8 @@ public class AvroUtils {
         break;
 
       case DATETIME:
+        // TODO(https://github.com/apache/beam/issues/19215) DATETIME primitive will be removed when
+        // fully migrates to java.time lib from joda-time
         baseType =
             LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(Type.LONG));
         break;
