@@ -63,7 +63,7 @@ def get_file_symbols(file_name: str) -> Dict[str, Dict[str, List[str]]]:
                     class_dict['methods'].append(member_node.name)
 
                 elif isinstance(member_node, ast.Assign):
-                    [target] = member_node.targets
+                    target = member_node.targets[0]
                     if isinstance(target, ast.Name):
                         if not should_include_property_node(target): continue
                         class_dict['properties'].append(target.id)

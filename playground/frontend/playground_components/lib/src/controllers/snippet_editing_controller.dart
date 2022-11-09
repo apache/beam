@@ -24,6 +24,7 @@ import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/sdk.dart';
+import '../playground_components.dart';
 
 class SnippetEditingController extends ChangeNotifier {
   final Sdk sdk;
@@ -40,7 +41,10 @@ class SnippetEditingController extends ChangeNotifier {
           webSpaceFix: false,
         ),
         _selectedExample = selectedExample,
-        _pipelineOptions = pipelineOptions;
+        _pipelineOptions = pipelineOptions {
+    PlaygroundComponents.symbolsNotifier.addListener(_onSymbolsNotifierChanged);
+    _onSymbolsNotifierChanged();
+  }
 
   set selectedExample(Example? value) {
     _selectedExample = value;
@@ -92,5 +96,27 @@ class SnippetEditingController extends ChangeNotifier {
   void setSource(String source) {
     codeController.text = source;
     codeController.historyController.deleteHistory();
+  }
+
+  void _onSymbolsNotifierChanged() {
+    final mode = sdk.highlightMode;
+    if (mode == null) {
+      return;
+    }
+
+    final dictionary = PlaygroundComponents.symbolsNotifier.getDictionary(mode);
+    if (dictionary == null) {
+      return;
+    }
+
+    codeController.autocompleter.setCustomWords(dictionary.symbols);
+  }
+
+  @override
+  void dispose() {
+    PlaygroundComponents.symbolsNotifier.removeListener(
+      _onSymbolsNotifierChanged,
+    );
+    super.dispose();
   }
 }
