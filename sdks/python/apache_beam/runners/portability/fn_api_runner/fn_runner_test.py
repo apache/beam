@@ -2117,7 +2117,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
 
     class BundleCountingDoFn(beam.DoFn):
       def process(self, element):
-        time.sleep(0.001)
+        time.sleep(0.005)
         yield element
 
       def finish_bundle(self):
