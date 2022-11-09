@@ -15,9 +15,9 @@
     under the License.
 -->
 
-# Overview
+# Beam Playground Cloud Build Setup
 
-This directory organizes Infrastructure-as-Code to provision dependent resources for Cloud Build and Playground.
+This directory organizes Infrastructure-as-Code to provision dependent resources and setup Cloud Build for Beam Playground.
 
 ## Requirements:
 
@@ -33,65 +33,36 @@ The folders are named according to the required order of execution. The steps be
 
 ### 1. Setup the Google Cloud project
 
-The **cloudbuild-manual-setup/01.setup** provisions required dependencies on Google Cloud.
-
-This step provisions:
-
+The `cloudbuild-manual-setup/01.setup` provisions dependencies required to setup Cloud Build for Playground:
 - Required API services
 - Cloud Build service account
 - IAM permissions for Cloud Build service account
 
-### Execute the module
+#### Execute the module
 
 ```console
 # Create new configuration to auth to GCP Project
-foo@bar:~$ gcloud init
+gcloud init
 
 # Acquire new user credentials to use for Application Default Credentials
-foo@bar:~$ gcloud auth application-default login
+gcloud auth application-default login
 
 # Navigate to cloudbuild-manual-setup/01.setup folder
-foo@bar:~$ cd 01.setup
+cd 01.setup
 
 # Setup Cloud Build SA
-foo@bar:~$ terraform init
-foo@bar:~$ terraform apply
+terraform init
+terraform apply
 
 ```
-### 2. Setup the Google Cloud Build triggers
+### 2. Connect GitHub repository and Cloud Build
+Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect GitHub repository and Cloud Build.
 
-The **cloudbuild-manual-setup/02.builders** provisions Cloud Build trigger for the builder.
+### 3. Setup the Google Cloud Build triggers
 
-This step provisions:
+The `cloudbuild-manual-setup/02.builders` provisions Cloud Build trigger to build and deploye Beam Playground.
 
-- Required API services
-- Cloud Build service account
-- IAM permissions for Cloud Build service account
-
-### IMPORTANT: DO THIS FIRST:
-
-**Connect Cloud Build and GitHub repository**
-
-
-1. Fork this repository into your own GitHub organization or personal account
-
-   See documentation and example on forking a repository on GitHub
-
-   https://docs.github.com/en/get-started/quickstart/fork-a-repo
-
-3. Connect forked repository to Cloud Build
-
-   Navigate to Cloud Build to connect your GitHub forked repository.
-
-   https://console.cloud.google.com/cloud-build/triggers/connect
-
-   **IGNORE "Create a Trigger" STEP. This module will build the trigger step**
-
-   See: https://cloud.google.com/build/docs/automating-builds/create-manage-triggers#connect_repo for more details.
-
-*More details:* [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github)
-
-### Execute the module
+#### Execute the module
 
 Set required variables for GitHub repository owner, name and branch.
 
@@ -100,33 +71,21 @@ GITHUB_REPOSITORY_OWNER=<CHANGEME>
 GITHUB_REPOSITORY_NAME=<CHANGME>
 GITHUB_REPOSITORY_BRANCH=<CHANGME>
 ```
-Run the following commands to execute the module.
-Terraform will ask your permission before provisioning resources.
-If you agree with terraform provisioning resources,
-type `yes` to proceed.
+Run the following commands to execute the module. Terraform will ask your permission before provisioning resources. If you agree with terraform provisioning resources, type `yes` to proceed.
 
 ```
-# Navigate to cloudbuild-manual-setup/02.builders folder
-foo@bar:~$ cd 02.builders
-foo@bar:~$ terraform init
-foo@bar:~$ terraform apply -var="github_repository_owner=$GITHUB_REPOSITORY_OWNER" / 
+# Navigate to cloudbuild-manual-setup/02.builders folder from cloudbuild-manual-setup/01.setup
+cd ../02.builders
+terraform init
+terraform apply -var="github_repository_owner=$GITHUB_REPOSITORY_OWNER" / 
 -var="github_repository_name=$GITHUB_REPOSITORY_NAME" -var="github_repository_branch=$GITHUB_REPOSITORY_BRANCH"
 ```
 
-After completing these steps, GCP project will have Cloud Build trigger that can be used to build and deploy Beam Playground.
+After completing these steps, GCP project will have `Playground-infrastructure-trigger` Cloud Build trigger that can be used to build and deploy Beam Playground.
 
 
 ### Run Cloud Build Trigger
 
-To run the trigger you need to execute it manually.
+To run the trigger, execute the trigger manually. Navigate to https://console.cloud.google.com/cloud-build/triggers and click `Playground-infrastructure-trigger` `RUN` button. This step will may take 40 minutes to deploy Playground Infrastructure.
 
-Navigate to https://console.cloud.google.com/cloud-build/triggers.
-
-You should see a "Playground-infrastructure-trigger" Cloud Build trigger listed.
-
-Click the `RUN` button.
-
-See https://cloud.google.com/build/docs/automating-builds/create-manual-triggers?hl=en#running_manual_triggers
-for more information.
-
-This step will take nearly 40 minutes to deploy Playground Infrastructure.
+See [Running manual triggers](https://cloud.google.com/build/docs/manually-build-code-source-repos?hl=en#running_manual_triggers) for more information.
