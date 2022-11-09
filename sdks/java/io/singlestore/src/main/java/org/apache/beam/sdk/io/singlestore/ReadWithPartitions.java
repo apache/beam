@@ -100,23 +100,23 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
   @Override
   public PCollection<T> expand(PBegin input) {
     DataSourceConfiguration dataSourceConfiguration =
-        Util.getRequiredArgument(
+        SingleStoreUtil.getRequiredArgument(
             getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
     String database =
-        Util.getRequiredArgument(
+        SingleStoreUtil.getRequiredArgument(
             dataSourceConfiguration.getDatabase(),
             "withDatabase() is required for DataSourceConfiguration in order to perform readWithPartitions");
     RowMapper<T> rowMapper =
-        Util.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
+        SingleStoreUtil.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
 
-    int initialNumReaders = Util.getArgumentWithDefault(getInitialNumReaders(), 1);
+    int initialNumReaders = SingleStoreUtil.getArgumentWithDefault(getInitialNumReaders(), 1);
     checkArgument(
         initialNumReaders >= 1, "withInitialNumReaders() should be greater or equal to 1");
 
-    String actualQuery = Util.getSelectQuery(getTable(), getQuery());
+    String actualQuery = SingleStoreUtil.getSelectQuery(getTable(), getQuery());
 
     Coder<T> coder =
-        Util.inferCoder(
+        SingleStoreUtil.inferCoder(
             rowMapper,
             input.getPipeline().getCoderRegistry(),
             input.getPipeline().getSchemaRegistry(),
@@ -217,7 +217,7 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
               stmt.executeQuery(
                   String.format(
                       "SELECT num_partitions FROM information_schema.DISTRIBUTED_DATABASES WHERE database_name = %s",
-                      Util.escapeString(database)));
+                      SingleStoreUtil.escapeString(database)));
           try {
             if (!res.next()) {
               throw new Exception("Failed to get number of partitions in the database");
@@ -243,7 +243,7 @@ public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollecti
     DataSourceConfiguration.populateDisplayData(getDataSourceConfiguration(), builder);
     builder.addIfNotNull(DisplayData.item("query", getQuery()));
     builder.addIfNotNull(DisplayData.item("table", getTable()));
-    builder.addIfNotNull(DisplayData.item("rowMapper", Util.getClassNameOrNull(getRowMapper())));
+    builder.addIfNotNull(DisplayData.item("rowMapper", SingleStoreUtil.getClassNameOrNull(getRowMapper())));
     builder.addIfNotNull(DisplayData.item("initialNumReaders", getInitialNumReaders()));
   }
 }

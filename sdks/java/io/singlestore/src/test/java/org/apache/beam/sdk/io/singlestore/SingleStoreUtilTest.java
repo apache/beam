@@ -36,38 +36,38 @@ import org.slf4j.LoggerFactory;
 
 /** Test Util. */
 @RunWith(JUnit4.class)
-public class UtilTest {
-  private static final Logger LOG = LoggerFactory.getLogger(UtilTest.class);
+public class SingleStoreUtilTest {
+  private static final Logger LOG = LoggerFactory.getLogger(SingleStoreUtilTest.class);
 
   @Test
   public void testEscapeIdentifierEmpty() {
-    assertEquals("``", Util.escapeIdentifier(""));
+    assertEquals("``", SingleStoreUtil.escapeIdentifier(""));
   }
 
   @Test
   public void testEscapeIdentifierNoSpecialCharacters() {
-    assertEquals("`asdasd asd ad`", Util.escapeIdentifier("asdasd asd ad"));
+    assertEquals("`asdasd asd ad`", SingleStoreUtil.escapeIdentifier("asdasd asd ad"));
   }
 
   @Test
   public void testEscapeIdentifierWithSpecialCharacters() {
-    assertEquals("`a````sdasd`` asd`` ad```", Util.escapeIdentifier("a``sdasd` asd` ad`"));
+    assertEquals("`a````sdasd`` asd`` ad```", SingleStoreUtil.escapeIdentifier("a``sdasd` asd` ad`"));
   }
 
   @Test
   public void testEscapeStringEmpty() {
-    assertEquals("''", Util.escapeString(""));
+    assertEquals("''", SingleStoreUtil.escapeString(""));
   }
 
   @Test
   public void testEscapeStringNoSpecialCharacters() {
-    assertEquals("'asdasd asd ad'", Util.escapeString("asdasd asd ad"));
+    assertEquals("'asdasd asd ad'", SingleStoreUtil.escapeString("asdasd asd ad"));
   }
 
   @Test
   public void testEscapeStringWithSpecialCharacters() {
     assertEquals(
-        "'a\\'\\'sdasd\\' \\\\asd\\' \\\\ad\\''", Util.escapeString("a''sdasd' \\asd' \\ad'"));
+        "'a\\'\\'sdasd\\' \\\\asd\\' \\\\ad\\''", SingleStoreUtil.escapeString("a''sdasd' \\asd' \\ad'"));
   }
 
   private static class TestRowMapper implements RowMapper<TestRow> {
@@ -84,7 +84,7 @@ public class UtilTest {
     Coder<TestRow> c = SerializableCoder.of(TestRow.class);
     cr.registerCoderForClass(TestRow.class, c);
 
-    assertEquals(c, Util.inferCoder(new TestRowMapper(), cr, sr, LOG));
+    assertEquals(c, SingleStoreUtil.inferCoder(new TestRowMapper(), cr, sr, LOG));
   }
 
   @Test
@@ -94,26 +94,26 @@ public class UtilTest {
     sr.registerPOJO(TestRow.class);
     Coder<TestRow> c = sr.getSchemaCoder(TestRow.class);
 
-    assertEquals(c, Util.inferCoder(new TestRowMapper(), cr, sr, LOG));
+    assertEquals(c, SingleStoreUtil.inferCoder(new TestRowMapper(), cr, sr, LOG));
   }
 
   @Test
   public void testGetSelectQueryAllNulls() {
     String errorMessage = "One of withTable() or withQuery() is required";
     assertThrows(
-        errorMessage, IllegalArgumentException.class, () -> Util.getSelectQuery(null, null));
+        errorMessage, IllegalArgumentException.class, () -> SingleStoreUtil.getSelectQuery(null, null));
     assertThrows(
-        errorMessage, IllegalArgumentException.class, () -> Util.getSelectQuery(null, null));
+        errorMessage, IllegalArgumentException.class, () -> SingleStoreUtil.getSelectQuery(null, null));
   }
 
   @Test
   public void testGetSelectQueryNonNullQuery() {
-    assertEquals("SELECT * FROM table", Util.getSelectQuery(null, "SELECT * FROM table"));
+    assertEquals("SELECT * FROM table", SingleStoreUtil.getSelectQuery(null, "SELECT * FROM table"));
   }
 
   @Test
   public void testGetSelectQueryNonNullTable() {
-    assertEquals("SELECT * FROM `ta``ble`", Util.getSelectQuery("ta`ble", null));
+    assertEquals("SELECT * FROM `ta``ble`", SingleStoreUtil.getSelectQuery("ta`ble", null));
   }
 
   @Test
@@ -121,7 +121,7 @@ public class UtilTest {
     assertThrows(
         "withTable() can not be used together with withQuery()",
         IllegalArgumentException.class,
-        () -> Util.getSelectQuery("table", "SELECT * FROM table"));
+        () -> SingleStoreUtil.getSelectQuery("table", "SELECT * FROM table"));
   }
 
   @Test
@@ -129,31 +129,31 @@ public class UtilTest {
     assertThrows(
         "ERROR!!!",
         IllegalArgumentException.class,
-        () -> Util.getRequiredArgument(null, "ERROR!!!"));
+        () -> SingleStoreUtil.getRequiredArgument(null, "ERROR!!!"));
   }
 
   @Test
   public void testGetRequiredArgument() {
-    assertEquals("value", Util.getRequiredArgument("value", "ERROR!!!"));
+    assertEquals("value", SingleStoreUtil.getRequiredArgument("value", "ERROR!!!"));
   }
 
   @Test
   public void testGetArgumentWithDefaultReturnsDefault() {
-    assertEquals("default", Util.getArgumentWithDefault(null, "default"));
+    assertEquals("default", SingleStoreUtil.getArgumentWithDefault(null, "default"));
   }
 
   @Test
   public void testGetArgumentWithDefault() {
-    assertEquals("value", Util.getArgumentWithDefault("value", "default"));
+    assertEquals("value", SingleStoreUtil.getArgumentWithDefault("value", "default"));
   }
 
   @Test
   public void testGetClassNameOrNullNull() {
-    assertNull(Util.getClassNameOrNull(null));
+    assertNull(SingleStoreUtil.getClassNameOrNull(null));
   }
 
   @Test
   public void testGetClassNameOrNullClassName() {
-    assertEquals("java.lang.String", Util.getClassNameOrNull("asd"));
+    assertEquals("java.lang.String", SingleStoreUtil.getClassNameOrNull("asd"));
   }
 }

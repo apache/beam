@@ -27,7 +27,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 
-public class Util {
+public class SingleStoreUtil {
   public static String escapeIdentifier(String identifier) {
     return '`' + identifier.replace("`", "``") + '`';
   }
@@ -65,7 +65,7 @@ public class Util {
     if (table != null && query != null) {
       throw new IllegalArgumentException("withTable() can not be used together with withQuery()");
     } else if (table != null) {
-      return "SELECT * FROM " + Util.escapeIdentifier(table);
+      return "SELECT * FROM " + SingleStoreUtil.escapeIdentifier(table);
     } else if (query != null) {
       return query;
     } else {

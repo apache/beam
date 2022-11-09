@@ -107,9 +107,9 @@ public abstract class DataSourceConfiguration implements Serializable {
   }
 
   public DataSource getDataSource() {
-    String endpoint = Util.getRequiredArgument(getEndpoint(), "endpoint can not be null");
-    String database = Util.getArgumentWithDefault(getDatabase(), "");
-    String connectionProperties = Util.getArgumentWithDefault(getConnectionProperties(), "");
+    String endpoint = SingleStoreUtil.getRequiredArgument(getEndpoint(), "endpoint can not be null");
+    String database = SingleStoreUtil.getArgumentWithDefault(getDatabase(), "");
+    String connectionProperties = SingleStoreUtil.getArgumentWithDefault(getConnectionProperties(), "");
     connectionProperties += (connectionProperties.isEmpty() ? "" : ";") + "allowLocalInfile=TRUE";
     String username = getUsername();
     String password = getPassword();

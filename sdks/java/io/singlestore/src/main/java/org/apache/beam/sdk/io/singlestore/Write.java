@@ -102,12 +102,12 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
   @Override
   public PDone expand(PCollection<T> input) {
     DataSourceConfiguration dataSourceConfiguration =
-        Util.getRequiredArgument(
+        SingleStoreUtil.getRequiredArgument(
             getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
-    String table = Util.getRequiredArgument(getTable(), "withTable() is required");
+    String table = SingleStoreUtil.getRequiredArgument(getTable(), "withTable() is required");
     UserDataMapper<T> userDataMapper =
-        Util.getRequiredArgument(getUserDataMapper(), "withUserDataMapper() is required");
-    int batchSize = Util.getArgumentWithDefault(getBatchSize(), DEFAULT_BATCH_SIZE);
+        SingleStoreUtil.getRequiredArgument(getUserDataMapper(), "withUserDataMapper() is required");
+    int batchSize = SingleStoreUtil.getArgumentWithDefault(getBatchSize(), DEFAULT_BATCH_SIZE);
     checkArgument(batchSize > 0, "batchSize should be greater then 0");
 
     input
@@ -215,7 +215,7 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
           dataWritingThread.start();
           stmt.executeUpdate(
               String.format(
-                  "LOAD DATA LOCAL INFILE '###.tsv' INTO TABLE %s", Util.escapeIdentifier(table)));
+                  "LOAD DATA LOCAL INFILE '###.tsv' INTO TABLE %s", SingleStoreUtil.escapeIdentifier(table)));
           dataWritingThread.join();
 
           if (writeException[0] != null) {
@@ -238,6 +238,6 @@ public abstract class Write<T> extends PTransform<PCollection<T>, PDone> {
     builder.addIfNotNull(DisplayData.item("table", getTable()));
     builder.addIfNotNull(DisplayData.item("batchSize", getBatchSize()));
     builder.addIfNotNull(
-        DisplayData.item("userDataMapper", Util.getClassNameOrNull(getUserDataMapper())));
+        DisplayData.item("userDataMapper", SingleStoreUtil.getClassNameOrNull(getUserDataMapper())));
   }
 }

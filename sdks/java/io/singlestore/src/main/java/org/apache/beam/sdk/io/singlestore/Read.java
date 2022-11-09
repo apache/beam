@@ -113,14 +113,14 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
   @Override
   public PCollection<T> expand(PBegin input) {
     DataSourceConfiguration dataSourceConfiguration =
-        Util.getRequiredArgument(
+        SingleStoreUtil.getRequiredArgument(
             getDataSourceConfiguration(), "withDataSourceConfiguration() is required");
     RowMapper<T> rowMapper =
-        Util.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
-    String actualQuery = Util.getSelectQuery(getTable(), getQuery());
+        SingleStoreUtil.getRequiredArgument(getRowMapper(), "withRowMapper() is required");
+    String actualQuery = SingleStoreUtil.getSelectQuery(getTable(), getQuery());
 
     Coder<T> coder =
-        Util.inferCoder(
+        SingleStoreUtil.inferCoder(
             rowMapper,
             input.getPipeline().getCoderRegistry(),
             input.getPipeline().getSchemaRegistry(),
@@ -135,7 +135,7 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
                         dataSourceConfiguration, actualQuery, getStatementPreparator(), rowMapper)))
             .setCoder(coder);
 
-    if (Util.getArgumentWithDefault(getOutputParallelization(), true)) {
+    if (SingleStoreUtil.getArgumentWithDefault(getOutputParallelization(), true)) {
       output = output.apply(new Reparallelize<>());
     }
 
@@ -230,8 +230,8 @@ public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
     builder.addIfNotNull(DisplayData.item("query", getQuery()));
     builder.addIfNotNull(DisplayData.item("table", getTable()));
     builder.addIfNotNull(
-        DisplayData.item("statementPreparator", Util.getClassNameOrNull(getStatementPreparator())));
+        DisplayData.item("statementPreparator", SingleStoreUtil.getClassNameOrNull(getStatementPreparator())));
     builder.addIfNotNull(DisplayData.item("outputParallelization", getOutputParallelization()));
-    builder.addIfNotNull(DisplayData.item("rowMapper", Util.getClassNameOrNull(getRowMapper())));
+    builder.addIfNotNull(DisplayData.item("rowMapper", SingleStoreUtil.getClassNameOrNull(getRowMapper())));
   }
 }
