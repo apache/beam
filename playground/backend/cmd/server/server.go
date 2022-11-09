@@ -27,7 +27,6 @@ import (
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
 	"beam.apache.org/playground/backend/internal/cache/redis"
-	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/components"
 	"beam.apache.org/playground/backend/internal/db"
 	"beam.apache.org/playground/backend/internal/db/datastore"
@@ -56,11 +55,6 @@ func runServer() error {
 	grpcServer := grpc.NewServer()
 
 	cacheService, err := setupCache(ctx, envService.ApplicationEnvs)
-	if err != nil {
-		return err
-	}
-
-	cloudStorage, err := cloud_bucket.NewCloudStorage(ctx)
 	if err != nil {
 		return err
 	}
@@ -115,7 +109,6 @@ func runServer() error {
 		props:          props,
 		entityMapper:   entityMapper,
 		cacheComponent: cacheComponent,
-		storage:        cloudStorage,
 	})
 
 	errChan := make(chan error)

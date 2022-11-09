@@ -20,7 +20,6 @@ go 1.18
 require (
 	cloud.google.com/go/datastore v1.9.0
 	cloud.google.com/go/logging v1.4.2
-	cloud.google.com/go/storage v1.27.0
 	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/go-redis/redismock/v8 v8.0.6
