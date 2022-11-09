@@ -46,13 +46,6 @@ module "infrastructure" {
   gke_name                      = var.gke_name
   gke_location                  = var.location
   service_account               = var.service_account
-  #CloudBuild SA
-  cloudbuild_service_account_id = var.cloudbuild_service_account_id
-  github_repository_name        = var.github_repository_name
-  github_repository_owner       = var.github_repository_owner
-  github_repository_branch      = var.github_repository_branch
-  image_tag                     = var.image_tag
-  trigger_id                    = var.trigger_id
 }
 
 module "applications" {

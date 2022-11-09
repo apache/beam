@@ -52,25 +52,3 @@ output "playground_redis_ip" {
 output "docker-repository-root" {
   value = "${module.artifact_registry.registry_location}${var.repository_domain}/${var.project_id}/${module.artifact_registry.registry_name}"
 }
-
-output "connect_githubrepo_to_cloudbuild" {
-  value = <<EOF
-
-Navigate to https://console.cloud.google.com/cloud-build/triggers/connect?project=${var.project_id}
-to connect Cloud Build to your GitHub repository.
-(Note: skip where it asks you to create a trigger.)
-EOF
-}
-
-output "next_step_custom_message_hack" {
-  value = <<EOF
-
-As a one-time setup,
-navigate to https://console.cloud.google.com/cloud-build/triggers?project=${var.project_id}
-and click `RUN` for ${module.cloudbuild_trigger.cloudbuild_trigger_name}
-
-(Note: You will have to manually start the trigger)
-
-EOF
-}
-

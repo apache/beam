@@ -327,37 +327,3 @@ variable "state_prefix" {
   description = "terraform state prefix on GCP"
   default     = ""
 }
-
-# Cloud Build SA (IAM)
-
-variable "cloudbuild_service_account_id" {
-  type = string
-  description = "The ID of the cloud build service account responsible for provisioning Google Cloud resources"
-}
-
-# Cloud Build Trigger
-
-variable "github_repository_name" {
-  type        = string
-  description = "The name of the GitHub repository. For example the repository name for https://github.com/example/foo is 'foo'."
-}
-
-variable "github_repository_owner" {
-  type        = string
-  description = "Owner of the GitHub repository. For example the owner for https://github.com/example/foo is 'example'."
-}
-
-variable "github_repository_branch" {
-  type        = string
-  description = "The GitHub repository branch regex to match cloud build trigger"
-}
-
-variable "image_tag" {
-  type = string
-  description = "The tag to apply to image builds"
-}
-
-variable "trigger_id" {
-  type = string
-  description = "The name of the trigger that will be created"
-}
