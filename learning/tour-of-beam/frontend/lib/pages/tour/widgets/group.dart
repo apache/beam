@@ -17,13 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
 
-import '../../../components/expansion_tile_wrapper.dart';
 import '../../../models/group.dart';
 import '../controllers/content_tree.dart';
 import 'group_nodes.dart';
 import 'group_title.dart';
+import 'stateless_expansion_tile.dart';
 
 class GroupWidget extends StatelessWidget {
   final GroupModel group;
@@ -41,57 +40,28 @@ class GroupWidget extends StatelessWidget {
       builder: (context, child) {
         final isExpanded = contentTreeController.expandedIds.contains(group.id);
 
-        return _StatelessExpansionTile(
-          contentTreeController: contentTreeController,
-          group: group,
+        return StatelessExpansionTile(
+          key: Key('${group.id}$isExpanded'),
           isExpanded: isExpanded,
-        );
-      },
-    );
-  }
-}
-
-class _StatelessExpansionTile extends StatelessWidget {
-  final GroupModel group;
-  final ContentTreeController contentTreeController;
-  final bool isExpanded;
-
-  const _StatelessExpansionTile({
-    required this.group,
-    required this.contentTreeController,
-    required this.isExpanded,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ExpansionTileWrapper(
-      ExpansionTile(
-        key: Key('${group.id}$isExpanded'),
-        initiallyExpanded: isExpanded,
-        tilePadding: EdgeInsets.zero,
-        onExpansionChanged: (isExpanding) {
-          if (isExpanding) {
-            contentTreeController.expandGroup(group);
-          } else {
-            contentTreeController.collapseGroup(group);
-          }
-        },
-        title: GroupTitleWidget(
-          group: group,
-          onTap: () {
-            contentTreeController.openNode(group);
+          onExpansionChanged: (isExpanding) {
+            if (isExpanding) {
+              contentTreeController.expandGroup(group);
+            } else {
+              contentTreeController.collapseGroup(group);
+            }
           },
-        ),
-        childrenPadding: const EdgeInsets.only(
-          left: BeamSizes.size24,
-        ),
-        children: [
-          GroupNodesWidget(
+          title: GroupTitleWidget(
+            group: group,
+            onTap: () {
+              contentTreeController.openNode(group);
+            },
+          ),
+          child: GroupNodesWidget(
             nodes: group.nodes,
             contentTreeController: contentTreeController,
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
