@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/magiconair/properties/assert"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
