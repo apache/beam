@@ -17,26 +17,6 @@
 # under the License.
 #
 
-module "cloudbuild_sa" {
-  depends_on = [module.setup]
-  source = "./cloudbuild_sa"
-  project_id = var.project_id
-  cloudbuild_service_account_id = var.cloudbuild_service_account_id
-}
-
-module "cloudbuild_trigger" {
-  depends_on = [module.setup, module.cloudbuild_sa]
-  source = "./cloudbuild_trigger"
-  project_id = var.project_id
-  region = var.region
-  cloudbuild_sa_id = module.cloudbuild_sa.cloudbuild_sa_id
-  github_repository_name   = var.github_repository_name
-  github_repository_owner  = var.github_repository_owner
-  github_repository_branch = var.github_repository_branch
-  image_tag = var.image_tag
-  trigger_id = var.trigger_id
-}
-
 module "setup" {
   source             = "./setup"
   project_id         = var.project_id
