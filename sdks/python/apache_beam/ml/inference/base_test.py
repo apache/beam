@@ -192,8 +192,8 @@ class RunInferenceBaseTest(unittest.TestCase):
     examples = [7]
     pcoll = pipeline | 'start' >> beam.Create(examples)
     inference_args = {'key': True}
-    _ = pcoll | base.RunInference(FakeModelHandlerExpectedInferenceArgs(),
-            inference_args=inference_args)
+    _ = pcoll | base.RunInference(
+        FakeModelHandlerExpectedInferenceArgs(), inference_args=inference_args)
     run_result = pipeline.run()
     run_result.wait_until_finish()
 
@@ -201,7 +201,6 @@ class RunInferenceBaseTest(unittest.TestCase):
         run_result.metrics().query(
             MetricsFilter().with_name('failed_batches_counter')))
     self.assertEqual(len(metric_results['counters']), 0)
-
 
   def test_counted_metrics(self):
     pipeline = TestPipeline()
