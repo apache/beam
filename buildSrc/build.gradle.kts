@@ -36,7 +36,7 @@ repositories {
 dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
-  implementation("gradle.plugin.com.github.johnrengelman:shadow:7.1.1")
+  implementation("gradle.plugin.com.github.johnrengelman:shadow:7.1.2")
   implementation("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.3")
 
   runtimeOnly("com.google.protobuf:protobuf-gradle-plugin:0.8.13")                                          // Enable proto code generation
