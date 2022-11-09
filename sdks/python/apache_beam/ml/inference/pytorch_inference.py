@@ -111,8 +111,17 @@ def _convert_to_result(
   return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
 
-#def _default_tensor_inference_fn(batch: Sequence[torch.Tensor], model: torch.nn.Module, inference_args: Optional[Dict[str, Any]] = None) -> Iterable[PredictionResult]:
-# return
+def _default_tensor_inference_fn(
+    batch: Sequence[torch.Tensor],
+    model: torch.nn.Module,
+    inference_args: Optional[Dict[str,
+                                  Any]] = None) -> Iterable[PredictionResult]:
+  # torch.no_grad() mitigates GPU memory issues
+  # https://github.com/apache/beam/issues/22811
+  with torch.no_grad():
+    batched_tensors = torch.stack(batch)
+    predictions = model(batched_tensors, **inference_args)
+    return _convert_to_result(batch, predictions)
 
 
 class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
@@ -123,7 +132,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       state_dict_path: str,
       model_class: Callable[..., torch.nn.Module],
       model_params: Dict[str, Any],
-      device: str = 'CPU'):
+      device: str = 'CPU',
+      *,
+      inference_fn: TensorInferenceFn = _default_tensor_inference_fn):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage::
@@ -142,6 +153,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       device: the device on which you wish to run the model. If
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
+      inference_fn: the inference function to use during RunInference.
+        default=_default_tensor_inference_fn
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with PyTorch 1.9 and 1.10.
@@ -155,6 +168,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_params = model_params
+    self._inference_fn = inference_fn
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
@@ -194,13 +208,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """
     inference_args = {} if not inference_args else inference_args
 
-    # torch.no_grad() mitigates GPU memory issues
-    # https://github.com/apache/beam/issues/22811
     converted_tensors = _convert_to_device(batch, self._device)
-    with torch.no_grad():
-      batched_tensors = torch.stack(converted_tensors)
-      predictions = model(batched_tensors, **inference_args)
-      return _convert_to_result(batch, predictions)
+    return self._inference_fn(converted_tensors, model, inference_args)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
