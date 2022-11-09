@@ -11,10 +11,14 @@
 '''
 This module queries GitHub to collect Beam-related workflows metrics and put them in
 PostgreSQL.
+This Script it's running every 5 minutes in a cloud function in apache-beam-testing project.
+Writing the latest 10 jobs of every postcommit workflow in master branch in a beammetrics database
 '''
+
 import os
 import sys
 import time
+import re
 from datetime import datetime
 
 import requests
@@ -29,11 +33,13 @@ GH_WORKFLOWS_TABLE_NAME = "github_workflows"
 # Number of workflows that fetch github API
 GH_NUMBER_OF_WORKFLOWS = 100  
 GH_WORKFLOWS_NUMBER_EXECUTIONS = 10
+GH_WORKFLOWS_YML_FILENAME = []
 
 # The table will save the latest ten run of every workflow
 GH_WORKFLOWS_CREATE_TABLE_QUERY = f"""
 CREATE TABLE IF NOT EXISTS {GH_WORKFLOWS_TABLE_NAME} (
     job_name text PRIMARY KEY,
+    job_yml_filename text,
     job1 text,
     job2 text,
     job3 text,
@@ -46,6 +52,13 @@ CREATE TABLE IF NOT EXISTS {GH_WORKFLOWS_TABLE_NAME} (
     job10 text
 )
 """
+def githubWorkflowsGrafanaSync(args):
+    print('Started')
+
+    print('Updating table with recent workflow runs')
+    databaseOperations(initDbConnection(),fetchWorkflowData())
+    print('Done')
+    return "Completed"
 
 def initDbConnection():
     '''Init connection with the Database'''
@@ -76,7 +89,13 @@ def fetchWorkflowData():
         jsonResponse = response.json()
         workflows = jsonResponse['workflows']
         for item in workflows:
-            listOfWorkflows[(item['id'])] = item['name']
+            path =(item['path'])
+            isPostCommit = re.search('(.*)postcommit(.*)',path)
+            if isPostCommit:
+                result = re.search('/(.*).yml', path)
+                path =(result.group(1)) + ".yml"
+                GH_WORKFLOWS_YML_FILENAME.append(path)
+                listOfWorkflows[(item['id'])] = item['name']
         url = "https://api.github.com/repos/apache/beam/actions/workflows/"
         queryOptions = { 'branch' : 'master', 'per_page' : GH_WORKFLOWS_NUMBER_EXECUTIONS,
                     'page' :'1', 'exclude_pull_request':True }
@@ -87,8 +106,11 @@ def fetchWorkflowData():
             workflowsRuns = responseJson['workflow_runs']
             workflowsStatus[listOfWorkflows[key]] = []
             for  item in workflowsRuns:
-                workflowsStatus[listOfWorkflows[key]].append(item['status'])
-            for i in range(0,10):
+                if item['status'] == 'completed':
+                    workflowsStatus[listOfWorkflows[key]].append(item['conclusion'])
+                else:
+                    workflowsStatus[listOfWorkflows[key]].append(item['status'])
+            for i in range(0,GH_WORKFLOWS_NUMBER_EXECUTIONS):   
                 if i >= len(workflowsStatus[listOfWorkflows[key]]):
                     workflowsStatus[listOfWorkflows[key]].append('None')
     except:
@@ -105,24 +127,19 @@ def databaseOperations(connection, workflowStatus):
     query = ""
     for item in workflowStatus:
         rowInsert = """ (\'{}\',\'{}\',\'{}\',\'{}\',\'{}\',\'{}\',
-            \'{}\',\'{}\',\'{}\',\'{}\',\'{}\'),""".format(
-            item, workflowStatus[item][0],workflowStatus[item][1],
+            \'{}\',\'{}\',\'{}\',\'{}\',\'{}\',\'{}\'),""".format(
+            item, GH_WORKFLOWS_YML_FILENAME[0],
+            workflowStatus[item][0],workflowStatus[item][1],
             workflowStatus[item][2], workflowStatus[item][3],
             workflowStatus[item][4], workflowStatus[item][5],
             workflowStatus[item][6], workflowStatus[item][7],
             workflowStatus[item][8], workflowStatus[item][9]
             )
         query = query + rowInsert
+        GH_WORKFLOWS_YML_FILENAME.pop(0)
     query = query[:-1] + ";"  
     query = queryInsert + query
     cursor.execute(query)
     cursor.close()
     connection.commit()
     connection.close()
-
-if __name__ == '__main__':
-    print('Started')
-
-    print('Updating table with recent workflow runs')
-    databaseOperations(initDbConnection(),fetchWorkflowData())
-    print('Done')
