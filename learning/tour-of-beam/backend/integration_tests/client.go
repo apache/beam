@@ -13,28 +13,77 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 )
 
-func SdkList(url string) (sdkListResponse, error) {
-	var result sdkListResponse
-	err := Get(&result, url, nil)
+var (
+	ExpectedHeaders = map[string]string{
+		"Access-Control-Allow-Origin": "*",
+		"Content-Type":                "application/json",
+	}
+)
+
+func verifyHeaders(header http.Header) error {
+	for k, v := range ExpectedHeaders {
+		if actual := header.Get(k); actual != v {
+			return fmt.Errorf("header %s mismatch: %s (expected %s)", k, actual, v)
+		}
+	}
+
+	return nil
+}
+
+func GetSdkList(url string) (SdkList, error) {
+	var result SdkList
+	err := Get(&result, url, nil, nil)
 	return result, err
 }
 
 func GetContentTree(url, sdk string) (ContentTree, error) {
 	var result ContentTree
-	err := Get(&result, url, map[string]string{"sdk": sdk})
+	err := Get(&result, url, map[string]string{"sdk": sdk}, nil)
 	return result, err
 }
 
 func GetUnitContent(url, sdk, unitId string) (Unit, error) {
 	var result Unit
-	err := Get(&result, url, map[string]string{"sdk": sdk, "unitId": unitId})
+	err := Get(&result, url, map[string]string{"sdk": sdk, "id": unitId}, nil)
 	return result, err
+}
+
+func GetUserProgress(url, sdk, token string) (SdkProgress, error) {
+	var result SdkProgress
+	err := Get(&result, url, map[string]string{"sdk": sdk},
+		map[string]string{"Authorization": "Bearer " + token})
+	return result, err
+}
+
+func PostUnitComplete(url, sdk, unitId, token string) error {
+	var result interface{}
+	err := Do(&result, http.MethodPost, url, map[string]string{"sdk": sdk, "id": unitId},
+		map[string]string{"Authorization": "Bearer " + token}, nil)
+	return err
+}
+
+func PostUserCode(url, sdk, unitId, token string, body UserCodeRequest) (ErrorResponse, error) {
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return ErrorResponse{}, err
+	}
+
+	var result ErrorResponse
+	err = Do(&result, http.MethodPost, url, map[string]string{"sdk": sdk, "id": unitId},
+		map[string]string{"Authorization": "Bearer " + token}, bytes.NewReader(raw))
+	return result, err
+}
+
+func Get(dst interface{}, url string, queryParams, headers map[string]string) error {
+	return Do(dst, http.MethodGet, url, queryParams, headers, nil)
 }
 
 // Generic HTTP call wrapper
@@ -42,12 +91,16 @@ func GetUnitContent(url, sdk, unitId string) (Unit, error) {
 // * dst: response struct pointer
 // * url: request  url
 // * query_params: url query params, as a map (we don't use multiple-valued params)
-func Get(dst interface{}, url string, queryParams map[string]string) error {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func Do(dst interface{}, method, url string, queryParams, headers map[string]string, body io.Reader) error {
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return err
 	}
 	req.Header.Add("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Add(k, v)
+	}
+
 	if len(queryParams) > 0 {
 		q := req.URL.Query()
 		for k, v := range queryParams {
@@ -62,6 +115,11 @@ func Get(dst interface{}, url string, queryParams map[string]string) error {
 
 	defer resp.Body.Close()
 
+	if err := verifyHeaders(resp.Header); err != nil {
+		return err
+	}
+
 	tee := io.TeeReader(resp.Body, os.Stdout)
+	defer os.Stdout.WriteString("\n")
 	return json.NewDecoder(tee).Decode(dst)
 }

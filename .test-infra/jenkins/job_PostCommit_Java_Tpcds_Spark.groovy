@@ -49,7 +49,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Sp
                 '--runner=SparkRunner',
                 '--dataSize=1GB',
                 '--sourceType=PARQUET',
-                '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
+                '--dataDirectory=gs://beam-tpcds/datasets/parquet/nonpartitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/spark3-rdd/',
                 '--tpcParallel=1',
                 '--queries=' + tpcdsQueriesArg
@@ -68,7 +68,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Sp
                 '--runner=SparkStructuredStreamingRunner',
                 '--dataSize=1GB',
                 '--sourceType=PARQUET',
-                '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
+                '--dataDirectory=gs://beam-tpcds/datasets/parquet/nonpartitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/spark3-dataset/',
                 '--tpcParallel=1',
                 '--queries=' + tpcdsQueriesArg
@@ -101,7 +101,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Spar
                 '--runner=SparkRunner',
                 '--dataSize=1GB',
                 '--sourceType=PARQUET',
-                '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
+                '--dataDirectory=gs://beam-tpcds/datasets/parquet/nonpartitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/spark3-rdd/',
                 '--tpcParallel=1',
                 '--queries=' + tpcdsQueriesArg
@@ -120,7 +120,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Spar
                 '--runner=SparkStructuredStreamingRunner',
                 '--dataSize=1GB',
                 '--sourceType=PARQUET',
-                '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
+                '--dataDirectory=gs://beam-tpcds/datasets/parquet/nonpartitioned',
                 '--resultsDirectory=gs://beam-tpcds/results/spark3-dataset/',
                 '--tpcParallel=1',
                 '--queries=' + tpcdsQueriesArg

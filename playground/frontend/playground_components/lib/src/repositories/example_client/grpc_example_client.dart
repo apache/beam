@@ -24,6 +24,7 @@ import '../../models/category_with_examples.dart';
 import '../../models/example_base.dart';
 import '../../models/sdk.dart';
 import '../../util/replace_incorrect_symbols.dart';
+import '../complexity_grpc_extension.dart';
 import '../models/get_default_precompiled_object_request.dart';
 import '../models/get_precompiled_object_code_response.dart';
 import '../models/get_precompiled_object_request.dart';
@@ -203,6 +204,7 @@ class GrpcExampleClient implements ExampleClient {
       files: _convertToSharedFileList(response.files),
       sdk: response.sdk.model,
       pipelineOptions: response.pipelineOptions,
+      complexity: response.complexity.model,
     );
   }
 
@@ -332,12 +334,14 @@ class GrpcExampleClient implements ExampleClient {
       sdk: sdk,
       name: example.name,
       description: example.description,
+      tags: example.tags,
       type: _exampleTypeFromString(example.type),
       path: example.cloudPath,
       contextLine: example.contextLine,
       pipelineOptions: example.pipelineOptions,
       isMultiFile: example.multifile,
       link: example.link,
+      complexity: example.complexity.model,
     );
   }
 

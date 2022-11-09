@@ -135,3 +135,6 @@ playground/frontend/playground_components/assets/symbols
 **/*.tfstate.*
 **/*.hcl
 **/*.tfvars
+
+# Ignore Katas auto-generated files
+**/*-remote-info.yaml

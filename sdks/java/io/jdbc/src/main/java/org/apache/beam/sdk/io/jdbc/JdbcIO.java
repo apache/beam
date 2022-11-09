@@ -666,7 +666,13 @@ public class JdbcIO {
      * It should ONLY be used if the default value throws memory errors.
      */
     public ReadRows withFetchSize(int fetchSize) {
-      checkArgument(fetchSize > 0, "fetch size must be > 0");
+      // Note that api.java.sql.Statement#setFetchSize says it only accepts values >= 0
+      // and that MySQL supports using Integer.MIN_VALUE as a hint to stream the ResultSet instead
+      // of loading it into memory. See
+      // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-implementation-notes.html for additional details.
+      checkArgument(
+          fetchSize >= 0 || fetchSize == Integer.MIN_VALUE,
+          "fetch size must be >= 0 or equal to Integer.MIN_VALUE");
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
@@ -808,7 +814,13 @@ public class JdbcIO {
      * It should ONLY be used if the default value throws memory errors.
      */
     public Read<T> withFetchSize(int fetchSize) {
-      checkArgument(fetchSize > 0, "fetch size must be > 0");
+      // Note that api.java.sql.Statement#setFetchSize says it only accepts values >= 0
+      // and that MySQL supports using Integer.MIN_VALUE as a hint to stream the ResultSet instead
+      // of loading it into memory. See
+      // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-implementation-notes.html for additional details.
+      checkArgument(
+          fetchSize >= 0 || fetchSize == Integer.MIN_VALUE,
+          "fetch size must be >= 0 or equal to Integer.MIN_VALUE");
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
@@ -961,7 +973,13 @@ public class JdbcIO {
      * It should ONLY be used if the default value throws memory errors.
      */
     public ReadAll<ParameterT, OutputT> withFetchSize(int fetchSize) {
-      checkArgument(fetchSize > 0, "fetch size must be >0");
+      // Note that api.java.sql.Statement#setFetchSize says it only accepts values >= 0
+      // and that MySQL supports using Integer.MIN_VALUE as a hint to stream the ResultSet instead
+      // of loading it into memory. See
+      // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-implementation-notes.html for additional details.
+      checkArgument(
+          fetchSize >= 0 || fetchSize == Integer.MIN_VALUE,
+          "fetch size must be >= 0 or equal to Integer.MIN_VALUE");
       return toBuilder().setFetchSize(fetchSize).build();
     }
 

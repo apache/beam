@@ -18,6 +18,7 @@
 
 import 'package:equatable/equatable.dart';
 
+import '../enums/complexity.dart';
 import '../repositories/example_repository.dart';
 import 'sdk.dart';
 
@@ -48,6 +49,7 @@ extension ExampleTypeToString on ExampleType {
 /// These objects are fetched as lists from [ExampleRepository].
 class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final Sdk sdk;
+  final List<String> tags;
   final ExampleType type;
   final String name;
   final String path;
@@ -56,17 +58,20 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final bool isMultiFile;
   final String? link;
   final String pipelineOptions;
+  final Complexity complexity;
 
   const ExampleBase({
     required this.sdk,
     required this.name,
     required this.path,
     required this.description,
+    required this.tags,
     required this.type,
     this.contextLine = 1,
     this.isMultiFile = false,
     this.link,
     required this.pipelineOptions,
+    required this.complexity,
   });
 
   @override

@@ -20,6 +20,7 @@ import * as protobufjs from "protobufjs";
 
 import * as runnerApi from "../proto/beam_runner_api";
 import * as fnApi from "../proto/beam_fn_api";
+import { MetricsContainer, MetricSpec } from "./metrics";
 import { StateProvider } from "./state";
 
 import * as urns from "../internal/urns";
@@ -56,7 +57,8 @@ export class ParamProviderImpl implements ParamProvider {
   constructor(
     private transformId: string,
     private sideInputInfo: Map<string, SideInputInfo>,
-    private getStateProvider: () => StateProvider
+    private getStateProvider: () => StateProvider,
+    private metricsContainer: MetricsContainer
   ) {}
 
   // Avoid modifying the original object, as that could have surprising results
@@ -77,7 +79,7 @@ export class ParamProviderImpl implements ParamProvider {
       ) {
         result[name] = Object.create(value);
         result[name].provider = this;
-        if ((value as ParDoParam<unknown>).parDoParamName === "sideInput") {
+        if ((value as ParDoParam).parDoParamName === "sideInput") {
           this.prefetchCallbacks.push(
             this.prefetchSideInput(
               value as SideInputParam<unknown, unknown, unknown>
@@ -130,7 +132,9 @@ export class ParamProviderImpl implements ParamProvider {
     };
   }
 
-  update(wvalue: WindowedValue<unknown> | undefined): operators.ProcessResult {
+  setCurrentValue(
+    wvalue: WindowedValue<unknown> | undefined
+  ): operators.ProcessResult {
     this.wvalue = wvalue;
     if (wvalue === null || wvalue === undefined) {
       return operators.NonPromise;
@@ -148,7 +152,7 @@ export class ParamProviderImpl implements ParamProvider {
     }
   }
 
-  provide(param) {
+  lookup(param) {
     if (this.wvalue === null || this.wvalue === undefined) {
       throw new Error(
         param.parDoParamName + " not defined outside of a process() call."
@@ -168,6 +172,19 @@ export class ParamProviderImpl implements ParamProvider {
 
       case "sideInput":
         return this.sideInputValues.get(param.sideInputId) as any;
+
+      default:
+        throw new Error("Unknown context parameter: " + param.parDoParamName);
+    }
+  }
+
+  update(param, value) {
+    switch (param.parDoParamName) {
+      case "metric":
+        this.metricsContainer
+          .getMetric(this.transformId, param as MetricSpec)
+          .update(value);
+        break;
 
       default:
         throw new Error("Unknown context parameter: " + param.parDoParamName);

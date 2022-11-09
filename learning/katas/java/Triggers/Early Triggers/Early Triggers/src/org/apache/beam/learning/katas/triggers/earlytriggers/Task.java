@@ -25,6 +25,12 @@ package org.apache.beam.learning.katas.triggers.earlytriggers;
 //   context_line: 42
 //   categories:
 //     - Streaming
+//   complexity: MEDIUM
+//   tags:
+//     - windowing
+//     - triggers
+//     - event
+
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

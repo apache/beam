@@ -21,12 +21,17 @@ import static org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.BACKLOG_UNK
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -36,6 +41,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
@@ -57,6 +64,7 @@ import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.activemq.util.Callback;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -67,12 +75,15 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 /** Tests of {@link JmsIO}. */
 @RunWith(JUnit4.class)
@@ -505,7 +516,6 @@ public class JmsIOTest {
   @Test
   public void testCheckpointMarkDefaultCoder() throws Exception {
     JmsCheckpointMark jmsCheckpointMark = new JmsCheckpointMark();
-    jmsCheckpointMark.add(new ActiveMQMessage());
     Coder coder = new JmsIO.UnboundedJmsSource(null).getCheckpointMarkCoder();
     CoderProperties.coderSerializable(coder);
     CoderProperties.coderDecodeEncodeEqual(coder, jmsCheckpointMark);
@@ -553,6 +563,106 @@ public class JmsIOTest {
     verify(autoScaler, times(1)).getTotalBacklogBytes();
     reader.close();
     verify(autoScaler, times(1)).stop();
+  }
+
+  @Test
+  public void testCloseWithTimeout() throws IOException {
+    Duration closeTimeout = Duration.millis(2000L);
+    JmsIO.Read spec =
+        JmsIO.read()
+            .withConnectionFactory(connectionFactory)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withQueue(QUEUE)
+            .withCloseTimeout(closeTimeout);
+
+    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
+
+    ScheduledExecutorService mockScheduledExecutorService =
+        Mockito.mock(ScheduledExecutorService.class);
+    ExecutorOptions options = PipelineOptionsFactory.as(ExecutorOptions.class);
+    options.setScheduledExecutorService(mockScheduledExecutorService);
+    ArgumentCaptor<Runnable> runnableArgumentCaptor = ArgumentCaptor.forClass(Runnable.class);
+    when(mockScheduledExecutorService.schedule(
+            runnableArgumentCaptor.capture(), anyLong(), any(TimeUnit.class)))
+        .thenReturn(null /* unused */);
+
+    JmsIO.UnboundedJmsReader reader = source.createReader(options, null);
+    reader.start();
+    assertFalse(getDiscardedValue(reader));
+    reader.close();
+    assertFalse(getDiscardedValue(reader));
+    verify(mockScheduledExecutorService)
+        .schedule(any(Runnable.class), eq(closeTimeout.getMillis()), eq(TimeUnit.MILLISECONDS));
+    runnableArgumentCaptor.getValue().run();
+    assertTrue(getDiscardedValue(reader));
+    verifyNoMoreInteractions(mockScheduledExecutorService);
+  }
+
+  private boolean getDiscardedValue(JmsIO.UnboundedJmsReader reader) {
+    JmsCheckpointMark checkpoint = (JmsCheckpointMark) reader.getCheckpointMark();
+    checkpoint.lock.readLock().lock();
+    try {
+      return checkpoint.discarded;
+    } finally {
+      checkpoint.lock.readLock().unlock();
+    }
+  }
+
+  @Test
+  public void testDiscardCheckpointMark() throws Exception {
+    Connection connection =
+        connectionFactoryWithSyncAcksAndWithoutPrefetch.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
+    for (int i = 0; i < 10; i++) {
+      producer.send(session.createTextMessage("test " + i));
+    }
+    producer.close();
+    session.close();
+    connection.close();
+
+    JmsIO.Read spec =
+        JmsIO.read()
+            .withConnectionFactory(connectionFactoryWithSyncAcksAndWithoutPrefetch)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withQueue(QUEUE);
+    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
+    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+
+    // start the reader and move to the first record
+    assertTrue(reader.start());
+
+    // consume 3 more messages (NB: start already consumed the first message)
+    for (int i = 0; i < 3; i++) {
+      assertTrue(reader.advance());
+    }
+
+    // the messages are still pending in the queue (no ACK yet)
+    assertEquals(10, count(QUEUE));
+
+    // we finalize the checkpoint
+    reader.getCheckpointMark().finalizeCheckpoint();
+
+    // the checkpoint finalize ack the messages, and so they are not pending in the queue anymore
+    assertEquals(6, count(QUEUE));
+
+    // we read the 6 pending messages
+    for (int i = 0; i < 6; i++) {
+      assertTrue(reader.advance());
+    }
+
+    // still 6 pending messages as we didn't finalize the checkpoint
+    assertEquals(6, count(QUEUE));
+
+    // But here we discard the checkpoint
+    ((JmsCheckpointMark) reader.getCheckpointMark()).discard();
+    // we finalize the checkpoint: no messages should be acked
+    reader.getCheckpointMark().finalizeCheckpoint();
+
+    assertEquals(6, count(QUEUE));
   }
 
   private int count(String queue) throws Exception {

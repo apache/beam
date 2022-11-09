@@ -32,7 +32,7 @@ Individual capabilities have been grouped by their corresponding What / Where / 
 
 For more details on the What / Where / When / How breakdown of concepts, we recommend reading through the <a href="https://oreilly.com/ideas/the-world-beyond-batch-streaming-102">Streaming 102</a> post on O'Reilly Radar.
 
-Note that in the future, we intend to add additional tables beyond the current set, for things like runtime characterstics (e.g. at-least-once vs exactly-once), performance, etc.
+Note that in the future, we intend to add additional tables beyond the current set, for things like runtime characteristics (e.g. at-least-once vs exactly-once), performance, etc.
 
 <!-- Summary table -->
 {{< documentation/capability-matrix-single cap-data="capability-matrix" cap-style="cap-summary" cap-view="summary" cap-toggle-details=1 cap-display="block" >}}

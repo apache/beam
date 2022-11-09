@@ -43,7 +43,7 @@ func TestNewExpansionServiceRunner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewExpansionServiceRunner failed, got %v", err)
 	}
-	if got, want := serviceRunner.jarPath, testPath; got != want {
+	if got, want := serviceRunner.execPath, testPath; got != want {
 		t.Errorf("got JAR path %v, want %v", got, want)
 	}
 	if got, want := serviceRunner.servicePort, testPort; got != want {
@@ -138,7 +138,7 @@ func TestStartService_good(t *testing.T) {
 }
 
 func makeTestServiceRunner() *ExpansionServiceRunner {
-	return &ExpansionServiceRunner{jarPath: "", serviceCommand: &exec.Cmd{}}
+	return &ExpansionServiceRunner{execPath: "", serviceCommand: &exec.Cmd{}}
 }
 
 func TestStopService_NoStart(t *testing.T) {

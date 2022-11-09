@@ -33,6 +33,7 @@ export interface WindowFn<W extends Window> {
   toProto: () => runnerApi.FunctionSpec;
   isMerging: () => boolean;
   assignsToOneWindow: () => boolean;
+  beamName?: string;
 }
 
 export function createWindowingStrategyProto(

@@ -898,7 +898,12 @@ class _Mutator(namedtuple('_Mutator',
 
   @property
   def byte_size(self):
-    return self.mutation.ByteSize()
+    if hasattr(self.mutation, '_pb'):
+      # google-cloud-spanner 3.x
+      return self.mutation._pb.ByteSize()
+    else:
+      # google-cloud-spanner 1.x
+      return self.mutation.ByteSize()
 
 
 class MutationGroup(deque):

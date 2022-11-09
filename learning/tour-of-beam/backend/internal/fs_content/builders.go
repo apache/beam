@@ -16,19 +16,36 @@
 package fs_content
 
 import (
+	"fmt"
+
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 )
+
+const OriginTbExamples = "TB_EXAMPLES"
+
+// Construct example/snippet_id from (sdk, name)
+// according to the convention defined
+// in Playground datastore
+func makeTbSnippetId(sdk tob.Sdk, name string) string {
+	// leave blank if not defined
+	if name == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s_%s_%s", OriginTbExamples, sdk.StorageID(), name)
+}
 
 type UnitBuilder struct {
 	tob.Unit
 }
 
-func NewUnitBuilder(info learningUnitInfo) UnitBuilder {
+func NewUnitBuilder(info learningUnitInfo, sdk tob.Sdk) UnitBuilder {
+	taskSnippetId := makeTbSnippetId(sdk, info.TaskName)
+	solutionSnippetId := makeTbSnippetId(sdk, info.SolutionName)
 	return UnitBuilder{tob.Unit{
-		Id:           info.Id,
-		Name:         info.Name,
-		TaskName:     info.TaskName,
-		SolutionName: info.SolutionName,
+		Id:                info.Id,
+		Title:             info.Name,
+		TaskSnippetId:     taskSnippetId,
+		SolutionSnippetId: solutionSnippetId,
 	}}
 }
 

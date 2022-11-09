@@ -237,6 +237,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --java11_home)
+        JAVA11_HOME="$2"
+        shift # past argument
+        shift # past value
+        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -382,7 +387,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
       JAVA_TAG=$(date +%Y%m%d-%H%M%S)
       JAVA_CONTAINER=us.gcr.io/$PROJECT/$USER/beam_java11_sdk
       echo "Using container $JAVA_CONTAINER for cross-language java transforms"
-      ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG
+      ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG -Pjava11Home=$JAVA11_HOME
 
       # Verify it exists
       docker images | grep $JAVA_TAG

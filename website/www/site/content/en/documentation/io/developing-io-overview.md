@@ -182,7 +182,7 @@ to support data de-duplication when failures are retried by a runner), use
 `ParDo`, `GroupByKey`, and other available Beam transforms.
 Many data services are optimized to write batches of elements at a time,
 so it may make sense to group the elements into batches before writing.
-Persistant connectons can be initialized in a DoFn's `setUp` or `startBundle`
+Persistent connections can be initialized in a DoFn's `setUp` or `startBundle`
 method rather than upon the receipt of every element as well.
 It should also be noted that in a large-scale, distributed system work can
 [fail and/or be retried](/documentation/runtime/model/), so it is preferable to
