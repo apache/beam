@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator.WINDOW_SIZE_SECONDS;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -59,13 +61,16 @@ public class ThroughputEstimatorTest {
     estimator.update(Timestamp.ofTimeSecondsAndNanos(250, 0), 40); // Exclusive
     assertEquals(10D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(261, 0)), DELTA);
 
-    assertEquals(0D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(350, 0)), DELTA);
+    // Does not take the update of 250s in account, because the window is not closed (no update on
+    // 251s)
+    assertEquals(0D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(262, 0)), DELTA);
   }
 
   @Test
   public void testThroughputIsAccumulatedWithin60SecondsWindow() {
-    List<ImmutablePair<Timestamp, Long>> pairs = generateTestData(100, 0, 60, Long.MAX_VALUE);
-    pairs.sort((a, b) -> a.getLeft().compareTo(b.getLeft()));
+    final List<ImmutablePair<Timestamp, Long>> pairs = generateTestData(100, 0, 60, Long.MAX_VALUE);
+    pairs.sort(Comparator.comparing(ImmutablePair::getLeft));
+    final Timestamp lastUpdateTimestamp = pairs.get(pairs.size() - 1).getLeft();
 
     final long count = pairs.stream().map(ImmutablePair::getLeft).distinct().count();
     BigDecimal sum = BigDecimal.valueOf(0L);
@@ -74,25 +79,34 @@ public class ThroughputEstimatorTest {
     }
     final BigDecimal want = sum.divide(BigDecimal.valueOf(count), MathContext.DECIMAL128);
 
-    for (int i = 0; i < pairs.size(); i++) {
-      estimator.update(pairs.get(i).getLeft(), pairs.get(i).getRight());
+    for (ImmutablePair<Timestamp, Long> pair : pairs) {
+      estimator.update(pair.getLeft(), pair.getRight());
     }
 
     // This is needed to push the current window into the queue.
     estimator.update(Timestamp.ofTimeSecondsAndNanos(60, 0), 10);
-    double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(60, 0));
+    final double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(60, 0));
     assertEquals(want.doubleValue(), actual, DELTA);
+
+    // After window without updates the throughput should be zero
+    final Timestamp afterWindowTimestamp =
+        Timestamp.ofTimeSecondsAndNanos(
+            lastUpdateTimestamp.getSeconds() + WINDOW_SIZE_SECONDS + 1,
+            lastUpdateTimestamp.getNanos());
+    assertEquals(0D, estimator.getFrom(afterWindowTimestamp), DELTA);
   }
 
   @Test
   public void testThroughputIsAccumulatedWithin300SecondsWindow() {
-    List<ImmutablePair<Timestamp, Long>> excludedPairs =
+    final List<ImmutablePair<Timestamp, Long>> excludedPairs =
         generateTestData(300, 0, 240, Long.MAX_VALUE);
-    List<ImmutablePair<Timestamp, Long>> expectedPairs =
+    final List<ImmutablePair<Timestamp, Long>> expectedPairs =
         generateTestData(50, 240, 300, Long.MAX_VALUE);
-    List<ImmutablePair<Timestamp, Long>> pairs =
-        Stream.concat(excludedPairs.stream(), expectedPairs.stream()).collect(Collectors.toList());
-    pairs.sort((a, b) -> a.getLeft().compareTo(b.getLeft()));
+    final List<ImmutablePair<Timestamp, Long>> pairs =
+        Stream.concat(excludedPairs.stream(), expectedPairs.stream())
+            .sorted(Comparator.comparing(ImmutablePair::getLeft))
+            .collect(Collectors.toList());
+    final Timestamp lastUpdateTimestamp = pairs.get(pairs.size() - 1).getLeft();
 
     final long count = expectedPairs.stream().map(ImmutablePair::getLeft).distinct().count();
     BigDecimal sum = BigDecimal.valueOf(0L);
@@ -100,14 +114,21 @@ public class ThroughputEstimatorTest {
       sum = sum.add(BigDecimal.valueOf(pair.getRight()));
     }
     final BigDecimal want = sum.divide(BigDecimal.valueOf(count), MathContext.DECIMAL128);
-    for (int i = 0; i < pairs.size(); i++) {
-      estimator.update(pairs.get(i).getLeft(), pairs.get(i).getRight());
+    for (ImmutablePair<Timestamp, Long> pair : pairs) {
+      estimator.update(pair.getLeft(), pair.getRight());
     }
 
     // This is needed to push the current window into the queue.
     estimator.update(Timestamp.ofTimeSecondsAndNanos(300, 0), 10);
     double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(300, 0));
     assertEquals(want.doubleValue(), actual, DELTA);
+
+    // After window without updates the throughput should be zero
+    final Timestamp afterWindowTimestamp =
+        Timestamp.ofTimeSecondsAndNanos(
+            lastUpdateTimestamp.getSeconds() + WINDOW_SIZE_SECONDS + 1,
+            lastUpdateTimestamp.getNanos());
+    assertEquals(0D, estimator.getFrom(afterWindowTimestamp), DELTA);
   }
 
   @Test
