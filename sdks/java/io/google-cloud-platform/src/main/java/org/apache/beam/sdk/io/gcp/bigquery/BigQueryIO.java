@@ -2668,11 +2668,9 @@ public class BigQueryIO {
     }
 
     /**
-     * If true, enables automatically detecting BigQuery table schema updates. If a message with
-     * unknown fields is processed, the BigQuery table is tabled to see if the schema has been
-     * updated. This is intended for scenarios in which unknown fields are rare, otherwise calls to
-     * BigQuery will throttle the pipeline. only supported when using one of the STORAGE_API insert
-     * methods.
+     * If true, enables automatically detecting BigQuery table schema updates. Table schema updates
+     * are usually noticed within several minutes. Only supported when using one of the STORAGE_API
+     * insert methods.
      */
     public Write<T> withAutoSchemaUpdate(boolean autoSchemaUpdate) {
       return toBuilder().setAutoSchemaUpdate(autoSchemaUpdate).build();
@@ -3175,7 +3173,6 @@ public class BigQueryIO {
                   tableRowWriterFactory.getToRowFn(),
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
-                  bqOptions.getSchemaUpdateRetries(),
                   getAutoSchemaUpdate());
         }
 

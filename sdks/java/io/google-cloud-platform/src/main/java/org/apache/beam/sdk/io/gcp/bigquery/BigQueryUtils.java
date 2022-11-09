@@ -572,7 +572,7 @@ public class BigQueryUtils {
       case DOUBLE:
         // The above types have native representations in JSON for all their
         // possible values.
-        return fieldValue;
+        return fieldValue.toString();
 
       case STRING:
       case INT64:

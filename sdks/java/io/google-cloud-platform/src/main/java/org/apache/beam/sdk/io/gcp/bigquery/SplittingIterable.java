@@ -19,12 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.DynamicMessage;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.function.Function;
-import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.DescriptorWrapper;
 
 /**
  * Takes in an iterable and batches the results into multiple ProtoRows objects. The splitSize
@@ -34,18 +30,10 @@ import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.Descrip
 class SplittingIterable implements Iterable<ProtoRows> {
   private final Iterable<StorageApiWritePayload> underlying;
   private final long splitSize;
-  private final Function<Long, DescriptorWrapper> updateSchema;
-  private DescriptorWrapper currentDescriptor;
 
-  public SplittingIterable(
-      Iterable<StorageApiWritePayload> underlying,
-      long splitSize,
-      DescriptorWrapper currentDescriptor,
-      Function<Long, DescriptorWrapper> updateSchema) {
+  public SplittingIterable(Iterable<StorageApiWritePayload> underlying, long splitSize) {
     this.underlying = underlying;
     this.splitSize = splitSize;
-    this.updateSchema = updateSchema;
-    this.currentDescriptor = currentDescriptor;
   }
 
   @Override
@@ -68,23 +56,8 @@ class SplittingIterable implements Iterable<ProtoRows> {
         long bytesSize = 0;
         while (underlyingIterator.hasNext()) {
           StorageApiWritePayload payload = underlyingIterator.next();
-          if (payload.getSchemaHash() != currentDescriptor.hash) {
-            // Schema doesn't match. Try and get an updated schema hash (from the base table).
-            currentDescriptor = updateSchema.apply(payload.getSchemaHash());
-            // Validate that the record can now be parsed.
-            try {
-              DynamicMessage msg =
-                  DynamicMessage.parseFrom(currentDescriptor.descriptor, payload.getPayload());
-              if (msg.getUnknownFields() != null && !msg.getUnknownFields().asMap().isEmpty()) {
-                throw new RuntimeException(
-                    "Record schema does not match table. Unknown fields: "
-                        + msg.getUnknownFields());
-              }
-            } catch (InvalidProtocolBufferException e) {
-              throw new RuntimeException(e);
-            }
-          }
           ByteString byteString = ByteString.copyFrom(payload.getPayload());
+
           inserts.addSerializedRows(byteString);
           bytesSize += byteString.size();
           if (bytesSize > splitSize) {
