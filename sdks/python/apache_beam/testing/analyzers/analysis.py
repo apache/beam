@@ -39,7 +39,7 @@ from signal_processing_algorithms.energy_statistics.energy_statistics import e_d
 
 BQ_PROJECT_NAME = 'apache-beam-testing'
 BQ_DATASET = 'beam_perf_storage'
-OWNER = 'AnandInguva'
+OWNER = 'apache'
 REPO = 'beam'
 
 ID_LABEL = 'test_id'
@@ -231,6 +231,15 @@ class RunChangePointAnalysis:
   def run_change_point_analysis(self, config):
     metric_name = config['metric_name']
     test_name = config['test_name'].replace('.', '_')
+
+    # overrides the default with values defined in the config file.
+    if 'changepoint_to_recent_run_window' in config:
+      self.changepoint_to_recent_run_window = config[
+          'changepoint_to_recent_run_window']
+    if 'change_point_sibling_distance' in config:
+      self.change_point_sibling_distance = config[
+          'change_point_sibling_distance']
+
     if config['source'] == 'big_query':
       data: pd.DataFrame = FetchMetrics.fetch_from_bq(
           project_name=config['project'],
@@ -448,6 +457,9 @@ if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
   parser = argparse.ArgumentParser()
+  # change_point_sibling_distance, changepoint_to_recent_run_window can be
+  # defined in the config file. If they are defined in config file, the
+  # default values will be overwritten by them for a perf test analysis.
   parser.add_argument(
       '--change_point_sibling_distance',
       type=int,
@@ -461,7 +473,9 @@ if __name__ == '__main__':
       help='Only allow creating alerts when regression '
       'happens if the run corresponding to the regressions is '
       'within changepoint_to_recent_run_window.')
+
   known_args, unknown_args = parser.parse_known_args()
+
   if unknown_args:
     _LOGGER.warning('Discarding unknown arguments : %s ' % unknown_args)
   config_file_path = os.path.join(
