@@ -14,11 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+test_1:
+  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  source: big_query
+  metrics_dataset: beam_run_inference
+  metrics_table: torch_inference_imagenet_results_resnet152
+  project: apache-beam-testing
+  metric_name: mean_load_model_latency_milli_secs
 
-source: big_query
-test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
-metrics_dataset: beam_run_inference
-metrics_table: torch_inference_imagenet_results_resnet152
-project: apache-beam-testing
-metric_name: mean_load_model_latency_milli_secs
-
+test_2:
+  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  source: big_query
+  metrics_dataset: beam_run_inference
+  metrics_table: torch_inference_imagenet_results_resnet101
+  project: apache-beam-testing
+  metric_name: mean_load_model_latency_milli_secs

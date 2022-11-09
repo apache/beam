@@ -227,9 +227,7 @@ class RunChangePointAnalysis:
         break
     return alert, issue_number
 
-  def run(self, config_file_path):
-    with open(config_file_path, 'r') as stream:
-      config = yaml.safe_load(stream)
+  def run_change_point_analysis(self, config):
     metric_name = config['metric_name']
     test_name = config['test_name'].replace('.', '_')
     if config['source'] == 'big_query':
@@ -261,7 +259,7 @@ class RunChangePointAnalysis:
         # Ignore this changepoint.
         logging.info(
             'Performance regression found for the test: %s. '
-            'Not creating an alert since the Change Point'
+            'but not creating an alert since the Change Point '
             'lies outside the '
             'changepoint_to_recent_run_window distance' % test_name)
         return
@@ -274,7 +272,8 @@ class RunChangePointAnalysis:
           change_point_timestamp=change_point_timestamp
       )
 
-      logging.info("Create alert: %s" % create_alert)
+      logging.info(
+          "Create alert for the test %s: %s" % (test_name, create_alert))
 
       # alert is created via comment on open issue or as a new issue.
       if create_alert:
@@ -322,6 +321,13 @@ class RunChangePointAnalysis:
       raise NotImplementedError
     else:
       raise NotImplementedError
+
+  def read_test_config(self, config_file_path):
+    with open(config_file_path, 'r') as stream:
+      config = yaml.safe_load(stream)
+
+    for test_config in config.keys():
+      self.run_change_point_analysis(config[test_config])
 
 
 class GitHubIssues:
@@ -453,4 +459,5 @@ if __name__ == '__main__':
     _LOGGER.warning('Discarding unknown arguments : %s ' % unknown_args)
   config_file_path = os.path.join(
       os.path.dirname(os.path.abspath(__file__)), 'tests_config.yaml')
-  RunChangePointAnalysis(known_args).run(config_file_path=config_file_path)
+  RunChangePointAnalysis(known_args).read_test_config(
+      config_file_path=config_file_path)
