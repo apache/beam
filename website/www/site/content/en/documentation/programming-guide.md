@@ -6995,7 +6995,9 @@ which restrictions to split and who should process them.
 
 By default, we use the restriction tracker’s estimate for work remaining falling back to assuming
 that all restrictions have an equal cost. To override the default, SDF authors can provide the
-appropriate method within the restriction provider.
+appropriate method within the restriction provider. SDF authors need to be aware that the
+sizing method will be invoked concurrently during bundle processing due to runner initiated splitting
+and progress estimation.
 
 {{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_GetSize >}}
