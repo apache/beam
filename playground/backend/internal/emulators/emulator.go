@@ -16,11 +16,10 @@
 package emulators
 
 import (
-	"context"
 	"errors"
+	"io/ioutil"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/logger"
 )
@@ -31,10 +30,10 @@ type EmulatorMockCluster interface {
 }
 
 type EmulatorProducer interface {
-	ProduceDatasets(datasets []*cloud_bucket.DatasetDTO) error
+	ProduceDatasets(datasets []*DatasetDTO) error
 }
 
-func PrepareMockClustersAndGetPrepareParams(ctx context.Context, request *pb.RunCodeRequest, storage *cloud_bucket.CloudStorage, bucketName string) ([]EmulatorMockCluster, map[string]string, error) {
+func PrepareMockClustersAndGetPrepareParams(request *pb.RunCodeRequest) ([]EmulatorMockCluster, map[string]string, error) {
 	datasetsByEmulatorTypeMap := map[pb.EmulatorType][]*pb.Dataset{}
 	for _, dataset := range request.Datasets {
 		datasets, ok := datasetsByEmulatorTypeMap[dataset.Type]
@@ -59,9 +58,9 @@ func PrepareMockClustersAndGetPrepareParams(ctx context.Context, request *pb.Run
 				return nil, nil, err
 			}
 			mockClusters = append(mockClusters, kafkaMockCluster)
-			datasetDTOs, err := storage.GetDatasets(ctx, bucketName, datasets)
+			datasetDTOs, err := toDatasetDTOs(datasets)
 			if err != nil {
-				logger.Errorf("failed to get datasets from the cloud storage, %v", err)
+				logger.Errorf("failed to get datasets from the repository, %v", err)
 				return nil, nil, err
 			}
 			producer, err := NewKafkaProducer(kafkaMockCluster)
@@ -84,4 +83,22 @@ func PrepareMockClustersAndGetPrepareParams(ctx context.Context, request *pb.Run
 		}
 	}
 	return mockClusters, prepareParams, nil
+}
+
+func toDatasetDTOs(datasets []*pb.Dataset) ([]*DatasetDTO, error) {
+	result := make([]*DatasetDTO, 0, len(datasets))
+	for _, dataset := range datasets {
+		path := dataset.DatasetPath
+		data, err := ioutil.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, &DatasetDTO{Dataset: dataset, Data: data})
+	}
+	return result, nil
+}
+
+type DatasetDTO struct {
+	Dataset *pb.Dataset
+	Data    []byte
 }

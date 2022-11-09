@@ -100,9 +100,6 @@ type ApplicationEnvs struct {
 	// pipelinesFolder is name of folder in which the pipelines resources are stored
 	pipelinesFolder string
 
-	// bucketName is a name of the GCS's bucket with datasets
-	bucketName string
-
 	// schemaVersion is the database schema version
 	schemaVersion string
 
@@ -118,7 +115,7 @@ type ApplicationEnvs struct {
 
 // NewApplicationEnvs constructor for ApplicationEnvs
 func NewApplicationEnvs(
-	workingDir, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath, bucketName string,
+	workingDir, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath string,
 	cacheEnvs *CacheEnvs,
 	pipelineExecuteTimeout, cacheRequestTimeout time.Duration,
 ) *ApplicationEnvs {
@@ -129,7 +126,6 @@ func NewApplicationEnvs(
 		launchSite:             launchSite,
 		projectId:              projectId,
 		pipelinesFolder:        pipelinesFolder,
-		bucketName:             bucketName,
 		sdkConfigPath:          sdkConfigPath,
 		propertyPath:           propertyPath,
 		cacheRequestTimeout:    cacheRequestTimeout,
@@ -164,11 +160,6 @@ func (ae *ApplicationEnvs) GoogleProjectId() string {
 // PipelinesFolder returns name of folder in which the pipelines resources are stored
 func (ae *ApplicationEnvs) PipelinesFolder() string {
 	return ae.pipelinesFolder
-}
-
-// BucketName returns name of the GCS's bucket with datasets
-func (ae *ApplicationEnvs) BucketName() string {
-	return ae.bucketName
 }
 
 // SchemaVersion returns the database schema version

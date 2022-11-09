@@ -22,7 +22,6 @@ import (
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
-	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/code_processing"
 	"beam.apache.org/playground/backend/internal/components"
 	"beam.apache.org/playground/backend/internal/db"
@@ -60,7 +59,6 @@ type playgroundController struct {
 	props          *environment.Properties
 	entityMapper   mapper.EntityMapper
 	cacheComponent *components.CacheComponent
-	storage        *cloud_bucket.CloudStorage
 
 	pb.UnimplementedPlaygroundServiceServer
 }
@@ -89,7 +87,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	var kafkaMockCluster emulators.EmulatorMockCluster
 	var prepareParams = make(map[string]string)
 	if len(info.Datasets) != 0 {
-		kafkaMockClusters, prepareParamsVal, err := emulators.PrepareMockClustersAndGetPrepareParams(ctx, info, controller.storage, controller.env.ApplicationEnvs.BucketName())
+		kafkaMockClusters, prepareParamsVal, err := emulators.PrepareMockClustersAndGetPrepareParams(info)
 		if err != nil {
 			return nil, errors.InternalError(errorTitleRunCode, "Failed to prepare a mock emulator cluster")
 		}

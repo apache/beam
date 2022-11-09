@@ -27,7 +27,6 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/linkedin/goavro"
 
-	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/constants"
 )
 
@@ -101,7 +100,7 @@ func NewKafkaProducer(cluster *KafkaMockCluster) (*KafkaProducer, error) {
 	return &KafkaProducer{cluster: cluster, producer: p}, nil
 }
 
-func (kp *KafkaProducer) ProduceDatasets(datasets []*cloud_bucket.DatasetDTO) error {
+func (kp *KafkaProducer) ProduceDatasets(datasets []*DatasetDTO) error {
 	if kp.producer == nil {
 		return errors.New("producer not set")
 	}
@@ -137,14 +136,14 @@ func produce(entries []map[string]interface{}, kp *KafkaProducer, topic *string)
 	return nil
 }
 
-func getTopic(dataset *cloud_bucket.DatasetDTO) *string {
+func getTopic(dataset *DatasetDTO) *string {
 	topicName := dataset.Dataset.Options[constants.TopicNameKey]
 	topic := new(string)
 	*topic = topicName
 	return topic
 }
 
-func unmarshallDatasets(dataset *cloud_bucket.DatasetDTO) ([]map[string]interface{}, error) {
+func unmarshallDatasets(dataset *DatasetDTO) ([]map[string]interface{}, error) {
 	ext := filepath.Ext(dataset.Dataset.DatasetPath)
 	var entries []map[string]interface{}
 	switch ext {

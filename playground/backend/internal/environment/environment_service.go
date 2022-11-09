@@ -67,8 +67,6 @@ const (
 	defaultPropertyPath           = "."
 	cacheRequestTimeoutKey        = "CACHE_REQUEST_TIMEOUT"
 	defaultCacheRequestTimeout    = time.Second * 5
-	bucketNameKey                 = "BUCKET_NAME"
-	defaultBucketName             = "apache-beam-samples"
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
@@ -113,10 +111,9 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	sdkConfigPath := getEnv(SDKConfigPathKey, defaultSDKConfigPath)
 	propertyPath := getEnv(propertyPathKey, defaultPropertyPath)
 	cacheRequestTimeout := getEnvAsDuration(cacheRequestTimeoutKey, defaultCacheRequestTimeout, "couldn't convert provided cache request timeout. Using default %s\n")
-	bucketName := getEnv(bucketNameKey, defaultBucketName)
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath, bucketName, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout, cacheRequestTimeout), nil
+		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout, cacheRequestTimeout), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }

@@ -108,17 +108,6 @@ task("removeUnusedSnippet") {
     }
 }
 
-task("benchmarkPrecompiledObjects") {
-  group = "verification"
-  description = "Run benchmarks for precompiled objects"
-  doLast {
-    exec {
-      executable("go")
-      args("test", "-bench", ".", "-benchmem", "./internal/cloud_bucket/...")
-    }
-  }
-}
-
 task("benchmarkCodeProcessing") {
   group = "verification"
   description = "Run benchmarks for code processing"
