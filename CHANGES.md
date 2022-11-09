@@ -59,6 +59,7 @@
 ## I/Os
 
 * Support for Bigtable sink (Write and WriteBatch) added (Go) ([#23324](https://github.com/apache/beam/issues/23324)).
+* S3 implementation of the Beam filesystem (Go) ([#23991](https://github.com/apache/beam/issues/23991)).
 
 ## New Features / Improvements
 
