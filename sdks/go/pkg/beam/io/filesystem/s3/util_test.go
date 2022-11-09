@@ -17,7 +17,7 @@ package s3
 
 import "testing"
 
-func Test_parseUri(t *testing.T) {
+func Test_parseURI(t *testing.T) {
 	tests := []struct {
 		name       string
 		uri        string
@@ -64,27 +64,27 @@ func Test_parseUri(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotBucket, gotKey, err := parseUri(tt.uri)
+			gotBucket, gotKey, err := parseURI(tt.uri)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseUri() err = %v, want %v", err, tt.wantErr)
+				t.Errorf("parseURI() err = %v, want %v", err, tt.wantErr)
 			}
 			if gotBucket != tt.wantBucket {
-				t.Errorf("parseUri() bucket = %v, want %v", gotBucket, tt.wantBucket)
+				t.Errorf("parseURI() bucket = %v, want %v", gotBucket, tt.wantBucket)
 			}
 			if gotKey != tt.wantKey {
-				t.Errorf("parseUri() key = %v, want %v", gotKey, tt.wantKey)
+				t.Errorf("parseURI() key = %v, want %v", gotKey, tt.wantKey)
 			}
 		})
 	}
 }
 
-func Test_makeUri(t *testing.T) {
+func Test_makeURI(t *testing.T) {
 	bucket := "bucket"
 	key := "path/to/key"
 	want := "s3://bucket/path/to/key"
 
-	if got := makeUri(bucket, key); got != want {
-		t.Errorf("makeUri() = %v, want %v", got, want)
+	if got := makeURI(bucket, key); got != want {
+		t.Errorf("makeURI() = %v, want %v", got, want)
 	}
 }
 
