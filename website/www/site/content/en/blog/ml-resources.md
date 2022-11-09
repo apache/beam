@@ -34,7 +34,9 @@ documentation and notebooks to make it easier to use these new features
 and to show how Beam can be used to solve common Machine Learning problems.
 We're now happy to present this new and improved Beam ML experience!
 
-TODO - add image of notebook
+<img class="center-block"
+     src="/images/blog/ensemble-model-notebook.png.png"
+     alt="Example ensemble notebook with RunInference">
 
 To get started, we encourage you to visit Beam's new [AI/ML landing page](https://beam.apache.org/documentation/ml/overview/).
 We've got plenty of content on things like [multi-model pipelines](https://beam.apache.org/documentation/ml/multi-model-pipelines/),
