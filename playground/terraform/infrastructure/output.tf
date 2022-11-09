@@ -52,3 +52,4 @@ output "playground_redis_ip" {
 output "docker-repository-root" {
   value = "${module.artifact_registry.registry_location}${var.repository_domain}/${var.project_id}/${module.artifact_registry.registry_name}"
 }
+
