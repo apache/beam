@@ -35,7 +35,7 @@ for image_name in ${IMAGE_NAMES[@]}; do
   echo IMAGES FOR image ${image_name}
   echo "Command" gcloud container images list-tags \
   ${image_name} \
-  --sort-by=TIMESTAMP  --filter="timestamp.datetime < $(date --iso-8601=s -d '5 days ago')" \
+  --sort-by=TIMESTAMP  --filter="NOT tags:latest AND timestamp.datetime < $(date --iso-8601=s -d '5 days ago')" \
   --format="get(digest)"
   STALE_IMAGES_CURRENT=$(gcloud container images list-tags \
    ${image_name} \
