@@ -49,6 +49,13 @@ showing how to use built in beam transforms like `RunInference` and `Beam Datafr
 <img class="center-block"
      src="/images/blog/ensemble-model-notebook.png"
      alt="Example ensemble notebook with RunInference">
+     
+Adding more examples and notebooks will be a point of emphasis going forward.
+For our next round of improvements, we are planning on adding examples of
+using RunInference with >30GB models, with multi-language pipelines, with
+common Beam concepts, and with TensorRT. We will also add examples showing
+other pieces of the Machine Learning lifecycle like model evaluation with TFMA,
+per-entity training, and more online training.
 
 We hope you find this useful! As always, if you see any areas for improvement, please [open an issue](https://github.com/apache/beam/issues/new/choose)
 or a [pull request](https://github.com/apache/beam/pulls)!
