@@ -38,6 +38,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncodin
 public class DataChangeRecord implements ChangeStreamRecord {
 
   private static final long serialVersionUID = 1138762498767540898L;
+  // Used for byte size estimation of the record
+  private static final AvroCoder<DataChangeRecord> CODER = AvroCoder.of(DataChangeRecord.class);
 
   private String partitionToken;
 
@@ -216,9 +218,8 @@ public class DataChangeRecord implements ChangeStreamRecord {
    * @return the number of bytes of the encoded object
    */
   public long bytesSize() {
-    final AvroCoder<DataChangeRecord> coder = AvroCoder.of(DataChangeRecord.class);
     try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-      coder.encode(this, baos);
+      CODER.encode(this, baos);
       return baos.size();
     } catch (IOException e) {
       throw new RuntimeException(e);

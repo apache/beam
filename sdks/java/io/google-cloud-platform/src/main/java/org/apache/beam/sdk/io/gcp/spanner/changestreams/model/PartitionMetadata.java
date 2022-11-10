@@ -39,6 +39,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 public class PartitionMetadata implements Serializable {
 
   private static final long serialVersionUID = 995720273301116075L;
+  // Used for byte size estimation of the record
+  private static final AvroCoder<PartitionMetadata> CODER = AvroCoder.of(PartitionMetadata.class);
 
   /**
    * We use the following partition token to provide an estimate size of a partition token. A usual
@@ -221,9 +223,8 @@ public class PartitionMetadata implements Serializable {
    * @return the number of bytes of the encoded object
    */
   public long bytesSize() {
-    final AvroCoder<PartitionMetadata> coder = AvroCoder.of(PartitionMetadata.class);
     try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-      coder.encode(this, baos);
+      CODER.encode(this, baos);
       return baos.size();
     } catch (IOException e) {
       throw new RuntimeException(e);
