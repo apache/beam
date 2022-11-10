@@ -20,9 +20,9 @@ on models. This package contains support for popular frameworks as well
 as an interface for adding unsupported frameworks.
 
 Note: on top of the frameworks captured in submodules below, Beam also has
-a supported TFX model handler via the tfx-bsl library. See
+a supported TensorFlow model handler via the tfx-bsl library. See
 https://beam.apache.org/documentation/sdks/python-machine-learning/#tensorflow
-for more information on using TFX in Beam.
+for more information on using TensorFlow in Beam.
 """
 
 from apache_beam.ml.inference.base import RunInference
