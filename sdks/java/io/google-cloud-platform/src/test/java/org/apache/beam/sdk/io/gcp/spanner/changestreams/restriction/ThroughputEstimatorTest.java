@@ -74,6 +74,7 @@ public class ThroughputEstimatorTest {
   public void testThroughputIsAccumulatedWithin60SecondsWindow() {
     List<ImmutablePair<Timestamp, Long>> pairs = generateTestData(100, 0, 10, Long.MAX_VALUE);
     pairs.sort(Comparator.comparing(ImmutablePair::getLeft));
+    final Timestamp lastUpdateTimestamp = pairs.get(pairs.size() - 1).getLeft();
 
     BigDecimal sum = BigDecimal.valueOf(0L);
     for (ImmutablePair<Timestamp, Long> pair : pairs) {
@@ -88,6 +89,13 @@ public class ThroughputEstimatorTest {
 
     double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(10, 0));
     assertEquals(want.doubleValue(), actual, DELTA);
+
+    // After window without updates the throughput should be zero
+    final Timestamp afterWindowTimestamp =
+        Timestamp.ofTimeSecondsAndNanos(
+            lastUpdateTimestamp.getSeconds() + WINDOW_SIZE_SECONDS + 1,
+            lastUpdateTimestamp.getNanos());
+    assertEquals(0D, estimator.getFrom(afterWindowTimestamp), DELTA);
   }
 
   @Test
@@ -100,6 +108,7 @@ public class ThroughputEstimatorTest {
         Stream.concat(excludedPairs.stream(), expectedPairs.stream())
             .sorted(Comparator.comparing(ImmutablePair::getLeft))
             .collect(Collectors.toList());
+    final Timestamp lastUpdateTimestamp = pairs.get(pairs.size() - 1).getLeft();
 
     BigDecimal sum = BigDecimal.valueOf(0L);
     for (ImmutablePair<Timestamp, Long> pair : expectedPairs) {
@@ -113,6 +122,13 @@ public class ThroughputEstimatorTest {
 
     double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(50, 0));
     assertEquals(want.doubleValue(), actual, DELTA);
+
+    // After window without updates the throughput should be zero
+    final Timestamp afterWindowTimestamp =
+        Timestamp.ofTimeSecondsAndNanos(
+            lastUpdateTimestamp.getSeconds() + WINDOW_SIZE_SECONDS + 1,
+            lastUpdateTimestamp.getNanos());
+    assertEquals(0D, estimator.getFrom(afterWindowTimestamp), DELTA);
   }
 
   @Test

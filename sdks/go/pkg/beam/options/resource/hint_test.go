@@ -43,9 +43,9 @@ func TestAcceleratorHint_Payload(t *testing.T) {
 	}
 }
 
-func TestMinRamBytesHint_MergeWith(t *testing.T) {
-	low := minRamHint{value: 2}
-	high := minRamHint{value: 12e7}
+func TestMinRAMBytesHint_MergeWith(t *testing.T) {
+	low := minRAMHint{value: 2}
+	high := minRAMHint{value: 12e7}
 
 	if got, want := low.MergeWithOuter(high), high; got != want {
 		t.Errorf("%v.MergeWith(%v) = %v, want %v", low, high, got, want)
@@ -55,7 +55,7 @@ func TestMinRamBytesHint_MergeWith(t *testing.T) {
 	}
 }
 
-func TestMinRamBytesHint_Payload(t *testing.T) {
+func TestMinRAMBytesHint_Payload(t *testing.T) {
 	tests := []struct {
 		value   int64
 		payload string
@@ -71,14 +71,14 @@ func TestMinRamBytesHint_Payload(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		h := minRamHint{value: test.value}
+		h := minRAMHint{value: test.value}
 		if got, want := h.Payload(), []byte(test.payload); !bytes.Equal(got, want) {
 			t.Errorf("%v.Payload() = %v, want %v", h, got, want)
 		}
 	}
 }
 
-func TestParseMinRamHint(t *testing.T) {
+func TestParseMinRAMHint(t *testing.T) {
 	tests := []struct {
 		value   string
 		payload string
@@ -95,20 +95,20 @@ func TestParseMinRamHint(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		h := ParseMinRam(test.value)
+		h := ParseMinRAM(test.value)
 		if got, want := h.Payload(), []byte(test.payload); !bytes.Equal(got, want) {
 			t.Errorf("%v.Payload() = %v, want %v", h, string(got), string(want))
 		}
 	}
 }
 
-func TestParseMinRamHint_panic(t *testing.T) {
+func TestParseMinRAMHint_panic(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
-			t.Error("want ParseMinRam to panic")
+			t.Error("want ParseMinRAM to panic")
 		}
 	}()
-	ParseMinRam("a bad byte string")
+	ParseMinRAM("a bad byte string")
 }
 
 // We copy the URN from the proto for use as a constant rather than perform a direct look up
@@ -128,7 +128,7 @@ func TestStandardHintUrns(t *testing.T) {
 		h:   Accelerator("type:foo;count:bar;optional_option"),
 		urn: getStandardURN(pipepb.StandardResourceHints_ACCELERATOR),
 	}, {
-		h:   MinRamBytes(2e9),
+		h:   MinRAMBytes(2e9),
 		urn: getStandardURN(pipepb.StandardResourceHints_MIN_RAM_BYTES),
 	}}
 	for _, test := range tests {
@@ -154,33 +154,33 @@ func (h customHint) MergeWithOuter(outer Hint) Hint {
 }
 
 func TestHints_Equal(t *testing.T) {
-	hs := NewHints(MinRamBytes(2e9), Accelerator("type:pants;count1;install-pajamas"))
+	hs := NewHints(MinRAMBytes(2e9), Accelerator("type:pants;count1;install-pajamas"))
 
 	if got, want := hs.Equal(hs), true; got != want {
 		t.Errorf("Self equal test: hs.Equal(hs) = %v, want %v", got, want)
 	}
-	eq := NewHints(MinRamBytes(2e9), Accelerator("type:pants;count1;install-pajamas"))
+	eq := NewHints(MinRAMBytes(2e9), Accelerator("type:pants;count1;install-pajamas"))
 	if got, want := hs.Equal(eq), true; got != want {
 		t.Errorf("identical equal test: hs.Equal(eq) = %v, want %v", got, want)
 	}
-	neqLenShort := NewHints(MinRamBytes(2e9))
+	neqLenShort := NewHints(MinRAMBytes(2e9))
 	if got, want := hs.Equal(neqLenShort), false; got != want {
 		t.Errorf("too short equal test: hs.Equal(neqLenShort) = %v, want %v", got, want)
 	}
 	ch := customHint{}
-	neqLenLong := NewHints(MinRamBytes(2e9), Accelerator("type:pants;count1;install-pajamas"), ch)
+	neqLenLong := NewHints(MinRAMBytes(2e9), Accelerator("type:pants;count1;install-pajamas"), ch)
 	if got, want := hs.Equal(neqLenLong), false; got != want {
 		t.Errorf("too long equal test: hs.Equal(neqLenLong) = %v, want %v", got, want)
 	}
-	neqSameHintTypes := NewHints(MinRamBytes(2e10), Accelerator("type:pants;count1;install-pajamas"))
+	neqSameHintTypes := NewHints(MinRAMBytes(2e10), Accelerator("type:pants;count1;install-pajamas"))
 	if got, want := hs.Equal(neqSameHintTypes), false; got != want {
 		t.Errorf("sameHintTypes equal test: hs.Equal(neqLenSameHintTypes) = %v, want %v", got, want)
 	}
-	neqSameHintTypes2 := NewHints(MinRamBytes(2e9), Accelerator("type:pants;count1;install-pajama"))
+	neqSameHintTypes2 := NewHints(MinRAMBytes(2e9), Accelerator("type:pants;count1;install-pajama"))
 	if got, want := hs.Equal(neqSameHintTypes2), false; got != want {
 		t.Errorf("sameHintTypes2 equal test: hs.Equal(neqLenSameHintTypes2) = %v, want %v", got, want)
 	}
-	neqDiffHintTypes2 := NewHints(MinRamBytes(2e9), ch)
+	neqDiffHintTypes2 := NewHints(MinRAMBytes(2e9), ch)
 	if got, want := hs.Equal(neqDiffHintTypes2), false; got != want {
 		t.Errorf("diffHintTypes equal test: hs.Equal(neqDiffHintTypes2) = %v, want %v", got, want)
 	}
@@ -188,15 +188,15 @@ func TestHints_Equal(t *testing.T) {
 
 func TestHints_MergeWithOuter(t *testing.T) {
 
-	lowRam, medRam, highRam := MinRamBytes(2e7), MinRamBytes(2e9), MinRamBytes(2e10)
+	lowRAM, medRAM, highRAM := MinRAMBytes(2e7), MinRAMBytes(2e9), MinRAMBytes(2e10)
 
 	pantsAcc := Accelerator("type:pants;count1;install-pajamas")
 	jeansAcc := Accelerator("type:jeans;count1;")
 	custom := customHint{}
 
-	hsA := NewHints(medRam, pantsAcc)
-	hsB := NewHints(highRam, jeansAcc)
-	hsC := NewHints(lowRam, custom)
+	hsA := NewHints(medRAM, pantsAcc)
+	hsB := NewHints(highRAM, jeansAcc)
+	hsC := NewHints(lowRAM, custom)
 
 	tests := []struct {
 		inner, outer, want Hints
@@ -204,12 +204,12 @@ func TestHints_MergeWithOuter(t *testing.T) {
 		{hsA, hsA, hsA},
 		{hsB, hsB, hsB},
 		{hsC, hsC, hsC},
-		{hsA, hsB, NewHints(highRam, pantsAcc)},
-		{hsB, hsA, NewHints(highRam, jeansAcc)},
-		{hsA, hsC, NewHints(medRam, pantsAcc, custom)},
-		{hsC, hsA, NewHints(medRam, pantsAcc, custom)},
-		{hsB, hsC, NewHints(highRam, jeansAcc, custom)},
-		{hsC, hsB, NewHints(highRam, jeansAcc, custom)},
+		{hsA, hsB, NewHints(highRAM, pantsAcc)},
+		{hsB, hsA, NewHints(highRAM, jeansAcc)},
+		{hsA, hsC, NewHints(medRAM, pantsAcc, custom)},
+		{hsC, hsA, NewHints(medRAM, pantsAcc, custom)},
+		{hsB, hsC, NewHints(highRAM, jeansAcc, custom)},
+		{hsC, hsB, NewHints(highRAM, jeansAcc, custom)},
 	}
 
 	for i, test := range tests {
@@ -223,7 +223,7 @@ func TestHints_MergeWithOuter(t *testing.T) {
 
 func TestHints_Payloads(t *testing.T) {
 	{
-		hs := NewHints(MinRamBytes(2e9), Accelerator("type:jeans;count1;"))
+		hs := NewHints(MinRAMBytes(2e9), Accelerator("type:jeans;count1;"))
 
 		got := hs.Payloads()
 		want := map[string][]byte{
@@ -248,7 +248,7 @@ func TestHints_Payloads(t *testing.T) {
 func TestHints_NilHints(t *testing.T) {
 	var hs1, hs2 Hints
 
-	hs := NewHints(MinRamBytes(2e9), Accelerator("type:pants;count1;install-pajamas"))
+	hs := NewHints(MinRAMBytes(2e9), Accelerator("type:pants;count1;install-pajamas"))
 
 	if got, want := hs1.Equal(hs2), true; got != want {
 		t.Errorf("nils equal test: (nil).Equal(nil) = %v, want %v", got, want)

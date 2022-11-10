@@ -192,7 +192,7 @@ func GetPipelineResourceHints() resource.Hints {
 		var h resource.Hint
 		switch name {
 		case "min_ram", "beam:resources:min_ram_bytes:v1":
-			h = resource.ParseMinRam(val)
+			h = resource.ParseMinRAM(val)
 		case "accelerator", "beam:resources:accelerator:v1":
 			h = resource.Accelerator(val)
 		default:
