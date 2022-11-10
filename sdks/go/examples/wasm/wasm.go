@@ -18,7 +18,7 @@
 // https://github.com/tetratelabs/wazero/blob/v1.0.0-pre.3/examples/allocation/rust/greet.go
 //
 // New Concepts:
-// 1. Load a wasm file compiled cargo build --release --target wasm32-unknown-unknown
+// 1. Load a wasm file compiled from: cargo build --release --target wasm32-unknown-unknown
 // 2. Execute a wasm function within a DoFn
 package main
 
@@ -93,7 +93,7 @@ func run(ctx context.Context) error {
 }
 
 // Concept #2 wrap wasm function execution within a DoFn.
-// wasmFn wraps a DoFn to execute a wasmer.io compiled wasm function
+// wasmFn wraps a DoFn to execute a Rust compiled wasm function
 type embeddedWasmFn struct {
 	r                              wazero.Runtime
 	mod                            api.Module
