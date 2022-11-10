@@ -84,7 +84,7 @@ terraform apply -var="github_repository_owner=$GITHUB_REPOSITORY_OWNER" /
 -var="github_repository_name=$GITHUB_REPOSITORY_NAME" -var="github_repository_branch=$GITHUB_REPOSITORY_BRANCH"
 ```
 
-After completing these steps, GCP project will have `Playground-infrastructure-trigger` Cloud Build trigger that can be used to build and deploy Beam Playground.
+After completing these steps, GCP project will have 2 Cloud Build triggers that can be used to build and deploy Beam Playground.
 
 ### Run Cloud Build Triggers
 
