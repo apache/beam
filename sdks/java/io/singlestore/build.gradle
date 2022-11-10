@@ -30,13 +30,13 @@ dependencies {
     implementation library.java.vendored_guava_26_0_jre
     implementation library.java.joda_time
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation group: 'com.singlestore', name: 'singlestore-jdbc-client', version: '1.1.4'
+    implementation library.java.singlestore_jdbc
     implementation library.java.slf4j_api
-    implementation "org.apache.commons:commons-dbcp2:2.8.0"
+    implementation library.java.dbcp2
 
     testImplementation library.java.junit
     testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-    testImplementation "org.apache.commons:commons-dbcp2:2.8.0"
+    testImplementation library.java.dbcp2
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation library.java.slf4j_api
     testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
