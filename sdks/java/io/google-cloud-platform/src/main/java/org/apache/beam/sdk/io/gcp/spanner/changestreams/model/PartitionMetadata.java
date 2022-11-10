@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.avro.reflect.AvroEncode;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncoding;
@@ -38,6 +39,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 public class PartitionMetadata implements Serializable {
 
   private static final long serialVersionUID = 995720273301116075L;
+
+  /**
+   * We use the following partition token to provide an estimate size of a partition token. A usual
+   * partition token has around 150 characters.
+   */
+  private static final String SAMPLE_PARTITION_TOKEN = StringUtils.repeat("*", 140);
   /**
    * We use a bogus partition here to estimate the average size of a partition metadata record.
    *
@@ -46,8 +53,8 @@ public class PartitionMetadata implements Serializable {
    */
   public static final long AVERAGE_PARTITION_BYTES_SIZE =
       PartitionMetadata.newBuilder()
-          .setPartitionToken(InitialPartition.PARTITION_TOKEN)
-          .setParentTokens(Sets.newHashSet("fake_parent"))
+          .setPartitionToken(SAMPLE_PARTITION_TOKEN)
+          .setParentTokens(Sets.newHashSet(SAMPLE_PARTITION_TOKEN))
           .setStartTimestamp(Timestamp.now())
           .setHeartbeatMillis(1_000L)
           .setState(State.CREATED)

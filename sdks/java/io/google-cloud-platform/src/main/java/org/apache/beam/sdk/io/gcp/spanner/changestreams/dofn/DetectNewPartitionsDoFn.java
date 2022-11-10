@@ -119,17 +119,17 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
     final com.google.cloud.Timestamp readTimestamp = restriction.getFrom();
     final PartitionMetadataDao dao = daoFactory.getPartitionMetadataDao();
     final long partitionsToSchedule = dao.countPartitionsCreatedAfter(readTimestamp);
-    final long size = partitionsToSchedule * AVERAGE_PARTITION_BYTES_SIZE;
+    final long sizeEstimate = partitionsToSchedule * AVERAGE_PARTITION_BYTES_SIZE;
 
     LOG.debug(
         "getSize() = "
-            + size
+            + sizeEstimate
             + " ("
             + partitionsToSchedule
             + " partitionsToSchedule * "
             + AVERAGE_PARTITION_BYTES_SIZE
             + " averagePartitionBytesSize)");
-    return size;
+    return sizeEstimate;
   }
 
   @NewTracker

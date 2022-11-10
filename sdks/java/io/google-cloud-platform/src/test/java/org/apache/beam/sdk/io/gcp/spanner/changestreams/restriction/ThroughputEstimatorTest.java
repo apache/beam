@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator.WINDOW_SIZE_SECONDS;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
@@ -36,11 +35,12 @@ import org.junit.Test;
 
 public class ThroughputEstimatorTest {
   private static final double DELTA = 1e-10;
+  private static final int WINDOW_SIZE_SECONDS = 10;
   private ThroughputEstimator estimator;
 
   @Before
   public void setup() {
-    estimator = new ThroughputEstimator();
+    estimator = new ThroughputEstimator(WINDOW_SIZE_SECONDS);
   }
 
   @Test

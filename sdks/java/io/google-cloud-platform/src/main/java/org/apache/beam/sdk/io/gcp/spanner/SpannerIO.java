@@ -1633,7 +1633,9 @@ public class SpannerIO {
               : getInclusiveEndAt();
       final MapperFactory mapperFactory = new MapperFactory();
       final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
-      final ThroughputEstimator throughputEstimator = new ThroughputEstimator();
+      final int throughputWindowSeconds = 10;
+      final ThroughputEstimator throughputEstimator =
+          new ThroughputEstimator(throughputWindowSeconds);
       final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.HIGH);
       final DaoFactory daoFactory =
           new DaoFactory(
