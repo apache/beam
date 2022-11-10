@@ -42,7 +42,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@AutoValue
+/**
+ * A {@link PTransform} for reading data from SingleStoreDB.
+ * It is used by {@link SingleStoreIO#read()}.
+*/
+ @AutoValue
 public abstract class Read<T> extends PTransform<PBegin, PCollection<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(Read.class);
 

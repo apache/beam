@@ -44,6 +44,10 @@ import org.apache.commons.dbcp2.DelegatingStatement;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
+/**
+ * A {@link PTransform} for writing data to SingleStoreDB.
+ * It is used by {@link SingleStoreIO#write()}.
+ */
 @AutoValue
 public abstract class Write<T> extends PTransform<PCollection<T>, PCollection<Integer>> {
 
