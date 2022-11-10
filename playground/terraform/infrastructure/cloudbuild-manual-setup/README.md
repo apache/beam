@@ -60,7 +60,8 @@ Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/auto
 
 ### 3. Setup the Google Cloud Build triggers
 
-The `cloudbuild-manual-setup/02.builders` provisions Cloud Build trigger to build and deploye Beam Playground.
+The `cloudbuild-manual-setup/02.builders` provisions:
+- Cloud Build trigger to build and deploy Beam Playground.
 
 #### Execute the module
 
