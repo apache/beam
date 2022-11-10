@@ -78,7 +78,7 @@ Run the following commands to execute the module. Terraform will ask your permis
 # Navigate to cloudbuild-manual-setup/02.builders folder from cloudbuild-manual-setup/01.setup
 cd ../02.builders
 terraform init
-terraform apply -var="github_repository_owner=$GITHUB_REPOSITORY_OWNER" / 
+terraform apply -var="github_repository_owner=$GITHUB_REPOSITORY_OWNER" /
 -var="github_repository_name=$GITHUB_REPOSITORY_NAME" -var="github_repository_branch=$GITHUB_REPOSITORY_BRANCH"
 ```
 
