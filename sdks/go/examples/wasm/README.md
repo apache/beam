@@ -99,5 +99,39 @@ JOB_SERVICE=localhost:8099
 
 ```shell
 cd $BEAM_HOME/sdks
-go run ./go/examples/wasm --runner=universal --endpoint=$JOB_SERVICE --output=$OUTPUT
+go run ./go/examples/wasm --runner=universal --endpoint=$JOB_SERVICE --output=$OUTPUT --environment_config=apache/beam_go_sdk:latest
+```
+
+## Dataflow Runner
+
+The following describes how to execute this example on Dataflow.
+
+### REQUIREMENTS:
+
+- Google Cloud Storage (https://cloud.google.com/storage) bucket
+
+#### 1. Set OUTPUT to a Cloud storage bucket path
+
+The example below shows Google Cloud Storage.
+
+```shell
+OUTPUT=gs://<my bucket>/greet
+```
+
+#### 2. Set additional variables
+
+```shell
+PROJECT=<project id>
+REGION=<region>
+STAGING=gs://<my bucket>/staging
+NETWORK=<network>
+SUBNETWORK=regions/$REGION/subnetworks/<subnetwork>
+```
+
+#### 3. Execute this example using Dataflow
+
+```
+cd $BEAM_HOME/sdks
+go run ./go/examples/wasm --runner=dataflow --output=$OUTPUT --environment_config=apache/beam_go_sdk:latest \
+    --project=$PROJECT --region=$REGION --network=$NETWORK --subnetwork=$SUBNETWORK
 ```
