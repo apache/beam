@@ -27,7 +27,7 @@ require (
 	cloud.google.com/go/datastore v1.9.0
 	cloud.google.com/go/profiler v0.3.0
 	cloud.google.com/go/pubsub v1.26.0
-	cloud.google.com/go/storage v1.27.0
+	cloud.google.com/go/storage v1.28.0
 	github.com/docker/go-connections v0.4.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang/protobuf v1.5.2 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
@@ -46,19 +46,20 @@ require (
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10
 	golang.org/x/text v0.4.0
-	google.golang.org/api v0.101.0
-	google.golang.org/genproto v0.0.0-20221018160656-63c7b68cfc55
+	google.golang.org/api v0.102.0
+	google.golang.org/genproto v0.0.0-20221024183307-1bc688fe9f3e
 	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/retry.v1 v1.0.3
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require github.com/wasmerio/wasmer-go v1.0.4
+require github.com/tetratelabs/wazero v1.0.0-pre.3
 
 require (
 	cloud.google.com/go v0.104.0 // indirect
-	cloud.google.com/go/compute v1.10.0 // indirect
+	cloud.google.com/go/compute v1.12.1 // indirect
+	cloud.google.com/go/compute/metadata v0.2.1 // indirect
 	cloud.google.com/go/iam v0.5.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
@@ -91,7 +92,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/tetratelabs/wazero v1.0.0-pre.3 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
