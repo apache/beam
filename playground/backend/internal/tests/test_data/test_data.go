@@ -76,7 +76,7 @@ func RemoveCatalogsWithMockData(ctx context.Context) {
 
 func createDatasetEntities(ctx context.Context) ([]*datastore.Key, []*entity.DatasetEntity) {
 	dataset := &entity.DatasetEntity{
-		Link: "MOCK_LINK",
+		Path: "MOCK_LINK",
 	}
 	key := utils.GetDatasetKey(ctx, "MOCK_DATASET")
 	return []*datastore.Key{key}, []*entity.DatasetEntity{dataset}
