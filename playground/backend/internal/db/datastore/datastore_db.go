@@ -443,7 +443,7 @@ func (d *Datastore) deleteSnippets(ctx context.Context, snippetQuery *datastore.
 		for fileIndex := 0; fileIndex < snpDtos[snpIndex].NumberOfFiles; fileIndex++ {
 			fileKeys = append(fileKeys, utils.GetFileKey(ctx, snpKey.Name, fileIndex))
 		}
-		// delete snippet & its artefacts in a transaction
+		// delete snippet & its artifacts in a transaction
 		_, err = d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
 			err = tx.DeleteMulti(fileKeys)
 			err = tx.Delete(snpKey)
