@@ -44,7 +44,7 @@ public class PartitionMetadata implements Serializable {
 
   /**
    * We use the following partition token to provide an estimate size of a partition token. A usual
-   * partition token has around 150 characters.
+   * partition token has around 140 characters.
    */
   private static final String SAMPLE_PARTITION_TOKEN = StringUtils.repeat("*", 140);
   /**
