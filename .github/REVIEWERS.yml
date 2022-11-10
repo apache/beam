@@ -29,7 +29,6 @@ labels:
   - name: Python
     reviewers:
       - AnandInguva
-      - TheNeuralBit
       - ryanthompson591
       - tvalentyn
       - pabloem
