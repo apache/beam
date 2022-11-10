@@ -19386,7 +19386,8 @@ by properties of those elements.&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
 &lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;span class="n">p&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s1">&amp;#39;strawberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;raspberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blueberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blackberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;banana&amp;#39;&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;strawberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;raspberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blueberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blackberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;banana&amp;#39;&lt;/span>&lt;span class="p">])&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">]))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -19413,8 +19414,10 @@ by properties of those elements.&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
 &lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;span class="n">p&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s1">&amp;#39;strawberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;raspberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blueberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blackberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;banana&amp;#39;&lt;/span>&lt;span class="p">])&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">letter&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">is_berry&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;berry&amp;#39;&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;strawberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;raspberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blueberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blackberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;banana&amp;#39;&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">letter&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">is_berry&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;berry&amp;#39;&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>The resulting key is a named tuple with the two requested attributes, and the
@@ -19468,17 +19471,43 @@ suppose I have the following data&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>(&amp;#39;pie&amp;#39;,
+&lt;pre>&lt;code>(
+&amp;#39;pie&amp;#39;,
 [
-beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;strawberry&amp;#39;, quantity=3, unit_price=1.50),
-beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;raspberry&amp;#39;, quantity=1, unit_price=3.50),
-beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;blackberry&amp;#39;, quantity=1, unit_price=4.00),
-beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;blueberry&amp;#39;, quantity=1, unit_price=2.00),
+beam.Row(
+recipe=&amp;#39;pie&amp;#39;,
+fruit=&amp;#39;strawberry&amp;#39;,
+quantity=3,
+unit_price=1.50),
+beam.Row(
+recipe=&amp;#39;pie&amp;#39;,
+fruit=&amp;#39;raspberry&amp;#39;,
+quantity=1,
+unit_price=3.50),
+beam.Row(
+recipe=&amp;#39;pie&amp;#39;,
+fruit=&amp;#39;blackberry&amp;#39;,
+quantity=1,
+unit_price=4.00),
+beam.Row(
+recipe=&amp;#39;pie&amp;#39;,
+fruit=&amp;#39;blueberry&amp;#39;,
+quantity=1,
+unit_price=2.00),
 ]),
-(&amp;#39;muffin&amp;#39;,
+(
+&amp;#39;muffin&amp;#39;,
 [
-beam.Row(recipe=&amp;#39;muffin&amp;#39;, fruit=&amp;#39;blueberry&amp;#39;, quantity=2, unit_price=2.00),
-beam.Row(recipe=&amp;#39;muffin&amp;#39;, fruit=&amp;#39;banana&amp;#39;, quantity=3, unit_price=1.00),
+beam.Row(
+recipe=&amp;#39;muffin&amp;#39;,
+fruit=&amp;#39;blueberry&amp;#39;,
+quantity=2,
+unit_price=2.00),
+beam.Row(
+recipe=&amp;#39;muffin&amp;#39;,
+fruit=&amp;#39;banana&amp;#39;,
+quantity=3,
+unit_price=1.00),
 ]),&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -19503,20 +19532,47 @@ beam.Row(recipe=&amp;#39;muffin&amp;#39;, fruit=&amp;#39;banana&amp;#39;, quanti
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>(NamedTuple(recipe=&amp;#39;pie&amp;#39;, is_berry=True),
+&lt;pre>&lt;code>(
+NamedTuple(recipe=&amp;#39;pie&amp;#39;, is_berry=True),
 [
-beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;strawberry&amp;#39;, quantity=3, unit_price=1.50),
-beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;raspberry&amp;#39;, quantity=1, unit_price=3.50),
-beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;blackberry&amp;#39;, quantity=1, unit_price=4.00),
-beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;blueberry&amp;#39;, quantity=1, unit_price=2.00),
+beam.Row(
+recipe=&amp;#39;pie&amp;#39;,
+fruit=&amp;#39;strawberry&amp;#39;,
+quantity=3,
+unit_price=1.50),
+beam.Row(
+recipe=&amp;#39;pie&amp;#39;,
+fruit=&amp;#39;raspberry&amp;#39;,
+quantity=1,
+unit_price=3.50),
+beam.Row(
+recipe=&amp;#39;pie&amp;#39;,
+fruit=&amp;#39;blackberry&amp;#39;,
+quantity=1,
+unit_price=4.00),
+beam.Row(
+recipe=&amp;#39;pie&amp;#39;,
+fruit=&amp;#39;blueberry&amp;#39;,
+quantity=1,
+unit_price=2.00),
 ]),
-(NamedTuple(recipe=&amp;#39;muffin&amp;#39;, is_berry=True),
+(
+NamedTuple(recipe=&amp;#39;muffin&amp;#39;, is_berry=True),
 [
-beam.Row(recipe=&amp;#39;muffin&amp;#39;, fruit=&amp;#39;blueberry&amp;#39;, quantity=2, unit_price=2.00),
+beam.Row(
+recipe=&amp;#39;muffin&amp;#39;,
+fruit=&amp;#39;blueberry&amp;#39;,
+quantity=2,
+unit_price=2.00),
 ]),
-(NamedTuple(recipe=&amp;#39;muffin&amp;#39;, is_berry=False),
+(
+NamedTuple(recipe=&amp;#39;muffin&amp;#39;, is_berry=False),
 [
-beam.Row(recipe=&amp;#39;muffin&amp;#39;, fruit=&amp;#39;banana&amp;#39;, quantity=3, unit_price=1.00),
+beam.Row(
+recipe=&amp;#39;muffin&amp;#39;,
+fruit=&amp;#39;banana&amp;#39;,
+quantity=3,
+unit_price=1.00),
 ]),&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -19541,8 +19597,8 @@ One could write&lt;/p>
 &lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;span class="n">p&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fruit&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;quantity&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;total_quantity&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fruit&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="s1">&amp;#39;quantity&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;total_quantity&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="notebook-skip">Output:&lt;/p>
@@ -19572,9 +19628,9 @@ and by expressions.&lt;/p>
 &lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;span class="n">p&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;recipe&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;quantity&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;total_quantity&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">quantity&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">unit_price&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;price&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;recipe&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="s1">&amp;#39;quantity&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;total_quantity&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">quantity&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">unit_price&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;price&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="notebook-skip">Output:&lt;/p>
@@ -19601,10 +19657,10 @@ This example also illustrates a global grouping, as the grouping key is empty.&l
 &lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;span class="n">p&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;unit_price&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">min&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;min_price&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;unit_price&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">MeanCombineFn&lt;/span>&lt;span class="p">(),&lt;/span> &lt;span class="s1">&amp;#39;mean_price&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;unit_price&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">max&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;max_price&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="s1">&amp;#39;unit_price&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">min&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;min_price&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="s1">&amp;#39;unit_price&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">MeanCombineFn&lt;/span>&lt;span class="p">(),&lt;/span> &lt;span class="s1">&amp;#39;mean_price&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="s1">&amp;#39;unit_price&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">max&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;max_price&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="notebook-skip">Output:&lt;/p>

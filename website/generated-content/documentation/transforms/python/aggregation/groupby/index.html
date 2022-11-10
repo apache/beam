@@ -25,15 +25,18 @@ by properties of those elements.</p><p>Unlike <code>GroupByKey</code>, the key i
 <a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>p</span><span class=p>:</span>
   <span class=n>grouped</span> <span class=o>=</span> <span class=p>(</span>
       <span class=n>p</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>([</span><span class=s1>&#39;strawberry&#39;</span><span class=p>,</span> <span class=s1>&#39;raspberry&#39;</span><span class=p>,</span> <span class=s1>&#39;blueberry&#39;</span><span class=p>,</span> <span class=s1>&#39;blackberry&#39;</span><span class=p>,</span> <span class=s1>&#39;banana&#39;</span><span class=p>])</span>
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>(</span>
+          <span class=p>[</span><span class=s1>&#39;strawberry&#39;</span><span class=p>,</span> <span class=s1>&#39;raspberry&#39;</span><span class=p>,</span> <span class=s1>&#39;blueberry&#39;</span><span class=p>,</span> <span class=s1>&#39;blackberry&#39;</span><span class=p>,</span> <span class=s1>&#39;banana&#39;</span><span class=p>])</span>
       <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>(</span><span class=k>lambda</span> <span class=n>s</span><span class=p>:</span> <span class=n>s</span><span class=p>[</span><span class=mi>0</span><span class=p>]))</span></code></pre></div></div></div><p class=notebook-skip>Output:</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>(&#39;s&#39;, [&#39;strawberry&#39;]),
 (&#39;r&#39;, [&#39;raspberry&#39;]),
 (&#39;b&#39;, [&#39;banana&#39;, &#39;blackberry&#39;, &#39;blueberry&#39;]),</code></pre></div></div><p>We can group by a composite key consisting of multiple properties if desired.</p><div class="language-py snippet"><div class="notebook-skip code-snippet"><a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="View source code" href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py><img src=/images/code-icon.svg></a>
 <a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>p</span><span class=p>:</span>
   <span class=n>grouped</span> <span class=o>=</span> <span class=p>(</span>
       <span class=n>p</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>([</span><span class=s1>&#39;strawberry&#39;</span><span class=p>,</span> <span class=s1>&#39;raspberry&#39;</span><span class=p>,</span> <span class=s1>&#39;blueberry&#39;</span><span class=p>,</span> <span class=s1>&#39;blackberry&#39;</span><span class=p>,</span> <span class=s1>&#39;banana&#39;</span><span class=p>])</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>(</span><span class=n>letter</span><span class=o>=</span><span class=k>lambda</span> <span class=n>s</span><span class=p>:</span> <span class=n>s</span><span class=p>[</span><span class=mi>0</span><span class=p>],</span> <span class=n>is_berry</span><span class=o>=</span><span class=k>lambda</span> <span class=n>s</span><span class=p>:</span> <span class=s1>&#39;berry&#39;</span> <span class=ow>in</span> <span class=n>s</span><span class=p>))</span></code></pre></div></div></div><p>The resulting key is a named tuple with the two requested attributes, and the
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>(</span>
+          <span class=p>[</span><span class=s1>&#39;strawberry&#39;</span><span class=p>,</span> <span class=s1>&#39;raspberry&#39;</span><span class=p>,</span> <span class=s1>&#39;blueberry&#39;</span><span class=p>,</span> <span class=s1>&#39;blackberry&#39;</span><span class=p>,</span> <span class=s1>&#39;banana&#39;</span><span class=p>])</span>
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>(</span>
+          <span class=n>letter</span><span class=o>=</span><span class=k>lambda</span> <span class=n>s</span><span class=p>:</span> <span class=n>s</span><span class=p>[</span><span class=mi>0</span><span class=p>],</span> <span class=n>is_berry</span><span class=o>=</span><span class=k>lambda</span> <span class=n>s</span><span class=p>:</span> <span class=s1>&#39;berry&#39;</span> <span class=ow>in</span> <span class=n>s</span><span class=p>))</span></code></pre></div></div></div><p>The resulting key is a named tuple with the two requested attributes, and the
 values are grouped accordingly.</p><p class=notebook-skip>Output:</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>(NamedTuple(letter=&#39;s&#39;, is_berry=True), [&#39;strawberry&#39;]),
 (NamedTuple(letter=&#39;r&#39;, is_berry=True), [&#39;raspberry&#39;]),
 (NamedTuple(letter=&#39;b&#39;, is_berry=True), [&#39;blackberry&#39;, &#39;blueberry&#39;]),
@@ -48,36 +51,89 @@ suppose I have the following data</p><div class="language-py snippet"><div class
     <span class=n>beam</span><span class=o>.</span><span class=n>Row</span><span class=p>(</span><span class=n>recipe</span><span class=o>=</span><span class=s1>&#39;muffin&#39;</span><span class=p>,</span> <span class=n>fruit</span><span class=o>=</span><span class=s1>&#39;banana&#39;</span><span class=p>,</span> <span class=n>quantity</span><span class=o>=</span><span class=mi>3</span><span class=p>,</span> <span class=n>unit_price</span><span class=o>=</span><span class=mf>1.00</span><span class=p>),</span>
 <span class=p>]</span></code></pre></div></div></div><p>We can then do</p><div class="language-py snippet"><div class="notebook-skip code-snippet"><a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="View source code" href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py><img src=/images/code-icon.svg></a>
 <a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>p</span><span class=p>:</span>
-  <span class=n>grouped</span> <span class=o>=</span> <span class=n>p</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>(</span><span class=n>GROCERY_LIST</span><span class=p>)</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>(</span><span class=s1>&#39;recipe&#39;</span><span class=p>)</span></code></pre></div></div></div><p class=notebook-skip>Output:</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>(&#39;pie&#39;,
-  [
-      beam.Row(recipe=&#39;pie&#39;, fruit=&#39;strawberry&#39;, quantity=3, unit_price=1.50),
-      beam.Row(recipe=&#39;pie&#39;, fruit=&#39;raspberry&#39;, quantity=1, unit_price=3.50),
-      beam.Row(recipe=&#39;pie&#39;, fruit=&#39;blackberry&#39;, quantity=1, unit_price=4.00),
-      beam.Row(recipe=&#39;pie&#39;, fruit=&#39;blueberry&#39;, quantity=1, unit_price=2.00),
-  ]),
-(&#39;muffin&#39;,
-  [
-      beam.Row(recipe=&#39;muffin&#39;, fruit=&#39;blueberry&#39;, quantity=2, unit_price=2.00),
-      beam.Row(recipe=&#39;muffin&#39;, fruit=&#39;banana&#39;, quantity=3, unit_price=1.00),
-  ]),</code></pre></div></div><p>It is possible to mix and match attributes and expressions, for example</p><div class="language-py snippet"><div class="notebook-skip code-snippet"><a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="View source code" href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py><img src=/images/code-icon.svg></a>
+  <span class=n>grouped</span> <span class=o>=</span> <span class=n>p</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>(</span><span class=n>GROCERY_LIST</span><span class=p>)</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>(</span><span class=s1>&#39;recipe&#39;</span><span class=p>)</span></code></pre></div></div></div><p class=notebook-skip>Output:</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>(
+    &#39;pie&#39;,
+    [
+        beam.Row(
+            recipe=&#39;pie&#39;,
+            fruit=&#39;strawberry&#39;,
+            quantity=3,
+            unit_price=1.50),
+        beam.Row(
+            recipe=&#39;pie&#39;,
+            fruit=&#39;raspberry&#39;,
+            quantity=1,
+            unit_price=3.50),
+        beam.Row(
+            recipe=&#39;pie&#39;,
+            fruit=&#39;blackberry&#39;,
+            quantity=1,
+            unit_price=4.00),
+        beam.Row(
+            recipe=&#39;pie&#39;,
+            fruit=&#39;blueberry&#39;,
+            quantity=1,
+            unit_price=2.00),
+    ]),
+(
+    &#39;muffin&#39;,
+    [
+        beam.Row(
+            recipe=&#39;muffin&#39;,
+            fruit=&#39;blueberry&#39;,
+            quantity=2,
+            unit_price=2.00),
+        beam.Row(
+            recipe=&#39;muffin&#39;,
+            fruit=&#39;banana&#39;,
+            quantity=3,
+            unit_price=1.00),
+    ]),</code></pre></div></div><p>It is possible to mix and match attributes and expressions, for example</p><div class="language-py snippet"><div class="notebook-skip code-snippet"><a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="View source code" href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py><img src=/images/code-icon.svg></a>
 <a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>p</span><span class=p>:</span>
   <span class=n>grouped</span> <span class=o>=</span> <span class=p>(</span>
       <span class=n>p</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>(</span><span class=n>GROCERY_LIST</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>(</span><span class=s1>&#39;recipe&#39;</span><span class=p>,</span> <span class=n>is_berry</span><span class=o>=</span><span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=s1>&#39;berry&#39;</span> <span class=ow>in</span> <span class=n>x</span><span class=o>.</span><span class=n>fruit</span><span class=p>))</span></code></pre></div></div></div><p class=notebook-skip>Output:</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>(NamedTuple(recipe=&#39;pie&#39;, is_berry=True),
-  [
-      beam.Row(recipe=&#39;pie&#39;, fruit=&#39;strawberry&#39;, quantity=3, unit_price=1.50),
-      beam.Row(recipe=&#39;pie&#39;, fruit=&#39;raspberry&#39;, quantity=1, unit_price=3.50),
-      beam.Row(recipe=&#39;pie&#39;, fruit=&#39;blackberry&#39;, quantity=1, unit_price=4.00),
-      beam.Row(recipe=&#39;pie&#39;, fruit=&#39;blueberry&#39;, quantity=1, unit_price=2.00),
-  ]),
-(NamedTuple(recipe=&#39;muffin&#39;, is_berry=True),
-  [
-      beam.Row(recipe=&#39;muffin&#39;, fruit=&#39;blueberry&#39;, quantity=2, unit_price=2.00),
-  ]),
-(NamedTuple(recipe=&#39;muffin&#39;, is_berry=False),
-  [
-      beam.Row(recipe=&#39;muffin&#39;, fruit=&#39;banana&#39;, quantity=3, unit_price=1.00),
-  ]),</code></pre></div></div><h2 id=aggregation>Aggregation</h2><p>Grouping is often used in conjunction with aggregation, and the
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>(</span><span class=s1>&#39;recipe&#39;</span><span class=p>,</span> <span class=n>is_berry</span><span class=o>=</span><span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=s1>&#39;berry&#39;</span> <span class=ow>in</span> <span class=n>x</span><span class=o>.</span><span class=n>fruit</span><span class=p>))</span></code></pre></div></div></div><p class=notebook-skip>Output:</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>(
+    NamedTuple(recipe=&#39;pie&#39;, is_berry=True),
+    [
+        beam.Row(
+            recipe=&#39;pie&#39;,
+            fruit=&#39;strawberry&#39;,
+            quantity=3,
+            unit_price=1.50),
+        beam.Row(
+            recipe=&#39;pie&#39;,
+            fruit=&#39;raspberry&#39;,
+            quantity=1,
+            unit_price=3.50),
+        beam.Row(
+            recipe=&#39;pie&#39;,
+            fruit=&#39;blackberry&#39;,
+            quantity=1,
+            unit_price=4.00),
+        beam.Row(
+            recipe=&#39;pie&#39;,
+            fruit=&#39;blueberry&#39;,
+            quantity=1,
+            unit_price=2.00),
+    ]),
+(
+    NamedTuple(recipe=&#39;muffin&#39;, is_berry=True),
+    [
+        beam.Row(
+            recipe=&#39;muffin&#39;,
+            fruit=&#39;blueberry&#39;,
+            quantity=2,
+            unit_price=2.00),
+    ]),
+(
+    NamedTuple(recipe=&#39;muffin&#39;, is_berry=False),
+    [
+        beam.Row(
+            recipe=&#39;muffin&#39;,
+            fruit=&#39;banana&#39;,
+            quantity=3,
+            unit_price=1.00),
+    ]),</code></pre></div></div><h2 id=aggregation>Aggregation</h2><p>Grouping is often used in conjunction with aggregation, and the
 <code>aggregate_field</code> method of the <code>GroupBy</code> transform can be used to accomplish
 this easily.
 This method takes three parameters: the field (or expression) which to
@@ -89,8 +145,8 @@ One could write</p><div class="language-py snippet"><div class="notebook-skip co
   <span class=n>grouped</span> <span class=o>=</span> <span class=p>(</span>
       <span class=n>p</span>
       <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>(</span><span class=n>GROCERY_LIST</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>(</span><span class=s1>&#39;fruit&#39;</span><span class=p>)</span>
-          <span class=o>.</span><span class=n>aggregate_field</span><span class=p>(</span><span class=s1>&#39;quantity&#39;</span><span class=p>,</span> <span class=nb>sum</span><span class=p>,</span> <span class=s1>&#39;total_quantity&#39;</span><span class=p>))</span></code></pre></div></div></div><p class=notebook-skip>Output:</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>NamedTuple(fruit=&#39;strawberry&#39;, total_quantity=3),
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>(</span><span class=s1>&#39;fruit&#39;</span><span class=p>)</span><span class=o>.</span><span class=n>aggregate_field</span><span class=p>(</span>
+          <span class=s1>&#39;quantity&#39;</span><span class=p>,</span> <span class=nb>sum</span><span class=p>,</span> <span class=s1>&#39;total_quantity&#39;</span><span class=p>))</span></code></pre></div></div></div><p class=notebook-skip>Output:</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>NamedTuple(fruit=&#39;strawberry&#39;, total_quantity=3),
 NamedTuple(fruit=&#39;raspberry&#39;, total_quantity=1),
 NamedTuple(fruit=&#39;blackberry&#39;, total_quantity=1),
 NamedTuple(fruit=&#39;blueberry&#39;, total_quantity=3),
@@ -100,19 +156,19 @@ and by expressions.</p><div class="language-py snippet"><div class="notebook-ski
   <span class=n>grouped</span> <span class=o>=</span> <span class=p>(</span>
       <span class=n>p</span>
       <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>(</span><span class=n>GROCERY_LIST</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>(</span><span class=s1>&#39;recipe&#39;</span><span class=p>)</span>
-          <span class=o>.</span><span class=n>aggregate_field</span><span class=p>(</span><span class=s1>&#39;quantity&#39;</span><span class=p>,</span> <span class=nb>sum</span><span class=p>,</span> <span class=s1>&#39;total_quantity&#39;</span><span class=p>)</span>
-          <span class=o>.</span><span class=n>aggregate_field</span><span class=p>(</span><span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=n>x</span><span class=o>.</span><span class=n>quantity</span> <span class=o>*</span> <span class=n>x</span><span class=o>.</span><span class=n>unit_price</span><span class=p>,</span> <span class=nb>sum</span><span class=p>,</span> <span class=s1>&#39;price&#39;</span><span class=p>))</span></code></pre></div></div></div><p class=notebook-skip>Output:</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>NamedTuple(recipe=&#39;pie&#39;, total_quantity=6, price=14.00),
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>(</span><span class=s1>&#39;recipe&#39;</span><span class=p>)</span><span class=o>.</span><span class=n>aggregate_field</span><span class=p>(</span>
+          <span class=s1>&#39;quantity&#39;</span><span class=p>,</span> <span class=nb>sum</span><span class=p>,</span> <span class=s1>&#39;total_quantity&#39;</span><span class=p>)</span><span class=o>.</span><span class=n>aggregate_field</span><span class=p>(</span>
+              <span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=n>x</span><span class=o>.</span><span class=n>quantity</span> <span class=o>*</span> <span class=n>x</span><span class=o>.</span><span class=n>unit_price</span><span class=p>,</span> <span class=nb>sum</span><span class=p>,</span> <span class=s1>&#39;price&#39;</span><span class=p>))</span></code></pre></div></div></div><p class=notebook-skip>Output:</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>NamedTuple(recipe=&#39;pie&#39;, total_quantity=6, price=14.00),
 NamedTuple(recipe=&#39;muffin&#39;, total_quantity=5, price=7.00),</code></pre></div></div><p>One can, of course, aggregate the same field multiple times as well.
 This example also illustrates a global grouping, as the grouping key is empty.</p><div class="language-py snippet"><div class="notebook-skip code-snippet"><a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="View source code" href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py><img src=/images/code-icon.svg></a>
 <a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>p</span><span class=p>:</span>
   <span class=n>grouped</span> <span class=o>=</span> <span class=p>(</span>
       <span class=n>p</span>
       <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>(</span><span class=n>GROCERY_LIST</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>()</span>
-          <span class=o>.</span><span class=n>aggregate_field</span><span class=p>(</span><span class=s1>&#39;unit_price&#39;</span><span class=p>,</span> <span class=nb>min</span><span class=p>,</span> <span class=s1>&#39;min_price&#39;</span><span class=p>)</span>
-          <span class=o>.</span><span class=n>aggregate_field</span><span class=p>(</span><span class=s1>&#39;unit_price&#39;</span><span class=p>,</span> <span class=n>MeanCombineFn</span><span class=p>(),</span> <span class=s1>&#39;mean_price&#39;</span><span class=p>)</span>
-          <span class=o>.</span><span class=n>aggregate_field</span><span class=p>(</span><span class=s1>&#39;unit_price&#39;</span><span class=p>,</span> <span class=nb>max</span><span class=p>,</span> <span class=s1>&#39;max_price&#39;</span><span class=p>))</span></code></pre></div></div></div><p class=notebook-skip>Output:</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>NamedTuple(min_price=1.00, mean_price=7 / 3, max_price=4.00),</code></pre></div></div><h2 id=related-transforms>Related transforms</h2><ul><li><a href=/documentation/transforms/python/aggregation/combineperkey>CombinePerKey</a> for combining with a single CombineFn.</li><li><a href=/documentation/transforms/python/aggregation/groupbykey>GroupByKey</a> for grouping with a known key.</li><li><a href=/documentation/transforms/python/aggregation/cogroupbykey>CoGroupByKey</a> for multiple input collections.</li></ul><table align=left style=margin-right:1em><td><a class=button target=_blank href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupByKey><img src=https://beam.apache.org/images/logos/sdks/python.png width=32px height=32px alt=Pydoc>
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>GroupBy</span><span class=p>()</span><span class=o>.</span><span class=n>aggregate_field</span><span class=p>(</span>
+          <span class=s1>&#39;unit_price&#39;</span><span class=p>,</span> <span class=nb>min</span><span class=p>,</span> <span class=s1>&#39;min_price&#39;</span><span class=p>)</span><span class=o>.</span><span class=n>aggregate_field</span><span class=p>(</span>
+              <span class=s1>&#39;unit_price&#39;</span><span class=p>,</span> <span class=n>MeanCombineFn</span><span class=p>(),</span> <span class=s1>&#39;mean_price&#39;</span><span class=p>)</span><span class=o>.</span><span class=n>aggregate_field</span><span class=p>(</span>
+                  <span class=s1>&#39;unit_price&#39;</span><span class=p>,</span> <span class=nb>max</span><span class=p>,</span> <span class=s1>&#39;max_price&#39;</span><span class=p>))</span></code></pre></div></div></div><p class=notebook-skip>Output:</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>NamedTuple(min_price=1.00, mean_price=7 / 3, max_price=4.00),</code></pre></div></div><h2 id=related-transforms>Related transforms</h2><ul><li><a href=/documentation/transforms/python/aggregation/combineperkey>CombinePerKey</a> for combining with a single CombineFn.</li><li><a href=/documentation/transforms/python/aggregation/groupbykey>GroupByKey</a> for grouping with a known key.</li><li><a href=/documentation/transforms/python/aggregation/cogroupbykey>CoGroupByKey</a> for multiple input collections.</li></ul><table align=left style=margin-right:1em><td><a class=button target=_blank href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupByKey><img src=https://beam.apache.org/images/logos/sdks/python.png width=32px height=32px alt=Pydoc>
 Pydoc</a></td></table><p><br><br><br></p><div class=feedback><p class=update>Last updated on 2021/02/05</p><h3>Have you found everything you were looking for?</h3><p class=description>Was it all useful and clear? Is there anything that you would like to change? Let us know!</p><button class=load-button><a href="mailto:dev@beam.apache.org?subject=Beam Website Feedback">SEND FEEDBACK</a></button></div></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class=footer-wrapper><div class=wrapper-grid><div class=footer__cols__col><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div><div class=footer__bottom>&copy;
 <a href=https://www.apache.org>The Apache Software Foundation</a>
 | <a href=/privacy_policy>Privacy Policy</a>
