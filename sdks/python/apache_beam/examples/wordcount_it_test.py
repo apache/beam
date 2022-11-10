@@ -113,7 +113,7 @@ class WordCountIT(unittest.TestCase):
     self._run_wordcount_it(wordcount.run, experiment='use_sibling_sdk_workers')
 
   def debug(self) -> None:
-      super().debug()
+    super().debug()
 
   def _run_wordcount_it(self, run_wordcount, **opts):
     test_pipeline = TestPipeline(is_integration_test=True)
