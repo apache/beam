@@ -38,7 +38,6 @@ RUN go mod download &&\
     go build -o /go/bin/server_java_backend
 
 FROM $BASE_IMAGE
-ARG BEAM_VERSION
 ARG HAMCREST_VERSION=1.3
 ARG JUNIT_VERSION=4.13.2
 ARG GRPC_VERSION=1_48_1
