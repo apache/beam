@@ -31,7 +31,6 @@ from typing import Type
 from typing import TypeVar
 
 import apache_beam as beam
-from apache_beam.internal import pickler
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
@@ -244,9 +243,6 @@ class PipelineOptions(HasDisplayData):
       if option_name not in self._all_options:
         self._all_options[option_name] = getattr(
             self._visible_options, option_name)
-
-    if 'pickle_library' in self._all_options:
-      pickler.set_library(self._all_options['pickle_library'])
 
   @classmethod
   def _add_argparse_args(cls, parser):
