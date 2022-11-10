@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-resource "google_cloudbuild_trigger" "builder" {
+resource "google_cloudbuild_trigger" "playground_infrastructure" {
   name        = var.trigger_id
   location    = var.region
-  description = "Builds the base image and then runs Beam Playground deployment"
+  description = "Builds the base image and then runs Deploy Playground infrastructure step"
   github {
     owner = var.github_repository_owner
     name  = var.github_repository_name
@@ -29,6 +29,24 @@ resource "google_cloudbuild_trigger" "builder" {
   // Disabled because we only want to run it manually
   disabled = true
 
-  filename = "playground/infrastructure/cloudbuild/cloudbuild.yaml"
+  filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
 
   }
+
+resource "google_cloudbuild_trigger" "playground_to_gke" {
+  name        = var.trigger_id
+  location    = var.region
+  description = "Builds the base image and then runs Deploy Playground to Kubernetes step"
+  github {
+    owner = var.github_repository_owner
+    name  = var.github_repository_name
+    push {
+      branch = var.github_repository_branch
+    }
+  }
+  // Disabled because we only want to run it manually
+  disabled = true
+
+  filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
+
+}

@@ -18,9 +18,39 @@
 output "next_step_custom_message_hack" {
   value = <<EOF
 
-As a one-time setup,
+Trigger #1:
+
+There are two triggers that run Playground infrastructure deployment first, then to GKE.
+To run FIRST trigger,
 navigate to https://console.cloud.google.com/cloud-build/triggers?project=${var.project}
-and click `RUN` for ${google_cloudbuild_trigger.builder.name}
+and click `RUN` for ${google_cloudbuild_trigger.playground_infrastructure.name} to deploy Playground infrastructure
+
+After trigger is succesfully triggered and Playground Infrastructure deployed:
+
+Please navigate to https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#deploy-playground-infrastructure
+and execute step #2:
+"Add following DNS A records for the discovered static IP address".
+
+
+(Note: To run the trigger you have to run it manually. See more in README file)
+
+EOF
+}
+
+output "next_step_custom_message_hack_2" {
+  value = <<EOF
+
+Trigger #2:
+
+Once Playground infrastructure deployed, you could now deploy Playground to GKE.
+To run SECOND trigger,
+navigate to https://console.cloud.google.com/cloud-build/triggers?project=${var.project}
+and click `RUN` for ${google_cloudbuild_trigger.playground_to_gke.name} to deploy Playground to GKE.
+
+After trigger is succesfully triggered and Playground Infrastructure deployed:
+
+Please navigate to https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#validate-deployed-playground
+to validate deployment (see "Validate deployed Playground").
 
 (Note: To run the trigger you have to run it manually. See more in README file)
 

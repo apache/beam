@@ -25,7 +25,9 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
 - Enabled [Cloud Build API](https://cloud.google.com/apis/docs/getting-started#enabling_apis)
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 - An existing Google Cloud Storage Bucket to save Terraform state - `state_bucket`
+- DNS name for your Playground deployment instance
 - [Terraform](https://www.terraform.io/)
+- [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
 
 ## Usage
 
@@ -84,9 +86,17 @@ terraform apply -var="github_repository_owner=$GITHUB_REPOSITORY_OWNER" /
 
 After completing these steps, GCP project will have `Playground-infrastructure-trigger` Cloud Build trigger that can be used to build and deploy Beam Playground.
 
+### Run Cloud Build Triggers
 
-### Run Cloud Build Trigger
+**To fully deploy Playground you will have to run 2 triggers.**
 
-To run the trigger, execute the trigger manually. Navigate to https://console.cloud.google.com/cloud-build/triggers and click `Playground-infrastructure-trigger` `RUN` button. This step will may take 40 minutes to deploy Playground Infrastructure.
+Before executing First trigger that deploys Playground infrastructure you have to:
+
+- Execute steps described in [Prepare deployment configuration.](https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#prepare-deployment-configuration)
+
+
+
+
+Note: To run the trigger, execute the trigger manually. Navigate to https://console.cloud.google.com/cloud-build/triggers and click `RUN` button.
 
 See [Running manual triggers](https://cloud.google.com/build/docs/manually-build-code-source-repos?hl=en#running_manual_triggers) for more information.
