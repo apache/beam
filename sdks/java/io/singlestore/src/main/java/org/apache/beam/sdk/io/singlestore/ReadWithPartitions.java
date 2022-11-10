@@ -42,9 +42,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link PTransform} for reading data from SingleStoreDB.
- * It is used by {@link SingleStoreIO#readWithPartitions()}.
- * {@link ReadWithPartitions} is preferred over {@link Read} because of the performance reasons.
+ * A {@link PTransform} for reading data from SingleStoreDB. It is used by {@link
+ * SingleStoreIO#readWithPartitions()}. {@link ReadWithPartitions} is preferred over {@link Read}
+ * because of the performance reasons.
  */
 @AutoValue
 public abstract class ReadWithPartitions<T> extends PTransform<PBegin, PCollection<T>> {

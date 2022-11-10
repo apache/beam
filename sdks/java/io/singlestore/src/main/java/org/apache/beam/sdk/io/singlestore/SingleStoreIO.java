@@ -71,7 +71,8 @@ import org.apache.beam.sdk.values.PCollection;
  * <h4>Parallel reading from a SingleStoreDB datasource</h4>
  *
  * <p>SingleStoreIO supports partitioned reading of all data from a table. To enable this, use
- * {@link SingleStoreIO#readWithPartitions()}. This way of data reading is preferred because of the performance reasons.
+ * {@link SingleStoreIO#readWithPartitions()}. This way of data reading is preferred because of the
+ * performance reasons.
  *
  * <p>The following example shows usage of {@link SingleStoreIO#readWithPartitions()}
  *
