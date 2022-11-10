@@ -44,6 +44,8 @@ func AddHeader(header, value string) func(http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// CORS handler, inspired by
+// https://cloud.google.com/functions/docs/samples/functions-http-cors
 // For more information about CORS and CORS preflight requests, see
 // https://developer.mozilla.org/en-US/docs/Glossary/Preflight_request.
 func AddCORS(methodAllow string) func(http.HandlerFunc) http.HandlerFunc {
@@ -55,6 +57,7 @@ func AddCORS(methodAllow string) func(http.HandlerFunc) http.HandlerFunc {
 				w.Header().Set("Access-Control-Allow-Origin", "*")
 				w.Header().Set("Access-Control-Allow-Methods", methodAllow)
 				w.Header().Set("Access-Control-Allow-Headers", "*")
+				w.Header().Set("Access-Control-Max-Age", "3600")
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}
