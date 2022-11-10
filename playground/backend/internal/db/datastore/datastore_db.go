@@ -70,10 +70,7 @@ func (d *Datastore) deleteObsoleteSnippets(ctx context.Context, snipKey *datasto
 		//
 		// FilterField("__key__", "!=", snipKey)
 
-	return d.deleteSnippets(ctx, snippetQuery, func(key *datastore.Key) bool {
-		// keep the current key
-		return *key == *snipKey
-	})
+	return d.deleteSnippets(ctx, snippetQuery, snipKey)
 }
 
 // PutSnippet puts the snippet entity to datastore
@@ -427,8 +424,7 @@ func (d *Datastore) GetExampleGraph(ctx context.Context, id string) (string, err
 	return pcObj.Content, nil
 }
 
-func (d *Datastore) deleteSnippets(ctx context.Context, snippetQuery *datastore.Query,
-	postQueryFilter func(*datastore.Key) bool) error {
+func (d *Datastore) deleteSnippets(ctx context.Context, snippetQuery *datastore.Query, skipKey *datastore.Key) error {
 	snippetQuery = snippetQuery.
 		Project("numberOfFiles")
 	var snpDtos []*dto.SnippetDeleteDTO
@@ -439,8 +435,8 @@ func (d *Datastore) deleteSnippets(ctx context.Context, snippetQuery *datastore.
 	}
 	logger.Debugf("deleting %d unused snippets: %v", len(snpKeys), snpKeys)
 	for snpIndex, snpKey := range snpKeys {
-		if snpKey != nil && postQueryFilter(snpKey) {
-			logger.Debugf("keeping the current snippet %v", snpKey)
+		if snpKey != nil && skipKey != nil && *snpKey == *skipKey {
+			logger.Debugf("skipping the current snippet %v", snpKey)
 			continue
 		}
 		var fileKeys []*datastore.Key
@@ -470,7 +466,7 @@ func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int32) err
 		FilterField("lVisited", "<=", boundaryDate).
 		FilterField("origin", "=", constants.UserSnippetOrigin)
 
-	return d.deleteSnippets(ctx, snippetQuery, func(_ *datastore.Key) bool { return false })
+	return d.deleteSnippets(ctx, snippetQuery, nil)
 }
 
 func rollback(tx *datastore.Transaction) {
