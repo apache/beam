@@ -108,16 +108,16 @@ KEYED_TORCH_DICT_OUT_PREDICTIONS = [
 
 
 class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandlerTensor):
-  def __init__(self, device):
+  def __init__(self, device, *, inference_fn = default_tensor_inference_fn):
     self._device = device
-    self._inference_fn = default_tensor_inference_fn
+    self._inference_fn = inference_fn
 
 
 class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
     PytorchModelHandlerKeyedTensor):
-  def __init__(self, device):
+  def __init__(self, device, *, inference_fn = default_keyed_tensor_inference_fn):
     self._device = device
-    self._inference_fn = default_keyed_tensor_inference_fn
+    self._inference_fn = inference_fn
 
 
 def _compare_prediction_result(x, y):
@@ -136,6 +136,16 @@ def _compare_prediction_result(x, y):
         y in zip(x.inference.values(), y.inference.values()))
 
   return torch.equal(x.inference, y.inference)
+
+
+def custom_tensor_inference_fn(batch, model, device, inference_args):
+  predictions = [
+      PredictionResult(ex, pred) for ex,
+      pred in zip(
+          batch,
+          torch.Tensor([item * 2.0 + 1.5 for item in batch]).reshape(-1, 1))
+  ]
+  return predictions
 
 
 class PytorchLinearRegression(torch.nn.Module):
@@ -233,6 +243,33 @@ class PytorchRunInferenceTest(unittest.TestCase):
         torch.device('cpu'))
     predictions = inference_runner.run_inference(TWO_FEATURES_EXAMPLES, model)
     for actual, expected in zip(predictions, TWO_FEATURES_DICT_OUT_PREDICTIONS):
+      self.assertEqual(actual, expected)
+
+  def test_run_inference_custom(self):
+    examples = [
+        torch.from_numpy(np.array([1], dtype="float32")),
+        torch.from_numpy(np.array([5], dtype="float32")),
+        torch.from_numpy(np.array([-3], dtype="float32")),
+        torch.from_numpy(np.array([10.0], dtype="float32")),
+    ]
+    expected_predictions = [
+        PredictionResult(ex, pred) for ex,
+        pred in zip(
+            examples,
+            torch.Tensor([example * 2.0 + 1.5
+                          for example in examples]).reshape(-1, 1))
+    ]
+
+    model = PytorchLinearRegression(input_dim=1, output_dim=1)
+    model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+    model.eval()
+
+    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+        torch.device('cpu'), inference_fn = custom_tensor_inference_fn)
+    predictions = inference_runner.run_inference(examples, model)
+    for actual, expected in zip(predictions, expected_predictions):
       self.assertEqual(actual, expected)
 
   def test_run_inference_keyed(self):
