@@ -102,6 +102,7 @@ for endpoint in "getSdkList getContentTree getUnitComplete getUserProgress postU
 gcloud functions deploy $endpoint --entry-point $endpoint \
   --region $REGION --runtime go116 --allow-unauthenticated \
   --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,GOOGLE_PROJECT_ID=$PROJECT_ID"
+done
 
 ```
 3. Set environment variables:
