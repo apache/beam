@@ -63,13 +63,17 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
       LoggerFactory.getLogger(ReadFromSparkReceiverWithOffsetDoFn.class);
 
   /** Constant waiting time after the {@link Receiver} starts. Required to prepare for polling */
-  private static final int START_POLL_TIMEOUT_MS = 2000;
+  private static final long START_POLL_TIMEOUT_MS = 2000;
+
+  /** Delay between polling for new records updates. */
+  private static final long DEFAULT_PULL_FREQUENCY_SEC = 0;
 
   private final SerializableFunction<Instant, WatermarkEstimator<Instant>>
       createWatermarkEstimatorFn;
   private final SerializableFunction<V, Long> getOffsetFn;
   private final SerializableFunction<V, Instant> getTimestampFn;
   private final ReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder;
+  private final Long pullFrequencySec;
 
   ReadFromSparkReceiverWithOffsetDoFn(SparkReceiverIO.Read<V> transform) {
     createWatermarkEstimatorFn = WatermarkEstimators.Manual::new;
@@ -88,6 +92,12 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
       getTimestampFn = input -> Instant.now();
     }
     this.getTimestampFn = getTimestampFn;
+
+    Long pullFrequencySec = transform.getPullFrequencySec();
+    if (pullFrequencySec == null) {
+      pullFrequencySec = DEFAULT_PULL_FREQUENCY_SEC;
+    }
+    this.pullFrequencySec = pullFrequencySec;
   }
 
   @GetInitialRestriction
@@ -298,6 +308,16 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
       if (!sparkConsumer.hasRecords()) {
         sparkConsumer.stop();
         tracker.checkDone();
+        if (pullFrequencySec != 0L) {
+          LOG.debug("Waiting to poll for new records...");
+          try {
+            TimeUnit.SECONDS.sleep(pullFrequencySec);
+          } catch (InterruptedException e) {
+            LOG.error("SparkReceiver was interrupted while waiting to poll new records", e);
+            throw new IllegalStateException(
+                "Spark Receiver was interrupted while waiting to poll new records");
+          }
+        }
         LOG.debug("Resume for restriction: {}", tracker.currentRestriction().toString());
         return ProcessContinuation.resume();
       }

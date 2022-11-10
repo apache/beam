@@ -19,7 +19,7 @@ package org.apache.beam.examples.complete.cdap;
 
 import com.google.gson.JsonElement;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapHubspotSourceOptions;
+import org.apache.beam.examples.complete.cdap.options.CdapHubspotStreamingSourceOptions;
 import org.apache.beam.examples.complete.cdap.transforms.FormatInputTransform;
 import org.apache.beam.examples.complete.cdap.utils.JsonElementCoder;
 import org.apache.beam.examples.complete.cdap.utils.PluginConfigOptionsConverter;
@@ -94,8 +94,10 @@ public class CdapHubspotStreamingToTxt {
    * @param args Command line arguments to the pipeline.
    */
   public static void main(String[] args) {
-    CdapHubspotSourceOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(CdapHubspotSourceOptions.class);
+    CdapHubspotStreamingSourceOptions options =
+        PipelineOptionsFactory.fromArgs(args)
+            .withValidation()
+            .as(CdapHubspotStreamingSourceOptions.class);
 
     // Create the pipeline
     Pipeline pipeline = Pipeline.create(options);
@@ -107,9 +109,8 @@ public class CdapHubspotStreamingToTxt {
    *
    * @param options arguments to the pipeline
    */
-  public static PipelineResult run(Pipeline pipeline, CdapHubspotSourceOptions options) {
-    Map<String, Object> paramsMap =
-        PluginConfigOptionsConverter.hubspotOptionsToParamsMap(options, true);
+  public static PipelineResult run(Pipeline pipeline, CdapHubspotStreamingSourceOptions options) {
+    Map<String, Object> paramsMap = PluginConfigOptionsConverter.hubspotOptionsToParamsMap(options);
     LOG.info("Starting Cdap-Hubspot-streaming-to-txt pipeline with parameters: {}", paramsMap);
 
     /*
@@ -123,7 +124,8 @@ public class CdapHubspotStreamingToTxt {
     pipeline
         .apply(
             "readFromCdapHubspotStreaming",
-            FormatInputTransform.readFromCdapHubspotStreaming(paramsMap))
+            FormatInputTransform.readFromCdapHubspotStreaming(
+                paramsMap, options.getPullFrequencySec()))
         .setCoder(
             KvCoder.of(
                 NullableCoder.of(WritableCoder.of(NullWritable.class)), StringUtf8Coder.of()))

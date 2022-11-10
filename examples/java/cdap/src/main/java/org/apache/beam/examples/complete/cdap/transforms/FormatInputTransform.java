@@ -93,7 +93,7 @@ public class FormatInputTransform {
    * @return configured Read transform
    */
   public static CdapIO.Read<NullWritable, String> readFromCdapHubspotStreaming(
-      Map<String, Object> pluginConfigParams) {
+      Map<String, Object> pluginConfigParams, Long pullFrequencySec) {
 
     final HubspotStreamingSourceConfig pluginConfig =
         new ConfigWrapper<>(HubspotStreamingSourceConfig.class)
@@ -101,15 +101,20 @@ public class FormatInputTransform {
             .build();
     checkStateNotNull(pluginConfig, "Plugin config can't be null.");
 
-    return CdapIO.<NullWritable, String>read()
-        .withCdapPlugin(
-            Plugin.createStreaming(
-                HubspotStreamingSource.class,
-                GetOffsetUtils.getOffsetFnForHubspot(),
-                HubspotReceiver.class))
-        .withPluginConfig(pluginConfig)
-        .withKeyClass(NullWritable.class)
-        .withValueClass(String.class);
+    CdapIO.Read<NullWritable, String> read =
+        CdapIO.<NullWritable, String>read()
+            .withCdapPlugin(
+                Plugin.createStreaming(
+                    HubspotStreamingSource.class,
+                    GetOffsetUtils.getOffsetFnForHubspot(),
+                    HubspotReceiver.class))
+            .withPluginConfig(pluginConfig)
+            .withKeyClass(NullWritable.class)
+            .withValueClass(String.class);
+    if (pullFrequencySec != null) {
+      read = read.withPullFrequencySec(pullFrequencySec);
+    }
+    return read;
   }
 
   /**

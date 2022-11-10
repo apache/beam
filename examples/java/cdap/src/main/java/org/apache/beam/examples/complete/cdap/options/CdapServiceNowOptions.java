@@ -17,9 +17,7 @@
  */
 package org.apache.beam.examples.complete.cdap.options;
 
-import io.cdap.plugin.common.Constants;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
 
 /**
@@ -27,7 +25,7 @@ import org.apache.beam.sdk.options.Validation;
  * executor at the command-line for {@link
  * org.apache.beam.examples.complete.cdap.CdapServiceNowToTxt} example.
  */
-public interface CdapServiceNowOptions extends PipelineOptions {
+public interface CdapServiceNowOptions extends BaseCdapOptions {
 
   @Validation.Required
   @Description("The Client ID for ServiceNow Instance.")
@@ -86,12 +84,6 @@ public interface CdapServiceNowOptions extends PipelineOptions {
   String getValueType();
 
   void setValueType(String valueType);
-
-  @Validation.Required
-  @Description(Constants.Reference.REFERENCE_NAME_DESCRIPTION)
-  String getReferenceName();
-
-  void setReferenceName(String referenceName);
 
   @Validation.Required
   @Description(

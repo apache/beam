@@ -17,23 +17,15 @@
  */
 package org.apache.beam.examples.complete.cdap.options;
 
-import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.salesforce.SalesforceConstants;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
 
 /**
  * The {@link CdapSalesforceOptions} interface provides the custom execution options passed by the
- * executor at the command-line.
+ * executor at the command-line for example with Cdap Salesfroce plugins.
  */
-public interface CdapSalesforceOptions extends PipelineOptions {
-
-  @Validation.Required
-  @Description(Constants.Reference.REFERENCE_NAME_DESCRIPTION)
-  String getReferenceName();
-
-  void setReferenceName(String referenceName);
+public interface CdapSalesforceOptions extends BaseCdapOptions {
 
   @Validation.Required
   @Description(SalesforceConstants.PROPERTY_USERNAME)

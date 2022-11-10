@@ -17,10 +17,8 @@
  */
 package org.apache.beam.examples.complete.cdap.options;
 
-import io.cdap.plugin.common.Constants;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
 
 /**
@@ -28,7 +26,7 @@ import org.apache.beam.sdk.options.Validation;
  * executor at the command-line for {@link org.apache.beam.examples.complete.cdap.CdapZendeskToTxt}
  * example.
  */
-public interface CdapZendeskOptions extends PipelineOptions {
+public interface CdapZendeskOptions extends BaseCdapOptions {
 
   @Validation.Required
   @Description("Zendesk base url.")
@@ -97,10 +95,4 @@ public interface CdapZendeskOptions extends PipelineOptions {
   String getOutputTxtFilePathPrefix();
 
   void setOutputTxtFilePathPrefix(String outputTxtFilePathPrefix);
-
-  @Validation.Required
-  @Description(Constants.Reference.REFERENCE_NAME_DESCRIPTION)
-  String getReferenceName();
-
-  void setReferenceName(String referenceName);
 }

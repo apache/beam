@@ -17,20 +17,20 @@
  */
 package org.apache.beam.examples.complete.cdap.options;
 
+import io.cdap.plugin.common.Constants;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
 
 /**
- * The {@link CdapHubspotSourceOptions} interface provides the custom execution options passed by
- * the executor at the command-line for Cdap Hubspot Source examples.
+ * The {@link BaseCdapOptions} interface provides the custom execution options passed by the
+ * executor at the command-line for examples with Cdap plugins.
  */
-public interface CdapHubspotSourceOptions extends CdapHubspotOptions {
+public interface BaseCdapOptions extends PipelineOptions {
 
   @Validation.Required
-  @Description(
-      "Output .txt file path with file name prefix."
-          + "It will write a set of files with names like {prefix}-###.")
-  String getOutputTxtFilePathPrefix();
+  @Description(Constants.Reference.REFERENCE_NAME_DESCRIPTION)
+  String getReferenceName();
 
-  void setOutputTxtFilePathPrefix(String outputTxtFilePathPrefix);
+  void setReferenceName(String referenceName);
 }

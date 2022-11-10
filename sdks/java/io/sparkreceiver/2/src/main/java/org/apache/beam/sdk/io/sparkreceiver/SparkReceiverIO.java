@@ -50,6 +50,9 @@ import org.slf4j.LoggerFactory;
  * <p>Optionally you can pass {@code timestampFn} which is a {@link SerializableFunction} that
  * defines how to get {@code Instant timestamp} from {@code V record}.
  *
+ * <p>Optionally you can pass {@code pullFrequencySec} which is a delay in seconds between polling
+ * for new records updates.
+ *
  * <p>Example of {@link SparkReceiverIO#read()} usage:
  *
  * <pre>{@code
@@ -65,6 +68,7 @@ import org.slf4j.LoggerFactory;
  *    SparkReceiverIO.<String>read()
  *      .withGetOffsetFn(Long::valueOf)
  *      .withTimestampFn(Instant::parse)
+ *      .withPullFrequencySec(1L)
  *      .withSparkReceiverBuilder(receiverBuilder);
  * }</pre>
  */
@@ -88,6 +92,8 @@ public class SparkReceiverIO {
 
     abstract @Nullable SerializableFunction<V, Instant> getTimestampFn();
 
+    abstract @Nullable Long getPullFrequencySec();
+
     abstract Builder<V> toBuilder();
 
     @AutoValue.Builder
@@ -99,6 +105,8 @@ public class SparkReceiverIO {
       abstract Builder<V> setGetOffsetFn(SerializableFunction<V, Long> getOffsetFn);
 
       abstract Builder<V> setTimestampFn(SerializableFunction<V, Instant> timestampFn);
+
+      abstract Builder<V> setPullFrequencySec(Long pullFrequencySec);
 
       abstract Read<V> build();
     }
@@ -120,6 +128,12 @@ public class SparkReceiverIO {
     public Read<V> withTimestampFn(SerializableFunction<V, Instant> timestampFn) {
       checkArgument(timestampFn != null, "Timestamp function can not be null");
       return toBuilder().setTimestampFn(timestampFn).build();
+    }
+
+    /** Delay in seconds between polling for new records updates. */
+    public Read<V> withPullFrequencySec(Long pullFrequencySec) {
+      checkArgument(pullFrequencySec != null, "Pull frequency can not be null");
+      return toBuilder().setPullFrequencySec(pullFrequencySec).build();
     }
 
     @Override

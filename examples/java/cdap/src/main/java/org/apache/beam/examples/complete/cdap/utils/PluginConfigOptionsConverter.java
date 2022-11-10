@@ -30,6 +30,7 @@ import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSourceConfig;
 import io.cdap.plugin.zendesk.source.common.config.BaseZendeskSourceConfig;
 import java.util.Map;
 import org.apache.beam.examples.complete.cdap.options.CdapHubspotOptions;
+import org.apache.beam.examples.complete.cdap.options.CdapHubspotStreamingSourceOptions;
 import org.apache.beam.examples.complete.cdap.options.CdapSalesforceSinkOptions;
 import org.apache.beam.examples.complete.cdap.options.CdapSalesforceSourceOptions;
 import org.apache.beam.examples.complete.cdap.options.CdapServiceNowOptions;
@@ -42,8 +43,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  */
 public class PluginConfigOptionsConverter {
 
-  public static Map<String, Object> hubspotOptionsToParamsMap(
-      CdapHubspotOptions options, boolean isStreaming) {
+  public static Map<String, Object> hubspotOptionsToParamsMap(CdapHubspotOptions options) {
     String apiServerUrl = options.getApiServerUrl();
     ImmutableMap.Builder<String, Object> builder =
         ImmutableMap.<String, Object>builder()
@@ -53,9 +53,10 @@ public class PluginConfigOptionsConverter {
             .put(BaseHubspotConfig.API_KEY, options.getApiKey())
             .put(BaseHubspotConfig.OBJECT_TYPE, options.getObjectType())
             .put(Constants.Reference.REFERENCE_NAME, options.getReferenceName());
-    if (isStreaming) {
-      // Pull frequency is not implemented in CdapIO, but still needs to be passed for
-      // HubspotStreamingSource plugin
+    if (options instanceof CdapHubspotStreamingSourceOptions) {
+      // Hubspot PullFrequency value will be ignored as pull frequency is implemented differently in
+      // CdapIO,
+      // but it still needs to be passed for the plugin to work correctly.
       builder.put(HubspotStreamingSourceConfig.PULL_FREQUENCY, PullFrequency.MINUTES_15.getName());
     }
     return builder.build();

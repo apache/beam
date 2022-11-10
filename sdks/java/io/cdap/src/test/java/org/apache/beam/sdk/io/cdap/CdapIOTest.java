@@ -137,6 +137,13 @@ public class CdapIOTest {
   }
 
   @Test
+  public void testReadObjectCreationFailsIfPullFrequencySecIsNull() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> CdapIO.<String, String>read().withPullFrequencySec(null));
+  }
+
+  @Test
   public void testReadExpandingFailsMissingCdapPluginClass() {
     PBegin testPBegin = PBegin.in(TestPipeline.create());
     CdapIO.Read<String, String> read = CdapIO.read();
@@ -194,7 +201,8 @@ public class CdapIOTest {
                     config -> new Object[] {config}))
             .withPluginConfig(pluginConfig)
             .withKeyClass(String.class)
-            .withValueClass(String.class);
+            .withValueClass(String.class)
+            .withPullFrequencySec(1L);
 
     List<String> storedRecords = EmployeeReceiver.getStoredRecords();
 

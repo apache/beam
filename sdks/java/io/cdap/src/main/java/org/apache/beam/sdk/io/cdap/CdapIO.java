@@ -148,6 +148,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>To configure {@link CdapIO} source, you must specify Cdap {@link Plugin}, Cdap {@link
  * PluginConfig}, key and value classes.
  *
+ * <p>Optionally you can pass {@code pullFrequencySec} which is a delay in seconds between polling
+ * for new records updates.
+ *
  * <p>{@link Plugin} is the Wrapper class for the Cdap Plugin. It contains main information about
  * the Plugin. The object of the {@link Plugin} class can be created with the {@link
  * Plugin#createStreaming(Class, SerializableFunction, Class)} method. Method requires {@link
@@ -178,7 +181,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *                     EmployeeReceiver.class))
  *             .withPluginConfig(pluginConfig)
  *             .withKeyClass(String.class)
- *             .withValueClass(String.class));
+ *             .withValueClass(String.class)
+ *             .withPullFrequencySec(1L);
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
@@ -217,6 +221,8 @@ public class CdapIO {
      */
     abstract @Nullable Class<V> getValueClass();
 
+    abstract @Nullable Long getPullFrequencySec();
+
     abstract Builder<K, V> toBuilder();
 
     @Experimental(Experimental.Kind.PORTABILITY)
@@ -230,6 +236,8 @@ public class CdapIO {
       abstract Builder<K, V> setKeyClass(Class<K> keyClass);
 
       abstract Builder<K, V> setValueClass(Class<V> valueClass);
+
+      abstract Builder<K, V> setPullFrequencySec(Long pullFrequencySec);
 
       abstract Read<K, V> build();
     }
@@ -265,6 +273,15 @@ public class CdapIO {
       return toBuilder().setValueClass(valueClass).build();
     }
 
+    /**
+     * Delay in seconds between polling for new records updates. Applicable only for streaming Cdap
+     * Plugins.
+     */
+    public Read<K, V> withPullFrequencySec(Long pullFrequencySec) {
+      checkArgument(pullFrequencySec != null, "Pull frequency can not be null");
+      return toBuilder().setPullFrequencySec(pullFrequencySec).build();
+    }
+
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
       Plugin<K, V> cdapPlugin = getCdapPlugin();
@@ -291,6 +308,10 @@ public class CdapIO {
             SparkReceiverIO.<V>read()
                 .withGetOffsetFn(getOffsetFn)
                 .withSparkReceiverBuilder(receiverBuilder);
+        Long pullFrequencySec = getPullFrequencySec();
+        if (pullFrequencySec != null) {
+          reader = reader.withPullFrequencySec(pullFrequencySec);
+        }
         try {
           Coder<V> coder = input.getPipeline().getCoderRegistry().getCoder(valueClass);
           PCollection<V> values = input.apply(reader).setCoder(coder);

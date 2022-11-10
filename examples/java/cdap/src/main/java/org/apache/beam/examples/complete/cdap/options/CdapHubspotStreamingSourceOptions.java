@@ -18,19 +18,16 @@
 package org.apache.beam.examples.complete.cdap.options;
 
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.Validation;
 
 /**
  * The {@link CdapHubspotSourceOptions} interface provides the custom execution options passed by
- * the executor at the command-line for Cdap Hubspot Source examples.
+ * the executor at the command-line for {@link
+ * org.apache.beam.examples.complete.cdap.CdapHubspotStreamingToTxt} example.
  */
-public interface CdapHubspotSourceOptions extends CdapHubspotOptions {
+public interface CdapHubspotStreamingSourceOptions extends CdapHubspotSourceOptions {
 
-  @Validation.Required
-  @Description(
-      "Output .txt file path with file name prefix."
-          + "It will write a set of files with names like {prefix}-###.")
-  String getOutputTxtFilePathPrefix();
+  @Description("Delay in seconds between polling for new records updates.")
+  Long getPullFrequencySec();
 
-  void setOutputTxtFilePathPrefix(String outputTxtFilePathPrefix);
+  void setPullFrequencySec(Long pullFrequencySec);
 }
