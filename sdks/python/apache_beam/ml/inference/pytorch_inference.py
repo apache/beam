@@ -250,7 +250,7 @@ def default_keyed_tensor_inference_fn(
     key_to_batched_tensors = {}
     for key in key_to_tensor_list:
       batched_tensors = torch.stack(key_to_tensor_list[key])
-      batched_tensors = _convert_to_device(batched_tensors, self._device)
+      batched_tensors = _convert_to_device(batched_tensors, device)
       key_to_batched_tensors[key] = batched_tensors
     predictions = model(**key_to_batched_tensors, **inference_args)
 
@@ -291,6 +291,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       device: the device on which you wish to run the model. If
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
+      inference_fn: the function to invoke on run_inference.
+        default = default_keyed_tensor_inference_fn
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with PyTorch 1.9 and 1.10.
