@@ -108,14 +108,14 @@ KEYED_TORCH_DICT_OUT_PREDICTIONS = [
 
 
 class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandlerTensor):
-  def __init__(self, device, *, inference_fn = default_tensor_inference_fn):
+  def __init__(self, device, *, inference_fn=default_tensor_inference_fn):
     self._device = device
     self._inference_fn = inference_fn
 
 
 class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
     PytorchModelHandlerKeyedTensor):
-  def __init__(self, device, *, inference_fn = default_keyed_tensor_inference_fn):
+  def __init__(self, device, *, inference_fn=default_keyed_tensor_inference_fn):
     self._device = device
     self._inference_fn = inference_fn
 
@@ -267,7 +267,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
     model.eval()
 
     inference_runner = TestPytorchModelHandlerForInferenceOnly(
-        torch.device('cpu'), inference_fn = custom_tensor_inference_fn)
+        torch.device('cpu'), inference_fn=custom_tensor_inference_fn)
     predictions = inference_runner.run_inference(examples, model)
     for actual, expected in zip(predictions, expected_predictions):
       self.assertEqual(actual, expected)
