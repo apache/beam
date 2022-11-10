@@ -49,7 +49,7 @@ showing how to use built in beam transforms like `RunInference` and `Beam Datafr
 <img class="center-block"
      src="/images/blog/ensemble-model-notebook.png"
      alt="Example ensemble notebook with RunInference">
-     
+
 Adding more examples and notebooks will be a point of emphasis going forward.
 For our next round of improvements, we are planning on adding examples of
 using RunInference with >30GB models, with multi-language pipelines, with
