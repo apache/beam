@@ -448,12 +448,9 @@ public class BigQueryIOStorageReadWithoutDynamicWorkflowRebalancingTest {
 
     fakeDatasetService.createTable(table);
 
-    int STREAM_COUNT;
     if (initialStreamCountOption > 0) {
-      STREAM_COUNT = initialStreamCountOption;
-      options.as(BigQueryOptions.class).setReadSessionInitialStreamCount(STREAM_COUNT);
-    } else {
-      STREAM_COUNT = streamCount;
+      streamCount = initialStreamCountOption;
+      options.as(BigQueryOptions.class).setReadSessionInitialStreamCount(streamCount);
     }
 
     CreateReadSessionRequest expectedRequest =
@@ -462,14 +459,14 @@ public class BigQueryIOStorageReadWithoutDynamicWorkflowRebalancingTest {
             .setReadSession(
                 ReadSession.newBuilder()
                     .setTable("projects/foo.com:project/datasets/dataset/tables/table"))
-            .setMaxStreamCount(STREAM_COUNT)
+            .setMaxStreamCount(streamCount)
             .build();
 
     ReadSession.Builder builder =
         ReadSession.newBuilder()
             .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
             .setDataFormat(DataFormat.AVRO);
-    for (int i = 0; i < STREAM_COUNT; i++) {
+    for (int i = 0; i < streamCount; i++) {
       builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
     }
 
@@ -488,11 +485,7 @@ public class BigQueryIOStorageReadWithoutDynamicWorkflowRebalancingTest {
                 .withStorageClient(fakeStorageClient));
 
     List<? extends BoundedSource<TableRow>> sources = tableSource.split(bundleSize, options);
-    if (initialStreamCountOption > 0) {
-      assertEquals(initialStreamCountOption, sources.size());
-    } else {
-      assertEquals(streamCount, sources.size());
-    }
+    assertEquals(streamCount, sources.size());
   }
 
   @Test
