@@ -44,22 +44,28 @@ public class ThroughputEstimatorTest {
   }
 
   @Test
+  public void testThroughputIsZeroWhenNothingsBeenRegistered() {
+    assertEquals(0D, estimator.get(), DELTA);
+    assertEquals(0D, estimator.getFrom(Timestamp.now()), DELTA);
+  }
+
+  @Test
   public void testThroughputCalculation() {
     estimator.update(Timestamp.ofTimeSecondsAndNanos(2, 0), 10);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(3, 0), 20);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(5, 0), 30);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(10, 0), 40); // Exclusive
-    assertEquals(6D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(11, 0)), DELTA);
+    assertEquals(10D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(11, 0)), DELTA);
 
     estimator.update(Timestamp.ofTimeSecondsAndNanos(20, 0), 10);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(21, 0), 20);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(21, 0), 10);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(29, 0), 40); // Exclusive
-    assertEquals(4D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(30, 0)), DELTA);
+    assertEquals(8D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(30, 0)), DELTA);
 
     estimator.update(Timestamp.ofTimeSecondsAndNanos(31, 0), 10);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(35, 0), 40); // Exclusive
-    assertEquals(1D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(41, 0)), DELTA);
+    assertEquals(5D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(41, 0)), DELTA);
 
     assertEquals(0D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(50, 0)), DELTA);
   }
@@ -80,19 +86,17 @@ public class ThroughputEstimatorTest {
       estimator.update(pair.getLeft(), pair.getRight());
     }
 
-    // This is needed to push the current window into the queue.
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(10, 0), 10);
     double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(10, 0));
     assertEquals(want.doubleValue(), actual, DELTA);
   }
 
   @Test
   public void testThroughputIsAccumulatedWithin50SecondsWindow() {
-    List<ImmutablePair<Timestamp, Long>> excludedPairs =
+    final List<ImmutablePair<Timestamp, Long>> excludedPairs =
         generateTestData(300, 0, 40, Long.MAX_VALUE);
-    List<ImmutablePair<Timestamp, Long>> expectedPairs =
+    final List<ImmutablePair<Timestamp, Long>> expectedPairs =
         generateTestData(50, 40, 50, Long.MAX_VALUE);
-    List<ImmutablePair<Timestamp, Long>> pairs =
+    final List<ImmutablePair<Timestamp, Long>> pairs =
         Stream.concat(excludedPairs.stream(), expectedPairs.stream())
             .sorted(Comparator.comparing(ImmutablePair::getLeft))
             .collect(Collectors.toList());
@@ -107,8 +111,6 @@ public class ThroughputEstimatorTest {
       estimator.update(pair.getLeft(), pair.getRight());
     }
 
-    // This is needed to push the current window into the queue.
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(50, 0), 10);
     double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(50, 0));
     assertEquals(want.doubleValue(), actual, DELTA);
   }
@@ -116,7 +118,6 @@ public class ThroughputEstimatorTest {
   @Test
   public void testThroughputShouldNotBeNegative() {
     estimator.update(Timestamp.ofTimeSecondsAndNanos(0, 0), -10);
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(1, 0), 10);
     double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(0, 0));
     assertEquals(0D, actual, DELTA);
   }
