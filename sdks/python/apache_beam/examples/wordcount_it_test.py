@@ -110,9 +110,10 @@ class WordCountIT(unittest.TestCase):
 
   @pytest.mark.it_validatescontainer
   def test_wordcount_it_with_use_sibling_sdk_workers(self):
-    self._run_wordcount_it(
-        wordcount.run,
-        experiment='use_sibling_sdk_workers')
+    self._run_wordcount_it(wordcount.run, experiment='use_sibling_sdk_workers')
+
+  def debug(self) -> None:
+      super().debug()
 
   def _run_wordcount_it(self, run_wordcount, **opts):
     test_pipeline = TestPipeline(is_integration_test=True)
