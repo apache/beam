@@ -22,6 +22,7 @@
 import collections
 import logging
 import sys
+import types
 import typing
 
 from apache_beam.typehints import typehints
@@ -176,6 +177,9 @@ def convert_to_beam_type(typ):
   Raises:
     ValueError: The type was malformed.
   """
+  if isinstance(typ, types.UnionType):
+    typ = typing.Union[typ]
+
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.
     # Also, identity must be preserved through conversion (i.e. the same
