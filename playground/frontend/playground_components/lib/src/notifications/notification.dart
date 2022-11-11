@@ -19,8 +19,8 @@
 import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/material.dart';
 
+import '../assets/assets.gen.dart';
 import '../constants/colors.dart';
-import '../generated/assets.gen.dart';
 import 'base_notification.dart';
 
 const kDialogOffset = Offset(0, 30);

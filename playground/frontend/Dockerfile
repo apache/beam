@@ -18,15 +18,12 @@
 
 FROM debian:11 as build
 ARG FLUTTER_VERSION=3.3.2
-ARG BEAM_VERSION=2.40.0
-ARG BEAM_REF=release-$BEAM_VERSION
 
 # ------------------------------------------------
 # Setting up.
 # ------------------------------------------------
 
-RUN apt-get update && apt-get install -y wget xz-utils git curl python3 python3-pip
-RUN pip3 install pyyaml
+RUN apt-get update && apt-get install -y wget xz-utils git
 
 RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
     tar -xf flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
@@ -40,32 +37,14 @@ COPY . /app
 WORKDIR /app
 
 # ------------------------------------------------
-# Extracting Beam symbols for autocompletion.
-# ------------------------------------------------
-
-RUN cd /app/playground_components &&\
-    mkdir -p assets/symbols &&\
-    git clone https://github.com/apache/beam.git &&\
-    cd beam &&\
-    git checkout $BEAM_REF
-
-# Python:
-RUN cd /app/playground_components &&\
-    python3 tools/extract_symbols_python/extract_symbols_python.py beam/sdks/python/apache_beam > assets/symbols/python.g.yaml
-
-RUN ls -la /app/playground_components/assets/symbols
-
-# ------------------------------------------------
 # Building the application.
 # ------------------------------------------------
 
 RUN cd /app/playground_components &&\
-    flutter pub get -v &&\
-    flutter pub run build_runner build -v
+    flutter pub get -v
 
 RUN cd /app &&\
     flutter pub get -v &&\
-    flutter pub run build_runner build -v &&\
     flutter build web -v
 
 # ------------------------------------------------

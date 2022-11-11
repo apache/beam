@@ -65,4 +65,4 @@ flutter:
     - assets/translations/en.yaml
 
 flutter_gen:
-  output: lib/src/generated/
+  output: lib/src/assets/

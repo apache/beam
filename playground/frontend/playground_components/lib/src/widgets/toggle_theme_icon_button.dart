@@ -20,8 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
+import '../assets/assets.gen.dart';
 import '../constants/sizes.dart';
-import '../generated/assets.gen.dart';
 import '../playground_components.dart';
 import '../theme/switch_notifier.dart';
 

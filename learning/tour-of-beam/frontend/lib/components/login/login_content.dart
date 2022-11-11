@@ -21,8 +21,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../assets/assets.gen.dart';
 import '../../constants/sizes.dart';
-import '../../generated/assets.gen.dart';
 
 class LoginContent extends StatelessWidget {
   const LoginContent();

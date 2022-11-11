@@ -22,12 +22,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../assets/assets.gen.dart';
 import '../../components/builders/content_tree.dart';
 import '../../components/builders/sdks.dart';
 import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
-import '../../generated/assets.gen.dart';
 import '../../models/module.dart';
 import 'state.dart';
 

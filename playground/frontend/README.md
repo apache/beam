@@ -25,15 +25,6 @@ Beam Playground is an interactive environment to try out Beam transforms and exa
 The vision for the Playground is to be a web application where users can try out Beam
 without having to install/initialize a Beam environment.
 
-## Getting Started
-
-Running, debugging, and testing all require this first step that fetches
-dependencies and generates code. Run this in the Beam root:
-
-```bash
-./gradlew :playground:frontend:configure
-```
-
 ### Run
 
 See [playground/README.md](../README.md) for details on requirements and setup.
@@ -72,6 +63,48 @@ docker run -p 1234:8080 playground-frontend
 The container sets up NGINX on port 8080.
 This example exposes it as port 1234 on the host,
 and the app can be served at http://localhost:1234
+
+## Code Generation
+
+This project relies on generated code for some functionality:
+deserializers, test mocks, constants for asset files,
+extracted Beam symbols for the editor, etc.
+
+All generated code is version-controlled, so after checkout the project is immediately runnable.
+However, after changes you may need to re-run code generation.
+
+### Standard Dart Code Generator
+
+Most of the generated code is produced by running the standard Dart code generator.
+This only requires Flutter, but must be called on multiple locations.
+For convenience, run this single command:
+
+```bash
+./gradlew :playground:frontend:generateCode
+```
+
+### Generating Beam Symbols Dictionaries
+
+Requirements:
+
+- Python 3.8+ with packages: `ast`, `pyyaml`.
+
+Other SDKs will add more requirements as we add extraction scripts for them.
+
+To generate all project's generated files including symbol dictionaries, run:
+
+```bash
+./gradlew :playground:frontend:generate
+```
+
+### Deleting Generated Files
+
+For consistency, it is recommended that you delete and re-generate all files before committing
+if you have all required tools on your machine. To delete all generated files, run:
+
+```bash
+./gradlew :playground:frontend:cleanGenerated
+```
 
 ### Pre-commit Checks
 

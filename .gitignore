@@ -120,14 +120,12 @@ website/www/yarn-error.log
 **/node_modules
 
 # Dart/Flutter
-**/*.g.dart
-**/*.mocks.dart
 **/.dart_tool
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
 **/.packages
 **/generated_plugin_registrant.dart
-playground/frontend/playground_components/assets/symbols
+playground/frontend/playground_components/pubspec.lock
 
 # Ignore Beam Playground Terraform
 **/.terraform

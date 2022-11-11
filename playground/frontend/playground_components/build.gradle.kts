@@ -20,12 +20,12 @@ import java.io.FileOutputStream
 
 description = "Apache Beam :: Playground :: playground_components Flutter Package"
 
-tasks.register("configure") {
+tasks.register("generate") {
   dependsOn("generateCode")
   dependsOn("extractBeamSymbols")
 
   group = "build"
-  description = "After checkout, gets everything ready for local development, test, or build."
+  description = "Generates all generated files."
 }
 
 tasks.register("precommit") {
@@ -87,6 +87,36 @@ tasks.register("pubGet") {
     }
   }
 }
+
+tasks.register("cleanGenerated") {
+  group = "build"
+  description = "Remove all generated files"
+
+  doLast {
+    println("Deleting:")
+
+    deleteFilesByRegExp(".*\\.g\\.dart\$")
+    deleteFilesByRegExp(".*\\.g\\.yaml\$")
+    deleteFilesByRegExp(".*\\.gen\\.dart\$")
+    deleteFilesByRegExp(".*\\.mocks\\.dart\$")
+  }
+}
+
+val deleteFilesByRegExp by extra(
+  fun(re: String) {
+    // Prints file names.
+    exec {
+      executable("find")
+      args("assets", "lib", "test", "-regex", re)
+    }
+
+    // Actually deletes them.
+    exec {
+      executable("find")
+      args("assets", "lib", "test", "-regex", re, "-delete")
+    }
+  }
+)
 
 tasks.register("generateCode") {
   dependsOn("cleanFlutter")
