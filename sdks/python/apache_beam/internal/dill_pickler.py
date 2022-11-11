@@ -61,6 +61,7 @@ class _NoOpContextManager(object):
 _pickle_lock = threading.RLock()
 _dill_internal = dill._dill  # pylint: disable=protected-access
 
+
 def _is_nested_class(cls):
   """Returns true if argument is a class object that appears to be nested."""
   return (
@@ -160,7 +161,7 @@ if 'save_module' in dir(_dill_internal):
       _dill_internal.log.info('M2: %s' % obj)
       # pylint: disable=protected-access
       pickler.save_reduce(
-        _dill_internal._import_module, (obj.__name__, ), obj=obj)
+          _dill_internal._import_module, (obj.__name__, ), obj=obj)
       # pylint: enable=protected-access
       _dill_internal.log.info('# M2')
 
