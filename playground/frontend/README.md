@@ -25,6 +25,8 @@ Beam Playground is an interactive environment to try out Beam transforms and exa
 The vision for the Playground is to be a web application where users can try out Beam
 without having to install/initialize a Beam environment.
 
+## Getting Started
+
 ### Run
 
 See [playground/README.md](../README.md) for details on requirements and setup.
@@ -32,7 +34,7 @@ See [playground/README.md](../README.md) for details on requirements and setup.
 The following command is used to build and serve the frontend app locally:
 
 ```bash
-flutter run -d chome
+flutter run -d chrome
 ```
 
 ### Build
@@ -48,7 +50,7 @@ This produces `build/web` directory with static files. Deploy them to your web s
 ### Docker
 
 The app is deployed to production as a Docker container.
-You can also run in in Docker locally. This is useful if:
+You can also run it in Docker locally. This is useful if:
 
 1. You do not have Flutter and do not want to install it.
 2. You want to mimic the release environment in the closest way possible.
@@ -62,7 +64,7 @@ docker run -p 1234:8080 playground-frontend
 
 The container sets up NGINX on port 8080.
 This example exposes it as port 1234 on the host,
-and the app can be served at http://localhost:1234
+and the app can be accessed at http://localhost:1234
 
 ## Code Generation
 
@@ -70,12 +72,12 @@ This project relies on generated code for some functionality:
 deserializers, test mocks, constants for asset files,
 extracted Beam symbols for the editor, etc.
 
-All generated code is version-controlled, so after checkout the project is immediately runnable.
+All generated files are version-controlled, so after checkout the project is immediately runnable.
 However, after changes you may need to re-run code generation.
 
 ### Standard Dart Code Generator
 
-Most of the generated code is produced by running the standard Dart code generator.
+Most of the generated files are produced by running the standard Dart code generator.
 This only requires Flutter, but must be called on multiple locations.
 For convenience, run this single command:
 
@@ -106,6 +108,8 @@ if you have all required tools on your machine. To delete all generated files, r
 ./gradlew :playground:frontend:cleanGenerated
 ```
 
+## Validation
+
 ### Pre-commit Checks
 
 To run all pre-commit checks, execute this in the beam root:
@@ -127,14 +131,14 @@ Code can be automatically reformatted using:
 flutter format ./lib
 ```
 
-### Localization
+## Localization
 
 The project is in the process of migrating from
 [the built-in Flutter localization](https://docs.flutter.dev/development/accessibility-and-localization/internationalization)
 to [easy_localization](https://pub.dev/packages/easy_localization).
 It temporarily uses both ways.
 
-#### Flutter Built-in Localization
+### Flutter Built-in Localization
 
 To add a new localization, follow next steps:
 
@@ -148,7 +152,7 @@ To add a new localization, follow next steps:
 flutter build web
 ```
 
-#### easy_localization
+### easy_localization
 
 To add a new localization (using `fr` as an example):
 
