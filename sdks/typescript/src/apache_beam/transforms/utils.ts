@@ -15,20 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.util;
 
-import org.apache.beam.runners.samza.SamzaPipelineExceptionContext;
-import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import { PTransform, withName } from "./transform";
+import { groupBy } from "./group_and_combine";
+import { Root, PCollection } from "../pvalue";
 
 /**
- * An ExceptionListener following Observer pattern. Any runtime exception caught by {@code
- * OpAdapter} will be notified to any concrete SamzaPipelineExceptionListener at Runtime
+ * A Ptransform that represents a 'static' source with a list of elements passed at construction time. It
+ * returns a PCollection that contains the elements in the input list.
  */
-public interface SamzaPipelineExceptionListener {
-
-  void onException(SamzaPipelineExceptionContext exceptionContext);
-
-  interface Registrar {
-    SamzaPipelineExceptionListener getExceptionListener(SamzaPipelineOptions samzaPipelineOptions);
+export function reshuffle<T>(): PTransform<PCollection<T>, PCollection<T>> {
+  function reshuffle(input: PCollection<T>): PCollection<T> {
+    return input
+      .apply(
+        withName(
+          "groupByRandomKey",
+          groupBy((x) => Math.random())
+        )
+      )
+      .flatMap(withName("dropKeys", (kvs) => kvs.value));
   }
+
+  return reshuffle;
 }

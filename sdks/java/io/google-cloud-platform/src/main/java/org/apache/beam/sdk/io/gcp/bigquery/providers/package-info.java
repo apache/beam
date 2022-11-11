@@ -15,20 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.util;
 
-import org.apache.beam.runners.samza.SamzaPipelineExceptionContext;
-import org.apache.beam.runners.samza.SamzaPipelineOptions;
-
-/**
- * An ExceptionListener following Observer pattern. Any runtime exception caught by {@code
- * OpAdapter} will be notified to any concrete SamzaPipelineExceptionListener at Runtime
- */
-public interface SamzaPipelineExceptionListener {
-
-  void onException(SamzaPipelineExceptionContext exceptionContext);
-
-  interface Registrar {
-    SamzaPipelineExceptionListener getExceptionListener(SamzaPipelineOptions samzaPipelineOptions);
-  }
-}
+/** Defines SchemaTransformProviders for reading and writing from Google BigQuery. */
+package org.apache.beam.sdk.io.gcp.bigquery.providers;

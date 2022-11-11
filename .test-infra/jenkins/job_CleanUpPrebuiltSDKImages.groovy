@@ -25,7 +25,7 @@ job("beam_CleanUpPrebuiltSDKImages") {
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Sets that this is a cron job, run once randomly per day.
-  commonJobProperties.setCronJob(delegate, '0 */4 * * *')
+  commonJobProperties.setCronJob(delegate, '0 H * * *')
 
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(

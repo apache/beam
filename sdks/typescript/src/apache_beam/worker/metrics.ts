@@ -177,6 +177,20 @@ metricTypes.set(
   (spec) => new Distribution(spec)
 );
 
+class ElementCount extends Counter {
+  toEmptyMonitoringInfo(): MonitoringInfo {
+    return MonitoringInfo.create({
+      urn: "beam:metric:element_count:v1",
+      type: "beam:metrics:sum_int64:v1",
+    });
+  }
+}
+
+metricTypes.set(
+  "beam:metric:user:element_count:v1",
+  (spec) => new ElementCount(spec)
+);
+
 /**
  * A ScopedMetricCell is a MetricCell together with its identifier(s).
  */
@@ -185,19 +199,25 @@ class ScopedMetricCell<T> {
 
   constructor(
     public key: string,
-    public transformId: string,
-    public name: string,
-    public value: MetricCell<T>
+    public value: MetricCell<unknown>,
+    public name?: string,
+    public transformId?: string,
+    public pcollectionId?: string
   ) {
     this.is_set = false;
   }
 
   toEmptyMonitoringInfo(): MonitoringInfo {
     const info = this.value.toEmptyMonitoringInfo();
-    info.labels["NAME"] = this.name;
-    info.labels["NAMESPACE"] = "";
+    if (this.name) {
+      info.labels["NAME"] = this.name;
+      info.labels["NAMESPACE"] = "";
+    }
     if (this.transformId) {
       info.labels["TRANSFORM"] = this.transformId;
+    }
+    if (this.pcollectionId) {
+      info.labels["PCOLLECTION"] = this.pcollectionId;
     }
     return info;
   }
@@ -220,19 +240,35 @@ class ScopedMetricCell<T> {
 export class MetricsContainer {
   metrics = new Map<string, ScopedMetricCell<unknown>>();
 
-  getMetric(transformId: string, spec: MetricSpec): ScopedMetricCell<unknown> {
-    const key = spec.metricType + transformId.length + transformId + spec.name;
+  getMetric(
+    transformId: string | undefined,
+    pcollectionId: string | undefined,
+    spec: MetricSpec
+  ): ScopedMetricCell<unknown> {
+    const key =
+      spec.metricType +
+      (transformId ? transformId.length + transformId : "_") +
+      (pcollectionId ? pcollectionId.length + pcollectionId : "_") +
+      spec.name;
     var cell = this.metrics.get(key);
     if (cell === undefined) {
       cell = new ScopedMetricCell(
         key,
-        transformId,
+        createMetric(spec),
         spec.name,
-        createMetric(spec)
+        transformId,
+        pcollectionId
       );
       this.metrics.set(key, cell);
     }
     return cell;
+  }
+
+  elementCountMetric(pcollectionId: string) {
+    return this.getMetric(undefined, pcollectionId, {
+      name: undefined!,
+      metricType: "beam:metric:user:element_count:v1",
+    });
   }
 
   monitoringData(shortIdCache: MetricsShortIdCache): Map<string, Uint8Array> {
