@@ -1,0 +1,44 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+name: Grafana Metrics Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '5 * * * *' # run sync scripts every 5 minutes
+
+jobs:
+  run_sync_scripts:
+    name: "Run Grafana Metrics Sync Scripts"
+    runs-on: [self-hosted, ubuntu-latest]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - name: Setup python 3.8 # setup python 3.8 for grafana sync script
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Trigger Grafana Sync Scripts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          python3 sync_workflows.py
+

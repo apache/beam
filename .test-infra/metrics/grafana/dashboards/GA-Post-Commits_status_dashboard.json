@@ -1,0 +1,250 @@
+{
+  "id": 2,
+  "gridPos": {
+    "h": 32,
+    "w": 24,
+    "x": 0,
+    "y": 0
+  },
+  "type": "table",
+  "title": "GA Post-Commits Status ",
+  "transformations": [
+    {
+      "id": "merge",
+      "options": {
+        "reducers": []
+      }
+    }
+  ],
+  "datasource": {
+    "uid": "aXhGO5I4z",
+    "type": "postgres"
+  },
+  "pluginVersion": "9.2.0",
+  "links": [],
+  "fieldConfig": {
+    "defaults": {
+      "custom": {
+        "align": "auto",
+        "displayMode": "auto",
+        "inspect": false
+      },
+      "mappings": [
+        {
+          "options": {
+            "0": {
+              "index": 0,
+              "text": "Fail"
+            },
+            "1": {
+              "index": 1,
+              "text": "Success"
+            },
+            "2": {
+              "index": 2,
+              "text": "Pending"
+            },
+            "3": {
+              "index": 3,
+              "text": "Cancelled"
+            },
+            "4": {
+              "index": 4,
+              "text": "None"
+            }
+          },
+          "type": "value"
+        }
+      ],
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [
+          {
+            "color": "green",
+            "value": null
+          },
+          {
+            "color": "red",
+            "value": 80
+          },
+          {
+            "color": "#EAB839",
+            "value": 90
+          },
+          {
+            "color": "#6ED0E0",
+            "value": 100
+          },
+          {
+            "color": "#EF843C",
+            "value": 110
+          }
+        ]
+      },
+      "color": {
+        "mode": "thresholds"
+      }
+    },
+    "overrides": [
+      {
+        "matcher": {
+          "id": "byRegexp",
+          "options": "/job_\\d/"
+        },
+        "properties": [
+          {
+            "id": "unit",
+            "value": "short"
+          },
+          {
+            "id": "decimals",
+            "value": 2
+          },
+          {
+            "id": "custom.displayMode",
+            "value": "color-background-solid"
+          },
+          {
+            "id": "custom.align",
+            "value": "center"
+          },
+          {
+            "id": "thresholds",
+            "value": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "rgba(245, 54, 54, 0.9)",
+                  "value": null
+                },
+                {
+                  "color": "semi-dark-red",
+                  "value": 0
+                },
+                {
+                  "color": "semi-dark-green",
+                  "value": 1
+                },
+                {
+                  "color": "super-light-orange",
+                  "value": 2
+                },
+                {
+                  "color": "blue",
+                  "value": 3
+                },
+                {
+                  "color": "purple",
+                  "value": 4
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "job_name"
+        },
+        "properties": [
+          {
+            "id": "displayName",
+            "value": "Job Name"
+          },
+          {
+            "id": "unit",
+            "value": "short"
+          },
+          {
+            "id": "decimals",
+            "value": 2
+          },
+          {
+            "id": "links",
+            "value": [
+              {
+                "targetBlank": true,
+                "title": "",
+                "url": "https://github.com/apache/beam/actions/${__data.fields.job_yml_filename}"
+              }
+            ]
+          },
+          {
+            "id": "custom.align"
+          },
+          {
+            "id": "mappings",
+            "value": []
+          },
+          {
+            "id": "displayName",
+            "value": "job_name"
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "job_yml_filename"
+        },
+        "properties": [
+          {
+            "id": "custom.hidden",
+            "value": true
+          }
+        ]
+      }
+    ]
+  },
+  "options": {
+    "showHeader": true,
+    "footer": {
+      "show": false,
+      "reducer": [
+        "sum"
+      ],
+      "fields": ""
+    }
+  },
+  "targets": [
+    {
+      "aggregation": "Last",
+      "alias": "job",
+      "datasource": {
+        "uid": "BeamPSQL"
+      },
+      "decimals": 2,
+      "displayAliasType": "Warning / Critical",
+      "displayType": "Regular",
+      "displayValueWithAlias": "Never",
+      "format": "table",
+      "group": [],
+      "hide": false,
+      "metricColumn": "none",
+      "rawQuery": true,
+      "rawSql": "with workflows as (\n  select\n    *,\n    case when job1 like 'success' then 1 when job1 like 'in_progress' then 2 when job1 like 'queued' then 2 when job1 like 'waiting' then 2 when job1 like 'None' then 4 else 0 end as job_1,\n    case when job2 like 'success' then 1 when job2 like 'in_progress' then 2 when job2 like 'queued' then 2 when job2 like 'waiting' then 2 when job2 like 'None' then 4 else 0 end as job_2,\n    case when job3 like 'success' then 1 when job3 like 'in_progress' then 2 when job3 like 'queued' then 2 when job3 like 'waiting' then 2 when job3 like 'None' then 4 else 0 end as job_3,\n    case when job4 like 'success' then 1 when job4 like 'in_progress' then 2 when job4 like 'queued' then 2 when job4 like 'waiting' then 2 when job4 like 'None' then 4 else 0 end as job_4,\n    case when job5 like 'success' then 1 when job5 like 'in_progress' then 2 when job5 like 'queued' then 2 when job5 like 'waiting' then 2 when job5 like 'None' then 4 else 0 end as job_5,\n    case when job6 like 'success' then 1 when job6 like 'in_progress' then 2 when job6 like 'queued' then 2 when job6 like 'waiting' then 2 when job6 like 'None' then 4 else 0 end as job_6,\n    case when job7 like 'success' then 1 when job7 like 'in_progress' then 2 when job7 like 'queued' then 2 when job7 like 'waiting' then 2 when job7 like 'None' then 4 else 0 end as job_7,\n    case when job8 like 'success' then 1 when job8 like 'in_progress' then 2 when job8 like 'queued' then 2 when job8 like 'waiting' then 2 when job8 like 'None' then 4 else 0 end as job_8,\n    case when job9 like 'success' then 1 when job9 like 'in_progress' then 2 when job9 like 'queued' then 2 when job9 like 'waiting' then 2 when job9 like 'None' then 4 else 0 end as job_9,\n    case when job10 like 'success' then 1 when job10 like 'in_progress' then 2 when job10 like 'queued' then 2 when job10 like 'waiting' then 2 when job10 like 'None' then 4 else 0 end as job_10\n  from\n    github_workflows\n)\nselect\n  job_name,\n  job_yml_filename,\n  job_1,\n  job_2,\n  job_3,\n  job_4,\n  job_5,\n  job_6,\n  job_7,\n  job_8,\n  job_9,\n  job_10\nfrom\n  workflows;",
+      "refId": "A",
+      "select": [
+        [
+          {
+            "params": [
+              "value"
+            ],
+            "type": "column"
+          }
+        ]
+      ],
+      "timeColumn": "time",
+      "units": "none",
+      "valueHandler": "Number Threshold",
+      "where": [
+        {
+          "name": "$__timeFilter",
+          "params": [],
+          "type": "macro"
+        }
+      ]
+    }
+  ]
+}
