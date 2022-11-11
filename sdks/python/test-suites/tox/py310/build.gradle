@@ -23,12 +23,6 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
-toxTask "lintPy310", "py310-lint"
-lint.dependsOn lintPy310
-
-toxTask "mypyPy310", "py310-mypy"
-lint.dependsOn mypyPy310
-
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.10'
 
