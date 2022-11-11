@@ -28,14 +28,14 @@ scikit-learn.
 
 ## Using The Notebooks
 
-These notebooks illustrate ways to use Apache Beam's RunInference transforms=, as well as different
+These notebooks illustrate ways to use Apache Beam's RunInference transforms, as well as different
 use cases for [ModelHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler) implementations.
 Beam comes with multiple ModelHandler implementations.
 
 ### Loading the Notebooks
 
 1. To get started quickly with notebooks, use [Colab](https://colab.sandbox.google.com/).
-2. In Colab, load the notebook from GitHub, for example:
+2. In Colab, open the notebook from GitHub using the notebook URL, for example:
 ```
 https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb
 ```
