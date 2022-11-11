@@ -49,6 +49,7 @@ settings = {'dill_byref': None}
 
 
 class _NoOpContextManager(object):
+
   def __enter__(self):
     pass
 
@@ -102,6 +103,7 @@ def _nested_type_wrapper(fun):
   For nested class object only it will save the containing class object so
   the nested structure is recreated during unpickle.
   """
+
   def wrapper(pickler, obj):
     # When the nested class is defined in the __main__ module we do not have to
     # do anything special because the pickler itself will save the constituent
