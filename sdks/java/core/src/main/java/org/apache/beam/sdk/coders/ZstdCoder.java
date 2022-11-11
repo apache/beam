@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
@@ -34,7 +35,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  */
 public class ZstdCoder<T> extends StructuredCoder<T> {
   private final Coder<T> innerCoder;
-  private final byte[] dict;
+  private final @Nullable byte[] dict;
   private final int level;
 
   /** Wraps the given coder into a {@link ZstdCoder}. */
@@ -57,7 +58,7 @@ public class ZstdCoder<T> extends StructuredCoder<T> {
     return new ZstdCoder<>(innerCoder, null, Zstd.defaultCompressionLevel());
   }
 
-  private ZstdCoder(Coder<T> innerCoder, byte[] dict, int level) {
+  private ZstdCoder(Coder<T> innerCoder, @Nullable byte[] dict, int level) {
     this.innerCoder = innerCoder;
     this.dict = dict;
     this.level = level;
