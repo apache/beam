@@ -699,6 +699,8 @@ class Stager(object):
     # Base image
     pip_version = pkg_resources.get_distribution('pip').version
     if parse_version(pip_version) >= parse_version('19.3'):
+      # pip can only recognize manylinux2014_x86_64 wheels
+      # from version 19.3.
       return 'manylinux2014_x86_64'
     else:
       return 'manylinux2010_x86_64'
@@ -830,13 +832,15 @@ class Stager(object):
       try:
         abi_suffix = 'm' if sys.version_info < (3, 8) else ''
         # Stage binary distribution of the SDK, for now on a best-effort basis.
+        platform_tag = Stager._get_platform_for_default_sdk_container()
         sdk_local_file = Stager._download_pypi_sdk_package(
             temp_dir,
             fetch_binary=True,
             language_version_tag='%d%d' %
             (sys.version_info[0], sys.version_info[1]),
             abi_tag='cp%d%d%s' %
-            (sys.version_info[0], sys.version_info[1], abi_suffix))
+            (sys.version_info[0], sys.version_info[1], abi_suffix),
+            platform_tag=platform_tag)
         sdk_binary_staged_name = Stager.\
             _desired_sdk_filename_in_staging_location(sdk_local_file)
         _LOGGER.info(
@@ -873,10 +877,10 @@ class Stager(object):
   def _download_pypi_sdk_package(
       temp_dir,
       fetch_binary=False,
-      language_version_tag='27',
+      language_version_tag='39',
       language_implementation_tag='cp',
-      abi_tag='cp27mu',
-      platform_tag='manylinux1_x86_64'):
+      abi_tag='cp39',
+      platform_tag='manylinux2014_x86_64'):
     """Downloads SDK package from PyPI and returns path to local path."""
     package_name = Stager.get_sdk_package_name()
     try:
