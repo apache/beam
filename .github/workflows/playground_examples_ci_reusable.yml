@@ -179,3 +179,8 @@ jobs:
         if: ${{ always() }}
         run: |
           docker image rm -f $IMAGE_TAG
+
+      - name: Stop Gradle daemon
+        if: ${{ always() }}
+        run: |
+          ./gradlew --stop
