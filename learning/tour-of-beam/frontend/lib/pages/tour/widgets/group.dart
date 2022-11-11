@@ -41,7 +41,6 @@ class GroupWidget extends StatelessWidget {
         final isExpanded = contentTreeController.expandedIds.contains(group.id);
 
         return StatelessExpansionTile(
-          key: Key('${group.id}$isExpanded'),
           isExpanded: isExpanded,
           onExpansionChanged: (isExpanding) {
             if (isExpanding) {

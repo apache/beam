@@ -23,12 +23,11 @@ import '../../../components/expansion_tile_wrapper.dart';
 
 class StatelessExpansionTile extends StatelessWidget {
   final bool isExpanded;
-  final void Function(bool)? onExpansionChanged;
+  final ValueChanged<bool>? onExpansionChanged;
   final Widget title;
   final Widget child;
 
   const StatelessExpansionTile({
-    required super.key,
     required this.isExpanded,
     required this.onExpansionChanged,
     required this.title,
@@ -39,8 +38,7 @@ class StatelessExpansionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ExpansionTileWrapper(
       ExpansionTile(
-        // TODO(nausharipov): isn't rebuilt without key.
-        key: key,
+        key: ValueKey(isExpanded),
         initiallyExpanded: isExpanded,
         tilePadding: EdgeInsets.zero,
         onExpansionChanged: onExpansionChanged,
