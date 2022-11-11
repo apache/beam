@@ -59,7 +59,7 @@ class _NoOpContextManager(object):
 # Pickling, especially unpickling, causes broken module imports on Python 3
 # if executed concurrently, see: BEAM-8651, http://bugs.python.org/issue38884.
 _pickle_lock = threading.RLock()
-_dill_internal = dill._dill # pylint: disable=protected-access
+_dill_internal = dill._dill  # pylint: disable=protected-access
 
 def _is_nested_class(cls):
   """Returns true if argument is a class object that appears to be nested."""
