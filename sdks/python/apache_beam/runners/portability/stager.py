@@ -948,7 +948,6 @@ class Stager(object):
       raise RuntimeError(repr(e))
 
     for sdk_file in expected_files:
-      logging.info('Looking for %s' % sdk_file)
       if os.path.exists(sdk_file):
         return sdk_file
 
