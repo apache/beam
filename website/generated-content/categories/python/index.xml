@@ -1,4 +1,46 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – python</title><link>/categories/python/</link><description>Recent content in python on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Fri, 21 Aug 2020 00:00:01 -0800</lastBuildDate><atom:link href="/categories/python/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Improved Annotation Support for the Python SDK</title><link>/blog/python-improved-annotations/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-improved-annotations/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – python</title><link>/categories/python/</link><description>Recent content in python on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Wed, 09 Nov 2022 00:00:01 -0800</lastBuildDate><atom:link href="/categories/python/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: New Resources Available for Beam ML</title><link>/blog/ml-resources/</link><pubDate>Wed, 09 Nov 2022 00:00:01 -0800</pubDate><guid>/blog/ml-resources/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>If you&amp;rsquo;ve been paying attention, over the past year you&amp;rsquo;ve noticed that
+Beam has released a number of features designed to make Machine Learning
+easy. Ranging from things like the introduction of the &lt;code>RunInference&lt;/code>
+transform to the continued refining of &lt;code>Beam Dataframes&lt;/code>, this has been
+an area where we&amp;rsquo;ve seen Beam make huge strides. While development has
+advanced quickly, however, until recently there has been a lack of
+resources to help people discover and use these new features.&lt;/p>
+&lt;p>Over the past several months, we&amp;rsquo;ve been hard at work building out
+documentation and notebooks to make it easier to use these new features
+and to show how Beam can be used to solve common Machine Learning problems.
+We&amp;rsquo;re now happy to present this new and improved Beam ML experience!&lt;/p>
+&lt;p>To get started, we encourage you to visit Beam&amp;rsquo;s new &lt;a href="https://beam.apache.org/documentation/ml/overview/">AI/ML landing page&lt;/a>.
+We&amp;rsquo;ve got plenty of content on things like &lt;a href="https://beam.apache.org/documentation/ml/multi-model-pipelines/">multi-model pipelines&lt;/a>,
+&lt;a href="https://beam.apache.org/documentation/ml/runinference-metrics/">performing inference with metrics&lt;/a>,
+&lt;a href="https://beam.apache.org/documentation/ml/online-clustering/">online training&lt;/a>, and much more.&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/ml-landing.png"
+alt="ML landing page">&lt;/p>
+&lt;p>We&amp;rsquo;ve also introduced a number of example &lt;a href="https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml">Jupyter Notebooks&lt;/a>
+showing how to use built in beam transforms like &lt;code>RunInference&lt;/code> and &lt;code>Beam Dataframes&lt;/code>.&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/ensemble-model-notebook.png"
+alt="Example ensemble notebook with RunInference">&lt;/p>
+&lt;p>Adding more examples and notebooks will be a point of emphasis going forward.
+For our next round of improvements, we are planning on adding examples of
+using RunInference with &amp;gt;30GB models, with multi-language pipelines, with
+common Beam concepts, and with TensorRT. We will also add examples showing
+other pieces of the Machine Learning lifecycle like model evaluation with TFMA,
+per-entity training, and more online training.&lt;/p>
+&lt;p>We hope you find this useful! As always, if you see any areas for improvement, please &lt;a href="https://github.com/apache/beam/issues/new/choose">open an issue&lt;/a>
+or a &lt;a href="https://github.com/apache/beam/pulls">pull request&lt;/a>!&lt;/p></description></item><item><title>Blog: Improved Annotation Support for the Python SDK</title><link>/blog/python-improved-annotations/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-improved-annotations/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
