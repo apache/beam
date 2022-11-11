@@ -25,6 +25,15 @@ on:
      - learning/katas/**
      - examples/**
      - sdks/**
+  pull_request:
+    paths:
+     - .github/workflows/playground_examples_ci_reusable.yml
+     - .github/workflows/playground_examples_ci.yml
+     - playground/backend/**
+     - playground/infrastructure/**
+     - learning/katas/**
+     - examples/**
+     - sdks/**
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
