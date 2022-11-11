@@ -19,12 +19,13 @@ output "cloudbuild_service_account_id" {
   value = google_service_account.cloudbuild_service_account_id
 }
 
-output "connect_github_repo_to_cloudbuild_msg" {
+output "How_to_connect_github_repo_to_cloudbuild" {
   value = <<EOF
 
 Navigate to https://console.cloud.google.com/cloud-build/triggers/connect?project=${var.project}
 to connect Cloud Build to your GitHub repository.
-https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github
-(Note: skip where it asks you to create a trigger.)
+
+More details: https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github
+(Note: skip where it asks you to create a trigger, because trigger will be created further using IaC)
 EOF
 }

@@ -15,40 +15,68 @@
 # specific language governing permissions and limitations
 # under the License.
 
+data "google_service_account" "myaccount" {
+  account_id = var.cloudbuild_service_account_id
+}
+
 resource "google_cloudbuild_trigger" "playground_infrastructure" {
-  name        = var.infra_trigger_id
-  location    = var.region
+  name     = var.infra_trigger_id
+  location = var.region
+  project  = var.project
+
   description = "Builds the base image and then runs cloud build config file to deploy Playground infrastructure"
-  github {
-    owner = var.github_repository_owner
-    name  = var.github_repository_name
-    push {
-      branch = var.github_repository_branch
+
+#  github {
+#    owner = var.github_repository_owner
+#    name  = var.github_repository_name
+#    push {
+#      branch = var.github_repository_branch
+#    }
+#  }
+
+    source_to_build {
+      uri       = "https://github.com/akvelon/beam"
+      ref       = "refs/heads/cloudbuild+playground"
+      repo_type = "GITHUB"
     }
-  }
-  // Disabled because we only want to run it manually
-  disabled = true
 
-  service_account = var.cloudbuild_service_account_id
-  filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
-
+  git_file_source {
+    path      = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
+    uri       = "https://github.com/akvelon/beam"
+    revision  = "refs/heads/cloudbuild+playground"
+    repo_type = "GITHUB"
   }
+
+  service_account = data.google_service_account.myaccount.id
+}
 
 resource "google_cloudbuild_trigger" "playground_to_gke" {
-  name        = var.gke_trigger_id
-  location    = var.region
+  name     = var.gke_trigger_id
+  location = var.region
+  project  = var.project
+
   description = "Builds the base image and then runs cloud build config file to deploy Playground to GKE"
-  github {
-    owner = var.github_repository_owner
-    name  = var.github_repository_name
-    push {
-      branch = var.github_repository_branch
-    }
+
+#  github {
+#    owner = var.github_repository_owner
+#    name  = var.github_repository_name
+#    push {
+#      branch = var.github_repository_branch
+#    }
+#  }
+
+  source_to_build {
+    uri       = "https://github.com/akvelon/beam"
+    ref       = "refs/heads/cloudbuild+playground"
+    repo_type = "GITHUB"
   }
-  // Disabled because we only want to run it manually
-  disabled = true
 
-  service_account = var.cloudbuild_service_account_id
-  filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
+  git_file_source {
+    path      = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
+    uri       = "https://github.com/akvelon/beam"
+    revision  = "refs/heads/cloudbuild+playground"
+    repo_type = "GITHUB"
+  }
 
+  service_account = data.google_service_account.myaccount.id
 }
