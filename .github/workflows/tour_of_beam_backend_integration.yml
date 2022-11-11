@@ -71,6 +71,16 @@ jobs:
         with:
           # pin to the biggest Go version supported by Cloud Functions runtime
           go-version: '1.16'
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Build Playground router image
         run: ./gradlew playground:backend:containers:router:docker
         working-directory: ${{ env.GITHUB_WORKSPACE }}
@@ -113,3 +123,7 @@ jobs:
           internal/storage/index.yaml \
           || ( echo "index.yaml mismatch"; exit 1)
 
+      - name: Stop Gradle daemon
+        if: ${{ always() }}
+        run: |
+          ./gradlew --stop

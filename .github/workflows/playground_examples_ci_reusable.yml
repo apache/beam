@@ -119,6 +119,15 @@ jobs:
       - name: Set docker image
         run: echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG" >> $GITHUB_ENV
 
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Build SDK Backend Docker image
         run: |
              set -uex
@@ -164,3 +173,8 @@ jobs:
         if: ${{ always() }}
         run: |
           docker image rm -f $IMAGE_TAG
+
+      - name: Stop Gradle daemon
+        if: ${{ always() }}
+        run: |
+          ./gradlew --stop
