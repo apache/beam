@@ -324,7 +324,7 @@ func setupAcceptableWheelSpecs() error {
 	if err != nil {
 		return err
 	}
-	re := regexp.MustCompile(`Python (\d)\.(\d).*`)
+	re := regexp.MustCompile(`Python (\d)\.(\d+).*`)
 	pyVersions := re.FindStringSubmatch(string(stdoutStderr[:]))
 	if len(pyVersions) != 3 {
 		return fmt.Errorf("cannot get parse Python version from %s", stdoutStderr)
