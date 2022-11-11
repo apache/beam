@@ -26,6 +26,15 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.7'
 
+task lint {}
+check.dependsOn lint
+
+toxTask "lintPy37", "py37-lint"
+lint.dependsOn lintPy37
+
+toxTask "mypyPy37", "py37-mypy"
+lint.dependsOn mypyPy37
+
 apply from: "../common.gradle"
 
 // TODO(https://github.com/apache/beam/issues/20051): Remove this once tox uses isolated builds.

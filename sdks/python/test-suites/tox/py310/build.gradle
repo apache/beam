@@ -23,9 +23,6 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
-task lint {}
-check.dependsOn lint
-
 toxTask "lintPy310", "py310-lint"
 lint.dependsOn lintPy310
 
