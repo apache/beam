@@ -915,10 +915,8 @@ class Stager(object):
           '--platform',
           platform_tag
       ])
-      # Example wheel: apache_beam-2.42.0-cp39-cp39-manylinux1_x86_64.whl
       # Example wheel: with manylinux14 tag.
-      # apache_beam-2.43.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_
-      # x86_64.whl
+      # apache_beam-2.43.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl # pylint: disable=line-too-long
       if platform_tag == 'manylinux2014_x86_64':
         platform_tag = 'manylinux_2_17_x86_64.' + platform_tag
       expected_files = [
