@@ -112,8 +112,8 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     ''')
 
   def test_named_type(self):
-      MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
-      self.assertEqual(loads(dumps([MyNamedTuple(1, 2)])), [MyNamedTuple(1, 2)])
+    MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
+    self.assertEqual(loads(dumps([MyNamedTuple(1, 2)])), [MyNamedTuple(1, 2)])
 
 
 if __name__ == '__main__':
