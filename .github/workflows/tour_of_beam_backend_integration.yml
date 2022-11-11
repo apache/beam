@@ -24,12 +24,14 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: 
+      - '.github/workflows/tour_of_beam_backend_integration.yml'
       - 'learning/tour-of-beam/backend/**'
       - 'playground/backend/**'
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: 
+      - '.github/workflows/tour_of_beam_backend_integration.yml'
       - 'learning/tour-of-beam/backend/**'
       - 'playground/backend/**'
 
