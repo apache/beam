@@ -76,6 +76,7 @@ excluded_patterns=(
     'apache_beam/transforms/py_dataflow_distribution_counter.*'
     'apache_beam/utils/counters.*'
     'apache_beam/utils/windowed_value.*'
+    'apache_beam/vendor'
     'apache_beam/version.py'
     '**/internal/*'
     '*_it.py'
