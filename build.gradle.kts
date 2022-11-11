@@ -328,7 +328,7 @@ tasks.register("pythonDockerBuildPreCommit") {
 
 tasks.register("pythonLintPreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify lint and formatter tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py310:lint")
+  dependsOn(":sdks:python:test-suites:tox:py37:lint")
 }
 
 tasks.register("pythonFormatterPreCommit") {
