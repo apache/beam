@@ -22,6 +22,7 @@
 import logging
 import socket
 import threading
+from typing import Optional
 
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -44,16 +45,6 @@ executing_project = None
 
 _LOGGER = logging.getLogger(__name__)
 
-CLIENT_SCOPES = [
-    'https://www.googleapis.com/auth/bigquery',
-    'https://www.googleapis.com/auth/cloud-platform',
-    'https://www.googleapis.com/auth/devstorage.full_control',
-    'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/datastore',
-    'https://www.googleapis.com/auth/spanner.admin',
-    'https://www.googleapis.com/auth/spanner.data'
-]
-
 
 def set_running_in_gce(worker_executing_project):
   """For internal use only; no backwards-compatibility guarantees.
@@ -74,6 +65,8 @@ def set_running_in_gce(worker_executing_project):
 
 
 def get_service_credentials(pipeline_options):
+  # type: (PipelineOptions) -> Optional[google.auth.credentials.Credentials]
+
   """For internal use only; no backwards-compatibility guarantees.
 
   Get credentials to access Google services.
@@ -126,6 +119,7 @@ class _Credentials(object):
 
   @classmethod
   def get_service_credentials(cls, pipeline_options):
+    # type: (PipelineOptions) -> Optional[google.auth.credentials.Credentials]
     with cls._credentials_lock:
       if cls._credentials_init:
         return cls._credentials
@@ -145,6 +139,7 @@ class _Credentials(object):
 
   @staticmethod
   def _get_service_credentials(pipeline_options):
+    # type: (PipelineOptions) -> Optional[google.auth.credentials.Credentials]
     if not _GOOGLE_AUTH_AVAILABLE:
       _LOGGER.warning(
           'Unable to find default credentials because the google-auth library '
@@ -153,7 +148,9 @@ class _Credentials(object):
       return None
 
     try:
-      credentials, _ = google.auth.default(scopes=CLIENT_SCOPES)  # pylint: disable=c-extension-no-member
+      # pylint: disable=c-extension-no-member
+      credentials, _ = google.auth.default(
+          scopes=pipeline_options.view_as(GoogleCloudOptions).gcp_oauth_scopes)
       credentials = _Credentials._add_impersonation_credentials(
           credentials, pipeline_options)
       credentials = _ApitoolsCredentialsAdapter(credentials)
@@ -170,14 +167,9 @@ class _Credentials(object):
 
   @staticmethod
   def _add_impersonation_credentials(credentials, pipeline_options):
-    if isinstance(pipeline_options, PipelineOptions):
-      gcs_options = pipeline_options.view_as(GoogleCloudOptions)
-      impersonate_service_account = gcs_options.impersonate_service_account
-    elif isinstance(pipeline_options, dict):
-      impersonate_service_account = pipeline_options.get(
-          'impersonate_service_account')
-    else:
-      return credentials
+    gcs_options = pipeline_options.view_as(GoogleCloudOptions)
+    impersonate_service_account = gcs_options.impersonate_service_account
+    scopes = gcs_options.gcp_oauth_scopes
     if impersonate_service_account:
       _LOGGER.info('Impersonating: %s', impersonate_service_account)
       impersonate_accounts = impersonate_service_account.split(',')
@@ -187,6 +179,6 @@ class _Credentials(object):
           source_credentials=credentials,
           target_principal=target_principal,
           delegates=delegate_to,
-          target_scopes=CLIENT_SCOPES,
+          target_scopes=scopes,
       )
     return credentials

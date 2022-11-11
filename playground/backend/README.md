@@ -94,6 +94,7 @@ default value and there is no need to set them up to launch locally:
 - `SDK_CONFIG` - is the sdk configuration file path, e.g. default example for corresponding sdk. It will be saved to cloud datastore during application startup (default value = `../sdks.yaml`)
 - `DATASTORE_EMULATOR_HOST` - is the datastore emulator address. If it is given in the environment, the application will connect to the datastore emulator.
 - `PROPERTY_PATH` - is the application properties path (default value = `.`)
+- `CACHE_REQUEST_TIMEOUT` - is the timeout to request data from cache (default value = `5 sec`)
 
 ### Application properties
 

@@ -2,7 +2,7 @@
 title:  "Akvelon"
 icon: /images/logos/powered-by/akvelon.png
 hasNav: true
-cardDescription: "Akvelon is a software engineering company that helps start-ups, SMBs, and Fortune 500 companies unlock the full potential of cloud, data, and AI/ML to empower their strategic advantage. Akvelon team has deep expertise in integrating Apache Beam with diverse data processing ecosystems and is an enthusiastic Apache Beam community contributor."
+cardDescription: "<p><a href='https://akvelon.com/' target='_blank' rel='noopener noreferrer'>Akvelon</a> is a software engineering company that helps start-ups, SMBs, and Fortune 500 companies unlock the full potential of cloud, data, and AI/ML to empower their strategic advantage. Akvelon team has deep expertise in integrating Apache Beam with diverse data processing ecosystems and is an enthusiastic Apache Beam community contributor.</p>"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

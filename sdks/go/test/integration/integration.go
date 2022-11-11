@@ -71,6 +71,7 @@ var directFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
 	"TestJDBCIO_PostgresReadWrite",
+	"TestDataframe",
 	// Triggers, Panes are not yet supported
 	"TestTrigger.*",
 	"TestPanes",

@@ -25,6 +25,7 @@ import java.util.Objects;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.jms.Message;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -41,13 +42,20 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
   private Instant oldestMessageTimestamp = Instant.now();
   private transient List<Message> messages = new ArrayList<>();
 
-  private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+  @VisibleForTesting transient boolean discarded = false;
+
+  @VisibleForTesting final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
   JmsCheckpointMark() {}
 
   void add(Message message) throws Exception {
     lock.writeLock().lock();
     try {
+      if (discarded) {
+        throw new IllegalStateException(
+            String.format(
+                "Attempting to add message %s to checkpoint that is discarded.", message));
+      }
       Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
       if (currentMessageTimestamp.isBefore(oldestMessageTimestamp)) {
         oldestMessageTimestamp = currentMessageTimestamp;
@@ -67,6 +75,15 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
     }
   }
 
+  void discard() {
+    lock.writeLock().lock();
+    try {
+      this.discarded = true;
+    } finally {
+      lock.writeLock().unlock();
+    }
+  }
+
   /**
    * Acknowledge all outstanding message. Since we believe that messages will be delivered in
    * timestamp order, and acknowledged messages will not be retried, the newest message in this
@@ -76,6 +93,10 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
   public void finalizeCheckpoint() {
     lock.writeLock().lock();
     try {
+      if (discarded) {
+        messages.clear();
+        return;
+      }
       for (Message message : messages) {
         try {
           message.acknowledge();
@@ -98,6 +119,7 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
       throws IOException, ClassNotFoundException {
     stream.defaultReadObject();
     messages = new ArrayList<>();
+    discarded = false;
   }
 
   @Override

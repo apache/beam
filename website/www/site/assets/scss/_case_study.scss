@@ -44,6 +44,7 @@
 }
 
 .case-study-list--additional {
+  visibility: hidden;
   @media (min-width: $mobile) and (max-width: $tablet) {
     justify-content: center;
   }
@@ -88,8 +89,16 @@
 
 .case-study-used-by-card--responsive {
   @media (min-width: $mobile){
-    width: 23%;
+    width: 18%;
     margin-right: 0;
+  }
+}
+
+.case-study-used-by-card--with-link {
+  &:hover {
+    .case-study-used-by-card-img {
+      display: block;
+    }
   }
 }
 
@@ -102,6 +111,9 @@
   margin-bottom: 32px;
   @media (max-width: $tablet) {
     width: 350px;
+  }
+  @media (max-width: $ak-breakpoint-xs) {
+    width: 270px;
   }
 
   .case-study-card-description {

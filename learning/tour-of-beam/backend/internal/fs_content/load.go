@@ -38,50 +38,35 @@ const (
 )
 
 type learningPathInfo struct {
-	Sdk     string
+	Sdk     string   `yaml:"sdk"`
 	Content []string `yaml:"content"`
 }
 
 type learningModuleInfo struct {
-	Id         string
-	Name       string
-	Complexity string
+	Id         string   `yaml:"id"`
+	Name       string   `yaml:"name"`
+	Complexity string   `yaml:"complexity"`
 	Content    []string `yaml:"content"`
 }
 
 type learningGroupInfo struct {
-	Name    string
+	Id      string   `yaml:"id"`
+	Name    string   `yaml:"name"`
 	Content []string `yaml:"content"`
 }
 
 type learningUnitInfo struct {
-	Id           string
-	Name         string
-	TaskName     string
-	SolutionName string
+	Id           string `yaml:"id"`
+	Name         string `yaml:"name"`
+	TaskName     string `yaml:"taskName"`
+	SolutionName string `yaml:"solutionName"`
 }
 
-// Watch for duplicate ids. Not thread-safe!
-type idsWatcher struct {
-	ids map[string]struct{}
-}
-
-func (w *idsWatcher) CheckId(id string) {
-	if _, exists := w.ids[id]; exists {
-		log.Fatalf("Duplicate id: %v", id)
-	}
-	w.ids[id] = struct{}{}
-}
-
-func NewIdsWatcher() idsWatcher {
-	return idsWatcher{make(map[string]struct{})}
-}
-
-func collectUnit(infopath string, ids_watcher *idsWatcher) (unit *tob.Unit, err error) {
+func collectUnit(infopath string, ctx *sdkContext) (unit *tob.Unit, err error) {
 	info := loadLearningUnitInfo(infopath)
 	log.Printf("Found Unit %v metadata at %v\n", info.Id, infopath)
-	ids_watcher.CheckId(info.Id)
-	builder := NewUnitBuilder(info)
+	ctx.idsWatcher.CheckId(info.Id)
+	builder := NewUnitBuilder(info, ctx.sdk)
 
 	rootpath := filepath.Join(infopath, "..")
 	err = filepath.WalkDir(rootpath,
@@ -112,12 +97,12 @@ func collectUnit(infopath string, ids_watcher *idsWatcher) (unit *tob.Unit, err 
 	return builder.Build(), err
 }
 
-func collectGroup(infopath string, ids_watcher *idsWatcher) (*tob.Group, error) {
+func collectGroup(infopath string, ctx *sdkContext) (*tob.Group, error) {
 	info := loadLearningGroupInfo(infopath)
 	log.Printf("Found Group %v metadata at %v\n", info.Name, infopath)
-	group := tob.Group{Name: info.Name}
+	group := tob.Group{Id: info.Id, Title: info.Name}
 	for _, item := range info.Content {
-		node, err := collectNode(filepath.Join(infopath, "..", item), ids_watcher)
+		node, err := collectNode(filepath.Join(infopath, "..", item), ctx)
 		if err != nil {
 			return &group, err
 		}
@@ -128,7 +113,7 @@ func collectGroup(infopath string, ids_watcher *idsWatcher) (*tob.Group, error) 
 }
 
 // Collect node which is either a unit or a group.
-func collectNode(rootpath string, ids_watcher *idsWatcher) (node tob.Node, err error) {
+func collectNode(rootpath string, ctx *sdkContext) (node tob.Node, err error) {
 	files, err := os.ReadDir(rootpath)
 	if err != nil {
 		return node, err
@@ -137,10 +122,10 @@ func collectNode(rootpath string, ids_watcher *idsWatcher) (node tob.Node, err e
 		switch f.Name() {
 		case unitInfoYaml:
 			node.Type = tob.NODE_UNIT
-			node.Unit, err = collectUnit(filepath.Join(rootpath, unitInfoYaml), ids_watcher)
+			node.Unit, err = collectUnit(filepath.Join(rootpath, unitInfoYaml), ctx)
 		case groupInfoYaml:
 			node.Type = tob.NODE_GROUP
-			node.Group, err = collectGroup(filepath.Join(rootpath, groupInfoYaml), ids_watcher)
+			node.Group, err = collectGroup(filepath.Join(rootpath, groupInfoYaml), ctx)
 		}
 	}
 	if node.Type == tob.NODE_UNDEFINED {
@@ -149,13 +134,13 @@ func collectNode(rootpath string, ids_watcher *idsWatcher) (node tob.Node, err e
 	return node, err
 }
 
-func collectModule(infopath string, ids_watcher *idsWatcher) (tob.Module, error) {
+func collectModule(infopath string, ctx *sdkContext) (tob.Module, error) {
 	info := loadLearningModuleInfo(infopath)
 	log.Printf("Found Module %v metadata at %v\n", info.Id, infopath)
-	ids_watcher.CheckId(info.Id)
-	module := tob.Module{Id: info.Id, Name: info.Name, Complexity: info.Complexity}
+	ctx.idsWatcher.CheckId(info.Id)
+	module := tob.Module{Id: info.Id, Title: info.Name, Complexity: info.Complexity}
 	for _, item := range info.Content {
-		node, err := collectNode(filepath.Join(infopath, "..", item), ids_watcher)
+		node, err := collectNode(filepath.Join(infopath, "..", item), ctx)
 		if err != nil {
 			return tob.Module{}, err
 		}
@@ -166,16 +151,15 @@ func collectModule(infopath string, ids_watcher *idsWatcher) (tob.Module, error)
 }
 
 func collectSdk(infopath string) (tree tob.ContentTree, err error) {
-	ids_watcher := NewIdsWatcher()
-
 	info := loadLearningPathInfo(infopath)
 	tree.Sdk = tob.ParseSdk(info.Sdk)
 	if tree.Sdk == tob.SDK_UNDEFINED {
 		return tree, fmt.Errorf("unknown SDK at %v", infopath)
 	}
 	log.Printf("Found Sdk %v metadata at %v\n", info.Sdk, infopath)
+	ctx := newSdkContext(tree.Sdk)
 	for _, item := range info.Content {
-		mod, err := collectModule(filepath.Join(infopath, "..", item, moduleInfoYaml), &ids_watcher)
+		mod, err := collectModule(filepath.Join(infopath, "..", item, moduleInfoYaml), ctx)
 		if err != nil {
 			return tree, err
 		}

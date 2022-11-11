@@ -20,6 +20,7 @@ import * as beam from "../../apache_beam";
 import { StrUtf8Coder } from "../coders/standard_coders";
 import * as external from "../transforms/external";
 import { PythonService } from "../utils/service";
+import * as row_coder from "../coders/row_coder";
 
 export function pythonTransform<
   InputT extends beam.PValue<any>,
@@ -27,7 +28,8 @@ export function pythonTransform<
 >(
   constructor: string,
   args_or_kwargs: any[] | { [key: string]: any } | undefined = undefined,
-  kwargs: { [key: string]: any } | undefined = undefined
+  kwargs: { [key: string]: any } | undefined = undefined,
+  options: external.RawExternalTransformOptions = {}
 ): beam.AsyncPTransform<InputT, OutputT> {
   let args;
   if (args_or_kwargs === undefined) {
@@ -42,6 +44,10 @@ export function pythonTransform<
     kwargs = args_or_kwargs;
   }
 
+  if (kwargs === undefined) {
+    kwargs = {};
+  }
+
   return external.rawExternalTransform<InputT, OutputT>(
     "beam:transforms:python:fully_qualified_named",
     {
@@ -54,6 +60,18 @@ export function pythonTransform<
       PythonService.forModule(
         "apache_beam.runners.portability.expansion_service_main",
         ["--fully_qualified_name_glob=*", "--port", "{{PORT}}"]
-      )
+      ),
+    options
   );
 }
+
+export function pythonCallable(expr: string) {
+  return { expr, beamLogicalType: "beam:logical_type:python_callable:v1" };
+}
+
+row_coder.registerLogicalType({
+  urn: "beam:logical_type:python_callable:v1",
+  reprType: row_coder.RowCoder.inferTypeFromJSON("string", false),
+  toRepr: (pc) => pc.expr,
+  fromRepr: (expr) => pythonCallable(expr),
+});

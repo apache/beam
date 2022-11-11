@@ -49,7 +49,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.43.0] - Unreleased
+# [2.44.0] - Unreleased
 
 ## Highlights
 
@@ -58,15 +58,21 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Support for Bigtable sink (Write and WriteBatch) added (Go) ([#23324](https://github.com/apache/beam/issues/23324)).
+* S3 implementation of the Beam filesystem (Go) ([#23991](https://github.com/apache/beam/issues/23991)).
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Local packages can now be used as dependencies in the requirements.txt file, rather
+  than requiring them to be passed separately via the `--extra_package` option
+  (Python) ([#23684](https://github.com/apache/beam/pull/23684)).
+* Pipeline Resource Hints now supported via `--resource_hints` flag (Go) ([#23990](https://github.com/apache/beam/pull/23990)).
+* Make Python SDK containers reusable on portable runners by installing dependencies to temporary venvs ([BEAM-12792](https://issues.apache.org/jira/browse/BEAM-12792)).
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* `ParquetIO.withSplit` was removed since splittable reading has been the default behavior since 2.35.0. The effect of
+  this change is to drop support for non-splittable reading (Java)([#23832](https://github.com/apache/beam/issues/23832)).
 
 ## Deprecations
 
@@ -75,16 +81,63 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed JmsIO acknowledgment issue (Java) ([#20814](https://github.com/apache/beam/issues/20814))
+* Fixed Beam SQL CalciteUtils (Java) and Cross-language JdbcIO (Python) did not support JDBC CHAR/VARCHAR, BINARY/VARBINARY logical types ([#23747](https://github.com/apache/beam/issues/23747), [#23526](https://github.com/apache/beam/issues/23526)).
+* Ensure iterated and emitted types are used with the generic register package are registered with the type and schema registries.(Go) ([#23889](https://github.com/apache/beam/pull/23889))
+
+# [2.43.0] - Unreleased
+
+## Highlights
+
+* Python 3.10 support in Apache Beam ([#21458](https://github.com/apache/beam/issues/21458)).
+* An initial implementation of a runner that allows us to run Beam pipelines on Dask. Try it out and give us feedback! (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
+
+
+## I/Os
+
+* Decreased TextSource CPU utilization by 2.3x (Java) ([#23193](https://github.com/apache/beam/issues/23193)).
+* Fixed bug when using SpannerIO with RuntimeValueProvider options (Java) ([#22146](https://github.com/apache/beam/issues/22146)).
+* Fixed issue for unicode rendering on WriteToBigQuery ([#10785](https://github.com/apache/beam/issues/10785))
+* Remove obsolete variants of BigQuery Read and Write, always using Beam-native variant
+  ([#23564](https://github.com/apache/beam/issues/23564) and [#23559](https://github.com/apache/beam/issues/23559)).
+* Bumped google-cloud-spanner dependency version to 3.x for Python SDK ([#21198](https://github.com/apache/beam/issues/21198)).
+
+## New Features / Improvements
+
+* Dataframe wrapper added in Go SDK via Cross-Language (with automatic expansion service). (Go) ([#23384](https://github.com/apache/beam/issues/23384)).
+* Name all Java threads to aid in debugging ([#23049](https://github.com/apache/beam/issues/23049)).
+* An initial implementation of a runner that allows us to run Beam pipelines on Dask. (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
+* Allow configuring GCP OAuth scopes via pipeline options. This unblocks usages of Beam IOs that require additional scopes.
+  For example, this feature makes it possible to access Google Drive backed tables in BigQuery ([#23290](https://github.com/apache/beam/issues/23290)).
+
+## Breaking Changes
+
+* CoGroupByKey transform in Python SDK has changed the output typehint. The typehint component representing grouped values changed from List to Iterable,
+  which more accurately reflects the nature of the arbitrarily large output collection. [#21556](https://github.com/apache/beam/issues/21556) Beam users may see an error on transforms downstream from CoGroupByKey. Users must change methods expecting a List to expect an Iterable going forward. See [document](https://docs.google.com/document/d/1RIzm8-g-0CyVsPb6yasjwokJQFoKHG4NjRUcKHKINu0) for information and fixes.
+* The PortableRunner for Spark assumes Spark 3 as default Spark major version unless configured otherwise using `--spark_version`.
+  Spark 2 support is deprecated and will be removed soon ([#23728](https://github.com/apache/beam/issues/23728)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed Python cross-language JDBC IO Connector cannot read or write rows containing Numeric/Decimal type values ([#19817](https://github.com/apache/beam/issues/19817)).
+
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
 
-# [2.42.0] - Unreleased, Cut 2022-09-07
+# [2.42.0] - 2022-10-17
 
 ## Highlights
 
 * Added support for stateful DoFns to the Go SDK.
+* Added support for [Batched
+  DoFns](https://beam.apache.org/documentation/programming-guide/#batched-dofns)
+  to the Python SDK.
 
 ## New Features / Improvements
 
@@ -99,6 +152,7 @@
 ## Bugfixes
 
 * Fixed Python cross-language JDBC IO Connector cannot read or write rows containing Timestamp type values [#19817](https://github.com/apache/beam/issues/19817).
+* Fixed `AfterProcessingTime` behavior in Python's `DirectRunner` to match Java ([#23071](https://github.com/apache/beam/issues/23071))
 
 ## Known Issues
 
@@ -113,6 +167,7 @@
 ## New Features / Improvements
 
 * Previously available in Java sdk, Python sdk now also supports logging level overrides per module. ([#18222](https://github.com/apache/beam/issues/18222)).
+* Added support for accessing GCP PubSub Message ordering keys (Java) ([BEAM-13592](https://issues.apache.org/jira/browse/BEAM-13592))
 
 ## Breaking Changes
 

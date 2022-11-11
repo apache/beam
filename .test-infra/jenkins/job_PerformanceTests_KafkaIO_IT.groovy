@@ -75,7 +75,7 @@ job(jobName) {
     sourceOptions                : """
                                      {
                                        "numRecords": "100000000",
-                                       "keySizeBytes": "1",
+                                       "keySizeBytes": "10",
                                        "valueSizeBytes": "90"
                                      }
                                    """.trim().replaceAll("\\s", ""),

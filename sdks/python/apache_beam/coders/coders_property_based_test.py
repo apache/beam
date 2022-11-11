@@ -24,6 +24,7 @@ These tests are similar to fuzzing, except they test invariant properties
 of code.
 """
 
+import keyword
 import math
 import typing
 import unittest
@@ -109,7 +110,6 @@ class ProperyTestingCoders(unittest.TestCase):
     coder = FloatCoder()
     test_num = coder.decode(coder.encode(num))
     if math.isnan(num):
-      # This special branch is needed because by definition
       # nan != nan.
       self.assertTrue(math.isnan(test_num))
     else:
@@ -129,6 +129,7 @@ class ProperyTestingCoders(unittest.TestCase):
     # If this condition does not hold, then we must not continue the
     # test.
     assume(len({name for name, _, _ in schema}) == len(schema))
+    assume(all(not keyword.iskeyword(name) for name, _, _ in schema))
     assume(
         len({n[0]
              for n, _, _ in schema}.intersection(set(digits + '_'))) == 0)
