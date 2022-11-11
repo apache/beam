@@ -16,9 +16,9 @@
 # under the License.
 
 resource "google_cloudbuild_trigger" "playground_infrastructure" {
-  name        = var.trigger_id
+  name        = var.infra_trigger_id
   location    = var.region
-  description = "Builds the base image and then runs Deploy Playground infrastructure step"
+  description = "Builds the base image and then runs cloud build config file to deploy Playground infrastructure"
   github {
     owner = var.github_repository_owner
     name  = var.github_repository_name
@@ -29,14 +29,15 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
   // Disabled because we only want to run it manually
   disabled = true
 
+  service_account = var.cloudbuild_service_account_id
   filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
 
   }
 
 resource "google_cloudbuild_trigger" "playground_to_gke" {
-  name        = var.trigger_id
+  name        = var.gke_trigger_id
   location    = var.region
-  description = "Builds the base image and then runs Deploy Playground to Kubernetes step"
+  description = "Builds the base image and then runs cloud build config file to deploy Playground to GKE"
   github {
     owner = var.github_repository_owner
     name  = var.github_repository_name
@@ -47,6 +48,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
   // Disabled because we only want to run it manually
   disabled = true
 
+  service_account = var.cloudbuild_service_account_id
   filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
 
 }

@@ -18,7 +18,7 @@
 resource "google_service_account" "cloudbuild_service_account_id" {
   account_id = var.cloudbuild_service_account_id
   display_name = var.cloudbuild_service_account_id
-  description = "The service account responsible for infrastructure spin up"
+  description = "The service account cloud build will use to deploy Playground"
 }
 
 // Provision IAM roles to the IaC service account required to build and provision resources

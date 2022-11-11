@@ -17,7 +17,7 @@
 
 terraform {
   backend "gcs" {
-    prefix = "build"
+    prefix = "02.builders"
   }
   required_providers {
     google = {

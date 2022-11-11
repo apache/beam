@@ -90,13 +90,6 @@ After completing these steps, GCP project will have 2 Cloud Build triggers that 
 
 **To fully deploy Playground you will have to run 2 triggers.**
 
-Before executing First trigger that deploys Playground infrastructure you have to:
-
-- Execute steps described in [Prepare deployment configuration.](https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#prepare-deployment-configuration)
-
-
-
-
-Note: To run the trigger, execute the trigger manually. Navigate to https://console.cloud.google.com/cloud-build/triggers and click `RUN` button.
+More details provided in Terraform script outputs
 
 See [Running manual triggers](https://cloud.google.com/build/docs/manually-build-code-source-repos?hl=en#running_manual_triggers) for more information.

@@ -15,15 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-output "next_step_custom_message_hack" {
+output "using_triggers" {
   value = <<EOF
 
-Trigger #1:
+To begin deploying Playground using triggers you must first execute steps described in "Prepare deployment configuration":
+https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#prepare-deployment-configuration
 
-There are two triggers that run Playground infrastructure deployment first, then to GKE.
+-Trigger #1:
+
+There are two triggers that run Playground infrastructure deployment first, then deployment to GKE.
 To run FIRST trigger,
 navigate to https://console.cloud.google.com/cloud-build/triggers?project=${var.project}
-and click `RUN` for ${google_cloudbuild_trigger.playground_infrastructure.name} to deploy Playground infrastructure
+and click `RUN` for ${google_cloudbuild_trigger.playground_infrastructure.name}.
 
 After trigger is succesfully triggered and Playground Infrastructure deployed:
 
@@ -31,28 +34,16 @@ Please navigate to https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gk
 and execute step #2:
 "Add following DNS A records for the discovered static IP address".
 
-
-(Note: To run the trigger you have to run it manually. See more in README file)
-
-EOF
-}
-
-output "next_step_custom_message_hack_2" {
-  value = <<EOF
-
-Trigger #2:
+-Trigger #2:
 
 Once Playground infrastructure deployed, you could now deploy Playground to GKE.
 To run SECOND trigger,
 navigate to https://console.cloud.google.com/cloud-build/triggers?project=${var.project}
-and click `RUN` for ${google_cloudbuild_trigger.playground_to_gke.name} to deploy Playground to GKE.
+and click `RUN` for ${google_cloudbuild_trigger.playground_to_gke.name}.
 
-After trigger is succesfully triggered and Playground Infrastructure deployed:
+Once Playground deployed to GKE:
 
-Please navigate to https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#validate-deployed-playground
-to validate deployment (see "Validate deployed Playground").
-
-(Note: To run the trigger you have to run it manually. See more in README file)
+Please navigate to https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#validate-deployed-playground to validate deployment.
 
 EOF
 }

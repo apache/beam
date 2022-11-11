@@ -46,8 +46,20 @@ variable "image_tag" {
   description = "The tag to apply to image builds"
 }
 
-variable "trigger_id" {
+variable "infra_trigger_id" {
   type = string
   description = "The name of the trigger that will deploy Playground infrastructure"
   default = "Playground-infrastructure-trigger"
+}
+
+variable "gke_trigger_id" {
+  type = string
+  description = "The name of the trigger that will deploy Playground to GKE"
+  default = "Playground-to-gke-trigger"
+}
+
+variable "cloudbuild_service_account_id" {
+  type = string
+  description = "The ID of the cloud build service account responsible for provisioning Google Cloud resources"
+  default = "terraform-cloudbuild"
 }

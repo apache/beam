@@ -18,13 +18,13 @@
 // Provision the required Google Cloud services
 resource "google_project_service" "required_services" {
   for_each = toset([
-    "artifactregistry",
+    "cloudresourcemanager",
     "cloudbuild",
-    "compute",
     "appengine",
+    "artifactregistry",
+    "compute",
     "redis",
     "iam",
-    "cloudresourcemanager",
   ])
 
   service            = "${each.key}.googleapis.com"

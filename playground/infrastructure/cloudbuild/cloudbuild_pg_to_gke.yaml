@@ -16,16 +16,18 @@
 # under the License.
 
 steps:
-  # This step builds the base image for Beam Playground worker
+  # This step builds the image from Dockerfile that will be used as Docker machine for Beam Playground deployment
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
-      - '--tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
+      - '--tag=$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
       - '-f'
       - 'playground/infrastructure/cloudbuild/Dockerfile-base-image-worker'
       - '.'
 
-  - name: '$_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
+  # This step uses Docker container from our image to authenticate us in GKE
+  # Please set variable $_GKE_NAME in "substitutions" stage below
+  - name: '$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
     entrypoint: "gcloud"
     args:
       [
@@ -33,17 +35,15 @@ steps:
         'clusters',
         'get-credentials',
         '$_GKE_NAME',
-        '--region=$_REGION'
+        '--region=$LOCATION'
       ]
 
-  # This step uses worker container to run gradle task for Playground to GKE deployment. Change variables in UPPERCASE
-  - name: '$_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
+  # This step uses Docker container from image in previous step to run gradle task for Playground to GKE deployment
+  - name: '$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
     entrypoint: "/bin/bash"
     args: [ '-c', './gradlew playground:terraform:gkebackend -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Pdns-name="$_DNS_NAME"' ]
 
 substitutions:
-  # The GCP region in which to provision resources (e.g. us-central1)
-  _REGION: "SET_YOUR_REGION"
   # The name of the Google Cloud Artifact Registry
   _ARTIFACT_REGISTRY_REPOSITORY_ID: "SET_YOUR_ARTIFACT_REPOSITORY_NAME"
   # The name of your environment in beam/playground/terraform/environment/
@@ -56,6 +56,6 @@ substitutions:
   _GKE_NAME: "SET_YOUR_GKE_NAME"
 
 images:
-  - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
+  - '$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
 
 timeout: 3600s

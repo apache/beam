@@ -17,7 +17,7 @@
 
 terraform {
   backend "gcs" {
-    prefix = "setup"
+    prefix = "01.setup"
   }
   required_providers {
     google = {
