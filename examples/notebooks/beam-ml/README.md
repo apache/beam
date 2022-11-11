@@ -18,27 +18,27 @@
 -->
 # ML Sample Notebooks
 
-As of Beam 2.40 users now have access to a
+Starting with the Apache Beam SDK version 2.40, users have access to a
 [RunInference](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference)
 transform.
 
-This allows inferences or predictions of on data for
-popular ML frameworks like TensorFlow, PyTorch and
+This transform allows you to make inferences or predictions on data for
+popular machine learning frameworks like TensorFlow, PyTorch, and
 scikit-learn.
 
 ## Using The Notebooks
 
-These notebooks illustrate usages of Beam's RunInference, as well as different
-usages of implementations of [ModelHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler).
-Beam comes with various implementations of ModelHandler.
+These notebooks illustrate ways to use Apache Beam's RunInference transforms=, as well as different
+use cases for [ModelHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler) implementations.
+Beam comes with multiple ModelHandler implementations.
 
 ### Loading the Notebooks
 
-1. A quick way to get started is with [Colab](https://colab.sandbox.google.com/).
-2. Load the notebook from github, for example:
+1. To get started quickly with notebooks, use [Colab](https://colab.sandbox.google.com/).
+2. In Colab, load the notebook from GitHub, for example:
 ```
-https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb.
+https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb
 ```
 
-3. To run most notebooks, you will need to change the GCP project and bucket
+3. To run most notebooks, you need to change the Google Cloud project and bucket
 to your project and bucket.
