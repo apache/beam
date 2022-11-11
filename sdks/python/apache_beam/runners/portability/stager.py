@@ -915,7 +915,12 @@ class Stager(object):
           '--platform',
           platform_tag
       ])
-      # Example wheel: apache_beam-2.4.0-cp27-cp27mu-manylinux1_x86_64.whl
+      # Example wheel: apache_beam-2.42.0-cp39-cp39-manylinux1_x86_64.whl
+      # Example wheel: with manylinux14 tag.
+      # apache_beam-2.43.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_
+      # x86_64.whl
+      if platform_tag == 'manylinux2014_x86_64':
+        platform_tag = 'manylinux_2_17_x86_64.' + platform_tag
       expected_files = [
           os.path.join(
               temp_dir,
@@ -925,8 +930,9 @@ class Stager(object):
                   language_implementation_tag,
                   language_version_tag,
                   abi_tag,
-                  platform_tag))
+                  platform_tag)),
       ]
+
     else:
       _LOGGER.info('Downloading source distribution of the SDK from PyPi')
       cmd_args.extend(['--no-binary', ':all:'])
@@ -942,6 +948,7 @@ class Stager(object):
       raise RuntimeError(repr(e))
 
     for sdk_file in expected_files:
+      logging.info('Looking for %s' % sdk_file)
       if os.path.exists(sdk_file):
         return sdk_file
 
