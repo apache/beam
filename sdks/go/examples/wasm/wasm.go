@@ -29,11 +29,11 @@ import (
 	"fmt"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
-	"log"
 )
 
 const (
@@ -70,19 +70,19 @@ func main() {
 	beam.Init()
 	ctx := context.Background()
 	if err := preRun(); err != nil {
-		panic(err)
+		log.Fatal(ctx, err)
 	}
 	if err := run(ctx); err != nil {
-		panic(err)
+		log.Fatal(ctx, err)
 	}
 }
 
 func run(ctx context.Context) error {
 	p, s := beam.NewPipelineWithRoot()
 
-	in := beam.Create(s, "a", "b", "c", "d", "e", "f", "g", "h")
+	in := beam.Create(s, "Ada", "Lovelace", "World", "Beam", "Senior López")
 
-	out := beam.ParDo(s.Scope("embeddedWasm"), &embeddedWasmFn{}, in)
+	out := beam.ParDo(s, &embeddedWasmFn{}, in)
 
 	textio.Write(s, *output, out)
 
@@ -105,17 +105,28 @@ type embeddedWasmFn struct {
 // This example is derived from
 // https://github.com/tetratelabs/wazero/blob/v1.0.0-pre.3/examples/allocation/rust/greet.go
 func (fn *embeddedWasmFn) Setup(ctx context.Context) error {
+	// Create a new WebAssembly Runtime.
+	// Typically, a defer r.Close() would be called subsequently after.  Yet, we need to keep this in memory
+	// throughout the DoFn lifecycle after which we invoke r.Close(); see Teardown below.
 	fn.r = wazero.NewRuntime(ctx)
+
+	// Instantiate a Go-defined module named "env" that exports a function to
+	// log to the console.
 	_, err := fn.r.NewHostModuleBuilder("env").
 		NewFunctionBuilder().WithFunc(logString).Export("log").
 		Instantiate(ctx, fn.r)
 	if err != nil {
 		return fmt.Errorf("failed to instantiate host module: %w", err)
 	}
+
+	// Instantiate a WebAssembly module that imports the "log" function defined
+	// in "env" and exports "memory" and functions we'll use in this example.
 	fn.mod, err = fn.r.InstantiateModuleFromBinary(ctx, greetWasm)
 	if err != nil {
 		return fmt.Errorf("failed to instantiate wasm module: %v", err)
 	}
+
+	// Get references to WebAssembly functions we'll use in this example.
 	fn.greeting = fn.mod.ExportedFunction(wasmFunctionName)
 	fn.allocate = fn.mod.ExportedFunction(wasmAllocateFunctionName)
 	fn.deallocate = fn.mod.ExportedFunction(wasmDeallocateFunctionName)
@@ -126,34 +137,65 @@ func (fn *embeddedWasmFn) Setup(ctx context.Context) error {
 // This example is derived from
 // https://github.com/tetratelabs/wazero/blob/v1.0.0-pre.3/examples/allocation/rust/greet.go
 func (fn *embeddedWasmFn) ProcessElement(ctx context.Context, s string) (string, error) {
+
+	// We need to compute the size of s to use Rust's memory allocator.
 	size := uint64(len(s))
+
+	// Instead of an arbitrary memory offset, use Rust's allocator. Notice
+	// there is nothing string-specific in this allocation function. The same
+	// function could be used to pass binary serialized data to Wasm.
 	results, err := fn.allocate.Call(ctx, size)
 	if err != nil {
 		return "", fmt.Errorf("error calling allocate: %w", err)
 	}
 	ptr := results[0]
+
+	// This pointer was allocated by Rust, but owned by Go, So, we have to
+	// deallocate it when finished; defer means that this statement will be called when the function exits
 	defer fn.deallocate.Call(ctx, ptr, size)
+
+	// The pointer is a linear memory offset, which is where we write the value of the DoFn's input element s.
 	if !fn.mod.Memory().Write(ctx, uint32(ptr), []byte(s)) {
 		return "", fmt.Errorf("Memory.Write(%d, %d) out of range of memory size %d",
 			ptr, size, fn.mod.Memory().Size(ctx))
 	}
 
+	// Finally, we get the greeting message "Hello" concatenated to the DoFn's input element s.
+	// This shows how to read-back something allocated by Rust.
 	ptrSize, err := fn.greeting.Call(ctx, ptr, size)
 	resultPtr := uint32(ptrSize[0] >> 32)
 	resultSize := uint32(ptrSize[0])
+
+	// This pointer was allocated by Rust, but owned by Go, So, we have to
+	// deallocate it when finished; again defer flags Go to execute this statement when the function exits
 	defer fn.deallocate.Call(ctx, uint64(resultPtr), uint64(resultSize))
+
+	// The pointer is a linear memory offset, which is where we wrote the results of the string concatenation.
 	bytes, ok := fn.mod.Memory().Read(ctx, resultPtr, resultSize)
 	if !ok {
 		return "", fmt.Errorf("Memory.Read(%d, %d) out of range of memory size %d",
 			resultPtr, resultSize, fn.mod.Memory().Size(ctx))
 	}
+
+	// bytes contains our final result that we emit into the output PCollection
 	return string(bytes), nil
 }
 
+// Teardown the wazero.Runtime during the DoFn teardown lifecycle
+func (fn *embeddedWasmFn) Teardown(ctx context.Context) error {
+	// Typically we would proceed wazero.Runtime's Close method with Go's defer keyword, just after instantiation.
+	// However, we need to keep the property in memory until the end of the DoFn lifecycle
+	if err := fn.r.Close(ctx); err != nil {
+		return fmt.Errorf("failed to close runtime: %w", err)
+	}
+	return nil
+}
+
+// logString is an exported function to the wasm module that logs to console output.
 func logString(ctx context.Context, m api.Module, offset, byteCount uint32) {
 	buf, ok := m.Memory().Read(ctx, offset, byteCount)
 	if !ok {
-		log.Panicf("Memory.Read(%d, %d) out of range", offset, byteCount)
+		log.Fatalf(ctx, "Memory.Read(%d, %d) out of range", offset, byteCount)
 	}
-	fmt.Println(string(buf))
+	log.Info(ctx, string(buf))
 }

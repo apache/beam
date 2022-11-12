@@ -133,5 +133,5 @@ SUBNETWORK=regions/$REGION/subnetworks/<subnetwork>
 ```
 cd $BEAM_HOME/sdks
 go run ./go/examples/wasm --runner=dataflow --output=$OUTPUT --environment_config=apache/beam_go_sdk:latest \
-    --project=$PROJECT --region=$REGION --network=$NETWORK --subnetwork=$SUBNETWORK
+    --project=$PROJECT --region=$REGION --network=$NETWORK --subnetwork=$SUBNETWORK --staging_location=$STAGING
 ```
