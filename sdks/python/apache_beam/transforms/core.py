@@ -2723,6 +2723,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
   def expand(self, pcoll):
 
     from apache_beam.transforms.trigger import AccumulationMode
+    from apache_beam.transforms.window import _IdentityWindowFn
+
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
 
@@ -2779,19 +2781,17 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
 
     cold, hot = pcoll | ParDo(SplitHotCold()).with_outputs('hot', main='cold')
     cold.element_type = typehints.Any  # No multi-output type hints.
-    precombined_hot = hot
-    if pcoll.windowing.accumulation_mode == AccumulationMode.ACCUMULATING:
-      # Avoid double-counting that may happen with stacked accumulating mode.
-      precombined_hot |= 'WindowIntoDiscarding' >> WindowInto(
-          pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
-
     precombined_hot = (
-        precombined_hot
+        hot
+        # Avoid double counting that may happen with stacked accumulating mode.
+        | 'ForceDiscardingAccumulation' >> WindowInto(
+            _IdentityWindowFn(pcoll.windowing.windowfn.get_window_coder()),
+            trigger=pcoll.windowing.triggerfn,
+            accumulation_mode=AccumulationMode.DISCARDING,
+            timestamp_combiner=pcoll.windowing.timestamp_combiner,
+            allowed_lateness=pcoll.windowing.allowed_lateness)
         | CombinePerKey(PreCombineFn())
         | Map(StripNonce))
-    if pcoll.windowing.accumulation_mode == AccumulationMode.ACCUMULATING:
-      # Restore original windowing strategy.
-      precombined_hot |= 'WindowIntoOriginal' >> WindowInto(pcoll.windowing)
 
     return ((cold, precombined_hot)
             | Flatten()
