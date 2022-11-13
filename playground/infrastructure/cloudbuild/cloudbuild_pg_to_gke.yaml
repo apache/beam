@@ -1,0 +1,56 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+steps:
+  # This step uses Docker container from our image to authenticate us in GKE
+  # Please set variable $_GKE_NAME in "substitutions" stage below
+  - name: '$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
+    entrypoint: "gcloud"
+    args:
+      [
+        'container',
+        'clusters',
+        'get-credentials',
+        '$_GKE_NAME',
+        '--region=$LOCATION-a'
+      ]
+
+  # This step uses Docker container from image in previous step to run gradle task for Playground to GKE deployment
+  - name: '$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
+    entrypoint: "/bin/bash"
+    args: [ '-c', './gradlew playground:terraform:gkebackend -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Pdns-name="$_DNS_NAME"' ]
+
+substitutions:
+  # The name of the Google Cloud Artifact Registry
+  _ARTIFACT_REGISTRY_REPOSITORY_ID: "playground-repository"
+  # The name of your environment in beam/playground/terraform/environment/
+  _ENVIRONMENT_NAME: "test"
+  # The name of your DNS for Playground
+  _DNS_NAME: "dev-playground.online"
+  # Docker image tag name
+  _TAG: "ruslan"
+  # The name of your GKE cluster (from terraform.tfvars)
+  _GKE_NAME: "playground-backend"
+
+# Please change to your logs bucket
+logsBucket: 'gs://pg-cloudbuild-logging-bucket'
+
+# This option is for writing logs to GCS bucket
+options:
+  logging: GCS_ONLY
+
+timeout: 3600s
