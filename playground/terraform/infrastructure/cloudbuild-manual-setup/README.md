@@ -25,7 +25,7 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
 - Enabled [Cloud Build API](https://cloud.google.com/apis/docs/getting-started#enabling_apis)
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 - An existing Google Cloud Storage Bucket to save Terraform state - `state_bucket`
-- And 2nd existing GCP Bucket to save Cloud build logs 
+- An existing GCP Bucket to save Cloud build logs
 - DNS name for your Playground deployment instance
 - [Terraform](https://www.terraform.io/)
 - [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
@@ -43,7 +43,7 @@ The `cloudbuild-manual-setup/01.setup` provisions dependencies required to setup
 
 #### Execute the module
 
-```console
+```consolec
 # Create new configuration to authenticate to GCP Project
 gcloud init
 
