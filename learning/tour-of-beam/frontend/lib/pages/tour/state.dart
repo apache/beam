@@ -25,12 +25,14 @@ import '../../cache/unit_content.dart';
 import '../../config.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
+import '../../state.dart';
 import 'controllers/content_tree.dart';
 import 'path.dart';
 
 class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
+  final _appNotifier = GetIt.instance.get<AppNotifier>();
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
   UnitContentModel? _currentUnitContent;
 
@@ -44,6 +46,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         playgroundController = _createPlaygroundController(initialSdkId) {
     contentTreeController.addListener(_onChanged);
     _unitContentCache.addListener(_onChanged);
+    _appNotifier.addListener(_setSdk);
     _onChanged();
   }
 
@@ -53,10 +56,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         treeIds: contentTreeController.treeIds,
       );
 
-  Sdk get sdk => contentTreeController.sdk;
-  set sdk(Sdk sdk) {
-    playgroundController.setSdk(sdk);
-    contentTreeController.sdkId = sdk.id;
+  void _setSdk() {
+    playgroundController.setSdk(Sdk.parseOrCreate(_appNotifier.sdkId!));
+    contentTreeController.sdkId = _appNotifier.sdkId!;
   }
 
   void _onChanged() {

@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
+import 'package:app_state/app_state.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../components/builders/content_tree.dart';
@@ -28,6 +30,8 @@ import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
 import '../../models/module.dart';
+import '../../state.dart';
+import '../tour/page.dart';
 import 'state.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -38,7 +42,7 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TobScaffold(
-      sdkSelector: null,
+      showSdkSelector: false,
       child: SingleChildScrollView(
         child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
             ? _WideWelcome(notifier)
@@ -58,12 +62,12 @@ class _WideWelcome extends StatelessWidget {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: const [
           Expanded(
-            child: _SdkSelection(notifier),
+            child: _SdkSelection(),
           ),
           Expanded(
-            child: _TourSummary(notifier),
+            child: _TourSummary(),
           ),
         ],
       ),
@@ -79,23 +83,22 @@ class _NarrowWelcome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: [
-        _SdkSelection(notifier),
-        _TourSummary(notifier),
+      children: const [
+        _SdkSelection(),
+        _TourSummary(),
       ],
     );
   }
 }
 
 class _SdkSelection extends StatelessWidget {
-  final WelcomeNotifier notifier;
-
-  const _SdkSelection(this.notifier);
+  const _SdkSelection();
 
   static const double _minimalHeight = 900;
 
   @override
   Widget build(BuildContext context) {
+    final appNotifier = GetIt.instance.get<AppNotifier>();
     return Container(
       constraints: BoxConstraints(
         minHeight: MediaQuery.of(context).size.height -
@@ -128,12 +131,14 @@ class _SdkSelection extends StatelessWidget {
                     }
 
                     return AnimatedBuilder(
-                      animation: notifier,
+                      animation: appNotifier,
                       builder: (context, child) => _Buttons(
                         sdks: sdks,
-                        sdkId: notifier.sdkId,
-                        setSdkId: (v) => notifier.sdkId = v,
-                        onStartPressed: notifier.startTour,
+                        sdkId: appNotifier.sdkId,
+                        setSdkId: (v) => appNotifier.sdkId = v,
+                        onStartPressed: () {
+                          startTour(appNotifier.sdkId);
+                        },
                       ),
                     );
                   },
@@ -145,19 +150,25 @@ class _SdkSelection extends StatelessWidget {
       ),
     );
   }
+
+  void startTour(String? sdkId) {
+    if (sdkId == null) {
+      return;
+    }
+    GetIt.instance.get<PageStack>().push(TourPage(sdkId: sdkId));
+  }
 }
 
 class _TourSummary extends StatelessWidget {
-  final WelcomeNotifier notifier;
-
-  const _TourSummary(this.notifier);
+  const _TourSummary();
 
   @override
   Widget build(BuildContext context) {
+    final appNotifier = GetIt.instance.get<AppNotifier>();
     return AnimatedBuilder(
-      animation: notifier,
+      animation: appNotifier,
       builder: (context, child) {
-        final sdkId = notifier.sdkId;
+        final sdkId = appNotifier.sdkId;
         if (sdkId == null) {
           return Container();
         }

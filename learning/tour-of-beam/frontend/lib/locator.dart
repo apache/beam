@@ -26,6 +26,7 @@ import 'pages/welcome/page.dart';
 import 'repositories/client/cloud_functions_client.dart';
 import 'router/page_factory.dart';
 import 'router/route_information_parser.dart';
+import 'state.dart';
 
 Future<void> initializeServiceLocator() async {
   _initializeCaches();
@@ -35,6 +36,7 @@ Future<void> initializeServiceLocator() async {
 void _initializeCaches() {
   final client = CloudFunctionsTobClient();
 
+  GetIt.instance.registerSingleton(AppNotifier());
   GetIt.instance.registerSingleton(ContentTreeCache(client: client));
   GetIt.instance.registerSingleton(SdkCache(client: client));
   GetIt.instance.registerSingleton(UnitContentCache(client: client));
