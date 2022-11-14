@@ -30,12 +30,15 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.Create;
@@ -53,6 +56,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbcp2.DelegatingStatement;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -168,6 +172,11 @@ public class SingleStoreIO {
     return new AutoValue_SingleStoreIO_Read.Builder<T>().setOutputParallelization(true).build();
   }
 
+  /** Read Beam {@link Row}s from a SingleStoreDB datasource. */
+  public static ReadRows readRows() {
+    return new AutoValue_SingleStoreIO_ReadRows.Builder().setOutputParallelization(true).build();
+  }
+
   /**
    * Like {@link #read}, but executes multiple instances of the query on the same table for each
    * database partition.
@@ -179,12 +188,27 @@ public class SingleStoreIO {
   }
 
   /**
+   * Like {@link #readRows}, but executes multiple instances of the query on the same table for each
+   * database partition.
+   */
+  public static ReadWithPartitionsRows readWithPartitionsRows() {
+    return new AutoValue_SingleStoreIO_ReadWithPartitionsRows.Builder().build();
+  }
+
+  /**
    * Write data to a SingleStoreDB datasource.
    *
    * @param <T> Type of the data to be written.
    */
   public static <T> Write<T> write() {
     return new AutoValue_SingleStoreIO_Write.Builder<T>().build();
+  }
+
+  /** Write Beam {@link Row}s to a SingleStoreDB datasource. */
+  public static Write<Row> writeRows() {
+    return new AutoValue_SingleStoreIO_Write.Builder<Row>()
+        .setUserDataMapper(new SingleStoreDefaultUserDataMapper())
+        .build();
   }
 
   /**
@@ -303,7 +327,8 @@ public class SingleStoreIO {
       String database = SingleStoreUtil.getArgumentWithDefault(getDatabase(), "");
       String connectionProperties =
           SingleStoreUtil.getArgumentWithDefault(getConnectionProperties(), "");
-      connectionProperties += (connectionProperties.isEmpty() ? "" : ";") + "allowLocalInfile=TRUE";
+      connectionProperties +=
+          (connectionProperties.isEmpty() ? "" : ";") + "allowLocalInfile=TRUE";
       String username = getUsername();
       String password = getPassword();
 
@@ -343,6 +368,8 @@ public class SingleStoreIO {
 
     abstract @Nullable RowMapper<T> getRowMapper();
 
+    abstract @Nullable Coder<T> getCoder();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -359,6 +386,8 @@ public class SingleStoreIO {
       abstract Builder<T> setOutputParallelization(Boolean outputParallelization);
 
       abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
+
+      abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Read<T> build();
     }
@@ -397,6 +426,11 @@ public class SingleStoreIO {
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
+    public Read<T> withCoder(Coder<T> coder) {
+      checkNotNull(coder, "coder can not be null");
+      return toBuilder().setCoder(coder).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
@@ -408,6 +442,7 @@ public class SingleStoreIO {
 
       Coder<T> coder =
           SingleStoreUtil.inferCoder(
+              getCoder(),
               rowMapper,
               input.getPipeline().getCoderRegistry(),
               input.getPipeline().getSchemaRegistry(),
@@ -528,6 +563,130 @@ public class SingleStoreIO {
     }
   }
 
+  private static SingleStoreDefaultRowMapper getRowMapper(
+      DataSourceConfiguration dataSourceConfiguration, String query) {
+    try {
+      DataSource dataSource = dataSourceConfiguration.getDataSource();
+      Connection conn = dataSource.getConnection();
+      try {
+        PreparedStatement stmt =
+            conn.prepareStatement(String.format("SELECT * FROM (%s) LIMIT 0", query));
+        try {
+          ResultSetMetaData md = stmt.getMetaData();
+          return new SingleStoreDefaultRowMapper(md);
+        } finally {
+          stmt.close();
+        }
+      } finally {
+        conn.close();
+      }
+    } catch (SQLException e) {
+      throw new SingleStoreDefaultRowMapper.SingleStoreDefaultRowMapperCreationException(
+          "Failed to create default row mapper", e);
+    }
+  }
+
+  @AutoValue
+  public abstract static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
+    abstract @Nullable DataSourceConfiguration getDataSourceConfiguration();
+
+    abstract @Nullable String getQuery();
+
+    abstract @Nullable String getTable();
+
+    abstract @Nullable StatementPreparator getStatementPreparator();
+
+    abstract @Nullable Boolean getOutputParallelization();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setDataSourceConfiguration(DataSourceConfiguration dataSourceConfiguration);
+
+      abstract Builder setQuery(String query);
+
+      abstract Builder setTable(String table);
+
+      abstract Builder setStatementPreparator(StatementPreparator statementPreparator);
+
+      abstract Builder setOutputParallelization(Boolean outputParallelization);
+
+      abstract ReadRows build();
+    }
+
+    public ReadRows withDataSourceConfiguration(DataSourceConfiguration config) {
+      checkNotNull(config, "dataSourceConfiguration can not be null");
+      return toBuilder().setDataSourceConfiguration(config).build();
+    }
+
+    public ReadRows withQuery(String query) {
+      checkNotNull(query, "query can not be null");
+      return toBuilder().setQuery(query).build();
+    }
+
+    public ReadRows withTable(String table) {
+      checkNotNull(table, "table can not be null");
+      return toBuilder().setTable(table).build();
+    }
+
+    public ReadRows withStatementPreparator(StatementPreparator statementPreparator) {
+      checkNotNull(statementPreparator, "statementPreparator can not be null");
+      return toBuilder().setStatementPreparator(statementPreparator).build();
+    }
+
+    /**
+     * Whether to reshuffle the resulting PCollection so results are distributed to all workers. The
+     * default is to parallelize and should only be changed if this is known to be unnecessary.
+     */
+    public ReadRows withOutputParallelization(Boolean outputParallelization) {
+      checkNotNull(outputParallelization, "outputParallelization can not be null");
+      return toBuilder().setOutputParallelization(outputParallelization).build();
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
+      Preconditions.checkArgumentNotNull(
+          dataSourceConfiguration, "withDataSourceConfiguration() is required");
+      String actualQuery = SingleStoreUtil.getSelectQuery(getTable(), getQuery());
+
+      SingleStoreDefaultRowMapper rowMapper = getRowMapper(dataSourceConfiguration, actualQuery);
+
+      Read<Row> read =
+          SingleStoreIO.<Row>read()
+              .withDataSourceConfiguration(dataSourceConfiguration)
+              .withQuery(actualQuery)
+              .withRowMapper(rowMapper)
+              .withCoder(RowCoder.of(rowMapper.getSchema()));
+
+      if (getOutputParallelization() != null) {
+        read = read.withOutputParallelization(getOutputParallelization());
+      }
+
+      if (getStatementPreparator() != null) {
+        read = read.withStatementPreparator(getStatementPreparator());
+      }
+
+      PCollection<Row> output = input.apply(read);
+
+      return output.setRowSchema(rowMapper.getSchema());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      DataSourceConfiguration.populateDisplayData(getDataSourceConfiguration(), builder);
+      builder.addIfNotNull(DisplayData.item("query", getQuery()));
+      builder.addIfNotNull(DisplayData.item("table", getTable()));
+      builder.addIfNotNull(
+          DisplayData.item(
+              "statementPreparator", SingleStoreUtil.getClassNameOrNull(getStatementPreparator())));
+      builder.addIfNotNull(DisplayData.item("outputParallelization", getOutputParallelization()));
+    }
+  }
+
   /**
    * A {@link PTransform} for reading data from SingleStoreDB. It is used by {@link
    * SingleStoreIO#readWithPartitions()}. {@link ReadWithPartitions} is preferred over {@link Read}
@@ -547,6 +706,8 @@ public class SingleStoreIO {
 
     abstract Builder<T> toBuilder();
 
+    abstract @Nullable Coder<T> getCoder();
+
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setDataSourceConfiguration(
@@ -557,6 +718,8 @@ public class SingleStoreIO {
       abstract Builder<T> setTable(String table);
 
       abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
+
+      abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract ReadWithPartitions<T> build();
     }
@@ -581,6 +744,11 @@ public class SingleStoreIO {
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
+    public ReadWithPartitions<T> withCoder(Coder<T> coder) {
+      checkNotNull(coder, "coder can not be null");
+      return toBuilder().setCoder(coder).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
@@ -597,6 +765,7 @@ public class SingleStoreIO {
 
       Coder<T> coder =
           SingleStoreUtil.inferCoder(
+              getCoder(),
               rowMapper,
               input.getPipeline().getCoderRegistry(),
               input.getPipeline().getSchemaRegistry(),
@@ -712,6 +881,89 @@ public class SingleStoreIO {
       builder.addIfNotNull(DisplayData.item("table", getTable()));
       builder.addIfNotNull(
           DisplayData.item("rowMapper", SingleStoreUtil.getClassNameOrNull(getRowMapper())));
+    }
+  }
+
+  @AutoValue
+  public abstract static class ReadWithPartitionsRows extends PTransform<PBegin, PCollection<Row>> {
+    abstract @Nullable DataSourceConfiguration getDataSourceConfiguration();
+
+    abstract @Nullable String getQuery();
+
+    abstract @Nullable String getTable();
+
+    abstract @Nullable Integer getInitialNumReaders();
+
+    abstract ReadWithPartitionsRows.Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract ReadWithPartitionsRows.Builder setDataSourceConfiguration(
+          DataSourceConfiguration dataSourceConfiguration);
+
+      abstract Builder setQuery(String query);
+
+      abstract Builder setTable(String table);
+
+      abstract Builder setInitialNumReaders(Integer initialNumReaders);
+
+      abstract ReadWithPartitionsRows build();
+    }
+
+    public ReadWithPartitionsRows withDataSourceConfiguration(DataSourceConfiguration config) {
+      checkNotNull(config, "dataSourceConfiguration can not be null");
+      return toBuilder().setDataSourceConfiguration(config).build();
+    }
+
+    public ReadWithPartitionsRows withQuery(String query) {
+      checkNotNull(query, "query can not be null");
+      return toBuilder().setQuery(query).build();
+    }
+
+    public ReadWithPartitionsRows withTable(String table) {
+      checkNotNull(table, "table can not be null");
+      return toBuilder().setTable(table).build();
+    }
+
+    /** Pre-split initial restriction and start initialNumReaders reading at the very beginning. */
+    public ReadWithPartitionsRows withInitialNumReaders(Integer initialNumReaders) {
+      checkNotNull(initialNumReaders, "initialNumReaders can not be null");
+      return toBuilder().setInitialNumReaders(initialNumReaders).build();
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
+      Preconditions.checkArgumentNotNull(
+          dataSourceConfiguration, "withDataSourceConfiguration() is required");
+      String actualQuery = SingleStoreUtil.getSelectQuery(getTable(), getQuery());
+
+      SingleStoreDefaultRowMapper rowMapper = getRowMapper(dataSourceConfiguration, actualQuery);
+
+      ReadWithPartitions<Row> readWithPartitions =
+          SingleStoreIO.<Row>readWithPartitions()
+              .withDataSourceConfiguration(dataSourceConfiguration)
+              .withQuery(actualQuery)
+              .withRowMapper(rowMapper)
+              .withCoder(RowCoder.of(rowMapper.getSchema()));
+
+      if (getInitialNumReaders() != null) {
+        readWithPartitions = readWithPartitions.withInitialNumReaders(getInitialNumReaders());
+      }
+
+      PCollection<Row> output = input.apply(readWithPartitions);
+
+      return output.setRowSchema(rowMapper.getSchema());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      DataSourceConfiguration.populateDisplayData(getDataSourceConfiguration(), builder);
+      builder.addIfNotNull(DisplayData.item("query", getQuery()));
+      builder.addIfNotNull(DisplayData.item("table", getTable()));
+      builder.addIfNotNull(DisplayData.item("initialNumReaders", getInitialNumReaders()));
     }
   }
 

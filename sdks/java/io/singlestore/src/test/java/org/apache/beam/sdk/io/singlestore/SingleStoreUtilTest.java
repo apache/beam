@@ -80,13 +80,22 @@ public class SingleStoreUtilTest {
   }
 
   @Test
+  public void testInferCoderFromCoder() {
+    SchemaRegistry sr = SchemaRegistry.createDefault();
+    CoderRegistry cr = CoderRegistry.createDefault();
+    Coder<TestRow> c = SerializableCoder.of(TestRow.class);
+
+    assertEquals(c, SingleStoreUtil.inferCoder(c, new TestRowMapper(), cr, sr, LOG));
+  }
+
+  @Test
   public void testInferCoderFromSchemaRegistry() {
     SchemaRegistry sr = SchemaRegistry.createDefault();
     CoderRegistry cr = CoderRegistry.createDefault();
     Coder<TestRow> c = SerializableCoder.of(TestRow.class);
     cr.registerCoderForClass(TestRow.class, c);
 
-    assertEquals(c, SingleStoreUtil.inferCoder(new TestRowMapper(), cr, sr, LOG));
+    assertEquals(c, SingleStoreUtil.inferCoder(null, new TestRowMapper(), cr, sr, LOG));
   }
 
   @Test
@@ -96,7 +105,7 @@ public class SingleStoreUtilTest {
     sr.registerPOJO(TestRow.class);
     Coder<TestRow> c = sr.getSchemaCoder(TestRow.class);
 
-    assertEquals(c, SingleStoreUtil.inferCoder(new TestRowMapper(), cr, sr, LOG));
+    assertEquals(c, SingleStoreUtil.inferCoder(null, new TestRowMapper(), cr, sr, LOG));
   }
 
   @Test

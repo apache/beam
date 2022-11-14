@@ -38,10 +38,15 @@ final class SingleStoreUtil {
   }
 
   public static <OutputT> Coder<OutputT> inferCoder(
+      @Nullable Coder<OutputT> coder,
       SingleStoreIO.RowMapper<OutputT> rowMapper,
       CoderRegistry registry,
       SchemaRegistry schemaRegistry,
       Logger log) {
+    if (coder != null) {
+      return coder;
+    }
+
     TypeDescriptor<OutputT> outputType =
         TypeDescriptors.extractFromTypeParameters(
             rowMapper,
