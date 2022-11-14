@@ -130,7 +130,7 @@ def default_tensor_inference_fn(
 def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
   """
   Produces a TensorInferenceFn that uses a method of the model other that
-  the forward() method. 
+  the forward() method.
 
   Args:
     model_fn: A string name of the method to be used. This is accessed through
@@ -285,7 +285,7 @@ def default_keyed_tensor_inference_fn(
 def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
   """
   Produces a KeyedTensorInferenceFn that uses a method of the model other that
-  the forward() method. 
+  the forward() method.
 
   Args:
     model_fn: A string name of the method to be used. This is accessed through
