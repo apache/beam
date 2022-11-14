@@ -18,6 +18,8 @@
 #    Deletes stale and old BQ datasets that are left after tests.
 #
 
+set -euo pipefail
+
 PROJECT=apache-beam-testing
 BQ_DATASETS=`bq --format=json --project_id=$PROJECT ls --max_results=1500 | jq -r .[].id`
 

@@ -19,13 +19,13 @@
 import CommonJobProperties as commonJobProperties
 
 job("beam_CleanUpGCPResources") {
-  description("Clean up stale resources on Beam's GCP testing project")
+  description("Clean up stale resources on Beam's GCP testing project (BQ datasets, )")
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Sets that this is a cron job, run once randomly per day.
-  commonJobProperties.setCronJob(delegate, '0 */4 * * *')
+  commonJobProperties.setCronJob(delegate, 'H H * * *')
 
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
