@@ -48,7 +48,7 @@ public class ReadTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   public final transient Pipeline pipelineForErrorChecks = Pipeline.create();
 
-  private static DataSourceConfiguration dataSourceConfiguration;
+  private static SingleStoreIO.DataSourceConfiguration dataSourceConfiguration;
   private static PreparedStatement stmt;
   private static Connection conn;
 
@@ -64,7 +64,7 @@ public class ReadTest {
 
   private static final int EXPECTED_ROW_COUNT = 10;
 
-  private static class TestStatmentPreparator implements StatementPreparator {
+  private static class TestStatmentPreparator implements SingleStoreIO.StatementPreparator {
     @Override
     public void setParameters(PreparedStatement preparedStatement) throws Exception {
       preparedStatement.setInt(1, 10);
@@ -100,7 +100,8 @@ public class ReadTest {
     Mockito.when(dataSource.getConnection()).thenReturn(conn);
 
     dataSourceConfiguration =
-        Mockito.mock(DataSourceConfiguration.class, Mockito.withSettings().serializable());
+        Mockito.mock(
+            SingleStoreIO.DataSourceConfiguration.class, Mockito.withSettings().serializable());
     Mockito.when(dataSourceConfiguration.getDataSource()).thenReturn(dataSource);
   }
 

@@ -38,15 +38,16 @@ public class SingleStoreUtil {
   }
 
   public static <OutputT> Coder<OutputT> inferCoder(
-      RowMapper<OutputT> rowMapper,
+      SingleStoreIO.RowMapper<OutputT> rowMapper,
       CoderRegistry registry,
       SchemaRegistry schemaRegistry,
       Logger log) {
     TypeDescriptor<OutputT> outputType =
         TypeDescriptors.extractFromTypeParameters(
             rowMapper,
-            RowMapper.class,
-            new TypeDescriptors.TypeVariableExtractor<RowMapper<OutputT>, OutputT>() {});
+            SingleStoreIO.RowMapper.class,
+            new TypeDescriptors.TypeVariableExtractor<
+                SingleStoreIO.RowMapper<OutputT>, OutputT>() {});
     try {
       return schemaRegistry.getSchemaCoder(outputType);
     } catch (NoSuchSchemaException e) {

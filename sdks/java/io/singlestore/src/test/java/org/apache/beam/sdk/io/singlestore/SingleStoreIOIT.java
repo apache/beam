@@ -75,7 +75,7 @@ public class SingleStoreIOIT {
 
   private static Integer port;
 
-  private static DataSourceConfiguration dataSourceConfiguration;
+  private static SingleStoreIO.DataSourceConfiguration dataSourceConfiguration;
 
   private static InfluxDBSettings settings;
 
@@ -96,7 +96,7 @@ public class SingleStoreIOIT {
     port = options.getSingleStorePort();
     tableName = DatabaseTestHelper.getTestTableName("IT");
     dataSourceConfiguration =
-        DataSourceConfiguration.create(serverName + ":" + port)
+        SingleStoreIO.DataSourceConfiguration.create(serverName + ":" + port)
             .withDatabase(DATABASE_NAME)
             .withPassword(password)
             .withUsername(username);

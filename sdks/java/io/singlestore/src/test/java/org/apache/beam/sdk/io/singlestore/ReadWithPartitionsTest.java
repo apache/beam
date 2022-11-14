@@ -45,7 +45,7 @@ public class ReadWithPartitionsTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   public final transient Pipeline pipelineForErrorChecks = Pipeline.create();
 
-  private static DataSourceConfiguration dataSourceConfiguration;
+  private static SingleStoreIO.DataSourceConfiguration dataSourceConfiguration;
 
   private static final int EXPECTED_ROW_COUNT = 10;
 
@@ -106,7 +106,8 @@ public class ReadWithPartitionsTest {
     Mockito.when(dataSource.getConnection()).thenReturn(conn);
 
     dataSourceConfiguration =
-        Mockito.mock(DataSourceConfiguration.class, Mockito.withSettings().serializable());
+        Mockito.mock(
+            SingleStoreIO.DataSourceConfiguration.class, Mockito.withSettings().serializable());
     Mockito.when(dataSourceConfiguration.getDataSource()).thenReturn(dataSource);
     Mockito.when(dataSourceConfiguration.getDatabase()).thenReturn("db");
   }

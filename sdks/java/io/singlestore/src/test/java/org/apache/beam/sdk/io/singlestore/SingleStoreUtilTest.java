@@ -72,7 +72,7 @@ public class SingleStoreUtilTest {
         SingleStoreUtil.escapeString("a''sdasd' \\asd' \\ad'"));
   }
 
-  private static class TestRowMapper implements RowMapper<TestRow> {
+  private static class TestRowMapper implements SingleStoreIO.RowMapper<TestRow> {
     @Override
     public TestRow mapRow(ResultSet resultSet) throws Exception {
       return TestRow.create(resultSet.getInt(1), resultSet.getString(2));

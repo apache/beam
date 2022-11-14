@@ -59,7 +59,7 @@ public class WriteTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   public final transient Pipeline pipelineForErrorChecks = Pipeline.create();
 
-  private static DataSourceConfiguration dataSourceConfiguration;
+  private static SingleStoreIO.DataSourceConfiguration dataSourceConfiguration;
 
   private static final int EXPECTED_ROW_COUNT = 1000;
 

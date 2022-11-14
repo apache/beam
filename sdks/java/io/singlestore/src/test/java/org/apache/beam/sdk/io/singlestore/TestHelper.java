@@ -23,14 +23,14 @@ import java.util.List;
 import org.apache.beam.sdk.io.common.TestRow;
 
 public class TestHelper {
-  public static class TestRowMapper implements RowMapper<TestRow> {
+  public static class TestRowMapper implements SingleStoreIO.RowMapper<TestRow> {
     @Override
     public TestRow mapRow(ResultSet resultSet) throws Exception {
       return TestRow.create(resultSet.getInt(1), resultSet.getString(2));
     }
   }
 
-  public static class TestUserDataMapper implements UserDataMapper<TestRow> {
+  public static class TestUserDataMapper implements SingleStoreIO.UserDataMapper<TestRow> {
     @Override
     public List<String> mapRow(TestRow element) {
       List<String> res = new ArrayList<>();
@@ -40,7 +40,8 @@ public class TestHelper {
     }
   }
 
-  public abstract static class MockDataSourceConfiguration extends DataSourceConfiguration {
+  public abstract static class MockDataSourceConfiguration
+      extends SingleStoreIO.DataSourceConfiguration {
     @Override
     String getEndpoint() {
       return "localhost";

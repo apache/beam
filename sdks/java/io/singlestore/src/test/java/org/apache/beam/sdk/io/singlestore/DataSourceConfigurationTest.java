@@ -30,8 +30,8 @@ import org.junit.runners.JUnit4;
 public class DataSourceConfigurationTest {
   @Test
   public void testGetDataSource() throws SQLException {
-    DataSourceConfiguration configuration =
-        DataSourceConfiguration.create("localhost")
+    SingleStoreIO.DataSourceConfiguration configuration =
+        SingleStoreIO.DataSourceConfiguration.create("localhost")
             .withDatabase("db")
             .withConnectionProperties("a=b;c=d")
             .withPassword("password")
