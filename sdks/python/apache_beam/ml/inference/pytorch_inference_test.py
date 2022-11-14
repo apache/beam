@@ -39,6 +39,8 @@ try:
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.pytorch_inference import default_keyed_tensor_inference_fn
   from apache_beam.ml.inference.pytorch_inference import default_tensor_inference_fn
+  from apache_beam.ml.inference.pytorch_inference import make_keyed_tensor_model_fn
+  from apache_beam.ml.inference.pytorch_inference import make_tensor_model_fn
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 except ImportError:
@@ -355,6 +357,73 @@ class PytorchRunInferenceTest(unittest.TestCase):
         batch=KEYED_TORCH_EXAMPLES, model=model, inference_args=inference_args)
     for actual, expected in zip(predictions, KEYED_TORCH_PREDICTIONS):
       self.assertEqual(actual, expected)
+
+  def test_run_inference_helper(self):
+    examples = [
+        torch.from_numpy(np.array([1], dtype="float32")),
+        torch.from_numpy(np.array([5], dtype="float32")),
+        torch.from_numpy(np.array([-3], dtype="float32")),
+        torch.from_numpy(np.array([10.0], dtype="float32")),
+    ]
+    expected_predictions = [
+        PredictionResult(ex, pred) for ex,
+        pred in zip(
+            examples,
+            torch.Tensor([example * 2.0 + 0.5
+                          for example in examples]).reshape(-1, 1))
+    ]
+
+    gen_fn = make_tensor_model_fn('generate')
+
+    model = PytorchLinearRegression(input_dim=1, output_dim=1)
+    model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+    model.eval()
+
+    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+        torch.device('cpu'), inference_fn=gen_fn)
+    predictions = inference_runner.run_inference(examples, model)
+    for actual, expected in zip(predictions, expected_predictions):
+      self.assertEqual(actual, expected)
+
+  def test_run_inference_keyed_helper(self):
+    """
+    This tests for inputs that are passed as a dictionary from key to tensor
+    instead of a standard non-keyed tensor example.
+
+    Example:
+    Typical input format is
+    input = torch.tensor([1, 2, 3])
+
+    But Pytorch syntax allows inputs to have the form
+    input = {
+      'k1' : torch.tensor([1, 2, 3]),
+      'k2' : torch.tensor([4, 5, 6])
+    }
+    """
+    class PytorchLinearRegressionMultipleArgs(torch.nn.Module):
+      def __init__(self, input_dim, output_dim):
+        super().__init__()
+        self.linear = torch.nn.Linear(input_dim, output_dim)
+
+      def forward(self, k1, k2):
+        out = self.linear(k1) + self.linear(k2)
+        return out
+
+    model = PytorchLinearRegressionMultipleArgs(input_dim=1, output_dim=1)
+    model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+    model.eval()
+
+    gen_fn = make_keyed_tensor_model_fn('generate')
+
+    inference_runner = TestPytorchModelHandlerKeyedTensorForInferenceOnly(
+        torch.device('cpu'), inference_fn=gen_fn)
+    predictions = inference_runner.run_inference(KEYED_TORCH_EXAMPLES, model)
+    for actual, expected in zip(predictions, KEYED_TORCH_PREDICTIONS):
+      self.assertTrue(_compare_prediction_result(actual, expected))
 
   def test_num_bytes(self):
     inference_runner = TestPytorchModelHandlerForInferenceOnly(
