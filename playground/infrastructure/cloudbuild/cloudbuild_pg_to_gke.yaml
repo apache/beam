@@ -35,19 +35,19 @@ steps:
     args: [ '-c', './gradlew playground:terraform:gkebackend -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Pdns-name="$_DNS_NAME"' ]
 
 substitutions:
-  # The name of the Google Cloud Artifact Registry
-  _ARTIFACT_REGISTRY_REPOSITORY_ID: "playground-repository"
+  # The name of your Google Cloud Artifact Registry
+  _ARTIFACT_REGISTRY_REPOSITORY_ID: "CHANGE_ME"
   # The name of your environment in beam/playground/terraform/environment/
-  _ENVIRONMENT_NAME: "test"
+  _ENVIRONMENT_NAME: "CHANGE_ME"
   # The name of your DNS for Playground
-  _DNS_NAME: "dev-playground.online"
-  # Docker image tag name
-  _TAG: "ruslan"
+  _DNS_NAME: "CHANGE_ME"
+  # The name of your Docker tag
+  _TAG: "CHANGE_ME"
   # The name of your GKE cluster (from terraform.tfvars)
-  _GKE_NAME: "playground-backend"
+  _GKE_NAME: "CHANGE_ME"
 
-# Please change to your logs bucket
-logsBucket: 'gs://pg-cloudbuild-logging-bucket'
+# The name of your logs bucket
+logsBucket: 'gs://CHANGE_ME'
 
 # This option is for writing logs to GCS bucket
 options:

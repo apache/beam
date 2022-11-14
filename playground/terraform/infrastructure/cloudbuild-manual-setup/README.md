@@ -101,7 +101,8 @@ To begin deploying Playground using Cloud Build triggers you must first execute 
 ## Trigger 1 - Playground-infrastructure-trigger:
 
 To run FIRST trigger,
-navigate to Cloud Build page of your GCP project and click `RUN` for **Playground-infrastructure-trigger**.
+You have to change variables in SUBSTITUTIONS block in cloud build config file (playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml),
+then navigate to Cloud Build page of your GCP project and click `RUN` for **Playground-infrastructure-trigger**.
 
 Once Playground infrastructure has been deployed, please navigate to
 [Playground deployment README](https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#deploy-playground-infrastructure) and execute step #2:
@@ -112,6 +113,7 @@ Once Playground infrastructure has been deployed, please navigate to
 
 Once Playground infrastructure deployed, you could now deploy Playground to GKE.
 To run SECOND trigger,
-navigate to Cloud Build page of your GCP project and click `RUN` for **Playground-to-gke-trigger**.
+You have to change variables in SUBSTITUTIONS block in cloud build config file (playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml),
+then navigate to Cloud Build page of your GCP project and click `RUN` for **Playground-to-gke-trigger**.
 
 Once Playground has been deployed to GKE, please navigate to [Validation](https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#validate-deployed-playground) to perform Playground deployment steps.
