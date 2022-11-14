@@ -63,7 +63,7 @@ npm install
 ### Development workflows
 
 All of the development workflows (build, test, lint, clean, etc) are defined in
-`package.json`.
+`package.json` and can be run with `npm` commands (e.g. `npm run build`).
 
 ### Running a pipeline
 
