@@ -60,6 +60,8 @@ job(jobName) {
   k8s.loadBalancerIP("svc-sdb-cluster-ddl", singlestoreHostName)
 
   Map pipelineOptions = [
+    tempRoot                  : 'gs://temp-storage-for-perf-tests',
+    project                   : 'apache-beam-testing',
     runner                    : 'DataflowRunner',
     singleStoreServerName     : "\$${singlestoreHostName}",
     singleStoreUsername : "admin",
