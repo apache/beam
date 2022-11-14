@@ -76,7 +76,7 @@ job(jobName) {
       common.setGradleSwitches(delegate)
       switches("--info")
       switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
-      switches("-DintegrationTestRunner=direct")
+      switches("-DintegrationTestRunner=dataflow")
       tasks(":sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOIT")
     }
   }
