@@ -145,7 +145,7 @@ def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
     with torch.no_grad():
       batched_tensors = torch.stack(batch)
       batched_tensors = _convert_to_device(batched_tensors, device)
-      pred_fn = model.get_attr(model_fn)
+      pred_fn = getattr(model_fn, str)
       predictions = pred_fn(batched_tensors, **inference_args)
       return _convert_to_result(batch, predictions)
 
@@ -312,7 +312,7 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
         batched_tensors = torch.stack(key_to_tensor_list[key])
         batched_tensors = _convert_to_device(batched_tensors, device)
         key_to_batched_tensors[key] = batched_tensors
-        pred_fn = model.get_attr(model_fn)
+        pred_fn = getattr(model, model_fn)
         predictions = pred_fn(**key_to_batched_tensors, **inference_args)
     return _convert_to_result(batch, predictions)
 
