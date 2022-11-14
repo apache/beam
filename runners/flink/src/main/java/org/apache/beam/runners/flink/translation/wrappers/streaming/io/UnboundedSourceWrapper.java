@@ -434,8 +434,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     @SuppressWarnings("unchecked")
     CoderTypeInformation<KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>>
         typeInformation =
-            (CoderTypeInformation)
-                new CoderTypeInformation<>(checkpointCoder, serializedOptions.get());
+            (CoderTypeInformation) new CoderTypeInformation<>(checkpointCoder, serializedOptions);
     stateForCheckpoint =
         stateStore.getListState(
             new ListStateDescriptor<>(
