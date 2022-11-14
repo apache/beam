@@ -644,7 +644,7 @@ class DirectOptions(PipelineOptions):
         help='DirectRunner uses the embedded Python environment when '
         'the default Python docker environment is specified.')
     parser.add_argument(
-        '--test_splits',
+        '--direct_test_splits',
         default={},
         type=json.loads,
         help='Split test configuration of the json form '

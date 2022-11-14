@@ -18,26 +18,26 @@
 
 import CommonJobProperties as commonJobProperties
 
-job("beam_CleanUpPrebuiltSDKImages") {
-  description("Clean up stale dataflow prebuilt sdk container images")
+job("beam_CleanUpGCPResources") {
+  description("Clean up stale resources on Beam's GCP testing project (BQ datasets, )")
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Sets that this is a cron job, run once randomly per day.
-  commonJobProperties.setCronJob(delegate, '0 H * * *')
+  commonJobProperties.setCronJob(delegate, 'H H * * *')
 
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Clean Up Prebuilt SDK Images',
-      'Run Clean Prebuilt Images')
+      'Clean Up GCP Resources',
+      'Run Clean GCP Resources')
 
   // Gradle goals for this job.
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-test-tools:removeStaleSDKContainerImages')
+      tasks(':beam-test-tools:cleanupOtherStaleResources')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }
