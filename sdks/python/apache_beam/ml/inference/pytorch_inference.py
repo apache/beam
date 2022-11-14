@@ -145,7 +145,7 @@ def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
     with torch.no_grad():
       batched_tensors = torch.stack(batch)
       batched_tensors = _convert_to_device(batched_tensors, device)
-      pred_fn = getattr(model_fn, str)
+      pred_fn = getattr(model, model_fn)
       predictions = pred_fn(batched_tensors, **inference_args)
       return _convert_to_result(batch, predictions)
 
