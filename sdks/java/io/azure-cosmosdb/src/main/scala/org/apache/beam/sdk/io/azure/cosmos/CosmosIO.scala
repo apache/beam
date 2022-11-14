@@ -1,4 +1,4 @@
-package org.apache.beam.sdk.io.azure.cosmos;;
+package org.apache.beam.sdk.io.azure.cosmos
 
 object CosmosIO {
   def read(): CosmosRead = {
