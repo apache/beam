@@ -25,6 +25,7 @@ from apache_beam.coders.coder_impl import RowCoderImpl
 from apache_beam.coders.coders import BooleanCoder
 from apache_beam.coders.coders import BytesCoder
 from apache_beam.coders.coders import Coder
+from apache_beam.coders.coders import DecimalCoder
 from apache_beam.coders.coders import FastCoder
 from apache_beam.coders.coders import FloatCoder
 from apache_beam.coders.coders import IterableCoder
@@ -178,6 +179,8 @@ def _nonnull_coder_from_type(field_type):
       # millis Instant. It explicitly uses TimestampCoder which deals with fix
       # length 8-bytes big-endian-long instead of VarInt coder.
       return TimestampCoder()
+    elif field_type.logical_type.urn == 'beam:logical_type:decimal:v1':
+      return DecimalCoder()
 
     logical_type = LogicalType.from_runner_api(field_type.logical_type)
     return LogicalTypeCoder(

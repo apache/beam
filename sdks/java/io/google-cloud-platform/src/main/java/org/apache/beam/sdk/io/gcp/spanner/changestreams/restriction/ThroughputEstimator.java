@@ -28,13 +28,14 @@ import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.ImmutableP
 /** An estimator to provide an estimate on the throughput of the outputted elements. */
 public class ThroughputEstimator implements Serializable {
 
+  // The number of seconds to look in the past.
+  public static final int WINDOW_SIZE_SECONDS = 60;
+
   private static final long serialVersionUID = -3597929310338724800L;
   // The start time of each per-second window.
   private Timestamp startTimeOfCurrentWindow;
   // The bytes of the current window.
   private BigDecimal bytesInCurrentWindow;
-  // The number of seconds to look in the past.
-  private final int numOfSeconds = 60;
   // The total bytes of all windows in the queue.
   private BigDecimal bytesInQueue;
   // The queue holds a number of windows in the past in order to calculate
@@ -102,7 +103,7 @@ public class ThroughputEstimator implements Serializable {
   private void cleanQueue(Timestamp time) {
     while (queue.size() > 0) {
       ImmutablePair<Timestamp, BigDecimal> peek = queue.peek();
-      if (peek != null && peek.getLeft().getSeconds() >= time.getSeconds() - numOfSeconds) {
+      if (peek != null && peek.getLeft().getSeconds() >= time.getSeconds() - WINDOW_SIZE_SECONDS) {
         break;
       }
       // Remove the element if the timestamp of the first element is beyond

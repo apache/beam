@@ -34,6 +34,7 @@ import { Pipeline } from "../../internal/pipeline";
 import { PipelineResult, Runner } from "../runner";
 import { PipelineOptions } from "../../options/pipeline_options";
 import { JobState_Enum, JobStateEvent } from "../../proto/beam_job_api";
+import { MonitoringInfo } from "../../proto/metrics";
 
 import { ExternalWorkerPool } from "../../worker/external_worker_service";
 import * as environments from "../../internal/environments";
@@ -52,17 +53,19 @@ const TERMINAL_STATES = [
 
 type completionCallback = (terminalState: JobStateEvent) => Promise<unknown>;
 
-class PortableRunnerPipelineResult implements PipelineResult {
+class PortableRunnerPipelineResult extends PipelineResult {
   jobId: string;
   runner: PortableRunner;
   completionCallbacks: completionCallback[];
   terminalState?: JobStateEvent;
+  finalMetrics?: MonitoringInfo[];
 
   constructor(
     runner: PortableRunner,
     jobId: string,
     completionCallbacks: completionCallback[]
   ) {
+    super();
     this.runner = runner;
     this.jobId = jobId;
     this.completionCallbacks = completionCallbacks;
@@ -79,6 +82,7 @@ class PortableRunnerPipelineResult implements PipelineResult {
     const state = await this.runner.getJobState(this.jobId);
     if (PortableRunnerPipelineResult.isTerminal(state.state)) {
       this.terminalState = state;
+      this.finalMetrics = await this.rawMetrics();
       for (const callback of this.completionCallbacks) {
         await callback(state);
       }
@@ -117,6 +121,15 @@ class PortableRunnerPipelineResult implements PipelineResult {
     }
     return state;
   }
+
+  async rawMetrics() {
+    if (this.finalMetrics !== undefined) {
+      return this.finalMetrics;
+    } else {
+      const metrics = await this.runner.getJobMetrics(this.jobId);
+      return metrics.metrics!.committed!;
+    }
+  }
 }
 
 export class PortableRunner extends Runner {
@@ -148,6 +161,11 @@ export class PortableRunner extends Runner {
       );
     }
     return this.client;
+  }
+
+  async getJobMetrics(jobId: string) {
+    const call = (await this.getClient()).getJobMetrics({ jobId });
+    return await call.response;
   }
 
   async getJobState(jobId: string) {

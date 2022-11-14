@@ -69,6 +69,17 @@ public abstract class TransformTranslator<
     translate(transform, new Context(appliedTransform, cxt));
   }
 
+  /**
+   * Checks if a composite / primitive transform can be translated. Composites that cannot be
+   * translated as is, will be exploded further for translation of their parts.
+   *
+   * <p>This should be overridden where necessary. If a transform is know to be unsupported, this
+   * should throw a runtime exception to give early feedback before any part of the pipeline is run.
+   */
+  public boolean canTranslate(TransformT transform) {
+    return true;
+  }
+
   protected class Context {
     private final AppliedPTransform<InT, OutT, PTransform<InT, OutT>> transform;
     private final TranslationContext cxt;

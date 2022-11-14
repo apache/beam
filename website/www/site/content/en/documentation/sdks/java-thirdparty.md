@@ -17,7 +17,7 @@ limitations under the License.
 -->
 # Apache Beam 3rd Party Java Extensions
 
-These are some of the 3rd party Java libaries that may be useful for specific applications.
+These are some of the 3rd party Java libraries that may be useful for specific applications.
 
 ## Parsing HTTPD/NGINX access logs.
 

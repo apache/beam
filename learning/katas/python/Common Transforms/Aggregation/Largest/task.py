@@ -21,14 +21,15 @@
 #   context_line: 29
 #   categories:
 #     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - count
+#     - numbers
 
 import apache_beam as beam
-
-from log_elements import LogElements
 
 with beam.Pipeline() as p:
 
   (p | beam.Create(range(1, 11))
      | beam.combiners.Top.Largest(2)
-     | LogElements())
-
+     | beam.LogElements())

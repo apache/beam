@@ -190,7 +190,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
     return Column(
       children: [
         SearchField(controller: textController),
-        const TypeFilter(),
+        const ExamplesFilter(),
         ExampleList(
           controller: scrollController,
           selectedExample: playgroundController.selectedExample!,
