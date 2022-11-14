@@ -132,6 +132,12 @@ jobs:
              set -uex
              ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
 
+      - name: Build SDK runner base image
+        if: env.SDK == 'java'
+        run: |
+             set -uex
+             ./gradlew -i :sdks:java:container:java8:docker -Pdocker-tag="$DOCKERTAG"
+
       - name: Build SDK Backend Docker image
         run: |
              set -uex
