@@ -36,7 +36,8 @@ version 2.41.0 or later installed, and a Python environment. If you don’t
 already have these environments set up, first complete the
 <a href=/get-started/quickstart-java/>Apache Beam Java SDK Quickstart</a> and the
 <a href=/get-started/quickstart-py/>Apache Beam Python SDK Quickstart</a>.</p><p>For running with portable DirectRunner, you need to have Docker installed
-locally and the Docker daemon should be running. This is not needed for Dataflow.</p><p>This example relies on Python pandas package 1.4.0 or later which is unavailable
+locally and the Docker daemon should be running. This is not needed for Dataflow.</p><p>For running on Dataflow, you need a Google Cloud project with billing enabled and a
+<a href=https://cloud.google.com/storage/docs/creating-buckets>Google Cloud Storage bucket</a>.</p><p>This example relies on Python pandas package 1.4.0 or later which is unavailable
 for Python versions earlier than 3.8. Hence please make sure that the default Python
 version installed in your system is 3.8 or later.</p><h2 id=specify-a-cross-language-transform>Specify a cross-language transform</h2><p>The Java example pipeline uses the Python
 <a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/dataframe/transforms.py>DataframeTransform</a>
@@ -50,7 +51,7 @@ transforms are identified by their fully qualified name. For example,
 package, so its fully qualified name is
 <code>apache_beam.dataframe.transforms.DataframeTransform</code>.
 The example pipeline,
-<a href=https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/PythonDataframeWordCount.java>PythonDataframeWordCount</a>,
+<a href=https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/multilanguage/PythonDataframeWordCount.java>PythonDataframeWordCount</a>,
 passes this fully qualified name to
 <a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/python/PythonExternalTransform.html>PythonExternalTransform</a>.</p><blockquote><p><strong>Note:</strong> The example pipeline is intended to demonstrate the development of
 Java multi-language pipelines that use arbitrary Python cross-language
@@ -96,7 +97,8 @@ a function to <code>DataframeTransform</code>, see
 <a href=/documentation/dsls/dataframes/overview/#embedding-dataframes-in-a-pipeline>Embedding DataFrames in a pipeline</a>.</p><h2 id=run-the-java-pipeline>Run the Java pipeline</h2><p>If you want to customize the environment or use transforms not available in the
 default Beam SDK, you might need to run your own expansion service. In such
 cases, <a href=#advanced-start-an-expansion-service>start the expansion service</a>
-before running your pipeline.</p><h3 id=run-with-dataflow-runner-at-head-beam-2410-and-later>Run with Dataflow runner at HEAD (Beam 2.41.0 and later)</h3><blockquote><p><strong>Note:</strong> Due to <a href=https://github.com/apache/beam/issues/23717>issue#23717</a>,
+before running your pipeline.</p><p>Before running the pipeline, make sure to perform the
+<a href=https://beam.apache.org/get-started/quickstart-java/#run-a-pipeline>runner specific setup</a> for your selected Beam runner.</p><h3 id=run-with-dataflow-runner-at-head-beam-2410-and-later>Run with Dataflow runner at HEAD (Beam 2.41.0 and later)</h3><blockquote><p><strong>Note:</strong> Due to <a href=https://github.com/apache/beam/issues/23717>issue#23717</a>,
 Beam 2.42.0 requires manually starting up an expansion service (see
 <a href=https://beam.apache.org/documentation/sdks/java-multi-language-pipelines/#advanced-start-an-expansion-service>these instructions</a>)
 and using the additional pipeline option <code>--expansionService=localhost:&lt;PORT></code>
@@ -146,7 +148,7 @@ or use transforms not available in the default Beam SDK, you might need to run
 your own expansion service.</p><p>For example, to start the standard expansion service for a Python transform,
 <a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service.py>ExpansionServiceServicer</a>,
 follow these steps:</p><ol><li><p>Activate a new virtual environment following
-<a href=https://beam.apache.org/get-started/quickstart-py/#create-and-activate-a-virtual-environment>these instructions</a>.</p></li><li><p>Install Apache Beam with <code>gcp</code> and <code>dataframe</code> packages.</p></li></ol><pre><code>pip install apache-beam[gcp,dataframe]
+<a href=https://beam.apache.org/get-started/quickstart-py/#create-and-activate-a-virtual-environment>these instructions</a>.</p></li><li><p>Install Apache Beam with <code>gcp</code> and <code>dataframe</code> packages.</p></li></ol><pre><code>pip install 'apache-beam[gcp,dataframe]'
 </code></pre><ol start=4><li>Run the following command</li></ol><pre><code>python -m apache_beam.runners.portability.expansion_service_main -p &lt;PORT&gt; --fully_qualified_name_glob &quot;*&quot;
 </code></pre><p>The command runs
 <a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service_main.py>expansion_service_main.py</a>, which starts the standard expansion service. When you use
