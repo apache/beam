@@ -60,7 +60,7 @@ job(jobName) {
   k8s.loadBalancerIP("svc-sdb-cluster-ddl", singlestoreHostName)
 
   Map pipelineOptions = [
-    singleStoreServerName     : singlestoreHostName,
+    singleStoreServerName     : "\$${singlestoreHostName}",
     singleStoreUsername : "admin",
     singleStorePassword : "secretpass",
     singleStorePort: "3306",
