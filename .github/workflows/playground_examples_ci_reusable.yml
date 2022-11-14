@@ -133,11 +133,17 @@ jobs:
              ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
 
       - name: Build JAVA SDK runner base image
-        if: env.SDK == 'java' || env.SDK == 'go'
+        if: env.SDK == 'java'
         run: |
              set -uex
              #./gradlew -i :sdks:java:container:java8:docker -Pdocker-tag="$DOCKERTAG"
              echo "DOCKERTAG=2.42.0" >> $GITHUB_ENV
+
+      - name: Build Go SDK runner base image
+        if: env.SDK == 'go'
+        run: |
+             set -uex
+             ./gradlew -i :sdks:go:container:docker -Pdocker-tag="$DOCKERTAG"
 
       - name: Build SDK Backend Docker image
         run: |
