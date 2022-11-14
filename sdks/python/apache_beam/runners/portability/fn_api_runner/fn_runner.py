@@ -209,8 +209,9 @@ class FnApiRunner(runner.PipelineRunner):
     self._check_requirements(pipeline_proto)
     direct_options = options.view_as(pipeline_options.DirectOptions)
     test_splits = (
-        json.loads(direct_options.test_splits) if isinstance(
-            direct_options.test_splits, str) else direct_options.test_splits)
+        json.loads(direct_options.direct_test_splits) if isinstance(
+            direct_options.direct_test_splits, str) else
+        direct_options.direct_test_splits)
     self._split_managers = _split_managers_from_context + [
         (stage, create_test_split_manager(**data))
         for (stage, data) in test_splits.items()
