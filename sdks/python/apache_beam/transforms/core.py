@@ -2723,7 +2723,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
   def expand(self, pcoll):
 
     from apache_beam.transforms.trigger import AccumulationMode
-    from apache_beam.transforms.window import _IdentityWindowFn
+    from apache_beam.transforms.util import _IdentityWindowFn
 
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
