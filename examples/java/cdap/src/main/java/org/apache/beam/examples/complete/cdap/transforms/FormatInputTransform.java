@@ -90,10 +90,12 @@ public class FormatInputTransform {
    * Configures Cdap Hubspot Streaming Read transform.
    *
    * @param pluginConfigParams Cdap Hubspot plugin config parameters
+   * @param pullFrequencySec Delay in seconds between polling for new records updates
+   * @param startOffset Inclusive start offset from which the reading should be started
    * @return configured Read transform
    */
   public static CdapIO.Read<NullWritable, String> readFromCdapHubspotStreaming(
-      Map<String, Object> pluginConfigParams, Long pullFrequencySec) {
+      Map<String, Object> pluginConfigParams, Long pullFrequencySec, Long startOffset) {
 
     final HubspotStreamingSourceConfig pluginConfig =
         new ConfigWrapper<>(HubspotStreamingSourceConfig.class)
@@ -113,6 +115,9 @@ public class FormatInputTransform {
             .withValueClass(String.class);
     if (pullFrequencySec != null) {
       read = read.withPullFrequencySec(pullFrequencySec);
+    }
+    if (startOffset != null) {
+      read = read.withStartOffset(startOffset);
     }
     return read;
   }

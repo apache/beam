@@ -42,6 +42,7 @@ public class SparkReceiverIOTest {
   public static final TestPipelineOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
   public static final long PULL_FREQUENCY_SEC = 1L;
+  public static final long START_OFFSET = 0L;
 
   static {
     OPTIONS.setBlockOnRun(false);
@@ -60,7 +61,8 @@ public class SparkReceiverIOTest {
         SparkReceiverIO.<String>read()
             .withGetOffsetFn(offsetFn)
             .withTimestampFn(timestampFn)
-            .withPullFrequencySec(1L)
+            .withPullFrequencySec(PULL_FREQUENCY_SEC)
+            .withStartOffset(START_OFFSET)
             .withSparkReceiverBuilder(receiverBuilder);
 
     assertEquals(offsetFn, read.getGetOffsetFn());
@@ -94,6 +96,12 @@ public class SparkReceiverIOTest {
   }
 
   @Test
+  public void testReadObjectCreationFailsIfStartOffsetIsNull() {
+    assertThrows(
+        IllegalArgumentException.class, () -> SparkReceiverIO.<String>read().withStartOffset(null));
+  }
+
+  @Test
   public void testReadValidationFailsMissingReceiverBuilder() {
     SparkReceiverIO.Read<String> read = SparkReceiverIO.read();
     assertThrows(IllegalStateException.class, read::validateTransform);
@@ -117,7 +125,8 @@ public class SparkReceiverIOTest {
         SparkReceiverIO.<String>read()
             .withGetOffsetFn(Long::valueOf)
             .withTimestampFn(Instant::parse)
-            .withPullFrequencySec(1L)
+            .withPullFrequencySec(PULL_FREQUENCY_SEC)
+            .withStartOffset(START_OFFSET)
             .withSparkReceiverBuilder(receiverBuilder);
 
     List<String> expected = new ArrayList<>();
@@ -139,7 +148,8 @@ public class SparkReceiverIOTest {
         SparkReceiverIO.<String>read()
             .withGetOffsetFn(Long::valueOf)
             .withTimestampFn(Instant::parse)
-            .withPullFrequencySec(1L)
+            .withPullFrequencySec(PULL_FREQUENCY_SEC)
+            .withStartOffset(START_OFFSET)
             .withSparkReceiverBuilder(receiverBuilder);
 
     List<String> expected = new ArrayList<>();
@@ -160,7 +170,8 @@ public class SparkReceiverIOTest {
         SparkReceiverIO.<String>read()
             .withGetOffsetFn(Long::valueOf)
             .withTimestampFn(Instant::parse)
-            .withPullFrequencySec(1L)
+            .withPullFrequencySec(PULL_FREQUENCY_SEC)
+            .withStartOffset(START_OFFSET)
             .withSparkReceiverBuilder(receiverBuilder);
 
     List<String> expected = new ArrayList<>();
@@ -181,7 +192,8 @@ public class SparkReceiverIOTest {
         SparkReceiverIO.<String>read()
             .withGetOffsetFn(Long::valueOf)
             .withTimestampFn(Instant::parse)
-            .withPullFrequencySec(1L)
+            .withPullFrequencySec(PULL_FREQUENCY_SEC)
+            .withStartOffset(START_OFFSET)
             .withSparkReceiverBuilder(receiverBuilder);
 
     List<String> expected = new ArrayList<>();
@@ -203,6 +215,7 @@ public class SparkReceiverIOTest {
             .withGetOffsetFn(Long::valueOf)
             .withTimestampFn(Instant::parse)
             .withPullFrequencySec(PULL_FREQUENCY_SEC)
+            .withStartOffset(START_OFFSET)
             .withSparkReceiverBuilder(receiverBuilder);
 
     List<String> expected = new ArrayList<>();

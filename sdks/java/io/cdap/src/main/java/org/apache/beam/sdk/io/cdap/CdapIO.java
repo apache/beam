@@ -149,7 +149,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * PluginConfig}, key and value classes.
  *
  * <p>Optionally you can pass {@code pullFrequencySec} which is a delay in seconds between polling
- * for new records updates.
+ * for new records updates, you can pass {@code startOffset} which is inclusive start offset from
+ * which the reading should be started.
  *
  * <p>{@link Plugin} is the Wrapper class for the Cdap Plugin. It contains main information about
  * the Plugin. The object of the {@link Plugin} class can be created with the {@link
@@ -182,7 +183,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *             .withPluginConfig(pluginConfig)
  *             .withKeyClass(String.class)
  *             .withValueClass(String.class)
- *             .withPullFrequencySec(1L);
+ *             .withPullFrequencySec(1L)
+ *             .withStartOffset(10L);
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
@@ -223,6 +225,8 @@ public class CdapIO {
 
     abstract @Nullable Long getPullFrequencySec();
 
+    abstract @Nullable Long getStartOffset();
+
     abstract Builder<K, V> toBuilder();
 
     @Experimental(Experimental.Kind.PORTABILITY)
@@ -238,6 +242,8 @@ public class CdapIO {
       abstract Builder<K, V> setValueClass(Class<V> valueClass);
 
       abstract Builder<K, V> setPullFrequencySec(Long pullFrequencySec);
+
+      abstract Builder<K, V> setStartOffset(Long startOffset);
 
       abstract Read<K, V> build();
     }
@@ -282,6 +288,15 @@ public class CdapIO {
       return toBuilder().setPullFrequencySec(pullFrequencySec).build();
     }
 
+    /**
+     * Inclusive start offset from which the reading should be started. Applicable only for
+     * streaming Cdap Plugins.
+     */
+    public Read<K, V> withStartOffset(Long startOffset) {
+      checkArgument(startOffset != null, "Start offset can not be null");
+      return toBuilder().setStartOffset(startOffset).build();
+    }
+
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
       Plugin<K, V> cdapPlugin = getCdapPlugin();
@@ -311,6 +326,10 @@ public class CdapIO {
         Long pullFrequencySec = getPullFrequencySec();
         if (pullFrequencySec != null) {
           reader = reader.withPullFrequencySec(pullFrequencySec);
+        }
+        Long startOffset = getStartOffset();
+        if (startOffset != null) {
+          reader = reader.withStartOffset(startOffset);
         }
         try {
           Coder<V> coder = input.getPipeline().getCoderRegistry().getCoder(valueClass);

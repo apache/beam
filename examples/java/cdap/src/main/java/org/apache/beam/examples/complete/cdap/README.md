@@ -77,6 +77,8 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.Cdap
 - `apikey` - Hubspot OAuth2 API Key
 - `objectType` - Hubspot objects to pull supported by CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md)
 - `outputTxtFilePathPrefix` - path to output folder with filename prefix. It will write a set of .txt files with names like {prefix}-###.
+- `pullFrequencySec` - delay in seconds between polling for new records updates. (Optional)
+- `startOffset` - inclusive start offset from which the reading should be started. (Optional)
 
 Please see CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md) for more information.
 
@@ -86,7 +88,9 @@ To execute this pipeline, specify the parameters in the following format:
  --apikey=your-api-key \
  --referenceName=your-reference-name \
  --objectType=Contacts \
- --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix
+ --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix \
+ --pullFrequencySec=100 \
+ --startOffset=1000
 ```
 
 ## Running the TxtToCdapHubspot pipeline example

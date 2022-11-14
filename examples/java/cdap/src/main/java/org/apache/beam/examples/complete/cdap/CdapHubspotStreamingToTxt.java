@@ -125,7 +125,7 @@ public class CdapHubspotStreamingToTxt {
         .apply(
             "readFromCdapHubspotStreaming",
             FormatInputTransform.readFromCdapHubspotStreaming(
-                paramsMap, options.getPullFrequencySec()))
+                paramsMap, options.getPullFrequencySec(), options.getStartOffset()))
         .setCoder(
             KvCoder.of(
                 NullableCoder.of(WritableCoder.of(NullWritable.class)), StringUtf8Coder.of()))

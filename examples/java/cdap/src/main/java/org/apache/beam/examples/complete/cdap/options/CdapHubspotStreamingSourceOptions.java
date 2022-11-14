@@ -30,4 +30,9 @@ public interface CdapHubspotStreamingSourceOptions extends CdapHubspotSourceOpti
   Long getPullFrequencySec();
 
   void setPullFrequencySec(Long pullFrequencySec);
+
+  @Description("Inclusive start offset from which the reading should be started.")
+  Long getStartOffset();
+
+  void setStartOffset(Long startOffset);
 }

@@ -144,6 +144,12 @@ public class CdapIOTest {
   }
 
   @Test
+  public void testReadObjectCreationFailsIfStartOffsetIsNull() {
+    assertThrows(
+        IllegalArgumentException.class, () -> CdapIO.<String, String>read().withStartOffset(null));
+  }
+
+  @Test
   public void testReadExpandingFailsMissingCdapPluginClass() {
     PBegin testPBegin = PBegin.in(TestPipeline.create());
     CdapIO.Read<String, String> read = CdapIO.read();
@@ -202,7 +208,8 @@ public class CdapIOTest {
             .withPluginConfig(pluginConfig)
             .withKeyClass(String.class)
             .withValueClass(String.class)
-            .withPullFrequencySec(1L);
+            .withPullFrequencySec(1L)
+            .withStartOffset(0L);
 
     List<String> storedRecords = EmployeeReceiver.getStoredRecords();
 
