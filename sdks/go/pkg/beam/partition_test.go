@@ -22,6 +22,10 @@ package beam_test
 //   context_line: 34
 //   categories:
 //     - Core Transforms
+//   complexity: MEDIUM
+//   tags:
+//     - partition
+//     - test
 
 import (
 	"testing"

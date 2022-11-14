@@ -21,10 +21,12 @@
 #   context_line: 29
 #   categories:
 #     - Flatten
+#   complexity: BASIC
+#   tags:
+#     - merge
+#     - strings
 
 import apache_beam as beam
-
-from log_elements import LogElements
 
 with beam.Pipeline() as p:
 
@@ -36,5 +38,4 @@ with beam.Pipeline() as p:
 
   ((wordsStartingWithA, wordsStartingWithB)
       | beam.Flatten()
-      | LogElements())
-
+      | beam.LogElements())

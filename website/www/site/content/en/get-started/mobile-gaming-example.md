@@ -363,7 +363,7 @@ The following code example shows the composite transform that handles abuse dete
 {{< code_sample "sdks/python/apache_beam/examples/complete/game/game_stats.py" abuse_detect >}}
 {{< /highlight >}}
 
-The abuse-detection transform generates a view of users supected to be spambots. Later in the pipeline, we use that view to filter out any such users when we calculate the team score per hour, again by using the side input mechanism. The following code example shows where we insert the spam filter, between windowing the scores into fixed windows and extracting the team scores:
+The abuse-detection transform generates a view of users suspected to be spambots. Later in the pipeline, we use that view to filter out any such users when we calculate the team score per hour, again by using the side input mechanism. The following code example shows where we insert the spam filter, between windowing the scores into fixed windows and extracting the team scores:
 
 {{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/complete/game/GameStats.java" DocInclude_FilterAndCalc >}}

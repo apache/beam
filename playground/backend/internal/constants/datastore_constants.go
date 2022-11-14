@@ -23,6 +23,7 @@ const (
 	CloudPathDelimiter    = "/"
 	UserSnippetOrigin     = "PG_USER"
 	ExampleOrigin         = "PG_EXAMPLES"
+	TbUserSnippetOrigin   = "TB_USER"
 
 	SnippetKind  = "pg_snippets"
 	SchemaKind   = "pg_schema_versions"

@@ -199,7 +199,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
         GO_SDK_CONTAINER
       ],
       initialParallelism,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.13_job_server:latest")
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   // Execute all scenarios connected with initial parallelism.
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO, initialScenarios, 'group_by_key', mode)

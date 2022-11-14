@@ -29,6 +29,10 @@ package org.apache.beam.examples;
 //     - Filtering
 //     - Options
 //     - Quickstart
+//   complexity: MEDIUM
+//   tags:
+//     - filter
+//     - strings
 
 import java.util.Arrays;
 import java.util.List;

@@ -194,6 +194,13 @@ public class CalciteUtils {
           typeName = BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type);
         }
         if (typeName == null) {
+          if (type.getLogicalType() != null) {
+            Schema.LogicalType<?, ?> logicalType = type.getLogicalType();
+            if (logicalType instanceof PassThroughLogicalType) {
+              // for pass through logical type, just return its base type
+              return toSqlTypeName(logicalType.getBaseType());
+            }
+          }
           throw new IllegalArgumentException(
               String.format("Cannot find a matching Calcite SqlTypeName for Beam type: %s", type));
         } else {

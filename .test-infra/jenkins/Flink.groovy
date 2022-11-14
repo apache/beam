@@ -17,7 +17,7 @@
  */
 
 class Flink {
-  private static final String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.12.3/flink-1.12.3-bin-scala_2.11.tgz'
+  private static final String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.15.0/flink-1.15.0-bin-scala_2.12.tgz'
   private static final String hadoopDownloadUrl = 'https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar'
   private static final String FLINK_DIR = '"$WORKSPACE/src/.test-infra/dataproc"'
   private static final String FLINK_SCRIPT = 'flink_cluster.sh'
@@ -75,7 +75,7 @@ class Flink {
   }
 
   /**
-   * Updates the number of worker nodes in a cluster.
+   * Updates the number of worker nodes in a cluster.
    *
    * @param workerCount - the new number of worker nodes in the cluster
    */

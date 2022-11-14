@@ -75,6 +75,19 @@ const PrecompiledObjectType$json = const {
 
 /// Descriptor for `PrecompiledObjectType`. Decode as a `google.protobuf.EnumDescriptorProto`.
 final $typed_data.Uint8List precompiledObjectTypeDescriptor = $convert.base64Decode('ChVQcmVjb21waWxlZE9iamVjdFR5cGUSJwojUFJFQ09NUElMRURfT0JKRUNUX1RZUEVfVU5TUEVDSUZJRUQQABIjCh9QUkVDT01QSUxFRF9PQkpFQ1RfVFlQRV9FWEFNUExFEAESIAocUFJFQ09NUElMRURfT0JKRUNUX1RZUEVfS0FUQRACEiUKIVBSRUNPTVBJTEVEX09CSkVDVF9UWVBFX1VOSVRfVEVTVBAD');
+@$core.Deprecated('Use complexityDescriptor instead')
+const Complexity$json = const {
+  '1': 'Complexity',
+  '2': const [
+    const {'1': 'COMPLEXITY_UNSPECIFIED', '2': 0},
+    const {'1': 'COMPLEXITY_BASIC', '2': 1},
+    const {'1': 'COMPLEXITY_MEDIUM', '2': 2},
+    const {'1': 'COMPLEXITY_ADVANCED', '2': 3},
+  ],
+};
+
+/// Descriptor for `Complexity`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List complexityDescriptor = $convert.base64Decode('CgpDb21wbGV4aXR5EhoKFkNPTVBMRVhJVFlfVU5TUEVDSUZJRUQQABIUChBDT01QTEVYSVRZX0JBU0lDEAESFQoRQ09NUExFWElUWV9NRURJVU0QAhIXChNDT01QTEVYSVRZX0FEVkFOQ0VEEAM=');
 @$core.Deprecated('Use runCodeRequestDescriptor instead')
 const RunCodeRequest$json = const {
   '1': 'RunCodeRequest',
@@ -287,11 +300,14 @@ const PrecompiledObject$json = const {
     const {'1': 'multifile', '3': 7, '4': 1, '5': 8, '10': 'multifile'},
     const {'1': 'context_line', '3': 8, '4': 1, '5': 5, '10': 'contextLine'},
     const {'1': 'default_example', '3': 9, '4': 1, '5': 8, '10': 'defaultExample'},
+    const {'1': 'sdk', '3': 10, '4': 1, '5': 14, '6': '.api.v1.Sdk', '10': 'sdk'},
+    const {'1': 'complexity', '3': 11, '4': 1, '5': 14, '6': '.api.v1.Complexity', '10': 'complexity'},
+    const {'1': 'tags', '3': 12, '4': 3, '5': 9, '10': 'tags'},
   ],
 };
 
 /// Descriptor for `PrecompiledObject`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSHAoJbXVsdGlmaWxlGAcgASgIUgltdWx0aWZpbGUSIQoMY29udGV4dF9saW5lGAggASgFUgtjb250ZXh0TGluZRInCg9kZWZhdWx0X2V4YW1wbGUYCSABKAhSDmRlZmF1bHRFeGFtcGxl');
+final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSHAoJbXVsdGlmaWxlGAcgASgIUgltdWx0aWZpbGUSIQoMY29udGV4dF9saW5lGAggASgFUgtjb250ZXh0TGluZRInCg9kZWZhdWx0X2V4YW1wbGUYCSABKAhSDmRlZmF1bHRFeGFtcGxlEh0KA3NkaxgKIAEoDjILLmFwaS52MS5TZGtSA3NkaxIyCgpjb21wbGV4aXR5GAsgASgOMhIuYXBpLnYxLkNvbXBsZXhpdHlSCmNvbXBsZXhpdHkSEgoEdGFncxgMIAMoCVIEdGFncw==');
 @$core.Deprecated('Use categoriesDescriptor instead')
 const Categories$json = const {
   '1': 'Categories',
@@ -473,11 +489,12 @@ const SaveSnippetRequest$json = const {
     const {'1': 'files', '3': 1, '4': 3, '5': 11, '6': '.api.v1.SnippetFile', '10': 'files'},
     const {'1': 'sdk', '3': 2, '4': 1, '5': 14, '6': '.api.v1.Sdk', '10': 'sdk'},
     const {'1': 'pipeline_options', '3': 3, '4': 1, '5': 9, '10': 'pipelineOptions'},
+    const {'1': 'complexity', '3': 4, '4': 1, '5': 14, '6': '.api.v1.Complexity', '10': 'complexity'},
   ],
 };
 
 /// Descriptor for `SaveSnippetRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List saveSnippetRequestDescriptor = $convert.base64Decode('ChJTYXZlU25pcHBldFJlcXVlc3QSKQoFZmlsZXMYASADKAsyEy5hcGkudjEuU25pcHBldEZpbGVSBWZpbGVzEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnM=');
+final $typed_data.Uint8List saveSnippetRequestDescriptor = $convert.base64Decode('ChJTYXZlU25pcHBldFJlcXVlc3QSKQoFZmlsZXMYASADKAsyEy5hcGkudjEuU25pcHBldEZpbGVSBWZpbGVzEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnMSMgoKY29tcGxleGl0eRgEIAEoDjISLmFwaS52MS5Db21wbGV4aXR5Ugpjb21wbGV4aXR5');
 @$core.Deprecated('Use saveSnippetResponseDescriptor instead')
 const SaveSnippetResponse$json = const {
   '1': 'SaveSnippetResponse',
@@ -505,8 +522,9 @@ const GetSnippetResponse$json = const {
     const {'1': 'files', '3': 1, '4': 3, '5': 11, '6': '.api.v1.SnippetFile', '10': 'files'},
     const {'1': 'sdk', '3': 2, '4': 1, '5': 14, '6': '.api.v1.Sdk', '10': 'sdk'},
     const {'1': 'pipeline_options', '3': 3, '4': 1, '5': 9, '10': 'pipelineOptions'},
+    const {'1': 'complexity', '3': 4, '4': 1, '5': 14, '6': '.api.v1.Complexity', '10': 'complexity'},
   ],
 };
 
 /// Descriptor for `GetSnippetResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getSnippetResponseDescriptor = $convert.base64Decode('ChJHZXRTbmlwcGV0UmVzcG9uc2USKQoFZmlsZXMYASADKAsyEy5hcGkudjEuU25pcHBldEZpbGVSBWZpbGVzEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnM=');
+final $typed_data.Uint8List getSnippetResponseDescriptor = $convert.base64Decode('ChJHZXRTbmlwcGV0UmVzcG9uc2USKQoFZmlsZXMYASADKAsyEy5hcGkudjEuU25pcHBldEZpbGVSBWZpbGVzEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnMSMgoKY29tcGxleGl0eRgEIAEoDjISLmFwaS52MS5Db21wbGV4aXR5Ugpjb21wbGV4aXR5');

@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore.it;
 
-import static org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.assumeEnvVarSet;
 import static org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.chunkUpDocIds;
-import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assume.assumeThat;
 
 import com.google.api.core.ApiFutures;
 import com.google.cloud.firestore.WriteBatch;
+import com.google.cloud.firestore.WriteResult;
 import com.google.firestore.v1.BatchGetDocumentsRequest;
 import com.google.firestore.v1.BatchGetDocumentsResponse;
 import com.google.firestore.v1.Document;
@@ -34,15 +32,16 @@ import com.google.firestore.v1.PartitionQueryRequest;
 import com.google.firestore.v1.RunQueryRequest;
 import com.google.firestore.v1.RunQueryResponse;
 import com.google.firestore.v1.Write;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreIO;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosOptions;
 import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.CleanupMode;
 import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.DataLayout;
@@ -58,13 +57,11 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
-import org.junit.AssumptionViolatedException;
+import org.joda.time.Instant;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-import org.junit.rules.Timeout;
 
 @SuppressWarnings({
   "initialization.fields.uninitialized",
@@ -74,62 +71,66 @@ abstract class BaseFirestoreIT {
 
   protected static final int NUM_ITEMS_TO_GENERATE =
       768; // more than one read page and one write page
-  private static final String ENV_GOOGLE_APPLICATION_CREDENTIALS = "GOOGLE_APPLICATION_CREDENTIALS";
-  private static final String ENV_FIRESTORE_EMULATOR_HOST = "FIRESTORE_EMULATOR_HOST";
-  private static final String ENV_GOOGLE_CLOUD_PROJECT = "GOOGLE_CLOUD_PROJECT";
 
   @Rule(order = 1)
   public final TestName testName = new TestName();
 
-  @Rule(
-      order =
-          2) // ensure our helper is "outer" to the timeout so we are allowed to cleanup even if a
-  // test times out
+  @Rule(order = 2)
   public final FirestoreTestingHelper helper = new FirestoreTestingHelper(CleanupMode.ALWAYS);
 
   @Rule(order = 3)
-  public final Timeout timeout = new Timeout(5, TimeUnit.MINUTES);
-
-  @Rule(order = 4)
   public final TestPipeline testPipeline = TestPipeline.create();
 
-  protected static String project;
-  protected static RpcQosOptions rpcQosOptions;
-  protected GcpOptions options;
+  @Rule(order = 4)
+  public final TestPipeline testPipeline2 = TestPipeline.create();
 
-  @BeforeClass
-  public static void beforeClass() {
-    try {
-      assumeEnvVarSet(ENV_GOOGLE_APPLICATION_CREDENTIALS);
-    } catch (AssumptionViolatedException e) {
-      try {
-        assumeEnvVarSet(ENV_FIRESTORE_EMULATOR_HOST);
-      } catch (AssumptionViolatedException exception) {
-        assumeThat(
-            String.format(
-                "Either %s or %s must be set",
-                ENV_GOOGLE_APPLICATION_CREDENTIALS, ENV_FIRESTORE_EMULATOR_HOST),
-            false,
-            equalTo(true));
-      }
-    }
-    project = assumeEnvVarSet(ENV_GOOGLE_CLOUD_PROJECT);
-    rpcQosOptions =
-        RpcQosOptions.defaultOptions()
-            .toBuilder()
-            .withMaxAttempts(1)
-            .withHintMaxNumWorkers(1)
-            .build();
-  }
+  protected static final RpcQosOptions RPC_QOS_OPTIONS =
+      RpcQosOptions.defaultOptions()
+          .toBuilder()
+          .withMaxAttempts(1)
+          .withHintMaxNumWorkers(1)
+          .build();
+
+  protected static String project;
+  protected GcpOptions options;
 
   @Before
   public void setup() {
     options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
-    String emulatorHostPort = System.getenv(ENV_FIRESTORE_EMULATOR_HOST);
-    if (emulatorHostPort != null) {
-      options.as(FirestoreOptions.class).setEmulatorHost(emulatorHostPort);
-    }
-    options.setProject(project);
+    project = options.getProject();
+  }
+
+  private static Instant toWriteTime(WriteResult result) {
+    return Instant.ofEpochMilli(
+        result.getUpdateTime().getSeconds() * 1000
+            + result.getUpdateTime().getNanos() / 1000000
+            // updateTime is microseconds precision, joda Instant is milliseconds precision. We want
+            // to return an Instant that's no less than updateTime.
+            + 1 * (result.getUpdateTime().getNanos() % 1000000 == 0 ? 0 : 1));
+  }
+
+  private static Instant toMaxWriteTime(List<WriteResult> results) {
+    return results.stream().map(BaseFirestoreIT::toWriteTime).max(Instant::compareTo).get();
+  }
+
+  private Instant writeBatches(List<String> collectionIds) throws Exception {
+    List<WriteResult> results =
+        ApiFutures.transform(
+                ApiFutures.allAsList(
+                    chunkUpDocIds(collectionIds)
+                        .map(
+                            chunk -> {
+                              WriteBatch batch = helper.getFs().batch();
+                              chunk.stream()
+                                  .map(col -> helper.getBaseDocument().collection(col).document())
+                                  .forEach(ref -> batch.set(ref, ImmutableMap.of("foo", "bar")));
+                              return batch.commit();
+                            })
+                        .collect(Collectors.toList())),
+                FirestoreTestingHelper.flattenListList(),
+                MoreExecutors.directExecutor())
+            .get(10, TimeUnit.SECONDS);
+    return toMaxWriteTime(results);
   }
 
   @Test
@@ -140,23 +141,19 @@ abstract class BaseFirestoreIT {
     // to keep the test quick
     List<String> collectionIds =
         IntStream.rangeClosed(1, 20).mapToObj(i -> helper.colId()).collect(Collectors.toList());
+    Instant readTime = writeBatches(collectionIds);
+    Thread.sleep(5);
 
-    ApiFutures.transform(
-            ApiFutures.allAsList(
-                chunkUpDocIds(collectionIds)
-                    .map(
-                        chunk -> {
-                          WriteBatch batch = helper.getFs().batch();
-                          chunk.stream()
-                              .map(col -> helper.getBaseDocument().collection(col).document())
-                              .forEach(ref -> batch.set(ref, ImmutableMap.of("foo", "bar")));
-                          return batch.commit();
-                        })
-                    .collect(Collectors.toList())),
-            FirestoreTestingHelper.flattenListList(),
-            MoreExecutors.directExecutor())
-        .get(10, TimeUnit.SECONDS);
+    List<String> moreCollectionIds =
+        IntStream.rangeClosed(21, 30).mapToObj(i -> helper.colId()).collect(Collectors.toList());
+    writeBatches(moreCollectionIds);
 
+    List<String> allCollectionIds =
+        Stream.of(collectionIds, moreCollectionIds)
+            .flatMap(Collection::stream)
+            .collect(Collectors.toList());
+
+    // Reading from 'current' should get all collection IDs written in both batches
     PCollection<String> actualCollectionIds =
         testPipeline
             .apply(Create.of(""))
@@ -165,27 +162,75 @@ abstract class BaseFirestoreIT {
                 FirestoreIO.v1()
                     .read()
                     .listCollectionIds()
-                    .withRpcQosOptions(rpcQosOptions)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build());
 
-    PAssert.that(actualCollectionIds).containsInAnyOrder(collectionIds);
+    PAssert.that(actualCollectionIds).containsInAnyOrder(allCollectionIds);
     testPipeline.run(options);
+
+    // Reading from readTime should only get collection IDs written in the batch before readTime.
+    PCollection<String> actualCollectionIdsAtReadTime =
+        testPipeline2
+            .apply(Create.of(""))
+            .apply(getListCollectionIdsPTransform(testName.getMethodName()))
+            .apply(
+                FirestoreIO.v1()
+                    .read()
+                    .listCollectionIds()
+                    .withReadTime(readTime)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
+                    .build());
+    PAssert.that(actualCollectionIdsAtReadTime).containsInAnyOrder(collectionIds);
+    testPipeline2.run(options);
   }
 
   @Test
   public final void listDocuments() throws Exception {
     DocumentGenerator documentGenerator = helper.documentGenerator(NUM_ITEMS_TO_GENERATE, "a");
-    documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+    Instant readTime =
+        toMaxWriteTime(documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS));
+    Thread.sleep(5);
 
+    DocumentGenerator moreDocumentGenerator =
+        helper.documentGenerator(NUM_ITEMS_TO_GENERATE + 1, NUM_ITEMS_TO_GENERATE + 10, "a");
+    moreDocumentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+
+    List<String> allDocumentPaths =
+        Stream.of(
+                documentGenerator.expectedDocumentPaths(),
+                moreDocumentGenerator.expectedDocumentPaths())
+            .flatMap(Collection::stream)
+            .collect(Collectors.toList());
+
+    // Reading from 'current' should get all the documents written.
     PCollection<String> listDocumentPaths =
         testPipeline
             .apply(Create.of("a"))
             .apply(getListDocumentsPTransform(testName.getMethodName()))
-            .apply(FirestoreIO.v1().read().listDocuments().withRpcQosOptions(rpcQosOptions).build())
+            .apply(
+                FirestoreIO.v1().read().listDocuments().withRpcQosOptions(RPC_QOS_OPTIONS).build())
             .apply(ParDo.of(new DocumentToName()));
 
-    PAssert.that(listDocumentPaths).containsInAnyOrder(documentGenerator.expectedDocumentPaths());
+    PAssert.that(listDocumentPaths).containsInAnyOrder(allDocumentPaths);
     testPipeline.run(options);
+
+    // Reading from readTime should only get the documents written before readTime.
+    PCollection<String> listDocumentPathsAtReadTime =
+        testPipeline2
+            .apply(Create.of("a"))
+            .apply(getListDocumentsPTransform(testName.getMethodName()))
+            .apply(
+                FirestoreIO.v1()
+                    .read()
+                    .listDocuments()
+                    .withReadTime(readTime)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
+                    .build())
+            .apply(ParDo.of(new DocumentToName()));
+
+    PAssert.that(listDocumentPathsAtReadTime)
+        .containsInAnyOrder(documentGenerator.expectedDocumentPaths());
+    testPipeline2.run(options);
   }
 
   @Test
@@ -193,18 +238,52 @@ abstract class BaseFirestoreIT {
     String collectionId = "a";
     DocumentGenerator documentGenerator =
         helper.documentGenerator(NUM_ITEMS_TO_GENERATE, collectionId, /* addBazDoc = */ true);
-    documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+    Instant readTime =
+        toMaxWriteTime(documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS));
+    Thread.sleep(5);
 
+    DocumentGenerator moreDocumentGenerator =
+        helper.documentGenerator(
+            NUM_ITEMS_TO_GENERATE + 1, NUM_ITEMS_TO_GENERATE + 10, collectionId, true);
+    moreDocumentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+
+    List<String> allDocumentPaths =
+        Stream.of(
+                documentGenerator.expectedDocumentPaths(),
+                moreDocumentGenerator.expectedDocumentPaths())
+            .flatMap(Collection::stream)
+            .collect(Collectors.toList());
+
+    // Reading from 'current' should get all the documents written.
     PCollection<String> listDocumentPaths =
         testPipeline
             .apply(Create.of(collectionId))
             .apply(getRunQueryPTransform(testName.getMethodName()))
-            .apply(FirestoreIO.v1().read().runQuery().withRpcQosOptions(rpcQosOptions).build())
+            .apply(FirestoreIO.v1().read().runQuery().withRpcQosOptions(RPC_QOS_OPTIONS).build())
             .apply(ParDo.of(new RunQueryResponseToDocument()))
             .apply(ParDo.of(new DocumentToName()));
 
-    PAssert.that(listDocumentPaths).containsInAnyOrder(documentGenerator.expectedDocumentPaths());
+    PAssert.that(listDocumentPaths).containsInAnyOrder(allDocumentPaths);
     testPipeline.run(options);
+
+    // Reading from readTime should only get the documents written before readTime.
+    PCollection<String> listDocumentPathsAtReadTime =
+        testPipeline2
+            .apply(Create.of(collectionId))
+            .apply(getRunQueryPTransform(testName.getMethodName()))
+            .apply(
+                FirestoreIO.v1()
+                    .read()
+                    .runQuery()
+                    .withReadTime(readTime)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
+                    .build())
+            .apply(ParDo.of(new RunQueryResponseToDocument()))
+            .apply(ParDo.of(new DocumentToName()));
+
+    PAssert.that(listDocumentPathsAtReadTime)
+        .containsInAnyOrder(documentGenerator.expectedDocumentPaths());
+    testPipeline2.run(options);
   }
 
   @Test
@@ -218,8 +297,22 @@ abstract class BaseFirestoreIT {
     // create some documents for listing and asserting in the test
     DocumentGenerator documentGenerator =
         helper.documentGenerator(documentCount, collectionGroupId);
-    documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+    Instant readTime =
+        toMaxWriteTime(documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS));
+    Thread.sleep(5);
 
+    DocumentGenerator moreDocumentGenerator =
+        helper.documentGenerator(documentCount + 1, documentCount + 2 * 128, collectionGroupId);
+    moreDocumentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+
+    List<String> allDocumentPaths =
+        Stream.of(
+                documentGenerator.expectedDocumentPaths(),
+                moreDocumentGenerator.expectedDocumentPaths())
+            .flatMap(Collection::stream)
+            .collect(Collectors.toList());
+
+    // Reading from 'current' should get all the documents written.
     PCollection<String> listDocumentPaths =
         testPipeline
             .apply(Create.of(collectionGroupId))
@@ -229,8 +322,28 @@ abstract class BaseFirestoreIT {
             .apply(ParDo.of(new RunQueryResponseToDocument()))
             .apply(ParDo.of(new DocumentToName()));
 
-    PAssert.that(listDocumentPaths).containsInAnyOrder(documentGenerator.expectedDocumentPaths());
+    PAssert.that(listDocumentPaths).containsInAnyOrder(allDocumentPaths);
     testPipeline.run(options);
+
+    // Reading from readTime should only get the documents written before readTime.
+    PCollection<String> listDocumentPathsAtReadTime =
+        testPipeline2
+            .apply(Create.of(collectionGroupId))
+            .apply(getPartitionQueryPTransform(testName.getMethodName(), partitionCount))
+            .apply(
+                FirestoreIO.v1()
+                    .read()
+                    .partitionQuery()
+                    .withReadTime(readTime)
+                    .withNameOnlyQuery()
+                    .build())
+            .apply(FirestoreIO.v1().read().runQuery().withReadTime(readTime).build())
+            .apply(ParDo.of(new RunQueryResponseToDocument()))
+            .apply(ParDo.of(new DocumentToName()));
+
+    PAssert.that(listDocumentPathsAtReadTime)
+        .containsInAnyOrder(documentGenerator.expectedDocumentPaths());
+    testPipeline2.run(options);
   }
 
   @Test
@@ -238,24 +351,63 @@ abstract class BaseFirestoreIT {
     String collectionId = "a";
     DocumentGenerator documentGenerator =
         helper.documentGenerator(NUM_ITEMS_TO_GENERATE, collectionId);
-    documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+    Instant readTime =
+        toMaxWriteTime(documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS));
 
+    DocumentGenerator moreDocumentGenerator =
+        helper.documentGenerator(
+            NUM_ITEMS_TO_GENERATE + 1, NUM_ITEMS_TO_GENERATE + 10, collectionId);
+    moreDocumentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+
+    List<String> allDocumentIds =
+        Stream.of(documentGenerator.getDocumentIds(), moreDocumentGenerator.getDocumentIds())
+            .flatMap(Collection::stream)
+            .collect(Collectors.toList());
+
+    List<String> allDocumentPaths =
+        Stream.of(
+                documentGenerator.expectedDocumentPaths(),
+                moreDocumentGenerator.expectedDocumentPaths())
+            .flatMap(Collection::stream)
+            .collect(Collectors.toList());
+
+    // Reading from 'current' should get all the documents written.
     PCollection<String> listDocumentPaths =
         testPipeline
-            .apply(Create.of(Collections.singletonList(documentGenerator.getDocumentIds())))
+            .apply(Create.of(Collections.singletonList(allDocumentIds)))
             .apply(getBatchGetDocumentsPTransform(testName.getMethodName(), collectionId))
             .apply(
                 FirestoreIO.v1()
                     .read()
                     .batchGetDocuments()
-                    .withRpcQosOptions(rpcQosOptions)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build())
             .apply(Filter.by(BatchGetDocumentsResponse::hasFound))
             .apply(ParDo.of(new BatchGetDocumentsResponseToDocument()))
             .apply(ParDo.of(new DocumentToName()));
 
-    PAssert.that(listDocumentPaths).containsInAnyOrder(documentGenerator.expectedDocumentPaths());
+    PAssert.that(listDocumentPaths).containsInAnyOrder(allDocumentPaths);
     testPipeline.run(options);
+
+    // Reading from readTime should only get the documents written before readTime.
+    PCollection<String> listDocumentPathsAtReadTime =
+        testPipeline2
+            .apply(Create.of(Collections.singletonList(allDocumentIds)))
+            .apply(getBatchGetDocumentsPTransform(testName.getMethodName(), collectionId))
+            .apply(
+                FirestoreIO.v1()
+                    .read()
+                    .batchGetDocuments()
+                    .withReadTime(readTime)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
+                    .build())
+            .apply(Filter.by(BatchGetDocumentsResponse::hasFound))
+            .apply(ParDo.of(new BatchGetDocumentsResponseToDocument()))
+            .apply(ParDo.of(new DocumentToName()));
+
+    PAssert.that(listDocumentPathsAtReadTime)
+        .containsInAnyOrder(documentGenerator.expectedDocumentPaths());
+    testPipeline2.run(options);
   }
 
   @Test
@@ -291,7 +443,7 @@ abstract class BaseFirestoreIT {
     testPipeline
         .apply(Create.of(Collections.singletonList(documentIds)))
         .apply(createWrite)
-        .apply(FirestoreIO.v1().write().batchWrite().withRpcQosOptions(rpcQosOptions).build());
+        .apply(FirestoreIO.v1().write().batchWrite().withRpcQosOptions(RPC_QOS_OPTIONS).build());
 
     testPipeline.run(options);
 

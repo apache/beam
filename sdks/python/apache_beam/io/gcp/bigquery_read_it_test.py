@@ -44,6 +44,7 @@ from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils.timestamp import Timestamp
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -185,7 +186,7 @@ class ReadTests(BigQueryReadIntegrationTests):
     the_table = bigquery_tools.BigQueryWrapper().get_table(
         project_id="apache-beam-testing",
         dataset_id="beam_bigquery_io_test",
-        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
+        table_id="table_schema_retrieve")
     table = the_table.schema
     utype = bigquery_schema_tools.\
         generate_user_type_from_bq_schema(table)
@@ -194,16 +195,32 @@ class ReadTests(BigQueryReadIntegrationTests):
           p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
               gcs_location="gs://bqio_schema_test",
               dataset="beam_bigquery_io_test",
-              table="dfsqltable_3c7d6fd5_16e0460dfd0",
+              table="table_schema_retrieve",
               project="apache-beam-testing",
               output_type='BEAM_ROW'))
       assert_that(
           result,
           equal_to([
-              utype(id=3, name='customer1', type='test'),
-              utype(id=1, name='customer1', type='test'),
-              utype(id=2, name='customer2', type='test'),
-              utype(id=4, name='customer2', type='test')
+              utype(
+                  id=1,
+                  name='customer1',
+                  type='test',
+                  times=Timestamp(1633262400)),
+              utype(
+                  id=3,
+                  name='customer1',
+                  type='test',
+                  times=Timestamp(1664798400)),
+              utype(
+                  id=2,
+                  name='customer2',
+                  type='test',
+                  times=Timestamp(1601726400)),
+              utype(
+                  id=4,
+                  name='customer2',
+                  type='test',
+                  times=Timestamp(1570104000))
           ]))
 
   @pytest.mark.it_postcommit
@@ -211,7 +228,7 @@ class ReadTests(BigQueryReadIntegrationTests):
     the_table = bigquery_tools.BigQueryWrapper().get_table(
         project_id="apache-beam-testing",
         dataset_id="beam_bigquery_io_test",
-        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
+        table_id="table_schema_retrieve")
     table = the_table.schema
     utype = bigquery_schema_tools.\
         generate_user_type_from_bq_schema(table)
@@ -221,15 +238,31 @@ class ReadTests(BigQueryReadIntegrationTests):
               gcs_location="gs://bqio_schema_test",
               table="apache-beam-testing:"
               "beam_bigquery_io_test."
-              "dfsqltable_3c7d6fd5_16e0460dfd0",
+              "table_schema_retrieve",
               output_type='BEAM_ROW'))
       assert_that(
           result,
           equal_to([
-              utype(id=3, name='customer1', type='test'),
-              utype(id=1, name='customer1', type='test'),
-              utype(id=2, name='customer2', type='test'),
-              utype(id=4, name='customer2', type='test')
+              utype(
+                  id=1,
+                  name='customer1',
+                  type='test',
+                  times=Timestamp(1633262400)),
+              utype(
+                  id=3,
+                  name='customer1',
+                  type='test',
+                  times=Timestamp(1664798400)),
+              utype(
+                  id=2,
+                  name='customer2',
+                  type='test',
+                  times=Timestamp(1601726400)),
+              utype(
+                  id=4,
+                  name='customer2',
+                  type='test',
+                  times=Timestamp(1570104000))
           ]))
 
   @pytest.mark.it_postcommit
@@ -237,7 +270,7 @@ class ReadTests(BigQueryReadIntegrationTests):
     the_table = bigquery_tools.BigQueryWrapper().get_table(
         project_id="apache-beam-testing",
         dataset_id="beam_bigquery_io_test",
-        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
+        table_id="table_schema_retrieve")
     table = the_table.schema
     utype = bigquery_schema_tools.\
         generate_user_type_from_bq_schema(table)
@@ -247,15 +280,31 @@ class ReadTests(BigQueryReadIntegrationTests):
               method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
               table="apache-beam-testing:"
               "beam_bigquery_io_test."
-              "dfsqltable_3c7d6fd5_16e0460dfd0",
+              "table_schema_retrieve",
               output_type='BEAM_ROW'))
       assert_that(
           result,
           equal_to([
-              utype(id=3, name='customer1', type='test'),
-              utype(id=1, name='customer1', type='test'),
-              utype(id=2, name='customer2', type='test'),
-              utype(id=4, name='customer2', type='test')
+              utype(
+                  id=1,
+                  name='customer1',
+                  type='test',
+                  times=Timestamp(1633262400)),
+              utype(
+                  id=3,
+                  name='customer1',
+                  type='test',
+                  times=Timestamp(1664798400)),
+              utype(
+                  id=2,
+                  name='customer2',
+                  type='test',
+                  times=Timestamp(1601726400)),
+              utype(
+                  id=4,
+                  name='customer2',
+                  type='test',
+                  times=Timestamp(1570104000))
           ]))
 
 

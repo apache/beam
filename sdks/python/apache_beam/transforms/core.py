@@ -843,7 +843,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     else:
       raise TypeError(
           "Expected Iterator in return type annotation for "
-          f"{method!r}, did you mean Iterator[{return_type}]?")
+          f"{method!r}, did you mean Iterator[{return_type}]? Note Beam DoFn "
+          "process and process_batch methods are expected to produce "
+          "generators - they should 'yield' rather than 'return'.")
 
   def get_output_batch_type(
       self, input_element_type
@@ -1511,10 +1513,17 @@ class ParDo(PTransformWithSideInputs):
             "process_batch method on {self.fn!r} does not have "
             "an input type annoation")
 
-      # Generate a batch converter to convert between the input type and the
-      # (batch) input type of process_batch
-      self.fn.input_batch_converter = BatchConverter.from_typehints(
-          element_type=input_element_type, batch_type=input_batch_type)
+      try:
+        # Generate a batch converter to convert between the input type and the
+        # (batch) input type of process_batch
+        self.fn.input_batch_converter = BatchConverter.from_typehints(
+            element_type=input_element_type, batch_type=input_batch_type)
+      except TypeError as e:
+        raise TypeError(
+            "Failed to find a BatchConverter for the input types of DoFn "
+            f"{self.fn!r} (element_type={input_element_type!r}, "
+            f"batch_type={input_batch_type!r}).") from e
+
     else:
       self.fn.input_batch_converter = None
 
@@ -1530,8 +1539,16 @@ class ParDo(PTransformWithSideInputs):
       # Generate a batch converter to convert between the output type and the
       # (batch) output type of process_batch
       output_element_type = self.infer_output_type(input_element_type)
-      self.fn.output_batch_converter = BatchConverter.from_typehints(
-          element_type=output_element_type, batch_type=output_batch_type)
+
+      try:
+        self.fn.output_batch_converter = BatchConverter.from_typehints(
+            element_type=output_element_type, batch_type=output_batch_type)
+      except TypeError as e:
+        raise TypeError(
+            "Failed to find a BatchConverter for the *output* types of DoFn "
+            f"{self.fn!r} (element_type={output_element_type!r}, "
+            f"batch_type={output_batch_type!r}). Maybe you need to override "
+            "DoFn.infer_output_type to set the output element type?") from e
     else:
       self.fn.output_batch_converter = None
 

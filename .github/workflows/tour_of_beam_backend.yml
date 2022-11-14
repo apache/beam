@@ -23,6 +23,7 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
+    paths: ['learning/tour-of-beam/backend/**']
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
