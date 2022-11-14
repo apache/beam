@@ -126,17 +126,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Build SDK runner base image
+      - name: Build Python SDK runner base image
         if: env.SDK == 'python'
         run: |
              set -uex
              ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
 
-      - name: Build SDK runner base image
-        if: env.SDK == 'java'
+      - name: Build JAVA SDK runner base image
+        if: env.SDK == 'java' || env.SDK == 'go'
         run: |
              set -uex
-             ./gradlew -i :sdks:java:container:java8:docker -Pdocker-tag="$DOCKERTAG"
+             #./gradlew -i :sdks:java:container:java8:docker -Pdocker-tag="$DOCKERTAG"
+             echo "DOCKERTAG=2.42.0" >> $GITHUB_ENV
 
       - name: Build SDK Backend Docker image
         run: |
