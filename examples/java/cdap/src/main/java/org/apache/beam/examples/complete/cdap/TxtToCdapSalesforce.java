@@ -121,7 +121,7 @@ public class TxtToCdapSalesforce {
    */
   public static PipelineResult run(Pipeline pipeline, CdapSalesforceSinkOptions options) {
     Map<String, Object> paramsMap =
-        PluginConfigOptionsConverter.salesforceSinkOptionsToParamsMap(options);
+        PluginConfigOptionsConverter.salesforceBatchSinkOptionsToParamsMap(options);
     LOG.info("Starting Txt-to-Cdap-Salesforce pipeline with parameters: {}", paramsMap);
 
     /*
@@ -145,7 +145,7 @@ public class TxtToCdapSalesforce {
         .apply(
             "writeToCdapSalesforce",
             FormatOutputTransform.writeToCdapSalesforce(
-                PluginConfigOptionsConverter.salesforceSinkOptionsToParamsMap(options),
+                PluginConfigOptionsConverter.salesforceBatchSinkOptionsToParamsMap(options),
                 options.getLocksDirPath()));
 
     return pipeline.run();

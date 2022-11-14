@@ -22,6 +22,7 @@ import io.cdap.plugin.hubspot.common.BaseHubspotConfig;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import io.cdap.plugin.hubspot.source.streaming.PullFrequency;
 import io.cdap.plugin.salesforce.SalesforceConstants;
+import io.cdap.plugin.salesforce.authenticator.AuthenticatorCredentials;
 import io.cdap.plugin.salesforce.plugin.sink.batch.ErrorHandling;
 import io.cdap.plugin.salesforce.plugin.sink.batch.SalesforceSinkConfig;
 import io.cdap.plugin.salesforce.plugin.source.batch.util.SalesforceSourceConstants;
@@ -29,12 +30,7 @@ import io.cdap.plugin.servicenow.source.util.ServiceNowConstants;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSourceConfig;
 import io.cdap.plugin.zendesk.source.common.config.BaseZendeskSourceConfig;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapHubspotOptions;
-import org.apache.beam.examples.complete.cdap.options.CdapHubspotStreamingSourceOptions;
-import org.apache.beam.examples.complete.cdap.options.CdapSalesforceSinkOptions;
-import org.apache.beam.examples.complete.cdap.options.CdapSalesforceSourceOptions;
-import org.apache.beam.examples.complete.cdap.options.CdapServiceNowOptions;
-import org.apache.beam.examples.complete.cdap.options.CdapZendeskOptions;
+import org.apache.beam.examples.complete.cdap.options.*;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
@@ -42,6 +38,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * org.apache.beam.sdk.io.cdap.ConfigWrapper}.
  */
 public class PluginConfigOptionsConverter {
+
+  private static final String SALESFORCE_STREAMING_PUSH_TOPIC_NAME = "pushTopicName";
 
   public static Map<String, Object> hubspotOptionsToParamsMap(CdapHubspotOptions options) {
     String apiServerUrl = options.getApiServerUrl();
@@ -76,7 +74,15 @@ public class PluginConfigOptionsConverter {
         .build();
   }
 
-  public static Map<String, Object> salesforceSourceOptionsToParamsMap(
+  public static Map<String, Object> salesforceStreamingSourceOptionsToParamsMap(
+      CdapSalesforceStreamingSourceOptions options) {
+    return ImmutableMap.<String, Object>builder()
+        .put(Constants.Reference.REFERENCE_NAME, options.getReferenceName())
+        .put(SALESFORCE_STREAMING_PUSH_TOPIC_NAME, options.getPushTopicName())
+        .build();
+  }
+
+  public static Map<String, Object> salesforceBatchSourceOptionsToParamsMap(
       CdapSalesforceSourceOptions options) {
     return ImmutableMap.<String, Object>builder()
         .put(Constants.Reference.REFERENCE_NAME, options.getReferenceName())
@@ -90,7 +96,7 @@ public class PluginConfigOptionsConverter {
         .build();
   }
 
-  public static Map<String, Object> salesforceSinkOptionsToParamsMap(
+  public static Map<String, Object> salesforceBatchSinkOptionsToParamsMap(
       CdapSalesforceSinkOptions options) {
     return ImmutableMap.<String, Object>builder()
         .put(Constants.Reference.REFERENCE_NAME, options.getReferenceName())
@@ -126,5 +132,15 @@ public class PluginConfigOptionsConverter {
         .put(ZendeskBatchSourceConfig.PROPERTY_READ_TIMEOUT, zendeskOptions.getReadTimeout())
         .put(BaseZendeskSourceConfig.PROPERTY_OBJECTS_TO_PULL, zendeskOptions.getObjectsToPull())
         .build();
+  }
+
+  public static AuthenticatorCredentials getSalesforceStreamingAuthenticatorCredentials(
+      CdapSalesforceStreamingSourceOptions options) {
+    return new AuthenticatorCredentials(
+        options.getUsername(),
+        options.getPassword(),
+        options.getConsumerKey(),
+        options.getConsumerSecret(),
+        options.getLoginUrl());
   }
 }

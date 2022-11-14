@@ -36,7 +36,26 @@ public class GetOffsetUtils {
   private static final Logger LOG = LoggerFactory.getLogger(GetOffsetUtils.class);
 
   private static final String HUBSPOT_ID_FIELD = "vid";
+  private static final String SALESFORCE_ID_FIELD = "id";
   private static final Gson GSON = new Gson();
+
+  public static SerializableFunction<String, Long> getOffsetFnForSalesforce() {
+    return input -> {
+      if (input != null) {
+        try {
+          HashMap<String, Object> json =
+              GSON.fromJson(input, new TypeToken<HashMap<String, Object>>() {}.getType());
+          checkArgumentNotNull(json, "Can not get JSON from Salesforce input string");
+          Object id = json.get(SALESFORCE_ID_FIELD);
+          checkArgumentNotNull(id, "Can not get ID from Salesforce input string");
+          return ((Double) id).longValue();
+        } catch (Exception e) {
+          LOG.error("Can not get offset from json", e);
+        }
+      }
+      return 0L;
+    };
+  }
 
   public static SerializableFunction<String, Long> getOffsetFnForHubspot() {
     return input -> {

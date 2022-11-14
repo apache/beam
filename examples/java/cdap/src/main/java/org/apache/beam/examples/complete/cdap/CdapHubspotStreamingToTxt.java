@@ -17,11 +17,9 @@
  */
 package org.apache.beam.examples.complete.cdap;
 
-import com.google.gson.JsonElement;
 import java.util.Map;
 import org.apache.beam.examples.complete.cdap.options.CdapHubspotStreamingSourceOptions;
 import org.apache.beam.examples.complete.cdap.transforms.FormatInputTransform;
-import org.apache.beam.examples.complete.cdap.utils.JsonElementCoder;
 import org.apache.beam.examples.complete.cdap.utils.PluginConfigOptionsConverter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -74,7 +72,9 @@ import org.slf4j.LoggerFactory;
  * --apikey=your-api-key \
  * --referenceName=your-reference-name \
  * --objectType=Contacts \
- * --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix
+ * --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix \
+ * --pullFrequencySec=1 \
+ * --startOffset=0
  * }
  *
  * By default this will run the pipeline locally with the DirectRunner. To change the runner, specify:
@@ -119,7 +119,6 @@ public class CdapHubspotStreamingToTxt {
      *  2) Extract values only
      *  3) Write successful records to .txt file
      */
-    pipeline.getCoderRegistry().registerCoderForClass(JsonElement.class, JsonElementCoder.of());
 
     pipeline
         .apply(

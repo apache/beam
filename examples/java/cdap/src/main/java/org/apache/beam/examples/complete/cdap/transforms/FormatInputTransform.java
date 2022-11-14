@@ -27,8 +27,12 @@ import io.cdap.plugin.hubspot.source.batch.HubspotBatchSource;
 import io.cdap.plugin.hubspot.source.streaming.HubspotReceiver;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSource;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
+import io.cdap.plugin.salesforce.authenticator.AuthenticatorCredentials;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceBatchSource;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceSourceConfig;
+import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceReceiver;
+import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSource;
+import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
 import io.cdap.plugin.servicenow.source.ServiceNowSource;
 import io.cdap.plugin.servicenow.source.ServiceNowSourceConfig;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSource;
@@ -163,5 +167,47 @@ public class FormatInputTransform {
         .withPluginConfig(pluginConfig)
         .withKeyClass(Schema.class)
         .withValueClass(LinkedHashMap.class);
+  }
+
+  /**
+   * Configures Cdap Salesforce Streaming Read transform.
+   *
+   * @param pluginConfigParams Cdap Hubspot plugin config parameters
+   * @param salesforceCredentials Authenticator credentials for Salesforce
+   * @param pullFrequencySec Delay in seconds between polling for new records updates
+   * @param startOffset Inclusive start offset from which the reading should be started
+   * @return configured Read transform
+   */
+  public static CdapIO.Read<NullWritable, String> readFromCdapSalesforceStreaming(
+      Map<String, Object> pluginConfigParams,
+      AuthenticatorCredentials salesforceCredentials,
+      Long pullFrequencySec,
+      Long startOffset) {
+
+    final SalesforceStreamingSourceConfig pluginConfig =
+        new ConfigWrapper<>(SalesforceStreamingSourceConfig.class)
+            .withParams(pluginConfigParams)
+            .build();
+    checkStateNotNull(pluginConfig, "Plugin config can't be null.");
+
+    CdapIO.Read<NullWritable, String> read =
+        CdapIO.<NullWritable, String>read()
+            .withCdapPlugin(
+                Plugin.createStreaming(
+                    SalesforceStreamingSource.class,
+                    GetOffsetUtils.getOffsetFnForSalesforce(),
+                    SalesforceReceiver.class,
+                    config ->
+                        new Object[] {salesforceCredentials, pluginConfig.getPushTopicName()}))
+            .withPluginConfig(pluginConfig)
+            .withKeyClass(NullWritable.class)
+            .withValueClass(String.class);
+    if (pullFrequencySec != null) {
+      read = read.withPullFrequencySec(pullFrequencySec);
+    }
+    if (startOffset != null) {
+      read = read.withStartOffset(startOffset);
+    }
+    return read;
   }
 }
