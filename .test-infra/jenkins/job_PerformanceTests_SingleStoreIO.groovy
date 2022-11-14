@@ -60,6 +60,7 @@ job(jobName) {
   k8s.loadBalancerIP("svc-sdb-cluster-ddl", singlestoreHostName)
 
   Map pipelineOptions = [
+    runner                    : 'DataflowRunner',
     singleStoreServerName     : "\$${singlestoreHostName}",
     singleStoreUsername : "admin",
     singleStorePassword : "secretpass",
