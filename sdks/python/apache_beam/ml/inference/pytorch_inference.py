@@ -127,6 +127,31 @@ def default_tensor_inference_fn(
     return _convert_to_result(batch, predictions)
 
 
+def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
+  """
+  Produces a TensorInferenceFn that uses a method of the model other that
+  the forward() method. 
+
+  Args:
+    model_fn: A string name of the method to be used. This is accessed through
+      model.get_attr()
+  """
+  def attr_fn(
+      batch: Sequence[torch.Tensor],
+      model: torch.nn.Module,
+      device: str,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
+    with torch.no_grad():
+      batched_tensors = torch.stack(batch)
+      batched_tensors = _convert_to_device(batched_tensors, device)
+      pred_fn = model.get_attr(model_fn)
+      predictions = pred_fn(batched_tensors, **inference_args)
+      return _convert_to_result(batch, predictions)
+
+  return attr_fn
+
+
 class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
                                              PredictionResult,
                                              torch.nn.Module]):
@@ -255,6 +280,43 @@ def default_keyed_tensor_inference_fn(
     predictions = model(**key_to_batched_tensors, **inference_args)
 
     return _convert_to_result(batch, predictions)
+
+
+def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
+  """
+  Produces a KeyedTensorInferenceFn that uses a method of the model other that
+  the forward() method. 
+
+  Args:
+    model_fn: A string name of the method to be used. This is accessed through
+      model.get_attr()
+  """
+  def attr_fn(
+      batch: Sequence[torch.Tensor],
+      model: torch.nn.Module,
+      device: str,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
+    # If elements in `batch` are provided as a dictionaries from key to Tensors,
+    # then iterate through the batch list, and group Tensors to the same key
+    key_to_tensor_list = defaultdict(list)
+
+    # torch.no_grad() mitigates GPU memory issues
+    # https://github.com/apache/beam/issues/22811
+    with torch.no_grad():
+      for example in batch:
+        for key, tensor in example.items():
+          key_to_tensor_list[key].append(tensor)
+      key_to_batched_tensors = {}
+      for key in key_to_tensor_list:
+        batched_tensors = torch.stack(key_to_tensor_list[key])
+        batched_tensors = _convert_to_device(batched_tensors, device)
+        key_to_batched_tensors[key] = batched_tensors
+        pred_fn = model.get_attr(model_fn)
+        predictions = pred_fn(**key_to_batched_tensors, **inference_args)
+    return _convert_to_result(batch, predictions)
+
+  return attr_fn
 
 
 @experimental(extra_message="No backwards-compatibility guarantees.")
