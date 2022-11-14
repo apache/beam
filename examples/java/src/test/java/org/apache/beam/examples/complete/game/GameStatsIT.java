@@ -18,6 +18,7 @@
 package org.apache.beam.examples.complete.game;
 
 import static org.junit.Assert.assertEquals;
+
 import com.google.api.services.bigquery.model.QueryResponse;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -37,9 +38,9 @@ import org.junit.runners.JUnit4;
 public class GameStatsIT extends CompleteGameIT {
   public static final String GAME_STATS_TEAM_TABLE = "game_stats_team";
   public static final String SELECT_COUNT_AS_TOTAL_QUERY =
-          "SELECT total_score FROM `%s.%s.%s` where team like(\"AmaranthKoala\")";
+      "SELECT total_score FROM `%s.%s.%s` where team like(\"AmaranthKoala\")";
   private GameStatsOptions options =
-          TestPipeline.testingPipelineOptions().as(GameStatsIT.GameStatsOptions.class);
+      TestPipeline.testingPipelineOptions().as(GameStatsIT.GameStatsOptions.class);
   @Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(options);
 
   public interface GameStatsOptions extends TestPipelineOptions, GameStats.Options {};
@@ -64,17 +65,17 @@ public class GameStatsIT extends CompleteGameIT {
     GameStats.runGameStats(options);
 
     FluentBackoff backoffFactory =
-            FluentBackoff.DEFAULT
-                    .withMaxRetries(5)
-                    .withInitialBackoff(Duration.standardMinutes(10))
-                    .withMaxBackoff(Duration.standardMinutes(10));
+        FluentBackoff.DEFAULT
+            .withMaxRetries(5)
+            .withInitialBackoff(Duration.standardMinutes(10))
+            .withMaxBackoff(Duration.standardMinutes(10));
 
     QueryResponse response =
-            bqClient.queryWithRetriesUsingStandardSql(
-                    String.format(
-                            SELECT_COUNT_AS_TOTAL_QUERY, projectId, OUTPUT_DATASET, GAME_STATS_TEAM_TABLE),
-                    projectId,
-                    backoffFactory);
+        bqClient.queryWithRetriesUsingStandardSql(
+            String.format(
+                SELECT_COUNT_AS_TOTAL_QUERY, projectId, OUTPUT_DATASET, GAME_STATS_TEAM_TABLE),
+            projectId,
+            backoffFactory);
 
     int res = response.getRows().size();
 

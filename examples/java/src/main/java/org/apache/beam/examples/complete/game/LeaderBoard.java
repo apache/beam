@@ -20,10 +20,7 @@ package org.apache.beam.examples.complete.game;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
-import org.apache.beam.examples.common.ExamplePubsubTopicAndSubscriptionOptions;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;

@@ -61,8 +61,7 @@ public abstract class CompleteGameIT {
     bqClient.createNewDataset(projectId, OUTPUT_DATASET);
   }
 
-  protected void setupPubSub(TestPipeline testPipeline, GcpOptions options)
-      throws IOException {
+  protected void setupPubSub(TestPipeline testPipeline, GcpOptions options) throws IOException {
     String pubsubEndpoint = PubsubOptions.targetForRootUrl("https://pubsub.googleapis.com");
 
     topicAdmin =

@@ -17,8 +17,9 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.api.services.bigquery.model.QueryResponse;
-import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -32,20 +33,18 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import static org.junit.Assert.assertEquals;
-
 /** Integration Tests for {@link LeaderBoard}. */
 @RunWith(JUnit4.class)
 public class StatefulTeamScoreIT extends CompleteGameIT {
   public static final String LEADERBOARD_TEAM_LEADER_TABLE = "leaderboard_team_leader";
   public static final String SELECT_TOTAL_SCORE_QUERY =
-          "SELECT total_score FROM `%s.%s.%s` where team like(\"AmaranthKoala\")";
+      "SELECT total_score FROM `%s.%s.%s` where team like(\"AmaranthKoala\")";
   private StatefulTeamScoreOptions options =
-          TestPipeline.testingPipelineOptions().as(StatefulTeamScoreIT.StatefulTeamScoreOptions.class);
+      TestPipeline.testingPipelineOptions().as(StatefulTeamScoreIT.StatefulTeamScoreOptions.class);
   @Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(options);
 
   public interface StatefulTeamScoreOptions
-          extends TestPipelineOptions, StatefulTeamScore.Options {};
+      extends TestPipelineOptions, StatefulTeamScore.Options {};
 
   @Before
   public void setupTestEnvironment() throws Exception {
@@ -67,17 +66,17 @@ public class StatefulTeamScoreIT extends CompleteGameIT {
     StatefulTeamScore.runStatefulTeamScore(options);
 
     FluentBackoff backoffFactory =
-            FluentBackoff.DEFAULT
-                    .withMaxRetries(5)
-                    .withInitialBackoff(Duration.standardMinutes(10))
-                    .withMaxBackoff(Duration.standardMinutes(10));
+        FluentBackoff.DEFAULT
+            .withMaxRetries(5)
+            .withInitialBackoff(Duration.standardMinutes(10))
+            .withMaxBackoff(Duration.standardMinutes(10));
 
     QueryResponse response =
-            bqClient.queryWithRetriesUsingStandardSql(
-                    String.format(
-                            SELECT_TOTAL_SCORE_QUERY, projectId, OUTPUT_DATASET, LEADERBOARD_TEAM_LEADER_TABLE),
-                    projectId,
-                    backoffFactory);
+        bqClient.queryWithRetriesUsingStandardSql(
+            String.format(
+                SELECT_TOTAL_SCORE_QUERY, projectId, OUTPUT_DATASET, LEADERBOARD_TEAM_LEADER_TABLE),
+            projectId,
+            backoffFactory);
 
     int res = response.getRows().size();
 

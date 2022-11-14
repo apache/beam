@@ -78,10 +78,10 @@ import org.joda.time.Instant;
  * the same topic to which the Injector is publishing.
  */
 @SuppressWarnings({
-        "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-        // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
-        // errorprone is released (2.11.0)
-        "unused"
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class StatefulTeamScore extends LeaderBoard {
 
@@ -102,16 +102,16 @@ public class StatefulTeamScore extends LeaderBoard {
   private static Map<String, FieldInfo<KV<String, Integer>>> configureCompleteWindowedTableWrite() {
 
     Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
-            new HashMap<>();
+        new HashMap<>();
     tableConfigure.put(
-            "team", new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
+        "team", new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
     tableConfigure.put(
-            "total_score",
-            new WriteWindowedToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
+        "total_score",
+        new WriteWindowedToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
     tableConfigure.put(
-            "processing_time",
-            new WriteWindowedToBigQuery.FieldInfo<>(
-                    "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
+        "processing_time",
+        new WriteWindowedToBigQuery.FieldInfo<>(
+            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
 
@@ -120,17 +120,17 @@ public class StatefulTeamScore extends LeaderBoard {
     PubsubIO.Read<String> records = readRecordsFromPubSub(options);
 
     p.apply(records)
-            // Create <team, GameActionInfo> mapping & Outputs a team's score every time it passes a new
-            // multiple of the threshold
-            .apply(new TeamScore(options))
-            // Write the results to BigQuery.
-            .apply(
-                    "WriteTeamLeaders",
-                    new WriteWindowedToBigQuery<>(
-                            options.as(GcpOptions.class).getProject(),
-                            options.getDataset(),
-                            options.getLeaderBoardTableName() + "_team_leader",
-                            configureCompleteWindowedTableWrite()));
+        // Create <team, GameActionInfo> mapping & Outputs a team's score every time it passes a new
+        // multiple of the threshold
+        .apply(new TeamScore(options))
+        // Write the results to BigQuery.
+        .apply(
+            "WriteTeamLeaders",
+            new WriteWindowedToBigQuery<>(
+                options.as(GcpOptions.class).getProject(),
+                options.getDataset(),
+                options.getLeaderBoardTableName() + "_team_leader",
+                configureCompleteWindowedTableWrite()));
   }
 
   public static void runStatefulTeamScore(Options options) throws IOException {
@@ -158,15 +158,15 @@ public class StatefulTeamScore extends LeaderBoard {
     @Override
     public PCollection<KV<String, Integer>> expand(PCollection<String> rows) {
       return rows.apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
-              .apply(
-                      // Create <team, GameActionInfo> mapping. UpdateTeamScore uses team name as key.
-                      "MapTeamAsKey",
-                      MapElements.into(
-                                      TypeDescriptors.kvs(
-                                              TypeDescriptors.strings(), TypeDescriptor.of(GameActionInfo.class)))
-                              .via((GameActionInfo gInfo) -> KV.of(gInfo.team, gInfo)))
-              // Outputs a team's score every time it passes a new multiple of the threshold.
-              .apply("UpdateTeamScore", ParDo.of(new UpdateTeamScoreFn(options.getThresholdScore())));
+          .apply(
+              // Create <team, GameActionInfo> mapping. UpdateTeamScore uses team name as key.
+              "MapTeamAsKey",
+              MapElements.into(
+                      TypeDescriptors.kvs(
+                          TypeDescriptors.strings(), TypeDescriptor.of(GameActionInfo.class)))
+                  .via((GameActionInfo gInfo) -> KV.of(gInfo.team, gInfo)))
+          // Outputs a team's score every time it passes a new multiple of the threshold.
+          .apply("UpdateTeamScore", ParDo.of(new UpdateTeamScoreFn(options.getThresholdScore())));
     }
   }
 
@@ -184,7 +184,7 @@ public class StatefulTeamScore extends LeaderBoard {
    */
   @VisibleForTesting
   public static class UpdateTeamScoreFn
-          extends DoFn<KV<String, GameActionInfo>, KV<String, Integer>> {
+      extends DoFn<KV<String, GameActionInfo>, KV<String, Integer>> {
 
     private static final String TOTAL_SCORE = "totalScore";
     private final int thresholdScore;
@@ -214,7 +214,7 @@ public class StatefulTeamScore extends LeaderBoard {
      */
     @StateId(TOTAL_SCORE)
     private final StateSpec<ValueState<Integer>> totalScoreSpec =
-            StateSpecs.value(VarIntCoder.of());
+        StateSpecs.value(VarIntCoder.of());
 
     /**
      * To use a state cell, annotate a parameter with {@link
@@ -223,7 +223,7 @@ public class StatefulTeamScore extends LeaderBoard {
      */
     @ProcessElement
     public void processElement(
-            ProcessContext c, @StateId(TOTAL_SCORE) ValueState<Integer> totalScore) {
+        ProcessContext c, @StateId(TOTAL_SCORE) ValueState<Integer> totalScore) {
       String teamName = c.element().getKey();
       GameActionInfo gInfo = c.element().getValue();
 
