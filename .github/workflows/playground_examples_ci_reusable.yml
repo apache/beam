@@ -135,10 +135,7 @@ jobs:
       - name: Build SDK Backend Docker image
         run: |
              set -uex
-             opts="-Pdocker-tag=$DOCKERTAG"
-             if [ "$SDK" == "java" ]; then
-              opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
-             fi
+             opts="-Pdocker-tag=$DOCKERTAG -Psdk-tag=$DOCKERTAG"
 
              ./gradlew -i playground:backend:containers:$SDK:docker $opts
 
