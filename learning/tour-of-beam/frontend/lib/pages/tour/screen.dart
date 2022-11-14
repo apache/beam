@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../components/scaffold.dart';
+import '../../components/sdk_dropdown.dart';
 import '../../constants/sizes.dart';
 import 'state.dart';
 import 'widgets/content.dart';
@@ -34,6 +35,7 @@ class TourScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TobScaffold(
+      sdkSelector: _SdkSelector(notifier: notifier),
       child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
           ? _WideTour(notifier)
           : _NarrowTour(notifier),
@@ -104,5 +106,25 @@ class _NarrowScreenPlayground extends StatelessWidget {
   Widget build(BuildContext context) {
     // TODO(alexeyinkin): Even this way the narrow layout breaks, https://github.com/apache/beam/issues/23244
     return const Center(child: Text('TODO: Playground for narrow screen'));
+  }
+}
+
+class _SdkSelector extends StatelessWidget {
+  final TourNotifier notifier;
+  const _SdkSelector({required this.notifier});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: notifier,
+      builder: (context, child) => SdkDropdown(
+        sdkId: notifier.sdk.id,
+        onChanged: (sdkId) {
+          if (sdkId != null) {
+            notifier.sdk = Sdk.parseOrCreate(sdkId);
+          }
+        },
+      ),
+    );
   }
 }

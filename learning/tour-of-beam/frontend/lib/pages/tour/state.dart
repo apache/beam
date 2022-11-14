@@ -53,6 +53,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         treeIds: contentTreeController.treeIds,
       );
 
+  Sdk get sdk => contentTreeController.sdk;
+  set sdk(Sdk sdk) {
+    playgroundController.setSdk(sdk);
+    contentTreeController.sdkId = sdk.id;
+  }
+
   void _onChanged() {
     emitPathChanged();
     final currentNode = contentTreeController.currentNode;

@@ -23,14 +23,15 @@ import 'footer.dart';
 import 'login/login_button.dart';
 import 'logo.dart';
 import 'profile/avatar.dart';
-import 'sdk_dropdown.dart';
 
 class TobScaffold extends StatelessWidget {
   final Widget child;
+  final Widget? sdkSelector;
 
   const TobScaffold({
     super.key,
     required this.child,
+    required this.sdkSelector,
   });
 
   // TODO(nausharipov): get state
@@ -41,15 +42,15 @@ class TobScaffold extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Logo(),
-        actions: const [
-          _ActionVerticalPadding(child: SdkDropdown()),
-          SizedBox(width: BeamSizes.size12),
-          _ActionVerticalPadding(child: ToggleThemeButton()),
-          SizedBox(width: BeamSizes.size6),
-          _ActionVerticalPadding(
+        actions: [
+          if (sdkSelector != null) _ActionVerticalPadding(child: sdkSelector!),
+          const SizedBox(width: BeamSizes.size12),
+          const _ActionVerticalPadding(child: ToggleThemeButton()),
+          const SizedBox(width: BeamSizes.size6),
+          const _ActionVerticalPadding(
             child: _isAuthorized ? Avatar() : LoginButton(),
           ),
-          SizedBox(width: BeamSizes.size16),
+          const SizedBox(width: BeamSizes.size16),
         ],
       ),
       body: Column(
