@@ -23,7 +23,7 @@ set -euo pipefail
 PROJECT=apache-beam-testing
 BQ_DATASETS=`bq --format=json --project_id=$PROJECT ls --max_results=1500 | jq -r .[].id`
 
-CLEANUP_DATASET_TEMPLATES=(beam_bigquery_samples_ beam_temp_dataset_ FHIR_store_)
+CLEANUP_DATASET_TEMPLATES=(beam_bigquery_samples_ beam_temp_dataset_ FHIR_store_ bq_query_schema_update_options_16 bq_query_to_table_16 bq_read_all_[a-z0-9]*)
 
 # A grace period of 5 days
 GRACE_PERIOD=$((`date +%s` - 24 * 3600 * 5))
