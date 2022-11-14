@@ -93,11 +93,9 @@ class BatchConverter(Generic[B, E]):
     errors = {}
     for name, constructor in BATCH_CONVERTER_REGISTRY.items():
       try:
-        result = constructor(element_type, batch_type)
+        return constructor(element_type, batch_type)
       except TypeError as e:
         errors[name] = e.args[0]
-      else:
-        return result
 
     error_summaries = '\n\n'.join(
         f"{name}:\n\t{msg}" for name, msg in errors.items())
