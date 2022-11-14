@@ -15,8 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-ARG BASE_IMAGE_TAG
-ARG BASE_IMAGE=apache/beam_python3.7_sdk:$BASE_IMAGE_TAG
 ARG GO_BASE_IMAGE=golang:1.18-bullseye
 FROM $GO_BASE_IMAGE AS build
 
@@ -38,6 +36,8 @@ RUN go mod download &&\
     cd cmd/server &&\
     go build -o /go/bin/server_python_backend
 
+ARG SDK_TAG
+ARG BASE_IMAGE=apache/beam_python3.7_sdk:$SDK_TAG
 FROM $BASE_IMAGE
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080

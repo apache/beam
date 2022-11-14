@@ -130,7 +130,7 @@ jobs:
         if: env.SDK == 'python'
         run: |
              set -uex
-             ./gradlew :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
+             ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
 
       - name: Build SDK Backend Docker image
         run: |
@@ -140,7 +140,7 @@ jobs:
               opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
              fi
 
-             ./gradlew playground:backend:containers:$SDK:docker $opts
+             ./gradlew -i playground:backend:containers:$SDK:docker $opts
 
       - name: Set docker image
         run: echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG" >> $GITHUB_ENV
