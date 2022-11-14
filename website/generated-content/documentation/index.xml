@@ -3665,7 +3665,7 @@ parallelism.&lt;/li>
 &lt;/ul>
 &lt;p>The following sections cover these concepts in more detail and provide links to
 additional documentation.&lt;/p>
-&lt;h3 id="pipeline">Pipeline&lt;/h3>
+&lt;h2 id="pipeline">Pipeline&lt;/h2>
 &lt;p>A Beam pipeline is a graph (specifically, a
 &lt;a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">directed acyclic graph&lt;/a>)
 of all the data and computations in your data processing task. This includes
@@ -3691,7 +3691,7 @@ sets and its transforms.&lt;/p>
 &lt;li>&lt;a href="/documentation/pipelines/design-your-pipeline">Design your pipeline&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/pipelines/create-your-pipeline">Create your pipeline&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;h3 id="pcollection">PCollection&lt;/h3>
+&lt;h2 id="pcollection">PCollection&lt;/h2>
 &lt;p>A &lt;code>PCollection&lt;/code> is an unordered bag of elements. Each &lt;code>PCollection&lt;/code> is a
 potentially distributed, homogeneous data set or data stream, and is owned by
 the specific &lt;code>Pipeline&lt;/code> object for which it is created. Multiple pipelines
@@ -3770,7 +3770,7 @@ behavior that is governed by the windowing strategy.&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#pcollections">Beam Programming Guide: PCollections&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;h3 id="ptransform">PTransform&lt;/h3>
+&lt;h2 id="ptransform">PTransform&lt;/h2>
 &lt;p>A &lt;code>PTransform&lt;/code> (or transform) represents a data processing operation, or a step,
 in your pipeline. A transform is usually applied to one or more input
 &lt;code>PCollection&lt;/code> objects. Transforms that read input are an exception; these
@@ -3805,7 +3805,7 @@ conceptually has no input.&lt;/li>
 &lt;li>Beam transform catalog (&lt;a href="/documentation/transforms/java/overview/">Java&lt;/a>,
 &lt;a href="/documentation/transforms/python/overview/">Python&lt;/a>)&lt;/li>
 &lt;/ul>
-&lt;h3 id="aggregation">Aggregation&lt;/h3>
+&lt;h2 id="aggregation">Aggregation&lt;/h2>
 &lt;p>Aggregation is computing a value from multiple (1 or more) input elements. In
 Beam, the primary computational pattern for aggregation is to group all elements
 with a common key and window then combine each group of elements using an
@@ -3848,7 +3848,7 @@ pages:&lt;/p>
 (&lt;a href="/documentation/transforms/java/overview/#aggregation">Java&lt;/a>,
 &lt;a href="/documentation/transforms/python/overview/#aggregation">Python&lt;/a>)&lt;/li>
 &lt;/ul>
-&lt;h3 id="user-defined-function-udf">User-defined function (UDF)&lt;/h3>
+&lt;h2 id="user-defined-function-udf">User-defined function (UDF)&lt;/h2>
 &lt;p>Some Beam operations allow you to run user-defined code as a way to configure
 the transform. For example, when using &lt;code>ParDo&lt;/code>, user-defined code specifies what
 operation to apply to every element. For &lt;code>Combine&lt;/code>, it specifies how values
@@ -3891,7 +3891,7 @@ pipeline. Beam also supports stateful processing through the
 &lt;li>&lt;a href="/documentation/programming-guide/#data-encoding-and-type-safety">Beam Programming Guide: Coder&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/programming-guide/#side-inputs">Beam Programming Guide: Side inputs&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;h3 id="schema">Schema&lt;/h3>
+&lt;h2 id="schema">Schema&lt;/h2>
 &lt;p>A schema is a language-independent type definition for a &lt;code>PCollection&lt;/code>. The
 schema for a &lt;code>PCollection&lt;/code> defines elements of that &lt;code>PCollection&lt;/code> as an ordered
 list of named fields. Each field has a name, a type, and possibly a set of user
@@ -3914,7 +3914,7 @@ referencing fields, including nested and repeated fields.&lt;/p>
 &lt;li>&lt;a href="/documentation/programming-guide/#schemas">Beam Programming Guide: Schemas&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/patterns/schema/">Schema Patterns&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;h3 id="runner">Runner&lt;/h3>
+&lt;h2 id="runner">Runner&lt;/h2>
 &lt;p>A Beam runner runs a Beam pipeline on a specific platform. Most runners are
 translators or adapters to massively parallel big data processing systems, such
 as Apache Flink, Apache Spark, Google Cloud Dataflow, and more. For example, the
@@ -3929,7 +3929,7 @@ model they support, see the runner
 &lt;li>&lt;a href="/documentation/#choosing-a-runner">Choosing a Runner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/capability-matrix/">Beam Capability Matrix&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;h3 id="window">Window&lt;/h3>
+&lt;h2 id="window">Window&lt;/h2>
 &lt;p>Windowing subdivides a &lt;code>PCollection&lt;/code> into &lt;em>windows&lt;/em> according to the timestamps
 of its individual elements. Windows enable grouping operations over unbounded
 collections by dividing the collection into windows of finite collections.&lt;/p>
@@ -3968,7 +3968,7 @@ sections: &lt;a href="#watermark">watermarks&lt;/a> and &lt;a href="#trigger">tr
 &lt;li>&lt;a href="/documentation/programming-guide/#windowing">Beam Programming Guide: Windowing&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/programming-guide/#setting-your-pcollections-windowing-function">Beam Programming Guide: WindowFn&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;h3 id="watermark">Watermark&lt;/h3>
+&lt;h2 id="watermark">Watermark&lt;/h2>
 &lt;p>In any data processing system, there is a certain amount of lag between the time
 a data event occurs (the “event time”, determined by the timestamp on the data
 element itself) and the time the actual data element gets processed at any stage
@@ -3996,7 +3996,7 @@ window emits late elements.&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#watermarks-and-late-data">Beam Programming Guide: Watermarks and late data&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;h3 id="trigger">Trigger&lt;/h3>
+&lt;h2 id="trigger">Trigger&lt;/h2>
 &lt;p>When collecting and grouping data into windows, Beam uses &lt;em>triggers&lt;/em> to
 determine when to emit the aggregated results of each window (referred to as a
 &lt;em>pane&lt;/em>). If you use Beam’s default windowing configuration and default trigger,
@@ -4033,7 +4033,7 @@ trigger for late data.&lt;/li>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#triggers">Beam Programming Guide: Triggers&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;h3 id="state-and-timers">State and timers&lt;/h3>
+&lt;h2 id="state-and-timers">State and timers&lt;/h2>
 &lt;p>Beam’s windowing and triggers provide an abstraction for grouping and
 aggregating unbounded input data based on timestamps. However, there are
 aggregation use cases that might require an even higher degree of control. State
@@ -4102,7 +4102,7 @@ choose timer tags (for example, based on data in the input elements).&lt;/li>
 &lt;li>&lt;a href="/blog/stateful-processing/">Stateful processing with Apache Beam&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/blog/timely-processing/">Timely (and Stateful) Processing with Apache Beam&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;h3 id="splittable-dofn">Splittable DoFn&lt;/h3>
+&lt;h2 id="splittable-dofn">Splittable DoFn&lt;/h2>
 &lt;p>Splittable &lt;code>DoFn&lt;/code> (SDF) is a generalization of &lt;code>DoFn&lt;/code> that lets you process
 elements in a non-monolithic way. Splittable &lt;code>DoFn&lt;/code> makes it easier to create
 complex, modular I/O connectors in Beam.&lt;/p>
@@ -4136,7 +4136,7 @@ directory and give it additional resources.&lt;/p>
 &lt;li>&lt;a href="/documentation/programming-guide/#splittable-dofns">Splittable DoFns&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/blog/splittable-do-fn-is-available/">Splittable DoFn in Apache Beam is Ready to Use&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;h3 id="whats-next">What&amp;rsquo;s next&lt;/h3>
+&lt;h2 id="whats-next">What&amp;rsquo;s next&lt;/h2>
 &lt;p>Take a look at our &lt;a href="/documentation/">other documentation&lt;/a> such as the Beam
 programming guide, pipeline execution information, and transform reference
 catalogs.&lt;/p></description></item><item><title>Documentation: Beam glossary</title><link>/documentation/glossary/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/glossary/</guid><description>
