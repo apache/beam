@@ -55,7 +55,7 @@ func checkBadHttpCode(t *testing.T, err error, code int) {
 			return
 		}
 	}
-	t.Fatal(err)
+	t.Fatal("Expected ErrBadResponse with code %v, got %v", code, err)
 }
 
 func TestSaveGetProgress(t *testing.T) {
