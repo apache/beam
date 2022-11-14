@@ -175,7 +175,7 @@ public abstract class PubsubClient implements Closeable {
     private final String projectId;
     private final String subscriptionName;
 
-    SubscriptionPath(String path) {
+    public SubscriptionPath(String path) {
       List<String> splits = Splitter.on('/').splitToList(path);
       checkState(
           splits.size() == 4

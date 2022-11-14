@@ -25,6 +25,7 @@ import org.apache.beam.examples.complete.game.utils.WriteToText;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -205,7 +206,7 @@ public class UserScore {
   // [END DocInclude_USExtractXform]
 
   /** Options supported by {@link UserScore}. */
-  public interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions, GcpOptions {
 
     @Description("Path to the data file(s) containing game data.")
     /* The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent
@@ -224,6 +225,12 @@ public class UserScore {
     String getOutput();
 
     void setOutput(String value);
+
+    @Description("Set to true if we want to write one file per window.")
+    @Default.Boolean(true)
+    boolean getIsWindowed();
+
+    void setIsWindowed(boolean value);
   }
 
   /**
@@ -242,19 +249,27 @@ public class UserScore {
   public static void main(String[] args) throws Exception {
     // Begin constructing a pipeline configured by commandline flags.
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
+    // command line.
+    runUserScore(options);
+  }
+
+  public static void runUserScore(Options options) {
     Pipeline pipeline = Pipeline.create(options);
+    applyUserScore(pipeline, options);
+    pipeline.run();
+  }
+
+  public static void applyUserScore(Pipeline p, Options options) {
 
     // Read events from a text file and parse them.
-    pipeline
-        .apply(TextIO.read().from(options.getInput()))
+    p.apply(TextIO.read().from(options.getInput()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
         // Extract and sum username/score pairs from the event data.
         .apply("ExtractUserScore", new ExtractAndSumScore("user"))
         .apply(
-            "WriteUserScoreSums", new WriteToText<>(options.getOutput(), configureOutput(), false));
-
-    // Run the batch pipeline.
-    pipeline.run().waitUntilFinish();
+            "WriteUserScoreSums",
+            new WriteToText<>(options.getOutput(), configureOutput(), options.getIsWindowed()));
   }
   // [END DocInclude_USMain]
 }

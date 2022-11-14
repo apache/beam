@@ -169,13 +169,20 @@ public class BigqueryClient {
   @Nonnull
   public QueryResponse queryWithRetries(String query, String projectId)
       throws IOException, InterruptedException {
-    return queryWithRetries(query, projectId, false, false);
+    return queryWithRetries(query, projectId, false, false, BACKOFF_FACTORY);
   }
 
   @Nonnull
   public QueryResponse queryWithRetriesUsingStandardSql(String query, String projectId)
       throws IOException, InterruptedException {
-    return queryWithRetries(query, projectId, false, true);
+    return queryWithRetries(query, projectId, false, true, BACKOFF_FACTORY);
+  }
+
+  @Nonnull
+  public QueryResponse queryWithRetriesUsingStandardSql(
+      String query, String projectId, FluentBackoff backoffFactory)
+      throws IOException, InterruptedException {
+    return queryWithRetries(query, projectId, false, true, backoffFactory);
   }
 
   private @Nullable Object getTypedCellValue(TableFieldSchema fieldSchema, Object v) {
@@ -340,15 +347,19 @@ public class BigqueryClient {
   @Nonnull
   public QueryResponse queryWithRetries(String query, String projectId, boolean typed)
       throws IOException, InterruptedException {
-    return queryWithRetries(query, projectId, typed, false);
+    return queryWithRetries(query, projectId, typed, false, BACKOFF_FACTORY);
   }
 
   @Nonnull
   private QueryResponse queryWithRetries(
-      String query, String projectId, boolean typed, boolean useStandardSql)
+      String query,
+      String projectId,
+      boolean typed,
+      boolean useStandardSql,
+      FluentBackoff backoffFactory)
       throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
-    BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+    BackOff backoff = BackOffAdapter.toGcpBackOff(backoffFactory.backoff());
     IOException lastException = null;
     QueryRequest bqQueryRequest =
         new QueryRequest()

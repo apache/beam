@@ -362,6 +362,12 @@ tasks.register("examplesIntegrationTest", Test) {
       excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
       // TODO (https://github.com/apache/beam/issues/21344) Fix integration Tests to run with FlinkRunner: Error deleting table, Not found: Dataset
       excludeTestsMatching 'org.apache.beam.examples.cookbook.BigQueryTornadoesIT.testE2eBigQueryTornadoesWithStorageApiUsingQuery'
+      // TODO Fix GameStats Example: WindowIntoFixedWindows step gets stuck when trying to determine the duration.
+      excludeTestsMatching 'org.apache.beam.examples.complete.game.GameStatsIT'
+      // TODO Reading from pubsub never finishes. Need to find a way to cancel the pipeline so that it can proceed with the next steps.
+      excludeTestsMatching 'org.apache.beam.examples.complete.game.StatefulTeamScoreIT'
+      excludeTestsMatching 'org.apache.beam.examples.complete.game.GameStatsIT'
+      excludeTestsMatching 'org.apache.beam.examples.complete.game.LeaderBoardIT'
     }
   }
 

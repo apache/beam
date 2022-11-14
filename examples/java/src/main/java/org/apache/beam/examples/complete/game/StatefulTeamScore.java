@@ -19,14 +19,13 @@ package org.apache.beam.examples.complete.game;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery.FieldInfo;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -38,8 +37,10 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -77,10 +78,10 @@ import org.joda.time.Instant;
  * the same topic to which the Injector is publishing.
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
-  // errorprone is released (2.11.0)
-  "unused"
+        "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+        // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+        // errorprone is released (2.11.0)
+        "unused"
 })
 public class StatefulTeamScore extends LeaderBoard {
 
@@ -101,57 +102,72 @@ public class StatefulTeamScore extends LeaderBoard {
   private static Map<String, FieldInfo<KV<String, Integer>>> configureCompleteWindowedTableWrite() {
 
     Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
-        new HashMap<>();
+            new HashMap<>();
     tableConfigure.put(
-        "team", new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
+            "team", new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
     tableConfigure.put(
-        "total_score",
-        new WriteWindowedToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
+            "total_score",
+            new WriteWindowedToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
     tableConfigure.put(
-        "processing_time",
-        new WriteWindowedToBigQuery.FieldInfo<>(
-            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
+            "processing_time",
+            new WriteWindowedToBigQuery.FieldInfo<>(
+                    "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
+  }
+
+  public static void applyStatefulTeamScore(Pipeline p, Options options) throws IOException {
+
+    PubsubIO.Read<String> records = readRecordsFromPubSub(options);
+
+    p.apply(records)
+            // Create <team, GameActionInfo> mapping & Outputs a team's score every time it passes a new
+            // multiple of the threshold
+            .apply(new TeamScore(options))
+            // Write the results to BigQuery.
+            .apply(
+                    "WriteTeamLeaders",
+                    new WriteWindowedToBigQuery<>(
+                            options.as(GcpOptions.class).getProject(),
+                            options.getDataset(),
+                            options.getLeaderBoardTableName() + "_team_leader",
+                            configureCompleteWindowedTableWrite()));
+  }
+
+  public static void runStatefulTeamScore(Options options) throws IOException {
+    Pipeline p = Pipeline.create(options);
+    applyStatefulTeamScore(p, options);
+    p.run();
   }
 
   public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
     // Enforce that this pipeline is always run in streaming mode.
     options.setStreaming(true);
-    ExampleUtils exampleUtils = new ExampleUtils(options);
-    Pipeline pipeline = Pipeline.create(options);
+    runStatefulTeamScore(options);
+  }
 
-    pipeline
-        // Read game events from Pub/Sub using custom timestamps, which are extracted from the
-        // pubsub data elements, and parse the data.
-        .apply(
-            PubsubIO.readStrings()
-                .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
-                .fromTopic(options.getTopic()))
-        .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
-        // Create <team, GameActionInfo> mapping. UpdateTeamScore uses team name as key.
-        .apply(
-            "MapTeamAsKey",
-            MapElements.into(
-                    TypeDescriptors.kvs(
-                        TypeDescriptors.strings(), TypeDescriptor.of(GameActionInfo.class)))
-                .via((GameActionInfo gInfo) -> KV.of(gInfo.team, gInfo)))
-        // Outputs a team's score every time it passes a new multiple of the threshold.
-        .apply("UpdateTeamScore", ParDo.of(new UpdateTeamScoreFn(options.getThresholdScore())))
-        // Write the results to BigQuery.
-        .apply(
-            "WriteTeamLeaders",
-            new WriteWindowedToBigQuery<>(
-                options.as(GcpOptions.class).getProject(),
-                options.getDataset(),
-                options.getLeaderBoardTableName() + "_team_leader",
-                configureCompleteWindowedTableWrite()));
+  static class TeamScore extends PTransform<PCollection<String>, PCollection<KV<String, Integer>>> {
+    private Options options;
 
-    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
-    // command line.
-    PipelineResult result = pipeline.run();
-    exampleUtils.waitToFinish(result);
+    public TeamScore(Options options) {
+      this.options = options;
+    }
+
+    @Override
+    public PCollection<KV<String, Integer>> expand(PCollection<String> rows) {
+      return rows.apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
+              .apply(
+                      // Create <team, GameActionInfo> mapping. UpdateTeamScore uses team name as key.
+                      "MapTeamAsKey",
+                      MapElements.into(
+                                      TypeDescriptors.kvs(
+                                              TypeDescriptors.strings(), TypeDescriptor.of(GameActionInfo.class)))
+                              .via((GameActionInfo gInfo) -> KV.of(gInfo.team, gInfo)))
+              // Outputs a team's score every time it passes a new multiple of the threshold.
+              .apply("UpdateTeamScore", ParDo.of(new UpdateTeamScoreFn(options.getThresholdScore())));
+    }
   }
 
   /**
@@ -168,7 +184,7 @@ public class StatefulTeamScore extends LeaderBoard {
    */
   @VisibleForTesting
   public static class UpdateTeamScoreFn
-      extends DoFn<KV<String, GameActionInfo>, KV<String, Integer>> {
+          extends DoFn<KV<String, GameActionInfo>, KV<String, Integer>> {
 
     private static final String TOTAL_SCORE = "totalScore";
     private final int thresholdScore;
@@ -198,7 +214,7 @@ public class StatefulTeamScore extends LeaderBoard {
      */
     @StateId(TOTAL_SCORE)
     private final StateSpec<ValueState<Integer>> totalScoreSpec =
-        StateSpecs.value(VarIntCoder.of());
+            StateSpecs.value(VarIntCoder.of());
 
     /**
      * To use a state cell, annotate a parameter with {@link
@@ -207,7 +223,7 @@ public class StatefulTeamScore extends LeaderBoard {
      */
     @ProcessElement
     public void processElement(
-        ProcessContext c, @StateId(TOTAL_SCORE) ValueState<Integer> totalScore) {
+            ProcessContext c, @StateId(TOTAL_SCORE) ValueState<Integer> totalScore) {
       String teamName = c.element().getKey();
       GameActionInfo gInfo = c.element().getValue();
 

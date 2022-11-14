@@ -17,15 +17,17 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
-import org.apache.beam.examples.common.ExampleUtils;
+import org.apache.beam.examples.common.ExamplePubsubTopicAndSubscriptionOptions;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.options.Default;
@@ -93,7 +95,7 @@ public class LeaderBoard extends HourlyTeamScore {
   static final Duration TEN_MINUTES = Duration.standardMinutes(10);
 
   /** Options supported by {@link LeaderBoard}. */
-  public interface Options extends ExampleOptions, StreamingOptions {
+  public interface Options extends ExampleOptions, StreamingOptions, GcpOptions {
 
     @Description("BigQuery Dataset to write tables to. Must already exist.")
     @Validation.Required
@@ -106,6 +108,12 @@ public class LeaderBoard extends HourlyTeamScore {
     String getTopic();
 
     void setTopic(String value);
+
+    @Description("Pub/Sub subscription to read from")
+    @Validation.Required
+    String getSubscription();
+
+    void setSubscription(String value);
 
     @Description("Numeric value of fixed window duration for team analysis, in minutes")
     @Default.Integer(60)
@@ -190,23 +198,30 @@ public class LeaderBoard extends HourlyTeamScore {
     return tableConfigure;
   }
 
-  public static void main(String[] args) throws Exception {
+  protected static PubsubIO.Read<String> readRecordsFromPubSub(Options options) {
 
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-    // Enforce that this pipeline is always run in streaming mode.
-    options.setStreaming(true);
-    ExampleUtils exampleUtils = new ExampleUtils(options);
-    Pipeline pipeline = Pipeline.create(options);
+    // Read game events from Pub/Sub using custom timestamps, which are extracted from the
+    // pubsub data elements, and parse the data.
+    PubsubIO.Read<String> recordsWithTimeStamp =
+        PubsubIO.readStrings().withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE);
 
-    // Read game events from Pub/Sub using custom timestamps, which are extracted from the pubsub
-    // data elements, and parse the data.
+    PubsubIO.Read<String> records = null;
+
+    if (options.getSubscription() != null && !options.getSubscription().isEmpty()) {
+      records = recordsWithTimeStamp.fromSubscription(options.getSubscription());
+    } else {
+      records = recordsWithTimeStamp.fromTopic(options.getTopic());
+    }
+
+    return records;
+  }
+
+  public static void applyLeaderBoard(Pipeline p, Options options) {
+
+    PubsubIO.Read<String> records = readRecordsFromPubSub(options);
+
     PCollection<GameActionInfo> gameEvents =
-        pipeline
-            .apply(
-                PubsubIO.readStrings()
-                    .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
-                    .fromTopic(options.getTopic()))
-            .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
+        p.apply(records).apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     gameEvents
         .apply(
@@ -214,7 +229,6 @@ public class LeaderBoard extends HourlyTeamScore {
             new CalculateTeamScores(
                 Duration.standardMinutes(options.getTeamWindowDuration()),
                 Duration.standardMinutes(options.getAllowedLateness())))
-        // Write the results to BigQuery.
         .apply(
             "WriteTeamScoreSums",
             new WriteWindowedToBigQuery<>(
@@ -222,10 +236,12 @@ public class LeaderBoard extends HourlyTeamScore {
                 options.getDataset(),
                 options.getLeaderBoardTableName() + "_team",
                 configureWindowedTableWrite()));
+
     gameEvents
         .apply(
             "CalculateUserScores",
             new CalculateUserScores(Duration.standardMinutes(options.getAllowedLateness())))
+
         // Write the results to BigQuery.
         .apply(
             "WriteUserScoreSums",
@@ -234,11 +250,20 @@ public class LeaderBoard extends HourlyTeamScore {
                 options.getDataset(),
                 options.getLeaderBoardTableName() + "_user",
                 configureGlobalWindowBigQueryWrite()));
+  }
 
-    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
-    // command line.
-    PipelineResult result = pipeline.run();
-    exampleUtils.waitToFinish(result);
+  public static void runLeaderBoard(Options options) throws IOException {
+    Pipeline pipeline = Pipeline.create(options);
+    applyLeaderBoard(pipeline, options);
+    pipeline.run();
+  }
+
+  public static void main(String[] args) throws Exception {
+
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+    // Enforce that this pipeline is always run in streaming mode.
+    options.setStreaming(true);
+    runLeaderBoard(options);
   }
 
   /** Calculates scores for each team within the configured window duration. */

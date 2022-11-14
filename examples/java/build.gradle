@@ -92,10 +92,18 @@ dependencies {
   implementation "org.apache.commons:commons-lang3:3.9"
   implementation "org.apache.httpcomponents:httpclient:4.5.13"
   implementation "org.apache.httpcomponents:httpcore:4.4.13"
+  implementation project(path: ":runners:flink:1.12")
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation project(":sdks:java:extensions:ml")
   testImplementation library.java.google_cloud_bigquery
+  // GCP PubSub client is used in LeaderBoardIT and StatefulTeamScoreIT
+  testImplementation library.java.google_cloud_pubsub
+  testImplementation library.java.gax
+  testImplementation(library.java.gax_grpc) {
+    // BEAM-13781: gax-grpc's gRPC version was older than Beam declared
+    exclude group: 'io.grpc', module: 'grpc-netty-shaded'
+  }
   testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
