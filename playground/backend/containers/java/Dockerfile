@@ -15,8 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-ARG BEAM_VERSION=2.42.0
-ARG BASE_IMAGE=apache/beam_java8_sdk:${BEAM_VERSION}
+ARG SDK_TAG
+ARG BASE_IMAGE=apache/beam_java8_sdk:${SDK_TAG}
 FROM golang:1.18-bullseye AS build
 
 # Setup Go Environment
@@ -39,7 +39,6 @@ RUN go mod download &&\
 
 FROM $BASE_IMAGE
 # docker linter we use doesn't allow to have ARG declaration without value although it's a valid syntax
-ARG BEAM_VERSION=2.42.0
 ARG HAMCREST_VERSION=1.3
 ARG JUNIT_VERSION=4.13.2
 ARG GRPC_VERSION=1_48_1
@@ -56,18 +55,6 @@ COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/backend/
 
-# Install Beam DirectRunner
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-direct-java/$BEAM_VERSION/beam-runners-direct-java-$BEAM_VERSION.jar &&\
-    mv beam-runners-direct-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-direct.jar
-# Install Beam SDK Core
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION.jar &&\
-    mv beam-sdks-java-core-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-core.jar
-# Imstall Beam Examples
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-java/$BEAM_VERSION/beam-examples-java-$BEAM_VERSION.jar &&\
-    mv beam-examples-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-java.jar
-# Install Beam SDK Core tests
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION-tests.jar &&\
-    mv beam-sdks-java-core-$BEAM_VERSION-tests.jar /opt/apache/beam/jars/beam-sdks-java-core-tests.jar
 # Install Hamcrest
 RUN wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/$HAMCREST_VERSION/hamcrest-all-$HAMCREST_VERSION.jar &&\
     mv hamcrest-all-$HAMCREST_VERSION.jar /opt/apache/beam/jars/hamcrest-all.jar
