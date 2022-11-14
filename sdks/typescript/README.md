@@ -40,7 +40,7 @@ code encapsulated in docker images.
 
 ## Getting started
 
-To instal and test the Typescript SDK from source, you will need `npm` and
+To install and test the Typescript SDK from source, you will need `npm` and
 `python`. Other requirements can be installed by `npm` later on.
 
 (**Note** that Python is a requirement as it is used to orchestrate Beam
