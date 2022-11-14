@@ -17,6 +17,7 @@ package main
 
 import (
 	"flag"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -36,68 +37,92 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func makeUserCodeRequest() UserCodeRequest {
+	return UserCodeRequest{
+		Files: []UserCodeFile{
+			{Name: "main.py", Content: "import sys; sys.exit(0)", IsMain: true},
+		},
+		PipelineOptions: "some opts",
+	}
+}
+
+func checkBadHttpCode(t *testing.T, err error, code int) {
+	if err == nil {
+		t.Fatal("error expected")
+	}
+	if err, ok := err.(*ErrBadResponse); ok {
+		if err.Code == code {
+			return
+		}
+	}
+	t.Fatalf("Expected ErrBadResponse with code %v, got %v", code, err)
+}
+
 func TestSaveGetProgress(t *testing.T) {
 	idToken := emulator.getIDToken()
 
-	t.Run("save_complete", func(t *testing.T) {
-		port := os.Getenv(PORT_POST_UNIT_COMPLETE)
-		if port == "" {
-			t.Fatal(PORT_POST_UNIT_COMPLETE, "env not set")
-		}
-		url := "http://localhost:" + port
+	// postUnitCompleteURL
+	port := os.Getenv(PORT_POST_UNIT_COMPLETE)
+	if port == "" {
+		t.Fatal(PORT_POST_UNIT_COMPLETE, "env not set")
+	}
+	postUnitCompleteURL := "http://localhost:" + port
 
-		err := PostUnitComplete(url, "python", "unit_id_1", idToken)
+	// postUserCodeURL
+	port = os.Getenv(PORT_POST_USER_CODE)
+	if port == "" {
+		t.Fatal(PORT_POST_USER_CODE, "env not set")
+	}
+	postUserCodeURL := "http://localhost:" + port
+
+	// getUserProgressURL
+	port = os.Getenv(PORT_GET_USER_PROGRESS)
+	if port == "" {
+		t.Fatal(PORT_GET_USER_PROGRESS, "env not set")
+	}
+	getUserProgressURL := "http://localhost:" + port
+
+	t.Run("save_complete_no_unit", func(t *testing.T) {
+		resp, err := PostUnitComplete(postUnitCompleteURL, "python", "unknown_unit_id_1", idToken)
+		checkBadHttpCode(t, err, http.StatusNotFound)
+		assert.Equal(t, "NOT_FOUND", resp.Code)
+		assert.Equal(t, "unit not found", resp.Message)
+	})
+	t.Run("save_complete", func(t *testing.T) {
+		_, err := PostUnitComplete(postUnitCompleteURL, "python", "challenge1", idToken)
 		if err != nil {
 			t.Fatal(err)
 		}
 	})
 	t.Run("save_code", func(t *testing.T) {
-		port := os.Getenv(PORT_POST_USER_CODE)
-		if port == "" {
-			t.Fatal(PORT_POST_USER_CODE, "env not set")
-		}
-		url := "http://localhost:" + port
-		req := UserCodeRequest{
-			Files: []UserCodeFile{
-				{Name: "main.py", Content: "import sys; sys.exit(0)", IsMain: true},
-			},
-			PipelineOptions: "some opts",
-		}
-
-		_, err := PostUserCode(url, "python", "unit_id_2", idToken, req)
+		req := makeUserCodeRequest()
+		_, err := PostUserCode(postUserCodeURL, "python", "example1", idToken, req)
 		if err != nil {
 			t.Fatal(err)
 		}
 	})
-	t.Run("save_code_fail", func(t *testing.T) {
-		port := os.Getenv(PORT_POST_USER_CODE)
-		if port == "" {
-			t.Fatal(PORT_POST_USER_CODE, "env not set")
-		}
-		url := "http://localhost:" + port
-		req := UserCodeRequest{
-			Files: []UserCodeFile{
-				// empty content doesn't pass validation
-				{Name: "main.py", Content: "", IsMain: true},
-			},
-			PipelineOptions: "some opts",
-		}
+	t.Run("save_code_playground_fail", func(t *testing.T) {
+		req := makeUserCodeRequest()
 
-		resp, err := PostUserCode(url, "python", "unit_id_1", idToken, req)
-		if err != nil {
-			t.Fatal(err)
-		}
+		// empty content doesn't pass validation
+		req.Files[0].Content = ""
+
+		resp, err := PostUserCode(postUserCodeURL, "python", "example1", idToken, req)
+		checkBadHttpCode(t, err, http.StatusInternalServerError)
 		assert.Equal(t, "INTERNAL_ERROR", resp.Code)
 		msg := "playground api error"
 		assert.Equal(t, msg, resp.Message[:len(msg)])
 
 	})
+	t.Run("save_code_no_unit", func(t *testing.T) {
+		req := makeUserCodeRequest()
+		resp, err := PostUserCode(postUserCodeURL, "python", "unknown_unit_id_1", idToken, req)
+		checkBadHttpCode(t, err, http.StatusNotFound)
+		assert.Equal(t, "NOT_FOUND", resp.Code)
+		assert.Equal(t, "unit not found", resp.Message)
+
+	})
 	t.Run("get", func(t *testing.T) {
-		port := os.Getenv(PORT_GET_USER_PROGRESS)
-		if port == "" {
-			t.Fatal(PORT_GET_USER_PROGRESS, "env not set")
-		}
-		url := "http://localhost:" + port
 
 		mock_path := filepath.Join("..", "samples", "api", "get_user_progress.json")
 		var exp SdkProgress
@@ -105,7 +130,7 @@ func TestSaveGetProgress(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		resp, err := GetUserProgress(url, "python", idToken)
+		resp, err := GetUserProgress(getUserProgressURL, "python", idToken)
 		if err != nil {
 			t.Fatal(err)
 		}
