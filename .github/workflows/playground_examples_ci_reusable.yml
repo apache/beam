@@ -126,7 +126,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-
       - name: Build SDK runner base image
         if: env.SDK == 'python'
         run: |
