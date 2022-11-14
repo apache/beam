@@ -592,7 +592,7 @@ class CombineTest(unittest.TestCase):
           ])
           | beam.WindowInto(window.SlidingWindows(10, 5))
           | beam.CombineGlobally(beam.combiners.ToListCombineFn()).
-          without_defaults().with_fanout(2))
+          without_defaults().with_fanout(7))
       assert_that(result, has_expected_values)
 
   def test_combining_with_session_windows_and_fanout(self):
@@ -606,8 +606,6 @@ class CombineTest(unittest.TestCase):
         ordered = sorted(actual)
 
         hamcrest_assert(ordered, contains_exactly([0, 1, 2, 3], [5, 6, 7, 8]))
-        # Different runners have different number of 15s, but there should
-        # be at least one 15.
 
       result = (
           p
@@ -623,7 +621,7 @@ class CombineTest(unittest.TestCase):
           ])
           | beam.WindowInto(window.Sessions(2))
           | beam.CombineGlobally(beam.combiners.ToListCombineFn()).
-          without_defaults().with_fanout(2))
+          without_defaults().with_fanout(7))
 
       assert_that(result, has_expected_values)
 
