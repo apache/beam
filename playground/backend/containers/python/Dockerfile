@@ -38,8 +38,6 @@ RUN go mod download &&\
     cd cmd/server &&\
     go build -o /go/bin/server_python_backend
 
-ARG SDK_TAG
-ARG BASE_IMAGE=apache/beam_python3.7_sdk:$SDK_TAG
 FROM $BASE_IMAGE
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
