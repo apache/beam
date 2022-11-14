@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-const { ISSUES_MANAGER_TAG } = require("./constants.js");
+const { ISSUES_MANAGER_TAG, ISSUES_MANAGER_LABEL } = require("./constants.js");
 
 const getRepoIssues = async ({ github, context }) => {
   let issues = [];
 
-  //TODO: Use a label or an id to get more specific issues
   for await (const response of github.paginate.iterator(github.rest.issues.listForRepo, {
     owner: context.repo.owner,
     repo: context.repo.repo,
+    labels: ISSUES_MANAGER_LABEL,
     per_page: 100,
   })) {
     issues = issues.concat(response.data);

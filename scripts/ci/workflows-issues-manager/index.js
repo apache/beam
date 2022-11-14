@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-const { ISSUES_MANAGER_TAG } = require("./constants.js");
+const { ISSUES_MANAGER_TAG, ISSUE_STATUS } = require("./constants.js");
 const { getRepoWorkflows, getRunsForWorkflow } = require("./workflows.js");
 const { getRepoIssues, closeIssue, createIssue } = require("./issues");
 
@@ -69,11 +69,6 @@ const getWorkflowIdFromIssueTitle = (title) => {
   return title.match(/\[(\d*)\]/).pop();
 };
 
-//TODO: Delete this function if issues can be obtained directly by a label
-const filterIssuesByTag = (issues, tag) => {
-  return issues.filter((issue) => issue.pull_request === undefined).filter((issue) => issue.title.startsWith(tag, 1));
-};
-
 const getIssuesByWorkflowId = (issues) => {
   return issues.reduce((prev, curr) => {
     const workflowId = getWorkflowIdFromIssueTitle(curr.title);
@@ -89,7 +84,6 @@ const createIssuesForWorkflows = async ({ github, context }, workflows) => {
   let results = [];
 
   issues = await getRepoIssues({ github, context });
-  issues = filterIssuesByTag(issues, ISSUES_MANAGER_TAG); //Discards issues that are PRs and not created by the workflow issues manager
 
   const issuesByWorkflowId = getIssuesByWorkflowId(issues);
 
@@ -98,10 +92,10 @@ const createIssuesForWorkflows = async ({ github, context }, workflows) => {
 
     if (workflow.id in issuesByWorkflowId) {
       issue_url = issuesByWorkflowId[workflow.id].html_url;
-      issue_status = "EXISTENT";
+      issue_status = ISSUE_STATUS.EXISTENT;
     } else {
       issue_url = await createIssue({ github, context }, workflow);
-      issue_status = "CREATED";
+      issue_status = ISSUE_STATUS.CREATED;
     }
 
     results.push({ ...workflow, issue_status, issue_url });
@@ -125,9 +119,9 @@ const closeIssuesForWorkflows = async ({ github, context }, workflows) => {
     if (workflow.id in issuesByWorkflowId) {
       let issue = issuesByWorkflowId[workflow.id];
       issue_url = await closeIssue({ github, context }, issue);
-      issue_status = "CLOSED";
+      issue_status = ISSUE_STATUS.CLOSED;
     } else {
-      issue_status = "SKIPPED";
+      issue_status = ISSUE_STATUS.SKIPPED;
     }
 
     results.push({ ...workflow, issue_status, issue_url });
