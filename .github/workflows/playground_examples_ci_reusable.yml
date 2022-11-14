@@ -144,6 +144,9 @@ jobs:
       - name: Set docker image
         run: echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG" >> $GITHUB_ENV
 
+      - name: Set docker image
+        run: echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG" >> $GITHUB_ENV
+
       - name: Start SDK runner in background
         run: |
           set -uex
