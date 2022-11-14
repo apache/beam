@@ -134,7 +134,7 @@ def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
 
   Args:
     model_fn: A string name of the method to be used. This is accessed through
-      model.get_attr()
+      getattr(model, model_fn)
   """
   def attr_fn(
       batch: Sequence[torch.Tensor],
@@ -289,7 +289,7 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
 
   Args:
     model_fn: A string name of the method to be used. This is accessed through
-      model.get_attr()
+      getattr(model, model_fn)
   """
   def attr_fn(
       batch: Sequence[torch.Tensor],
