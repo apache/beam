@@ -36,13 +36,13 @@ Future<void> initializeServiceLocator() async {
 void _initializeCaches() {
   final client = CloudFunctionsTobClient();
 
-  GetIt.instance.registerSingleton(AppNotifier());
   GetIt.instance.registerSingleton(ContentTreeCache(client: client));
   GetIt.instance.registerSingleton(SdkCache(client: client));
   GetIt.instance.registerSingleton(UnitContentCache(client: client));
 }
 
 void _initializeState() {
+  GetIt.instance.registerSingleton(AppNotifier());
   GetIt.instance.registerSingleton(
     PageStack(
       bottomPage: WelcomePage(),
