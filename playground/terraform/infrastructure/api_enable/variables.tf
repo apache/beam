@@ -17,10 +17,11 @@
 # under the License.
 #
 
-output "gke_name" {
-  value = google_container_cluster.playground-gke.name
+variable "project_id" {
+ description = "project_id"
 }
 
-output "playground_gke_project" {
-  value = google_container_cluster.playground-gke.project
+variable "services" {
+ description = "Enable necessary APIs in GCP"
+ default = ["cloudresourcemanager.googleapis.com","iam.googleapis.com","compute.googleapis.com","appengine.googleapis.com","artifactregistry.googleapis.com","redis.googleapis.com"]
 }

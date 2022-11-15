@@ -17,10 +17,22 @@
 # under the License.
 #
 
-output "gke_name" {
-  value = google_container_cluster.playground-gke.name
+variable "project_id" {
+  description = "The GCP Project ID where Playground Applications will be created"
 }
 
-output "playground_gke_project" {
-  value = google_container_cluster.playground-gke.project
+variable "region" {
+  description = "Location of App"
+  default = "us-central"
+}
+
+variable "create_default_service" {
+  description = "Whether or not to create a default app engine service"
+  type        = bool
+  default     = true
+}
+
+variable "location_id_us" {
+  description = "Location of App"
+  default = "us-central"
 }

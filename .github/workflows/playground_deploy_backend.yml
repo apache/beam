@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Build And Deploy Playground Frontend Application
+name: Build And Deploy Playground Backend Application
 
 on:
   push:
@@ -30,35 +30,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build_playground_frontend_docker_image:
-    name: Build Playground Frontend App
+  build_playground_backend_docker_image:
+    name: Build Playground Backend App
     runs-on: ubuntu-latest
     env:
       GO_VERSION: 1.18.0
       BEAM_VERSION: 2.40.0
       TERRAFORM_VERSION: 1.0.9
-      FLUTTER_VERSION: 3.3.2
       STAND_SUFFIX: ''
-      GOOGLE_DOMAIN: '-dot-apache-beam-testing.appspot.com'
+      DATASTORE_EMULATOR_HOST: 127.0.0.1:8888
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
-      - uses: actions/setup-java@v3.6.0
+      - uses: actions/setup-java@v3
         with:
             distribution: 'zulu'
             java-version: '8'
-      - name: install flutter
-        run: |
-             wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
-             tar -xf flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
-             mv flutter /opt/ &&\
-             ln -s /opt/flutter/bin/flutter /usr/local/bin/flutter &&\
-             ln -s /opt/flutter/bin/dart /usr/local/bin/dart &&\
-             dart pub global activate protoc_plugin &&\
-             ln -s /root/.pub-cache/bin/protoc-gen-dart /usr/local/bin/
+      - uses: actions/setup-go@v3
+        with:
+            go-version: '${{ env.GO_VERSION }}'
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
+
+      - name: Set up Cloud SDK and its components
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+            install_components: 'beta,cloud-datastore-emulator'
+            version: '389.0.0'
+
+      - name: Run PreCommit
+        run: ./gradlew playground:backend:precommit
       - name: install npm
         uses: actions/setup-node@v3
         with:
@@ -67,11 +69,11 @@ jobs:
         run: npm install  -g dockerlint
       - name: lint dockerfile
         run: dockerlint Dockerfile
-        working-directory: playground/frontend
+        working-directory: playground/backend/containers/java
       - uses: hashicorp/setup-terraform@v1
         with:
             terraform_version: ${{ env.TERRAFORM_VERSION }}
-        if: startsWith(github.ref, 'ref/tags/')
+        if: startsWith(github.ref, 'refs/tags/')
       - name: Set Docker Tag
         run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
       - name: Set Docker Tag If Github Tag was trigger
@@ -80,12 +82,19 @@ jobs:
       - name: Setup GCP account
         run: |
              echo "${{ secrets.GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
-        if: startsWith(github.ref, 'ref/tags/')
+        if: startsWith(github.ref, 'refs/tags/')
       - name: Login to Docker Registry
         run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.PLAYGROUND_REGISTRY_NAME }}
-        if: startsWith(github.ref, 'ref/tags/')
-      - name: Deploy Frontend Application
+        if: startsWith(github.ref, 'refs/tags/')
+      - name: Deploy Backend Applications
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
-        run: ./gradlew playground:terraform:deployFrontend -Pdocker-tag=${{env.DOCKERTAG}} -Pproject_id=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }} -Pproject_environment='beta'
+        run: ./gradlew playground:terraform:deployBackend -Pdocker-tag=${{env.DOCKERTAG}} -Pproject_id=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }} -Pproject_environment='beta' -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository'
         if: startsWith(github.ref, 'refs/tags/')
+      - name: DB Index creation
+        run: |
+         gcloud auth activate-service-account --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }} --key-file=/tmp/gcp_access.json
+         gcloud app deploy playground/index.yaml --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
