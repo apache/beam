@@ -30,35 +30,36 @@ on:
       USER_REMOTE_URL:
         description: Your beam repo URL
         required: true
+        default: https://github.com/apache/beam.git
 
 jobs:
   start_snapshot_build:
     runs-on: [self-hosted, ubuntu-20.04]
     env:
-    LOCAL_BEAM_PATH: beam_snapshot_build
-    BEAM_ROOT_PATH: beam
-    REMOTE_NAME: remote_repo
-    REMOTE_URL: ${{ github.event.inputs.USER_REMOTE_URL }}
-    BRANCH_NAME: snapshot_build
-    GIT_REPO_URL: https://github.com/apache/beam.git
+      LOCAL_BEAM_PATH: beam_snapshot_build
+      BEAM_ROOT_PATH: beam
+      REMOTE_NAME: remote_repo
+      REMOTE_URL: ${{ github.event.inputs.USER_REMOTE_URL }}
+      BRANCH_NAME: snapshot_build
+      GIT_REPO_URL: https://github.com/apache/beam.git
     steps:
     - uses: actions/checkout@v3
     - name: Install hub
       uses: geertvdc/setup-hub@master
-    - name: Create Empty PR
+    - name: Set git config
       run: |
-        cd ~
-        mkdir ${LOCAL_BEAM_PATH}
-        cd ${LOCAL_BEAM_PATH}
-        git clone ${GIT_REPO_URL}
-        cd ${BEAM_ROOT_PATH}
+        git config user.name $GITHUB_ACTOR
+        git config user.email actions@"$RUNNER_NAME".local
+    - name: Create Snapshot Branch
+      run: |
         git remote add ${REMOTE_NAME} ${REMOTE_URL}
         git checkout -b ${BRANCH_NAME}
         touch empty_file.txt
         git add -A
         git commit -m "Add empty file in order to create PR"
         git push -f ${REMOTE_NAME}
-        cd ~/${LOCAL_BEAM_PATH}/${BEAM_ROOT_PATH}
+    - name: Create Pull Request
+      run: |
         hub pull-request -F- <<<"[DO NOT MERGE]Start snapshot build for release process 
         
         
