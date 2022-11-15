@@ -158,7 +158,7 @@ import org.slf4j.LoggerFactory;
  *    );
  * }</pre>
  */
-public class SingleStoreIO {
+final class SingleStoreIO {
   /**
    * Read data from a SingleStoreDB datasource.
    *

@@ -67,7 +67,7 @@ job(jobName) {
     singleStoreUsername : "admin",
     singleStorePassword : "secretpass",
     singleStorePort: "3306",
-    numberOfRecords: "100000",
+    numberOfRecords: "1000000",
     influxMeasurement    : 'singlestoreioit_results',
     influxDatabase       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influxHost           : InfluxDBCredentialsHelper.InfluxDBHostUrl
