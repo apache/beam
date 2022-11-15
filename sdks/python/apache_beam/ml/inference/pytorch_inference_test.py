@@ -182,10 +182,6 @@ class PytorchLinearRegressionDict(torch.nn.Module):
     out = self.linear(x)
     return {'output1': out, 'output2': out}
 
-  def generate(self, x):
-    out = self.linear(x)
-    return {'output1': out, 'output2': out}
-
 
 class PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs(torch.nn.Module):
   """
