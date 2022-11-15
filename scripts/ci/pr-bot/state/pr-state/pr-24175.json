@@ -1,0 +1,11 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "go": "riteshghorse",
+    "build": "damccorm"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false
+}
