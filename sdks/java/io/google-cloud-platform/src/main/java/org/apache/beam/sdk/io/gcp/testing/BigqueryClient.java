@@ -173,16 +173,16 @@ public class BigqueryClient {
   }
 
   @Nonnull
-  public QueryResponse queryWithRetries(
-      String query, String projectId, FluentBackoff backoffFactory)
-      throws IOException, InterruptedException {
-    return queryWithRetries(query, projectId, false, true, backoffFactory);
-  }
-
-  @Nonnull
   public QueryResponse queryWithRetriesUsingStandardSql(String query, String projectId)
       throws IOException, InterruptedException {
     return queryWithRetries(query, projectId, false, true, BACKOFF_FACTORY);
+  }
+
+  @Nonnull
+  public QueryResponse queryWithRetriesUsingStandardSql(
+      String query, String projectId, FluentBackoff backoffFactory)
+      throws IOException, InterruptedException {
+    return queryWithRetries(query, projectId, false, true, backoffFactory);
   }
 
   private @Nullable Object getTypedCellValue(TableFieldSchema fieldSchema, Object v) {

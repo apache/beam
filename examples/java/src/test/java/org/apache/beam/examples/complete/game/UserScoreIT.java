@@ -33,16 +33,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link UserScore}. */
+/** Integration Tests for {@link UserScore}. */
 @RunWith(JUnit4.class)
-public class UserScoreIT {
-  public static final String GAMING_DATA_CSV =
+public class UserScoreIT extends CompleteGame {
+  protected static final String GAMING_DATA_CSV =
       "gs://apache-beam-samples/game/small/gaming_data.csv";
   public static final String TEMP_STORAGE_DIR = "gs://temp-storage-for-end-to-end-tests";
   private static final String DEFAULT_OUTPUT_CHECKSUM = "1b22379fc106a1f745b8e15a6c283dfb22a2a340";
-  private UserScoreOptions options =
+  private final UserScoreOptions options =
       TestPipeline.testingPipelineOptions().as(UserScoreOptions.class);
-  private static String projectId;
 
   public interface UserScoreOptions extends TestPipelineOptions, UserScore.Options {}
 

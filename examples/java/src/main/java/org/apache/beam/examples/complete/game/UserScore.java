@@ -25,6 +25,7 @@ import org.apache.beam.examples.complete.game.utils.WriteToText;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -205,7 +206,7 @@ public class UserScore {
   // [END DocInclude_USExtractXform]
 
   /** Options supported by {@link UserScore}. */
-  public interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions, GcpOptions {
 
     @Description("Path to the data file(s) containing game data.")
     /* The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent
@@ -225,7 +226,6 @@ public class UserScore {
 
     void setOutput(String value);
 
-    // Set to true if we want to write one file per window.
     @Description("Set to true if we want to write one file per window.")
     @Default.Boolean(true)
     boolean getIsWindowed();
@@ -263,7 +263,6 @@ public class UserScore {
   public static void applyUserScore(Pipeline p, Options options) {
 
     // Read events from a text file and parse them.
-
     p.apply(TextIO.read().from(options.getInput()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
         // Extract and sum username/score pairs from the event data.

@@ -366,7 +366,7 @@ public class GameStats extends LeaderBoard {
     }
   }
 
-  static void applyGameStats(Pipeline p, Options options) {
+  public static void applyGameStats(Pipeline p, Options options) {
 
     Integer fixedWindowDuration = options.getFixedWindowDuration();
     Integer userActivityWindowDuration = options.getUserActivityWindowDuration();
