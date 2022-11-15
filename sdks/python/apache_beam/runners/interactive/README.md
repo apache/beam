@@ -312,10 +312,12 @@ By default, the caches are kept on the local file system of the machine in
 You can specify the caching directory as follows
 
 ```python
-cache_dir = 'some/path/to/dir'
-runner = interactive_runner.InteractiveRunner(cache_dir=cache_dir)
-p = beam.Pipeline(runner=runner)
+ib.options.cache_root = 'some/path/to/dir'
 ```
+
+When using an `InteractiveRunner(underlying_runner=...)` that is running remotely
+and distributed, a distributed file system such as Cloud Storage
+(`ib.options.cache_root = gs://bucket/obj`) is necessary.
 
 #### Caching PCollection on Google Cloud Storage
 
@@ -342,16 +344,12 @@ credential settings.
 *   Make sure you have **read and write access to that bucket** when you specify
     to use that directory as caching directory.
 
-*   ```python
-    cache_dir = 'gs://bucket-name/dir'
-    runner = interactive_runner.InteractiveRunner(cache_dir=cache_dir)
-    p = beam.Pipeline(runner=runner)
-    ```
-
-*   Alternatively, you may configure a cache directory to be used by all interactive pipelines through using the `cache_root` option under interactive_beam. If the cache directory is specified this way, no additional parameters are required to be passed in during pipeline instantiation.
+*   You may configure a cache directory to be used by all interactive pipelines through
+    using the `cache_root` option under interactive_beam. If the cache directory is specified
+    this way, no additional parameters are required to be passed in during pipeline instantiation.
 
 *   ```python
-    ib.options.cache_root = 'gs://bucket-name/dir'
+    ib.options.cache_root = 'gs://bucket-name/obj'
     ```
 
 ### Portability across Execution Platforms
