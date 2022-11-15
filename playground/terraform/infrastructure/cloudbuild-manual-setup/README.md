@@ -57,7 +57,7 @@ cloudbuild_service_account_id = "terraform-cloudbuild"      # Name of SA to be u
 2. Run commands:
 
 ```console
-# Creates new authentication configuration to GCP Project 
+# Creates new authentication configuration to GCP Project
 # Using user account in Requirements 
 gcloud init
 
