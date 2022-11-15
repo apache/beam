@@ -39,7 +39,7 @@ public class UserScoreIT extends CompleteGameIT {
   // protected static final String GAMING_DATA_CSV =
   //    "gs://apache-beam-samples/game/small/gaming_data.csv";
   protected static final String GAMING_DATA_CSV = "gs://apache-beam-samples/game/gaming_data2.csv";
-  // public static final String TEMP_STORAGE_DIR = "gs://temp-storage-for-end-to-end-tests";
+  public static final String TEMP_STORAGE_DIR = "gs://temp-storage-for-end-to-end-tests";
   private static final String DEFAULT_OUTPUT_CHECKSUM = "1b22379fc106a1f745b8e15a6c283dfb22a2a340";
   private final UserScoreOptions options =
       TestPipeline.testingPipelineOptions().as(UserScoreOptions.class);
@@ -69,7 +69,7 @@ public class UserScoreIT extends CompleteGameIT {
     options.setBlockOnRun(false);
     options.setInput(GAMING_DATA_CSV);
     options.setOutput(
-        FileSystems.matchNewResource(options.getTempRoot(), true)
+        FileSystems.matchNewResource(TEMP_STORAGE_DIR, true)
             .resolve(
                 String.format("userscoreIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
                 ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)

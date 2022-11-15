@@ -39,7 +39,7 @@ public class HourlyTeamScoreIT extends CompleteGameIT {
   // protected static final String GAMING_DATA_CSV =
   //    "gs://apache-beam-samples/game/small/gaming_data.csv";
   protected static final String GAMING_DATA_CSV = "gs://apache-beam-samples/game/gaming_data2.csv";
-  // public static final String TEMP_STORAGE_DIR = "gs://temp-storage-for-end-to-end-tests";
+  public static final String TEMP_STORAGE_DIR = "gs://temp-storage-for-end-to-end-tests";
   private static final String DEFAULT_OUTPUT_CHECKSUM = "f920742fd1b363d01b0a5a44c951c683ea348a47";
   private HourlyTeamScoreOptions options =
       TestPipeline.testingPipelineOptions().as(HourlyTeamScoreOptions.class);
@@ -70,7 +70,7 @@ public class HourlyTeamScoreIT extends CompleteGameIT {
     options.setBlockOnRun(false);
     options.setInput(GAMING_DATA_CSV);
     options.setOutput(
-        FileSystems.matchNewResource(options.getTempRoot(), true)
+        FileSystems.matchNewResource(TEMP_STORAGE_DIR, true)
             .resolve(
                 String.format("hourlyteamscoreIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
                 ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
