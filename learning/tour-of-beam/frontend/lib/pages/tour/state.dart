@@ -57,8 +57,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       );
 
   void _setSdk() {
-    playgroundController.setSdk(Sdk.parseOrCreate(_appNotifier.sdkId!));
-    contentTreeController.sdkId = _appNotifier.sdkId!;
+    final sdkId = _appNotifier.sdkId;
+    if (sdkId != null) {
+      playgroundController.setSdk(Sdk.parseOrCreate(sdkId));
+      contentTreeController.sdkId = sdkId;
+    }
   }
 
   void _onChanged() {
