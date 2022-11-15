@@ -35,10 +35,9 @@ import org.junit.runners.JUnit4;
 
 /** Integration Tests for {@link HourlyTeamScore}. */
 @RunWith(JUnit4.class)
-public class HourlyTeamScoreIT extends CompleteGameIT {
-  // protected static final String GAMING_DATA_CSV =
-  //    "gs://apache-beam-samples/game/small/gaming_data.csv";
-  protected static final String GAMING_DATA_CSV = "gs://apache-beam-samples/game/gaming_data2.csv";
+public class HourlyTeamScoreIT extends CompleteGame {
+  protected static final String GAMING_DATA_CSV =
+      "gs://apache-beam-samples/game/small/gaming_data.csv";
   public static final String TEMP_STORAGE_DIR = "gs://temp-storage-for-end-to-end-tests";
   private static final String DEFAULT_OUTPUT_CHECKSUM = "f920742fd1b363d01b0a5a44c951c683ea348a47";
   private HourlyTeamScoreOptions options =

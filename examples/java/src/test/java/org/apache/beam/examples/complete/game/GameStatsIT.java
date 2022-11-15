@@ -35,7 +35,7 @@ import org.junit.runners.JUnit4;
 
 /** Integration Tests for {@link GameStats}. */
 @RunWith(JUnit4.class)
-public class GameStatsIT extends CompleteGameIT {
+public class GameStatsIT extends CompleteGame {
   public static final String GAME_STATS_TEAM_TABLE = "game_stats_team";
   public static final String SELECT_COUNT_AS_TOTAL_QUERY =
       "SELECT total_score FROM `%s.%s.%s` where team like(\"AmaranthKoala\")";

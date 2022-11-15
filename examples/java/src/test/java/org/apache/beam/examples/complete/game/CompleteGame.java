@@ -39,7 +39,7 @@ import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-public abstract class CompleteGameIT {
+public abstract class CompleteGame {
   protected static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY-MM-dd-HH-mm-ss-SSS");
   protected static String timestamp = Long.toString(System.currentTimeMillis());

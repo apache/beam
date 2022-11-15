@@ -35,7 +35,7 @@ import org.junit.runners.JUnit4;
 
 /** Integration Tests for {@link LeaderBoard}. */
 @RunWith(JUnit4.class)
-public class LeaderBoardIT extends CompleteGameIT {
+public class LeaderBoardIT extends CompleteGame {
   public static final String LEADERBOARD_TEAM_TABLE = "leaderboard_team";
   public static final String SELECT_COUNT_AS_TOTAL_QUERY =
       "SELECT total_score FROM `%s.%s.%s` WHERE team LIKE (\"AzureCassowary\")";

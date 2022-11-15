@@ -35,7 +35,7 @@ import org.junit.runners.JUnit4;
 
 /** Integration Tests for {@link LeaderBoard}. */
 @RunWith(JUnit4.class)
-public class StatefulTeamScoreIT extends CompleteGameIT {
+public class StatefulTeamScoreIT extends CompleteGame {
   public static final String LEADERBOARD_TEAM_LEADER_TABLE = "leaderboard_team_leader";
   public static final String SELECT_TOTAL_SCORE_QUERY =
       "SELECT total_score FROM `%s.%s.%s` where team like(\"AmaranthKoala\")";
