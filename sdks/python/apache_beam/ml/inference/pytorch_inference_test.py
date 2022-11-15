@@ -159,6 +159,10 @@ class PytorchLinearRegression(torch.nn.Module):
     out = self.linear(x)
     return out
 
+  def generate(self, x):
+    out = self.linear(x)
+    return out
+
 
 class PytorchLinearRegressionDict(torch.nn.Module):
   def __init__(self, input_dim, output_dim):
@@ -166,6 +170,10 @@ class PytorchLinearRegressionDict(torch.nn.Module):
     self.linear = torch.nn.Linear(input_dim, output_dim)
 
   def forward(self, x):
+    out = self.linear(x)
+    return {'output1': out, 'output2': out}
+
+  def generate(self, x):
     out = self.linear(x)
     return {'output1': out, 'output2': out}
 
@@ -408,6 +416,10 @@ class PytorchRunInferenceTest(unittest.TestCase):
         self.linear = torch.nn.Linear(input_dim, output_dim)
 
       def forward(self, k1, k2):
+        out = self.linear(k1) + self.linear(k2)
+        return out
+
+      def generate(self, k1, k2):
         out = self.linear(k1) + self.linear(k2)
         return out
 
