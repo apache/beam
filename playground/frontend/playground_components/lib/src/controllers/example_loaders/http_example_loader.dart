@@ -16,28 +16,35 @@
  * limitations under the License.
  */
 
+import 'package:collection/collection.dart';
+import 'package:http/http.dart' as http;
+
 import '../../cache/example_cache.dart';
 import '../../models/example.dart';
 import '../../models/example_base.dart';
-import '../../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
+import '../../models/example_loading_descriptors/http_example_loading_descriptor.dart';
 import 'example_loader.dart';
 
-class EmptyExampleLoader extends ExampleLoader {
-  final EmptyExampleLoadingDescriptor descriptor;
+class HttpExampleLoader extends ExampleLoader {
+  final HttpExampleLoadingDescriptor descriptor;
 
-  const EmptyExampleLoader({
+  const HttpExampleLoader({
     required this.descriptor,
     // TODO(alexeyinkin): Remove when this lands: https://github.com/dart-lang/language/issues/1813
     required ExampleCache exampleCache,
   });
 
   @override
-  Future<Example> get future async => Example(
-        name: 'Embedded_Example',
-        path: '',
-        sdk: descriptor.sdk,
-        source: '',
-        tags: [],
-        type: ExampleType.example,
-      );
+  Future<Example> get future async {
+    final response = await http.get(descriptor.uri);
+
+    return Example(
+      name: descriptor.uri.path.split('/').lastOrNull ?? 'HTTP Example',
+      path: descriptor.uri.toString(),
+      sdk: descriptor.sdk,
+      source: response.body,
+      type: ExampleType.example,
+      viewOptions: descriptor.viewOptions,
+    );
+  }
 }

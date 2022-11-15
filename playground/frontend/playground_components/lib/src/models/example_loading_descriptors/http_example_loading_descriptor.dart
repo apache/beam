@@ -16,21 +16,23 @@
  * limitations under the License.
  */
 
-import '../api/v1/api.pbgrpc.dart' as g;
-import '../enums/complexity.dart';
+import '../sdk.dart';
+import 'example_loading_descriptor.dart';
 
-extension GrpcComplecity on g.Complexity {
-  Complexity? get model {
-    switch (this) {
-      case g.Complexity.COMPLEXITY_BASIC:
-        return Complexity.basic;
-      case g.Complexity.COMPLEXITY_MEDIUM:
-        return Complexity.medium;
-      case g.Complexity.COMPLEXITY_ADVANCED:
-        return Complexity.advanced;
-      case g.Complexity.COMPLEXITY_UNSPECIFIED:
-        return null;
-    }
-    throw Exception('Unknown complexity: $this');
-  }
+class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  final Sdk sdk;
+  final Uri uri;
+
+  const HttpExampleLoadingDescriptor({
+    required this.sdk,
+    required this.uri,
+    super.viewOptions,
+  });
+
+  @override
+  List<Object> get props => [
+        sdk,
+        uri,
+        viewOptions,
+      ];
 }
