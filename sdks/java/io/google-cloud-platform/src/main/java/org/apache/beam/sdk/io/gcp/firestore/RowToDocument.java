@@ -49,20 +49,20 @@ public class RowToDocument extends PTransform<PCollection<Row>, PCollection<Docu
     this.keyField = keyField;
   }
 
-  @Override
-  public PCollection<Document> expand(PCollection<Row> input) {
-    if (!input
-        .getSchema()
-        .getField(keyField)
-        .getType()
-        .getTypeName()
-        .equals(Schema.TypeName.STRING)) {
+  public static void validateKeyFieldPresenceAndType(Schema schema, String keyField) {
+    if (!schema.getFieldNames().contains(keyField)
+        || !schema.getField(keyField).getType().getTypeName().equals(Schema.TypeName.STRING)) {
       throw new IllegalStateException(
           "Field `"
               + keyField
-              + "` should of type `STRING`. Please change the type or specify a field to"
+              + "` should be present and of type `STRING`. Please change the type or specify a field to"
               + " write the KEY value from.");
     }
+  }
+
+  @Override
+  public PCollection<Document> expand(PCollection<Row> input) {
+    validateKeyFieldPresenceAndType(input.getSchema(), keyField);
     LOG.info("Field to use as Document KEY is set to: `" + keyField + "`.");
     return input.apply(ParDo.of(new RowToDocument.RowToDocumentConverter()));
   }

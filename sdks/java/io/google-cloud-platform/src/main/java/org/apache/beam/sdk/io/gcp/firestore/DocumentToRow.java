@@ -50,16 +50,8 @@ public class DocumentToRow extends PTransform<PCollection<Document>, PCollection
     this.schema = schema;
     this.keyField = keyField;
 
-    if (schema.getFieldNames().contains(keyField)) {
-      if (!schema.getField(keyField).getType().getTypeName().equals(Schema.TypeName.STRING)) {
-        throw new IllegalStateException(
-            "Field `"
-                + keyField
-                + "` should of type `STRING`. Please change the type or specify a field to"
-                + " store the KEY value.");
-      }
-      LOG.info("Document KEY will be stored under `" + keyField + "` field.");
-    }
+    RowToDocument.validateKeyFieldPresenceAndType(schema, keyField);
+    LOG.info("Document KEY will be stored under `" + keyField + "` field.");
   }
 
   /**
