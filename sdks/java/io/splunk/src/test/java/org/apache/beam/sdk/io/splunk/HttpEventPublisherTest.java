@@ -69,6 +69,7 @@ public class HttpEventPublisherTest {
             .withUrl("http://example.com")
             .withToken("test-token")
             .withDisableCertificateValidation(false)
+            .withEnableGzipHttpCompression(true)
             .build();
 
     String actual = publisher.getStringPayload(SPLUNK_EVENTS);
@@ -92,6 +93,7 @@ public class HttpEventPublisherTest {
             .withUrl("http://example.com")
             .withToken("test-token")
             .withDisableCertificateValidation(false)
+            .withEnableGzipHttpCompression(true)
             .build();
 
     String expectedString =
@@ -118,7 +120,8 @@ public class HttpEventPublisherTest {
         HttpEventPublisher.newBuilder()
             .withUrl(baseURL)
             .withToken("test-token")
-            .withDisableCertificateValidation(false);
+            .withDisableCertificateValidation(false)
+            .withEnableGzipHttpCompression(true);
 
     assertEquals(
         new GenericUrl(Joiner.on('/').join(baseURL, "services/collector/event")),
@@ -134,6 +137,7 @@ public class HttpEventPublisherTest {
             .withUrl("http://example.com")
             .withToken("test-token")
             .withDisableCertificateValidation(false)
+            .withEnableGzipHttpCompression(true)
             .build();
 
     assertEquals(
@@ -151,6 +155,7 @@ public class HttpEventPublisherTest {
             .withUrl("http://example.com")
             .withToken("test-token")
             .withDisableCertificateValidation(false)
+            .withEnableGzipHttpCompression(true)
             .withMaxElapsedMillis(timeoutInMillis)
             .build();
 
