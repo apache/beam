@@ -105,7 +105,8 @@ KEYED_TORCH_HELPER_PREDICTIONS = [
     PredictionResult(ex, pred) for ex,
     pred in zip(
         KEYED_TORCH_EXAMPLES,
-        torch.Tensor([(example['k1'] * 2.0 + 0.5) + (example['k2'] * 2.0 + 0.5) + 0.5
+        torch.Tensor([(example['k1'] * 2.0 + 0.5) +
+                      (example['k2'] * 2.0 + 0.5) + 0.5
                       for example in KEYED_TORCH_EXAMPLES]).reshape(-1, 1))
 ]
 
@@ -385,7 +386,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
         PredictionResult(ex, pred) for ex,
         pred in zip(
             examples,
-            torch.Tensor([example * 2.0 + 1.0 
+            torch.Tensor([example * 2.0 + 1.0
                           for example in examples]).reshape(-1, 1))
     ]
 
