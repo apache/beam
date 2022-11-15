@@ -101,6 +101,14 @@ KEYED_TORCH_PREDICTIONS = [
                       for example in KEYED_TORCH_EXAMPLES]).reshape(-1, 1))
 ]
 
+KEYED_TORCH_HELPER_PREDICTIONS = [
+    PredictionResult(ex, pred) for ex,
+    pred in zip(
+        KEYED_TORCH_EXAMPLES,
+        torch.Tensor([(example['k1'] * 2.0 + 0.5) + (example['k2'] * 2.0 + 0.5) + 0.5
+                      for example in KEYED_TORCH_EXAMPLES]).reshape(-1, 1))
+]
+
 KEYED_TORCH_DICT_OUT_PREDICTIONS = [
     PredictionResult(
         p.example, {
@@ -160,7 +168,7 @@ class PytorchLinearRegression(torch.nn.Module):
     return out
 
   def generate(self, x):
-    out = self.linear(x)
+    out = self.linear(x) + 0.5
     return out
 
 
@@ -377,7 +385,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
         PredictionResult(ex, pred) for ex,
         pred in zip(
             examples,
-            torch.Tensor([example * 2.0 + 0.5
+            torch.Tensor([example * 2.0 + 1.0 
                           for example in examples]).reshape(-1, 1))
     ]
 
@@ -420,7 +428,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
         return out
 
       def generate(self, k1, k2):
-        out = self.linear(k1) + self.linear(k2)
+        out = self.linear(k1) + self.linear(k2) + 0.5
         return out
 
     model = PytorchLinearRegressionMultipleArgs(input_dim=1, output_dim=1)
@@ -434,7 +442,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
     inference_runner = TestPytorchModelHandlerKeyedTensorForInferenceOnly(
         torch.device('cpu'), inference_fn=gen_fn)
     predictions = inference_runner.run_inference(KEYED_TORCH_EXAMPLES, model)
-    for actual, expected in zip(predictions, KEYED_TORCH_PREDICTIONS):
+    for actual, expected in zip(predictions, KEYED_TORCH_HELPER_PREDICTIONS):
       self.assertTrue(_compare_prediction_result(actual, expected))
 
   def test_num_bytes(self):
