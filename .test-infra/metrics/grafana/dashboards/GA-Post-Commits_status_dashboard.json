@@ -17,8 +17,8 @@
     }
   ],
   "datasource": {
-    "type": "postgres",
-    "uid": "aXhGO5I4z"
+    "uid": "aXhGO5I4z",
+    "type": "postgres"
   },
   "pluginVersion": "9.2.0",
   "links": [],
@@ -31,6 +31,7 @@
       },
       "mappings": [
         {
+          "type": "value",
           "options": {
             "0": {
               "index": 0,
@@ -46,14 +47,13 @@
             },
             "3": {
               "index": 3,
-              "text": "Cancelled"
+              "text": "Time-out"
             },
             "4": {
               "index": 4,
               "text": "None"
             }
-          },
-          "type": "value"
+          }
         }
       ],
       "thresholds": {
@@ -223,7 +223,7 @@
       "hide": false,
       "metricColumn": "none",
       "rawQuery": true,
-      "rawSql": "with workflows as (\n  select\n    *,\n    case when job1 like 'completed' then 1 when job1 like 'in_progress' then 2 when job1 like 'queued' then 2 when job1 like 'waiting' then 2 when job1 like 'cancelled' then 3 when job1 like 'None' then 4 else 0 end as job_1,\n    case when job2 like 'completed' then 1 when job2 like 'in_progress' then 2 when job2 like 'queued' then 2 when job2 like 'waiting' then 2 when job2 like 'cancelled' then 3 when job2 like 'None' then 4 else 0 end as job_2,\n    case when job3 like 'completed' then 1 when job3 like 'in_progress' then 2 when job3 like 'queued' then 2 when job3 like 'waiting' then 2 when job3 like 'cancelled' then 3 when job3 like 'None' then 4 else 0 end as job_3,\n    case when job4 like 'completed' then 1 when job4 like 'in_progress' then 2 when job4 like 'queued' then 2 when job4 like 'waiting' then 2 when job4 like 'cancelled' then 3 when job4 like 'None' then 4 else 0 end as job_4,\n    case when job5 like 'completed' then 1 when job5 like 'in_progress' then 2 when job5 like 'queued' then 2 when job5 like 'waiting' then 2 when job5 like 'cancelled' then 3 when job5 like 'None' then 4 else 0 end as job_5,\n    case when job6 like 'completed' then 1 when job6 like 'in_progress' then 2 when job6 like 'queued' then 2 when job6 like 'waiting' then 2 when job6 like 'cancelled' then 3 when job6 like 'None' then 4 else 0 end as job_6,\n    case when job7 like 'completed' then 1 when job7 like 'in_progress' then 2 when job7 like 'queued' then 2 when job7 like 'waiting' then 2 when job7 like 'cancelled' then 3 when job7 like 'None' then 4 else 0 end as job_7,\n    case when job8 like 'completed' then 1 when job8 like 'in_progress' then 2 when job8 like 'queued' then 2 when job8 like 'waiting' then 2 when job8 like 'cancelled' then 3 when job8 like 'None' then 4 else 0 end as job_8,\n    case when job9 like 'completed' then 1 when job9 like 'in_progress' then 2 when job9 like 'queued' then 2 when job9 like 'waiting' then 2 when job9 like 'cancelled' then 3 when job9 like 'None' then 4 else 0 end as job_9,\n    case when job10 like 'completed' then 1 when job10 like 'in_progress' then 2 when job10 like 'queued' then 2 when job10 like 'waiting' then 2 when job10 like 'cancelled' then 3 when job10 like 'None' then 4 else 0 end as job_10\n  from\n    github_workflows\n)\nselect\n  job_name,\n  job_yml_filename,\n  job_1,\n  job_2,\n  job_3,\n  job_4,\n  job_5,\n  job_6,\n  job_7,\n  job_8,\n  job_9,\n  job_10\nfrom\n  workflows;",
+      "rawSql": "with workflows as (\n  select\n    *,\n    case when job1 like 'success' then 1 when job1 like 'in_progress' then 2 when job1 like 'queued' then 2 when job1 like 'waiting' then 2 when job1 like 'None' then 4 when job1 like 'time_out' then 3 else 0 end as job_1,\n    case when job2 like 'success' then 1 when job2 like 'in_progress' then 2 when job2 like 'queued' then 2 when job2 like 'waiting' then 2 when job2 like 'None' then 4 when job2 like 'time_out' then 3 else 0 end as job_2,\n    case when job3 like 'success' then 1 when job3 like 'in_progress' then 2 when job3 like 'queued' then 2 when job3 like 'waiting' then 2 when job3 like 'None' then 4 when job3 like 'time_out' then 3 else 0 end as job_3,\n    case when job4 like 'success' then 1 when job4 like 'in_progress' then 2 when job4 like 'queued' then 2 when job4 like 'waiting' then 2 when job4 like 'None' then 4 when job4 like 'time_out' then 3 else 0 end as job_4,\n    case when job5 like 'success' then 1 when job5 like 'in_progress' then 2 when job5 like 'queued' then 2 when job5 like 'waiting' then 2 when job5 like 'None' then 4 when job5 like 'time_out' then 3 else 0 end as job_5,\n    case when job6 like 'success' then 1 when job6 like 'in_progress' then 2 when job6 like 'queued' then 2 when job6 like 'waiting' then 2 when job6 like 'None' then 4 when job6 like 'time_out' then 3 else 0 end as job_6,\n    case when job7 like 'success' then 1 when job7 like 'in_progress' then 2 when job7 like 'queued' then 2 when job7 like 'waiting' then 2 when job7 like 'None' then 4 when job7 like 'time_out' then 3 else 0 end as job_7,\n    case when job8 like 'success' then 1 when job8 like 'in_progress' then 2 when job8 like 'queued' then 2 when job8 like 'waiting' then 2 when job8 like 'None' then 4 when job8 like 'time_out' then 3 else 0 end as job_8,\n    case when job9 like 'success' then 1 when job9 like 'in_progress' then 2 when job9 like 'queued' then 2 when job9 like 'waiting' then 2 when job9 like 'None' then 4 when job9 like 'time_out' then 3 else 0 end as job_9,\n    case when job10 like 'success' then 1 when job10 like 'in_progress' then 2 when job10 like 'queued' then 2 when job10 like 'waiting' then 2 when job10 like 'None' then 4 when job10 like 'time_out' then 3 else 0 end as job_10\n  from\n    github_workflows\n)\nselect\n  job_name,\n  job_1,\n  job_2,\n  job_3,\n  job_4,\n  job_5,\n  job_6,\n  job_7,\n  job_8,\n  job_9,\n  job_10\nfrom\n  workflows;",
       "refId": "A",
       "select": [
         [
