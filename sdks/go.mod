@@ -31,7 +31,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.17.1
 	github.com/aws/aws-sdk-go-v2/config v1.18.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.0
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.3.2
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.39
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.29.2
 	github.com/aws/smithy-go v1.13.4
 	github.com/docker/go-connections v0.4.0
@@ -123,6 +123,7 @@ require (
 	github.com/shabbyrobe/gocovmerge v0.0.0-20180507124511-f6ea450bfb63 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/tetratelabs/wazero v1.0.0-pre.3 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/tools v0.1.12 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
