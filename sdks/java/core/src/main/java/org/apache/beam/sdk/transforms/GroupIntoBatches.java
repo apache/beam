@@ -470,22 +470,27 @@ public class GroupIntoBatches<K, InputT>
         if (elementWeight + storedBatchSizeBytes.read() > batchSizeBytes) {
           // Firing by count and size limits behave differently.
           //
-          // We always increase the count by one, so we will fire at the exact limit without any overflow.
-          // before the addition: x < limit, after the addition: x < limit OR x == limit(triggered)
+          // We always increase the count by one, so we will fire at the exact limit without any
+          // overflow.
+          // before the addition: x < limit
+          // after the addition: x < limit OR x == limit(triggered)
           //
-           // Meanwhile when we increase the batched byte size we do it with an undeterministic amount,
-          // so if we only check the limit after we already increased the batch size it could mean we fire over the limit.
-          // before the addition: x < limit, after the addition: x < limit OR x == limit(triggered) OR x > limit(triggered)
-          // We shouldn't trigger a batch with bigger size than the config to limit it contains, so we fire it early if necessary.
+          // Meanwhile when we increase the batched byte size we do it with an undeterministic
+          // amount, so if we only check the limit after we already increased the batch size it
+          // could mean we fire over the limit.
+          // before the addition: x < limit
+          // after the addition: x < limit OR x == limit(triggered) OR x > limit(triggered)
+          // We shouldn't trigger a batch with bigger size than the config to limit it contains, so
+          // we fire it early if necessary.
           LOG.debug("*** EARLY FIRE OF BATCH *** for window {}", window.toString());
           flushBatch(
-                  receiver,
-                  element.getKey(),
-                  batch,
-                  storedBatchSize,
-                  storedBatchSizeBytes,
-                  timerTs,
-                  minBufferedTs);
+              receiver,
+              element.getKey(),
+              batch,
+              storedBatchSize,
+              storedBatchSizeBytes,
+              timerTs,
+              minBufferedTs);
           bufferingTimer.clear();
         }
         storedBatchSizeBytes.add(elementWeight);
