@@ -28,12 +28,10 @@ import com.google.type.LatLng;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.logging.Logger;
 
 /** Helper methods for {@link Firestore}. */
 // TODO: Accept OrBuilders when possible.
 public final class FirestoreHelper {
-  private static final Logger logger = Logger.getLogger(FirestoreHelper.class.getName());
 
   private static final int MICROSECONDS_PER_SECOND = 1000 * 1000;
   private static final int NANOSECONDS_PER_MICROSECOND = 1000;
