@@ -2369,8 +2369,8 @@ public class JdbcIO {
       cleanUpStatementAndConnection();
     }
 
-    @Override
-    protected void finalize() throws Throwable {
+    @Teardown
+    protected void tearDown() throws Exception {
       cleanUpStatementAndConnection();
     }
 
