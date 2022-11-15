@@ -324,28 +324,22 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
   SDKs.
 
   :param identifier: unique identifier of the SchemaTransform.
-  :param expansion_service: (Optional) an expansion service to use.  If none is
-      provided, a default expansion service will be started.
+  :param expansion_service: an expansion service to use. This should already be
+      available and the Schema-aware transforms to be used must already be
+      deployed.
   :param classpath: (Optional) A list paths to additional jars to place on the
       expansion service classpath.
   :kwargs: field name to value mapping for configuring the schema transform.
       keys map to the field names of the schema of the SchemaTransform
       (in-order).
   """
-  def __init__(
-      self, identifier, expansion_service=None, classpath=None, **kwargs):
+  def __init__(self, identifier, expansion_service, classpath=None, **kwargs):
     self._expansion_service = expansion_service
     self._payload_builder = SchemaTransformPayloadBuilder(identifier, **kwargs)
     self._classpath = classpath
 
   def expand(self, pcolls):
-    # Register transform with the expansion service and the identifier.
-    # Expand the transform using the expansion service and the config_row.
-    if self._expansion_service is None:
-      self._expansion_service = BeamJarExpansionService(
-          ':sdks:java:expansion-service:app:shadowJar',
-          extra_args=['{{PORT}}'],
-          classpath=self._classpath)
+    # Expand the transform using the expansion service.
     return pcolls | ExternalTransform(
         common_urns.schematransform_based_expand.urn,
         self._payload_builder,

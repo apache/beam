@@ -20,31 +20,29 @@ package org.apache.beam.sdk.expansion.service;
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.expansion.service.ExpansionService.TransformProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({"rawtypes"})
-public class ExpansionServiceSchemaTransformProvider implements TransformProvider {
+public class ExpansionServiceSchemaTransformProvider
+    implements TransformProvider<PCollectionRowTuple, PCollectionRowTuple> {
 
   static final String DEFAULT_INPUT_TAG = "INPUT";
 
@@ -77,56 +75,35 @@ public class ExpansionServiceSchemaTransformProvider implements TransformProvide
     return transformProvider;
   }
 
-  /**
-   * Currently {@link PCollectionRowTuple} is a Java only concept. We may get a different input type
-   * when other SDKs use a Java schema-aware transform in a pipeline, hence we use this transform to
-   * convert input/output types.
-   */
-  static class RowTransform extends PTransform {
-
-    private PTransform<PCollectionRowTuple, PCollectionRowTuple> rowTuplePTransform;
-
-    public RowTransform(PTransform<PCollectionRowTuple, PCollectionRowTuple> rowTuplePTransform) {
-      this.rowTuplePTransform = rowTuplePTransform;
+  @Override
+  public PCollectionRowTuple createInput(Pipeline p, Map<String, PCollection<?>> inputs) {
+    if (inputs.size() == 0) {
+      return PCollectionRowTuple.empty(p);
     }
-
-    @Override
-    public POutput expand(PInput input) {
-      PCollectionRowTuple inputRowTuple;
-
-      if (input instanceof PCollectionRowTuple) {
-        inputRowTuple = (PCollectionRowTuple) input;
-      } else if (input instanceof PCollection) {
-        inputRowTuple = PCollectionRowTuple.of(DEFAULT_INPUT_TAG, (PCollection) input);
-      } else if (input instanceof PBegin) {
-        inputRowTuple = PCollectionRowTuple.empty(input.getPipeline());
-      } else if (input instanceof PCollectionTuple) {
-        inputRowTuple = PCollectionRowTuple.empty(input.getPipeline());
-        PCollectionTuple inputTuple = (PCollectionTuple) input;
-        for (TupleTag<?> tag : inputTuple.getAll().keySet()) {
-          inputRowTuple = inputRowTuple.and(tag.getId(), (PCollection<Row>) inputTuple.get(tag));
-        }
-      } else {
-        throw new RuntimeException(String.format("Unsupported input type: %s", input));
+    if (inputs.size() == 1) {
+      return PCollectionRowTuple.of(
+          DEFAULT_INPUT_TAG, (PCollection<Row>) inputs.values().iterator().next());
+    } else {
+      PCollectionRowTuple inputRowTuple = PCollectionRowTuple.empty(p);
+      for (Map.Entry<String, PCollection<?>> entry : inputs.entrySet()) {
+        inputRowTuple = inputRowTuple.and(entry.getKey(), (PCollection<Row>) entry.getValue());
       }
-      PCollectionRowTuple output = inputRowTuple.apply(this.rowTuplePTransform);
-
-      if (output.getAll().size() > 1) {
-        PCollectionTuple pcTuple = PCollectionTuple.empty(input.getPipeline());
-        for (String key : output.getAll().keySet()) {
-          pcTuple = pcTuple.and(key, output.get(key));
-        }
-        return pcTuple;
-      } else if (output.getAll().size() == 1) {
-        return output.getAll().values().iterator().next();
-      } else {
-        return PDone.in(input.getPipeline());
-      }
+      return inputRowTuple;
     }
+  }
 
-    @Override
-    public String getName() {
-      return "RowTransform_of_" + this.rowTuplePTransform.getName();
+  @Override
+  public Map<String, PCollection<?>> extractOutputs(PCollectionRowTuple output) {
+    if (output.getAll().size() == 0) {
+      return Collections.emptyMap();
+    } else if (output.getAll().size() == 1) {
+      return ImmutableMap.of("output", output.getAll().values().iterator().next());
+    } else {
+      ImmutableMap.Builder<String, PCollection<?>> pCollectionMap = ImmutableMap.builder();
+      for (String key : output.getAll().keySet()) {
+        pCollectionMap.put(key, output.get(key));
+      }
+      return pCollectionMap.build();
     }
   }
 
@@ -143,7 +120,7 @@ public class ExpansionServiceSchemaTransformProvider implements TransformProvide
 
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(
-          "Invalid payload type for URN " + getUrn(ExpansionMethods.Enum.SCHEMATRANSFORM), e);
+          "Invalid payload type for URN " + getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM), e);
     }
 
     String identifier = payload.getIdentifier();
@@ -175,7 +152,7 @@ public class ExpansionServiceSchemaTransformProvider implements TransformProvide
       throw new RuntimeException("Error decoding payload", e);
     }
 
-    return new RowTransform(provider.from(configRow).buildTransform());
+    return provider.from(configRow).buildTransform();
   }
 
   Iterable<org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider> getAllProviders() {

@@ -508,7 +508,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           pipelineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
       assert allowList != null;
       transformProvider = new JavaClassLookupTransformProvider(allowList);
-    } else if (getUrn(ExpansionMethods.Enum.SCHEMATRANSFORM).equals(urn)) {
+    } else if (getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM).equals(urn)) {
       transformProvider = ExpansionServiceSchemaTransformProvider.of();
     } else {
       transformProvider = getRegisteredTransforms().get(urn);

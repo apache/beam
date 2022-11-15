@@ -54,7 +54,7 @@ message ExpansionMethods {
 
     // Expanding a SchemaTransform identified by the expansion service.
     // Transform payload will be of type  SchemaTransformPayload.
-    SCHEMATRANSFORM = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+    SCHEMA_TRANSFORM = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:expansion:payload:schematransform:v1"];
   }
 }

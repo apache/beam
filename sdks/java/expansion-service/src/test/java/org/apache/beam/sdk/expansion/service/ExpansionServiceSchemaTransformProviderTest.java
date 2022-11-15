@@ -407,7 +407,7 @@ public class ExpansionServiceSchemaTransformProviderTest {
                     .setUniqueName(TEST_NAME)
                     .setSpec(
                         RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn(getUrn(ExpansionMethods.Enum.SCHEMATRANSFORM))
+                            .setUrn(getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM))
                             .setPayload(payload.toByteString()))
                     .putInputs("input1", inputPcollId))
             .setNamespace(TEST_NAMESPACE)
@@ -415,7 +415,7 @@ public class ExpansionServiceSchemaTransformProviderTest {
     ExpansionApi.ExpansionResponse response = expansionService.expand(request);
     RunnerApi.PTransform expandedTransform = response.getTransform();
 
-    assertEquals(1, expandedTransform.getSubtransformsCount());
+    assertEquals(3, expandedTransform.getSubtransformsCount());
     assertEquals(1, expandedTransform.getInputsCount());
     assertEquals(1, expandedTransform.getOutputsCount());
     verifyLeafTransforms(response, 1);
@@ -466,7 +466,7 @@ public class ExpansionServiceSchemaTransformProviderTest {
                     .setUniqueName(TEST_NAME)
                     .setSpec(
                         RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn(getUrn(ExpansionMethods.Enum.SCHEMATRANSFORM))
+                            .setUrn(getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM))
                             .setPayload(payload.toByteString()))
                     .putInputs("input1", inputPcollIds.get(0))
                     .putInputs("input2", inputPcollIds.get(1)))
@@ -475,7 +475,7 @@ public class ExpansionServiceSchemaTransformProviderTest {
     ExpansionApi.ExpansionResponse response = expansionService.expand(request);
     RunnerApi.PTransform expandedTransform = response.getTransform();
 
-    assertEquals(1, expandedTransform.getSubtransformsCount());
+    assertEquals(6, expandedTransform.getSubtransformsCount());
     assertEquals(2, expandedTransform.getInputsCount());
     assertEquals(2, expandedTransform.getOutputsCount());
     verifyLeafTransforms(response, 2);

@@ -27,7 +27,6 @@ import typing
 import unittest
 
 import mock
-import numpy as np
 
 import apache_beam as beam
 from apache_beam import Pipeline
@@ -452,7 +451,7 @@ class SchemaTransformPayloadBuilderTest(unittest.TestCase):
     ComplexType = typing.NamedTuple(
         "ComplexType", [
             ("str_sub_field", str),
-            ("int_sub_field", np.int32),
+            ("int_sub_field", int),
         ])
 
     payload_builder = SchemaTransformPayloadBuilder(
