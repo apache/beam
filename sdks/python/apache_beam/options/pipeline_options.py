@@ -643,6 +643,17 @@ class DirectOptions(PipelineOptions):
         dest='direct_embed_docker_python',
         help='DirectRunner uses the embedded Python environment when '
         'the default Python docker environment is specified.')
+    parser.add_argument(
+        '--direct_test_splits',
+        default={},
+        type=json.loads,
+        help='Split test configuration of the json form '
+        '{"step_name": {"timings": [...], "fractions": [...]}, ...} '
+        'where step_name is the name of a step controlling the stage to which '
+        'splits will be sent, timings is a list of floating-point times '
+        '(in seconds) at which the split requests will be sent, and '
+        'fractions is a corresponding list of floating points to use in the '
+        'split requests themselves.')
 
 
 class GoogleCloudOptions(PipelineOptions):

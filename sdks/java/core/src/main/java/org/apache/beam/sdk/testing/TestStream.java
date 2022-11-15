@@ -199,7 +199,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     public Builder<T> advanceProcessingTime(Duration amount) {
       checkArgument(
           amount.getMillis() > 0,
-          "Must advance the processing time by a positive amount. Got: ",
+          "Must advance the processing time by a positive amount. Got: %s",
           amount);
       ImmutableList<Event<T>> newEvents =
           ImmutableList.<Event<T>>builder()

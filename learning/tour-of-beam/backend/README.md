@@ -28,7 +28,8 @@ Public endpoints:
 Authorized endpoints also consume `Authorization: Bearer <id_token>` header
 
 * getUserProgress?sdk=<sdk>
-* postUnitContent?sdk=<sdk>&id=<id>
+* postUnitComplete?sdk=<sdk>&id=<id>
+* postUserCode?sdk=<sdk>&id=<id>
 
 ### Playground GRPC API
 
@@ -97,10 +98,11 @@ gcloud datastore indexes create ./internal/storage/index.yaml
 
 2. Deploy cloud functions
 ```
-for endpoint in "getSdkList getContentTree getUnitComplete getUserProgress postUnitComplete"; do
+for endpoint in getSdkList getContentTree getUnitComplete getUserProgress postUnitComplete postUserCode; do
 gcloud functions deploy $endpoint --entry-point $endpoint \
   --region $REGION --runtime go116 --allow-unauthenticated \
   --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,GOOGLE_PROJECT_ID=$PROJECT_ID"
+done
 
 ```
 3. Set environment variables:
@@ -136,15 +138,31 @@ $ curl -X GET "https://$REGION-$PROJECT_ID.cloudfunctions.net/getUnitContent?sdk
 ```
 [response](./samples/api/get_unit_content.json)
 
-### Set unit as complete
-```
-$ curl -X POST -H "Authorization: Bearer $token" \
-  "https://$REGION-$PROJECT_ID.cloudfunctions.net/postUnitComplete?sdk=python&id=challenge1" -d '{}'
-```
-
 ### Get user progress by sdk name
 ```
 $ curl -X GET -H "Authorization: Bearer $token" \
   "https://$REGION-$PROJECT_ID.cloudfunctions.net/getUserProgress?sdk=python"
 ```
 [response](./samples/api/get_user_progress.json)
+
+### Set unit as complete
+```
+$ curl -X POST -H "Authorization: Bearer $token" \
+  "https://$REGION-$PROJECT_ID.cloudfunctions.net/postUnitComplete?sdk=python&id=challenge1" -d '{}'
+```
+
+### Save user code
+request body:
+```json
+{
+  "pipelineOptions": "some pipeline opts",
+  "files": [
+    {"name": "main.py", "content": "import sys; sys.exit(0)", "isMain": true}
+  ]
+}
+```
+
+```
+$ curl -X POST -H "Authorization: Bearer $token" \
+  "https://$REGION-$PROJECT_ID.cloudfunctions.net/postUserCode?sdk=python&id=challenge1" -d @request.json
+```

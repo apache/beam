@@ -29,6 +29,8 @@ import { InstructionRequest, InstructionResponse } from "../proto/beam_fn_api";
 import {
   ProcessBundleDescriptor,
   ProcessBundleResponse,
+  ProcessBundleSplitRequest,
+  ProcessBundleSplitResponse,
 } from "../proto/beam_fn_api";
 import {
   BeamFnControlClient,
@@ -54,6 +56,7 @@ import {
   Receiver,
   createOperator,
   OperatorContext,
+  DataSourceOperator,
 } from "./operators";
 
 export interface WorkerEndpoints {
@@ -114,15 +117,28 @@ export class Worker {
   }
 
   async handleRequest(request) {
-    if (request.request.oneofKind === "processBundle") {
-      return this.process(request);
-    } else if (request.request.oneofKind === "processBundleProgress") {
-      return this.controlChannel.write(await this.progress(request));
-    } else {
-      console.error("Unknown instruction type: ", request);
+    try {
+      console.log(request);
+      if (request.request.oneofKind === "processBundle") {
+        return this.process(request);
+      } else if (request.request.oneofKind === "processBundleProgress") {
+        return this.controlChannel.write(await this.progress(request));
+      } else if (request.request.oneofKind === "processBundleSplit") {
+        return this.controlChannel.write(await this.split(request));
+      } else {
+        console.error("Unknown instruction type: ", request);
+        return this.controlChannel.write({
+          instructionId: request.instructionId,
+          error: "Unknown instruction type: " + request.request.oneofKind,
+          response: {
+            oneofKind: undefined,
+          },
+        });
+      }
+    } catch (e) {
       return this.controlChannel.write({
         instructionId: request.instructionId,
-        error: "Unknown instruction type: " + request.request.oneofKind,
+        error: "Error handling instruction: " + e + "\n" + e.stack,
         response: {
           oneofKind: undefined,
         },
@@ -136,7 +152,7 @@ export class Worker {
 
   async progress(request): Promise<InstructionResponse> {
     const processor = this.activeBundleProcessors.get(
-      request.processBundleProgress.instructionId
+      request.request.processBundleProgress.instructionId
     );
     if (processor) {
       const monitoringData = processor.monitoringData(this.metricsShortIdCache);
@@ -158,6 +174,35 @@ export class Worker {
       return {
         instructionId: request.instructionId,
         error: "Unknown bundle: " + request.processBundleProgress.instructionId,
+        response: {
+          oneofKind: undefined,
+        },
+      };
+    }
+  }
+
+  async split(request): Promise<InstructionResponse> {
+    const processor = this.activeBundleProcessors.get(
+      request.request.processBundleSplit.instructionId
+    );
+    console.log(request.request.processBundleSplit, processor === undefined);
+    if (processor) {
+      return {
+        instructionId: request.instructionId,
+        error: "",
+        response: {
+          oneofKind: "processBundleSplit",
+          processBundleSplit: processor.split(
+            request.request.processBundleSplit
+          ),
+        },
+      };
+    } else {
+      return {
+        instructionId: request.instructionId,
+        error:
+          "Unknown process bundle: " +
+          request.request.processBundleSplit.instructionId,
         response: {
           oneofKind: undefined,
         },
@@ -331,7 +376,8 @@ export class BundleProcessor {
           pcollectionId,
           new Receiver(
             (consumers.get(pcollectionId) || []).map(getOperator),
-            this_.loggingStageInfo
+            this_.loggingStageInfo,
+            this_.metricsContainer.elementCountMetric(pcollectionId)
           )
         );
       }
@@ -420,6 +466,25 @@ export class BundleProcessor {
     this.loggingStageInfo.instructionId = undefined;
     this.currentBundleId = undefined;
     this.stateProvider = undefined;
+  }
+
+  split(splitRequest: ProcessBundleSplitRequest): ProcessBundleSplitResponse {
+    const root = this.topologicallyOrderedOperators[0] as DataSourceOperator;
+    for (const [target, desiredSplit] of Object.entries(
+      splitRequest.desiredSplits
+    )) {
+      if (target == root.transformId) {
+        const channelSplit = root.split(desiredSplit);
+        if (channelSplit) {
+          return {
+            primaryRoots: [],
+            residualRoots: [],
+            channelSplits: [channelSplit],
+          };
+        }
+      }
+    }
+    return ProcessBundleSplitResponse.create({});
   }
 
   monitoringData(shortIdCache: MetricsShortIdCache): Map<string, Uint8Array> {
