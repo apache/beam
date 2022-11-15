@@ -23,17 +23,25 @@ import com.github.luben.zstd.ZstdDecompressCtx;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 
 /**
  * Wraps an existing coder with Zstandard compression. It makes sense to use this coder when it's
  * likely that the encoded value is quite large and compressible or when a dictionary is available
  * to improve compression performance.
+ *
+ * <p>This coder uses the Zstandard compression library's direct compression methods (from {@code
+ * byte[]} to {@code byte[]}) and thus requires that the inner coder's encoded value must fit in a
+ * {@code byte[]}.
  */
-public class ZstdCoder<T> extends StructuredCoder<T> {
+public class ZstdCoder<T> extends Coder<T> {
   private final Coder<T> innerCoder;
   private final @Nullable byte[] dict;
   private final int level;
@@ -101,9 +109,71 @@ public class ZstdCoder<T> extends StructuredCoder<T> {
   public List<? extends Coder<?>> getCoderArguments() {
     return ImmutableList.of(innerCoder);
   }
-
+  /**
+   * {@inheritDoc}
+   *
+   * <p>{@link ZstdCoder} is deterministic if the inner coder is deterministic.
+   */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     innerCoder.verifyDeterministic();
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>{@link ZstdCoder} is consistent with equals if the inner coder is consistent with equals.
+   *
+   * @return The same value as the inner coder.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return innerCoder.consistentWithEquals();
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>{@link ZstdCoder} uses the structural value of the inner coder.
+   *
+   * @return The structural value of the inner coder.
+   */
+  @Override
+  public Object structuralValue(T value) {
+    return innerCoder.structuralValue(value);
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code true} if the two {@link ZstdCoder} instances have the same class, inner coder,
+   *     dictionary and compression level.
+   */
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (o == this) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ZstdCoder<?> that = (ZstdCoder<?>) o;
+    return innerCoder.equals(that.innerCoder)
+        && Arrays.equals(dict, that.dict)
+        && level == that.level;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(innerCoder, Arrays.hashCode(dict), level);
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("innerCoder", innerCoder)
+        .add("dict", dict == null ? null : "base64:" + BaseEncoding.base64().encode(dict))
+        .add("level", level)
+        .toString();
   }
 }
