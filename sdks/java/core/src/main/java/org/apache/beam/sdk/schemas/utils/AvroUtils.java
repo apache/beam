@@ -114,9 +114,13 @@ public class AvroUtils {
 
   // Unwrap an AVRO schema into the base type an whether it is nullable.
   public static class TypeWithNullability {
-    public final org.apache.avro.Schema type;
-    public final boolean nullable;
+    final org.apache.avro.Schema type;
+    final boolean nullable;
 
+    public static TypeWithNullability create(org.apache.avro.Schema avroSchema) {
+      return new TypeWithNullability(avroSchema);
+    }
+    
     TypeWithNullability(org.apache.avro.Schema avroSchema) {
       if (avroSchema.getType() == org.apache.avro.Schema.Type.UNION) {
         List<org.apache.avro.Schema> types = avroSchema.getTypes();
@@ -146,6 +150,14 @@ public class AvroUtils {
         type = avroSchema;
         nullable = false;
       }
+    }
+    
+    public Boolean isNullable(){
+      return nullable;
+    }
+    
+    public org.apache.avro.Schema getType(){
+      return type;
     }
   }
 

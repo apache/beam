@@ -28,20 +28,21 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
+import org.apache.avro.Conversions;
+import org.apache.avro.LogicalType;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
@@ -49,7 +50,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
+import org.joda.time.Days;
+import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
 /**
@@ -57,87 +59,99 @@ import org.joda.time.ReadableInstant;
  * the Storage write API.
  */
 public class AvroGenericRecordToStorageApiProto {
-  // Number of digits after the decimal point supported by the NUMERIC data type.
-  private static final int NUMERIC_SCALE = 9;
-  // Maximum and minimum allowed values for the NUMERIC data type.
-  private static final BigDecimal MAX_NUMERIC_VALUE =
-      new BigDecimal("99999999999999999999999999999.999999999");
-  private static final BigDecimal MIN_NUMERIC_VALUE =
-      new BigDecimal("-99999999999999999999999999999.999999999");
 
-  // TODO(reuvenlax): Support BIGNUMERIC and GEOGRAPHY types.
-  static final Map<Schema.Type, FieldDescriptorProto.Type> PRIMITIVE_TYPES =
-      ImmutableMap.<Schema.Type, FieldDescriptorProto.Type>builder()
-          .put(Schema.Type.INT, FieldDescriptorProto.Type.TYPE_INT32)
-          .put(Schema.Type.FIXED, FieldDescriptorProto.Type.TYPE_BYTES)
-          .put(Schema.Type.LONG, FieldDescriptorProto.Type.TYPE_INT64)
-          .put(Schema.Type.FLOAT, FieldDescriptorProto.Type.TYPE_FLOAT)
-          .put(Schema.Type.DOUBLE, FieldDescriptorProto.Type.TYPE_DOUBLE)
-          .put(Schema.Type.STRING, FieldDescriptorProto.Type.TYPE_STRING)
-          .put(Schema.Type.BOOLEAN, FieldDescriptorProto.Type.TYPE_BOOL)
-          .put(Schema.Type.ENUM, FieldDescriptorProto.Type.TYPE_STRING)
-          .put(Schema.Type.BYTES, FieldDescriptorProto.Type.TYPE_BYTES)
-          .build();
+  static final Map<Schema.Type, FieldDescriptorProto.Type> PRIMITIVE_TYPES
+          = ImmutableMap.<Schema.Type, FieldDescriptorProto.Type>builder()
+                  .put(Schema.Type.INT, FieldDescriptorProto.Type.TYPE_INT32)
+                  .put(Schema.Type.FIXED, FieldDescriptorProto.Type.TYPE_BYTES)
+                  .put(Schema.Type.LONG, FieldDescriptorProto.Type.TYPE_INT64)
+                  .put(Schema.Type.FLOAT, FieldDescriptorProto.Type.TYPE_FLOAT)
+                  .put(Schema.Type.DOUBLE, FieldDescriptorProto.Type.TYPE_DOUBLE)
+                  .put(Schema.Type.STRING, FieldDescriptorProto.Type.TYPE_STRING)
+                  .put(Schema.Type.BOOLEAN, FieldDescriptorProto.Type.TYPE_BOOL)
+                  .put(Schema.Type.ENUM, FieldDescriptorProto.Type.TYPE_STRING)
+                  .put(Schema.Type.BYTES, FieldDescriptorProto.Type.TYPE_BYTES)
+                  .build();
 
   // A map of supported logical types to the protobuf field type.
-//  static final Map<String, FieldDescriptorProto.Type> LOGICAL_TYPES =
-//      ImmutableMap.<String, FieldDescriptorProto.Type>builder()
-//          .put(SqlTypes.DATE.getIdentifier(), FieldDescriptorProto.Type.TYPE_INT32)
-//          .put(SqlTypes.TIME.getIdentifier(), FieldDescriptorProto.Type.TYPE_INT64)
-//          .put(SqlTypes.DATETIME.getIdentifier(), FieldDescriptorProto.Type.TYPE_INT64)
-//          .put(SqlTypes.TIMESTAMP.getIdentifier(), FieldDescriptorProto.Type.TYPE_INT64)
-//          .put(EnumerationType.IDENTIFIER, FieldDescriptorProto.Type.TYPE_STRING)
-//          .build();
-//
-//  static final Map<TypeName, Function<Object, Object>> PRIMITIVE_ENCODERS =
-//      ImmutableMap.<TypeName, Function<Object, Object>>builder()
-//          .put(TypeName.INT16, o -> Integer.valueOf((Short) o))
-//          .put(TypeName.BYTE, o -> Integer.valueOf((Byte) o))
-//          .put(TypeName.INT32, Functions.identity())
-//          .put(TypeName.INT64, Functions.identity())
-//          .put(TypeName.FLOAT, Function.identity())
-//          .put(TypeName.DOUBLE, Function.identity())
-//          .put(TypeName.STRING, Function.identity())
-//          .put(TypeName.BOOLEAN, Function.identity())
-//          // A Beam DATETIME is actually a timestamp, not a DateTime.
-//          .put(TypeName.DATETIME, o -> ((ReadableInstant) o).getMillis() * 1000)
-//          .put(TypeName.BYTES, o -> ByteString.copyFrom((byte[]) o))
-//          .put(TypeName.DECIMAL, o -> serializeBigDecimalToNumeric((BigDecimal) o))
-//          .build();
+  static final Map<String, FieldDescriptorProto.Type> LOGICAL_TYPES
+          = ImmutableMap.<String, FieldDescriptorProto.Type>builder()
+                  .put(LogicalTypes.date().getName(), FieldDescriptorProto.Type.TYPE_INT32)
+                  .put(LogicalTypes.decimal(1).getName(), FieldDescriptorProto.Type.TYPE_BYTES)
+                  .put(LogicalTypes.timeMicros().getName(), FieldDescriptorProto.Type.TYPE_INT64)
+                  .put(LogicalTypes.timeMillis().getName(), FieldDescriptorProto.Type.TYPE_INT64)
+                  .put(LogicalTypes.timestampMicros().getName(), FieldDescriptorProto.Type.TYPE_INT64)
+                  .put(LogicalTypes.timestampMillis().getName(), FieldDescriptorProto.Type.TYPE_INT64)
+                  .put(LogicalTypes.uuid().getName(), FieldDescriptorProto.Type.TYPE_STRING)
+                  .build();
+
+  static final Map<Schema.Type, Function<Object, Object>> PRIMITIVE_ENCODERS
+          = ImmutableMap.<Schema.Type, Function<Object, Object>>builder()
+                  .put(Schema.Type.INT, Functions.identity())
+                  .put(Schema.Type.FIXED, o -> ByteString.copyFrom(((GenericData.Fixed) o).bytes()))
+                  .put(Schema.Type.LONG, Functions.identity())
+                  .put(Schema.Type.FLOAT, Function.identity())
+                  .put(Schema.Type.DOUBLE, Function.identity())
+                  .put(Schema.Type.STRING, Function.identity())
+                  .put(Schema.Type.BOOLEAN, Function.identity())
+                  .put(Schema.Type.ENUM, o -> o.toString())
+                  .put(Schema.Type.BYTES, o -> ByteString.copyFrom((byte[]) o))
+                  .build();
 
   // A map of supported logical types to their encoding functions.
-//  static final Map<String, BiFunction<LogicalType<?, ?>, Object, Object>> LOGICAL_TYPE_ENCODERS =
-//      ImmutableMap.<String, BiFunction<LogicalType<?, ?>, Object, Object>>builder()
-//          .put(
-//              SqlTypes.DATE.getIdentifier(),
-//              (logicalType, value) -> (int) ((LocalDate) value).toEpochDay())
-//          .put(
-//              SqlTypes.TIME.getIdentifier(),
-//              (logicalType, value) -> CivilTimeEncoder.encodePacked64TimeMicros((LocalTime) value))
-//          .put(
-//              SqlTypes.DATETIME.getIdentifier(),
-//              (logicalType, value) ->
-//                  CivilTimeEncoder.encodePacked64DatetimeSeconds((LocalDateTime) value))
-//          .put(
-//              SqlTypes.TIMESTAMP.getIdentifier(),
-//              (logicalType, value) -> ((java.time.Instant) value).toEpochMilli() * 1000)
-//          .put(
-//              EnumerationType.IDENTIFIER,
-//              (logicalType, value) ->
-//                  ((EnumerationType) logicalType).toString((EnumerationType.Value) value))
-//          .build();
+  static final Map<String, BiFunction<LogicalType, Object, Object>> LOGICAL_TYPE_ENCODERS
+          = ImmutableMap.<String, BiFunction<LogicalType, Object, Object>>builder()
+                  .put(LogicalTypes.date().getName(),
+                          (logicalType, value) -> convertDate(value))
+                  .put(LogicalTypes.decimal(1).getName(),
+                          AvroGenericRecordToStorageApiProto::convertDecimal)
+                  .put(LogicalTypes.timestampMicros().getName(),
+                          (logicalType, value) -> convertTimestamp(value) * 1000)
+                  .put(LogicalTypes.timestampMillis().getName(),
+                          (logicalType, value) -> convertTimestamp(value))
+                  .put(LogicalTypes.uuid().getName(),
+                          (logicalType, value) -> ((UUID) value).toString())
+                  .build();
+
+  static Long convertTimestamp(Object value) {
+    if (value instanceof ReadableInstant) {
+      return ((ReadableInstant) value).getMillis();
+    } else {
+      Preconditions.checkArgument(
+              value instanceof Long, "Expecting a value as Long type (millis).");
+      return (Long) value;
+    }
+  }
+
+  static Integer convertDate(Object value) {
+    if (value instanceof ReadableInstant) {
+      return Days.daysBetween(Instant.EPOCH, (ReadableInstant) value).getDays();
+    } else {
+      Preconditions.checkArgument(
+              value instanceof Integer, "Expecting a value as Integer type (days).");
+      return (Integer) value;
+    }
+  }
+
+  static ByteString convertDecimal(LogicalType logicalType, Object value) {
+    ByteBuffer byteBuffer = (ByteBuffer) value;
+    BigDecimal bigDecimal
+            = new Conversions.DecimalConversion()
+                    .fromBytes(byteBuffer.duplicate(), null, logicalType);
+    return BeamRowToStorageApiProto.serializeBigDecimalToNumeric(bigDecimal);
+  }
 
   /**
    * Given an Avro Schema, returns a protocol-buffer Descriptor that can be used to write data using
    * the BigQuery Storage API.
    */
   public static Descriptor getDescriptorFromSchema(Schema schema)
-      throws DescriptorValidationException {
+          throws DescriptorValidationException {
     DescriptorProto descriptorProto = descriptorSchemaFromAvroSchema(schema);
-    FileDescriptorProto fileDescriptorProto =
-        FileDescriptorProto.newBuilder().addMessageType(descriptorProto).build();
-    FileDescriptor fileDescriptor =
-        FileDescriptor.buildFrom(fileDescriptorProto, new FileDescriptor[0]);
+    FileDescriptorProto fileDescriptorProto
+            = FileDescriptorProto.newBuilder().addMessageType(descriptorProto).build();
+    FileDescriptor fileDescriptor
+            = FileDescriptor.buildFrom(fileDescriptorProto, new FileDescriptor[0]);
 
     return Iterables.getOnlyElement(fileDescriptor.getMessageTypes());
   }
@@ -151,10 +165,11 @@ public class AvroGenericRecordToStorageApiProto {
     Schema schema = record.getSchema();
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (Schema.Field field : schema.getFields()) {
-      FieldDescriptor fieldDescriptor =
-          Preconditions.checkNotNull(descriptor.findFieldByName(field.name().toLowerCase()));
-      @Nullable Object value = messageValueFromRowValue(
-              fieldDescriptor, field, field.name().toLowerCase(), record);
+      FieldDescriptor fieldDescriptor
+              = Preconditions.checkNotNull(descriptor.findFieldByName(field.name().toLowerCase()));
+      @Nullable
+      Object value = messageValueFromGenericRecordValue(
+              fieldDescriptor, field, field.name(), record);
       if (value != null) {
         builder.setField(fieldDescriptor, value);
       }
@@ -171,20 +186,22 @@ public class AvroGenericRecordToStorageApiProto {
     int i = 1;
     List<DescriptorProto> nestedTypes = Lists.newArrayList();
     for (Schema.Field field : schema.getFields()) {
-      FieldDescriptorProto.Builder fieldDescriptorProtoBuilder =
-          fieldDescriptorFromBeamField(field, i++, nestedTypes);
+      FieldDescriptorProto.Builder fieldDescriptorProtoBuilder
+              = fieldDescriptorFromAvroField(field, i++, nestedTypes);
       descriptorBuilder.addField(fieldDescriptorProtoBuilder);
     }
     nestedTypes.forEach(descriptorBuilder::addNestedType);
     return descriptorBuilder.build();
   }
 
-  private static FieldDescriptorProto.Builder fieldDescriptorFromBeamField(
-      Schema.Field field, int fieldNumber, List<DescriptorProto> nestedTypes) {
-    @Nullable Schema schema = field.schema();
+  private static FieldDescriptorProto.Builder fieldDescriptorFromAvroField(
+          Schema.Field field, int fieldNumber, List<DescriptorProto> nestedTypes) {
+    @Nullable
+    Schema schema = field.schema();
     FieldDescriptorProto.Builder fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
-    fieldDescriptorBuilder = fieldDescriptorBuilder.setName(schema.getName().toLowerCase());
+    fieldDescriptorBuilder = fieldDescriptorBuilder.setName(field.name().toLowerCase());
     fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(fieldNumber);
+    Schema elementType = null;
     switch (schema.getType()) {
       case RECORD:
         if (schema == null) {
@@ -192,45 +209,57 @@ public class AvroGenericRecordToStorageApiProto {
         }
         DescriptorProto nested = descriptorSchemaFromAvroSchema(schema);
         nestedTypes.add(nested);
-        fieldDescriptorBuilder =
-            fieldDescriptorBuilder.setType(FieldDescriptorProto.Type.TYPE_MESSAGE).setTypeName(nested.getName());
+        fieldDescriptorBuilder
+                = fieldDescriptorBuilder.setType(FieldDescriptorProto.Type.TYPE_MESSAGE).setTypeName(nested.getName());
         break;
       case ARRAY:
-        Schema elementType 
-                = new AvroUtils.TypeWithNullability(schema.getElementType()).type;
+        elementType
+                = TypeWithNullability.create(schema.getElementType()).getType();
         if (elementType == null) {
           throw new RuntimeException("Unexpected null element type!");
         }
         Preconditions.checkState(
-            elementType.getType() != Schema.Type.ARRAY,
-            "Nested arrays not supported by BigQuery.");
-        return fieldDescriptorFromBeamField(
+                elementType.getType() != Schema.Type.ARRAY,
+                "Nested arrays not supported by BigQuery.");
+        return fieldDescriptorFromAvroField(
                 new Schema.Field(
                         field.name(), elementType, field.doc(), field.defaultVal()),
-                fieldNumber, 
+                fieldNumber,
                 nestedTypes)
-            .setLabel(Label.LABEL_REPEATED);
+                .setLabel(Label.LABEL_REPEATED);
       case MAP:
         throw new RuntimeException("Map types not supported by BigQuery.");
       case UNION:
-        @Nullable LogicalType<?, ?> logicalType = field.getType().getLogicalType();
-        if (logicalType == null) {
-          throw new RuntimeException("Unexpected null logical type " + field.getType());
+        elementType
+                = TypeWithNullability.create(schema).getType();
+        if (elementType == null) {
+          throw new RuntimeException("Unexpected null element type!");
         }
-        @Nullable FieldDescriptorProto.Type type = LOGICAL_TYPES.get(logicalType.getIdentifier());
-        if (type == null) {
-          throw new RuntimeException("Unsupported logical type " + field.getType());
-        }
-        fieldDescriptorBuilder = fieldDescriptorBuilder.setType(type);
+        // check to see if more than one non-null type is defined in the union
+        Preconditions.checkState(
+                elementType.getType() != Schema.Type.UNION,
+                "Multiple non-null union types are not supported.");
+        fieldDescriptorBuilder = fieldDescriptorFromAvroField(
+                new Schema.Field(
+                        field.name(), elementType, field.doc(), field.defaultVal()),
+                fieldNumber,
+                nestedTypes);
         break;
       default:
-        @Nullable FieldDescriptorProto.Type primitiveType = PRIMITIVE_TYPES.get(field.getType().getTypeName());
+        elementType = TypeWithNullability.create(schema).getType();
+        @Nullable FieldDescriptorProto.Type primitiveType
+                = Optional
+                        .ofNullable(LogicalTypes.fromSchema(elementType))
+                        .map(logicalType -> LOGICAL_TYPES.get(logicalType.getName()))
+                        .orElse(PRIMITIVE_TYPES.get(elementType.getType()));
         if (primitiveType == null) {
-          throw new RuntimeException("Unsupported type " + field.getType());
+          throw new RuntimeException("Unsupported type " + elementType.getType());
         }
-        fieldDescriptorBuilder = fieldDescriptorBuilder.setType(primitiveType);
+        // a scalar will be required by default, if defined as part of union then 
+        // caller will set nullability requirements
+        return fieldDescriptorBuilder.setType(primitiveType).setLabel(Label.LABEL_REQUIRED);
     }
-    if (field.getType().getNullable()) {
+    if (TypeWithNullability.create(schema).isNullable()) {
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_OPTIONAL);
     } else {
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_REQUIRED);
@@ -239,87 +268,68 @@ public class AvroGenericRecordToStorageApiProto {
   }
 
   @Nullable
-  private static Object messageValueFromRowValue(
-      FieldDescriptor fieldDescriptor, Schema.Field beamField, String name, GenericRecord record) {
-    @Nullable Object value = record.get(name);
+  private static Object messageValueFromGenericRecordValue(
+          FieldDescriptor fieldDescriptor, Schema.Field avroField, String name, GenericRecord record) {
+    @Nullable
+    Object value = record.get(name);
     if (value == null) {
       if (fieldDescriptor.isOptional()) {
         return null;
       } else {
         throw new IllegalArgumentException(
-            "Received null value for non-nullable field " + fieldDescriptor.getName());
+                "Received null value for non-nullable field " + fieldDescriptor.getName());
       }
     }
-    return toProtoValue(fieldDescriptor, beamField.schema().getType(), value);
+    return toProtoValue(fieldDescriptor, avroField.schema(), value);
   }
 
   private static Object toProtoValue(
-      FieldDescriptor fieldDescriptor, Schema.Type beamFieldType, Object value) {
-    switch (beamFieldType) {
+          FieldDescriptor fieldDescriptor, Schema avroSchema, Object value) {
+    switch (avroSchema.getType()) {
       case RECORD:
-        return messageFromBeamRow(fieldDescriptor.getMessageType(), (GenericRecord) value);
+        return messageFromGenericRecord(fieldDescriptor.getMessageType(), (GenericRecord) value);
       case ARRAY:
         List<Object> list = (List<Object>) value;
-        @Nullable FieldType arrayElementType = beamFieldType.getCollectionElementType();
+        @Nullable Schema arrayElementType = avroSchema.getElementType();
         if (arrayElementType == null) {
           throw new RuntimeException("Unexpected null element type!");
         }
         return list.stream()
-            .map(v -> toProtoValue(fieldDescriptor, arrayElementType, v))
-            .collect(Collectors.toList());
+                .map(v -> toProtoValue(fieldDescriptor, arrayElementType, v))
+                .collect(Collectors.toList());
       case UNION:
-        return messageFromUnion();
+        TypeWithNullability type = TypeWithNullability.create(avroSchema);
+        Preconditions.checkState(
+                type.getType().getType() != Schema.Type.UNION,
+                "Multiple non-null union types are not supported.");
+        return toProtoValue(fieldDescriptor, type.getType(), value);
       case MAP:
         throw new RuntimeException("Map types not supported by BigQuery.");
       default:
-        return scalarToProtoValue(beamFieldType, value);
+        return scalarToProtoValue(avroSchema, value);
     }
   }
 
   @VisibleForTesting
-  static Object scalarToProtoValue(FieldType beamFieldType, Object value) {
-    if (beamFieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
-      @Nullable LogicalType<?, ?> logicalType = beamFieldType.getLogicalType();
-      if (logicalType == null) {
-        throw new RuntimeException("Unexpectedly null logical type " + beamFieldType);
-      }
+  static Object scalarToProtoValue(Schema fieldSchema, Object value) {
+    TypeWithNullability type = TypeWithNullability.create(fieldSchema);
+    LogicalType logicalType = LogicalTypes.fromSchema(type.getType());
+    if (logicalType != null) {
       @Nullable
-      BiFunction<LogicalType<?, ?>, Object, Object> logicalTypeEncoder =
-          LOGICAL_TYPE_ENCODERS.get(logicalType.getIdentifier());
+      BiFunction<LogicalType, Object, Object> logicalTypeEncoder
+              = LOGICAL_TYPE_ENCODERS.get(logicalType.getName());
       if (logicalTypeEncoder == null) {
-        throw new RuntimeException("Unsupported logical type " + logicalType.getIdentifier());
+        throw new IllegalArgumentException("Unsupported logical type " + logicalType.getName());
       }
       return logicalTypeEncoder.apply(logicalType, value);
     } else {
       @Nullable
-      Function<Object, Object> encoder = PRIMITIVE_ENCODERS.get(beamFieldType.getTypeName());
+      Function<Object, Object> encoder = PRIMITIVE_ENCODERS.get(type.getType().getType());
       if (encoder == null) {
-        throw new RuntimeException("Unexpected beam type " + beamFieldType);
+        throw new RuntimeException("Unexpected beam type " + fieldSchema);
       }
       return encoder.apply(value);
     }
   }
 
-  static ByteString serializeBigDecimalToNumeric(BigDecimal o) {
-    return serializeBigDecimal(o, NUMERIC_SCALE, MAX_NUMERIC_VALUE, MIN_NUMERIC_VALUE, "Numeric");
-  }
-
-  private static ByteString serializeBigDecimal(
-      BigDecimal v, int scale, BigDecimal maxValue, BigDecimal minValue, String typeName) {
-    if (v.scale() > scale) {
-      throw new IllegalArgumentException(
-          typeName + " scale cannot exceed " + scale + ": " + v.toPlainString());
-    }
-    if (v.compareTo(maxValue) > 0 || v.compareTo(minValue) < 0) {
-      throw new IllegalArgumentException(typeName + " overflow: " + v.toPlainString());
-    }
-
-    byte[] bytes = v.setScale(scale).unscaledValue().toByteArray();
-    // NUMERIC/BIGNUMERIC values are serialized as scaled integers in two's complement form in
-    // little endian
-    // order. BigInteger requires the same encoding but in big endian order, therefore we must
-    // reverse the bytes that come from the proto.
-    Bytes.reverse(bytes);
-    return ByteString.copyFrom(bytes);
-  }
 }
