@@ -344,9 +344,8 @@ credential settings.
 *   Make sure you have **read and write access to that bucket** when you specify
     to use that directory as caching directory.
 
-*   You may configure a cache directory to be used by all interactive pipelines through
-    using the `cache_root` option under interactive_beam. If the cache directory is specified
-    this way, no additional parameters are required to be passed in during pipeline instantiation.
+*   You may configure a cache directory to be used by all pipelines created afterward with
+    an `InteractiveRunner`.
 
 *   ```python
     ib.options.cache_root = 'gs://bucket-name/obj'
@@ -374,7 +373,7 @@ You can choose to run Interactive Beam on Flink with the following settings.
 *   Alternatively, if the runtime environment is configured with a Google Cloud project, you can run Interactive Beam with Flink on Cloud Dataproc. To do so, configure the pipeline with a Google Cloud project. If using dev versioned Beam built from source code, it is necessary to specify an `environment_config` option to configure a containerized Beam SDK (you can choose a released container or build one yourself).
 
 *   ```python
-    ib.options.cache_root = 'gs://bucket-name/dir'
+    ib.options.cache_root = 'gs://bucket-name/obj'
     options = PipelineOptions([
     # The project can be attained simply from running the following commands:
     # import google.auth
