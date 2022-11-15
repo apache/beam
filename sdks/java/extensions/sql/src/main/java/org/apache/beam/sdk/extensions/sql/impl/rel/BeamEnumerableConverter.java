@@ -37,7 +37,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
@@ -50,6 +49,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -318,7 +319,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     switch (type.getTypeName()) {
       case LOGICAL_TYPE:
-        String logicalId = type.getLogicalType().getIdentifier();
+        LogicalType<?, ?> logicalType = type.getLogicalType();
+        assert logicalType != null;
+        String logicalId = logicalType.getIdentifier();
         if (SqlTypes.TIME.getIdentifier().equals(logicalId)) {
           if (beamValue instanceof Long) { // base type
             return (Long) beamValue;
@@ -331,7 +334,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
           } else { // input type
             return (int) ((LocalDate) beamValue).toEpochDay();
           }
-        } else if (CharType.IDENTIFIER.equals(logicalId)) {
+        } else if (logicalType instanceof PassThroughLogicalType) {
           return beamValue;
         } else {
           throw new UnsupportedOperationException("Unknown DateTime type " + logicalId);
