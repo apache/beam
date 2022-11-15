@@ -37,7 +37,7 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
 - [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
 
 ## 1. Setup the Google Cloud Build  for your GCP project
-  
+
 The `playground/infrastructure/cloudbuild-manual-setup/01.setup` provisions dependencies required to setup Cloud Build for Playground:
 - Required API services
 - Cloud Build service account
@@ -58,7 +58,7 @@ cloudbuild_service_account_id = "terraform-cloudbuild"      # Name of SA to be u
 
 ```console
 # Creates new authentication configuration to GCP Project
-# Using user account in Requirements 
+# Using user account in Requirements
 gcloud init
 
 # Acquires new user account credentials to use for Application Default Credentials
