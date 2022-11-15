@@ -31,7 +31,7 @@ import com.google.api.services.pubsub.PubsubScopes;
 import com.google.api.services.pubsub.model.Topic;
 import java.io.IOException;
 
-public class InjectorUtils {
+class InjectorUtils {
 
   private static final String APP_NAME = "injector";
 

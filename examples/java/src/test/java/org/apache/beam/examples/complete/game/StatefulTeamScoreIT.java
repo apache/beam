@@ -48,8 +48,8 @@ public class StatefulTeamScoreIT extends CompleteGame {
 
   @Before
   public void setupTestEnvironment() throws Exception {
-    TOPIC_PREFIX = "statefulteamscores-";
-    OUTPUT_DATASET = "stateful_team_score_e2e_" + timestamp;
+    topicPrefix = "statefulteamscores-";
+    outputDataset = "stateful_team_score_e2e_" + timestamp;
 
     PipelineOptionsFactory.register(TestPipelineOptions.class);
     projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
@@ -74,7 +74,7 @@ public class StatefulTeamScoreIT extends CompleteGame {
     QueryResponse response =
         bqClient.queryWithRetriesUsingStandardSql(
             String.format(
-                SELECT_TOTAL_SCORE_QUERY, projectId, OUTPUT_DATASET, LEADERBOARD_TEAM_LEADER_TABLE),
+                SELECT_TOTAL_SCORE_QUERY, projectId, outputDataset, LEADERBOARD_TEAM_LEADER_TABLE),
             projectId,
             backoffFactory);
 
@@ -85,7 +85,7 @@ public class StatefulTeamScoreIT extends CompleteGame {
 
   private void setupPipelineOptions() {
     options.as(GcpOptions.class).setProject(projectId);
-    options.setDataset(OUTPUT_DATASET);
+    options.setDataset(outputDataset);
     options.setSubscription(subscriptionPath.getPath());
     options.setTopic(eventsTopicPath.getPath());
     options.setStreaming(false);

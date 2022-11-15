@@ -43,22 +43,22 @@ public abstract class CompleteGame {
   protected static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY-MM-dd-HH-mm-ss-SSS");
   protected static String timestamp = Long.toString(System.currentTimeMillis());
-  protected static String EVENTS_TOPIC_NAME = "events";
-  protected static String CLOUD_STORAGE_CSV_FILE =
+  protected static final String EVENTS_TOPIC_NAME = "events";
+  protected static final String CLOUD_STORAGE_CSV_FILE =
       "gs://apache-beam-samples/game/small/gaming_data.csv";
-  protected static Integer DEFAULT_ACK_DEADLINE_SECONDS = 120;
+  protected static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 120;
   protected @Nullable TopicAdminClient topicAdmin = null;
   protected @Nullable SubscriptionAdminClient subscriptionAdmin = null;
   protected @Nullable TopicPath eventsTopicPath = null;
   protected @Nullable SubscriptionPath subscriptionPath = null;
   protected static String projectId;
-  protected static String TOPIC_PREFIX;
+  protected static String topicPrefix;
   protected static BigqueryClient bqClient;
-  protected static String OUTPUT_DATASET;
+  protected static String outputDataset;
 
   protected void setupBigQuery() throws IOException, InterruptedException {
     bqClient = new BigqueryClient(projectId);
-    bqClient.createNewDataset(projectId, OUTPUT_DATASET);
+    bqClient.createNewDataset(projectId, outputDataset);
   }
 
   protected void setupPubSub(TestPipeline testPipeline, GcpOptions options) throws IOException {
@@ -117,7 +117,7 @@ public abstract class CompleteGame {
   protected void cleanupTestEnvironment() throws Exception {
 
     if (bqClient != null) {
-      bqClient.deleteDataset(projectId, OUTPUT_DATASET);
+      bqClient.deleteDataset(projectId, outputDataset);
     }
 
     if (subscriptionAdmin == null || topicAdmin == null) {
@@ -153,7 +153,7 @@ public abstract class CompleteGame {
    * <p>Example: 'leaderboardscores-2018-12-11-23-32-333-events-6185541326079233738'
    */
   private static String createTopicName(String name) {
-    StringBuilder topicName = new StringBuilder(TOPIC_PREFIX);
+    StringBuilder topicName = new StringBuilder(topicPrefix);
     DATETIME_FORMAT.printTo(topicName, Instant.now());
     return topicName + "-" + name + "-" + ThreadLocalRandom.current().nextLong();
   }

@@ -47,8 +47,8 @@ public class LeaderBoardIT extends CompleteGame {
 
   @Before
   public void setupTestEnvironment() throws Exception {
-    TOPIC_PREFIX = "leaderboardscores-";
-    OUTPUT_DATASET = "leader_board_e2e_events_" + timestamp;
+    topicPrefix = "leaderboardscores-";
+    outputDataset = "leader_board_e2e_events_" + timestamp;
 
     PipelineOptionsFactory.register(TestPipelineOptions.class);
     projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
@@ -74,7 +74,7 @@ public class LeaderBoardIT extends CompleteGame {
     QueryResponse response =
         bqClient.queryWithRetriesUsingStandardSql(
             String.format(
-                SELECT_COUNT_AS_TOTAL_QUERY, projectId, OUTPUT_DATASET, LEADERBOARD_TEAM_TABLE),
+                SELECT_COUNT_AS_TOTAL_QUERY, projectId, outputDataset, LEADERBOARD_TEAM_TABLE),
             projectId,
             backoffFactory);
 
@@ -85,7 +85,7 @@ public class LeaderBoardIT extends CompleteGame {
 
   private void setupPipelineOptions() {
     options.setProject(projectId);
-    options.setDataset(OUTPUT_DATASET);
+    options.setDataset(outputDataset);
     options.setSubscription(subscriptionPath.getPath());
     options.setTopic(eventsTopicPath.getPath());
     options.setStreaming(false);

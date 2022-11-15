@@ -47,8 +47,8 @@ public class GameStatsIT extends CompleteGame {
 
   @Before
   public void setupTestEnvironment() throws Exception {
-    TOPIC_PREFIX = "gamestats-";
-    OUTPUT_DATASET = "game_stats_e2e_" + timestamp;
+    topicPrefix = "gamestats-";
+    outputDataset = "game_stats_e2e_" + timestamp;
     PipelineOptionsFactory.register(TestPipelineOptions.class);
     projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
 
@@ -73,7 +73,7 @@ public class GameStatsIT extends CompleteGame {
     QueryResponse response =
         bqClient.queryWithRetriesUsingStandardSql(
             String.format(
-                SELECT_COUNT_AS_TOTAL_QUERY, projectId, OUTPUT_DATASET, GAME_STATS_TEAM_TABLE),
+                SELECT_COUNT_AS_TOTAL_QUERY, projectId, outputDataset, GAME_STATS_TEAM_TABLE),
             projectId,
             backoffFactory);
 
@@ -84,7 +84,7 @@ public class GameStatsIT extends CompleteGame {
 
   private void setupPipelineOptions() {
     options.as(GcpOptions.class).setProject(projectId);
-    options.setDataset(OUTPUT_DATASET);
+    options.setDataset(outputDataset);
     options.setSubscription(subscriptionPath.getPath());
     options.setTopic(eventsTopicPath.getPath());
     options.setStreaming(true);
