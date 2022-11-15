@@ -74,7 +74,6 @@ public class ZstdCoder<T> extends StructuredCoder<T> {
       ctx.loadDict(dict);
 
       byte[] encoded = CoderUtils.encodeToByteArray(innerCoder, value);
-      ctx.setPledgedSrcSize(encoded.length);
       byte[] compressed = ctx.compress(encoded);
       ByteArrayCoder.of().encode(compressed, os);
     } finally {
