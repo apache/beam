@@ -657,7 +657,7 @@ public class GroupIntoBatchesTest implements Serializable {
   })
   public void testMultipleLimitsAtOnceInGlobalWindowBatchSizeCountAndBatchSizeByteSize() {
     // with using only one of the limits the result would be only 2 batches,
-    // if we have 3 both limit works
+    // if we have 3 both limits are exercised
     List<KV<String, String>> dataToUse =
         Lists.newArrayList(
                 "a-1",
@@ -675,7 +675,7 @@ public class GroupIntoBatchesTest implements Serializable {
             .map(s -> KV.of("key", s))
             .collect(Collectors.toList());
 
-    // to ensure ordered firing
+    // to ensure ordered processing
     TestStream.Builder<KV<String, String>> streamBuilder =
         TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
             .advanceWatermarkTo(Instant.EPOCH);
