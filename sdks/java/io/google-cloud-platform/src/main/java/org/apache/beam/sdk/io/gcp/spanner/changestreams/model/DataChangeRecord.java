@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
 import com.google.cloud.Timestamp;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import org.apache.avro.reflect.AvroEncode;
@@ -38,8 +36,6 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncodin
 public class DataChangeRecord implements ChangeStreamRecord {
 
   private static final long serialVersionUID = 1138762498767540898L;
-  // Used for byte size estimation of the record
-  private static final AvroCoder<DataChangeRecord> CODER = AvroCoder.of(DataChangeRecord.class);
 
   private String partitionToken;
 
@@ -210,20 +206,6 @@ public class DataChangeRecord implements ChangeStreamRecord {
   /** The connector execution metadata for this record. */
   public ChangeStreamRecordMetadata getMetadata() {
     return metadata;
-  }
-
-  /**
-   * Estimates the size in bytes of a record when encoded using Avro.
-   *
-   * @return the number of bytes of the encoded object
-   */
-  public long bytesSize() {
-    try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-      CODER.encode(this, baos);
-      return baos.size();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   @Override

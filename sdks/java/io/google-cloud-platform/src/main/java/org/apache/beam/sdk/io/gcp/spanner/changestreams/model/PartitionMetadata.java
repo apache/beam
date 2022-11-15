@@ -19,19 +19,15 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Value;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.avro.reflect.AvroEncode;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncoding;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /** Model for the partition metadata database table used in the Connector. */
 @SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
@@ -39,31 +35,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 public class PartitionMetadata implements Serializable {
 
   private static final long serialVersionUID = 995720273301116075L;
-  // Used for byte size estimation of the record
-  private static final AvroCoder<PartitionMetadata> CODER = AvroCoder.of(PartitionMetadata.class);
-
-  /**
-   * We use the following partition token to provide an estimate size of a partition token. A usual
-   * partition token has around 140 characters.
-   */
-  private static final String SAMPLE_PARTITION_TOKEN = StringUtils.repeat("*", 140);
-  /**
-   * We use a bogus partition here to estimate the average size of a partition metadata record.
-   *
-   * <p>The only dynamically allocated size field here is the "parentTokens", which is a set and can
-   * expand. In practice, however, partitions have 1 to 2 parents at most.
-   */
-  public static final long AVERAGE_PARTITION_BYTES_SIZE =
-      PartitionMetadata.newBuilder()
-          .setPartitionToken(SAMPLE_PARTITION_TOKEN)
-          .setParentTokens(Sets.newHashSet(SAMPLE_PARTITION_TOKEN))
-          .setStartTimestamp(Timestamp.now())
-          .setHeartbeatMillis(1_000L)
-          .setState(State.CREATED)
-          .setWatermark(Timestamp.now())
-          .setCreatedAt(Timestamp.now())
-          .build()
-          .bytesSize();
 
   /**
    * The state at which a partition can be in the system:
@@ -215,20 +186,6 @@ public class PartitionMetadata implements Serializable {
   /** The time at which the connector finished processing this partition. */
   public @Nullable Timestamp getFinishedAt() {
     return finishedAt;
-  }
-
-  /**
-   * Estimates the size in bytes of a partition when encoded using Avro.
-   *
-   * @return the number of bytes of the encoded object
-   */
-  public long bytesSize() {
-    try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-      CODER.encode(this, baos);
-      return baos.size();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   /** Transforms the instance into a builder, so field values can be modified. */

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.AVERAGE_PARTITION_BYTES_SIZE;
-
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.DetectNewPartitionsAction;
@@ -59,6 +57,7 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
   private static final Duration DEFAULT_RESUME_DURATION = Duration.millis(100L);
 
   private final Duration resumeDuration;
+  private final long averagePartitionBytesSize;
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
@@ -73,16 +72,20 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
    * executed according to the default resume interval as in {@link
    * DetectNewPartitionsDoFn#DEFAULT_RESUME_DURATION} (best effort).
    *
+   * @param averagePartitionBytesSize the estimated average size of a partition record used in the
+   *     backlog bytes calculation ({@link org.apache.beam.sdk.transforms.DoFn.GetSize})
    * @param daoFactory the {@link DaoFactory} to construct {@link PartitionMetadataDao}s
    * @param mapperFactory the {@link MapperFactory} to construct {@link PartitionMetadataMapper}s
    * @param actionFactory the {@link ActionFactory} to construct actions
    * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
    */
   public DetectNewPartitionsDoFn(
+      long averagePartitionBytesSize,
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
       ChangeStreamMetrics metrics) {
+    this.averagePartitionBytesSize = averagePartitionBytesSize;
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
@@ -119,7 +122,7 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
     final com.google.cloud.Timestamp readTimestamp = restriction.getFrom();
     final PartitionMetadataDao dao = daoFactory.getPartitionMetadataDao();
     final long partitionsToSchedule = dao.countPartitionsCreatedAfter(readTimestamp);
-    final long sizeEstimate = partitionsToSchedule * AVERAGE_PARTITION_BYTES_SIZE;
+    final long sizeEstimate = partitionsToSchedule * averagePartitionBytesSize;
 
     LOG.debug(
         "getSize() = "
@@ -127,7 +130,7 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
             + " ("
             + partitionsToSchedule
             + " partitionsToSchedule * "
-            + AVERAGE_PARTITION_BYTES_SIZE
+            + averagePartitionBytesSize
             + " averagePartitionBytesSize)");
     return sizeEstimate;
   }

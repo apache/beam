@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
+package org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator;
 
 import com.google.cloud.Timestamp;
 import java.io.Serializable;
@@ -25,11 +25,15 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 /** An estimator to provide an estimate on the throughput of the outputted elements. */
-public class ThroughputEstimator implements Serializable {
+public class ThroughputEstimator<T> implements Serializable {
 
   private static final long serialVersionUID = -3597929310338724800L;
 
-  private static class ThroughputEntry {
+  /** Keeps track of how many bytes of throughput have been seen in a given timestamp. */
+  private static class ThroughputEntry implements Serializable {
+
+    private static final long serialVersionUID = 3752325891215855332L;
+
     private final Timestamp timestamp;
     private BigDecimal bytes;
 
@@ -60,20 +64,24 @@ public class ThroughputEstimator implements Serializable {
   private final Deque<ThroughputEntry> deque;
   // The number of seconds to be accounted for when calculating the throughput
   private final int windowSizeSeconds;
+  // Estimates the size in bytes of throughput elements
+  private final SizeEstimator<T> sizeEstimator;
 
-  public ThroughputEstimator(int windowSizeSeconds) {
+  public ThroughputEstimator(int windowSizeSeconds, SizeEstimator<T> sizeEstimator) {
     this.deque = new ArrayDeque<>();
     this.windowSizeSeconds = windowSizeSeconds;
+    this.sizeEstimator = sizeEstimator;
   }
 
   /**
    * Updates the estimator with the bytes of records.
    *
    * @param timeOfRecords the committed timestamp of the records
-   * @param bytes the total bytes of the records
+   * @param element the element to estimate the byte size of
    */
   @SuppressWarnings("nullness") // queue is never null, nor the peeked element
-  public void update(Timestamp timeOfRecords, long bytes) {
+  public void update(Timestamp timeOfRecords, T element) {
+    long bytes = sizeEstimator.sizeOf(element);
     synchronized (deque) {
       if (deque.isEmpty() || timeOfRecords.getSeconds() > deque.getLast().getSeconds()) {
         deque.addLast(new ThroughputEntry(timeOfRecords, bytes));

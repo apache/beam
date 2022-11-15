@@ -20,10 +20,10 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 import com.google.cloud.Timestamp;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -41,6 +41,12 @@ import org.slf4j.LoggerFactory;
  */
 public class DataChangeRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(DataChangeRecordAction.class);
+  private final ThroughputEstimator<DataChangeRecord> throughputEstimator;
+
+  /** @param throughputEstimator an estimator to calculate local throughput of this action. */
+  public DataChangeRecordAction(ThroughputEstimator<DataChangeRecord> throughputEstimator) {
+    this.throughputEstimator = throughputEstimator;
+  }
 
   /**
    * This is the main processing function for a {@link DataChangeRecord}. It returns an {@link
@@ -65,8 +71,6 @@ public class DataChangeRecordAction {
    * @param outputReceiver the output receiver of the {@link ReadChangeStreamPartitionDoFn} SDF
    * @param watermarkEstimator the watermark estimator of the {@link ReadChangeStreamPartitionDoFn}
    *     SDF
-   * @param throughputEstimator an estimator to calculate local throughput of the {@link
-   *     ReadChangeStreamPartitionDoFn}.
    * @return {@link Optional#empty()} if the caller can continue processing more records. A non
    *     empty {@link Optional} with {@link ProcessContinuation#stop()} if this function was unable
    *     to claim the {@link ChildPartitionsRecord} timestamp
@@ -77,8 +81,7 @@ public class DataChangeRecordAction {
       DataChangeRecord record,
       RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<DataChangeRecord> outputReceiver,
-      ManualWatermarkEstimator<Instant> watermarkEstimator,
-      ThroughputEstimator throughputEstimator) {
+      ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final String token = partition.getPartitionToken();
     LOG.debug("[" + token + "] Processing data record " + record.getCommitTimestamp());
@@ -93,7 +96,7 @@ public class DataChangeRecordAction {
     outputReceiver.outputWithTimestamp(record, commitInstant);
     watermarkEstimator.setWatermark(commitInstant);
 
-    throughputEstimator.update(Timestamp.now(), record.bytesSize());
+    throughputEstimator.update(Timestamp.now(), record);
 
     LOG.debug("[" + token + "] Data record action completed successfully");
     return Optional.empty();

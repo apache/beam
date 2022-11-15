@@ -28,13 +28,13 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.QueryChangeStream
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ReadChangeStreamPartitionRangeTracker;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -67,7 +67,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
   private final ChangeStreamMetrics metrics;
-  private final ThroughputEstimator throughputEstimator;
+  private final ThroughputEstimator<DataChangeRecord> throughputEstimator;
 
   private transient QueryChangeStreamAction queryChangeStreamAction;
 
@@ -91,7 +91,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
       ChangeStreamMetrics metrics,
-      ThroughputEstimator throughputEstimator) {
+      ThroughputEstimator<DataChangeRecord> throughputEstimator) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
@@ -179,7 +179,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final ChangeStreamRecordMapper changeStreamRecordMapper =
         mapperFactory.changeStreamRecordMapper();
     final PartitionMetadataMapper partitionMetadataMapper = mapperFactory.partitionMetadataMapper();
-    final DataChangeRecordAction dataChangeRecordAction = actionFactory.dataChangeRecordAction();
+    final DataChangeRecordAction dataChangeRecordAction =
+        actionFactory.dataChangeRecordAction(throughputEstimator);
     final HeartbeatRecordAction heartbeatRecordAction =
         actionFactory.heartbeatRecordAction(metrics);
     final ChildPartitionsRecordAction childPartitionsRecordAction =
@@ -194,8 +195,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction,
-            metrics,
-            throughputEstimator);
+            metrics);
   }
 
   /**

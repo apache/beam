@@ -35,12 +35,12 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.QueryChangeStream
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -80,7 +80,8 @@ public class ReadChangeStreamPartitionDoFnTest {
     final DaoFactory daoFactory = mock(DaoFactory.class);
     final MapperFactory mapperFactory = mock(MapperFactory.class);
     final ChangeStreamMetrics metrics = mock(ChangeStreamMetrics.class);
-    final ThroughputEstimator throughputEstimator = mock(ThroughputEstimator.class);
+    final ThroughputEstimator<DataChangeRecord> throughputEstimator =
+        mock(ThroughputEstimator.class);
     final ActionFactory actionFactory = mock(ActionFactory.class);
     final PartitionMetadataDao partitionMetadataDao = mock(PartitionMetadataDao.class);
     final ChangeStreamDao changeStreamDao = mock(ChangeStreamDao.class);
@@ -118,7 +119,8 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(mapperFactory.changeStreamRecordMapper()).thenReturn(changeStreamRecordMapper);
     when(mapperFactory.partitionMetadataMapper()).thenReturn(partitionMetadataMapper);
 
-    when(actionFactory.dataChangeRecordAction()).thenReturn(dataChangeRecordAction);
+    when(actionFactory.dataChangeRecordAction(throughputEstimator))
+        .thenReturn(dataChangeRecordAction);
     when(actionFactory.heartbeatRecordAction(metrics)).thenReturn(heartbeatRecordAction);
     when(actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics))
         .thenReturn(childPartitionsRecordAction);
@@ -130,8 +132,7 @@ public class ReadChangeStreamPartitionDoFnTest {
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction,
-            metrics,
-            throughputEstimator))
+            metrics))
         .thenReturn(queryChangeStreamAction);
 
     doFn.setup();
@@ -149,7 +150,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     verify(queryChangeStreamAction)
         .run(partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(tracker, never()).tryClaim(any());

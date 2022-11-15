@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
-/** Represents an error during encoding (serializing) a class. */
-public class EncodingException extends RuntimeException {
-  public EncodingException(Throwable e) {
-    super(e);
-  }
-}
+/** Classes related to estimating the throughput of the change streams SDFs. */
+@Experimental
+package org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator;
+
+import org.apache.beam.sdk.annotations.Experimental;
