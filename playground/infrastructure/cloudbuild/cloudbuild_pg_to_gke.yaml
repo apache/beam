@@ -18,25 +18,30 @@
 steps:
   # This step uses Docker container from our image to authenticate us in GKE
   # Please set variable $_GKE_NAME in "substitutions" stage below
-  - name: '$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
-    entrypoint: "gcloud"
-    args:
-      [
-        'container',
-        'clusters',
-        'get-credentials',
-        '$_GKE_NAME',
-        '--region=$LOCATION-a'
-      ]
+#  - name: '$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/builder:worker'
+#    entrypoint: "gcloud"
+#    args:
+#      [
+#        'container',
+#        'clusters',
+#        'get-credentials',
+#        '${_GKE_NAME}',
+#        '--region=${LOCATION}-a'
+#      ]
 
   # This step uses Docker container from image in previous step to run gradle task for Playground to GKE deployment
-  - name: '$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
+  - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
     entrypoint: "/bin/bash"
-    args: [ '-c', './gradlew playground:terraform:gkebackend -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Pdns-name="$_DNS_NAME"' ]
+    args:
+    - '-c'
+    - |
+        ./gradlew playground:terraform:prepareConfig -Pdns-name="${_DNS_NAME}" && 
+        ./gradlew playground:terraform:gkebackend -Pdocker-repository-root="${_DOCKER_REPOSITORY_ROOT}" \
+        -Pproject_environment="{$_ENVIRONMENT_NAME}" -Pdocker-tag="${_TAG}" -Pdns-name="${_DNS_NAME}"' 
 
 substitutions:
   # The name of your Google Cloud Artifact Registry
-  _ARTIFACT_REGISTRY_REPOSITORY_ID: "CHANGE_ME"
+  _ARTIFACT_REGISTRY_REPO: "CHANGE_ME"
   # The name of your environment in beam/playground/terraform/environment/
   _ENVIRONMENT_NAME: "CHANGE_ME"
   # The name of your DNS for Playground
@@ -45,9 +50,11 @@ substitutions:
   _TAG: "CHANGE_ME"
   # The name of your GKE cluster (from terraform.tfvars)
   _GKE_NAME: "CHANGE_ME"
+  # The name of the GCP logs bucket
+  _LOGS_BUCKET_NAME: "CHANGE_ME"
 
 # The name of your logs bucket
-logsBucket: 'gs://CHANGE_ME'
+logsBucket: 'gs://${_LOGS_BUCKET_NAME}'
 
 # This option is for writing logs to GCS bucket
 options:

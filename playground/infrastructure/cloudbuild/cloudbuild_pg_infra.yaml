@@ -20,31 +20,33 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
-      - '--tag=$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
+      - '--tag=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
       - '-f'
       - 'playground/infrastructure/cloudbuild/Dockerfile-base-image-worker'
       - '.'
 
   # This step uses Docker container from image in previous step to run gradle task for Playground Infrastructure deployment
-  - name: '$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
+  - name: '$LOCATION-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
     entrypoint: "/bin/bash"
   # Please set variables $_ENVIRONMENT_NAME and $_DNS_NAME in "substitutions" stage below
-    args: ['-c', './gradlew playground:terraform:InitInfrastructure -Pproject_environment="$_ENVIRONMENT_NAME" -Pdns-name="$_DNS_NAME"']
+    args: ['-c', './gradlew playground:terraform:InitInfrastructure -Pproject_environment="${_ENVIRONMENT_NAME}" -Pdns-name="${_DNS_NAME}"']
 
 substitutions:
   # The name of your Google Cloud Artifact Registry
-  _ARTIFACT_REGISTRY_REPOSITORY_ID: "CHANGE_ME"
+  _ARTIFACT_REGISTRY_REPO: "CHANGE_ME"
   # The name of your environment in beam/playground/terraform/environment/
   _ENVIRONMENT_NAME: "CHANGE_ME"
   # The name of your DNS for Playground
   _DNS_NAME: "CHANGE_ME"
+  # The name of the GCP logs bucket
+  _LOGS_BUCKET_NAME: "CHANGE_ME"
 
 # The name of your logs bucket
-logsBucket: 'gs://CHANGE_ME'
+logsBucket: 'gs://${_LOGS_BUCKET_NAME}'
 
 # Pushing built image to Artifact repository
 images:
-  - '$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPOSITORY_ID/builder:worker'
+  - '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
 
 # This option is for writing logs to GCS bucket
 options:
