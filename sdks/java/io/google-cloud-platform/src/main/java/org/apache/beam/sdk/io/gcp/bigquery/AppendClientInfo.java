@@ -23,6 +23,11 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
+/**
+ * Container class used by {@link StorageApiWritesShardedRecords} and {@link
+ * StorageApiWritesShardedRecords} to enapsulate a destination {@link TableSchema} along with a
+ * {@link BigQueryServices.StreamAppendClient} and other objects needed to write records.
+ */
 class AppendClientInfo {
   @Nullable BigQueryServices.StreamAppendClient streamAppendClient;
   @Nullable TableSchema tableSchema;

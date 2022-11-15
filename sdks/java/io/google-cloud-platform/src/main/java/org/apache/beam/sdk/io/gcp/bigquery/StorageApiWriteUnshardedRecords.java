@@ -281,7 +281,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         Preconditions.checkStateNotNull(maybeDatasetService);
         AppendClientInfo appendClientInfo =
             new AppendClientInfo(
-                tableSchema, client -> runAsyncIgnoreFailure(closeWriterExecutor, client::close));
+                tableSchema,
+                // Make sure that the client is always closed in a different thread to avoid
+                // blocking.
+                client -> runAsyncIgnoreFailure(closeWriterExecutor, client::close));
         if (createAppendClient) {
           appendClientInfo =
               appendClientInfo.createAppendClient(

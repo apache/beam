@@ -123,6 +123,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   private final TupleTag<KV<String, Operation>> flushTag = new TupleTag<>("flushTag");
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
 
+  // Context passed into RetryManager for each call.
   class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
     final ShardedKey<DestinationT> key;
     String streamName = "";
@@ -394,13 +395,12 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                         .getTableSchema();
                 return new AppendClientInfo(
                         tableSchema,
+                        // Make sure that the client is always closed in a different thread to avoid
+                        // blocking.
                         client -> runAsyncIgnoreFailure(closeWriterExecutor, client::close))
                     .createAppendClient(datasetService, getOrCreateStream, false);
               });
 
-      // Each ProtoRows object contains at most 1MB of rows.
-      // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely if
-      // already proto or already schema.
       Iterable<ProtoRows> messages = new SplittingIterable(element.getValue(), splitSize);
 
       // Initialize stream names and offsets for all contexts. This will be called initially, but

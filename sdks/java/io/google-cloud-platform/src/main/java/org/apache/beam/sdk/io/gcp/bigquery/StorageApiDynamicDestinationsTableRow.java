@@ -69,10 +69,10 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
   }
 
   class TableRowConverter implements MessageConverter<T> {
-    @Nullable TableSchema tableSchema;
-    com.google.cloud.bigquery.storage.v1.TableSchema protoTableSchema;
-    TableRowToStorageApiProto.SchemaInformation schemaInformation;
-    Descriptor descriptor;
+    final @Nullable TableSchema tableSchema;
+    final com.google.cloud.bigquery.storage.v1.TableSchema protoTableSchema;
+    final TableRowToStorageApiProto.SchemaInformation schemaInformation;
+    final Descriptor descriptor;
 
     TableRowConverter(
         TableSchema tableSchema,
@@ -85,13 +85,13 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
     }
 
     TableRowConverter(DestinationT destination, DatasetService datasetService) throws Exception {
-      tableSchema = getSchema(destination);
+      TableSchema localTableSchema = getSchema(destination);
       TableReference tableReference = getTable(destination).getTableReference();
-      if (tableSchema == null) {
+      if (localTableSchema == null) {
         // If the table already exists, then try and fetch the schema from the existing
         // table.
-        tableSchema = SCHEMA_CACHE.getSchema(tableReference, datasetService);
-        if (tableSchema == null) {
+        localTableSchema = SCHEMA_CACHE.getSchema(tableReference, datasetService);
+        if (localTableSchema == null) {
           if (createDisposition == CreateDisposition.CREATE_NEVER) {
             throw new RuntimeException(
                 "BigQuery table "
@@ -110,10 +110,11 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       } else {
         // Make sure we register this schema with the cache, unless there's already a more
         // up-to-date schema.
-        tableSchema =
+        localTableSchema =
             MoreObjects.firstNonNull(
-                SCHEMA_CACHE.putSchemaIfAbsent(tableReference, tableSchema), tableSchema);
+                SCHEMA_CACHE.putSchemaIfAbsent(tableReference, localTableSchema), localTableSchema);
       }
+      this.tableSchema = localTableSchema;
       this.protoTableSchema = TableRowToStorageApiProto.schemaToProtoTableSchema(tableSchema);
       schemaInformation =
           TableRowToStorageApiProto.SchemaInformation.fromTableSchema(protoTableSchema);
@@ -124,9 +125,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
 
     @Override
     public com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema() {
-      synchronized (this) {
-        return protoTableSchema;
-      }
+      return protoTableSchema;
     }
 
     @Override
@@ -139,19 +138,12 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       return toMessage(formatFunction.apply(element), true);
     }
 
-    @Override
     public StorageApiWritePayload toMessage(TableRow tableRow, boolean respectRequired)
         throws Exception {
-      TableRowToStorageApiProto.SchemaInformation localSchemaInformation;
-      Descriptor localDescriptor;
-      synchronized (this) {
-        localSchemaInformation = schemaInformation;
-        localDescriptor = descriptor;
-      }
       boolean ignore = ignoreUnknownValues || autoSchemaUpdates;
       Message msg =
           TableRowToStorageApiProto.messageFromTableRow(
-              localSchemaInformation, localDescriptor, tableRow, ignore);
+              schemaInformation, descriptor, tableRow, ignore);
       return StorageApiWritePayload.of(msg.toByteArray());
     }
   };

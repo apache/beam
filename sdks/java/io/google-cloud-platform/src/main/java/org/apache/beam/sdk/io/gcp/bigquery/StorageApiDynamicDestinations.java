@@ -35,8 +35,6 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
 
     StorageApiWritePayload toMessage(T element) throws Exception;
 
-    StorageApiWritePayload toMessage(TableRow tableRow, boolean respectRequired) throws Exception;
-
     TableRow toTableRow(T element);
   }
 

@@ -67,11 +67,6 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     }
 
     @Override
-    public StorageApiWritePayload toMessage(TableRow tableRow, boolean respectRequired) {
-      throw new RuntimeException("Not supported");
-    }
-
-    @Override
     public TableRow toTableRow(T element) {
       return BigQueryUtils.toTableRow(toRow.apply(element));
     }
