@@ -131,6 +131,6 @@ terraform apply -var-file="terraform.tfvars"
 1. Change variables in `SUBSTITUTIONS` block in second cloud build config file `playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml`
 2. Navigate to GCP Console. Open Cloud Build page -> Triggers. Sort by relevant region and click `RUN` for `Playground-to-gke-trigger`.
 
-## 6. Validation 
+## 6. Validation
 
 Once Playground has been deployed to GKE, please navigate to [Validation](https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#validate-deployed-playground) to perform Playground deployment steps.
