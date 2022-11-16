@@ -1599,7 +1599,7 @@ public class AvroIO {
       }
       checkArgument(
           badKeys.isEmpty(),
-          "Metadata value type must be one of String, Long, or byte[]. Found {}",
+          "Metadata value type must be one of String, Long, or byte[]. Found %s",
           badKeys);
       return toBuilder().setMetadata(ImmutableMap.copyOf(metadata)).build();
     }

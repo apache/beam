@@ -149,15 +149,12 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   }
 
   int _getIndexOfContextLine() {
-    int ctxLineNumber = widget.example!.contextLine;
-    String contextLine = widget.codeController.text.split('\n')[ctxLineNumber];
+    final contextLine = widget.example!.contextLine;
+    final code = widget.codeController.code;
+    final fullCharIndex = code.lines.lines[contextLine].textRange.start;
+    final visibleCharIndex = code.hiddenRanges.cutPosition(fullCharIndex);
 
-    while (contextLine == '') {
-      ctxLineNumber -= 1;
-      contextLine = widget.codeController.text.split('\n')[ctxLineNumber];
-    }
-
-    return widget.codeController.text.indexOf(contextLine);
+    return visibleCharIndex;
   }
 
   // This function made for more accuracy in the process of finding an exact line.

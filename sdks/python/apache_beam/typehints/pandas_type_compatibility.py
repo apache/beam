@@ -136,7 +136,7 @@ def dtype_to_fieldtype(dtype):
     return Any
 
 
-@BatchConverter.register
+@BatchConverter.register(name="pandas")
 def create_pandas_batch_converter(
     element_type: type, batch_type: type) -> BatchConverter:
   if batch_type == pd.DataFrame:
@@ -146,7 +146,7 @@ def create_pandas_batch_converter(
     return SeriesBatchConverter.from_typehints(
         element_type=element_type, batch_type=batch_type)
 
-  return None
+  raise TypeError("batch type must be pd.Series or pd.DataFrame")
 
 
 class DataFrameBatchConverter(BatchConverter):
@@ -160,13 +160,15 @@ class DataFrameBatchConverter(BatchConverter):
   @staticmethod
   def from_typehints(element_type,
                      batch_type) -> Optional['DataFrameBatchConverter']:
-    if not batch_type == pd.DataFrame:
-      return None
+    assert batch_type == pd.DataFrame
 
     if not isinstance(element_type, RowTypeConstraint):
       element_type = RowTypeConstraint.from_user_type(element_type)
       if element_type is None:
-        return None
+        raise TypeError(
+            "Element type must be compatible with Beam Schemas ("
+            "https://beam.apache.org/documentation/programming-guide/#schemas) "
+            "for batch type pd.DataFrame")
 
     index_columns = [
         field_name
@@ -275,8 +277,7 @@ class SeriesBatchConverter(BatchConverter):
   @staticmethod
   def from_typehints(element_type,
                      batch_type) -> Optional['SeriesBatchConverter']:
-    if not batch_type == pd.Series:
-      return None
+    assert batch_type == pd.Series
 
     dtype = dtype_from_typehint(element_type)
 

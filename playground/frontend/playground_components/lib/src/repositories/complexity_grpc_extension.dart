@@ -20,7 +20,7 @@ import '../api/v1/api.pbgrpc.dart' as g;
 import '../enums/complexity.dart';
 
 extension GrpcComplecity on g.Complexity {
-  Complexity get model {
+  Complexity? get model {
     switch (this) {
       case g.Complexity.COMPLEXITY_BASIC:
         return Complexity.basic;
@@ -29,7 +29,7 @@ extension GrpcComplecity on g.Complexity {
       case g.Complexity.COMPLEXITY_ADVANCED:
         return Complexity.advanced;
       case g.Complexity.COMPLEXITY_UNSPECIFIED:
-        return Complexity.unspecified;
+        return null;
     }
     throw Exception('Unknown complexity: $this');
   }

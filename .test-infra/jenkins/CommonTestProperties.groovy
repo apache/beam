@@ -26,7 +26,7 @@ class CommonTestProperties {
   }
 
   static String getFlinkVersion() {
-    return "1.13"
+    return "1.15"
   }
 
   static String getSparkVersion() {
