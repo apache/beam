@@ -32,6 +32,7 @@ except ImportError:
 
 _LOGGER = logging.getLogger(__name__)
 
+
 def get_service_credentials(pipeline_options):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -45,6 +46,7 @@ def get_service_credentials(pipeline_options):
     not found. Returned object is thread-safe.
   """
   return _Credentials.get_service_credentials(pipeline_options)
+
 
 class _Credentials(object):
   _credentials_lock = threading.Lock()
@@ -65,9 +67,9 @@ class _Credentials(object):
   def _get_service_credentials(pipeline_options):
     if not _AZURE_AUTH_AVAILABLE:
       _LOGGER.warning(
-        'Unable to find default credentials because the azure.identity library '
-        'is not available. Install the azure.identity library to use Azure '
-        'default credentials.')
+          'Unable to find default credentials because the azure.identity library '
+          'is not available. Install the azure.identity library to use Azure '
+          'default credentials.')
       return None
 
     try:
