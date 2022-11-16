@@ -668,8 +668,7 @@ class BatchElements(PTransform):
         target_batch_duration_secs=target_batch_duration_secs,
         variance=variance,
         clock=clock,
-        record_metrics=record_metrics,
-    )
+        record_metrics=record_metrics)
     self._element_size_fn = element_size_fn
 
   def expand(self, pcoll):
