@@ -119,6 +119,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
+        with:
+            cache-read-only: false
 
       - name: Build Python SDK runner base image
         if: env.SDK == 'python'
@@ -176,8 +178,3 @@ jobs:
         if: ${{ always() }}
         run: |
           docker image rm -f $IMAGE_TAG
-
-      - name: Stop Gradle daemon
-        if: ${{ always() }}
-        run: |
-          ./gradlew --stop

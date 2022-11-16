@@ -76,6 +76,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
+        with:
+            cache-read-only: false
 
       - name: Build Playground router image
         run: ./gradlew playground:backend:containers:router:docker
@@ -119,9 +121,3 @@ jobs:
           diff -q "${{ env.DATASTORE_EMULATOR_DATADIR }}/WEB-INF/index.yaml" \
           internal/storage/index.yaml \
           || ( echo "index.yaml mismatch"; exit 1)
-
-      - name: Stop Gradle daemon
-        if: ${{ always() }}
-        working-directory: ${{ env.GITHUB_WORKSPACE }}
-        run: |
-          ./gradlew --stop
