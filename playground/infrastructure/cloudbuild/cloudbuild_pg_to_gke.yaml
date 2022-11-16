@@ -20,11 +20,11 @@ steps:
   - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
     entrypoint: "/bin/bash"
     args:
-      - '-c'
-      - |
-        ./gradlew playground:terraform:prepareConfig -Pdns-name="${_DNS_NAME}"
-        ./gradlew playground:terraform:gkebackend -Pdocker-repository-root="${_DOCKER_REPOSITORY_ROOT}" \
-         -Pproject_environment="{$_ENVIRONMENT_NAME}" -Pdocker-tag="${_TAG}" -Pdns-name="${_DNS_NAME}"' 
+      [
+        '-c', './gradlew playground:terraform:prepareConfig -Pdns-name="${_DNS_NAME}" && 
+        ./gradlew playground:terraform:gkebackend -Pdocker-repository-root="${_DOCKER_REPOSITORY_ROOT}" 
+          -Pproject_environment="${_ENVIRONMENT_NAME}" -Pdocker-tag="${_TAG}" -Pdns-name="${_DNS_NAME}"'
+      ]
 
 # Substitutions can be changed in GCP Cloud Build Triggers UI
 substitutions:
@@ -40,6 +40,8 @@ substitutions:
   _GKE_NAME: "playground-cluster"
   # The name of the GCP logs bucket
   _LOGS_BUCKET_NAME: "pg-cloudbuild-logging-bucket"
+  # The name of docker repository root (from outputs of first trigger result)
+  _DOCKER_REPOSITORY_ROOT: ""
 
 # The name of your GCP logs bucket
 logsBucket: 'gs://${_LOGS_BUCKET_NAME}'
