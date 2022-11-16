@@ -14,8 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+# NOTE:
+# change_point_sibling_distance: units for this variable is number of runs.
+# So if a test runs 2 times a day, and we want to look for sibling change point in
+# the runs that happened 3 days before and after the change point,
+# then this value will should be 3 * 2 = 6.
+
+# change_point_to_recent_run_window: same units as change_point_sibling_distance.
+
 test_1:
-  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks_1
   source: big_query
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152
@@ -23,10 +32,10 @@ test_1:
   metric_name: mean_load_model_latency_milli_secs
   labels:
     - perf_alert
-  change_point_sibling_distance: 10
+  change_point_sibling_distance: 5
   # the test runs once per day. So alert only if a perf regression lies
   # in the last 7 runs/days from the recent run.
-  changepoint_to_recent_run_window: 7
+  change_point_to_recent_run_window: 7
 
 
 test_2:
@@ -38,7 +47,7 @@ test_2:
   metric_name: mean_load_model_latency_milli_secs
   labels:
     - perf_alert
-  change_point_sibling_distance: 10
+  change_point_sibling_distance: 5
     # the test runs once per day. So alert only if a perf regression lies
     # in the last 7 runs/days from the recent run.
-  changepoint_to_recent_run_window: 7
+  change_point_to_recent_run_window: 7

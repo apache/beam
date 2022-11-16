@@ -15,13 +15,14 @@
 # limitations under the License.
 #
 import logging
+import os
 import unittest
 
 import mock
 import pandas as pd
 
 try:
-  from apache_beam.testing.analyzers import analysis
+  import apache_beam.testing.analyzers.perf_regression_analysis as analysis
 except ImportError as e:
   analysis = None
 
@@ -70,23 +71,23 @@ class TestChangePointAnalysis(unittest.TestCase):
     self.assertEqual(sorted(change_point_indexes), [10, 20])
 
   def test_is_changepoint_in_valid_window(self):
-    ignore_change_point = IgnoreChangePointObject()
-    ignore_change_point.changepoint_to_recent_run_window = 19
+
+    changepoint_to_recent_run_window = 19
     change_point_index = 14
 
-    cp_analysis = analysis.RunChangePointAnalysis(ignore_change_point)
-    self.assertEqual(
-        cp_analysis.is_changepoint_in_valid_window(change_point_index), True)
+    is_valid = analysis.is_change_point_in_valid_window(
+        changepoint_to_recent_run_window, change_point_index)
+    self.assertEqual(is_valid, True)
 
-    ignore_change_point.changepoint_to_recent_run_window = 13
-    cp_analysis = analysis.RunChangePointAnalysis(ignore_change_point)
-    self.assertEqual(
-        cp_analysis.is_changepoint_in_valid_window(change_point_index), False)
+    changepoint_to_recent_run_window = 13
+    is_valid = analysis.is_change_point_in_valid_window(
+        changepoint_to_recent_run_window, change_point_index)
+    self.assertEqual(is_valid, False)
 
-    ignore_change_point.changepoint_to_recent_run_window = 14
-    cp_analysis = analysis.RunChangePointAnalysis(ignore_change_point)
-    self.assertEqual(
-        cp_analysis.is_changepoint_in_valid_window(change_point_index), True)
+    changepoint_to_recent_run_window = 14
+    is_valid = analysis.is_change_point_in_valid_window(
+        changepoint_to_recent_run_window, change_point_index)
+    self.assertEqual(is_valid, True)
 
   @mock.patch(
       'apache_beam.testing.load_tests.'
@@ -99,17 +100,13 @@ class TestChangePointAnalysis(unittest.TestCase):
     metric_name = 'fake_metric_name'
     test_name = 'fake_test_name'
     for change_point_sibling_distance in [4, 5, 6]:
-      ignore_change_point.change_point_sibling_distance = (
-          change_point_sibling_distance)
-
-      cp_analysis = analysis.RunChangePointAnalysis(ignore_change_point)
-
-      alert_new_issue = cp_analysis.has_sibling_change_point(
+      alert_new_issue = analysis.has_sibling_change_point(
           change_point_index=change_point_index,
+          change_point_sibling_distance=change_point_sibling_distance,
           metric_values=self.single_change_point_series,
           metric_name=metric_name,
           test_name=test_name,
-          change_point_timestamp=None)
+          change_point_timestamp=111111.11)
 
       if change_point_sibling_distance == 6:
         # 0 is the last change point
@@ -122,4 +119,5 @@ class TestChangePointAnalysis(unittest.TestCase):
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
+  os.environ['GITHUB_TOKEN'] = None
   unittest.main()
