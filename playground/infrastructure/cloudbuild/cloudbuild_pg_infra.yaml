@@ -20,13 +20,13 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
-      - '--tag=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
+      - '--tag=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/playground-builder:worker'
       - '-f'
       - 'playground/infrastructure/cloudbuild/Dockerfile-base-image-worker'
       - '.'
 
   # This stage uses Docker container from image built in step above to run gradle task for Playground Infrastructure deployment
-  - name: '$LOCATION-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
+  - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
     entrypoint: "/bin/bash"
     args: ['-c', './gradlew playground:terraform:InitInfrastructure -Pproject_environment="${_ENVIRONMENT_NAME}" -Pdns-name="${_DNS_NAME}"']
 
