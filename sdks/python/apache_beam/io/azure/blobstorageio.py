@@ -112,11 +112,11 @@ class BlobStorageIO(object):
       azure_options = pipeline_options.view_as(AzureOptions)
       connect_str = azure_options.azure_blob_storage_connection_string or \
                     os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-      credential = auth.get_service_credentials(pipeline_options)
       if connect_str:
         self.client = BlobServiceClient.from_connection_string(
-            conn_str=connect_str, credential=credential)
+            conn_str=connect_str)
       else:
+        credential = auth.get_service_credentials(pipeline_options)
         self.client = BlobServiceClient(
             account_url=azure_options.azure_blob_storage_account_url,
             credential=credential)
