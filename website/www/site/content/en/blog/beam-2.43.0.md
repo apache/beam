@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.43.0"
-date:   2022-11-08 23:30:00 Z
+date:   2022-11-17 22:00:00 Z
 categories:
   - blog
   - release
@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.43.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2430-2022-11-08) for this release.
+See the [download page](/get-started/downloads/#2430-2022-11-17) for this release.
 
 <!--more-->
 
