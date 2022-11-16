@@ -67,9 +67,9 @@ class _Credentials(object):
   def _get_service_credentials(pipeline_options):
     if not _AZURE_AUTH_AVAILABLE:
       _LOGGER.warning(
-          'Unable to find default credentials because the azure.identity library '
-          'is not available. Install the azure.identity library to use Azure '
-          'default credentials.')
+          'Unable to find default credentials because the azure.identity '
+          'library is not available. Install the azure.identity library to use '
+          'Azure default credentials.')
       return None
 
     try:
