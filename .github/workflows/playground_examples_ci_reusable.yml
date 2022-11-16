@@ -34,7 +34,7 @@ on:
         type: string
         required: true
 env:
-  BEAM_VERSION: 2.40.0
+  BEAM_VERSION: 2.42.0
 jobs:
   check_has_examples:
     name: pre-check
@@ -131,24 +131,16 @@ jobs:
         run: |
              set -uex
              ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
-
-      - name: Build JAVA SDK runner base image
-        if: env.SDK == 'java'
-        run: |
-             set -uex
-             #./gradlew -i :sdks:java:container:java8:docker -Pdocker-tag="$DOCKERTAG"
-             echo "DOCKERTAG=2.42.0" >> $GITHUB_ENV
-
-      - name: Build Go SDK runner base image
-        if: env.SDK == 'go'
-        run: |
-             set -uex
-             ./gradlew -i :sdks:go:container:docker -Pdocker-tag="$DOCKERTAG"
-
+             echo "SDK_TAG=${DOCKERTAG}" >> $GITHUB_ENV
+      
+      # TODO build from the current ./sdks/... for Java and Go
       - name: Build SDK Backend Docker image
         run: |
              set -uex
-             opts="-Pdocker-tag=$DOCKERTAG -Psdk-tag=$DOCKERTAG"
+             opts=" -Pdocker-tag=$DOCKERTAG"
+             if [ "$SDK" == "python" ]; then
+                opts="$opts -Psdk-tag=$SDK_TAG"
+             fi
 
              ./gradlew -i playground:backend:containers:$SDK:docker $opts
 
