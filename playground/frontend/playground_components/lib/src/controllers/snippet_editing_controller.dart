@@ -18,17 +18,19 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
+import 'package:get_it/get_it.dart';
 
 import '../enums/complexity.dart';
 import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/sdk.dart';
-import '../playground_components.dart';
+import '../services/symbols/symbols_notifier.dart';
 
 class SnippetEditingController extends ChangeNotifier {
   final Sdk sdk;
   final CodeController codeController;
+  final _symbolsNotifier = GetIt.instance.get<SymbolsNotifier>();
   Example? _selectedExample;
   String _pipelineOptions;
 
@@ -42,7 +44,7 @@ class SnippetEditingController extends ChangeNotifier {
         ),
         _selectedExample = selectedExample,
         _pipelineOptions = pipelineOptions {
-    PlaygroundComponents.symbolsNotifier.addListener(_onSymbolsNotifierChanged);
+    _symbolsNotifier.addListener(_onSymbolsNotifierChanged);
     _onSymbolsNotifierChanged();
   }
 
@@ -104,7 +106,7 @@ class SnippetEditingController extends ChangeNotifier {
       return;
     }
 
-    final dictionary = PlaygroundComponents.symbolsNotifier.getDictionary(mode);
+    final dictionary = _symbolsNotifier.getDictionary(mode);
     if (dictionary == null) {
       return;
     }
@@ -114,7 +116,7 @@ class SnippetEditingController extends ChangeNotifier {
 
   @override
   void dispose() {
-    PlaygroundComponents.symbolsNotifier.removeListener(
+    _symbolsNotifier.removeListener(
       _onSymbolsNotifierChanged,
     );
     super.dispose();

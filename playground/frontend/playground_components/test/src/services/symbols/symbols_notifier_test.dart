@@ -37,7 +37,8 @@ void main() {
         loadedSymbols =
             List<String>.from(notifier.getDictionary(mode)!.symbols);
       });
-      notifier.addLoader(mode, const _TestLoader(symbols));
+      notifier.addLoaderIfNot(mode, const _TestLoader(symbols));
+      notifier.addLoaderIfNot(mode, const _TestLoader(symbols));
       await Future.delayed(Duration.zero);
 
       expect(notified, 1);

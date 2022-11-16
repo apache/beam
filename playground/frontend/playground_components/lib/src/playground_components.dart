@@ -17,10 +17,8 @@
  */
 
 import 'package:easy_localization_ext/easy_localization_ext.dart';
-import 'package:get_it/get_it.dart';
 
 import 'locator.dart';
-import 'services/symbols/symbols_notifier.dart';
 
 class PlaygroundComponents {
   static const packageName = 'playground_components';
@@ -34,7 +32,4 @@ class PlaygroundComponents {
   static Future<void> ensureInitialized() async {
     await initializeServiceLocator();
   }
-
-  static SymbolsNotifier get symbolsNotifier =>
-      GetIt.instance.get<SymbolsNotifier>();
 }

@@ -135,6 +135,7 @@ tasks.register("generateCode") {
 
 tasks.register("extractBeamSymbols") {
   dependsOn("ensureSymbolsDirectoryExists")
+  dependsOn("extractBeamSymbolsGo")
   dependsOn("extractBeamSymbolsPython")
 
   group = "build"
@@ -146,6 +147,21 @@ tasks.register("ensureSymbolsDirectoryExists") {
     exec {
       executable("mkdir")
       args("-p", "assets/symbols")
+    }
+  }
+}
+
+tasks.register("extractBeamSymbolsGo") {
+  doLast {
+    exec {
+      workingDir("tools/extract_symbols_go")
+      executable("go")
+      args(
+        "run",
+        "extract_symbols_go.go",
+        "../../../../../sdks/go/pkg/beam",
+      )
+      standardOutput = FileOutputStream("playground/frontend/playground_components/assets/symbols/go.g.yaml")
     }
   }
 }

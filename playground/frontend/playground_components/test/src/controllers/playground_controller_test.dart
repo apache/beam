@@ -19,16 +19,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:playground_components/src/cache/example_cache.dart';
-import 'package:playground_components/src/controllers/example_loaders/examples_loader.dart';
-import 'package:playground_components/src/controllers/playground_controller.dart';
-import 'package:playground_components/src/models/sdk.dart';
+import 'package:playground_components/playground_components.dart';
 
 import '../common/examples.dart';
 import 'playground_controller_test.mocks.dart';
 
 @GenerateMocks([ExamplesLoader, ExampleCache])
-void main() {
+Future<void> main() async {
+  await PlaygroundComponents.ensureInitialized();
+
   late PlaygroundController state;
   final mockExamplesLoader = MockExamplesLoader();
 

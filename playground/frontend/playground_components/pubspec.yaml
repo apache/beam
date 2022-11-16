@@ -61,6 +61,7 @@ flutter:
     - assets/notification_icons/
     - assets/png/
     - assets/svg/
+    - assets/symbols/go.g.yaml
     - assets/symbols/python.g.yaml
     - assets/translations/en.yaml
 

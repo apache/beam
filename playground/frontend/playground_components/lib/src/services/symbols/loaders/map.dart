@@ -16,21 +16,21 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:highlight/languages/go.dart';
+import 'package:highlight/languages/python.dart';
 
-import '../common.dart';
+import '../../../assets/assets.gen.dart';
+import '../../../playground_components.dart';
+import 'yaml.dart';
 
-const _lang = 'python';
+final symbolLoadersByMode = {
+  go: YamlSymbolsLoader(
+    path: Assets.symbols.goG,
+    package: PlaygroundComponents.packageName,
+  ),
 
-void main() {
-  test('Extract SDK Symbols. $_lang', () async {
-    await testExtractSymbols(
-      language: _lang,
-      executables: ['python3'],
-      arguments: const [
-        'extract_symbols_$_lang.py',
-        '../../test/tools/extract_symbols_$_lang/sdk_mock',
-      ],
-    );
-  });
-}
+  python: YamlSymbolsLoader(
+    path: Assets.symbols.pythonG,
+    package: PlaygroundComponents.packageName,
+  ),
+};

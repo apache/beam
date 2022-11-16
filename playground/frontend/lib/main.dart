@@ -21,7 +21,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:easy_localization_ext/easy_localization_ext.dart';
 import 'package:easy_localization_loader/easy_localization_loader.dart';
 import 'package:flutter/material.dart';
-import 'package:highlight/languages/python.dart';
 import 'package:intl/intl_browser.dart';
 import 'package:playground/playground_app.dart';
 import 'package:playground_components/playground_components.dart';
@@ -35,14 +34,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
   await PlaygroundComponents.ensureInitialized();
-
-  PlaygroundComponents.symbolsNotifier.addLoader(
-    python,
-    YamlSymbolsLoader(
-      path: 'assets/symbols/python.g.yaml',
-      package: PlaygroundComponents.packageName,
-    ),
-  );
 
   await findSystemLocale();
   runApp(

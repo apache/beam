@@ -1,0 +1,17 @@
+"":
+  methods:
+  - PublicGlobalFunction
+PublicStruct2:
+  methods:
+  - MethodAfterStructDeclaration
+  - PublicMethodOnPublicStruct
+  - PublicMethodOnPublicStructGeneric1
+  - PublicMethodOnPublicStructGeneric2
+  - PublicMethodOnPublicStructPointer
+  - PublicMethodOnPublicStructPointerGeneric1
+  - PublicMethodOnPublicStructPointerGeneric2
+  properties:
+  - PublicField2
+PublicStruct3:
+  properties:
+  - PublicField3

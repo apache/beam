@@ -52,6 +52,16 @@ class $AssetsSvgGen {
   String get dragVertical => 'assets/svg/drag-vertical.svg';
 }
 
+class $AssetsSymbolsGen {
+  const $AssetsSymbolsGen();
+
+  /// File path: assets/symbols/go.g.yaml
+  String get goG => 'assets/symbols/go.g.yaml';
+
+  /// File path: assets/symbols/python.g.yaml
+  String get pythonG => 'assets/symbols/python.g.yaml';
+}
+
 class $AssetsTranslationsGen {
   const $AssetsTranslationsGen();
 
@@ -67,6 +77,7 @@ class Assets {
       $AssetsNotificationIconsGen();
   static const $AssetsPngGen png = $AssetsPngGen();
   static const $AssetsSvgGen svg = $AssetsSvgGen();
+  static const $AssetsSymbolsGen symbols = $AssetsSymbolsGen();
   static const $AssetsTranslationsGen translations = $AssetsTranslationsGen();
 }
 

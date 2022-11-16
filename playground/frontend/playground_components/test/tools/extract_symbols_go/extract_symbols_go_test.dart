@@ -20,15 +20,16 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../common.dart';
 
-const _lang = 'python';
+const _lang = 'go';
 
 void main() {
   test('Extract SDK Symbols. $_lang', () async {
     await testExtractSymbols(
       language: _lang,
-      executables: ['python3'],
+      executables: ['go'],
       arguments: const [
-        'extract_symbols_$_lang.py',
+        'run',
+        'extract_symbols_$_lang.go',
         '../../test/tools/extract_symbols_$_lang/sdk_mock',
       ],
     );

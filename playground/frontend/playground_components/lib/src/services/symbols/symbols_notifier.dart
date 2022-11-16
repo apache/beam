@@ -28,7 +28,7 @@ class SymbolsNotifier extends ChangeNotifier {
   final _dictionaryFuturesByMode = <Mode, Future<SymbolsDictionary>>{};
   final _dictionariesByMode = <Mode, SymbolsDictionary>{};
 
-  void addLoader(Mode mode, AbstractSymbolsLoader loader) {
+  void addLoaderIfNot(Mode mode, AbstractSymbolsLoader loader) {
     unawaited(_load(mode, loader));
   }
 
