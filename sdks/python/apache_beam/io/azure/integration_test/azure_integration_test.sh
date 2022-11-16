@@ -29,10 +29,12 @@ fi
 
 set -e -u -x
 
+PY_PREFIX=$(echo "$1" | tr ':.' '_')
+
 # Setup context directory.
 TEST_DIR=$(dirname $0)
 ROOT_DIR=$(cd "${TEST_DIR}/../../../../../.." && pwd)
-CONTEXT_DIR=${ROOT_DIR}/build/azure_integration
+CONTEXT_DIR=${ROOT_DIR}/build/azure_integration_${PY_PREFIX}
 rm -rf ${CONTEXT_DIR} || true
 
 mkdir -p ${CONTEXT_DIR}/sdks
@@ -41,7 +43,7 @@ cp -r ${ROOT_DIR}/sdks/python ${CONTEXT_DIR}/sdks/
 cp -r ${ROOT_DIR}/model ${CONTEXT_DIR}/
 
 # Use a unique name to allow concurrent runs on the same machine.
-PROJECT_NAME=$(echo azure_IT-${BUILD_TAG:-non-jenkins})
+PROJECT_NAME=$(echo azure_IT-$PY_PREFIX-${BUILD_TAG:-non-jenkins})
 
 if [ -z "${BUILD_TAG:-}" ]; then
   COLOR_OPT=""
