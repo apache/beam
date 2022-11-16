@@ -37,6 +37,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Flink',
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(":sdks:python:test-suites:portable:flinkExamplesPostCommit")
+          switches("-PflinkConfDir=$WORKSPACE/src/runners/flink/src/test/resources")
           commonJobProperties.setGradleSwitches(delegate)
         }
       }
