@@ -16,19 +16,6 @@
 # under the License.
 
 steps:
-  # This step uses Docker container from our image to authenticate us in GKE
-  # Please set variable $_GKE_NAME in "substitutions" stage below
-#  - name: '$LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/builder:worker'
-#    entrypoint: "gcloud"
-#    args:
-#      [
-#        'container',
-#        'clusters',
-#        'get-credentials',
-#        '${_GKE_NAME}',
-#        '--region=${LOCATION}-a'
-#      ]
-
   # This step uses Docker container from image in previous step to run gradle task for Playground to GKE deployment
   - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
     entrypoint: "/bin/bash"

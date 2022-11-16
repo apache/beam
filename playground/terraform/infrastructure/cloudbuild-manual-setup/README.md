@@ -119,18 +119,28 @@ terraform apply -var-file="terraform.tfvars"
 
 1. Perform steps described in [Prepare deployment configuration](https://github.com/apache/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#prepare-deployment-configuration).
 
-2. Change the variables in `SUBSTITUTIONS` block in first cloud build config file `playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml`.
-3. Navigate to GCP Console. Open Cloud Build page -> Triggers. Sort by relevant region and click `RUN` for `Playground-infrastructure-trigger`.
+2. Navigate to GCP Console. Open Cloud Build page -> Triggers.
+3. Choose your Region.
+4. Open `Playground-infrastructure-trigger`.
+5. Scroll down to `Advanced` - `Substitutions variables`.
+6. Click on `+ ADD VARIABLE`
+7. Assign values for next variables: 
+   - `_ARTIFACT_REGISTRY_REPO`  *#Your GCP artifact repo name*
+   - `_ENVIRONMENT_NAME` *#Your env name in beam/playground/terraform/environment/*
+   - `_DNS_NAME` *#Your DNS for Playground*
+   - `_LOGS_BUCKET_NAME` *#Your GCP logs bucket name*
 
-4. Once Playground infrastructure has been deployed, please navigate to
+8. Once Playground infrastructure has been deployed, please navigate to
 [Playground deployment README](https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#deploy-playground-infrastructure) and execute step #2:
 `Add following DNS A records for the discovered static IP address`
 
 ## 5. Running Second Cloud Build Trigger: "Playground-to-gke-trigger"
 
-1. Change variables in `SUBSTITUTIONS` block in second cloud build config file `playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml`
-2. Navigate to GCP Console. Open Cloud Build page -> Triggers. Sort by relevant region and click `RUN` for `Playground-to-gke-trigger`.
+1. Navigate to GCP Console. Open Cloud Build page -> Triggers. 
+2. Provide values for next variables in `Advanced` - `Substitutions variables`:
+3. 
+3. Sort by relevant region and click `RUN` for `Playground-to-gke-trigger`.
 
 ## 6. Validation
 
-Once Playground has been deployed to GKE, please navigate to [Validation](https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#validate-deployed-playground) to perform Playground deployment steps.
+Once Playground has been deployed to GKE, please navigate to [Validation](ht  tps://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#validate-deployed-playground) to perform Playground deployment steps.
