@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.complete.cdap;
 
-import io.cdap.plugin.salesforce.authenticator.AuthenticatorCredentials;
 import java.util.Map;
 import org.apache.beam.examples.complete.cdap.options.CdapSalesforceStreamingSourceOptions;
 import org.apache.beam.examples.complete.cdap.transforms.FormatInputTransform;
@@ -121,9 +120,6 @@ public class CdapSalesforceStreamingToTxt {
         PluginConfigOptionsConverter.salesforceStreamingSourceOptionsToParamsMap(options);
     LOG.info("Starting Cdap-Salesforce-streaming-to-txt pipeline with parameters: {}", paramsMap);
 
-    AuthenticatorCredentials salesforceCredentials =
-        PluginConfigOptionsConverter.getSalesforceStreamingAuthenticatorCredentials(options);
-
     /*
      * Steps:
      *  1) Read messages in from Cdap Salesforce
@@ -135,10 +131,7 @@ public class CdapSalesforceStreamingToTxt {
         .apply(
             "readFromCdapSalesforceStreaming",
             FormatInputTransform.readFromCdapSalesforceStreaming(
-                paramsMap,
-                salesforceCredentials,
-                options.getPullFrequencySec(),
-                options.getStartOffset()))
+                paramsMap, options.getPullFrequencySec(), options.getStartOffset()))
         .setCoder(
             KvCoder.of(
                 NullableCoder.of(WritableCoder.of(NullWritable.class)), StringUtf8Coder.of()))

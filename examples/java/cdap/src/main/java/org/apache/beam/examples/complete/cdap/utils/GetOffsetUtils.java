@@ -20,6 +20,7 @@ package org.apache.beam.examples.complete.cdap.utils;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.gson.Gson;
+import com.google.gson.internal.LinkedTreeMap;
 import java.util.HashMap;
 import org.apache.beam.sdk.io.cdap.Plugin;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -36,9 +37,13 @@ public class GetOffsetUtils {
   private static final Logger LOG = LoggerFactory.getLogger(GetOffsetUtils.class);
 
   private static final String HUBSPOT_ID_FIELD = "vid";
-  private static final String SALESFORCE_ID_FIELD = "id";
+
+  private static final String SALESFORCE_ID_FIELD = "RecordId__c";
+  private static final String SALESFORCE_S_OBJECT = "sobject";
+
   private static final Gson GSON = new Gson();
 
+  @SuppressWarnings({"rawtypes"})
   public static SerializableFunction<String, Long> getOffsetFnForSalesforce() {
     return input -> {
       if (input != null) {
@@ -46,9 +51,10 @@ public class GetOffsetUtils {
           HashMap<String, Object> json =
               GSON.fromJson(input, new TypeToken<HashMap<String, Object>>() {}.getType());
           checkArgumentNotNull(json, "Can not get JSON from Salesforce input string");
-          Object id = json.get(SALESFORCE_ID_FIELD);
+          LinkedTreeMap fieldMap = (LinkedTreeMap) json.get(SALESFORCE_S_OBJECT);
+          Object id = fieldMap.get(SALESFORCE_ID_FIELD);
           checkArgumentNotNull(id, "Can not get ID from Salesforce input string");
-          return ((Double) id).longValue();
+          return Long.parseLong((String) id);
         } catch (Exception e) {
           LOG.error("Can not get offset from json", e);
         }

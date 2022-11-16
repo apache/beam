@@ -22,7 +22,6 @@ import io.cdap.plugin.hubspot.common.BaseHubspotConfig;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import io.cdap.plugin.hubspot.source.streaming.PullFrequency;
 import io.cdap.plugin.salesforce.SalesforceConstants;
-import io.cdap.plugin.salesforce.authenticator.AuthenticatorCredentials;
 import io.cdap.plugin.salesforce.plugin.sink.batch.ErrorHandling;
 import io.cdap.plugin.salesforce.plugin.sink.batch.SalesforceSinkConfig;
 import io.cdap.plugin.salesforce.plugin.source.batch.util.SalesforceSourceConstants;
@@ -39,7 +38,15 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  */
 public class PluginConfigOptionsConverter {
 
+  //  private static final Logger LOG = LoggerFactory.getLogger(PluginConfigOptionsConverter.class);
+
   private static final String SALESFORCE_STREAMING_PUSH_TOPIC_NAME = "pushTopicName";
+  private static final String SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE = "pushTopicNotifyCreate";
+  private static final String SALESFORCE_PUSH_TOPIC_NOTIFY_UPDATE = "pushTopicNotifyUpdate";
+  private static final String SALESFORCE_PUSH_TOPIC_NOTIFY_DELETE = "pushTopicNotifyDelete";
+  private static final String SALESFORCE_PUSH_TOPIC_NOTIFY_FOR_FIELDS = "pushTopicNotifyForFields";
+  private static final String SALESFORCE_REFERENCED_NOTIFY_FOR_FIELDS = "Referenced";
+  private static final String SALESFORCE_ENABLED_NOTIFY = "Enabled";
 
   public static Map<String, Object> hubspotOptionsToParamsMap(CdapHubspotOptions options) {
     String apiServerUrl = options.getApiServerUrl();
@@ -53,8 +60,7 @@ public class PluginConfigOptionsConverter {
             .put(Constants.Reference.REFERENCE_NAME, options.getReferenceName());
     if (options instanceof CdapHubspotStreamingSourceOptions) {
       // Hubspot PullFrequency value will be ignored as pull frequency is implemented differently in
-      // CdapIO,
-      // but it still needs to be passed for the plugin to work correctly.
+      // CdapIO, but it still needs to be passed for the plugin to work correctly.
       builder.put(HubspotStreamingSourceConfig.PULL_FREQUENCY, PullFrequency.MINUTES_15.getName());
     }
     return builder.build();
@@ -79,6 +85,17 @@ public class PluginConfigOptionsConverter {
     return ImmutableMap.<String, Object>builder()
         .put(Constants.Reference.REFERENCE_NAME, options.getReferenceName())
         .put(SALESFORCE_STREAMING_PUSH_TOPIC_NAME, options.getPushTopicName())
+        .put(SalesforceConstants.PROPERTY_USERNAME, options.getUsername())
+        .put(SalesforceConstants.PROPERTY_PASSWORD, options.getPassword())
+        .put(SalesforceConstants.PROPERTY_SECURITY_TOKEN, options.getSecurityToken())
+        .put(SalesforceConstants.PROPERTY_CONSUMER_KEY, options.getConsumerKey())
+        .put(SalesforceConstants.PROPERTY_CONSUMER_SECRET, options.getConsumerSecret())
+        .put(SalesforceConstants.PROPERTY_LOGIN_URL, options.getLoginUrl())
+        .put(SalesforceSourceConstants.PROPERTY_SOBJECT_NAME, options.getSObjectName())
+        .put(SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE, SALESFORCE_ENABLED_NOTIFY)
+        .put(SALESFORCE_PUSH_TOPIC_NOTIFY_UPDATE, SALESFORCE_ENABLED_NOTIFY)
+        .put(SALESFORCE_PUSH_TOPIC_NOTIFY_DELETE, SALESFORCE_ENABLED_NOTIFY)
+        .put(SALESFORCE_PUSH_TOPIC_NOTIFY_FOR_FIELDS, SALESFORCE_REFERENCED_NOTIFY_FOR_FIELDS)
         .build();
   }
 
@@ -132,15 +149,5 @@ public class PluginConfigOptionsConverter {
         .put(ZendeskBatchSourceConfig.PROPERTY_READ_TIMEOUT, zendeskOptions.getReadTimeout())
         .put(BaseZendeskSourceConfig.PROPERTY_OBJECTS_TO_PULL, zendeskOptions.getObjectsToPull())
         .build();
-  }
-
-  public static AuthenticatorCredentials getSalesforceStreamingAuthenticatorCredentials(
-      CdapSalesforceStreamingSourceOptions options) {
-    return new AuthenticatorCredentials(
-        options.getUsername(),
-        options.getPassword(),
-        options.getConsumerKey(),
-        options.getConsumerSecret(),
-        options.getLoginUrl());
   }
 }

@@ -61,7 +61,7 @@ dependencies {
     implementation library.java.cdap_plugin_zendesk
     //TODO: modify to 'implementation library.java.cdap_plugin_salesforce',
     // when new release with HasOffset interface will be published
-    implementation "com.akvelon:cdap-salesforce-plugins:1.5.2"
+    implementation "com.akvelon:cdap-salesforce-plugins:1.4.4"
     implementation library.java.google_code_gson
     implementation library.java.hadoop_common
     implementation library.java.slf4j_api
