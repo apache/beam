@@ -1,11 +1,11 @@
 {
     "units": [
         {
-            "id": "unit_id_1",
+            "id": "challenge1",
             "isCompleted": true
         },
         {
-            "id": "unit_id_2",
+            "id": "example1",
             "userSnippetId": "QY2dskTNu_w"
         }
     ]

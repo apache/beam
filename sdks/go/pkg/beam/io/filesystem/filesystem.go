@@ -34,12 +34,13 @@ import (
 
 var registry = make(map[string]func(context.Context) Interface)
 
-// wellKnownSchemeImportPaths is used for deliverng useful error messages when a
+// wellKnownSchemeImportPaths is used for delivering useful error messages when a
 // scheme is not found.
 var wellKnownSchemeImportPaths = map[string]string{
 	"memfs":   "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/memfs",
 	"default": "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local",
 	"gs":      "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs",
+	"s3":      "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/s3",
 }
 
 // Register registers a file system backend under the given scheme.  For

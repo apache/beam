@@ -26,6 +26,7 @@ import (
 	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/mapper"
+	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/tests/test_cleaner"
 	"beam.apache.org/playground/backend/internal/utils"
 )
@@ -49,6 +50,9 @@ func setup() {
 	}
 	ctx = context.Background()
 	ctx = context.WithValue(ctx, constants.DatastoreNamespaceKey, "datastore")
+
+	logger.SetupLogger(ctx, "local", "some_google_project_id")
+
 	var err error
 	datastoreDb, err = New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	if err != nil {
@@ -59,6 +63,29 @@ func setup() {
 func teardown() {
 	if err := datastoreDb.Client.Close(); err != nil {
 		panic(err)
+	}
+}
+
+func makeMockSnippet(origin, persistenceCode string) *entity.Snippet {
+	nowDate := time.Now()
+	return &entity.Snippet{
+		IDMeta: &entity.IDMeta{
+			Salt:     "MOCK_SALT",
+			IdLength: 11,
+		},
+		Snippet: &entity.SnippetEntity{
+			Created:        nowDate,
+			Sdk:            utils.GetSdkKey(ctx, pb.Sdk_SDK_GO.String()),
+			PipeOpts:       "MOCK_OPTIONS",
+			Origin:         origin,
+			NumberOfFiles:  1,
+			PersistenceKey: persistenceCode,
+		},
+		Files: []*entity.FileEntity{{
+			Name:    "MOCK_NAME",
+			Content: "MOCK_CONTENT",
+			IsMain:  false,
+		}},
 	}
 }
 
@@ -75,24 +102,8 @@ func TestDatastore_PutSnippet(t *testing.T) {
 		cleanData func()
 	}{
 		{
-			name: "PutSnippet() in the usual case",
-			args: args{ctx: ctx, id: "MOCK_ID", snip: &entity.Snippet{
-				IDMeta: &entity.IDMeta{
-					Salt:     "MOCK_SALT",
-					IdLength: 11,
-				},
-				Snippet: &entity.SnippetEntity{
-					Sdk:           utils.GetSdkKey(ctx, pb.Sdk_SDK_GO.String()),
-					PipeOpts:      "MOCK_OPTIONS",
-					Origin:        constants.UserSnippetOrigin,
-					NumberOfFiles: 1,
-				},
-				Files: []*entity.FileEntity{{
-					Name:    "MOCK_NAME",
-					Content: "MOCK_CONTENT",
-					IsMain:  false,
-				}},
-			}},
+			name:    "PutSnippet() in the usual case",
+			args:    args{ctx: ctx, id: "MOCK_ID", snip: makeMockSnippet(constants.UserSnippetOrigin, "")},
 			wantErr: false,
 			cleanData: func() {
 				test_cleaner.CleanFiles(ctx, t, "MOCK_ID", 1)
@@ -113,7 +124,6 @@ func TestDatastore_PutSnippet(t *testing.T) {
 }
 
 func TestDatastore_GetSnippet(t *testing.T) {
-	nowDate := time.Now()
 	type args struct {
 		ctx context.Context
 		id  string
@@ -135,24 +145,7 @@ func TestDatastore_GetSnippet(t *testing.T) {
 		{
 			name: "GetSnippet() in the usual case",
 			prepare: func() {
-				_ = datastoreDb.PutSnippet(ctx, "MOCK_ID", &entity.Snippet{
-					IDMeta: &entity.IDMeta{
-						Salt:     "MOCK_SALT",
-						IdLength: 11,
-					},
-					Snippet: &entity.SnippetEntity{
-						Sdk:           utils.GetSdkKey(ctx, pb.Sdk_SDK_GO.String()),
-						PipeOpts:      "MOCK_OPTIONS",
-						Created:       nowDate,
-						Origin:        constants.UserSnippetOrigin,
-						NumberOfFiles: 1,
-					},
-					Files: []*entity.FileEntity{{
-						Name:    "MOCK_NAME",
-						Content: "MOCK_CONTENT",
-						IsMain:  false,
-					}},
-				})
+				_ = datastoreDb.PutSnippet(ctx, "MOCK_ID", makeMockSnippet(constants.UserSnippetOrigin, ""))
 			},
 			args:    args{ctx: ctx, id: "MOCK_ID"},
 			wantErr: false,
@@ -182,6 +175,42 @@ func TestDatastore_GetSnippet(t *testing.T) {
 			tt.cleanData()
 		})
 	}
+}
+
+func TestDatastore_SnippetWithPersistenceCode(t *testing.T) {
+	snip := makeMockSnippet(constants.TbUserSnippetOrigin, "MOCK_PERSISTENCE_CODE")
+	t.Log("PutSnippet, insert 1st version")
+	err := datastoreDb.PutSnippet(ctx, "MOCK_ID_1", snip)
+	if err != nil {
+		t.Error("PutSnippet() method failed")
+	}
+	t.Log("GetSnippet by 1st snippet_id")
+	_, err = datastoreDb.GetSnippet(ctx, "MOCK_ID_1")
+	if err != nil {
+		t.Errorf("GetSnippet() error = %v", err)
+	}
+
+	t.Log("PutSnippet: insert 2nd version")
+	err = datastoreDb.PutSnippet(ctx, "MOCK_ID_2", snip)
+	if err != nil {
+		t.Error("PutSnippet() method failed")
+	}
+
+	t.Log("GetSnippet 1st version: not found")
+	_, err = datastoreDb.GetSnippet(ctx, "MOCK_ID_1")
+	if err == nil {
+		t.Error("1st snippet not deleted")
+	}
+
+	t.Log("GetSnippet 2nd version")
+	_, err = datastoreDb.GetSnippet(ctx, "MOCK_ID_2")
+	if err != nil {
+		t.Errorf("get 2nd snippet: %v", err)
+	}
+
+	t.Log("cleanup 2nd version only")
+	test_cleaner.CleanFiles(ctx, t, "MOCK_ID_2", 1)
+	test_cleaner.CleanSnippet(ctx, t, "MOCK_ID_2")
 }
 
 func TestDatastore_PutSDKs(t *testing.T) {

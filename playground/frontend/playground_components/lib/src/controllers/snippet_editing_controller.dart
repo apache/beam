@@ -20,10 +20,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:get_it/get_it.dart';
 
-import '../enums/complexity.dart';
 import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
+import '../models/example_view_options.dart';
 import '../models/sdk.dart';
 import '../services/symbols/symbols_notifier.dart';
 
@@ -32,18 +32,15 @@ class SnippetEditingController extends ChangeNotifier {
   final CodeController codeController;
   final _symbolsNotifier = GetIt.instance.get<SymbolsNotifier>();
   Example? _selectedExample;
-  String _pipelineOptions;
+  String _pipelineOptions = '';
 
   SnippetEditingController({
     required this.sdk,
-    Example? selectedExample,
-    String pipelineOptions = '',
-  })  : codeController = CodeController(
+  }) : codeController = CodeController(
           language: sdk.highlightMode,
+          namedSectionParser: const BracketsStartEndNamedSectionParser(),
           webSpaceFix: false,
-        ),
-        _selectedExample = selectedExample,
-        _pipelineOptions = pipelineOptions {
+        ) {
     _symbolsNotifier.addListener(_onSymbolsNotifierChanged);
     _onSymbolsNotifierChanged();
   }
@@ -51,8 +48,32 @@ class SnippetEditingController extends ChangeNotifier {
   set selectedExample(Example? value) {
     _selectedExample = value;
     setSource(_selectedExample?.source ?? '');
+
+    final viewOptions = value?.viewOptions;
+    if (viewOptions != null) {
+      _applyViewOptions(viewOptions);
+    }
+
     _pipelineOptions = _selectedExample?.pipelineOptions ?? '';
     notifyListeners();
+  }
+
+  void _applyViewOptions(ExampleViewOptions options) {
+    codeController.readOnlySectionNames = options.readOnlySectionNames.toSet();
+    codeController.visibleSectionNames = options.showSectionNames.toSet();
+
+    if (options.foldCommentAtLineZero) {
+      codeController.foldCommentAtLineZero();
+    }
+
+    if (options.foldImports) {
+      codeController.foldImports();
+    }
+
+    final unfolded = options.unfoldSectionNames;
+    if (unfolded.isNotEmpty) {
+      codeController.foldOutsideSections(unfolded);
+    }
   }
 
   Example? get selectedExample => _selectedExample;
@@ -88,15 +109,18 @@ class SnippetEditingController extends ChangeNotifier {
     //  user-shared examples, and an empty editor,
     //  https://github.com/apache/beam/issues/23252
     return ContentExampleLoadingDescriptor(
+      complexity: _selectedExample?.complexity,
       content: codeController.fullText,
       name: _selectedExample?.name,
-      complexity: _selectedExample?.complexity ?? Complexity.unspecified,
       sdk: sdk,
     );
   }
 
   void setSource(String source) {
-    codeController.text = source;
+    codeController.readOnlySectionNames = const {};
+    codeController.visibleSectionNames = const {};
+
+    codeController.fullText = source;
     codeController.historyController.deleteHistory();
   }
 

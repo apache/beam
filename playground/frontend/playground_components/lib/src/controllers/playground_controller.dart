@@ -191,6 +191,7 @@ class PlaygroundController with ChangeNotifier {
     GetIt.instance.get<SymbolsNotifier>().addLoaderIfNot(mode, loader);
   }
 
+  // TODO(alexeyinkin): Remove, used only in tests, refactor them.
   void setSource(String source) {
     final controller = requireSnippetEditingController();
     controller.setSource(source);

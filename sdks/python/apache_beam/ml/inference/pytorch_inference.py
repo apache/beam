@@ -38,6 +38,18 @@ __all__ = [
     'PytorchModelHandlerKeyedTensor',
 ]
 
+TensorInferenceFn = Callable[
+    [Sequence[torch.Tensor], torch.nn.Module, str, Optional[Dict[str, Any]]],
+    Iterable[PredictionResult]]
+
+KeyedTensorInferenceFn = Callable[[
+    Sequence[Dict[str, torch.Tensor]],
+    torch.nn.Module,
+    str,
+    Optional[Dict[str, Any]]
+],
+                                  Iterable[PredictionResult]]
+
 
 def _load_model(
     model_class: torch.nn.Module, state_dict_path, device, **model_params):
@@ -100,6 +112,46 @@ def _convert_to_result(
   return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
 
+def default_tensor_inference_fn(
+    batch: Sequence[torch.Tensor],
+    model: torch.nn.Module,
+    device: str,
+    inference_args: Optional[Dict[str,
+                                  Any]] = None) -> Iterable[PredictionResult]:
+  # torch.no_grad() mitigates GPU memory issues
+  # https://github.com/apache/beam/issues/22811
+  with torch.no_grad():
+    batched_tensors = torch.stack(batch)
+    batched_tensors = _convert_to_device(batched_tensors, device)
+    predictions = model(batched_tensors, **inference_args)
+    return _convert_to_result(batch, predictions)
+
+
+def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
+  """
+  Produces a TensorInferenceFn that uses a method of the model other that
+  the forward() method.
+
+  Args:
+    model_fn: A string name of the method to be used. This is accessed through
+      getattr(model, model_fn)
+  """
+  def attr_fn(
+      batch: Sequence[torch.Tensor],
+      model: torch.nn.Module,
+      device: str,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
+    with torch.no_grad():
+      batched_tensors = torch.stack(batch)
+      batched_tensors = _convert_to_device(batched_tensors, device)
+      pred_fn = getattr(model, model_fn)
+      predictions = pred_fn(batched_tensors, **inference_args)
+      return _convert_to_result(batch, predictions)
+
+  return attr_fn
+
+
 class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
                                              PredictionResult,
                                              torch.nn.Module]):
@@ -108,7 +160,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       state_dict_path: str,
       model_class: Callable[..., torch.nn.Module],
       model_params: Dict[str, Any],
-      device: str = 'CPU'):
+      device: str = 'CPU',
+      *,
+      inference_fn: TensorInferenceFn = default_tensor_inference_fn):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage::
@@ -127,6 +181,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       device: the device on which you wish to run the model. If
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
+      inference_fn: the inference function to use during RunInference.
+        default=_default_tensor_inference_fn
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with PyTorch 1.9 and 1.10.
@@ -140,6 +196,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_params = model_params
+    self._inference_fn = inference_fn
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
@@ -179,13 +236,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """
     inference_args = {} if not inference_args else inference_args
 
-    # torch.no_grad() mitigates GPU memory issues
-    # https://github.com/apache/beam/issues/22811
-    with torch.no_grad():
-      batched_tensors = torch.stack(batch)
-      batched_tensors = _convert_to_device(batched_tensors, self._device)
-      predictions = model(batched_tensors, **inference_args)
-      return _convert_to_result(batch, predictions)
+    return self._inference_fn(batch, model, self._device, inference_args)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -205,6 +256,69 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     pass
 
 
+def default_keyed_tensor_inference_fn(
+    batch: Sequence[Dict[str, torch.Tensor]],
+    model: torch.nn.Module,
+    device: str,
+    inference_args: Optional[Dict[str,
+                                  Any]] = None) -> Iterable[PredictionResult]:
+  # If elements in `batch` are provided as a dictionaries from key to Tensors,
+  # then iterate through the batch list, and group Tensors to the same key
+  key_to_tensor_list = defaultdict(list)
+
+  # torch.no_grad() mitigates GPU memory issues
+  # https://github.com/apache/beam/issues/22811
+  with torch.no_grad():
+    for example in batch:
+      for key, tensor in example.items():
+        key_to_tensor_list[key].append(tensor)
+    key_to_batched_tensors = {}
+    for key in key_to_tensor_list:
+      batched_tensors = torch.stack(key_to_tensor_list[key])
+      batched_tensors = _convert_to_device(batched_tensors, device)
+      key_to_batched_tensors[key] = batched_tensors
+    predictions = model(**key_to_batched_tensors, **inference_args)
+
+    return _convert_to_result(batch, predictions)
+
+
+def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
+  """
+  Produces a KeyedTensorInferenceFn that uses a method of the model other that
+  the forward() method.
+
+  Args:
+    model_fn: A string name of the method to be used. This is accessed through
+      getattr(model, model_fn)
+  """
+  def attr_fn(
+      batch: Sequence[torch.Tensor],
+      model: torch.nn.Module,
+      device: str,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
+    # If elements in `batch` are provided as a dictionaries from key to Tensors,
+    # then iterate through the batch list, and group Tensors to the same key
+    key_to_tensor_list = defaultdict(list)
+
+    # torch.no_grad() mitigates GPU memory issues
+    # https://github.com/apache/beam/issues/22811
+    with torch.no_grad():
+      for example in batch:
+        for key, tensor in example.items():
+          key_to_tensor_list[key].append(tensor)
+      key_to_batched_tensors = {}
+      for key in key_to_tensor_list:
+        batched_tensors = torch.stack(key_to_tensor_list[key])
+        batched_tensors = _convert_to_device(batched_tensors, device)
+        key_to_batched_tensors[key] = batched_tensors
+        pred_fn = getattr(model, model_fn)
+      predictions = pred_fn(**key_to_batched_tensors, **inference_args)
+    return _convert_to_result(batch, predictions)
+
+  return attr_fn
+
+
 @experimental(extra_message="No backwards-compatibility guarantees.")
 class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
                                                   PredictionResult,
@@ -214,7 +328,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       state_dict_path: str,
       model_class: Callable[..., torch.nn.Module],
       model_params: Dict[str, Any],
-      device: str = 'CPU'):
+      device: str = 'CPU',
+      *,
+      inference_fn: KeyedTensorInferenceFn = default_keyed_tensor_inference_fn):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage::
@@ -237,6 +353,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       device: the device on which you wish to run the model. If
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
+      inference_fn: the function to invoke on run_inference.
+        default = default_keyed_tensor_inference_fn
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with PyTorch 1.9 and 1.10.
@@ -250,6 +368,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_params = model_params
+    self._inference_fn = inference_fn
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
@@ -289,24 +408,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     """
     inference_args = {} if not inference_args else inference_args
 
-    # If elements in `batch` are provided as a dictionaries from key to Tensors,
-    # then iterate through the batch list, and group Tensors to the same key
-    key_to_tensor_list = defaultdict(list)
-
-    # torch.no_grad() mitigates GPU memory issues
-    # https://github.com/apache/beam/issues/22811
-    with torch.no_grad():
-      for example in batch:
-        for key, tensor in example.items():
-          key_to_tensor_list[key].append(tensor)
-      key_to_batched_tensors = {}
-      for key in key_to_tensor_list:
-        batched_tensors = torch.stack(key_to_tensor_list[key])
-        batched_tensors = _convert_to_device(batched_tensors, self._device)
-        key_to_batched_tensors[key] = batched_tensors
-      predictions = model(**key_to_batched_tensors, **inference_args)
-
-      return _convert_to_result(batch, predictions)
+    return self._inference_fn(batch, model, self._device, inference_args)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """

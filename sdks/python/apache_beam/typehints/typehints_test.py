@@ -1599,6 +1599,16 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.input_types, ((typehints.Any, ), {}))
     self.assertEqual(th.input_types, ((typehints.Any, ), {}))
 
+  def test_pipe_operator_as_union(self):
+    # union types can be written using pipe operator from Python 3.10.
+    # https://peps.python.org/pep-0604/
+    if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+      type_a = int | float  # pylint: disable=unsupported-binary-operation
+      type_b = typing.Union[int, float]
+      self.assertEqual(
+          native_type_compatibility.convert_to_beam_type(type_a),
+          native_type_compatibility.convert_to_beam_type(type_b))
+
 
 if __name__ == '__main__':
   unittest.main()

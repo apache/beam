@@ -16,14 +16,25 @@
  * limitations under the License.
  */
 
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL =
-    'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
-const String kApiJavaClientURL =
-    'https://backend-java-beta-dot-apache-beam-testing.appspot.com';
-const String kApiGoClientURL =
-    'https://backend-go-beta-dot-apache-beam-testing.appspot.com';
-const String kApiPythonClientURL =
-    'https://backend-python-beta-dot-apache-beam-testing.appspot.com';
-const String kApiScioClientURL =
-    'https://backend-scio-beta-dot-apache-beam-testing.appspot.com';
+import { PTransform, withName } from "./transform";
+import { groupBy } from "./group_and_combine";
+import { Root, PCollection } from "../pvalue";
+
+/**
+ * A Ptransform that represents a 'static' source with a list of elements passed at construction time. It
+ * returns a PCollection that contains the elements in the input list.
+ */
+export function reshuffle<T>(): PTransform<PCollection<T>, PCollection<T>> {
+  function reshuffle(input: PCollection<T>): PCollection<T> {
+    return input
+      .apply(
+        withName(
+          "groupByRandomKey",
+          groupBy((x) => Math.random())
+        )
+      )
+      .flatMap(withName("dropKeys", (kvs) => kvs.value));
+  }
+
+  return reshuffle;
+}

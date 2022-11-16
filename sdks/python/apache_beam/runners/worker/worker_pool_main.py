@@ -51,6 +51,26 @@ from apache_beam.utils import thread_pool_executor
 _LOGGER = logging.getLogger(__name__)
 
 
+def kill_process_gracefully(proc, timeout=10):
+  """
+  Kill a worker process gracefully by sending a SIGTERM and waiting for
+  it to finish. A SIGKILL will be sent if the process has not finished
+  after ``timeout`` seconds.
+  """
+  def _kill():
+    proc.terminate()
+    try:
+      proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+      _LOGGER.warning('Worker process did not respond, killing it.')
+      proc.kill()
+      proc.wait()  # Avoid zombies
+
+  kill_thread = threading.Thread(target=_kill)
+  kill_thread.start()
+  kill_thread.join()
+
+
 class BeamFnExternalWorkerPoolServicer(
     beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolServicer):
 
@@ -95,7 +115,7 @@ class BeamFnExternalWorkerPoolServicer(
     # Register to kill the subprocesses on exit.
     def kill_worker_processes():
       for worker_process in worker_pool._worker_processes.values():
-        worker_process.kill()
+        kill_process_gracefully(worker_process)
 
     atexit.register(kill_worker_processes)
 
@@ -172,19 +192,9 @@ class BeamFnExternalWorkerPoolServicer(
     worker_process = self._worker_processes.pop(
         stop_worker_request.worker_id, None)
     if worker_process:
-
-      def kill_worker_process():
-        try:
-          worker_process.kill()
-        except OSError:
-          # ignore already terminated process
-          return
-
       _LOGGER.info("Stopping worker %s" % stop_worker_request.worker_id)
-      # communicate is necessary to avoid zombie process
-      # time box communicate (it has no timeout parameter in Py2)
-      threading.Timer(1, kill_worker_process).start()
-      worker_process.communicate()
+      kill_process_gracefully(worker_process)
+
     return beam_fn_api_pb2.StopWorkerResponse()
 
 
