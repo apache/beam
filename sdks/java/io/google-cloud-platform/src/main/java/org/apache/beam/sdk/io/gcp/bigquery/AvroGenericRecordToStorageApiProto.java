@@ -137,7 +137,10 @@ public class AvroGenericRecordToStorageApiProto {
   static ByteString convertDecimal(LogicalType logicalType, Object value) {
     ByteBuffer byteBuffer = (ByteBuffer) value;
     BigDecimal bigDecimal
-            = new Conversions.DecimalConversion().fromBytes(byteBuffer.duplicate(), null, logicalType);
+            = new Conversions.DecimalConversion().fromBytes(
+                    byteBuffer.duplicate(), 
+                    Schema.create(Schema.Type.NULL), // dummy schema, not used
+                    logicalType);
     return BeamRowToStorageApiProto.serializeBigDecimalToNumeric(bigDecimal);
   }
 
@@ -256,7 +259,7 @@ public class AvroGenericRecordToStorageApiProto {
                                         "key", 
                                         keyType, 
                                         "key of the map entry", 
-                                        (Object) null),
+                                        null),
                                 1,
                                 nestedTypesMap),
                         fieldDescriptorFromAvroField(
@@ -264,7 +267,7 @@ public class AvroGenericRecordToStorageApiProto {
                                         "value", 
                                         valueType, 
                                         "value of the map entry", 
-                                        (Object) null),
+                                        null),
                                 2,
                                 nestedTypesMap),
                         nestedTypesMap);
