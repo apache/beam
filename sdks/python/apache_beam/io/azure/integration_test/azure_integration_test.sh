@@ -53,6 +53,11 @@ fi
 COMPOSE_OPT="-p ${PROJECT_NAME} ${COLOR_OPT}"
 
 cd ${CONTEXT_DIR}
+
+# Generate a self-signed certificate for Azurite.
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout key.pem \
+  -out cert.pem -config ssl.conf -extensions 'v3_req'
+
 # Clean up leftover unused networks from previous runs. BEAM-4051
 # This might mess with leftover containers that still reference pruned networks,
 # so --force-recreate is passed to 'docker up' below.
