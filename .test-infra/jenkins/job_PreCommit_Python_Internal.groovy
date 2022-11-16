@@ -20,7 +20,7 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python Internal',
+    nameBase: 'Python_Internal',
     gradleTask: ':pythonPreCommit',
     gradleSwitches: [
       '-Pposargs=apache_beam/internal/'
@@ -28,7 +28,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',
-      '^sdks/python/.*$',
+      '^sdks/python/apache_beam/internal/metrics/.*$', // TODO - update this to actual paths
       '^release/.*$',
     ]
     )
