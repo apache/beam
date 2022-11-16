@@ -17,12 +17,13 @@
 ###############################################################################
 
 # This image contains a Python SDK build and dependencies.
-# By default it runs wordcount against a locally accessible HDFS service.
+# By default it runs wordcount against a locally accessible Azurite service.
 # See azure_integration_test.sh for example usage.
 ARG BASE_IMAGE
 FROM $BASE_IMAGE
 
-RUN apt-get install -y ca-certificates
+# Install Azure CLI.
+RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
 WORKDIR /app
 
@@ -30,11 +31,16 @@ WORKDIR /app
 COPY sdks/python /app/sdks/python
 COPY model /app/model
 
-RUN cp /app/sdks/python/apache_beam/io/azure/integration_test/cert.pem /usr/local/share/ca-certificates
-RUN update-ca-certificates
-
 # This step should look like setupVirtualenv minus virtualenv creation.
 RUN pip install --no-cache-dir tox==3.11.1 -r sdks/python/build-requirements.txt
 
-# Run wordcount, and write results to Azure.
+# Add Azurite's self-signed cert to the global CA cert store.
+RUN cp /app/sdks/python/apache_beam/io/azure/integration_test/cert.pem /usr/local/share/ca-certificates/azurite.crt
+RUN update-ca-certificates
+
+# Tell python to use the global CA cert store.
+# See https://stackoverflow.com/a/66494735
+ENV REQUESTS_CA_BUNDLE /etc/ssl/certs/ca-certificates.crt
+
+# Run wordcount, and write results to Azurite.
 CMD cd sdks/python && tox -e azure_integration_test

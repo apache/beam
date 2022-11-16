@@ -33,8 +33,6 @@ services:
       - "--key"
       - "/opt/azurite/certs/key.pem"
     hostname: azurite
-    environment:
-      - AZURITE_ACCOUNTS="storageaccount:Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
     networks:
       - azure_test_net
     volumes:
