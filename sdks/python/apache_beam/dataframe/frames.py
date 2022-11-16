@@ -380,14 +380,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     """
     if not as_index:
       raise NotImplementedError('groupby(as_index=False)')
-    if not group_keys:
-      raise NotImplementedError('groupby(group_keys=False)')
 
     if axis in (1, 'columns'):
       return _DeferredGroupByCols(
           expressions.ComputedExpression(
               'groupbycols',
-              lambda df: df.groupby(by, axis=axis, **kwargs), [self._expr],
+              lambda df: df.groupby(by, axis=axis, group_keys=group_keys, **kwargs), [self._expr],
               requires_partition_by=partitionings.Arbitrary(),
               preserves_partition_by=partitionings.Arbitrary()))
 
@@ -559,7 +557,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         expressions.ComputedExpression(
             'groupbyindex',
             lambda df: df.groupby(
-                level=list(range(df.index.nlevels)), **kwargs), [to_group],
+                level=list(range(df.index.nlevels)), group_keys=group_keys, **kwargs), [to_group],
             requires_partition_by=partitionings.Index(),
             preserves_partition_by=partitionings.Arbitrary()),
         kwargs,
