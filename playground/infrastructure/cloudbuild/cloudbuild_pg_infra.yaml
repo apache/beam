@@ -16,7 +16,7 @@
 # under the License.
 
 steps:
-  # This step builds the image from Dockerfile that will be used as Docker machine for Beam Playground deployment
+  # This stage builds the image from Dockerfile that will be used as Docker environment to run Beam Playground deployment
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -25,30 +25,30 @@ steps:
       - 'playground/infrastructure/cloudbuild/Dockerfile-base-image-worker'
       - '.'
 
-  # This step uses Docker container from image in previous step to run gradle task for Playground Infrastructure deployment
+  # This stage uses Docker container from image built in step above to run gradle task for Playground Infrastructure deployment
   - name: '$LOCATION-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
     entrypoint: "/bin/bash"
-  # Please set variables $_ENVIRONMENT_NAME and $_DNS_NAME in "substitutions" stage below
     args: ['-c', './gradlew playground:terraform:InitInfrastructure -Pproject_environment="${_ENVIRONMENT_NAME}" -Pdns-name="${_DNS_NAME}"']
 
+# Substitutions can be changed in GCP Cloud Build Triggers UI
 substitutions:
-  # The name of your Google Cloud Artifact Registry
-  _ARTIFACT_REGISTRY_REPO: "CHANGE_ME"
+  # The name of your GCP Artifact Registry repository
+  _ARTIFACT_REGISTRY_REPO: "playground-repository"
   # The name of your environment in beam/playground/terraform/environment/
-  _ENVIRONMENT_NAME: "CHANGE_ME"
+  _ENVIRONMENT_NAME: "test"
   # The name of your DNS for Playground
-  _DNS_NAME: "CHANGE_ME"
+  _DNS_NAME: "dev-playground.online"
   # The name of the GCP logs bucket
-  _LOGS_BUCKET_NAME: "CHANGE_ME"
+  _LOGS_BUCKET_NAME: "pg-cloudbuild-logging-bucket"
 
-# The name of your logs bucket
+# The name of your GCP logs bucket
 logsBucket: 'gs://${_LOGS_BUCKET_NAME}'
 
-# Pushing built image to Artifact repository
+# Pushing built image to GCP Artifact Registry repository
 images:
   - '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
 
-# This option is for writing logs to GCS bucket
+# This option enables writing logs to GCS bucket
 options:
   logging: GCS_ONLY
 

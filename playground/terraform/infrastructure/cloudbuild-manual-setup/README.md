@@ -121,7 +121,7 @@ terraform apply -var-file="terraform.tfvars"
 
 2. Navigate to GCP Console. Open Cloud Build page -> Triggers.
 3. Choose your Region.
-4. Open `Playground-infrastructure-trigger`.
+4. Open Trigger: `Playground-infrastructure-trigger`.
 5. Scroll down to `Advanced` - `Substitutions variables`.
 6. Click on `+ ADD VARIABLE`
 7. Assign values for next variables: 
@@ -129,17 +129,30 @@ terraform apply -var-file="terraform.tfvars"
    - `_ENVIRONMENT_NAME` *#Your env name in beam/playground/terraform/environment/*
    - `_DNS_NAME` *#Your DNS for Playground*
    - `_LOGS_BUCKET_NAME` *#Your GCP logs bucket name*
+8. Click save.
+9. Run the trigger `Playground-infrastructure-trigger`.
 
-8. Once Playground infrastructure has been deployed, please navigate to
+10. Once Playground infrastructure has been deployed, please navigate to
 [Playground deployment README](https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#deploy-playground-infrastructure) and execute step #2:
 `Add following DNS A records for the discovered static IP address`
 
 ## 5. Running Second Cloud Build Trigger: "Playground-to-gke-trigger"
 
-1. Navigate to GCP Console. Open Cloud Build page -> Triggers. 
-2. Provide values for next variables in `Advanced` - `Substitutions variables`:
-3. 
-3. Sort by relevant region and click `RUN` for `Playground-to-gke-trigger`.
+1. Navigate to GCP Console. Open Cloud Build page -> Triggers.
+2. Choose your Region.
+3. Open Trigger: `Playground-to-gke-trigger`.
+4. Scroll down to `Advanced` - `Substitutions variables`.
+5. Click on `+ ADD VARIABLE`
+6. Assign values for next variables:
+    - `_ARTIFACT_REGISTRY_REPO`  *#Your GCP artifact repo name*
+    - `_ENVIRONMENT_NAME` *#Your env name in beam/playground/terraform/environment/*
+    - `_DNS_NAME` *#Your DNS for Playground*
+    - `_TAG` *#Tag name for your Playground container images*
+    - `_GKE_NAME` *#Your GKE cluster name for Playground*
+    - `_LOGS_BUCKET_NAME` *#Your GCP logs bucket name*
+7. Click save.
+8. Run the trigger `Playground-to-gke-trigger`.
+
 
 ## 6. Validation
 

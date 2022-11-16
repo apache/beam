@@ -16,7 +16,7 @@
 # under the License.
 
 steps:
-  # This step uses Docker container from image in previous step to run gradle task for Playground to GKE deployment
+  # This stage uses pre-built Docker container to run gradle task for Playground pre-config and deployment to GKE
   - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
     entrypoint: "/bin/bash"
     args:
@@ -26,24 +26,25 @@ steps:
         ./gradlew playground:terraform:gkebackend -Pdocker-repository-root="${_DOCKER_REPOSITORY_ROOT}" \
         -Pproject_environment="{$_ENVIRONMENT_NAME}" -Pdocker-tag="${_TAG}" -Pdns-name="${_DNS_NAME}"' 
 
+# Substitutions can be changed in GCP Cloud Build Triggers UI
 substitutions:
-  # The name of your Google Cloud Artifact Registry
-  _ARTIFACT_REGISTRY_REPO: "CHANGE_ME"
+  # The name of your Google Cloud Artifact Registry repository
+  _ARTIFACT_REGISTRY_REPO: "playground-repository"
   # The name of your environment in beam/playground/terraform/environment/
-  _ENVIRONMENT_NAME: "CHANGE_ME"
+  _ENVIRONMENT_NAME: "test"
   # The name of your DNS for Playground
-  _DNS_NAME: "CHANGE_ME"
+  _DNS_NAME: "dev-playground.online"
   # The name of your Docker tag
-  _TAG: "CHANGE_ME"
+  _TAG: "tag-playground"
   # The name of your GKE cluster (from terraform.tfvars)
-  _GKE_NAME: "CHANGE_ME"
+  _GKE_NAME: "playground-cluster"
   # The name of the GCP logs bucket
-  _LOGS_BUCKET_NAME: "CHANGE_ME"
+  _LOGS_BUCKET_NAME: "pg-cloudbuild-logging-bucket"
 
-# The name of your logs bucket
+# The name of your GCP logs bucket
 logsBucket: 'gs://${_LOGS_BUCKET_NAME}'
 
-# This option is for writing logs to GCS bucket
+# This option enables writing logs to GCS bucket
 options:
   logging: GCS_ONLY
 
