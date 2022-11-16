@@ -142,6 +142,8 @@ public class SplunkIO {
 
     abstract @Nullable ValueProvider<Boolean> disableCertificateValidation();
 
+    abstract @Nullable ValueProvider<String> rootCaCertificatePath();
+
     abstract @Nullable ValueProvider<Boolean> enableBatchLogs();
 
     abstract @Nullable ValueProvider<Boolean> enableGzipHttpCompression();
@@ -158,6 +160,7 @@ public class SplunkIO {
               .withInputBatchCount(batchCount())
               .withDisableCertificateValidation(disableCertificateValidation())
               .withToken(token())
+              .withRootCaCertificatePath(rootCaCertificatePath())
               .withEnableBatchLogs(enableBatchLogs())
               .withEnableGzipHttpCompression(enableGzipHttpCompression());
       ;
@@ -185,6 +188,8 @@ public class SplunkIO {
 
       abstract Builder setDisableCertificateValidation(
           ValueProvider<Boolean> disableCertificateValidation);
+
+      abstract Builder setRootCaCertificatePath(ValueProvider<String> rootCaCertificatePath);
 
       abstract Builder setEnableBatchLogs(ValueProvider<Boolean> enableBatchLogs);
 
@@ -265,6 +270,35 @@ public class SplunkIO {
     }
 
     /**
+     * Same as {@link Builder#withRootCaCertificatePath(ValueProvider)} but without a {@link
+     * ValueProvider}.
+     *
+     * @param rootCaCertificatePath Path to root CA certificate
+     * @return {@link Builder}
+     */
+    public Write withRootCaCertificatePath(ValueProvider<String> rootCaCertificatePath) {
+      checkArgument(
+          rootCaCertificatePath != null,
+          "withRootCaCertificatePath(rootCaCertificatePath) called with null input.");
+      return toBuilder().setRootCaCertificatePath(rootCaCertificatePath).build();
+    }
+
+    /**
+     * Method to set the root CA certificate.
+     *
+     * @param rootCaCertificatePath Path to root CA certificate
+     * @return {@link Builder}
+     */
+    public Write withRootCaCertificatePath(String rootCaCertificatePath) {
+      checkArgument(
+          rootCaCertificatePath != null,
+          "withRootCaCertificatePath(rootCaCertificatePath) called with null input.");
+      return toBuilder()
+          .setRootCaCertificatePath(StaticValueProvider.of(rootCaCertificatePath))
+          .build();
+    }
+
+    /**
      * Same as {@link Builder#withEnableBatchLogs(ValueProvider)} but without a {@link
      * ValueProvider}.
      *
@@ -274,7 +308,7 @@ public class SplunkIO {
     public Write withEnableBatchLogs(ValueProvider<Boolean> enableBatchLogs) {
       checkArgument(
           enableBatchLogs != null, "withEnableBatchLogs(enableBatchLogs) called with null input.");
-      return toBuilder().setEnableGzipHttpCompression(enableBatchLogs).build();
+      return toBuilder().setEnableBatchLogs(enableBatchLogs).build();
     }
 
     /**
@@ -286,9 +320,7 @@ public class SplunkIO {
     public Write withEnableBatchLogs(Boolean enableBatchLogs) {
       checkArgument(
           enableBatchLogs != null, "withEnableBatchLogs(enableBatchLogs) called with null input.");
-      return toBuilder()
-          .setEnableGzipHttpCompression(StaticValueProvider.of(enableBatchLogs))
-          .build();
+      return toBuilder().setEnableBatchLogs(StaticValueProvider.of(enableBatchLogs)).build();
     }
 
     /**
