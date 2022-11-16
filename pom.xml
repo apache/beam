@@ -57,6 +57,13 @@
   </dependencyManagement>
 
   <dependencies>
+    <!-- Templates Annotations -->
+    <dependency>
+      <groupId>com.google.cloud.teleport.metadata</groupId>
+      <artifactId>metadata</artifactId>
+      <version>${metadata.version}</version>
+    </dependency>
+
     <!-- Beam. Try to minimize Beam dependencies, since this is about testing
       pipelines, not writing them. -->
     <dependency>
@@ -114,7 +121,6 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>${junit.version}</version>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
