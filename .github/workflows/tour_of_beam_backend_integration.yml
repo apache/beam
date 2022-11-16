@@ -127,5 +127,6 @@ jobs:
 
       - name: Stop Gradle daemon
         if: ${{ always() }}
+        working-directory: ${{ env.GITHUB_WORKSPACE }}
         run: |
           ./gradlew --stop
