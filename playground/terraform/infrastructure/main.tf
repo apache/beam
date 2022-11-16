@@ -34,7 +34,7 @@ module "network" {
 }
 
 module "artifact_registry" {
-  depends_on = [module.setup, module.buckets, module.api_enable, module.ip_address]
+  depends_on = [module.setup, module.api_enable, module.ip_address]
   source     = "./artifact_registry"
   project_id = var.project_id
   id         = var.repository_id
