@@ -189,7 +189,7 @@
         "y": 0
       },
       "hiddenSeries": false,
-      "id": 4,
+      "id": 3,
       "interval": "24h",
       "legend": {
         "avg": false,
@@ -344,7 +344,7 @@
         "y": 9
       },
       "hiddenSeries": false,
-      "id": 6,
+      "id": 4,
       "interval": "24h",
       "legend": {
         "avg": false,
@@ -499,7 +499,7 @@
         "y": 9
       },
       "hiddenSeries": false,
-      "id": 6,
+      "id": 5,
       "interval": "24h",
       "legend": {
         "avg": false,
