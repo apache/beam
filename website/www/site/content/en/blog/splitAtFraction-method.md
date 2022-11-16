@@ -22,7 +22,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-This morning, Eugene and Malo from the Google Cloud Dataflow team posted [*No shard left behind: dynamic work rebalancing in Google Cloud Dataflow*](https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow). This article discusses Cloud Dataflow’s solution to the well-known straggler problem.
+This morning, Eugene and Malo from the Google Cloud Dataflow team posted [*No shard left behind: dynamic work rebalancing in Google Cloud Dataflow*](https://cloud.google.com/blog/products/gcp/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow). This article discusses Cloud Dataflow’s solution to the well-known straggler problem.
 
 <!--more-->
 
