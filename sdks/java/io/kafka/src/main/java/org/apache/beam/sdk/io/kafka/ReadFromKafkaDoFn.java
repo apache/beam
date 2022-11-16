@@ -386,6 +386,9 @@ abstract class ReadFromKafkaDoFn<K, V>
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
+          if (timestampPolicy != null) {
+            updateWatermark(timestampPolicy, watermarkEstimator, tracker);
+          }
           return ProcessContinuation.resume();
         }
         for (ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
@@ -413,13 +416,9 @@ abstract class ReadFromKafkaDoFn<K, V>
           // The outputTimestamp and watermark will be computed by timestampPolicy, where the
           // WatermarkEstimator should be a manual one.
           if (timestampPolicy != null) {
-            checkState(watermarkEstimator instanceof ManualWatermarkEstimator);
             TimestampPolicyContext context =
-                new TimestampPolicyContext(
-                    (long) ((HasProgress) tracker).getProgress().getWorkRemaining(), Instant.now());
+                updateWatermark(timestampPolicy, watermarkEstimator, tracker);
             outputTimestamp = timestampPolicy.getTimestampForRecord(context, kafkaRecord);
-            ((ManualWatermarkEstimator) watermarkEstimator)
-                .setWatermark(ensureTimestampWithinBounds(timestampPolicy.getWatermark(context)));
           } else {
             Preconditions.checkStateNotNull(this.extractOutputTimestampFn);
             outputTimestamp = extractOutputTimestampFn.apply(kafkaRecord);
@@ -428,6 +427,19 @@ abstract class ReadFromKafkaDoFn<K, V>
         }
       }
     }
+  }
+
+  private TimestampPolicyContext updateWatermark(
+      TimestampPolicy timestampPolicy,
+      WatermarkEstimator watermarkEstimator,
+      RestrictionTracker<OffsetRange, Long> tracker) {
+    checkState(watermarkEstimator instanceof ManualWatermarkEstimator);
+    TimestampPolicyContext context =
+        new TimestampPolicyContext(
+            (long) ((HasProgress) tracker).getProgress().getWorkRemaining(), Instant.now());
+    ((ManualWatermarkEstimator) watermarkEstimator)
+        .setWatermark(ensureTimestampWithinBounds(timestampPolicy.getWatermark(context)));
+    return context;
   }
 
   @GetRestrictionCoder
