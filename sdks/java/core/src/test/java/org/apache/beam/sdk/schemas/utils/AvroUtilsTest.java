@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 import java.sql.JDBCType;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -229,6 +231,12 @@ public class AvroUtilsTest {
             LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(Type.LONG)),
             "",
             (Object) null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "timestampMicros",
+            LogicalTypes.timestampMicros().addToSchema(org.apache.avro.Schema.create(Type.LONG)),
+            "",
+            (Object) null));
     fields.add(new org.apache.avro.Schema.Field("row", getAvroSubSchema("row"), "", (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
@@ -261,6 +269,7 @@ public class AvroUtilsTest {
         .addField(Field.of("bytes", FieldType.BYTES))
         .addField(Field.of("decimal", FieldType.DECIMAL))
         .addField(Field.of("timestampMillis", FieldType.DATETIME))
+        .addField(Field.of("timestampMicros", FieldType.logicalType(SqlTypes.TIMESTAMP)))
         .addField(Field.of("row", FieldType.row(subSchema)))
         .addField(Field.of("array", FieldType.array(FieldType.row(subSchema))))
         .addField(Field.of("map", FieldType.map(FieldType.STRING, FieldType.row(subSchema))))
@@ -270,6 +279,9 @@ public class AvroUtilsTest {
   private static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
   private static final DateTime DATE_TIME =
       new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+  private static final java.time.Instant MICROS_INSTANT =
+      java.time.Instant.ofEpochMilli(DATE_TIME.getMillis())
+          .plusNanos(TimeUnit.MICROSECONDS.toNanos(123));
   private static final BigDecimal BIG_DECIMAL = new BigDecimal(3600);
 
   private Row getBeamRow() {
@@ -284,6 +296,7 @@ public class AvroUtilsTest {
         .addValue(BYTE_ARRAY)
         .addValue(BIG_DECIMAL)
         .addValue(DATE_TIME)
+        .addValue(MICROS_INSTANT)
         .addValue(subRow)
         .addValue(ImmutableList.of(subRow, subRow))
         .addValue(ImmutableMap.of("k1", subRow, "k2", subRow))
@@ -316,6 +329,7 @@ public class AvroUtilsTest {
         .set("bytes", ByteBuffer.wrap(BYTE_ARRAY))
         .set("decimal", encodedDecimal)
         .set("timestampMillis", DATE_TIME.getMillis())
+        .set("timestampMicros", AvroUtils.getMicrosFromJavaInstant(MICROS_INSTANT))
         .set("row", getSubGenericRecord("row"))
         .set("array", ImmutableList.of(getSubGenericRecord("array"), getSubGenericRecord("array")))
         .set(
@@ -710,6 +724,25 @@ public class AvroUtilsTest {
             .set("my_date_field", daysFromEpoch)
             .set("my_time_field", timeSinceMidNight)
             .build();
+
+    assertEquals(expectedRecord, AvroUtils.toGenericRecord(rowData, avroSchema));
+  }
+
+  @Test
+  public void testSqlTypesToGenericRecord() {
+    // SqlTypes to LogicalTypes.date conversion are one direction
+    java.time.LocalDate localDate = java.time.LocalDate.of(1979, 3, 14);
+
+    Schema beamSchema =
+        Schema.builder()
+            .addField(Field.of("local_date", FieldType.logicalType(SqlTypes.DATE)))
+            .build();
+
+    Row rowData = Row.withSchema(beamSchema).addValue(localDate).build();
+
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+    GenericRecord expectedRecord =
+        new GenericRecordBuilder(avroSchema).set("local_date", localDate.toEpochDay()).build();
 
     assertEquals(expectedRecord, AvroUtils.toGenericRecord(rowData, avroSchema));
   }

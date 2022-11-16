@@ -93,9 +93,8 @@ def test_find_examples(mock_os_walk, mock_check_file, mock_check_no_nested, is_v
 
 
 @pytest.mark.asyncio
-@mock.patch("helper.GRPCClient")
 @mock.patch("helper._update_example_status")
-async def test_get_statuses(mock_update_example_status, mock_grpc_client):
+async def test_get_statuses(mock_update_example_status):
     example = Example(
         name="file",
         complexity="MEDIUM",
@@ -107,11 +106,8 @@ async def test_get_statuses(mock_update_example_status, mock_grpc_client):
         status=STATUS_UNSPECIFIED,
         tag={"name": "Name"},
         link="link")
-    client = None
-
-    mock_grpc_client.return_value = client
-
-    await get_statuses([example])
+    client = mock.sentinel
+    await get_statuses(client, [example])
 
     mock_update_example_status.assert_called_once_with(example, client)
 

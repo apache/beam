@@ -36,6 +36,14 @@ class TrivialInferenceTest(unittest.TestCase):
         expected,
         trivial_inference.infer_return_type(f, inputs, debug=True, depth=depth))
 
+  # The meaning of Jump Offsets in Python 3.10 was changed.
+  # https://github.com/python/cpython/issues/71316
+  # Reported as a bug in Beam https://github.com/apache/beam/issues/21671
+  def testJumpOffsets(self):
+    fn = lambda x: False
+    wrapper = lambda x, *args, **kwargs: [x] if fn(x, *args, **kwargs) else []
+    self.assertReturnType(typehints.List[int], wrapper, [int])
+
   def testBuildListUnpack(self):
     # Lambda uses BUILD_LIST_UNPACK opcode in Python 3.
     self.assertReturnType(

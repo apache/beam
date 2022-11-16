@@ -114,6 +114,7 @@ class ExampleCache extends ChangeNotifier {
       name: result.files.first.name,
       path: id,
       description: '',
+      tags: [],
       type: ExampleType.example,
       source: result.files.first.code,
       pipelineOptions: result.pipelineOptions,

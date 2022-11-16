@@ -35,7 +35,7 @@ future
 # TODO: Remove the upper bound once Tensorflow 2.11 is released.
 # https://github.com/apache/beam/issues/23355
 google-cloud-profiler<4.0.0
-google-python-cloud-debugger
+google-python-cloud-debugger;python_version<="3.9"
 guppy3  # Memory profiler
 mmh3  # Optimzes execution of some Beam codepaths. TODO: Make it Beam's dependency.
 nltk  # Commonly used for natural language processing.

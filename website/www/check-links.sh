@@ -73,7 +73,7 @@ for external_link in "${external_links[@]}"
 do
     redraw_progress_bar 50 1 $i ${#external_links[@]}
 
-    if ! curl -sSfL --max-time 10 --connect-timeout 10 --retry 2 -4 "${external_link}" > /dev/null ; then
+    if ! curl -sSfL --max-filesize 1000000 --max-time 10 --connect-timeout 10 --retry 2 -4 "${external_link}" > /dev/null ; then
         invalid_links+=("${external_link}")
         echo "${external_link}"
     fi

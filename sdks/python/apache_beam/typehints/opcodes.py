@@ -421,6 +421,12 @@ def delete_fast(state, arg):
   state.vars[arg] = Any  # really an error
 
 
+# bpo-43683 Adds GEN_START in Python 3.10, but removed in Python 3.11
+# https://github.com/python/cpython/pull/25138
+def gen_start(state, arg):
+  assert len(state.stack) == 0
+
+
 def load_closure(state, arg):
   state.stack.append(state.get_closure(arg))
 

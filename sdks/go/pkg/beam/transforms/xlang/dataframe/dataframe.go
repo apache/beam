@@ -22,6 +22,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang/python"
 )
@@ -73,9 +74,8 @@ func Transform(s beam.Scope, fn string, col beam.PCollection, outT reflect.Type,
 		opt(&cfg)
 	}
 
-	// TODO: load automatic expansion service here
 	if cfg.expansionAddr == "" {
-		panic("no expansion service address provided for xlang.DataframeTransform(), pass xlang.WithExpansionAddr(address) as a param.")
+		cfg.expansionAddr = xlangx.UseAutomatedPythonExpansionService(python.ExpansionServiceModule)
 	}
 
 	pet := python.NewExternalTransform[argStruct, kwargs]("apache_beam.dataframe.transforms.DataframeTransform")

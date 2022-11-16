@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_code_editor/flutter_code_editor.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../playground_components.dart';
@@ -31,9 +32,15 @@ class BeamThemeExtension extends ThemeExtension<BeamThemeExtension> {
   final Color primaryBackgroundTextColor;
   final Color lightGreyBackgroundTextColor;
   final Color secondaryBackgroundColor;
+  // TODO(nausharipov): simplify new color addition
+  final Color selectedProgressColor;
+  final Color unselectedProgressColor;
 
+  final Color codeBackgroundColor;
   final TextStyle codeRootStyle;
   final CodeThemeData codeTheme;
+
+  final MarkdownStyleSheet markdownStyle;
 
   const BeamThemeExtension({
     required this.borderColor,
@@ -41,9 +48,13 @@ class BeamThemeExtension extends ThemeExtension<BeamThemeExtension> {
     required this.iconColor,
     required this.primaryBackgroundTextColor,
     required this.lightGreyBackgroundTextColor,
+    required this.markdownStyle,
     required this.secondaryBackgroundColor,
+    required this.codeBackgroundColor,
     required this.codeRootStyle,
     required this.codeTheme,
+    required this.selectedProgressColor,
+    required this.unselectedProgressColor,
   });
 
   @override
@@ -53,9 +64,13 @@ class BeamThemeExtension extends ThemeExtension<BeamThemeExtension> {
     Color? iconColor,
     Color? primaryBackgroundTextColor,
     Color? lightGreyBackgroundTextColor,
+    MarkdownStyleSheet? markdownStyle,
     Color? secondaryBackgroundColor,
+    Color? codeBackgroundColor,
     TextStyle? codeRootStyle,
     CodeThemeData? codeTheme,
+    Color? selectedProgressColor,
+    Color? unselectedProgressColor,
   }) {
     return BeamThemeExtension(
       borderColor: borderColor ?? this.borderColor,
@@ -65,10 +80,16 @@ class BeamThemeExtension extends ThemeExtension<BeamThemeExtension> {
           primaryBackgroundTextColor ?? this.primaryBackgroundTextColor,
       lightGreyBackgroundTextColor:
           lightGreyBackgroundTextColor ?? this.lightGreyBackgroundTextColor,
+      markdownStyle: markdownStyle ?? this.markdownStyle,
       secondaryBackgroundColor:
           secondaryBackgroundColor ?? this.secondaryBackgroundColor,
+      codeBackgroundColor: codeBackgroundColor ?? this.codeBackgroundColor,
       codeRootStyle: codeRootStyle ?? this.codeRootStyle,
       codeTheme: codeTheme ?? this.codeTheme,
+      selectedProgressColor:
+          selectedProgressColor ?? this.selectedProgressColor,
+      unselectedProgressColor:
+          unselectedProgressColor ?? this.unselectedProgressColor,
     );
   }
 
@@ -86,10 +107,21 @@ class BeamThemeExtension extends ThemeExtension<BeamThemeExtension> {
           primaryBackgroundTextColor, other?.primaryBackgroundTextColor, t)!,
       lightGreyBackgroundTextColor: Color.lerp(lightGreyBackgroundTextColor,
           other?.lightGreyBackgroundTextColor, t)!,
+      markdownStyle:
+          t < 0.5 ? markdownStyle : other?.markdownStyle ?? markdownStyle,
       secondaryBackgroundColor: Color.lerp(
           secondaryBackgroundColor, other?.secondaryBackgroundColor, t)!,
+      codeBackgroundColor:
+          Color.lerp(codeBackgroundColor, other?.codeBackgroundColor, t)!,
       codeRootStyle: TextStyle.lerp(codeRootStyle, other?.codeRootStyle, t)!,
       codeTheme: t == 0.0 ? codeTheme : other?.codeTheme ?? codeTheme,
+      selectedProgressColor:
+          Color.lerp(selectedProgressColor, other?.selectedProgressColor, t)!,
+      unselectedProgressColor: Color.lerp(
+        unselectedProgressColor,
+        other?.unselectedProgressColor,
+        t,
+      )!,
     );
   }
 }
@@ -107,6 +139,7 @@ final kLightTheme = ThemeData(
   ),
   primaryColor: BeamLightThemeColors.primary,
   scaffoldBackgroundColor: BeamLightThemeColors.secondaryBackground,
+  selectedRowColor: BeamLightThemeColors.selectedUnitColor,
   tabBarTheme: _getTabBarTheme(
     textColor: BeamLightThemeColors.text,
     indicatorColor: BeamLightThemeColors.primary,
@@ -120,9 +153,12 @@ final kLightTheme = ThemeData(
       iconColor: BeamLightThemeColors.icon,
       primaryBackgroundTextColor: BeamColors.white,
       lightGreyBackgroundTextColor: BeamColors.black,
+      markdownStyle: _getMarkdownStyle(Brightness.light),
       secondaryBackgroundColor: BeamLightThemeColors.secondaryBackground,
+      selectedProgressColor: BeamLightThemeColors.selectedProgressColor,
+      unselectedProgressColor: BeamLightThemeColors.unselectedProgressColor,
+      codeBackgroundColor: BeamLightThemeColors.codeBackground,
       codeRootStyle: GoogleFonts.sourceCodePro(
-        backgroundColor: BeamLightThemeColors.primaryBackground,
         color: BeamLightThemeColors.text,
         fontSize: codeFontSize,
       ),
@@ -179,6 +215,7 @@ final kDarkTheme = ThemeData(
   ),
   primaryColor: BeamDarkThemeColors.primary,
   scaffoldBackgroundColor: BeamDarkThemeColors.secondaryBackground,
+  selectedRowColor: BeamDarkThemeColors.selectedUnitColor,
   tabBarTheme: _getTabBarTheme(
     textColor: BeamDarkThemeColors.text,
     indicatorColor: BeamDarkThemeColors.primary,
@@ -192,9 +229,12 @@ final kDarkTheme = ThemeData(
       iconColor: BeamDarkThemeColors.icon,
       primaryBackgroundTextColor: BeamColors.white,
       lightGreyBackgroundTextColor: BeamColors.black,
+      markdownStyle: _getMarkdownStyle(Brightness.dark),
       secondaryBackgroundColor: BeamDarkThemeColors.secondaryBackground,
+      selectedProgressColor: BeamDarkThemeColors.selectedProgressColor,
+      unselectedProgressColor: BeamDarkThemeColors.unselectedProgressColor,
+      codeBackgroundColor: BeamDarkThemeColors.codeBackground,
       codeRootStyle: GoogleFonts.sourceCodePro(
-        backgroundColor: BeamDarkThemeColors.primaryBackground,
         color: BeamDarkThemeColors.text,
         fontSize: codeFontSize,
       ),
@@ -359,6 +399,40 @@ RoundedRectangleBorder _getButtonBorder(double radius) {
   return RoundedRectangleBorder(
     borderRadius: BorderRadius.all(
       Radius.circular(radius),
+    ),
+  );
+}
+
+MarkdownStyleSheet _getMarkdownStyle(Brightness brightness) {
+  final Color primaryColor;
+  final Color codeblockBackgroundColor;
+  final Color textColor;
+  if (brightness == Brightness.light) {
+    primaryColor = BeamLightThemeColors.primary;
+    codeblockBackgroundColor = BeamLightThemeColors.codeBackground;
+    textColor = BeamLightThemeColors.text;
+  } else {
+    primaryColor = BeamDarkThemeColors.primary;
+    codeblockBackgroundColor = BeamDarkThemeColors.codeBackground;
+    textColor = BeamDarkThemeColors.text;
+  }
+  final textTheme = _getTextTheme(textColor);
+
+  return MarkdownStyleSheet(
+    p: textTheme.bodyMedium,
+    pPadding: EdgeInsets.only(top: BeamSizes.size2),
+    h1: textTheme.headlineLarge,
+    h3: textTheme.headlineMedium,
+    h3Padding: EdgeInsets.only(top: BeamSizes.size4),
+    code: GoogleFonts.sourceCodePro(
+      color: textColor,
+      backgroundColor: BeamColors.transparent,
+      fontSize: BeamSizes.size12,
+    ),
+    codeblockDecoration: BoxDecoration(
+      color: codeblockBackgroundColor,
+      border: Border.all(color: primaryColor),
+      borderRadius: const BorderRadius.all(Radius.circular(BeamSizes.size4)),
     ),
   );
 }

@@ -1,12 +1,12 @@
 {
   "PythonTestProperties": {
-    "ALL_SUPPORTED_VERSIONS": ["3.7", "3.8", "3.9"],
+    "ALL_SUPPORTED_VERSIONS": ["3.7", "3.8", "3.9", "3.10"],
     "LOWEST_SUPPORTED": ["3.7"],
-    "HIGHEST_SUPPORTED": ["3.9"],
-    "ESSENTIAL_VERSIONS": ["3.7", "3.9"],
-    "CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS": ["3.7", "3.9"],
-    "CROSS_LANGUAGE_VALIDATES_RUNNER_DATAFLOW_USING_SQL_PYTHON_VERSIONS": ["3.9"],
-    "VALIDATES_CONTAINER_DATAFLOW_PYTHON_VERSIONS": ["3.7", "3.8", "3.9"],
+    "HIGHEST_SUPPORTED": ["3.10"],
+    "ESSENTIAL_VERSIONS": ["3.7", "3.10"],
+    "CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS": ["3.7", "3.10"],
+    "CROSS_LANGUAGE_VALIDATES_RUNNER_DATAFLOW_USING_SQL_PYTHON_VERSIONS": ["3.10"],
+    "VALIDATES_CONTAINER_DATAFLOW_PYTHON_VERSIONS": ["3.7", "3.8", "3.9", "3.10"],
     "LOAD_TEST_PYTHON_VERSION": "3.7",
     "CHICAGO_TAXI_EXAMPLE_FLINK_PYTHON_VERSION": "3.7",
     "DEFAULT_INTERPRETER": "python3.8",
@@ -18,20 +18,6 @@
     "SPARK_VERSIONS": ["2", "3"]
   },
   "GoTestProperties": {
-    "SUPPORTED_VERSIONS": ["1.18"]
-  },
-  "NexmarkTestsProperties": {
-    "BIGQUERY_TABLE": "nexmark",
-    "BIGQUERY_DATASET": "nexmark",
-    "PROJECT": "apache-beam-testing",
-    "RESOURCE_NAMEMODE": "QUERY_RUNNER_AND_MODE",
-    "EXPORT_SUMMARY_TO_BIGQUERY": true,
-    "TEMP_LOCATION": "gs://temp-storage-for-perf-tests/nexmark",
-    "INFLUX_DATABASE": "beam_test_metrics",
-    "INFLUX_HOST": "http://10.128.0.96:8086",
-    "BASE_INFLUX_MEASUREMENT": "nexmark",
-    "EXPORT_SUMMARY_TO_INFLUXDB": true,
-    "INFLUX_RETENTION_POLICY": "forever",
-    "FLINK_VERSION": "1.13"
+    "SUPPORTED_VERSIONS": ["1.19"]
   }
 }

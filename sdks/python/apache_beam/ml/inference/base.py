@@ -23,8 +23,8 @@ Users of this module can extend the ModelHandler class for any machine learning
 framework. A ModelHandler implementation is a required parameter of
 RunInference.
 
-The transform will handle standard inference functionality like metric
-collection, sharing model between threads and batching elements.
+The transform handles standard inference functionality, like metric
+collection, sharing model between threads, and batching elements.
 """
 
 import logging
@@ -116,7 +116,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   def get_metrics_namespace(self) -> str:
     """
     Returns:
-       A namespace for metrics collected by RunInference transform.
+       A namespace for metrics collected by the RunInference transform.
     """
     return 'RunInference'
 
@@ -137,8 +137,8 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     """Validates inference_args passed in the inference call.
 
-    Most frameworks do not need extra arguments in their predict() call so the
-    default behavior is to error out if inference_args are present.
+    Because most frameworks do not need extra arguments in their predict() call,
+    the default behavior is to error out if inference_args are present.
     """
     if inference_args:
       raise ValueError(
@@ -153,10 +153,10 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
     """A ModelHandler that takes keyed examples and returns keyed predictions.
 
-    For example, if the original model was used with RunInference to take a
-    PCollection[E] to a PCollection[P], this would take a
-    PCollection[Tuple[K, E]] to a PCollection[Tuple[K, P]], allowing one to
-    associate the outputs with the inputs based on the key.
+    For example, if the original model is used with RunInference to take a
+    PCollection[E] to a PCollection[P], this ModelHandler would take a
+    PCollection[Tuple[K, E]] to a PCollection[Tuple[K, P]], making it possible
+    to use the key to associate the outputs with the inputs.
 
     Args:
       unkeyed: An implementation of ModelHandler that does not require keys.
@@ -200,18 +200,18 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                                                 Tuple[KeyT, PredictionT]],
                                           ModelT]):
   def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
-    """A ModelHandler that takes possibly keyed examples and returns possibly
-    keyed predictions.
+    """A ModelHandler that takes examples that might have keys and returns
+    predictions that might have keys.
 
-    For example, if the original model was used with RunInference to take a
-    PCollection[E] to a PCollection[P], this would take either PCollection[E]
-    to a PCollection[P] or PCollection[Tuple[K, E]] to a
-    PCollection[Tuple[K, P]], depending on the whether the elements happen to
-    be tuples, allowing one to associate the outputs with the inputs based on
-    the key.
+    For example, if the original model is used with RunInference to take a
+    PCollection[E] to a PCollection[P], this ModelHandler would take either
+    PCollection[E] to a PCollection[P] or PCollection[Tuple[K, E]] to a
+    PCollection[Tuple[K, P]], depending on the whether the elements are
+    tuples. This pattern makes it possible to associate the outputs with the
+    inputs based on the key.
 
-    Note that this cannot be used if E happens to be a tuple type.  In addition,
-    either all examples should be keyed, or none of them.
+    Note that you cannot use this ModelHandler if E is a tuple type.
+    In addition, either all examples should be keyed, or none of them.
 
     Args:
       unkeyed: An implementation of ModelHandler that does not require keys.
@@ -274,16 +274,16 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       clock=time,
       inference_args: Optional[Dict[str, Any]] = None,
       metrics_namespace: Optional[str] = None):
-    """A transform that takes a PCollection of examples (or features) to be used
-    on an ML model. It will then output inferences (or predictions) for those
-    examples in a PCollection of PredictionResults, containing the input
-    examples and output inferences.
+    """A transform that takes a PCollection of examples (or features) for use
+    on an ML model. The transform then outputs inferences (or predictions) for
+    those examples in a PCollection of PredictionResults that contains the input
+    examples and the output inferences.
 
-    Models for supported frameworks can be loaded via a URI. Supported services
-    can also be used.
+    Models for supported frameworks can be loaded using a URI. Supported
+    services can also be used.
 
     This transform attempts to batch examples using the beam.BatchElements
-    transform. Batching may be configured using the ModelHandler.
+    transform. Batching can be configured using the ModelHandler.
 
     Args:
         model_handler: An implementation of ModelHandler.
@@ -302,8 +302,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
   def from_callable(cls, model_handler_provider, **kwargs):
     """Multi-language friendly constructor.
 
-    This constructor can be used with fully_qualified_named_transform to
-    initialize RunInference transform from PythonCallableSource provided
+    Use this constructor with fully_qualified_named_transform to
+    initialize the RunInference transform from PythonCallableSource provided
     by foreign SDKs.
 
     Args:
@@ -337,6 +337,8 @@ class _MetricsCollector:
     # Metrics
     self._inference_counter = beam.metrics.Metrics.counter(
         namespace, 'num_inferences')
+    self.failed_batches_counter = beam.metrics.Metrics.counter(
+        namespace, 'failed_batches_counter')
     self._inference_request_batch_size = beam.metrics.Metrics.distribution(
         namespace, 'inference_request_batch_size')
     self._inference_request_batch_byte_size = (
@@ -426,8 +428,12 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
   def process(self, batch, inference_args):
     start_time = _to_microseconds(self._clock.time_ns())
-    result_generator = self._model_handler.run_inference(
-        batch, self._model, inference_args)
+    try:
+      result_generator = self._model_handler.run_inference(
+          batch, self._model, inference_args)
+    except BaseException as e:
+      self._metrics_collector.failed_batches_counter.inc()
+      raise e
     predictions = list(result_generator)
 
     end_time = _to_microseconds(self._clock.time_ns())

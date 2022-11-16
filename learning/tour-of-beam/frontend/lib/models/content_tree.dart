@@ -18,19 +18,29 @@
 
 import '../repositories/models/get_content_tree_response.dart';
 import 'module.dart';
+import 'node.dart';
+import 'parent_node.dart';
 
-class ContentTreeModel {
-  final String sdkId;
+class ContentTreeModel extends ParentNodeModel {
   final List<ModuleModel> modules;
 
+  String get sdkId => id;
+
+  @override
+  List<NodeModel> get nodes => modules;
+
   const ContentTreeModel({
-    required this.sdkId,
+    required super.id,
     required this.modules,
-  });
+  }) : super(
+          parent: null,
+          title: '',
+          nodes: modules,
+        );
 
   ContentTreeModel.fromResponse(GetContentTreeResponse response)
       : this(
-          sdkId: response.sdkId,
+          id: response.sdkId,
           modules: response.modules
               .map(ModuleModel.fromResponse)
               .toList(growable: false),
