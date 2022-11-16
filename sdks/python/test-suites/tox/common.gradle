@@ -18,19 +18,21 @@
 
 def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
 
-toxTask "testPython${pythonVersionSuffix}", "py${pythonVersionSuffix}"
+def posargs = project.findProperty("posargs")
+
+toxTask "testPython${pythonVersionSuffix}", "py${pythonVersionSuffix}", posargs
 test.dependsOn "testPython${pythonVersionSuffix}"
 
-toxTask "testPy${pythonVersionSuffix}Cloud", "py${pythonVersionSuffix}-cloud"
+toxTask "testPy${pythonVersionSuffix}Cloud", "py${pythonVersionSuffix}-cloud", posargs
 test.dependsOn "testPy${pythonVersionSuffix}Cloud"
 
-toxTask "testPy${pythonVersionSuffix}Dask", "py${pythonVersionSuffix}-dask"
+toxTask "testPy${pythonVersionSuffix}Dask", "py${pythonVersionSuffix}-dask", posargs
 test.dependsOn "testPy${pythonVersionSuffix}Dask"
 
-toxTask "testPy${pythonVersionSuffix}Cython", "py${pythonVersionSuffix}-cython"
+toxTask "testPy${pythonVersionSuffix}Cython", "py${pythonVersionSuffix}-cython", posargs
 test.dependsOn "testPy${pythonVersionSuffix}Cython"
 
-toxTask "testPy38CloudCoverage", "py38-cloudcoverage"
+toxTask "testPy38CloudCoverage", "py38-cloudcoverage", posargs
 test.dependsOn "testPy38CloudCoverage"
 
 project.tasks.register("preCommitPy${pythonVersionSuffix}") {
