@@ -76,6 +76,7 @@ import org.slf4j.LoggerFactory;
  * --consumerSecret=your-secret \
  * --loginUrl=your-login-url \
  * --sObjectName=object-name \
+ * --pushTopicName=your-push-topic-name \
  * --referenceName=your-reference-name \
  * --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix \
  * --pullFrequencySec=1 \
