@@ -217,8 +217,9 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.Cdap
 - `consumerSecret` - Salesforce connected app's consumer secret.
 - `loginUrl` - Salesforce endpoint to authenticate to. Example: *'https://MyDomainName.my.salesforce.com/services/oauth2/token'*.
 - `sObjectName` - Salesforce object to pull supported by CDAP Salesforce Streaming Source.
-- `pushTopicName` - name of the push topic that was created from query for some sObject. 
-If push topic with such name doesn't exist, then new push topic for provided **'sObjectName'** will be created.
+**Important note:** provided *sObject* should have *'RecordId__c'* custom auto-generated number field in order to correctly run the example.
+- `pushTopicName` - name of the push topic that was created from query for some sObject. This push topic should have enabled *pushTopicNotifyCreate* property.
+If push topic with such name doesn't exist, then new push topic for provided **'sObjectName'** will be created automatically.
 - `pullFrequencySec` - delay in seconds between polling for new records updates. (Optional)
 - `startOffset` - inclusive start offset from which the reading should be started. (Optional)
 
