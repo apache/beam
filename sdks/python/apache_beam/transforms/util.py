@@ -350,6 +350,7 @@ class _BatchSizeEstimator(object):
         ignore_first_n_seen_per_batch_size)
     self._batch_size_num_seen = {}
     self._replay_last_batch_size = None
+    self._record_metrics = record_metrics
 
     if record_metrics:
       self._size_distribution = Metrics.distribution(
@@ -378,9 +379,8 @@ class _BatchSizeEstimator(object):
     yield
     elapsed = self._clock() - start
     elapsed_msec = 1e3 * elapsed + self._remainder_msecs
-    if self._size_distribution is not None:
+    if self._record_metrics:
       self._size_distribution.update(batch_size)
-    if self._time_distribution is not None:
       self._time_distribution.update(int(elapsed_msec))
     self._remainder_msecs = elapsed_msec - int(elapsed_msec)
     # If we ignore the next timing, replay the batch size to get accurate
