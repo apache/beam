@@ -28,7 +28,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 
 /** Provides utility functions for working with {@link SingleStoreIO}. */
-public class SingleStoreUtil {
+final class SingleStoreUtil {
   public static String escapeIdentifier(String identifier) {
     return '`' + identifier.replace("`", "``") + '`';
   }
