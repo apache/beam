@@ -17,21 +17,7 @@
 # under the License.
 #
 
-id: core-transforms
-name: Core Transforms
-complexity: Medium
-content:
-  - additional-outputs
-  - branching
-  - combine
-  - composite
-  - flatten
-  - map
-  - partition
-  - side-inputs
-  - motivating-challenge-1
-  - motivating-challenge-2
-  - motivating-challenge-3
-  - motivating-challenge-4
-
-
+id: motivating-challenge-1
+name: First
+taskName: CoreTransformsChallenge1
+solutionName: CoreTransformsSolution1

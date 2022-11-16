@@ -1,0 +1,3 @@
+### Common Transforms motivating challenge
+
+You are given the works of Shakespeare "kinglear" it will be divided into words and filtered. You need to divide these words into 3 portions. The first words that consist of capital letters. The second words that begin with a capital letter. The third is all lowercase letters. And count each element. Translate the first and second elements of the array to lowercase, combine the resulting collections and group them by key

@@ -16,72 +16,66 @@
  * limitations under the License.
  */
 
- // beam-playground:
-//   name: CommonTransformsSolution
-//   description: Common Transforms motivating challenge solution.
+// beam-playground:
+//   name: CoreTransformsChallenge2
+//   description: Core Transforms second motivating challenge.
 //   multifile: false
-//   context_line: 34
+//   context_line: 44
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
 
 public class Task {
 
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
     public static void main(String[] args) {
+        LOG.info("Running Task");
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        // List of elements
-        PCollection<Integer> numbers =
-                pipeline.apply(Create.of(12, -34, -1, 0, 93, -66, 53, 133, -133, 6, 13, 15));
+        PCollection<String> words = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/counts-00000-of-00003"));
 
-        // The [numbers] filtered with the positiveNumberFilter()
-        PCollection<Integer> filtered = getPositiveNumbers(numbers);
+        PCollection<KV<String, Integer>> kvPCollection = getSplitLineAsMap(words);
 
-        // Set key for each number
-        PCollection<KV<String,Integer>> getCollectionWithKey = setKeyForNumbers(filtered);
-
-        // Return count numbers
-        PCollection<KV<String,Long>> countPerKey = getCountPerKey(getCollectionWithKey);
-
-        countPerKey.apply("Log", ParDo.of(new LogOutput<KV<String,Long>>()));
+        combine(kvPCollection).apply("Log words", ParDo.of(new LogOutput<>()));
 
         pipeline.run();
     }
 
-    static PCollection<Integer> getPositiveNumbers(PCollection<Integer> input) {
-        return input.apply(Filter.by(number -> number > 0));
+
+    static PCollection<KV<String, Integer>> getSplitLineAsMap(PCollection<String> input) {
+        return Pipeline.create().apply(Create.of(KV.of("",0)));
     }
 
-    static PCollection<KV<String, Integer>> setKeyForNumbers(PCollection<Integer> input) {
-        return input
-                .apply(WithKeys.of(new SerializableFunction<Integer, String>() {
-                    @Override
-                    public String apply(Integer number) {
-                        if (number % 2 == 0) {
-                            return "even";
-                        }
-                        else {
-                            return "odd";
-                        }
-                    }
-                }));
+    static PCollection<KV<String, Integer>> combine(PCollection<KV<String, Integer>> input) {
+        return input;
     }
 
-    static PCollection<KV<String,Long>> getCountPerKey(PCollection<KV<String, Integer>> input) {
-        return input.apply(Count.perKey());
+    static class SumWordLetterCombineFn extends Combine.BinaryCombineFn<Integer> {
+        @Override
+        public Integer apply(Integer left, Integer right) {
+            return 0;
+        }
     }
 
     static class LogOutput<T> extends DoFn<T, T> {
-        private String prefix;
+        private final String prefix;
 
         LogOutput() {
             this.prefix = "Processing element";
