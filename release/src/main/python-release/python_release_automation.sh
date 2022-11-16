@@ -22,7 +22,7 @@ source release/src/main/python-release/run_release_candidate_python_mobile_gamin
 for version in 3.7 3.8 3.9 3.10
 do
   run_release_candidate_python_quickstart    "tar"   "python${version}"
-  run_release_candidate_python_mobile_gaming "tar"   "python${version}"
+  # run_release_candidate_python_mobile_gaming "tar"   "python${version}"
   run_release_candidate_python_quickstart    "wheel" "python${version}"
-  run_release_candidate_python_mobile_gaming "wheel" "python${version}"
+  # run_release_candidate_python_mobile_gaming "wheel" "python${version}"
 done
