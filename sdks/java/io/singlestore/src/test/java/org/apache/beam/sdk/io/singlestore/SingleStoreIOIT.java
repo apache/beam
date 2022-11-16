@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.singlestore;
 
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
+import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
 import com.singlestore.jdbc.SingleStoreDataSource;
@@ -132,11 +133,11 @@ public class SingleStoreIOIT {
     DatabaseTestHelper.createTable(dataSource, tableName);
     try {
       PipelineResult writeResult = runWrite();
-      writeResult.waitUntilFinish();
+      assertEquals(PipelineResult.State.DONE, writeResult.waitUntilFinish());
       PipelineResult readResult = runRead();
-      readResult.waitUntilFinish();
+      assertEquals(PipelineResult.State.DONE, readResult.waitUntilFinish());
       PipelineResult readResultWithPartitions = runReadWithPartitions();
-      readResultWithPartitions.waitUntilFinish();
+      assertEquals(PipelineResult.State.DONE, readResultWithPartitions.waitUntilFinish());
       gatherAndPublishMetrics(writeResult, readResult, readResultWithPartitions);
     } finally {
       DatabaseTestHelper.deleteTable(dataSource, tableName);
