@@ -54,9 +54,11 @@ public class GetOffsetUtils {
               GSON.fromJson(input, new TypeToken<HashMap<String, Object>>() {}.getType());
           checkArgumentNotNull(json, "Can not get JSON from Salesforce input string");
           LinkedTreeMap fieldMap = (LinkedTreeMap) json.get(SALESFORCE_S_OBJECT);
-          Object id = fieldMap.get(SALESFORCE_ID_FIELD);
-          checkArgumentNotNull(id, "Can not get ID from Salesforce input string");
-          return Long.parseLong((String) id);
+          if (fieldMap != null) {
+            Object id = fieldMap.get(SALESFORCE_ID_FIELD);
+            checkArgumentNotNull(id, "Can not get ID from Salesforce input string");
+            return Long.parseLong((String) id);
+          }
         } catch (Exception e) {
           LOG.error("Can not get offset from json", e);
         }
