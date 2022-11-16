@@ -20,11 +20,11 @@ steps:
   - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
     entrypoint: "/bin/bash"
     args:
-    - '-c'
-    - |
-        ./gradlew playground:terraform:prepareConfig -Pdns-name="${_DNS_NAME}" && 
+      - '-c'
+      - |
+        ./gradlew playground:terraform:prepareConfig -Pdns-name="${_DNS_NAME}"
         ./gradlew playground:terraform:gkebackend -Pdocker-repository-root="${_DOCKER_REPOSITORY_ROOT}" \
-        -Pproject_environment="{$_ENVIRONMENT_NAME}" -Pdocker-tag="${_TAG}" -Pdns-name="${_DNS_NAME}"' 
+         -Pproject_environment="{$_ENVIRONMENT_NAME}" -Pdocker-tag="${_TAG}" -Pdns-name="${_DNS_NAME}"' 
 
 # Substitutions can be changed in GCP Cloud Build Triggers UI
 substitutions:
