@@ -163,6 +163,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   void dispose() {
     _unitContentCache.removeListener(_onChanged);
     contentTreeController.removeListener(_onChanged);
+    _appNotifier.removeListener(_setSdk);
     super.dispose();
   }
 }
