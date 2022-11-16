@@ -14,6 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+# This script is used to run Change Point Analysis using a config file.
+# config file holds the parameters required to fetch data, and to run the
+# change point analysis. Change Point Analysis is used to find Performance
+# regressions for Benchmark/load/performance test.
+
 import argparse
 import logging
 import os
@@ -26,10 +32,10 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
-import google.api_core.exceptions
 import numpy as np
 import pandas as pd
 import yaml
+from google.api_core import exceptions
 
 from apache_beam.testing.analyzers.github_issues_utils import create_or_comment_issue
 from apache_beam.testing.analyzers.github_issues_utils import get_issue_description
@@ -206,7 +212,7 @@ def has_sibling_change_point(
       table=test_name)
   try:
     df = FetchMetrics.fetch_from_bq(query_template=query_template)
-  except google.api_core.exceptions.NotFound:
+  except exceptions.NotFound:
     # If no table found, that means this is first performance regression
     # on the current test:metric.
     return True, None
@@ -249,9 +255,9 @@ def run(args) -> None:
   The config file is provide as command line argument. If no config file was
   provided on cmd line, the default config file will be used.
 
-  For each test is config yaml file, if the source is the big_query,
-  the expected data required to run the change point analysis are
-  test_name, metrics_dataset, metrics_table, project, metric_name.
+  For each test in config yaml file, if the source is the big_query,
+  the expected keys for single test that are required to run the change point
+   analysis are test_name, metrics_dataset, metrics_table, project, metric_name.
 
   """
   config_file_path = args.config_file_path
