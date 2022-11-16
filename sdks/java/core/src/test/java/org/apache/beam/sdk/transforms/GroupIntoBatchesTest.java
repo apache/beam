@@ -762,16 +762,22 @@ public class GroupIntoBatchesTest implements Serializable {
       Iterable<KV<K, Iterable<String>>> listToCheck,
       SerializableFunction<String, Long> getElementByteSizeFn) {
     for (KV<?, Iterable<String>> element : listToCheck) {
+      List<String> batchElements = Lists.newArrayList(element.getValue());
+      if (batchElements.size() == 1) {
+        // if we have a single element that is over the batch size byte limit, we can't do anything
+        // than to fire it as a 1-element batch
+        continue;
+      }
       long byteSize = 0;
-      for (String str : element.getValue()) {
-        if (byteSize >= BATCH_SIZE_BYTES) {
-          // We already reached the batch size, so extra elements are not expected.
-          return false;
-        }
+      for (String str : batchElements) {
         try {
           byteSize += getElementByteSizeFn.apply(str);
         } catch (Exception e) {
           throw new RuntimeException(e);
+        }
+        // size of elements should be less than or equal to the batch size
+        if (byteSize > BATCH_SIZE_BYTES) {
+          return false;
         }
       }
     }
