@@ -106,6 +106,7 @@
 * Allow configuring GCP OAuth scopes via pipeline options. This unblocks usages of Beam IOs that require additional scopes.
   For example, this feature makes it possible to access Google Drive backed tables in BigQuery ([#23290](https://github.com/apache/beam/issues/23290)).
 * An example for using Python RunInference from Java ([#23290](https://github.com/apache/beam/pull/23619)).
+* Data can now be read from BigQuery and directly plumbed into a DeferredDataframe in the Dataframe API. Users no longer have to re-specify the schema in this case ([#22907](https://github.com/apache/beam/pull/22907)).
 
 ## Breaking Changes
 
