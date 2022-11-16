@@ -464,8 +464,21 @@ public class GroupIntoBatches<K, InputT>
         @Timestamp Instant elementTs,
         BoundedWindow window,
         OutputReceiver<KV<K, Iterable<InputT>>> receiver) {
+
+      final boolean shouldCareAboutWeight = weigher != null && batchSizeBytes != Long.MAX_VALUE;
+      final boolean shouldCareAboutMaxBufferingDuration =
+          maxBufferingDuration.isLongerThan(Duration.ZERO);
+
+      if (shouldCareAboutWeight) {
+        storedBatchSizeBytes.readLater();
+      }
+      storedBatchSize.readLater();
+      if (shouldCareAboutMaxBufferingDuration) {
+        minBufferedTs.readLater();
+      }
+
       LOG.debug("*** BATCH *** Add element for window {} ", window);
-      if (shouldCareAboutWeight()) {
+      if (shouldCareAboutWeight) {
         final long elementWeight = weigher.apply(element.getValue());
         if (elementWeight + storedBatchSizeBytes.read() > batchSizeBytes) {
           // Firing by count and size limits behave differently.
@@ -494,17 +507,13 @@ public class GroupIntoBatches<K, InputT>
           bufferingTimer.clear();
         }
         storedBatchSizeBytes.add(elementWeight);
-        storedBatchSizeBytes.readLater();
       }
       batch.add(element.getValue());
       // Blind add is supported with combiningState
       storedBatchSize.add(1L);
 
-      long num;
-      if (maxBufferingDuration.isLongerThan(Duration.ZERO)) {
-        minBufferedTs.readLater();
-        num = storedBatchSize.read();
-
+      final long num = storedBatchSize.read();
+      if (shouldCareAboutMaxBufferingDuration) {
         long oldOutputTs =
             MoreObjects.firstNonNull(
                 minBufferedTs.read(), BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
@@ -523,7 +532,6 @@ public class GroupIntoBatches<K, InputT>
               .set(Instant.ofEpochMilli(targetTs));
         }
       }
-      num = storedBatchSize.read();
 
       if (num % prefetchFrequency == 0) {
         // Prefetch data and modify batch state (readLater() modifies this)
@@ -531,7 +539,7 @@ public class GroupIntoBatches<K, InputT>
       }
 
       if (num >= batchSize
-          || (shouldCareAboutWeight() && storedBatchSizeBytes.read() >= batchSizeBytes)) {
+          || (shouldCareAboutWeight && storedBatchSizeBytes.read() >= batchSizeBytes)) {
         LOG.debug("*** END OF BATCH *** for window {}", window.toString());
         flushBatch(
             receiver,
@@ -543,10 +551,6 @@ public class GroupIntoBatches<K, InputT>
             minBufferedTs);
         bufferingTimer.clear();
       }
-    }
-
-    private boolean shouldCareAboutWeight() {
-      return weigher != null && batchSizeBytes != Long.MAX_VALUE;
     }
 
     @OnTimer(END_OF_BUFFERING_ID)

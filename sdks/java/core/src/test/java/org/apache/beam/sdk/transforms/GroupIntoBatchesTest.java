@@ -158,7 +158,7 @@ public class GroupIntoBatchesTest implements Serializable {
               }
             });
     PAssert.thatSingleton("Incorrect collection size", collection.apply("Count", Count.globally()))
-        .isEqualTo(3L);
+        .isEqualTo(4L);
     pipeline.run();
   }
 
@@ -166,6 +166,7 @@ public class GroupIntoBatchesTest implements Serializable {
   @Category({
     ValidatesRunner.class,
     NeedsRunner.class,
+    UsesTestStream.class,
     UsesTimersInParDo.class,
     UsesStatefulParDo.class,
     UsesOnWindowExpiration.class
@@ -180,9 +181,25 @@ public class GroupIntoBatchesTest implements Serializable {
           }
         };
 
+    // to ensure ordered processing
+    TestStream.Builder<KV<String, String>> streamBuilder =
+        TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .advanceWatermarkTo(Instant.EPOCH);
+
+    long offset = 0L;
+    for (KV<String, String> kv : data) {
+      streamBuilder =
+          streamBuilder.addElements(
+              TimestampedValue.of(kv, Instant.EPOCH.plus(Duration.standardSeconds(offset))));
+      offset++;
+    }
+
+    // fire them all at once
+    TestStream<KV<String, String>> stream = streamBuilder.advanceWatermarkToInfinity();
+
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline
-            .apply("Input data", Create.of(data))
+            .apply("Input data", stream)
             .apply(GroupIntoBatches.ofByteSize(BATCH_SIZE_BYTES, getElementByteSizeFn))
             // set output coder
             .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
@@ -192,11 +209,10 @@ public class GroupIntoBatchesTest implements Serializable {
               @Override
               public Void apply(Iterable<KV<String, Iterable<String>>> input) {
                 assertTrue(checkBatchByteSizes(input, getElementByteSizeFn));
+                assertEquals("Invalid batch count", 9L, Iterables.size(input));
                 return null;
               }
             });
-    PAssert.thatSingleton("Incorrect collection size", collection.apply("Count", Count.globally()))
-        .isEqualTo(5L);
     pipeline.run();
   }
 
@@ -662,15 +678,18 @@ public class GroupIntoBatchesTest implements Serializable {
         Lists.newArrayList(
                 "a-1",
                 "a-2",
-                "a-3" + Strings.repeat("-", 100),
-                // byte size limit reached (BATCH_SIZE_BYTES = 25)
-                "b-4",
-                "b-5",
-                "b-6",
-                "b-7",
-                "b-8",
+                // batch byte size limit would be reached with the next one so "firing" current
+                // batch content (BATCH_SIZE_BYTES = 25)
+                "b-3" + Strings.repeat("-", 100),
+                // batch byte size is over the limit, but we have a single element that we can't
+                // split to smaller batches (BATCH_SIZE_BYTES = 25)
+                "c-4",
+                "c-5",
+                "c-6",
+                "c-7",
+                "c-8",
                 // count limit reached (BATCH_SIZE = 5)
-                "c-9")
+                "d-9")
             .stream()
             .map(s -> KV.of("key", s))
             .collect(Collectors.toList());
@@ -719,7 +738,7 @@ public class GroupIntoBatchesTest implements Serializable {
                 assertTrue(checkBatchByteSizes(input));
                 assertExpectedBatchPrefix(input);
                 assertEquals(
-                    Lists.newArrayList(3, 5, 1),
+                    Lists.newArrayList(2, 1, 5, 1),
                     Streams.stream(input)
                         .map(KV::getValue)
                         .map(Iterables::size)
