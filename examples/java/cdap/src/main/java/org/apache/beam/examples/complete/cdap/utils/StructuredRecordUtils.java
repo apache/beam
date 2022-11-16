@@ -27,6 +27,7 @@ import java.util.List;
  */
 public class StructuredRecordUtils {
 
+  /** Converts {@link StructuredRecord} to String json-like format. */
   public static String structuredRecordToString(StructuredRecord structuredRecord) {
     if (structuredRecord == null) {
       return "{}";

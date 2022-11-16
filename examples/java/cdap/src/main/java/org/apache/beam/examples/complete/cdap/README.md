@@ -200,6 +200,46 @@ To execute this pipeline, specify the parameters in the following format:
 ```
 Please see CDAP [Salesforce Batch Sink](https://github.com/data-integrations/salesforce/blob/develop/docs/Salesforce-batchsink.md) for more information.
 
+## Running the CdapSalesforceStreamingToTxt pipeline example
+
+Gradle 'executeCdap' task allows to run the pipeline via the following command:
+
+```bash
+gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.CdapSalesforceStreamingToTxt \
+     -Dexec.args="--<argument>=<value> --<argument>=<value>"
+```
+
+`CdapSalesforceStreamingToTxt` pipeline parameters:
+- `username` - Salesforce username.
+- `password` - Salesforce user password.
+- `securityToken` - Salesforce security token.
+- `consumerKey` - Salesforce connected app's consumer key.
+- `consumerSecret` - Salesforce connected app's consumer secret.
+- `loginUrl` - Salesforce endpoint to authenticate to. Example: *'https://MyDomainName.my.salesforce.com/services/oauth2/token'*.
+- `sObjectName` - Salesforce object to pull supported by CDAP Salesforce Streaming Source.
+- `pushTopicName` - name of the push topic that was created from query for some sObject. 
+If push topic with such name doesn't exist, then new push topic for provided **'sObjectName'** will be created.
+- `pullFrequencySec` - delay in seconds between polling for new records updates. (Optional)
+- `startOffset` - inclusive start offset from which the reading should be started. (Optional)
+
+Please see [CDAP Salesforce](https://github.com/data-integrations/salesforce) for more information.
+Also, please see documentation regarding Salesforce streaming API authorization [here](https://developer.salesforce.com/docs/atlas.en-us.api_streaming.meta/api_streaming/code_sample_auth_oauth.htm).
+
+To execute this pipeline, specify the parameters in the following format:
+
+```bash
+ --username=your-user-name\
+ --password=your-password \
+ --securityToken=your-token \
+ --consumerKey=your-key \
+ --consumerSecret=your-secret \
+ --loginUrl=your-login-url \
+ --sObjectName=object-name \
+ --pushTopicName=your-topic-name \
+ --pullFrequencySec=100 \
+ --startOffset=1000
+```
+
 ## Running the CdapZendeskToTxt pipeline example
 
 Gradle 'executeCdap' task allows to run the pipeline via the following command:

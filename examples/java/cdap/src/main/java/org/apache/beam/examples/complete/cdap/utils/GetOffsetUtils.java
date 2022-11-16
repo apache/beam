@@ -35,14 +35,16 @@ import org.slf4j.LoggerFactory;
 public class GetOffsetUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(GetOffsetUtils.class);
+  private static final Gson GSON = new Gson();
 
   private static final String HUBSPOT_ID_FIELD = "vid";
-
   private static final String SALESFORCE_ID_FIELD = "RecordId__c";
   private static final String SALESFORCE_S_OBJECT = "sobject";
 
-  private static final Gson GSON = new Gson();
-
+  /**
+   * Function for getting offset for Salesforce record that has custom number {@link
+   * #SALESFORCE_ID_FIELD} field.
+   */
   @SuppressWarnings({"rawtypes"})
   public static SerializableFunction<String, Long> getOffsetFnForSalesforce() {
     return input -> {
@@ -63,6 +65,9 @@ public class GetOffsetUtils {
     };
   }
 
+  /**
+   * Function for getting offset for Hubspot record that has {@link #HUBSPOT_ID_FIELD} number field.
+   */
   public static SerializableFunction<String, Long> getOffsetFnForHubspot() {
     return input -> {
       if (input != null) {

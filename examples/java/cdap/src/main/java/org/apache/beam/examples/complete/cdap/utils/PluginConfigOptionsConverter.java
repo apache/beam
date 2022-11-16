@@ -29,7 +29,13 @@ import io.cdap.plugin.servicenow.source.util.ServiceNowConstants;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSourceConfig;
 import io.cdap.plugin.zendesk.source.common.config.BaseZendeskSourceConfig;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.*;
+import org.apache.beam.examples.complete.cdap.options.CdapHubspotOptions;
+import org.apache.beam.examples.complete.cdap.options.CdapHubspotStreamingSourceOptions;
+import org.apache.beam.examples.complete.cdap.options.CdapSalesforceSinkOptions;
+import org.apache.beam.examples.complete.cdap.options.CdapSalesforceSourceOptions;
+import org.apache.beam.examples.complete.cdap.options.CdapSalesforceStreamingSourceOptions;
+import org.apache.beam.examples.complete.cdap.options.CdapServiceNowOptions;
+import org.apache.beam.examples.complete.cdap.options.CdapZendeskOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
@@ -37,8 +43,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * org.apache.beam.sdk.io.cdap.ConfigWrapper}.
  */
 public class PluginConfigOptionsConverter {
-
-  //  private static final Logger LOG = LoggerFactory.getLogger(PluginConfigOptionsConverter.class);
 
   private static final String SALESFORCE_STREAMING_PUSH_TOPIC_NAME = "pushTopicName";
   private static final String SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE = "pushTopicNotifyCreate";
@@ -48,6 +52,7 @@ public class PluginConfigOptionsConverter {
   private static final String SALESFORCE_REFERENCED_NOTIFY_FOR_FIELDS = "Referenced";
   private static final String SALESFORCE_ENABLED_NOTIFY = "Enabled";
 
+  /** Returns map of parameters for Cdap Hubspot plugins. */
   public static Map<String, Object> hubspotOptionsToParamsMap(CdapHubspotOptions options) {
     String apiServerUrl = options.getApiServerUrl();
     ImmutableMap.Builder<String, Object> builder =
@@ -66,6 +71,7 @@ public class PluginConfigOptionsConverter {
     return builder.build();
   }
 
+  /** Returns map of parameters for Cdap ServiceNow plugin. */
   public static Map<String, Object> serviceNowOptionsToParamsMap(CdapServiceNowOptions options) {
     return ImmutableMap.<String, Object>builder()
         .put(ServiceNowConstants.PROPERTY_CLIENT_ID, options.getClientId())
@@ -80,6 +86,7 @@ public class PluginConfigOptionsConverter {
         .build();
   }
 
+  /** Returns map of parameters for Cdap Salesforce streaming source plugin. */
   public static Map<String, Object> salesforceStreamingSourceOptionsToParamsMap(
       CdapSalesforceStreamingSourceOptions options) {
     return ImmutableMap.<String, Object>builder()
@@ -99,6 +106,7 @@ public class PluginConfigOptionsConverter {
         .build();
   }
 
+  /** Returns map of parameters for Cdap Salesforce batch source plugin. */
   public static Map<String, Object> salesforceBatchSourceOptionsToParamsMap(
       CdapSalesforceSourceOptions options) {
     return ImmutableMap.<String, Object>builder()
@@ -113,6 +121,7 @@ public class PluginConfigOptionsConverter {
         .build();
   }
 
+  /** Returns map of parameters for Cdap Salesforce batch sink plugin. */
   public static Map<String, Object> salesforceBatchSinkOptionsToParamsMap(
       CdapSalesforceSinkOptions options) {
     return ImmutableMap.<String, Object>builder()
@@ -133,6 +142,7 @@ public class PluginConfigOptionsConverter {
         .build();
   }
 
+  /** Returns map of parameters for Cdap Zendesk plugin. */
   public static Map<String, Object> zendeskOptionsToParamsMap(CdapZendeskOptions zendeskOptions) {
     return ImmutableMap.<String, Object>builder()
         .put(Constants.Reference.REFERENCE_NAME, zendeskOptions.getReferenceName())
