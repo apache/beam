@@ -647,8 +647,8 @@ class BatchElements(PTransform):
         linear interpolation
     clock: (optional) an alternative to time.time for measuring the cost of
         donwstream operations (mostly for testing)
-    record_metrics: (optional) if given, record beam metrics on distributions
-        of the batch size.
+    record_metrics: (optional) whether or not to record beam metrics on distributions
+        of the batch size. Defaults to True.
   """
   def __init__(
       self,
