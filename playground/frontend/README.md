@@ -27,6 +27,16 @@ without having to install/initialize a Beam environment.
 
 ## Getting Started
 
+### Copy the configuration file
+
+After checkout, run:
+
+```bash
+cp playground/frontend/lib/config.example.dart playground/frontend/lib/config.g.dart
+```
+
+This is a temporarily required step. See more: https://github.com/apache/beam/issues/24200
+
 ### Run
 
 See [playground/README.md](../README.md) for details on requirements and setup.

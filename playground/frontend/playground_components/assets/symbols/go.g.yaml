@@ -1,5 +1,6 @@
 "":
   methods:
+  - Accelerator
   - AddClasspaths
   - AddExtraPackages
   - AddFakeImpulses
@@ -329,6 +330,7 @@
   - GetExperiments
   - GetJobName
   - GetMetrics
+  - GetPipelineResourceHints
   - GetProject
   - GetProjectFromFlagOrEnvironment
   - GetRegion
@@ -491,6 +493,7 @@
   - MergePCols
   - Min
   - MinPerKey
+  - MinRAMBytes
   - MultiFinishBundle
   - MultiRetrieve
   - MultiStage
@@ -548,6 +551,7 @@
   - NewGlobalWindow
   - NewGlobalWindows
   - NewGrowableTracker
+  - NewHints
   - NewI
   - NewImpulse
   - NewIntervalWindow
@@ -628,6 +632,7 @@
   - ParDo6
   - ParDo7
   - ParDoN
+  - ParseMinRAM
   - ParseObject
   - Partition
   - Performant
@@ -2882,6 +2887,16 @@ Header:
   - MaxMsgLen
   - SdkVersion
   - Version
+Hint:
+  methods:
+  - MergeWithOuter
+  - Payload
+  - URN
+Hints:
+  methods:
+  - Equal
+  - MergeWithOuter
+  - Payloads
 Hook:
   properties:
   - Dialer
@@ -3925,6 +3940,7 @@ Options:
   - Set
   properties:
   - Environment
+  - PipelineResourceHints
 Opts:
   properties:
   - InternalSharding

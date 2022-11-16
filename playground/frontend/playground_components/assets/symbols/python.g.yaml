@@ -7940,6 +7940,7 @@ PyTorchInference:
 PytorchLinearRegression:
   methods:
   - forward
+  - generate
 PytorchLinearRegressionDict:
   methods:
   - forward
@@ -10770,6 +10771,7 @@ TestPTransformAnnotations:
   - test_mixed_annotations_are_converted_to_beam_annotations
   - test_nested_typing_annotations_are_converted_to_beam_annotations
   - test_pep484_annotations
+  - test_pipe_operator_as_union
   - test_typing_module_annotations_are_converted_to_beam_annotations
 TestPTransformFn:
   methods:
@@ -11802,6 +11804,7 @@ WordCountIT:
   - test_wordcount_it
   - test_wordcount_it_with_prebuilt_sdk_container_cloud_build
   - test_wordcount_it_with_prebuilt_sdk_container_local_docker
+  - test_wordcount_it_with_use_sibling_sdk_workers
   properties:
   - DEFAULT_CHECKSUM
 WordExtractingDoFn:
