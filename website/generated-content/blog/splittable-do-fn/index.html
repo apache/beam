@@ -119,7 +119,7 @@ runner with information such as its estimated size (or its generalization,
 &ldquo;backlog&rdquo;), progress through reading the bundle, watermarks etc. The runner
 uses this information to tune the execution and control the breakdown of the
 <code>Source</code> into bundles. For example, a slowly progressing large bundle of a file
-may be <a href=https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow>dynamically
+may be <a href=https://cloud.google.com/blog/products/gcp/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow>dynamically
 split</a>
 by a batch-focused runner before it becomes a straggler, and a latency-focused
 streaming runner may control how many elements it reads from a source in each
@@ -155,7 +155,7 @@ this can be repeated forever.</li></ul><p><img class=center-block src=/images/bl
 a <code>@ProcessElement</code> call is going to take too long and become a straggler, it
 can split the restriction in some proportion so that the primary is short enough
 to not be a straggler, and can schedule the residual in parallel on another
-worker. For details, see <a href=https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow>No Shard Left
+worker. For details, see <a href=https://cloud.google.com/blog/products/gcp/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow>No Shard Left
 Behind</a>.</li></ul><p>Logically, the execution of an SDF on an element works according to the
 following diagram, where &ldquo;magic&rdquo; stands for the runner-specific ability to split
 the restrictions and schedule processing of residuals.</p><p><img class=center-block src=/images/blog/splittable-do-fn/transform-expansion.png alt="Execution of an SDF - pairing with a restriction, splitting
