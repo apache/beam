@@ -74,18 +74,13 @@ jobs:
           # pin to the biggest Go version supported by Cloud Functions runtime
           go-version: '1.16'
 
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
 
       - name: Build Playground router image
         run: ./gradlew playground:backend:containers:router:docker
         working-directory: ${{ env.GITHUB_WORKSPACE }}
+
       # 1. Start emulators
       - name: Start emulators
         run: docker-compose up -d
