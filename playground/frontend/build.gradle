@@ -166,21 +166,11 @@ task cleanGenerated {
   description = "Remove build artifacts"
 
   doLast {
-    exec {
-      executable("mv")
-      args("lib/config.g.dart", "lib/config.g.dart_")
-    }
-
     println("Deleting:")
 
     deleteFilesByRegExp(".*\\.g\\.dart\$")
     deleteFilesByRegExp(".*\\.gen\\.dart\$")
     deleteFilesByRegExp(".*\\.mocks\\.dart\$")
-
-    exec {
-      executable("mv")
-      args("lib/config.g.dart_", "lib/config.g.dart")
-    }
   }
 }
 
