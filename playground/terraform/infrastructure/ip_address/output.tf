@@ -17,15 +17,10 @@
 # under the License.
 #
 
-resource "google_project_service" "required_services" {
-  for_each = toset([
-    "artifactregistry",
-    "compute",
-    "container",
-    "redis",
-  ])
-  service            = "${each.key}.googleapis.com"
-  disable_on_destroy = false
+output "playground_static_ip_address" {
+ value = google_compute_global_address.pg-ip.address
 }
 
-
+output "playground_static_ip_address_name" {
+ value = google_compute_global_address.pg-ip.name
+}

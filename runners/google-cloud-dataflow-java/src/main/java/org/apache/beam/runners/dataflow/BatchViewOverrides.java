@@ -180,6 +180,7 @@ class BatchViewOverrides {
               "Multiple values [%s, %s] found for single key [%s] within window [%s].",
               map.get(kv.getValue().getValue().getKey()),
               kv.getValue().getValue().getValue(),
+              kv.getValue().getValue().getKey(),
               kv.getKey());
           map.put(
               kv.getValue().getValue().getKey(),

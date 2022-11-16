@@ -197,6 +197,10 @@ func postUnitComplete(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid s
 	unitId := r.URL.Query().Get("id")
 
 	err := svc.SetUnitComplete(r.Context(), sdk, unitId, uid)
+	if errors.Is(err, tob.ErrNoUnit) {
+		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
+		return
+	}
 	if err != nil {
 		log.Println("Set unit complete error:", err)
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
@@ -219,6 +223,10 @@ func postUserCode(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid strin
 	}
 
 	err = svc.SaveUserCode(r.Context(), sdk, unitId, uid, userCodeRequest)
+	if errors.Is(err, tob.ErrNoUnit) {
+		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
+		return
+	}
 	if err != nil {
 		log.Println("Save user code error:", err)
 		message := "storage error"

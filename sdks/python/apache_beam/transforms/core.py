@@ -843,7 +843,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     else:
       raise TypeError(
           "Expected Iterator in return type annotation for "
-          f"{method!r}, did you mean Iterator[{return_type}]?")
+          f"{method!r}, did you mean Iterator[{return_type}]? Note Beam DoFn "
+          "process and process_batch methods are expected to produce "
+          "generators - they should 'yield' rather than 'return'.")
 
   def get_output_batch_type(
       self, input_element_type

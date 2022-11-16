@@ -224,7 +224,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     ExecutionStateTracker other = CURRENT_TRACKERS.put(thread.getId(), this);
     checkState(
         other == null,
-        "Execution state of thread {} was already being tracked by {}",
+        "Execution state of thread %s was already being tracked by %s",
         thread.getId(),
         other);
 

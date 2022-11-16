@@ -30,6 +30,7 @@ from typing import Callable
 from typing import Generic
 from typing import Iterator
 from typing import List
+from typing import Mapping
 from typing import Optional
 from typing import Sequence
 from typing import TypeVar
@@ -44,7 +45,8 @@ __all__ = ['BatchConverter']
 B = TypeVar('B')
 E = TypeVar('E')
 
-BATCH_CONVERTER_REGISTRY: List[Callable[[type, type], 'BatchConverter']] = []
+BatchConverterConstructor = Callable[[type, type], 'BatchConverter']
+BATCH_CONVERTER_REGISTRY: Mapping[str, BatchConverterConstructor] = {}
 
 __all__ = ['BatchConverter']
 
@@ -72,26 +74,34 @@ class BatchConverter(Generic[B, E]):
     raise NotImplementedError
 
   @staticmethod
-  def register(
-      batch_converter_constructor: Callable[[type, type], 'BatchConverter']):
-    BATCH_CONVERTER_REGISTRY.append(batch_converter_constructor)
-    return batch_converter_constructor
+  def register(*, name: str):
+    def do_registration(
+        batch_converter_constructor: Callable[[type, type], 'BatchConverter']):
+      if name in BATCH_CONVERTER_REGISTRY:
+        raise AssertionError(
+            f"Attempted to register two batch converters with name {name}")
+
+      BATCH_CONVERTER_REGISTRY[name] = batch_converter_constructor
+      return batch_converter_constructor
+
+    return do_registration
 
   @staticmethod
   def from_typehints(*, element_type, batch_type) -> 'BatchConverter':
     element_type = typehints.normalize(element_type)
     batch_type = typehints.normalize(batch_type)
-    for constructor in BATCH_CONVERTER_REGISTRY:
-      result = constructor(element_type, batch_type)
-      if result is not None:
-        return result
+    errors = {}
+    for name, constructor in BATCH_CONVERTER_REGISTRY.items():
+      try:
+        return constructor(element_type, batch_type)
+      except TypeError as e:
+        errors[name] = e.args[0]
 
-    # TODO(https://github.com/apache/beam/issues/21654): Aggregate error
-    # information from the failed BatchConverter matches instead of this
-    # generic error.
+    error_summaries = '\n\n'.join(
+        f"{name}:\n\t{msg}" for name, msg in errors.items())
     raise TypeError(
-        f"Unable to find BatchConverter for element_type {element_type!r} and "
-        f"batch_type {batch_type!r}")
+        f"Unable to find BatchConverter for element_type={element_type!r} and "
+        f"batch_type={batch_type!r}. Error summaries:\n\n{error_summaries}")
 
   @property
   def batch_type(self):
@@ -124,13 +134,13 @@ class ListBatchConverter(BatchConverter):
     self.element_coder = coders.registry.get_coder(element_type)
 
   @staticmethod
-  @BatchConverter.register
+  @BatchConverter.register(name="list")
   def from_typehints(element_type, batch_type):
-    if (isinstance(batch_type, typehints.ListConstraint) and
-        batch_type.inner_type == element_type):
-      return ListBatchConverter(batch_type, element_type)
-    else:
-      return None
+    if (not isinstance(batch_type, typehints.ListConstraint) or
+        batch_type.inner_type != element_type):
+      raise TypeError("batch type must be List[T] for element type T")
+
+    return ListBatchConverter(batch_type, element_type)
 
   def produce_batch(self, elements):
     return list(elements)
@@ -173,29 +183,35 @@ class NumpyBatchConverter(BatchConverter):
     self.partition_dimension = partition_dimension
 
   @staticmethod
-  @BatchConverter.register
+  @BatchConverter.register(name="numpy")
   def from_typehints(element_type,
                      batch_type) -> Optional['NumpyBatchConverter']:
     if not isinstance(element_type, NumpyTypeHint.NumpyTypeConstraint):
       try:
         element_type = NumpyArray[element_type, ()]
-      except TypeError:
-        # TODO: Is there a better way to detect if element_type is a dtype?
-        return None
+      except TypeError as e:
+        raise TypeError("Element type is not a dtype") from e
 
     if not isinstance(batch_type, NumpyTypeHint.NumpyTypeConstraint):
       if not batch_type == np.ndarray:
-        # TODO: Include explanation for mismatch?
-        return None
+        raise TypeError(
+            "batch type must be np.ndarray or "
+            "beam.typehints.batch.NumpyArray[..]")
       batch_type = NumpyArray[element_type.dtype, (N, )]
 
     if not batch_type.dtype == element_type.dtype:
-      return None
-    batch_shape = list(batch_type.shape)
-    partition_dimension = batch_shape.index(N)
-    batch_shape.pop(partition_dimension)
-    if not tuple(batch_shape) == element_type.shape:
-      return None
+      raise TypeError(
+          "batch type and element type must have equivalent dtypes "
+          f"(batch={batch_type.dtype}, element={element_type.dtype})")
+
+    computed_element_shape = list(batch_type.shape)
+    partition_dimension = computed_element_shape.index(N)
+    computed_element_shape.pop(partition_dimension)
+    if not tuple(computed_element_shape) == element_type.shape:
+      raise TypeError(
+          "Failed to align batch type's batch dimension with element type. "
+          f"(batch type dimensions: {batch_type.shape}, element type "
+          f"dimenstions: {element_type.shape}")
 
     return NumpyBatchConverter(
         batch_type,

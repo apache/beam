@@ -57,15 +57,6 @@ public class CalciteUtils {
     }
   }
 
-  /** A LogicalType corresponding to CHAR. */
-  public static class CharType extends PassThroughLogicalType<String> {
-    public static final String IDENTIFIER = "SqlCharType";
-
-    public CharType() {
-      super(IDENTIFIER, FieldType.STRING, "", FieldType.STRING);
-    }
-  }
-
   /** Returns true if the type is any of the various date time types. */
   public static boolean isDateTimeType(FieldType fieldType) {
     if (fieldType.getTypeName() == TypeName.DATETIME) {
@@ -90,10 +81,9 @@ public class CalciteUtils {
     }
 
     if (fieldType.getTypeName().isLogicalType()) {
-      Schema.LogicalType logicalType = fieldType.getLogicalType();
-      Preconditions.checkArgumentNotNull(logicalType);
-      String logicalId = logicalType.getIdentifier();
-      return logicalId.equals(CharType.IDENTIFIER);
+      Schema.LogicalType<?, ?> logicalType = fieldType.getLogicalType();
+      return logicalType instanceof PassThroughLogicalType
+          && logicalType.getBaseType().getTypeName() == TypeName.STRING;
     }
     return false;
   }
@@ -107,9 +97,10 @@ public class CalciteUtils {
   public static final FieldType DOUBLE = FieldType.DOUBLE;
   public static final FieldType DECIMAL = FieldType.DECIMAL;
   public static final FieldType BOOLEAN = FieldType.BOOLEAN;
+  // TODO(https://github.com/apache/beam/issues/24019) Support sql types with arguments
   public static final FieldType VARBINARY = FieldType.BYTES;
   public static final FieldType VARCHAR = FieldType.STRING;
-  public static final FieldType CHAR = FieldType.logicalType(new CharType());
+  public static final FieldType CHAR = FieldType.STRING;
   public static final FieldType DATE = FieldType.logicalType(SqlTypes.DATE);
   public static final FieldType NULLABLE_DATE =
       FieldType.logicalType(SqlTypes.DATE).withNullable(true);
@@ -136,7 +127,6 @@ public class CalciteUtils {
           .put(BOOLEAN, SqlTypeName.BOOLEAN)
           .put(VARBINARY, SqlTypeName.VARBINARY)
           .put(VARCHAR, SqlTypeName.VARCHAR)
-          .put(CHAR, SqlTypeName.CHAR)
           .put(DATE, SqlTypeName.DATE)
           .put(TIME, SqlTypeName.TIME)
           .put(TIME_WITH_LOCAL_TZ, SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
@@ -154,6 +144,9 @@ public class CalciteUtils {
           .put(SqlTypeName.DOUBLE, DOUBLE)
           .put(SqlTypeName.DECIMAL, DECIMAL)
           .put(SqlTypeName.BOOLEAN, BOOLEAN)
+          // TODO(https://github.com/apache/beam/issues/24019) Support sql types with arguments
+          // Handle Calcite VARBINARY/BINARY/VARCHAR/CHAR with
+          // VariableBinary/FixedBinary/VariableString/FixedString logical types.
           .put(SqlTypeName.VARBINARY, VARBINARY)
           .put(SqlTypeName.BINARY, VARBINARY)
           .put(SqlTypeName.VARCHAR, VARCHAR)

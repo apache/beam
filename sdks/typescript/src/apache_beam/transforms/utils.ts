@@ -16,14 +16,25 @@
  * limitations under the License.
  */
 
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL =
-    'https://router.34.120.66.174.nip.io/';
-const String kApiJavaClientURL =
-    'https://java.34.120.66.174.nip.io/';
-const String kApiGoClientURL =
-    'https://go.34.120.66.174.nip.io/';
-const String kApiPythonClientURL =
-    'https://python.34.120.66.174.nip.io/';
-const String kApiScioClientURL =
-    'https://rscio.34.120.66.174.nip.io/';
+import { PTransform, withName } from "./transform";
+import { groupBy } from "./group_and_combine";
+import { Root, PCollection } from "../pvalue";
+
+/**
+ * A Ptransform that represents a 'static' source with a list of elements passed at construction time. It
+ * returns a PCollection that contains the elements in the input list.
+ */
+export function reshuffle<T>(): PTransform<PCollection<T>, PCollection<T>> {
+  function reshuffle(input: PCollection<T>): PCollection<T> {
+    return input
+      .apply(
+        withName(
+          "groupByRandomKey",
+          groupBy((x) => Math.random())
+        )
+      )
+      .flatMap(withName("dropKeys", (kvs) => kvs.value));
+  }
+
+  return reshuffle;
+}
