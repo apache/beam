@@ -35,7 +35,7 @@ COPY model /app/model
 RUN pip install --no-cache-dir tox==3.11.1 -r sdks/python/build-requirements.txt
 
 # Add Azurite's self-signed cert to the global CA cert store.
-RUN cp cert.pem /usr/local/share/ca-certificates/azurite.crt
+COPY cert.pem /usr/local/share/ca-certificates/azurite.crt
 RUN update-ca-certificates
 
 # Tell python to use the global CA cert store.
