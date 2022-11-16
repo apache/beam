@@ -867,11 +867,11 @@ class AzureOptions(PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
-      '--azure_blob_storage_connection_string',
+      '--azure_connection_string',
       default=None,
       help='Connection string of the Azure Blob Storage Account.')
     parser.add_argument(
-      '--azure_blob_storage_account_url',
+      '--blob_service_endpoint',
       default=None,
       help='URL of the Azure Blob Storage Account.')
     parser.add_argument(
@@ -881,11 +881,11 @@ class AzureOptions(PipelineOptions):
 
   def validate(self, validator):
     errors = []
-    if self.azure_blob_storage_connection_string:
-      if self.azure_blob_storage_account_url:
+    if self.azure_connection_string:
+      if self.blob_service_endpoint:
         errors.append(
-          '--azure_blob_storage_connection_string and '
-          '--azure_blob_storage_account_url are mutually exclusive.')
+          '--azure_connection_string and '
+          '--blob_service_endpoint are mutually exclusive.')
 
     return errors
 
