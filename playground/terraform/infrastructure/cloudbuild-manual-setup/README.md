@@ -124,7 +124,7 @@ terraform apply -var-file="terraform.tfvars"
 4. Open Trigger: `Playground-infrastructure-trigger`.
 5. Scroll down to `Advanced` - `Substitutions variables`.
 6. Click on `+ ADD VARIABLE`
-7. Assign values for next variables: 
+7. Assign values for next variables:
    - `_ARTIFACT_REGISTRY_REPO`  *#Your GCP artifact repo name*
    - `_ENVIRONMENT_NAME` *#Your env name in beam/playground/terraform/environment/*
    - `_DNS_NAME` *#Your DNS for Playground*
@@ -156,4 +156,4 @@ terraform apply -var-file="terraform.tfvars"
 
 ## 6. Validation
 
-Once Playground has been deployed to GKE, please navigate to [Validation](ht  tps://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#validate-deployed-playground) to perform Playground deployment steps.
+Once Playground has been deployed to GKE, please navigate to [Validation](https://github.com/akvelon/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#validate-deployed-playground) to perform Playground deployment steps.
