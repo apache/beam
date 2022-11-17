@@ -29,10 +29,9 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
     - Service Usage Admin
     - Cloud Build Editor
     - Security Admin
-      Service Account User
+    - Service Account User
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
-- Two GCP Buckets:
-  1. An existing GCP Bucket to save Terraform state - `state_bucket`
+- An existing GCP Bucket to save Terraform state - `state_bucket`
 - DNS name for your Playground deployment instance
 - [Terraform](https://www.terraform.io/)
 - [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
@@ -47,7 +46,7 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
 
 #### To execute the module:
 
-1. Create configuration file terraform.tfvars file by path: `playground/terraform/infrastructure/cloudbuild-manual-setup/terraform.tfvars`
+1. On your local environment create configuration file terraform.tfvars file by path: `playground/terraform/infrastructure/cloudbuild-manual-setup/terraform.tfvars`
 and provide values as per example below:
 
 ```
@@ -60,18 +59,18 @@ cloudbuild_logs_bucket_name   = "cb_logs_bucket"            # The name of GCP bu
 2. Run commands:
 
 ```console
-# Creates new authentication configuration to GCP Project
-# Using user account in Requirements
+# Creates new authentication configuration to GCP Project with user account created in Requirements
 gcloud init
 
 # Acquires new user account credentials to use for Application Default Credentials
 gcloud auth application-default login
 
-# Navigate to ../01.setup folder
+# Navigate to 01.setup folder
 cd playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup/
 
 # Run terraform scripts
-terraform init -backend-config="bucket=YOUR_BUCKET_FOR_TF_STATE"
+# Where "bucket=" set your bucket name for TF state
+terraform init -backend-config="bucket=playground-state-bucket" 
 terraform plan -var-file="../terraform.tfvars"
 terraform apply -var-file="../terraform.tfvars"
 
@@ -83,7 +82,7 @@ Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/auto
 ## 3. Setup the Google Cloud Build triggers
 
 The `playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders` provisions:
-- Cloud Build trigger to build and deploy Beam Playground.
+- Cloud Build triggers to build and deploy Beam Playground.
 
 #### Execute the module
 
@@ -114,7 +113,8 @@ github_repository_branch      = "cloudbuild+manualsetup+playground"     # The na
 # Navigate to playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders folder
 cd ../02.builders
 # Run terraform scripts
-terraform init -backend-config="bucket=YOUR_BUCKET_FOR_TF_STATE"
+# Where "bucket=" set your bucket name for TF state
+terraform init -backend-config="bucket=playground-state-bucket" 
 terraform plan -var-file="../terraform.tfvars"
 terraform apply -var-file="../terraform.tfvars"
 ```
