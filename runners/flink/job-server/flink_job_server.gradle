@@ -115,7 +115,7 @@ runShadow {
     args += ["--flink-master=${project.property('flinkMasterUrl')}"]
   // if (project.hasProperty('flinkConfDir'))
   //   args += ["--flink-conf-dir=${project.property('flinkConfDir')}"]
-  args += ["--flink-conf-dir=/home/jenkins/jenkins-slave/workspace/beam_SeedJob/runners/flink/src/test/resources"]
+  args += ["flink-conf-dir=/home/jenkins/jenkins-slave/workspace/beam_SeedJob/runners/flink/src/test/resources"]
   if (project.hasProperty('sdkWorkerParallelism'))
     args += ["--sdk-worker-parallelism=${project.property('sdkWorkerParallelism')}"]
 
