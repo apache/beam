@@ -49,7 +49,7 @@ if test $# -gt 0; then
 fi
 
 # Following generated files are excluded from lint checks.
-EXCLUDED_GENERATED_FILES=(
+EXCLUDED_FILES=(
 "apache_beam/io/gcp/internal/clients/bigquery/bigquery_v2_client.py"
 "apache_beam/io/gcp/internal/clients/bigquery/bigquery_v2_messages.py"
 "apache_beam/runners/dataflow/internal/clients/dataflow/dataflow_v1b3_client.py"
@@ -61,16 +61,16 @@ EXCLUDED_GENERATED_FILES=(
 
 # more portable than shopt -s globstar
 while IFS= read -d $'\0' -r file ; do
-    EXCLUDED_GENERATED_FILES+=("$file")
+    EXCLUDED_FILES+=("$file")
 done < <(find apache_beam/portability/api -type f -name "*pb2*.py" -print0)
 
 # Ignore vendor files.
 while IFS= read -d $'\0' -r file ; do
-    EXCLUDED_GENERATED_FILES+=("$file")
+    EXCLUDED_FILES+=("$file")
 done < <(find apache_beam/vendor -type f -name "*.py" -print0)
 
 FILES_TO_IGNORE=""
-for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
+for file in "${EXCLUDED_FILES[@]}"; do
   if test -z "$FILES_TO_IGNORE"
     then FILES_TO_IGNORE="$(basename $file)"
     else FILES_TO_IGNORE="$FILES_TO_IGNORE, $(basename $file)"
@@ -108,7 +108,7 @@ SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do
   SKIP_PARAM="$SKIP_PARAM --skip $file"
 done
-for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
+for file in "${EXCLUDED_FILES[@]}"; do
   SKIP_PARAM="$SKIP_PARAM --skip $(basename $file)"
 done
 isort ${MODULE} -p apache_beam --line-width 120 --check-only --order-by-type \
