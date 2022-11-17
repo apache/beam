@@ -84,7 +84,7 @@ for citiesToCountriesIter(&city,&gmt) {
 
 	if person.City == city {
         if time < 0 {
-            time = 24 + (now.Hour() + gmt) 
+            time = 24 + (now.Hour() + gmt)
         }
 		emit(Person{
 		    Name:    person.Name,

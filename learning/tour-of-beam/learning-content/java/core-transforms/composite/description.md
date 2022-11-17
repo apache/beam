@@ -79,7 +79,3 @@ As long as you override the expand method in your `PTransform` subclass to accep
 Your composite transform’s parameters and return value must match the initial input type and final return type for the entire transform, even if the transform’s intermediate data changes type multiple times.
 
 Note: The expand method of a `PTransform` is not meant to be invoked directly by the user of a transform. Instead, you should call the apply method on the PCollection itself, with the transform as an argument. This allows transforms to be nested within the structure of your pipeline.
-
-### Description for example 
-
-The class `ExtractAndMultiplyNumbers()` is inherited from `PTransform`. It consists of two operations. Parsing integers and multiplication by 10.

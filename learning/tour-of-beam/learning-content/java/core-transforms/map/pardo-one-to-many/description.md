@@ -19,7 +19,7 @@ static PCollection<String> applyTransform(PCollection<String> input) {
 
             @ProcessElement
             public void processElement(@Element String sentence, OutputReceiver<String> out) {
-                // Divided sentences into words 
+                // Divided sentences into words
                 String[] words = sentence.split(" ");
 
                 // Operations on each element
@@ -31,7 +31,3 @@ static PCollection<String> applyTransform(PCollection<String> input) {
         }));
     }
 ```
-
-### Description for example
-
-At the input, the elements of the `PCollection` are represented as strings. The `applyTransform()` function returns a list of words that make up a sentence.

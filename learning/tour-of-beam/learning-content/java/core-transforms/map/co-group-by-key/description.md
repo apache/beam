@@ -42,7 +42,7 @@ PCollection<KV<String, String>> phones = p.apply("CreatePhones", Create.of(phone
 final TupleTag<String> emailsTag = new TupleTag<>();
 final TupleTag<String> phonesTag = new TupleTag<>();
 
-// Apply CoGroupByKey 
+// Apply CoGroupByKey
 PCollection<KV<String, CoGbkResult>> results =
     KeyedPCollectionTuple.of(emailsTag, emails)
         .and(phonesTag, phones)

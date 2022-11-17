@@ -33,7 +33,3 @@ PCollectionList<Student> studentsByPercentile =
 // You can extract each partition from the PCollectionList using the get method, as follows:
 PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
 ```
-
-### Description for example 
-
-The input is integers . Inside `applyTransform()` compares each element with 100. Numbers that are larger than one `PCollection` array, if smaller in another `PCollection` array.
