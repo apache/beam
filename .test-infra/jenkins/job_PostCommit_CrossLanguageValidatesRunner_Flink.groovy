@@ -45,6 +45,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Flink',
             commonJobProperties.setGradleSwitches(delegate)
             switches("-PpythonVersion=${pythonVersion}")
             switches("-PflinkConfDir=$WORKSPACE/runners/flink/src/test/resources")
+            switches("--rerun-tasks")
           }
         }
       }
