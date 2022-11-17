@@ -33,7 +33,7 @@ String jobName = "beam_PerformanceTests_SparkReceiver_IO"
  */
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate, 'master', 120)
-  common.setAutoJob(delegate, 'H H/6 * * *')
+  common.setAutoJob(delegate, 'H H/12 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java SparkReceiverIO Performance Test',
@@ -54,7 +54,7 @@ job(jobName) {
     runner                        : 'DataflowRunner',
     sourceOptions                 : """
                                      {
-                                       "numRecords": "600000",
+                                       "numRecords": "5000000",
                                        "keySizeBytes": "1",
                                        "valueSizeBytes": "90"
                                      }

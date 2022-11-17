@@ -24,7 +24,7 @@ String jobName = "beam_PerformanceTests_Cdap"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
-  common.setAutoJob(delegate, 'H H/6 * * *')
+  common.setAutoJob(delegate, 'H H/12 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java CdapIO Performance Test',
@@ -43,7 +43,7 @@ job(jobName) {
     tempRoot             : 'gs://temp-storage-for-perf-tests',
     project              : 'apache-beam-testing',
     runner               : 'DataflowRunner',
-    numberOfRecords      : '600000',
+    numberOfRecords      : '5000000',
     bigQueryDataset      : 'beam_performance',
     bigQueryTable        : 'cdapioit_results',
     influxMeasurement    : 'cdapioit_results',
