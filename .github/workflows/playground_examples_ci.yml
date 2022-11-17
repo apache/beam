@@ -16,6 +16,7 @@
 name: Playground Examples CI
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
      - .github/workflows/playground_examples_ci_reusable.yml

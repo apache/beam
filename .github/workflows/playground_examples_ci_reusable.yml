@@ -135,7 +135,7 @@ jobs:
         run: |
              set -uex
              opts=" -Pdocker-tag=$DOCKERTAG"
-             if [ "$SDK" == "python" ]; then
+             if [ -n "$SDK_TAG" ]; then
                 opts="$opts -Psdk-tag=$SDK_TAG"
              fi
 
