@@ -26,7 +26,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Storage API DynamicDestinations used when the input is a Beam Row. */
 class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNull Object>
@@ -51,11 +50,9 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       final Descriptor descriptor;
       final long descriptorHash;
       final Schema avroSchema;
-      final @Nullable TableSchema tableSchema;
 
       {
-        tableSchema = getSchema(destination);
-        avroSchema = schemaFactory.apply(tableSchema);
+        avroSchema = schemaFactory.apply(getSchema(destination));
         descriptor = AvroGenericRecordToStorageApiProto.getDescriptorFromSchema(avroSchema);
         descriptorHash = BigQueryUtils.hashSchemaDescriptorDeterministic(descriptor);
       }
@@ -79,7 +76,8 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       @Override
       public TableRow toTableRow(T element) {
         return BigQueryUtils.convertGenericRecordToTableRow(
-            toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)), tableSchema);
+            toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)),
+            getSchema(destination));
       }
     };
   }
