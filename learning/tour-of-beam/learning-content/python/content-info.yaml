@@ -21,3 +21,4 @@ sdk: Python
 content:
   - introduction
   - common-transforms
+  - core-transforms

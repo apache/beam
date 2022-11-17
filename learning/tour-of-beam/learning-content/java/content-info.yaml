@@ -21,3 +21,4 @@ sdk: Java
 content:
   - introduction
   - common-transforms
+  - core-transforms
