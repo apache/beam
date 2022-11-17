@@ -19,7 +19,7 @@
 // TODO(alexeyinkin): Generate this file on deployment.
 
 const _cloudFunctionsProjectRegion = 'us-east1';
-const _cloudFunctionsProjectId = 'tob-demo-env1';
+const _cloudFunctionsProjectId = 'sandbox-playground-002';
 const cloudFunctionsBaseUrl = 'https://'
     '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId'
     '.cloudfunctions.net';
@@ -28,7 +28,7 @@ const cloudFunctionsBaseUrl = 'https://'
 
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
-    'https://router.34.120.66.174.nip.io/';
+    'https://router.https://sandboxplayground.com/';
 const String kApiJavaClientURL =
     'https://java.34.120.66.174.nip.io/';
 const String kApiGoClientURL =
