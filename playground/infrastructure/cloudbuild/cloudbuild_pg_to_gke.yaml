@@ -17,7 +17,7 @@
 
 steps:
   # This stage uses pre-built Docker container to run gradle task for Playground pre-config and deployment to GKE
-  - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/builder:worker'
+  - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository/builder:worker'
     entrypoint: "/bin/bash"
     args:
       [
@@ -28,8 +28,6 @@ steps:
 
 # Substitutions can be changed in GCP Cloud Build Triggers UI
 substitutions:
-  # The name of your Google Cloud Artifact Registry repository
-  _ARTIFACT_REGISTRY_REPO: "playground-repository"
   # The name of your environment in beam/playground/terraform/environment/
   _ENVIRONMENT_NAME: "test"
   # The name of your DNS for Playground

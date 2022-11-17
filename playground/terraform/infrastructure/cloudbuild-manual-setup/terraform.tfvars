@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-project                       = "sandbox-playground-001"    # Your Project ID
-region                        = "us-central1"               # Your GCP region name where resources will be provisioned
-cloudbuild_service_account_id = "new-terraform-cloudbuild"  # The Name of SA to be used by Cloud Build to deploy Playground
-cloudbuild_logs_bucket_name   = "cb-logs-bucket"            # The name of GCP bucket for Cloud Build logs
-github_repository_name        = "beam"                      # The name of the GitHub repo. Example: In https://github.com/example/foo is 'foo'
-github_repository_owner       = "ruslan-ikhsan"             # Owner of the GitHub repo. Example: In https://github.com/example/foo is 'example'.
-github_repository_branch      = "cloudbuild+playground"     # The name of GitHub repo branch
+project                       = "sandbox-playground-001"                # Your Project ID
+region                        = "us-central1"                           # Your GCP region name where resources will be provisioned
+cloudbuild_service_account_id = "new-terraform-cloudbuild"              # The Name of SA to be used by Cloud Build to deploy Playground
+cloudbuild_logs_bucket_name   = "cb-logs-bucket"                        # The name of GCP bucket for Cloud Build logs
+github_repository_name        = "beam"                                  # The name of the GitHub repo. Example: In https://github.com/example/foo is 'foo'
+github_repository_owner       = "akvelon"                               # Owner of the GitHub repo. Example: In https://github.com/example/foo is 'example'.
+github_repository_branch      = "cloudbuild+manualsetup+playground"     # The name of GitHub repo branch

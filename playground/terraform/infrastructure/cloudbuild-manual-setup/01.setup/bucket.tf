@@ -19,6 +19,4 @@ resource "google_storage_bucket" "cloudbuild_logs_bucket" {
   name          = var.cloudbuild_logs_bucket_name
   location      = var.region
   storage_class = "STANDARD"
-
-  public_access_prevention = "enforced"
 }

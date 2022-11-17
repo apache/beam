@@ -91,28 +91,28 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders` pr
 next variables:
 
 ```
-github_repository_name        = "beam"                      # The name of the GitHub repo. Example: In https://github.com/example/foo is 'foo'
-github_repository_owner       = "owner"                     # Owner of the GitHub repo. Example: In https://github.com/example/foo is 'example'.
-github_repository_branch      = "cloudbuild+playground"     # The name of GitHub repo branch
+github_repository_name        = "beam"                                  # The name of the GitHub repo. Example: In https://github.com/example/foo is 'foo'
+github_repository_owner       = "owner"                                 # Owner of the GitHub repo. Example: In https://github.com/example/foo is 'example'.
+github_repository_branch      = "cloudbuild+manualsetup+playground"     # The name of GitHub repo branch
 ```
 
 Final version of `terraform.tfvars` will look like:
 
 ```
-project                       = "sandbox-playground-001"    # Your Project ID
-region                        = "us-central1"               # Your GCP region name where resources will be provisioned
-cloudbuild_service_account_id = "terraform-cloudbuild"      # Name of SA to be used by Cloud Build to deploy Playground
-cloudbuild_logs_bucket_name   = "cb_logs_bucket"            # The name of GCP bucket for Cloud Build logs
-github_repository_name        = "beam"                      # The name of the GitHub repo. Example: In https://github.com/example/foo is 'foo'
-github_repository_owner       = "owner"                     # Owner of the GitHub repo. Example: In https://github.com/example/foo is 'example'.
-github_repository_branch      = "cloudbuild+playground"     # The name of GitHub repo branch
+project                       = "sandbox-playground-001"                # Your Project ID
+region                        = "us-central1"                           # Your GCP region name where resources will be provisioned
+cloudbuild_service_account_id = "terraform-cloudbuild"                  # Name of SA to be used by Cloud Build to deploy Playground
+cloudbuild_logs_bucket_name   = "cb_logs_bucket"                        # The name of GCP bucket for Cloud Build logs
+github_repository_name        = "beam"                                  # The name of the GitHub repo. Example: In https://github.com/example/foo is 'foo'
+github_repository_owner       = "owner"                                 # Owner of the GitHub repo. Example: In https://github.com/example/foo is 'example'.
+github_repository_branch      = "cloudbuild+manualsetup+playground"     # The name of GitHub repo branch
 ```
 
 2. Run:
 
 ```
-# Navigate to ../02.builders folder
-cd beam/playground/terraform/cloudbuild-manual-setup/02.builders
+# Navigate to playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders folder
+cd ../02.builders
 # Run terraform scripts
 terraform init -backend-config="bucket=YOUR_BUCKET_FOR_TF_STATE"
 terraform plan -var-file="../terraform.tfvars"
@@ -124,15 +124,14 @@ terraform apply -var-file="../terraform.tfvars"
 1. Perform steps described in [Prepare deployment configuration](https://github.com/apache/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#prepare-deployment-configuration).
 
 2. Navigate to GCP Console. Open Cloud Build page -> Triggers.
-3. Choose your Region.
+3. Choose region that was configured earlier in terraform.tfvars.
 4. Open Trigger: `Playground-infrastructure-trigger`.
 5. Scroll down to `Advanced` - `Substitutions variables`.
 6. Click on `+ ADD VARIABLE`
 7. Assign values for next variables:
-   - `_ARTIFACT_REGISTRY_REPO`  *#Your GCP artifact repo name*
    - `_ENVIRONMENT_NAME` *#Your env name in beam/playground/terraform/environment/*
    - `_DNS_NAME` *#Your DNS for Playground*
-   - `_LOGS_BUCKET_NAME` *#Your GCP logs bucket name*
+   - `_LOGS_BUCKET_NAME` *#Your GCP logs bucket name (configured earlier in terraform.tfvars)*
 8. Click save.
 9. Run the trigger `Playground-infrastructure-trigger`.
 
@@ -143,17 +142,16 @@ terraform apply -var-file="../terraform.tfvars"
 ## 5. Running Second Cloud Build Trigger: "Playground-to-gke-trigger"
 
 1. Navigate to GCP Console. Open Cloud Build page -> Triggers.
-2. Choose your Region.
+2. Choose region that was configured earlier in terraform.tfvars.
 3. Open Trigger: `Playground-to-gke-trigger`.
 4. Scroll down to `Advanced` - `Substitutions variables`.
 5. Click on `+ ADD VARIABLE`
 6. Assign values for next variables:
-    - `_ARTIFACT_REGISTRY_REPO`  *#Your GCP artifact repo name*
     - `_ENVIRONMENT_NAME` *#Your env name in beam/playground/terraform/environment/*
     - `_DNS_NAME` *#Your DNS for Playground*
     - `_TAG` *#Tag name for your Playground container images*
     - `_GKE_NAME` *#Your GKE cluster name for Playground*
-    - `_LOGS_BUCKET_NAME` *#Your GCP logs bucket name*
+    - `_LOGS_BUCKET_NAME` *#Your GCP logs bucket name (configured earlier in terraform.tfvars)*
 7. Click save.
 8. Run the trigger `Playground-to-gke-trigger`.
 
