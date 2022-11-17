@@ -19,6 +19,8 @@
 
 # pytype: skip-file
 
+from apache_beam.metrics import MetricsFilter
+from apache_beam.metrics.metric import MetricName
 import logging
 import math
 import random
@@ -187,24 +189,33 @@ class FakeClock(object):
 class BatchElementsTest(unittest.TestCase):
   def test_constant_batch(self):
     # Assumes a single bundle...
-    with TestPipeline() as p:
-      res = (
-          p
-          | beam.Create(range(35))
-          | util.BatchElements(min_batch_size=10, max_batch_size=10)
-          | beam.Map(len))
-      assert_that(res, equal_to([10, 10, 10, 5]))
+    p = TestPipeline()
+    output = (
+        p
+        | beam.Create(range(35))
+        | util.BatchElements(min_batch_size=10, max_batch_size=10)
+        | beam.Map(len))
+    assert_that(output, equal_to([10, 10, 10, 5]))
+    res = p.run()
+    res.wait_until_finish()
+    metrics = res.metrics()
+    results = metrics.query(MetricsFilter().with_name("batch_size"))
+    self.assertEqual(len(results["distributions"]), 1)
 
   def test_constant_batch_no_metrics(self):
-    # Assumes a single bundle...
-    with TestPipeline() as p:
-      res = (
-          p
-          | beam.Create(range(35))
-          | util.BatchElements(min_batch_size=10, max_batch_size=10,
-                               record_metrics=False)
-          | beam.Map(len))
-      assert_that(res, equal_to([10, 10, 10, 5]))
+    p = TestPipeline()
+    output = (
+        p
+        | beam.Create(range(35))
+        | util.BatchElements(
+            min_batch_size=10, max_batch_size=10, record_metrics=False)
+        | beam.Map(len))
+    assert_that(output, equal_to([10, 10, 10, 5]))
+    res = p.run()
+    res.wait_until_finish()
+    metrics = res.metrics()
+    results = metrics.query(MetricsFilter().with_name("batch_size"))
+    self.assertEqual(len(results["distributions"]), 0)
 
   def test_grows_to_max_batch(self):
     # Assumes a single bundle...
