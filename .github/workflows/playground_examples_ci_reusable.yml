@@ -133,7 +133,7 @@ jobs:
       # TODO build from the current ./sdks/... for Java and Go
       - name: Build SDK Backend Docker image
         run: |
-             set -uex
+             set -ex
              opts=" -Pdocker-tag=$DOCKERTAG"
              if [ -n "$SDK_TAG" ]; then
                 opts="$opts -Psdk-tag=$SDK_TAG"
