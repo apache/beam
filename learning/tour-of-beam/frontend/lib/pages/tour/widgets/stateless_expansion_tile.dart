@@ -17,13 +17,37 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground_components/playground_components.dart';
 
-class FillerText extends StatelessWidget {
-  final int width;
-  const FillerText({required this.width});
+import '../../../components/expansion_tile_wrapper.dart';
+
+class StatelessExpansionTile extends StatelessWidget {
+  final bool isExpanded;
+  final ValueChanged<bool>? onExpansionChanged;
+  final Widget title;
+  final Widget child;
+
+  const StatelessExpansionTile({
+    required this.isExpanded,
+    required this.onExpansionChanged,
+    required this.title,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Text(''.padRight(width, 'Just a filler text. '));
+    return ExpansionTileWrapper(
+      ExpansionTile(
+        key: ValueKey(isExpanded),
+        initiallyExpanded: isExpanded,
+        tilePadding: EdgeInsets.zero,
+        onExpansionChanged: onExpansionChanged,
+        title: title,
+        childrenPadding: const EdgeInsets.only(
+          left: BeamSizes.size24,
+        ),
+        children: [child],
+      ),
+    );
   }
 }

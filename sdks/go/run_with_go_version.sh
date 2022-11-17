@@ -37,7 +37,7 @@ set -e
 #
 # This variable is also used as the execution command downscript.
 # The list of downloadable versions are at https://go.dev/dl/ 
-GOVERS=go1.18.1
+GOVERS=go1.19.3
 
 if ! command -v go &> /dev/null
 then

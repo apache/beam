@@ -535,9 +535,9 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
     }
 
     /**
-     * Method to set the self signed certificate path.
+     * Method to set the root CA certificate path.
      *
-     * @param rootCaCertificatePath Path to self-signed certificate
+     * @param rootCaCertificatePath Path to root CA certificate
      * @return {@link Builder}
      */
     public Builder withRootCaCertificatePath(ValueProvider<String> rootCaCertificatePath) {

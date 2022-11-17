@@ -56,6 +56,7 @@ class ElasticsearchIOTestUtils {
   static final String ELASTICSEARCH_PASSWORD = "superSecure";
   static final String ELASTIC_UNAME = "elastic";
   static final Set<Integer> INVALID_DOCS_IDS = new HashSet<>(Arrays.asList(6, 7));
+  static final String ALIAS_SUFFIX = "-aliased";
 
   static final String[] FAMOUS_SCIENTISTS = {
     "einstein",
@@ -87,9 +88,9 @@ class ElasticsearchIOTestUtils {
     deleteIndex(restClient, connectionConfiguration.getIndex());
   }
 
-  private static void closeIndex(RestClient restClient, String index) throws IOException {
+  private static Response closeIndex(RestClient restClient, String index) throws IOException {
     Request request = new Request("POST", String.format("/%s/_close", index));
-    restClient.performRequest(request);
+    return restClient.performRequest(request);
   }
 
   static void deleteIndex(RestClient restClient, String index) throws IOException {
@@ -98,6 +99,10 @@ class ElasticsearchIOTestUtils {
       Request request = new Request("DELETE", String.format("/%s", index));
       restClient.performRequest(request);
     } catch (IOException e) {
+      if (e.getMessage().contains("matches an alias")) {
+        deleteIndex(restClient, index + ALIAS_SUFFIX);
+        return;
+      }
       // it is fine to ignore this expression as deleteIndex occurs in @before,
       // so when the first tests is run, the index does not exist yet
       if (!e.getMessage().contains("index_not_found_exception")) {
@@ -106,9 +111,31 @@ class ElasticsearchIOTestUtils {
     }
   }
 
-  public static void createIndex(RestClient restClient, String indexName) throws IOException {
+  public static void createIndex(RestClient restClient, String indexName, boolean createAsAlias)
+      throws IOException {
     deleteIndex(restClient, indexName);
-    Request request = new Request("PUT", String.format("/%s", indexName));
+
+    if (createAsAlias) {
+      // The intent is that an alias by the name of @param indexName points to a newly created
+      // index. This way, tests can validate that if the index targeted for reads/writes is
+      // actually an alias, everything continues to work.
+      String newIndexName = indexName + ALIAS_SUFFIX;
+      Request request = new Request("PUT", String.format("/%s", newIndexName));
+      restClient.performRequest(request);
+      createIndexAlias(restClient, newIndexName, indexName);
+    } else {
+      Request request = new Request("PUT", String.format("/%s", indexName));
+      restClient.performRequest(request);
+    }
+  }
+
+  public static void createIndex(RestClient restClient, String indexName) throws IOException {
+    createIndex(restClient, indexName, false);
+  }
+
+  public static void createIndexAlias(RestClient restClient, String indexName, String aliasName)
+      throws IOException {
+    Request request = new Request("PUT", String.format("/%s/_alias/%s", indexName, aliasName));
     restClient.performRequest(request);
   }
 
