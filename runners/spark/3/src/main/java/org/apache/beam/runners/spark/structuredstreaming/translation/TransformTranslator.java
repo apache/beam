@@ -60,7 +60,7 @@ public abstract class TransformTranslator<
 
   protected abstract void translate(TransformT transform, Context cxt) throws IOException;
 
-  protected final void translate(
+  final void translate(
       TransformT transform,
       AppliedPTransform<InT, OutT, PTransform<InT, OutT>> appliedTransform,
       TranslationState translationState)
@@ -137,8 +137,8 @@ public abstract class TransformTranslator<
 
     @Override
     public <T> void putDataset(
-        PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean noCache) {
-      state.putDataset(pCollection, dataset, noCache);
+        PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean cache) {
+      state.putDataset(pCollection, dataset, cache);
     }
 
     @Override

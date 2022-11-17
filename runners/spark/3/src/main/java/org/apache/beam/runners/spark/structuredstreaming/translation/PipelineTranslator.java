@@ -146,10 +146,10 @@ public abstract class PipelineTranslator {
     <T> Dataset<WindowedValue<T>> getDataset(PCollection<T> pCollection);
 
     <T> void putDataset(
-        PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean noCache);
+        PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean cache);
 
     default <T> void putDataset(PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset) {
-      putDataset(pCollection, dataset, false);
+      putDataset(pCollection, dataset, true);
     }
 
     SerializablePipelineOptions getSerializableOptions();
@@ -223,9 +223,9 @@ public abstract class PipelineTranslator {
 
     @Override
     public <T> void putDataset(
-        PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean noCache) {
+        PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean cache) {
       TranslationResult<T> result = getResult(pCollection);
-      if (!noCache && result.dependentTransforms.size() > 1) {
+      if (cache && result.dependentTransforms.size() > 1) {
         LOG.info("Dataset {} will be cached.", result.name);
         result.dataset = dataset.persist(storageLevel); // use NONE to disable
       } else {
@@ -261,12 +261,14 @@ public abstract class PipelineTranslator {
         Node node,
         PTransform<InT, OutT> transform,
         TransformTranslator<InT, OutT, PTransform<InT, OutT>> translator) {
+      // add new translation result for every output of `transform`
       for (PCollection<?> pOut : node.getOutputs().values()) {
         results.put(pOut, new TranslationResult<>(pOut));
-        for (Map.Entry<TupleTag<?>, PCollection<?>> entry : node.getInputs().entrySet()) {
-          TranslationResult<?> input = checkStateNotNull(results.get(entry.getValue()));
-          input.dependentTransforms.add(transform);
-        }
+      }
+      // track `transform` as downstream dependency for every input
+      for (Map.Entry<TupleTag<?>, PCollection<?>> entry : node.getInputs().entrySet()) {
+        TranslationResult<?> input = checkStateNotNull(results.get(entry.getValue()));
+        input.dependentTransforms.add(transform);
       }
     }
   }
@@ -289,7 +291,7 @@ public abstract class PipelineTranslator {
     public final CompositeBehavior enterCompositeTransform(Node node) {
       PTransform<PInput, POutput> transform = (PTransform<PInput, POutput>) node.getTransform();
       TransformTranslator<PInput, POutput, PTransform<PInput, POutput>> translator =
-          getTranslator(transform);
+          getSupportedTranslator(transform);
       if (transform != null && translator != null) {
         visit(node, transform, translator);
         return DO_NOT_ENTER_TRANSFORM;
@@ -302,10 +304,10 @@ public abstract class PipelineTranslator {
     public final void visitPrimitiveTransform(Node node) {
       PTransform<PInput, POutput> transform = (PTransform<PInput, POutput>) node.getTransform();
       if (transform == null || transform.getClass().equals(View.CreatePCollectionView.class)) {
-        return; // ignore, nothing to be translated here
+        return; // ignore, nothing to be translated here, views are handled on the consumer side
       }
       TransformTranslator<PInput, POutput, PTransform<PInput, POutput>> translator =
-          getTranslator(transform);
+          getSupportedTranslator(transform);
       if (translator == null) {
         String urn = PTransformTranslation.urnForTransform(transform);
         throw new UnsupportedOperationException("Transform " + urn + " is not supported.");
@@ -315,7 +317,7 @@ public abstract class PipelineTranslator {
 
     /** {@link TransformTranslator} for {@link PTransform} if translation is known and supported. */
     private @Nullable TransformTranslator<PInput, POutput, PTransform<PInput, POutput>>
-        getTranslator(@Nullable PTransform<PInput, POutput> transform) {
+        getSupportedTranslator(@Nullable PTransform<PInput, POutput> transform) {
       if (transform == null) {
         return null;
       }

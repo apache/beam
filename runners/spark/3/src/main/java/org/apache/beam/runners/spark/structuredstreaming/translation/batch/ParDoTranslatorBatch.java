@@ -165,7 +165,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
           cxt.putDataset(
               cxt.getOutput(key),
               cxt.getSparkSession().createDataset(rddByTag, encoders.get(id)),
-              true);
+              false);
         }
       } else {
         // Persist as wide rows with one column per TupleTag to support different schemas
@@ -182,7 +182,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
           TypedColumn<Tuple2<Integer, WindowedValue<Object>>, WindowedValue<Object>> col =
               (TypedColumn) col(id.toString()).as(encoders.get(id));
 
-          cxt.putDataset(cxt.getOutput(key), allTagsDS.filter(col.isNotNull()).select(col), true);
+          cxt.putDataset(cxt.getOutput(key), allTagsDS.filter(col.isNotNull()).select(col), false);
         }
       }
     } else {
