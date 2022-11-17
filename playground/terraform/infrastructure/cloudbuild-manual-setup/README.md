@@ -70,7 +70,7 @@ cd playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup/
 
 # Run terraform scripts
 # Where "bucket=" set your bucket name for TF state
-terraform init -backend-config="bucket=playground-state-bucket" 
+terraform init -backend-config="bucket=playground-state-bucket"
 terraform plan -var-file="../terraform.tfvars"
 terraform apply -var-file="../terraform.tfvars"
 
@@ -114,7 +114,7 @@ github_repository_branch      = "cloudbuild+manualsetup+playground"     # The na
 cd ../02.builders
 # Run terraform scripts
 # Where "bucket=" set your bucket name for TF state
-terraform init -backend-config="bucket=playground-state-bucket" 
+terraform init -backend-config="bucket=playground-state-bucket"
 terraform plan -var-file="../terraform.tfvars"
 terraform apply -var-file="../terraform.tfvars"
 ```
