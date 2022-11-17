@@ -115,6 +115,7 @@ citiesToTimeKV := beam.ParDo(s, func(_ []byte, emit func(string, int)){
 ```
 
 Calculate the current time and add GMT:
+
 ```
 func joinFn(person Person, citiesToCountriesIter func(*string,*int) bool, emit func(Person)) {
 var city string
