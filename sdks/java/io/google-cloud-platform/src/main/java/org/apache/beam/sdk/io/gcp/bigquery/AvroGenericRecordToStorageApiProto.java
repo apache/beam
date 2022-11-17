@@ -51,6 +51,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.codehaus.jackson.JsonNode;
 import org.joda.time.Days;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
@@ -259,7 +260,7 @@ public class AvroGenericRecordToStorageApiProto {
                                         "key", 
                                         keyType, 
                                         "key of the map entry", 
-                                        null),
+                                        Schema.Field.NULL_VALUE),
                                 1,
                                 nestedTypesMap),
                         fieldDescriptorFromAvroField(
@@ -267,7 +268,7 @@ public class AvroGenericRecordToStorageApiProto {
                                         "value", 
                                         valueType, 
                                         "value of the map entry", 
-                                        null),
+                                        Schema.Field.NULL_VALUE),
                                 2,
                                 nestedTypesMap),
                         nestedTypesMap);
