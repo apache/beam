@@ -20,9 +20,9 @@ data "google_service_account" "cloudbuild_sa" {
 }
 
 resource "google_cloudbuild_trigger" "playground_infrastructure" {
-  name     = var.infra_trigger_id
+  name     = var.infra_trigger_name
   location = var.region
-  project  = var.project
+  project  = var.project_id
 
   description = "Builds the base image and then runs cloud build config file to deploy Playground infrastructure"
 
@@ -39,13 +39,13 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
     repo_type = "GITHUB"
   }
 
-  service_account = data.google_service_account.myaccount.id
+  service_account = data.google_service_account.cloudbuild_sa.id
 }
 
 resource "google_cloudbuild_trigger" "playground_to_gke" {
-  name     = var.gke_trigger_id
+  name     = var.gke_trigger_name
   location = var.region
-  project  = var.project
+  project  = var.project_id
 
   description = "Builds the base image and then runs cloud build config file to deploy Playground to GKE"
 
@@ -62,5 +62,5 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
     repo_type = "GITHUB"
   }
 
-  service_account = data.google_service_account.myaccount.id
+  service_account = data.google_service_account.cloudbuild_sa.id
 }

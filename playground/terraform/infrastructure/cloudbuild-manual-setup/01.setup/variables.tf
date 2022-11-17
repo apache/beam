@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-variable "project" {
+variable "project_id" {
   type        = string
   description = "The ID of the Google Cloud project within which resources are provisioned"
 }

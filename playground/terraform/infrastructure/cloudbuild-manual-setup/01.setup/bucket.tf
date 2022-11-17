@@ -17,6 +17,7 @@
 
 resource "google_storage_bucket" "cloudbuild_logs_bucket" {
   name          = var.cloudbuild_logs_bucket_name
+  project       = var.project_id
   location      = var.region
   storage_class = "STANDARD"
 }
