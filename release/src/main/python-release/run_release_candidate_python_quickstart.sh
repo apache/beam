@@ -230,12 +230,12 @@ function run_release_candidate_python_quickstart(){
   ASC_FILE_NAME=$(get_asc_name $1)
   SHA512_FILE_NAME=$(get_sha512_name $1)
 
-  # verify_hash
-  install_sdk $1 $2
-  verify_wordcount_direct
-  verify_wordcount_dataflow
-  verify_streaming_wordcount_direct
-  verify_streaming_wordcount_dataflow
+  verify_hash
+  # install_sdk $1 $2
+  # verify_wordcount_direct
+  # verify_wordcount_dataflow
+  # verify_streaming_wordcount_direct
+  # verify_streaming_wordcount_dataflow
 
   complete "SUCCEED: Quickstart Verification Complete"
 }
