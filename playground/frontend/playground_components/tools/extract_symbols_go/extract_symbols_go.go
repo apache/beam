@@ -100,16 +100,16 @@ func addFileSymbols(classesMap map[string]*ClassSymbols, filename string) {
 	}
 
 	ast.Inspect(file, func(node ast.Node) bool {
-	    switch node := node.(type) {
-	        case *ast.TypeSpec:
-	            visitTypeSpec(classesMap, node)
-            case *ast.FuncDecl:
-                visitFuncDecl(classesMap, node)
-            default:
-                return true // Go recursive
-	    }
+		switch node := node.(type) {
+		case *ast.TypeSpec:
+			visitTypeSpec(classesMap, node)
+		case *ast.FuncDecl:
+			visitFuncDecl(classesMap, node)
+		default:
+			return true // Go recursive
+		}
 
-	    return false // No recursion
+		return false // No recursion
 	})
 }
 
@@ -168,17 +168,17 @@ func visitInterfaceType(classesMap map[string]*ClassSymbols, typeSpec *ast.TypeS
 
 func visitFuncDecl(classesMap map[string]*ClassSymbols, funcDecl *ast.FuncDecl) {
 	className := getReceiverClassName(funcDecl)
-    if !shouldIncludeSymbol(className) {
-        return
-    }
+	if !shouldIncludeSymbol(className) {
+		return
+	}
 
-    name := funcDecl.Name.Name
-    if !shouldIncludeSymbol(name) {
-        return
-    }
+	name := funcDecl.Name.Name
+	if !shouldIncludeSymbol(name) {
+		return
+	}
 
-    classSymbols := getOrCreateClassSymbols(classesMap, className)
-    classSymbols.Methods = append(classSymbols.Methods, name)
+	classSymbols := getOrCreateClassSymbols(classesMap, className)
+	classSymbols.Methods = append(classSymbols.Methods, name)
 }
 
 func getReceiverClassName(funcDecl *ast.FuncDecl) string {
@@ -186,31 +186,31 @@ func getReceiverClassName(funcDecl *ast.FuncDecl) string {
 		return ""
 	}
 
-    return getExpressionClassName(funcDecl.Recv.List[0].Type)
+	return getExpressionClassName(funcDecl.Recv.List[0].Type)
 }
 
 // Extracts the class name from nodes like Foo, *Foo, Foo[type] etc.
 func getExpressionClassName(expr ast.Expr) string {
-    switch expr := expr.(type) {
-        case *ast.Ident:
-            // Foo
-            return expr.Name
-        case *ast.IndexExpr:
-            // Foo[param]
-            if ident, ok := expr.X.(*ast.Ident); ok {
-                return ident.Name
-            }
-        case *ast.IndexListExpr:
-            // Foo[param1, param2]
-            if ident, ok := expr.X.(*ast.Ident); ok {
-                return ident.Name
-            }
-        case *ast.StarExpr:
-            // *Foo, *Foo[param], *Foo[param1, param2]
-            return getExpressionClassName(expr.X)
-    }
+	switch expr := expr.(type) {
+	case *ast.Ident:
+		// Foo
+		return expr.Name
+	case *ast.IndexExpr:
+		// Foo[param]
+		if ident, ok := expr.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	case *ast.IndexListExpr:
+		// Foo[param1, param2]
+		if ident, ok := expr.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	case *ast.StarExpr:
+		// *Foo, *Foo[param], *Foo[param1, param2]
+		return getExpressionClassName(expr.X)
+	}
 
-    panic(nil)
+	panic(nil)
 }
 
 func getOrCreateClassSymbols(classesMap map[string]*ClassSymbols, name string) *ClassSymbols {
@@ -243,15 +243,15 @@ func sortClassSymbolsMap(classesMap map[string]*ClassSymbols) {
 }
 
 func removeDuplicates(arr []string) []string {
-    existing := make(map[string]bool)
-    result := []string{}
+	existing := make(map[string]bool)
+	result := []string{}
 
-    for _, item := range arr {
-        if _, exists := existing[item]; !exists {
-            existing[item] = true
-            result = append(result, item)
-        }
-    }
+	for _, item := range arr {
+		if _, exists := existing[item]; !exists {
+			existing[item] = true
+			result = append(result, item)
+		}
+	}
 
-    return result
+	return result
 }
