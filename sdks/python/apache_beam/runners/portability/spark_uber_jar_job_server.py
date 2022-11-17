@@ -69,17 +69,17 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
               'Unable to parse jar URL "%s". If using a full URL, make sure '
               'the scheme is specified. If using a local file path, make sure '
               'the file exists; you may have to first build the job server '
-              'using `./gradlew runners:spark:2:job-server:shadowJar`.' %
+              'using `./gradlew runners:spark:3:job-server:shadowJar`.' %
               self._executable_jar)
       url = self._executable_jar
     else:
-      if self._spark_version == '3':
-        url = job_server.JavaJarJobServer.path_to_beam_jar(
-            ':runners:spark:3:job-server:shadowJar')
-      else:
+      if self._spark_version == '2':
         url = job_server.JavaJarJobServer.path_to_beam_jar(
             ':runners:spark:2:job-server:shadowJar',
             artifact_id='beam-runners-spark-job-server')
+      else:
+        url = job_server.JavaJarJobServer.path_to_beam_jar(
+            ':runners:spark:3:job-server:shadowJar')
     return job_server.JavaJarJobServer.local_jar(url)
 
   def create_beam_job(self, job_id, job_name, pipeline, options):

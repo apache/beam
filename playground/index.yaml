@@ -19,3 +19,8 @@ indexes:
       - name: origin
       - name: lVisited
       - name: numberOfFiles
+  - kind: pg_snippets
+    properties:
+    - name: persistenceKey
+    - name: numberOfFiles
+

@@ -44,11 +44,15 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
@@ -57,6 +61,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.commons.lang3.ClassUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utility methods for translating schemas. */
@@ -85,6 +90,10 @@ public class SchemaTranslation {
               .put(MicrosInstant.IDENTIFIER, MicrosInstant.class)
               .put(SchemaLogicalType.IDENTIFIER, SchemaLogicalType.class)
               .put(PythonCallable.IDENTIFIER, PythonCallable.class)
+              .put(FixedBytes.IDENTIFIER, FixedBytes.class)
+              .put(VariableBytes.IDENTIFIER, VariableBytes.class)
+              .put(FixedString.IDENTIFIER, FixedString.class)
+              .put(VariableString.IDENTIFIER, VariableString.class)
               .build();
 
   public static SchemaApi.Schema schemaToProto(Schema schema, boolean serializeLogicalType) {
@@ -350,7 +359,10 @@ public class SchemaTranslation {
             Object fieldValue =
                 Objects.requireNonNull(fieldValueFromProto(fieldType, logicalType.getArgument()));
             Class clazz = fieldValue.getClass();
-            if (fieldValue instanceof List) {
+            if (ClassUtils.isPrimitiveWrapper(clazz)) {
+              // argument is a primitive wrapper type (e.g. Integer)
+              clazz = ClassUtils.wrapperToPrimitive(clazz);
+            } else if (fieldValue instanceof List) {
               // argument is ArrayValue or iterableValue
               clazz = List.class;
             }

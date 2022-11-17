@@ -16,8 +16,27 @@
  * limitations under the License.
  */
 
+import 'package:json_annotation/json_annotation.dart';
+
 enum Complexity {
+  @JsonValue('BASIC')
   basic,
+  @JsonValue('MEDIUM')
   medium,
+  @JsonValue('ADVANCED')
   advanced,
+  ;
+
+  static Complexity? fromString(String? complexity) {
+    switch (complexity) {
+      case 'basic':
+        return Complexity.basic;
+      case 'medium':
+        return Complexity.medium;
+      case 'advanced':
+        return Complexity.advanced;
+    }
+
+    return null;
+  }
 }

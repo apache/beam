@@ -41,7 +41,7 @@ export class ExternalWorkerPool {
   }
 
   async start(): Promise<string> {
-    console.log("Starting loopback workers at ", this.address);
+    console.info("Starting loopback workers at ", this.address);
     const this_ = this;
 
     this.server = new grpc.Server();
@@ -52,10 +52,9 @@ export class ExternalWorkerPool {
         callback: grpc.sendUnaryData<StartWorkerResponse>
       ): void {
         call.on("error", (args) => {
-          console.log("unary() got error:", args);
+          console.error("unary() got error:", args);
         });
 
-        console.log(call.request);
         this_.workers.set(
           call.request.workerId,
           new Worker(
@@ -75,8 +74,6 @@ export class ExternalWorkerPool {
         call: grpc.ServerUnaryCall<StopWorkerRequest, StopWorkerResponse>,
         callback: grpc.sendUnaryData<StopWorkerResponse>
       ): void {
-        console.log(call.request);
-
         this_.workers.get(call.request.workerId)?.stop();
         this_.workers.delete(call.request.workerId);
 
@@ -96,7 +93,7 @@ export class ExternalWorkerPool {
           if (err) {
             reject(`Error starting loopback service: ${err.message}`);
           } else {
-            console.log(`Server bound on port: ${port}`);
+            console.info(`Server bound on port: ${port}`);
             this_.address = `localhost:${port}`;
             this_.server.start();
             resolve(this_.address);

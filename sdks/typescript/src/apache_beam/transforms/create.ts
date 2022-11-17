@@ -18,17 +18,26 @@
 
 import { PTransform, withName } from "./transform";
 import { impulse } from "./internal";
+import * as utils from "./utils";
 import { Root, PCollection } from "../pvalue";
 
 /**
  * A Ptransform that represents a 'static' source with a list of elements passed at construction time. It
  * returns a PCollection that contains the elements in the input list.
  */
-export function create<T>(elements: T[]): PTransform<Root, PCollection<T>> {
+export function create<T>(
+  elements: T[],
+  reshuffle: boolean = true
+): PTransform<Root, PCollection<T>> {
   function create(root: Root): PCollection<T> {
-    return root
+    const pcoll = root
       .apply(impulse())
       .flatMap(withName("ExtractElements", (_) => elements));
+    if (elements.length > 1 && reshuffle) {
+      return pcoll.apply(utils.reshuffle());
+    } else {
+      return pcoll;
+    }
   }
 
   return create;

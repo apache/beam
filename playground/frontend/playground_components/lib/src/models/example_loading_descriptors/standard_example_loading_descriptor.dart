@@ -23,8 +23,12 @@ class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
   const StandardExampleLoadingDescriptor({
     required this.path,
+    super.viewOptions,
   });
 
   @override
-  List<Object> get props => [path];
+  List<Object> get props => [
+        path,
+        viewOptions,
+      ];
 }

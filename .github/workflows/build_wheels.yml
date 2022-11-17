@@ -82,21 +82,21 @@ jobs:
       - name: Get tag
         id: get_tag
         run: |
-          echo ::set-output name=TAG::${GITHUB_REF#refs/*/}
+          echo "TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
       - name: Check whether an -RC tag was applied to the commit.
         id: is_rc
         run: |
           echo ${{ steps.get_tag.outputs.TAG }} > temp
           OUTPUT=$( if  grep -e '-RC.' -q temp; then echo 1; else echo 0; fi)
-          echo "::set-output name=is_rc::$OUTPUT"
+          echo "is_rc=$OUTPUT" >> $GITHUB_OUTPUT
       - name: Get RELEASE_VERSION and RC_NUM
         if: steps.is_rc.outputs.is_rc == 1
         id: get_rc_version
         run: |
           RC_NUM=$(sed -n "s/^.*-RC\([0-9]*\)/\1/p" temp)
           RELEASE_VERSION=$(sed -n "s/^v\(.*\)-RC[0-9]/\1/p" temp)
-          echo "::set-output name=RC_NUM::$RC_NUM"
-          echo "::set-output name=RELEASE_VERSION::$RELEASE_VERSION"
+          echo "RC_NUM=$RC_NUM" >> $GITHUB_OUTPUT
+          echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_OUTPUT
       - name: Build source
         working-directory: ./sdks/python
         run: python setup.py sdist --formats=zip
@@ -212,13 +212,13 @@ jobs:
     strategy:
       matrix:
         os_python: [
-          {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-*"},
-          {"os": "macos-latest", "python": "cp37-* cp38-* cp39-*"},
-          {"os": "windows-latest", "python": "cp37-* cp38-* cp39-*"},
+          {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
+          {"os": "macos-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
+          {"os": "windows-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
         ]
         arch: [auto]
         include:
-          - os_python: {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-*"}
+          - os_python: {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-* cp310-*"}
             arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
@@ -353,6 +353,8 @@ jobs:
       run: gsutil ls "${{ env.GCP_PATH }}*"
 
   branch_repo_nightly:
+    permissions:
+      contents: write
     name: Branch repo nightly
     needs:
       - build_source

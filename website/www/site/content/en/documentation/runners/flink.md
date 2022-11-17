@@ -155,7 +155,7 @@ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
       --flinkMaster=<flink master url> \
       --filesToStage=target/word-count-beam-bundled-0.1.jar"
 {{< /highlight >}}
-<!-- Span implictly ended -->
+<!-- Span implicitly ended -->
 
 {{< paragraph class="language-java" >}}
 If you have a Flink `JobManager` running on your local machine you can provide `localhost:8081` for
@@ -234,7 +234,7 @@ options = PipelineOptions([
 with beam.Pipeline(options) as p:
     ...
 {{< /highlight >}}
-<!-- Span implictly ended -->
+<!-- Span implicitly ended -->
 
 {{< paragraph class="language-portable" >}}
 To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.10/getting-started/tutorials/local_setup.html):

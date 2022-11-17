@@ -185,7 +185,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
                 : options.getBigQueryProject());
       }
       try (DatasetService datasetService = bqServices.getDatasetService(options)) {
-        Table table = bqServices.getDatasetService(options).getTable(tableReference);
+        Table table = datasetService.getTable(tableReference);
         if (table == null) {
           throw new IllegalArgumentException("Table not found" + table);
         }

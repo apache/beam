@@ -36,8 +36,10 @@ export 'src/models/example_loading_descriptors/content_example_loading_descripto
 export 'src/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/examples_loading_descriptor.dart';
+export 'src/models/example_loading_descriptors/http_example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
+export 'src/models/example_view_options.dart';
 export 'src/models/intents.dart';
 export 'src/models/outputs.dart';
 export 'src/models/sdk.dart';
@@ -56,6 +58,7 @@ export 'src/theme/theme.dart';
 export 'src/util/pipeline_options.dart';
 
 export 'src/widgets/bubble.dart';
+export 'src/widgets/clickable.dart';
 export 'src/widgets/complexity.dart';
 export 'src/widgets/dismissible_overlay.dart';
 export 'src/widgets/divider.dart';

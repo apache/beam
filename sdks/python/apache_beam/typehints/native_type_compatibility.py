@@ -22,6 +22,7 @@
 import collections
 import logging
 import sys
+import types
 import typing
 
 from apache_beam.typehints import typehints
@@ -176,6 +177,14 @@ def convert_to_beam_type(typ):
   Raises:
     ValueError: The type was malformed.
   """
+  # Convert `int | float` to typing.Union[int, float]
+  # pipe operator as Union and types.UnionType are introduced
+  # in Python 3.10.
+  # GH issue: https://github.com/apache/beam/issues/21972
+  if (sys.version_info.major == 3 and
+      sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
+    typ = typing.Union[typ]
+
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.
     # Also, identity must be preserved through conversion (i.e. the same
@@ -191,6 +200,12 @@ def convert_to_beam_type(typ):
     # Special case for forward references.
     # TODO(https://github.com/apache/beam/issues/19954): Currently unhandled.
     _LOGGER.info('Converting string literal type hint to Any: "%s"', typ)
+    return typehints.Any
+  elif sys.version_info >= (3, 10) and isinstance(typ, typing.NewType):  # pylint: disable=isinstance-second-argument-not-valid-type
+    # Special case for NewType, where, since Python 3.10, NewType is now a class
+    # rather than a function.
+    # TODO(https://github.com/apache/beam/issues/20076): Currently unhandled.
+    _LOGGER.info('Converting NewType type hint to Any: "%s"', typ)
     return typehints.Any
   elif getattr(typ, '__module__', None) != 'typing':
     # Only translate types from the typing module.

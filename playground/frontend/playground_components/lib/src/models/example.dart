@@ -20,42 +20,48 @@ import 'example_base.dart';
 
 /// A [ExampleBase] that also has all large fields fetched.
 class Example extends ExampleBase {
-  final String source;
-  final String? outputs;
-  final String? logs;
   final String? graph;
+  final String? logs;
+  final String? outputs;
+  final String source;
 
   const Example({
+    required this.source,
+    required super.name,
     required super.sdk,
     required super.type,
-    required super.name,
     required super.path,
-    required super.description,
+    this.graph,
+    this.logs,
+    this.outputs,
+    super.complexity,
     super.contextLine,
+    super.description,
     super.isMultiFile,
     super.link,
-    required super.pipelineOptions,
-    required this.source,
-    this.outputs,
-    this.logs,
-    this.graph,
+    super.pipelineOptions,
+    super.tags,
+    super.viewOptions,
   });
 
   Example.fromBase(
     ExampleBase example, {
-    required this.source,
-    required this.outputs,
     required this.logs,
+    required this.outputs,
+    required this.source,
     this.graph,
   }) : super(
-          sdk: example.sdk,
-          name: example.name,
-          path: example.path,
-          description: example.description,
-          type: example.type,
+          complexity: example.complexity,
           contextLine: example.contextLine,
+          description: example.description,
           isMultiFile: example.isMultiFile,
           link: example.link,
+          name: example.name,
+          path: example.path,
           pipelineOptions: example.pipelineOptions,
+          sdk: example.sdk,
+          tags: example.tags,
+          type: example.type,
+          viewOptions: example.viewOptions,
         );
 }

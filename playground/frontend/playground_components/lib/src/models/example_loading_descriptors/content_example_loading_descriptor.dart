@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import '../../enums/complexity.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
@@ -26,12 +27,16 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   /// The name of the example, if any, to show in the dropdown.
   final String? name;
 
+  final Complexity? complexity;
+
   final Sdk sdk;
 
   const ContentExampleLoadingDescriptor({
     required this.content,
-    required this.name,
     required this.sdk,
+    this.complexity,
+    this.name,
+    super.viewOptions,
   });
 
   static ContentExampleLoadingDescriptor? tryParse(Map eventData) {
@@ -49,6 +54,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       content: content,
       name: _tryParseName(eventData),
       sdk: sdk,
+      complexity: _parseComplexity(eventData),
     );
   }
 
@@ -64,13 +70,19 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
     return Sdk.tryParse(map['sdk']);
   }
 
+  static Complexity? _parseComplexity(Map map) {
+    final complexityString = map['complexity'];
+    return Complexity.fromString(complexityString);
+  }
+
   @override
   List<Object> get props => [content, sdk.id];
 
   @override
   Map<String, dynamic> toJson() => {
-    'content': content,
-    'name': name,
-    'sdk': sdk.id,
-  };
+        'complexity': complexity?.name,
+        'content': content,
+        'name': name,
+        'sdk': sdk.id,
+      };
 }

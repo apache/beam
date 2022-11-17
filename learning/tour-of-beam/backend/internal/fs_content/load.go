@@ -50,6 +50,7 @@ type learningModuleInfo struct {
 }
 
 type learningGroupInfo struct {
+	Id      string   `yaml:"id"`
 	Name    string   `yaml:"name"`
 	Content []string `yaml:"content"`
 }
@@ -99,7 +100,7 @@ func collectUnit(infopath string, ctx *sdkContext) (unit *tob.Unit, err error) {
 func collectGroup(infopath string, ctx *sdkContext) (*tob.Group, error) {
 	info := loadLearningGroupInfo(infopath)
 	log.Printf("Found Group %v metadata at %v\n", info.Name, infopath)
-	group := tob.Group{Title: info.Name}
+	group := tob.Group{Id: info.Id, Title: info.Name}
 	for _, item := range info.Content {
 		node, err := collectNode(filepath.Join(infopath, "..", item), ctx)
 		if err != nil {

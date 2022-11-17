@@ -40,7 +40,7 @@ from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.utils.timestamp import Duration
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from log_elements import LogElements
+from apache_beam.transforms.util import LogElements
 
 
 class CountEventsWithAccumulating(beam.PTransform):

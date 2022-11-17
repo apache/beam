@@ -38,7 +38,7 @@ def chicagoTaxiJob = { scope ->
         "${DOCKER_CONTAINER_REGISTRY}/${beamSdkDockerImage}"
       ],
       numberOfWorkers,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.12_job_server:latest")
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   def pipelineOptions = [
     parallelism             : numberOfWorkers,

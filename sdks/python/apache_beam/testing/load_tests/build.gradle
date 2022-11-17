@@ -47,6 +47,7 @@ task run(type: Exec, dependsOn: installGcpTest) {
 
     String withDataflowWorkerJarArg = project.findProperty(withDataflowWorkerJarProperty).toString() ?: ""
     if (withDataflowWorkerJarArg.toLowerCase() == 'true') {
+        evaluationDependsOn(':runners:google-cloud-dataflow-java:worker')
         dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
         loadTestArgs +=" --dataflow_worker_jar=${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}"
     }

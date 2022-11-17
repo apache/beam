@@ -61,8 +61,10 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -262,7 +264,6 @@ public class BigQueryUtils {
           .put(SqlTypes.TIME.getIdentifier(), StandardSQLTypeName.TIME)
           .put(SqlTypes.DATETIME.getIdentifier(), StandardSQLTypeName.DATETIME)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
-          .put("SqlCharType", StandardSQLTypeName.STRING)
           .put("Enum", StandardSQLTypeName.STRING)
           .build();
 
@@ -280,6 +281,9 @@ public class BigQueryUtils {
           Preconditions.checkArgumentNotNull(fieldType.getLogicalType());
       ret = BEAM_TO_BIGQUERY_LOGICAL_MAPPING.get(logicalType.getIdentifier());
       if (ret == null) {
+        if (logicalType instanceof PassThroughLogicalType) {
+          return toStandardSQLTypeName(logicalType.getBaseType());
+        }
         throw new IllegalArgumentException(
             "Cannot convert Beam logical type: "
                 + logicalType.getIdentifier()
@@ -718,7 +722,6 @@ public class BigQueryUtils {
 
   // TODO: BigQuery shouldn't know about SQL internal logical types.
   private static final Set<String> SQL_DATE_TIME_TYPES = ImmutableSet.of("SqlTimeWithLocalTzType");
-  private static final Set<String> SQL_STRING_TYPES = ImmutableSet.of("SqlCharType");
 
   /**
    * Tries to convert an Avro decoded value to a Beam field value based on the target type of the
@@ -766,7 +769,9 @@ public class BigQueryUtils {
       case ARRAY:
         return convertAvroArray(beamFieldType, avroValue, options);
       case LOGICAL_TYPE:
-        String identifier = beamFieldType.getLogicalType().getIdentifier();
+        LogicalType<?, ?> logicalType = beamFieldType.getLogicalType();
+        assert logicalType != null;
+        String identifier = logicalType.getIdentifier();
         if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
           return convertAvroDate(avroValue);
         } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
@@ -784,8 +789,8 @@ public class BigQueryUtils {
                   String.format(
                       "Unknown timestamp truncation option: %s", options.getTruncateTimestamps()));
           }
-        } else if (SQL_STRING_TYPES.contains(identifier)) {
-          return convertAvroPrimitiveTypes(TypeName.STRING, avroValue);
+        } else if (logicalType instanceof PassThroughLogicalType) {
+          return convertAvroFormat(logicalType.getBaseType(), avroValue, options);
         } else {
           throw new RuntimeException("Unknown logical type " + identifier);
         }

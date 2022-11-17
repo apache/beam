@@ -33,12 +33,11 @@ class EmptyExampleLoader extends ExampleLoader {
 
   @override
   Future<Example> get future async => Example(
-        sdk: descriptor.sdk,
         name: 'Embedded_Example',
         path: '',
-        description: '',
-        type: ExampleType.example,
+        sdk: descriptor.sdk,
         source: '',
-        pipelineOptions: '',
+        tags: [],
+        type: ExampleType.example,
       );
 }
