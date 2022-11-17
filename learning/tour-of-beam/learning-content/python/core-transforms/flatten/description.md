@@ -34,6 +34,25 @@ When using `Flatten` to merge `PCollection` objects that have a windowing strate
 
 If your pipeline attempts to use `Flatten` to merge `PCollection` objects with incompatible windows, Beam generates an `IllegalStateException` error when your pipeline is constructed.
 
-### Description for example 
+### Playground exercise
 
-There are 2 string `PCollection`s at the input, one with words starting with "a" and the other with "b". Since the data type is the same using flatten you can get a combined `PCollection`.
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+Before you start, add a dependency:
+```
+"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+```
+
+You can also combine data from a file:
+```
+input1 := textio.Read(s, "gs://apache-beam-samples/counts-00000-of-00003")
+input2 := textio.Read(s, "gs://apache-beam-samples/counts-00001-of-00003")
+
+output := applyTransform(s, input1, input2)
+```
+
+Overview [file1](https://storage.googleapis.com/apache-beam-samples/counts-00000-of-00003)
+
+Overview [file2](https://storage.googleapis.com/apache-beam-samples/counts-00001-of-00003)
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

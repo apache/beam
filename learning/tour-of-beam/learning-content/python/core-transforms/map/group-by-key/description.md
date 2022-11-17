@@ -60,6 +60,32 @@ When using ```GroupByKey``` or ```CoGroupByKey``` to group PCollections that hav
 
 If your pipeline attempts to use ```GroupByKey``` or ```CoGroupByKey``` to merge ```PCollections``` with incompatible windows, Beam generates an IllegalStateException error at pipeline construction time.
 
-### Description for example 
+### Playground exercise
+
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
 A list of strings is provided. The `applyTransform()` method implements grouping by the first letter of words, which will be a list of words.
+
+If we have a word with a certain number, but the difference is in the case of the letters, we can convert and group:
+```
+input := beam.ParDo(s, func(_ []byte, emit func(string, int)){
+		emit("brazil", 2)
+		emit("australia", 4)
+		emit("canada", 3)
+		emit("Australia", 1)
+		emit("Brazil", 5)
+		emit("Canada", 2)
+}, beam.Impulse(s))
+```
+
+If the keys are duplicated, groupByKey collects data and the values will be stored in an array:
+```
+func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+	kv := beam.ParDo(s, func(word string,count int) (string, int) {
+		return strings.ToLower(word),count
+    },input)
+	return beam.GroupByKey(s, kv)
+}
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

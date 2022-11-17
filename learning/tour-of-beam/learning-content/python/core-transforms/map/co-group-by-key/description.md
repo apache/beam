@@ -38,7 +38,7 @@ emails = p | 'CreateEmails' >> beam.Create(emails_list)
 phones = p | 'CreatePhones' >> beam.Create(phones_list)
 
 
-// Apply CoGroupByKey 
+// Apply CoGroupByKey
 results = ({'emails': emails, 'phones': phones} | beam.CoGroupByKey())
 
 def join_info(name_info):
@@ -50,3 +50,52 @@ contact_lines = results | beam.Map(join_info)
 ```
 
 The following code example joins the two `PCollection`s with `CoGroupByKey`, followed by a `ParDo` to consume the result. Then, the code uses tags to look up and format data from each collection.
+
+### Playground exercise
+
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+In the code, we combined the data using the first letters of fruits and the first letters of countries. And the result was like this: `(Alphabet) key: first letter, (Country) values-1:Country, (Fruit) values-2:Fruits`
+
+You can work if you have ready-made kv data, for example, you want to combine using countries. And output the weight of the fruit:
+```
+weight := beam.ParDo(s, func(_ []byte, emit func(string, int)){
+		emit("brazil", 1000)
+		emit("australia", 150)
+		emit("canada", 340)
+}, beam.Impulse(s))
+
+fruits := beam.ParDo(s, func(_ []byte, emit func(string, string)){
+		emit("australia", "cherry")
+		emit("brazil", "apple")
+		emit("canada", "banan")
+}, beam.Impulse(s))
+```
+
+Change `Alphabet` to `ProductWeight`:
+```
+type WordsAlphabet struct {
+	Country string
+	Fruit string
+	ProductWeight int
+}
+```
+
+The union takes place through the keys:
+```
+func applyTransform(s beam.Scope, fruits beam.PCollection, countries beam.PCollection) beam.PCollection {
+	grouped := beam.CoGroupByKey(s, fruits, countries)
+	return beam.ParDo(s, func(key string, weightIter func(*int) bool, fruitIter func(*string) bool, emit func(string)) {
+
+	wa := &WordsAlphabet{
+		Country: key,
+	}
+	weightIter(&wa.ProductWeight)
+	fruitIter(&wa.Fruit)
+    emit(wa.String())
+
+	}, grouped)
+}
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

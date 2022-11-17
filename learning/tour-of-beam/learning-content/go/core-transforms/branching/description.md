@@ -91,11 +91,11 @@ PCollectionTuple mixedCollection =
         .of(new DoFn<String, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
-            
+
             if (c.element().startsWith("A")) {
               // Emit to main output, which is the output with tag startsWithATag.
               c.output(c.element());
-            
+
             } else if(c.element().startsWith("B")) {
               // Emit to output with tag startsWithBTag.
               c.output(startsWithBTag, c.element());
@@ -105,7 +105,7 @@ PCollectionTuple mixedCollection =
         // Specify main output. In this example, it is the output
         // with tag startsWithATag.
         .withOutputTags(startsWithATag,
-        
+
         // Specify the output with tag startsWithBTag, as a TupleTagList.
                         TupleTagList.of(startsWithBTag)));
 

@@ -173,7 +173,19 @@ class StatefulDoFn(beam.DoFn):
       return True
 ```
 
+### Playground exercise
 
-### Description for example
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
-There are `PCollection` elements at the input. the `applyTransform()` function will return the elements multiplied by 10.
+The `applyTransform()` function will return elements multiplied by 10. The `multiplyBy10Fn` is set explicitly, we can change the logic without complicating readability.
+
+If the logic of the conversion is easy we can write as an anonymous function:
+```
+func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+  return beam.ParDo(s, func(element int) int{
+  	return element * 10
+  }, input)
+}
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

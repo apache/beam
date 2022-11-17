@@ -166,7 +166,7 @@ var words beam.PCollection = ...
 
 lengths := beam.ParDo(s, func (word string, emit func(int)) {
       emit(len(word))
-}, words)   
+}, words)
 ```
 
 If your ParDo performs a one-to-one mapping of input elements to output elements–that is, for each input element, it applies a function that produces exactly one output element, you can return that element directly.

@@ -10,7 +10,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 You can solve the challenge with this way:
-1. First you need to divide `PCollection` by 
+1. First you need to divide `PCollection` by
 ```
 def partition_fn(word, num_partitions):
    if word.upper()==word:

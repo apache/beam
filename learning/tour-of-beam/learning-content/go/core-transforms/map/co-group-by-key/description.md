@@ -117,7 +117,7 @@ func applyTransform(s beam.Scope, fruits beam.PCollection, countries beam.PColle
 	weightIter(&wa.ProductWeight)
 	fruitIter(&wa.Fruit)
     emit(wa.String())
-	
+
 	}, grouped)
 }
 ```
