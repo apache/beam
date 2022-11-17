@@ -51,7 +51,6 @@ jobs:
         shell: bash
         run: |
           ./gradlew :runners:spark:3:jar
-          sleep 5
           ./gradlew :runners:spark:3:testJar
       #Update JAVA_HOME with Java11 version
       - name: Update and Set Java11 Version
