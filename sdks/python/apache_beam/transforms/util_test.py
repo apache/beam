@@ -20,7 +20,6 @@
 # pytype: skip-file
 
 from apache_beam.metrics import MetricsFilter
-from apache_beam.metrics.metric import MetricName
 import logging
 import math
 import random
