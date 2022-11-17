@@ -34,7 +34,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     extends StorageApiDynamicDestinations<T, DestinationT> {
 
   private final SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord;
-  private final SerializableFunction<TableSchema, Schema> schemaFactory;
+  private final SerializableFunction<@Nullable TableSchema, Schema> schemaFactory;
 
   StorageApiDynamicDestinationsGenericRecord(
       DynamicDestinations<T, DestinationT> inner,
