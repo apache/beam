@@ -58,6 +58,18 @@ message KeyedMessageBundle {
   repeated bytes messages_ids = 3;
 }
 
+message LatencyAttribution {
+  enum State {
+    UNKNOWN = 0;
+    QUEUED = 1;
+    ACTIVE = 2;
+    READING = 3;
+    COMMITTING = 4;
+  }
+  optional State state = 1;
+  optional int64 total_duration_millis = 2;
+}
+
 message OutputMessageBundle {
   optional string destination_computation_id = 1;
   optional string destination_stream_id = 3;
@@ -286,6 +298,7 @@ message KeyedGetDataRequest {
   // Must be at most one sorted_list_to_fetch for a given state family and tag.
   repeated TagSortedListFetchRequest sorted_lists_to_fetch = 9;
   repeated WatermarkHold watermark_holds_to_fetch = 5;
+  repeated LatencyAttribution latency_attribution = 13;
 
   optional int64 max_bytes = 7;
   reserved 4;

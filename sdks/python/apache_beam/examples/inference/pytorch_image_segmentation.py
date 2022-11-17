@@ -22,6 +22,7 @@ import io
 import logging
 import os
 from typing import Iterable
+from typing import Iterator
 from typing import Optional
 from typing import Tuple
 
@@ -154,6 +155,11 @@ def preprocess_image(data: Image.Image) -> torch.Tensor:
   return transform(data)
 
 
+def filter_empty_lines(text: str) -> Iterator[str]:
+  if len(text.strip()) > 0:
+    yield text
+
+
 class PostProcessor(beam.DoFn):
   def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     filename, prediction_result = element
@@ -225,8 +231,8 @@ def run(
 
   filename_value_pair = (
       pipeline
-      | 'ReadImageNames' >> beam.io.ReadFromText(
-          known_args.input, skip_header_lines=1)
+      | 'ReadImageNames' >> beam.io.ReadFromText(known_args.input)
+      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
       | 'ReadImageData' >> beam.Map(
           lambda image_name: read_image(
               image_file_name=image_name, path_to_dir=known_args.images_dir))

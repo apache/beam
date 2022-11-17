@@ -36,6 +36,10 @@ on:
     paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**',
             'examples/kotlin/**', 'release/**', 'buildSrc/**']
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
 
 jobs:
   check_gcp_variables:
@@ -168,7 +172,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
       - name: Set Java Version
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v3.6.0
         with:
           distribution: 'zulu'
           java-version: 8

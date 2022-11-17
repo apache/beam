@@ -16,19 +16,27 @@
 version: "2"
 
 services:
+  redis:
+    image: redis:7.0.4-alpine
+    ports:
+      - "6379:6379"
   datastore:
     build: "./datastore"
     environment:
-      DATASTORE_PROJECT_ID: project-test
+      DATASTORE_PROJECT_ID: test
       DATASTORE_LISTEN_ADDRESS: 0.0.0.0:8081
     ports:
       - "8081:8081"
   router:
     image: apache/beam_playground-backend-router
     environment:
-      GOOGLE_CLOUD_PROJECT: project-test
+      GOOGLE_CLOUD_PROJECT: test
       DATASTORE_EMULATOR_HOST: datastore:8081
+      CACHE_TYPE: remote
+      CACHE_ADDRESS: redis:6379
+      SDK_CONFIG: /opt/playground/backend/sdks-emulator.yaml
     ports:
       - "8080:8080"
     depends_on:
+      - redis
       - datastore

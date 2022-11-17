@@ -50,7 +50,7 @@ job('beam_Release_NightlySnapshot') {
     }
     /*
      * Skipping verification on 'ubuntu' labelled nodes since they don't have access to the
-     * some required GCP resouces.
+     * some required GCP resources.
      * TODO: Uncomment this after we publishing snapshots on 'beam' nodes.
      gradle {
      rootBuildScriptDir(commonJobProperties.checkoutDir)

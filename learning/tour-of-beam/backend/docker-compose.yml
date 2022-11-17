@@ -17,10 +17,32 @@ version: "3"
 
 services:
   datastore:
-    build: internal/storage/image
+    build: integration_tests/emulators/datastore 
+    volumes:
+      - ${DATASTORE_EMULATOR_DATADIR}:/opt/data
     environment:
-      - DATASTORE_PROJECT_ID=project-test
+      - DATASTORE_PROJECT_ID
       - DATASTORE_LISTEN_ADDRESS=0.0.0.0:8081
     ports:
       - "8081:8081"
-    command: --no-store-on-disk --consistency=1.0
+    command: --consistency=1.0 --store-on-disk
+
+  firebase_auth:
+    build: integration_tests/emulators/firebase 
+    environment:
+      - PROJECT_ID=${GOOGLE_CLOUD_PROJECT}
+    ports:
+      - "9099:9099"
+
+  playground-router:
+    image: apache/beam_playground-backend-router
+    environment:
+      - GOOGLE_CLOUD_PROJECT
+      - DATASTORE_EMULATOR_HOST=datastore:8081
+      - CACHE_TYPE=local
+      - SDK_CONFIG=/opt/playground/backend/sdks-emulator.yaml
+      - PROTOCOL_TYPE=TCP
+    ports:
+      - "8000:8080"
+    depends_on:
+      - datastore

@@ -453,6 +453,7 @@ public class ReadFromKafkaDoFnTest {
             tracker,
             null,
             (OutputReceiver) receiver);
+    tracker.checkDone();
     assertEquals(ProcessContinuation.stop(), result);
   }
 

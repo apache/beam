@@ -28,13 +28,14 @@ import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.ImmutableP
 /** An estimator to provide an estimate on the throughput of the outputted elements. */
 public class ThroughputEstimator implements Serializable {
 
+  // The number of seconds to look in the past.
+  public static final int WINDOW_SIZE_SECONDS = 60;
+
   private static final long serialVersionUID = -3597929310338724800L;
   // The start time of each per-second window.
   private Timestamp startTimeOfCurrentWindow;
   // The bytes of the current window.
   private BigDecimal bytesInCurrentWindow;
-  // The number of seconds to look in the past.
-  private final int numOfSeconds = 60;
   // The total bytes of all windows in the queue.
   private BigDecimal bytesInQueue;
   // The queue holds a number of windows in the past in order to calculate
@@ -55,23 +56,25 @@ public class ThroughputEstimator implements Serializable {
    * @param bytes the total bytes of the records
    */
   public void update(Timestamp timeOfRecords, long bytes) {
-    BigDecimal bytesNum = BigDecimal.valueOf(bytes);
-    if (startTimeOfCurrentWindow.equals(Timestamp.MIN_VALUE)) {
-      bytesInCurrentWindow = bytesNum;
-      startTimeOfCurrentWindow = timeOfRecords;
-      return;
-    }
+    synchronized (queue) {
+      BigDecimal bytesNum = BigDecimal.valueOf(bytes);
+      if (startTimeOfCurrentWindow.equals(Timestamp.MIN_VALUE)) {
+        bytesInCurrentWindow = bytesNum;
+        startTimeOfCurrentWindow = timeOfRecords;
+        return;
+      }
 
-    if (timeOfRecords.getSeconds() < startTimeOfCurrentWindow.getSeconds() + 1) {
-      bytesInCurrentWindow = bytesInCurrentWindow.add(bytesNum);
-    } else {
-      queue.add(new ImmutablePair<>(startTimeOfCurrentWindow, bytesInCurrentWindow));
-      bytesInQueue = bytesInQueue.add(bytesInCurrentWindow);
+      if (timeOfRecords.getSeconds() < startTimeOfCurrentWindow.getSeconds() + 1) {
+        bytesInCurrentWindow = bytesInCurrentWindow.add(bytesNum);
+      } else {
+        queue.add(new ImmutablePair<>(startTimeOfCurrentWindow, bytesInCurrentWindow));
+        bytesInQueue = bytesInQueue.add(bytesInCurrentWindow);
 
-      bytesInCurrentWindow = bytesNum;
-      startTimeOfCurrentWindow = timeOfRecords;
+        bytesInCurrentWindow = bytesNum;
+        startTimeOfCurrentWindow = timeOfRecords;
+      }
+      cleanQueue(startTimeOfCurrentWindow);
     }
-    cleanQueue(startTimeOfCurrentWindow);
   }
 
   /** Returns the estimated throughput for now. */
@@ -85,20 +88,22 @@ public class ThroughputEstimator implements Serializable {
    * @param time the specified timestamp to check throughput
    */
   public double getFrom(Timestamp time) {
-    cleanQueue(time);
-    if (queue.size() == 0) {
-      return 0D;
+    synchronized (queue) {
+      cleanQueue(time);
+      if (queue.size() == 0) {
+        return 0D;
+      }
+      return bytesInQueue
+          .divide(BigDecimal.valueOf(queue.size()), MathContext.DECIMAL128)
+          .max(BigDecimal.ZERO)
+          .doubleValue();
     }
-    return bytesInQueue
-        .divide(BigDecimal.valueOf(queue.size()), MathContext.DECIMAL128)
-        .max(BigDecimal.ZERO)
-        .doubleValue();
   }
 
   private void cleanQueue(Timestamp time) {
-    while (queue.size() != 0) {
+    while (queue.size() > 0) {
       ImmutablePair<Timestamp, BigDecimal> peek = queue.peek();
-      if (peek != null && peek.getLeft().getSeconds() >= time.getSeconds() - numOfSeconds) {
+      if (peek != null && peek.getLeft().getSeconds() >= time.getSeconds() - WINDOW_SIZE_SECONDS) {
         break;
       }
       // Remove the element if the timestamp of the first element is beyond

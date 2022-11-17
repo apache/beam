@@ -83,14 +83,16 @@ func (s *stateProvider) WriteValueState(val state.Transaction) error {
 	if err != nil {
 		return err
 	}
-	cl.Write([]byte{})
+	_, err = cl.Write([]byte{})
+	if err != nil {
+		return err
+	}
 
 	ap, err := s.getBagAppender(val.Key)
 	if err != nil {
 		return err
 	}
 	fv := FullValue{Elm: val.Val}
-	// TODO(#22736) - consider caching this a proprty of stateProvider
 	enc := MakeElementEncoder(coder.SkipW(s.codersByKey[val.Key]))
 	err = enc.Encode(&fv, ap)
 	if err != nil {
@@ -109,7 +111,10 @@ func (s *stateProvider) ClearValueState(val state.Transaction) error {
 	if err != nil {
 		return err
 	}
-	cl.Write([]byte{})
+	_, err = cl.Write([]byte{})
+	if err != nil {
+		return err
+	}
 
 	// Any transactions before a clear don't matter
 	s.transactionsByKey[val.Key] = []state.Transaction{val}
@@ -153,7 +158,10 @@ func (s *stateProvider) ClearBagState(val state.Transaction) error {
 	if err != nil {
 		return err
 	}
-	cl.Write([]byte{})
+	_, err = cl.Write([]byte{})
+	if err != nil {
+		return err
+	}
 
 	// Any transactions before a clear don't matter
 	s.transactionsByKey[val.Key] = []state.Transaction{val}
@@ -168,14 +176,12 @@ func (s *stateProvider) WriteBagState(val state.Transaction) error {
 		return err
 	}
 	fv := FullValue{Elm: val.Val}
-	// TODO(#22736) - consider caching this a proprty of stateProvider
 	enc := MakeElementEncoder(coder.SkipW(s.codersByKey[val.Key]))
 	err = enc.Encode(&fv, ap)
 	if err != nil {
 		return err
 	}
 
-	// TODO(#22736) - optimize this a bit once all state types are added.
 	if transactions, ok := s.transactionsByKey[val.Key]; ok {
 		transactions = append(transactions, val)
 		s.transactionsByKey[val.Key] = transactions
@@ -254,33 +260,70 @@ func (s *stateProvider) ReadMapStateKeys(userStateID string) ([]interface{}, []s
 
 // WriteMapState writes a key value pair to the global map state.
 func (s *stateProvider) WriteMapState(val state.Transaction) error {
-	cl, err := s.getMultiMapClearer(val.Key, val.MapKey)
+	cl, err := s.getMultiMapKeyClearer(val.Key, val.MapKey)
 	if err != nil {
 		return err
 	}
-	cl.Write([]byte{})
+	_, err = cl.Write([]byte{})
+	if err != nil {
+		return err
+	}
 
 	ap, err := s.getMultiMapAppender(val.Key, val.MapKey)
 	if err != nil {
 		return err
 	}
 	fv := FullValue{Elm: val.Val}
-	// TODO(#22736) - consider caching this a proprty of stateProvider
 	enc := MakeElementEncoder(coder.SkipW(s.codersByKey[val.Key]))
 	err = enc.Encode(&fv, ap)
 	if err != nil {
 		return err
 	}
 
-	// TODO(#22736) - optimize this a bit once all state types are added. In the case of sets/clears,
-	// we can remove the transactions. We can also consider combining other transactions on read (or sooner)
-	// so that we don't need to use as much memory/time replaying transactions.
 	if transactions, ok := s.transactionsByKey[val.Key]; ok {
 		transactions = append(transactions, val)
 		s.transactionsByKey[val.Key] = transactions
 	} else {
 		s.transactionsByKey[val.Key] = []state.Transaction{val}
 	}
+
+	return nil
+}
+
+// ClearMapStateKey deletes a key value pair from the global map state.
+func (s *stateProvider) ClearMapStateKey(val state.Transaction) error {
+	cl, err := s.getMultiMapKeyClearer(val.Key, val.MapKey)
+	if err != nil {
+		return err
+	}
+	_, err = cl.Write([]byte{})
+	if err != nil {
+		return err
+	}
+
+	if transactions, ok := s.transactionsByKey[val.Key]; ok {
+		transactions = append(transactions, val)
+		s.transactionsByKey[val.Key] = transactions
+	} else {
+		s.transactionsByKey[val.Key] = []state.Transaction{val}
+	}
+
+	return nil
+}
+
+// ClearMapState deletes all key value pairs from the global map state.
+func (s *stateProvider) ClearMapState(val state.Transaction) error {
+	cl, err := s.getMultiMapClearer(val.Key)
+	if err != nil {
+		return err
+	}
+	_, err = cl.Write([]byte{})
+	if err != nil {
+		return err
+	}
+
+	// Any transactions before a clear don't matter
+	s.transactionsByKey[val.Key] = []state.Transaction{val}
 
 	return nil
 }
@@ -379,12 +422,20 @@ func (s *stateProvider) getMultiMapAppender(userStateID string, key interface{})
 	return w, nil
 }
 
-func (s *stateProvider) getMultiMapClearer(userStateID string, key interface{}) (io.Writer, error) {
+func (s *stateProvider) getMultiMapKeyClearer(userStateID string, key interface{}) (io.Writer, error) {
 	ek, err := s.encodeKey(userStateID, key)
 	if err != nil {
 		return nil, err
 	}
 	w, err := s.sr.OpenMultimapUserStateClearer(s.ctx, s.SID, userStateID, s.elementKey, s.window, ek)
+	if err != nil {
+		return nil, err
+	}
+	return w, nil
+}
+
+func (s *stateProvider) getMultiMapClearer(userStateID string) (io.Writer, error) {
+	w, err := s.sr.OpenMultimapKeysUserStateClearer(s.ctx, s.SID, userStateID, s.elementKey, s.window)
 	if err != nil {
 		return nil, err
 	}

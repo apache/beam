@@ -25,6 +25,18 @@ Beam Playground is an interactive environment to try out Beam transforms and exa
 
 ## Getting Started
 
+Running, debugging, and testing all require this first step that fetches
+dependencies and generates code:
+
+```bash
+cd playground_components
+flutter pub get
+flutter pub run build_runner build
+cd ..
+flutter pub get
+flutter pub run build_runner build
+```
+
 ### Run
 
 See [playground/README.md](../README.md) for details on requirements and setup.

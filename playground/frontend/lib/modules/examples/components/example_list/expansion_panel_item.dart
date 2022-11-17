@@ -20,14 +20,12 @@ import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/examples/components/example_list/example_item_actions.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 class ExpansionPanelItem extends StatelessWidget {
-  final ExampleModel example;
-  final ExampleModel selectedExample;
+  final ExampleBase example;
+  final ExampleBase selectedExample;
   final AnimationController animationController;
   final OverlayEntry? dropdown;
 
@@ -41,20 +39,21 @@ class ExpansionPanelItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PlaygroundState>(
-      builder: (context, playgroundState, child) => MouseRegion(
+    return Consumer<PlaygroundController>(
+      builder: (context, controller, child) => MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: () async {
-            if (playgroundState.selectedExample != example) {
-              _closeDropdown(playgroundState.exampleState);
+            if (controller.selectedExample != example) {
+              _closeDropdown(controller.exampleCache);
               AnalyticsService.get(context).trackSelectExample(example);
               final exampleWithInfo =
-                  await playgroundState.exampleState.loadExampleInfo(example);
+                  await controller.exampleCache.loadExampleInfo(example);
               // TODO: setCurrentSdk = false when we do
               //  per-SDK output and run status.
               //  Now using true to reset the output and run status.
-              playgroundState.setExample(exampleWithInfo, setCurrentSdk: true);
+              //  https://github.com/apache/beam/issues/23248
+              controller.setExample(exampleWithInfo, setCurrentSdk: true);
             }
           },
           child: Container(
@@ -83,9 +82,9 @@ class ExpansionPanelItem extends StatelessWidget {
     );
   }
 
-  void _closeDropdown(ExampleState exampleState) {
+  void _closeDropdown(ExampleCache exampleCache) {
     animationController.reverse();
     dropdown?.remove();
-    exampleState.changeSelectorVisibility();
+    exampleCache.changeSelectorVisibility();
   }
 }

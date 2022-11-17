@@ -15,6 +15,18 @@
 
 package internal
 
+func (nt *NodeType) UnmarshalText(text []byte) error {
+	switch string(text) {
+	case "unit":
+		*nt = NODE_UNIT
+	case "group":
+		*nt = NODE_GROUP
+	default:
+		panic("can't parse node type")
+	}
+	return nil
+}
+
 func (nt NodeType) MarshalText() ([]byte, error) {
 	var typ string
 	switch nt {

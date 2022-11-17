@@ -208,10 +208,10 @@ class PubsubReadPerfTest(PubsubIOPerfTest):
     self.pipeline = TestPipeline(options=PipelineOptions(args))
 
   def cleanup(self):
-    self.sub_client.delete_subscription(self.read_sub_name)
-    self.sub_client.delete_subscription(self.read_matcher_sub_name)
-    self.pub_client.delete_topic(self.topic_name)
-    self.pub_client.delete_topic(self.matcher_topic_name)
+    self.sub_client.delete_subscription(subscription=self.read_sub_name)
+    self.sub_client.delete_subscription(subscription=self.read_matcher_sub_name)
+    self.pub_client.delete_topic(topic=self.topic_name)
+    self.pub_client.delete_topic(topic=self.matcher_topic_name)
 
 
 if __name__ == '__main__':

@@ -21,11 +21,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
+	"strings"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	"reflect"
-	"strings"
 )
 
 func init() {
@@ -182,7 +183,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	if err != nil {
 		return errors.WithContext(err, "creating row mapper")
 	}
-	writer, err := newWriter(f.BatchSize, f.Table, columns)
+	writer, err := newWriter(f.Driver, f.BatchSize, f.Table, columns)
 	if err != nil {
 		return err
 	}

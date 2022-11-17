@@ -33,7 +33,6 @@ import json
 import logging
 import time
 import uuid
-from typing import Any
 from typing import List
 from typing import Mapping
 from typing import Optional
@@ -48,12 +47,12 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import Timestamp
 
 try:
-  from google.cloud import bigquery  # type: ignore[attr-defined]
+  from google.cloud import bigquery
   from google.cloud.bigquery.schema import SchemaField
   from google.cloud.exceptions import NotFound
 except ImportError:
-  bigquery = None
-  SchemaField = None
+  bigquery = None  # type: ignore
+  SchemaField = None  # type: ignore
   NotFound = None  # type: ignore
 
 RUNTIME_METRIC = 'runtime'
@@ -151,7 +150,7 @@ def get_all_distributions_by_type(dist, metric_id):
     list of :class:`DistributionMetric` objects
   """
   submit_timestamp = time.time()
-  dist_types = ['count', 'max', 'min', 'sum']
+  dist_types = ['count', 'max', 'min', 'sum', 'mean']
   distribution_dicts = []
   for dist_type in dist_types:
     try:
@@ -185,8 +184,6 @@ class MetricsReader(object):
   A :class:`MetricsReader` retrieves metrics from pipeline result,
   prepares it for publishers and setup publishers.
   """
-  publishers = []  # type: List[Any]
-
   def __init__(
       self,
       project_name=None,
@@ -206,6 +203,7 @@ class MetricsReader(object):
       filters: MetricFilter to query only filtered metrics
     """
     self._namespace = namespace
+    self.publishers: List[MetricsPublisher] = []
     self.publishers.append(ConsoleMetricsPublisher())
 
     check = project_name and bq_table and bq_dataset and publish_to_bq
@@ -385,7 +383,13 @@ class RuntimeMetric(Metric):
     return runtime_in_s
 
 
-class ConsoleMetricsPublisher(object):
+class MetricsPublisher:
+  """Base class for metrics publishers."""
+  def publish(self, results):
+    raise NotImplementedError
+
+
+class ConsoleMetricsPublisher(MetricsPublisher):
   """A :class:`ConsoleMetricsPublisher` publishes collected metrics
   to console output."""
   def publish(self, results):
@@ -401,7 +405,7 @@ class ConsoleMetricsPublisher(object):
       _LOGGER.info("No test results were collected.")
 
 
-class BigQueryMetricsPublisher(object):
+class BigQueryMetricsPublisher(MetricsPublisher):
   """A :class:`BigQueryMetricsPublisher` publishes collected metrics
   to BigQuery output."""
   def __init__(self, project_name, table, dataset):
@@ -484,7 +488,7 @@ class InfluxDBMetricsPublisherOptions(object):
     return self.user is not None and self.password is not None
 
 
-class InfluxDBMetricsPublisher(object):
+class InfluxDBMetricsPublisher(MetricsPublisher):
   """Publishes collected metrics to InfluxDB database."""
   def __init__(
       self,

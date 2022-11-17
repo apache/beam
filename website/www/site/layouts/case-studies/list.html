@@ -54,14 +54,22 @@ limitations under the License. See accompanying LICENSE file.
     <h2 class="case-study-h2">Also used by</h2>
     <div class="case-study-list case-study-list--additional">
         {{ range where $pages "Params.category" "ne" "study" }}
-        <div class="case-study-used-by-card case-study-used-by-card--responsive">
-            <div class="case-study-used-by-card-img">
-                <img src="{{.Params.icon}}"></i>
+            {{ if .Params.hasLink }}
+            <a class="case-study-used-by-card--responsive case-study-used-by-card case-study-used-by-card--with-link" href="{{ .Params.hasLink }}" target="_blank" rel="noopener noreferrer">
+                <div class="case-study-used-by-card-img">
+                    <img src="{{.Params.icon}}"></i>
+                </div>
+            </a>
+            {{ else }}
+            <div class="case-study-used-by-card case-study-used-by-card--responsive">
+                <div class="case-study-used-by-card-img">
+                    <img src="{{.Params.icon}}"></i>
+                </div>
+                <div class="case-study-used-by-card-description">
+                    {{ .Params.cardDescription | safeHTML }}
+                </div>
             </div>
-            <div class="case-study-used-by-card-description">
-                {{ .Params.cardDescription | safeHTML }}
-            </div>
-        </div>
+            {{ end }}
         {{ end }}
     </div>
     <div class="case-study-row-button-container">
@@ -71,4 +79,8 @@ limitations under the License. See accompanying LICENSE file.
         </a>
     </div>
 </div>
+
+{{ $shuffle := resources.Get "js/shuffle-elements.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $shuffle.RelPermalink }}" defer></script>
+
 {{ end }}

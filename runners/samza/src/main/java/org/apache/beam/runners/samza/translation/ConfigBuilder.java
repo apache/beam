@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.translation;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.samza.config.JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE;
 import static org.apache.samza.config.JobConfig.JOB_ID;
 import static org.apache.samza.config.JobConfig.JOB_NAME;
 import static org.apache.samza.config.TaskConfig.COMMIT_MS;
@@ -95,7 +96,25 @@ public class ConfigBuilder {
       config.put(ApplicationConfig.APP_ID, options.getJobInstance());
       config.put(JOB_NAME, options.getJobName());
       config.put(JOB_ID, options.getJobInstance());
+
+      // bundle-related configs
       config.put(MAX_CONCURRENCY, String.valueOf(options.getMaxBundleSize()));
+      if (options.getMaxBundleSize() > 1) {
+        final String threadPoolSizeStr = config.remove(JOB_CONTAINER_THREAD_POOL_SIZE);
+        final int threadPoolSize =
+            threadPoolSizeStr == null ? 0 : Integer.parseInt(threadPoolSizeStr);
+
+        if (threadPoolSize > 1 && options.getNumThreadsForProcessElement() <= 1) {
+          // In case the user sets the thread pool through samza config instead options,
+          // set the bundle thread pool size based on container thread pool config
+          LOG.info(
+              "Set NumThreadsForProcessElement based on "
+                  + JOB_CONTAINER_THREAD_POOL_SIZE
+                  + " to "
+                  + threadPoolSize);
+          options.setNumThreadsForProcessElement(threadPoolSize);
+        }
+      }
 
       // remove config overrides before serialization (LISAMZA-15259)
       options.setConfigOverride(new HashMap<>());

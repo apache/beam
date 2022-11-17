@@ -22,9 +22,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
+	"os"
 	"reflect"
 	"runtime/debug"
 	"strconv"
@@ -34,6 +34,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/google/go-cmp/cmp"
@@ -43,7 +44,6 @@ import (
 
 var unimplementedCoders = map[string]bool{
 	"beam:coder:param_windowed_value:v1": true,
-	"beam:coder:timer:v1":                true,
 	"beam:coder:sharded_key:v1":          true,
 	"beam:coder:custom_window:v1":        true,
 }
@@ -52,6 +52,8 @@ var filteredCases = []struct{ filter, reason string }{
 	{"logical", "BEAM-9615: Support logical types"},
 	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "https://github.com/apache/beam/issues/21206: Support encoding position."},
 	{"80be749a-5700-4ede-89d8-dd9a4433a3f8", "https://github.com/apache/beam/issues/19817: Support millis_instant."},
+	{"800c44ae-a1b7-4def-bbf6-6217cca89ec4", "https://github.com/apache/beam/issues/19817: Support decimal."},
+	{"f0ffb3a4-f46f-41ca-a942-85e3e939452a", "https://github.com/apache/beam/issues/23526: Support char/varchar, binary/varbinary."},
 }
 
 // Coder is a representation a serialized beam coder.
@@ -294,7 +296,9 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 		if !diff(c.Components[1], elem, vs[3]) {
 			pass = false
 		}
-		// TODO compare pane information.
+		if !diffPane(vs[2].Value, elem.Pane) {
+			pass = false
+		}
 		return pass
 	case "beam:coder:row:v1":
 		fs := eg.Value.(yaml.MapSlice)
@@ -320,6 +324,48 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 		}
 
 		got, want = elem.Elm, rv.Interface()
+	case "beam:coder:timer:v1":
+		pass := true
+		tm := elem.Elm.(typex.TimerMap)
+		fs := eg.Value.(yaml.MapSlice)
+		for _, item := range fs {
+
+			switch item.Key.(string) {
+			case "userKey":
+				if want := item.Value.(string); want != tm.Key {
+					pass = false
+				}
+			case "dynamicTimerTag":
+				if want := item.Value.(string); want != tm.Tag {
+					pass = false
+				}
+			case "windows":
+				if v, ok := item.Value.([]interface{}); ok {
+					for i, val := range v {
+						if val.(string) == "global" && fmt.Sprintf("%s", tm.Windows[i]) == "[*]" {
+							continue
+						} else if val.(string) != fmt.Sprintf("%s", tm.Windows[i]) {
+							pass = false
+						}
+					}
+				}
+			case "clearBit":
+				if want := item.Value.(bool); want != tm.Clear {
+					pass = false
+				}
+			case "fireTimestamp":
+				if want := item.Value.(int); want != int(tm.FireTimestamp) {
+					pass = false
+				}
+			case "holdTimestamp":
+				if want := item.Value.(int); want != int(tm.HoldTimestamp) {
+					pass = false
+				}
+			case "pane":
+				pass = diffPane(item.Value, tm.Pane)
+			}
+		}
+		return pass
 	default:
 		got, want = elem.Elm, eg.Value
 	}
@@ -328,6 +374,41 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 		return false
 	}
 	return true
+}
+
+func diffPane(eg interface{}, got typex.PaneInfo) bool {
+	pass := true
+	paneTiming := map[typex.PaneTiming]string{
+		typex.PaneUnknown: "UNKNOWN",
+		typex.PaneEarly:   "EARLY",
+		typex.PaneLate:    "LATE",
+		typex.PaneOnTime:  "ONTIME",
+	}
+	for _, item := range eg.(yaml.MapSlice) {
+		switch item.Key.(string) {
+		case "is_first":
+			if want := item.Value.(bool); want != got.IsFirst {
+				pass = false
+			}
+		case "is_last":
+			if want := item.Value.(bool); want != got.IsLast {
+				pass = false
+			}
+		case "timing":
+			if want := item.Value.(string); want != paneTiming[got.Timing] {
+				pass = false
+			}
+		case "index":
+			if want := item.Value.(int); want != int(got.Index) {
+				pass = false
+			}
+		case "on_time_index":
+			if want := item.Value.(int); want != int(got.NonSpeculativeIndex) {
+				pass = false
+			}
+		}
+	}
+	return pass
 }
 
 // standard_coders.yaml uses the name for type indication, except for nullability.
@@ -429,7 +510,7 @@ func (*logLogger) Logf(format string, v ...interface{}) {
 const yamlPath = "../../../../../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml"
 
 func main() {
-	data, err := ioutil.ReadFile(yamlPath)
+	data, err := os.ReadFile(yamlPath)
 	if err != nil {
 		log.Fatalf("Couldn't read %v: %v", yamlPath, err)
 	}

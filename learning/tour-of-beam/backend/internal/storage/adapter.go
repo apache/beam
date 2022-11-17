@@ -22,20 +22,6 @@ import (
 	"cloud.google.com/go/datastore"
 )
 
-func sdkToKey(sdk tob.Sdk) string {
-	switch sdk {
-	case tob.SDK_GO:
-		return "SDK_GO"
-	case tob.SDK_PYTHON:
-		return "SDK_PYTHON"
-	case tob.SDK_JAVA:
-		return "SDK_JAVA"
-	case tob.SDK_SCIO:
-		return "SDK_SCIO"
-	}
-	panic(fmt.Sprintf("Undefined key for sdk: %s", sdk))
-}
-
 func pgNameKey(kind, nameId string, parentKey *datastore.Key) (key *datastore.Key) {
 	key = datastore.NameKey(kind, nameId, parentKey)
 	key.Namespace = PgNamespace
@@ -45,8 +31,12 @@ func pgNameKey(kind, nameId string, parentKey *datastore.Key) (key *datastore.Ke
 // Get entity key from sdk & entity ID
 // SDK_JAVA_{entityID}.
 func datastoreKey(kind string, sdk tob.Sdk, id string, parent *datastore.Key) *datastore.Key {
-	name := fmt.Sprintf("%s_%s", sdkToKey(sdk), id)
+	name := fmt.Sprintf("%s_%s", sdk.StorageID(), id)
 	return pgNameKey(kind, name, parent)
+}
+
+func rootSdkKey(sdk tob.Sdk) *datastore.Key {
+	return pgNameKey(PgSdksKind, sdk.StorageID(), nil)
 }
 
 func MakeUnitNode(unit *tob.Unit, order, level int) *TbLearningNode {
@@ -54,16 +44,16 @@ func MakeUnitNode(unit *tob.Unit, order, level int) *TbLearningNode {
 		return nil
 	}
 	return &TbLearningNode{
-		Id:   unit.Id,
-		Name: unit.Name,
+		Id:    unit.Id,
+		Title: unit.Title,
 
 		Type:  tob.NODE_UNIT,
 		Order: order,
 		Level: level,
 
 		Unit: &TbLearningUnit{
-			Id:   unit.Id,
-			Name: unit.Name,
+			Id:    unit.Id,
+			Title: unit.Title,
 
 			Description:       unit.Description,
 			Hints:             unit.Hints,
@@ -78,30 +68,28 @@ func MakeGroupNode(group *tob.Group, order, level int) *TbLearningNode {
 		return nil
 	}
 	return &TbLearningNode{
-		// ID doesn't make much sense for groups,
-		// but we have to define it to include in queries
-		Id:   group.Name,
-		Name: group.Name,
+		Id:    group.Id,
+		Title: group.Title,
 
 		Type:  tob.NODE_GROUP,
 		Order: order,
 		Level: level,
 
 		Group: &TbLearningGroup{
-			Name: group.Name,
+			Title: group.Title,
 		},
 	}
 }
 
 // Depending on the projection, we either convert TbLearningUnit to a model
-// Or we use common fields Id, Name to make it.
-func FromDatastoreUnit(tbUnit *TbLearningUnit, id, name string) *tob.Unit {
+// Or we use common fields Id, Title to make it.
+func FromDatastoreUnit(tbUnit *TbLearningUnit, id, title string) *tob.Unit {
 	if tbUnit == nil {
-		return &tob.Unit{Id: id, Name: name}
+		return &tob.Unit{Id: id, Title: title}
 	}
 	return &tob.Unit{
 		Id:                tbUnit.Id,
-		Name:              tbUnit.Name,
+		Title:             tbUnit.Title,
 		Description:       tbUnit.Description,
 		Hints:             tbUnit.Hints,
 		TaskSnippetId:     tbUnit.TaskSnippetId,
@@ -110,13 +98,14 @@ func FromDatastoreUnit(tbUnit *TbLearningUnit, id, name string) *tob.Unit {
 }
 
 // Depending on the projection, we either convert TbLearningGroup to a model
-// Or we use common field Name to make it.
-func FromDatastoreGroup(tbGroup *TbLearningGroup, name string) *tob.Group {
+// Or we use common fields Id, Title to make it.
+func FromDatastoreGroup(tbGroup *TbLearningGroup, id, title string) *tob.Group {
 	if tbGroup == nil {
-		return &tob.Group{Name: name}
+		return &tob.Group{Id: id, Title: title}
 	}
 	return &tob.Group{
-		Name: tbGroup.Name,
+		Id:    tbGroup.Id,
+		Title: tbGroup.Title,
 	}
 }
 
@@ -126,9 +115,9 @@ func FromDatastoreNode(tbNode TbLearningNode) tob.Node {
 	}
 	switch tbNode.Type {
 	case tob.NODE_GROUP:
-		node.Group = FromDatastoreGroup(tbNode.Group, tbNode.Name)
+		node.Group = FromDatastoreGroup(tbNode.Group, tbNode.Id, tbNode.Title)
 	case tob.NODE_UNIT:
-		node.Unit = FromDatastoreUnit(tbNode.Unit, tbNode.Id, tbNode.Name)
+		node.Unit = FromDatastoreUnit(tbNode.Unit, tbNode.Id, tbNode.Title)
 	default:
 		panic("undefined node type")
 	}
@@ -138,9 +127,17 @@ func FromDatastoreNode(tbNode TbLearningNode) tob.Node {
 func MakeDatastoreModule(mod *tob.Module, order int) *TbLearningModule {
 	return &TbLearningModule{
 		Id:         mod.Id,
-		Name:       mod.Name,
+		Title:      mod.Title,
 		Complexity: mod.Complexity,
 
 		Order: order,
+	}
+}
+
+func FromDatastoreUserProgress(tbUP TbUnitProgress) tob.UnitProgress {
+	return tob.UnitProgress{
+		Id:            tbUP.UnitID,
+		IsCompleted:   tbUP.IsCompleted,
+		UserSnippetId: tbUP.SnippetId,
 	}
 }

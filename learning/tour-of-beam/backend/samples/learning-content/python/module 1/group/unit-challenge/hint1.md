@@ -1,3 +1,3 @@
 ## Hint 1
 
-apply yourself :)
+hint 1

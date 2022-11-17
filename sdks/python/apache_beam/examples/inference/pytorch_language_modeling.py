@@ -28,6 +28,7 @@ import argparse
 import logging
 from typing import Dict
 from typing import Iterable
+from typing import Iterator
 from typing import Tuple
 
 import apache_beam as beam
@@ -43,50 +44,6 @@ from transformers import BertConfig
 from transformers import BertForMaskedLM
 from transformers import BertTokenizer
 
-BERT_TOKENIZER = BertTokenizer.from_pretrained('bert-base-uncased')
-
-
-# TODO(https://github.com/apache/beam/issues/21863): Remove once optional
-# batching flag added
-class HuggingFaceStripBatchingWrapper(BertForMaskedLM):
-  """Wrapper class to convert output from dict of lists to list of dicts
-
-  The `forward()` function in Hugging Face models doesn't return a
-  standard torch.Tensor output. Instead, it can return a dictionary of
-  different outputs. To work with current RunInference implementation which
-  returns a PredictionResult object for each example, we must override the
-  `forward()` function and convert the standard Hugging Face forward output
-  into the appropriate format of List[Dict[str, torch.Tensor]].
-
-  Before:
-  output = {
-    'logit': torch.FloatTensor of shape
-      (batch_size, sequence_length, config.vocab_size),
-    'hidden_states': tuple(torch.FloatTensor) of shape
-      (batch_size, sequence_length, hidden_size)
-  }
-  After:
-  output = [
-    {
-      'logit': torch.FloatTensor of shape
-        (sequence_length, config.vocab_size),
-      'hidden_states': tuple(torch.FloatTensor) of
-        shape (sequence_length, hidden_size)
-    },
-    {
-      'logit': torch.FloatTensor of shape
-        (sequence_length, config.vocab_size),
-      'hidden_states': tuple(torch.FloatTensor) of shape
-        (sequence_length, hidden_size)
-    },
-    ...
-  ]
-  where len(output) is batch_size
-  """
-  def forward(self, **kwargs):
-    output = super().forward(**kwargs)
-    return [dict(zip(output, v)) for v in zip(*output.values())]
-
 
 def add_mask_to_last_word(text: str) -> Tuple[str, str]:
   text_list = text.split()
@@ -94,9 +51,10 @@ def add_mask_to_last_word(text: str) -> Tuple[str, str]:
 
 
 def tokenize_sentence(
-    text_and_mask: Tuple[str, str]) -> Tuple[str, Dict[str, torch.Tensor]]:
+    text_and_mask: Tuple[str, str],
+    bert_tokenizer: BertTokenizer) -> Tuple[str, Dict[str, torch.Tensor]]:
   text, masked_text = text_and_mask
-  tokenized_sentence = BERT_TOKENIZER.encode_plus(
+  tokenized_sentence = bert_tokenizer.encode_plus(
       masked_text, return_tensors="pt")
 
   # Workaround to manually remove batch dim until we have the feature to
@@ -109,6 +67,11 @@ def tokenize_sentence(
   }
 
 
+def filter_empty_lines(text: str) -> Iterator[str]:
+  if len(text.strip()) > 0:
+    yield text
+
+
 class PostProcessor(beam.DoFn):
   """Processes the PredictionResult to get the predicted word.
 
@@ -117,15 +80,19 @@ class PostProcessor(beam.DoFn):
   of the words in BERT’s vocabulary. We can get the word with the highest
   probability of being a candidate replacement word by taking the argmax.
   """
+  def __init__(self, bert_tokenizer: BertTokenizer):
+    super().__init__()
+    self.bert_tokenizer = bert_tokenizer
+
   def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     text, prediction_result = element
     inputs = prediction_result.example
     logits = prediction_result.inference['logits']
     mask_token_index = (
-        inputs['input_ids'] == BERT_TOKENIZER.mask_token_id).nonzero(
+        inputs['input_ids'] == self.bert_tokenizer.mask_token_id).nonzero(
             as_tuple=True)[0]
     predicted_token_id = logits[mask_token_index].argmax(axis=-1)
-    decoded_word = BERT_TOKENIZER.decode(predicted_token_id)
+    decoded_word = self.bert_tokenizer.decode(predicted_token_id)
     yield text + ';' + decoded_word
 
 
@@ -141,6 +108,11 @@ def parse_known_args(argv):
       dest='output',
       required=True,
       help='Path of file in which to save the output predictions.')
+  parser.add_argument(
+      '--bert_tokenizer',
+      dest='bert_tokenizer',
+      default='bert-base-uncased',
+      help='bert uncased model. This can be base model or large model')
   parser.add_argument(
       '--model_state_dict_path',
       dest='model_state_dict_path',
@@ -171,8 +143,9 @@ def run(
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
   if not model_class:
-    model_config = BertConfig(is_decoder=False, return_dict=True)
-    model_class = HuggingFaceStripBatchingWrapper
+    model_config = BertConfig.from_pretrained(
+        known_args.bert_tokenizer, is_decoder=False, return_dict=True)
+    model_class = BertForMaskedLM
     model_params = {'config': model_config}
 
   # TODO: Remove once nested tensors https://github.com/pytorch/nestedtensor
@@ -199,6 +172,8 @@ def run(
   if not test_pipeline:
     pipeline = beam.Pipeline(options=pipeline_options)
 
+  bert_tokenizer = BertTokenizer.from_pretrained(known_args.bert_tokenizer)
+
   if not known_args.input:
     text = (pipeline | 'CreateSentences' >> beam.Create([
       'The capital of France is Paris .',
@@ -217,12 +192,15 @@ def run(
         pipeline | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
   text_and_tokenized_text_tuple = (
       text
+      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
       | 'AddMask' >> beam.Map(add_mask_to_last_word)
-      | 'TokenizeSentence' >> beam.Map(tokenize_sentence))
+      | 'TokenizeSentence' >>
+      beam.Map(lambda x: tokenize_sentence(x, bert_tokenizer)))
   output = (
       text_and_tokenized_text_tuple
       | 'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
-      | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
+      | 'ProcessOutput' >> beam.ParDo(
+          PostProcessor(bert_tokenizer=bert_tokenizer)))
   output | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
     known_args.output,
     shard_name_template='',

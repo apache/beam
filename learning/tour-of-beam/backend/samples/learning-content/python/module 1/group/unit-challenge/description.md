@@ -1,3 +1,3 @@
 ## Challenge description
 
-bla bla bla
+awesome description

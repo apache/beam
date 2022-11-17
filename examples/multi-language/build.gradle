@@ -34,11 +34,12 @@ ext.summary = "Java Classes for Multi-language Examples"
 dependencies {
     implementation library.java.vendored_guava_26_0_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
+    runtimeOnly project(path: ":examples:java")
     runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     runtimeOnly project(path: ":runners:google-cloud-dataflow-java")
+    runtimeOnly project(path: ":runners:portability:java")
     implementation library.java.vendored_guava_26_0_jre
     implementation project(":sdks:java:expansion-service")
-    implementation project(":sdks:java:extensions:python")
     permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
 }
 
@@ -47,3 +48,10 @@ task pythonDataframeWordCount(type: JavaExec) {
     mainClass = "org.apache.beam.examples.multilanguage.PythonDataframeWordCount"
     classpath = sourceSets.main.runtimeClasspath
 }
+
+task sklearnMinstClassification(type: JavaExec) {
+    description "Run the Java pipeline that performns image classification on handwritten digits from the MNIST database"
+    mainClass = "org.apache.beam.examples.multilanguage.SklearnMnistClassification"
+    classpath = sourceSets.main.runtimeClasspath
+}
+

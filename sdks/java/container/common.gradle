@@ -48,6 +48,9 @@ task copyDockerfileDependencies(type: Copy) {
     from configurations.dockerDependency
     rename 'slf4j-api.*', 'slf4j-api.jar'
     rename 'slf4j-jdk14.*', 'slf4j-jdk14.jar'
+    if (imageJavaVersion == "11" || imageJavaVersion == "17") {
+        rename 'beam-sdks-java-container-agent.*.jar', 'open-module-agent.jar'
+    }
     rename 'beam-sdks-java-harness-.*.jar', 'beam-sdks-java-harness.jar'
     rename 'beam-sdks-java-io-kafka.*.jar', 'beam-sdks-java-io-kafka.jar'
     rename 'kafka-clients.*.jar', 'kafka-clients.jar'
@@ -86,6 +89,16 @@ task skipPullLicenses(type: Exec) {
     args "-c", "mkdir -p build/target/go-licenses build/target/options build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
 }
 
+task validateJavaHome {
+    if (imageJavaVersion == "11" || imageJavaVersion == "17") {
+        doFirst {
+            if (!project.hasProperty('java17Home') && !project.hasProperty('java11Home')) {
+                throw new GradleException('java17Home or java11Home property required. Re-run with -Pjava17Home or -Pjava11Home')
+            }
+        }
+    }
+}
+
 docker {
     name containerImageName(
             name: "${project.docker_image_default_repo_prefix}java${imageJavaVersion}_sdk",
@@ -116,3 +129,4 @@ dockerPrepare.dependsOn copySdkHarnessLauncher
 dockerPrepare.dependsOn copyDockerfileDependencies
 dockerPrepare.dependsOn ":sdks:java:container:downloadCloudProfilerAgent"
 dockerPrepare.dependsOn copyJdkOptions
+dockerPrepare.dependsOn validateJavaHome

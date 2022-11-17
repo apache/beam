@@ -44,6 +44,11 @@ package main
 //   categories:
 //     - Debugging
 //     - Flatten
+//   complexity: MEDIUM
+//   tags:
+//     - pipeline
+//     - split
+//     - runner
 
 import (
 	"context"
