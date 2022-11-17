@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.io.splunk;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.mockserver.integration.ClientAndServer.startClientAndServer;
 
 import com.google.api.client.http.GenericUrl;
@@ -68,11 +71,11 @@ public class HttpEventPublisherTest {
 
   private static final ImmutableList<SplunkEvent> SPLUNK_EVENTS =
       ImmutableList.of(SPLUNK_TEST_EVENT_1, SPLUNK_TEST_EVENT_2);
-  private static final String ROOT_CA_PATH = "SplunkTestCerts/RootCA.crt";
+  private static final String ROOT_CA_PATH = "SplunkTestCerts/RootCA.crt.txt";
   private static final String ROOT_CA_KEY_PATH =
       Resources.getResource("SplunkTestCerts/RootCA_PrivateKey.pem").getPath();
-  private static final String INCORRECT_ROOT_CA_PATH = "SplunkTestCerts/RootCA_2.crt";
-  private static final String CERTIFICATE_PATH = "SplunkTestCerts/RecognizedCertificate.crt";
+  private static final String INCORRECT_ROOT_CA_PATH = "SplunkTestCerts/RootCA_2.crt.txt";
+  private static final String CERTIFICATE_PATH = "SplunkTestCerts/RecognizedCertificate.crt.txt";
   private static final String KEY_PATH =
       Resources.getResource("SplunkTestCerts/PrivateKey.pem").getPath();
   private static final String EXPECTED_PATH = "/" + HttpEventPublisher.HEC_URL_PATH;
@@ -198,17 +201,22 @@ public class HttpEventPublisherTest {
         timeoutInMillis, publisherWithBackOff.getConfiguredBackOff().getMaxElapsedTimeMillis());
   }
 
-  @Test(expected = CertificateException.class)
-  public void invalidRootCaTest() throws Exception {
-    HttpEventPublisher publisherWithInvalidCert =
-        HttpEventPublisher.newBuilder()
-            .withUrl("https://example.com")
-            .withToken("test-token")
-            .withDisableCertificateValidation(false)
-            .withRootCaCertificate("invalid_ca".getBytes(StandardCharsets.UTF_8))
-            .withEnableGzipHttpCompression(true)
-            .build();
-    System.out.println(publisherWithInvalidCert);
+  @Test
+  public void invalidRootCaTest() {
+    CertificateException thrown =
+        assertThrows(
+            CertificateException.class,
+            () -> {
+              HttpEventPublisher.newBuilder()
+                  .withUrl("https://example.com")
+                  .withToken("test-token")
+                  .withDisableCertificateValidation(false)
+                  .withRootCaCertificate("invalid_ca".getBytes(StandardCharsets.UTF_8))
+                  .withEnableGzipHttpCompression(true)
+                  .build();
+            });
+
+    assertThat(thrown.getMessage(), containsString("parse certificate"));
   }
 
   /** Tests if a self-signed certificate is trusted if its root CA is passed. */

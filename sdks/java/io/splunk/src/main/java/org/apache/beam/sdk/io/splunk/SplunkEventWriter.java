@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.splunk;
 
-import static java.util.stream.Collectors.toList;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -39,7 +38,6 @@ import java.util.List;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.IOUtils;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
-import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -419,30 +417,12 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
    * @throws RuntimeException thrown if not able to read or parse cert
    */
   public static byte[] getCertFromGcsAsBytes(String filePath) throws IOException {
-    ReadableByteChannel channel = getGcsFileByteChannel(filePath);
+    MatchResult.Metadata fileMetadata = FileSystems.matchSingleFileSpec(filePath);
+    ReadableByteChannel channel = FileSystems.open(fileMetadata.resourceId());
     try (InputStream inputStream = Channels.newInputStream(channel)) {
       return IOUtils.toByteArray(inputStream);
     } catch (IOException e) {
       throw new RuntimeException("Error when reading: " + filePath, e);
-    }
-  }
-
-  /** Handles getting the {@link ReadableByteChannel} for {@code filePath}. */
-  private static ReadableByteChannel getGcsFileByteChannel(String filePath) throws IOException {
-    try {
-      MatchResult result = FileSystems.match(filePath);
-      checkArgument(
-          result.status() == MatchResult.Status.OK && !result.metadata().isEmpty(),
-          "Failed to match any files with the pattern: " + filePath);
-
-      List<ResourceId> rId =
-          result.metadata().stream().map(MatchResult.Metadata::resourceId).collect(toList());
-
-      checkArgument(rId.size() == 1, "Expected exactly 1 file, but got " + rId.size() + " files.");
-
-      return FileSystems.open(rId.get(0));
-    } catch (IOException e) {
-      throw new RuntimeException("Error when finding: " + filePath, e);
     }
   }
 
