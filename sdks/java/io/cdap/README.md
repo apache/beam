@@ -35,34 +35,97 @@ To learn more about CDAP plugins please see [io.cdap.cdap.api.annotation.Plugin]
 
 ## CDAP Batch plugins support in CDAP IO
 
-CdapIO supports CDAP Batch plugins based on Hadoop `InputFormat` and `OutputFormat`. CDAP batch plugins support is implemented using [HadoopFormatIO](https://beam.apache.org/documentation/io/built-in/hadoop/), https://github.com/apache/beam/tree/master/sdks/java/io/hadoop-format.
+CdapIO supports CDAP Batch plugins based on Hadoop [`InputFormat`](https://hadoop.apache.org/docs/stable/api/org/apache/hadoop/mapred/InputFormat.html) 
+and [`OutputFormat`](https://hadoop.apache.org/docs/stable/api/org/apache/hadoop/mapred/OutputFormat.html).
+CDAP batch plugins support is implemented using [HadoopFormatIO](https://beam.apache.org/documentation/io/built-in/hadoop/).
 
-CdapIO currently supporta for the following CDAP Batch plugins by referencing `CDAP plugin` class:
-* [Hubspot](https://github.com/data-integrations/hubspot)
-* [Salesforce](https://github.com/data-integrations/salesforce)
-* [ServiceNow](https://github.com/data-integrations/servicenow-plugins)
-* [Zendesk](https://github.com/data-integrations/zendesk)
+CdapIO currently supports the following CDAP Batch plugins by referencing `CDAP plugin` class:
+* [Hubspot Batch Source](https://github.com/data-integrations/hubspot/blob/develop/src/main/java/io/cdap/plugin/hubspot/source/batch/HubspotBatchSource.java)
+* [Hubspot Batch Sink](https://github.com/data-integrations/hubspot/blob/develop/src/main/java/io/cdap/plugin/hubspot/sink/batch/HubspotBatchSink.java)
+* [Salesforce Batch Source](https://github.com/data-integrations/salesforce/blob/develop/src/main/java/io/cdap/plugin/salesforce/plugin/source/batch/SalesforceBatchSource.java)
+* [Salesforce Batch Sink](https://github.com/data-integrations/salesforce/blob/develop/src/main/java/io/cdap/plugin/salesforce/plugin/sink/batch/SalesforceBatchSink.java)
+* [ServiceNow Batch Source](https://github.com/data-integrations/servicenow-plugins/blob/develop/src/main/java/io/cdap/plugin/servicenow/source/ServiceNowSource.java)
+* [Zendesk Batch Source](https://github.com/data-integrations/zendesk/blob/develop/src/main/java/io/cdap/plugin/zendesk/source/batch/ZendeskBatchSource.java)
 
-To add CdapIO support for a new CDAP or custom Batch [Plugin](src/main/java/org/apache/beam/sdk/io/cdap/Plugin.java), pass corresponding classes:
-* `CDAP plugin`
-* Hadoop `InputFormat` for source
-* Hadoop `OutputFormat` for sink
-* Hadoop `FormatProvider`.
+It means that all these plugins can be used like this:
+``CdapIO.withCdapPluginClass(HubspotBatchSource.class)``
 
-To learn more please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete).
+### Adding support for new CDAP Batch plugin
+
+To add CdapIO support for a new CDAP Batch [Plugin](src/main/java/org/apache/beam/sdk/io/cdap/Plugin.java) perform the following steps:
+1. Add CDAP plugin to the Maven Central repository. *Example:* [Hubspot plugin Maven repository](https://mvnrepository.com/artifact/io.cdap/hubspot-plugins/1.0.0)
+2. Add CDAP plugin Maven dependency to the `build.gradle` file. *Example:* ``implementation "io.cdap:hubspot-plugins:1.0.0"``.
+3. Here are two ways of using CDAP batch plugin with CdapIO:
+   1. Using `Plugin.createBatch()` method. You will need to pass Cdap Plugin class and correct `InputFormat` (or `OutputFormat`) 
+and `InputFormatProvider` (or `OutputFormatProvider`) classes manually. *Example:* 
+   ```
+   CdapIO.withCdapPlugin(
+      Plugin.createBatch(
+      EmployeeBatchSource.class,
+      EmployeeInputFormat.class,
+      EmployeeInputFormatProvider.class));
+   ```
+   2. Using `MappingUtils`.
+      1. Go to [MappingUtils](src/main/java/org/apache/beam/sdk/io/cdap/MappingUtils.java) class.
+      2. Modify `getPluginClassByName()` method: 
+      3. Add the code for mapping Cdap Plugin class name and `Input/Output Format` and `FormatProvider` classes.
+      *Example:*
+      ```
+      if (pluginClass.equals(EmployeeBatchSource.class)){
+         return Plugin.createBatch(pluginClass,
+                       EmployeeInputFormat.class,
+                       EmployeeInputFormatProvider.class);
+      }
+      ```
+      4. After these steps you will be able to use Cdap Plugin by class name like this: ``CdapIO.withCdapPluginClass(EmployeeBatchSource.class)``
+
+To learn more please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap).
 
 ## CDAP Streaming plugins support in CDAP IO
 
-CdapIO supports CDAP Streaming plugins based on [Apache Spark Receiver](https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html) `org.apache.spark.streaming.receiver.Receiver`. CDAP streaming plugins support is implemented using [SparkReceiverIO](https://github.com/apache/beam/tree/master/sdks/java/io/sparkreceiver).
+CdapIO supports CDAP Streaming plugins based on [Apache Spark Receiver](https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html).
+CDAP streaming plugins support is implemented using [SparkReceiverIO](https://github.com/apache/beam/tree/master/sdks/java/io/sparkreceiver).
 
-CdapIO supports CDAP Streaming plugins based on [Spark Receiver](https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html) `org.apache.spark.streaming.receiver.Receiver`  that implements [HasOffset](https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
+### Requirements for Cdap Streaming plugins
 
-CdapIO currently supporta for the following CDAP Streaming plugin by referencing `CDAP plugin` class:
-* [Hubspot](https://github.com/data-integrations/hubspot)
+1. CDAP Streaming plugin should be based on `Spark Receiver`.
+2. CDAP Streaming plugin should support work with offsets.
+   1. Corresponding Spark Receiver should implement [HasOffset](https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
+   2. Records should have the numeric field that represents record offset. *Example:* `RecordId` field for Salesforce and `vid` field for Hubspot plugins. 
+   For more details please see [GetOffsetUtils](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap/utils/GetOffsetUtils.java) class from examples.
 
-To add CdapIO support for a new or custom CDAP Streaming SparkReceiver [Plugin](src/main/java/org/apache/beam/sdk/io/cdap/Plugin.java), register the new plugin via [MappingUtils](src/main/java/org/apache/beam/sdk/io/cdap/MappingUtils.java).
+### Adding support for new CDAP Streaming plugin
 
-To learn more please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete).
+To add CdapIO support for a new CDAP Streaming SparkReceiver [Plugin](src/main/java/org/apache/beam/sdk/io/cdap/Plugin.java), perform the following steps:
+1. Add CDAP plugin to the Maven Central repository. *Example:* [Hubspot plugin Maven repository](https://mvnrepository.com/artifact/io.cdap/hubspot-plugins/1.0.0)
+2. Add CDAP plugin Maven dependency to the `build.gradle` file. *Example:* ``implementation "io.cdap:hubspot-plugins:1.0.0"``.
+3. Implement function that will define how to get `Long offset` from the record of the Cdap Plugin.
+*Example:* see [GetOffsetUtils](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap/utils/GetOffsetUtils.java) class from examples.
+4. Here are two ways of using Cdap streaming Plugin with CdapIO:
+    1. Using `Plugin.createStreaming()` method. You will need to pass Cdap Plugin class, correct `getOffsetFn` (from step 3)
+       and Spark `Receiver` class manually. *Example:*
+   ```
+   CdapIO.withCdapPlugin(
+      Plugin.createStreaming(
+      HubspotStreamingSource.class,
+      offsetFnForHubspot,
+      HubspotReceiver.class)));
+   ```
+    2. Using `MappingUtils`.
+        1. Go to [MappingUtils](src/main/java/org/apache/beam/sdk/io/cdap/MappingUtils.java) class.
+        2. Modify `getPluginClassByName()` method:
+        3. Add the code for mapping Cdap Plugin class name, `getOffsetFn` function and Spark `Receiver` class.
+           *Example:*
+       ```
+       if (pluginClass.equals(HubspotStreamingSource.class)){
+          return Plugin.createStreaming(pluginClass,
+                        getOffsetFnForHubpot(),
+                        HubspotReceiverClass.class);
+       }
+       ```
+        4. After these steps you will be able to use Cdap Plugin by class name like this: ``CdapIO.withCdapPluginClass(HubspotStreamingSource.class)``
+
+To learn more please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap).
 
 ## Dependencies
 
