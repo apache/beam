@@ -25,7 +25,7 @@ The Pytorch RunInference Language Modeling benchmark runs an
 [example language modeling pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py)
 using the [Bert large uncased](https://huggingface.co/bert-large-uncased)
 and [Bert base uncased](https://huggingface.co/bert-base-uncased) models
-and a dataset of 50,000 sentences from the TODO dataset. The benchmarks produce
+and a dataset of 50,000 manually generated sentences. The benchmarks produce
 the following metrics:
 
 - Mean Inference Requested Batch Size - the average batch size that RunInference groups the images into for batch prediction
