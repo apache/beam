@@ -345,7 +345,7 @@ class Clusters:
   """An interface to control clusters implicitly created and managed by
   the current interactive environment. This class is not needed and
   should not be used otherwise.
-  
+
   Do not use it for clusters a user explicitly manages: e.g., if you have
   a Flink cluster running somewhere and provides the flink master when
   running a pipeline with the FlinkRunner, the cluster will not be tracked
