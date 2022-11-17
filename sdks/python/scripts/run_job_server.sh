@@ -51,6 +51,11 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --additional_args)
+      ADDITIONAL_ARGS="$2"
+      shift
+      shift
+      ;;
     start)
       STARTSTOP="$1"
       shift
