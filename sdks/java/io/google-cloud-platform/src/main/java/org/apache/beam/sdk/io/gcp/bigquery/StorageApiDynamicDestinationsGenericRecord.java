@@ -80,8 +80,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       @Override
       public TableRow toTableRow(T element) {
         return BigQueryUtils.convertGenericRecordToTableRow(
-            toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)),
-            tableSchema);
+            toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)), tableSchema);
       }
     };
   }

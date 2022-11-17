@@ -79,8 +79,6 @@ public class AvroGenericRecordToStorageApiProto {
       ImmutableMap.<String, FieldDescriptorProto.Type>builder()
           .put(LogicalTypes.date().getName(), FieldDescriptorProto.Type.TYPE_INT32)
           .put(LogicalTypes.decimal(1).getName(), FieldDescriptorProto.Type.TYPE_BYTES)
-          .put(LogicalTypes.timeMicros().getName(), FieldDescriptorProto.Type.TYPE_INT64)
-          .put(LogicalTypes.timeMillis().getName(), FieldDescriptorProto.Type.TYPE_INT64)
           .put(LogicalTypes.timestampMicros().getName(), FieldDescriptorProto.Type.TYPE_INT64)
           .put(LogicalTypes.timestampMillis().getName(), FieldDescriptorProto.Type.TYPE_INT64)
           .put(LogicalTypes.uuid().getName(), FieldDescriptorProto.Type.TYPE_STRING)
@@ -111,8 +109,18 @@ public class AvroGenericRecordToStorageApiProto {
           .put(
               LogicalTypes.timestampMillis().getName(),
               (logicalType, value) -> convertTimestamp(value))
-          .put(LogicalTypes.uuid().getName(), (logicalType, value) -> ((UUID) value).toString())
+          .put(LogicalTypes.uuid().getName(), (logicalType, value) -> convertUUID(value))
           .build();
+
+  static String convertUUID(Object value) {
+    if (value instanceof UUID) {
+      return ((UUID) value).toString();
+    } else {
+      Preconditions.checkArgument(value instanceof String, "Expecting a value as String type.");
+      UUID.fromString((String) value);
+      return (String) value;
+    }
+  }
 
   static Long convertTimestamp(Object value) {
     if (value instanceof ReadableInstant) {

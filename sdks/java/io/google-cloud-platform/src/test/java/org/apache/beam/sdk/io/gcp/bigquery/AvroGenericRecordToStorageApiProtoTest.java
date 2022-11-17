@@ -26,12 +26,16 @@ import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.EnumSet;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
+import org.apache.avro.Conversions;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
@@ -41,6 +45,8 @@ import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Days;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -61,6 +67,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
 
   private static final String[] TEST_ENUM_STRS =
       EnumSet.allOf(TestEnum.class).stream().map(TestEnum::name).toArray(String[]::new);
+
   private static final Schema BASE_SCHEMA =
       SchemaBuilder.record("TestRecord")
           .fields()
@@ -86,6 +93,26 @@ public class AvroGenericRecordToStorageApiProtoTest {
           .type()
           .fixed("MD5")
           .size(16)
+          .noDefault()
+          .endRecord();
+
+  private static final Schema LOGICAL_TYPES_SCHEMA =
+      SchemaBuilder.record("LogicalTypesRecord")
+          .fields()
+          .name("decimalValue")
+          .type(LogicalTypes.decimal(1, 1).addToSchema(Schema.create(Schema.Type.BYTES)))
+          .noDefault()
+          .name("dateValue")
+          .type(LogicalTypes.date().addToSchema(Schema.create(Schema.Type.INT)))
+          .noDefault()
+          .name("timestampMicrosValue")
+          .type(LogicalTypes.timestampMicros().addToSchema(Schema.create(Schema.Type.LONG)))
+          .noDefault()
+          .name("timestampMillisValue")
+          .type(LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG)))
+          .noDefault()
+          .name("uuidValue")
+          .type(LogicalTypes.uuid().addToSchema(Schema.create(Schema.Type.STRING)))
           .noDefault()
           .endRecord();
 
@@ -163,7 +190,47 @@ public class AvroGenericRecordToStorageApiProtoTest {
                   .build())
           .build();
 
+  private static final DescriptorProto LOGICAL_TYPES_SCHEMA_PROTO =
+      DescriptorProto.newBuilder()
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("decimalvalue")
+                  .setNumber(1)
+                  .setType(Type.TYPE_BYTES)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("datevalue")
+                  .setNumber(2)
+                  .setType(Type.TYPE_INT32)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampmicrosvalue")
+                  .setNumber(3)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampmillisvalue")
+                  .setNumber(4)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("uuidvalue")
+                  .setNumber(5)
+                  .setType(Type.TYPE_STRING)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .build();
+
   private static final byte[] BYTES = "BYTE BYTE BYTE".getBytes(StandardCharsets.UTF_8);
+
   private static final Schema NESTED_SCHEMA =
       SchemaBuilder.record("TestNestedRecord")
           .fields()
@@ -177,13 +244,17 @@ public class AvroGenericRecordToStorageApiProtoTest {
           .items(BASE_SCHEMA)
           .noDefault()
           .endRecord();
+
   private static GenericRecord baseRecord;
+  private static GenericRecord logicalTypesRecord;
   private static Map<String, Object> baseProtoExpectedFields;
+  private static Map<String, Object> logicalTypesProtoExpectedFields;
   private static GenericRecord nestedRecord;
 
   static {
     try {
       byte[] md5 = MessageDigest.getInstance("MD5").digest(BYTES);
+      Instant now = Instant.now();
       baseRecord =
           new GenericRecordBuilder(BASE_SCHEMA)
               .set("bytesValue", BYTES)
@@ -202,6 +273,19 @@ public class AvroGenericRecordToStorageApiProtoTest {
                   "fixedValue",
                   new GenericData.Fixed(BASE_SCHEMA.getField("fixedValue").schema(), md5))
               .build();
+      BigDecimal bd = BigDecimal.valueOf(1.1D);
+      UUID uuid = UUID.randomUUID();
+      logicalTypesRecord =
+          new GenericRecordBuilder(LOGICAL_TYPES_SCHEMA)
+              .set(
+                  "decimalValue",
+                  new Conversions.DecimalConversion()
+                      .toBytes(bd, Schema.create(Schema.Type.NULL), LogicalTypes.decimal(1, 1)))
+              .set("dateValue", now)
+              .set("timestampMicrosValue", now.toDateTime())
+              .set("timestampMillisValue", now.toDateTime())
+              .set("uuidValue", uuid)
+              .build();
       baseProtoExpectedFields =
           ImmutableMap.<String, Object>builder()
               .put("bytesvalue", ByteString.copyFrom(BYTES))
@@ -215,6 +299,16 @@ public class AvroGenericRecordToStorageApiProtoTest {
               .put("enumvalue", TEST_ENUM_STRS[1])
               .put("fixedvalue", ByteString.copyFrom(md5))
               .build();
+      logicalTypesProtoExpectedFields =
+          ImmutableMap.<String, Object>builder()
+              .put("decimalvalue", BeamRowToStorageApiProto.serializeBigDecimalToNumeric(bd))
+              .put(
+                  "datevalue",
+                  Days.daysBetween(Instant.EPOCH.toDateTime(), now.toDateTime()).getDays())
+              .put("timestampmicrosvalue", now.getMillis() * 1000)
+              .put("timestampmillisvalue", now.getMillis())
+              .put("uuidvalue", uuid.toString())
+              .build();
       nestedRecord =
           new GenericRecordBuilder(NESTED_SCHEMA)
               .set("nested", baseRecord)
@@ -225,22 +319,21 @@ public class AvroGenericRecordToStorageApiProtoTest {
     }
   }
 
-  @Test
-  public void testDescriptorFromSchema() {
+  void validateDescriptorAgainstSchema(Schema originalSchema, DescriptorProto schemaProto) {
     DescriptorProto descriptor =
-        AvroGenericRecordToStorageApiProto.descriptorSchemaFromAvroSchema(BASE_SCHEMA);
+        AvroGenericRecordToStorageApiProto.descriptorSchemaFromAvroSchema(originalSchema);
     Map<String, Type> types =
         descriptor.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     Map<String, Type> expectedTypes =
-        BASE_SCHEMA_PROTO.getFieldList().stream()
+        schemaProto.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     assertEquals(expectedTypes, types);
 
     Map<String, String> nameMapping =
-        BASE_SCHEMA.getFields().stream()
+        originalSchema.getFields().stream()
             .collect(Collectors.toMap(f -> f.name().toLowerCase(), f -> f.name()));
     descriptor
         .getFieldList()
@@ -248,13 +341,23 @@ public class AvroGenericRecordToStorageApiProtoTest {
             p -> {
               TypeWithNullability fieldSchema =
                   TypeWithNullability.create(
-                      BASE_SCHEMA.getField(nameMapping.get(p.getName())).schema());
+                      originalSchema.getField(nameMapping.get(p.getName())).schema());
               Label label =
                   fieldSchema.getType().getType() == Schema.Type.ARRAY
                       ? Label.LABEL_REPEATED
                       : fieldSchema.isNullable() ? Label.LABEL_OPTIONAL : Label.LABEL_REQUIRED;
               assertEquals(label, p.getLabel());
             });
+  }
+
+  @Test
+  public void testDescriptorFromSchema() {
+    validateDescriptorAgainstSchema(BASE_SCHEMA, BASE_SCHEMA_PROTO);
+  }
+
+  @Test
+  public void testDescriptorFromSchemaLogicalTypes() {
+    validateDescriptorAgainstSchema(LOGICAL_TYPES_SCHEMA, LOGICAL_TYPES_SCHEMA_PROTO);
   }
 
   @Test
@@ -304,16 +407,16 @@ public class AvroGenericRecordToStorageApiProtoTest {
     assertEquals(expectedBaseTypes, nestedTypes2);
   }
 
-  private void assertBaseRecord(DynamicMessage msg) {
+  private void assertBaseRecord(DynamicMessage msg, Map<String, Object> expectedFields) {
     Map<String, Object> recordFields =
         msg.getAllFields().entrySet().stream()
             .collect(
                 Collectors.toMap(entry -> entry.getKey().getName(), entry -> entry.getValue()));
-    assertEquals(baseProtoExpectedFields, recordFields);
+    assertEquals(expectedFields, recordFields);
   }
 
   @Test
-  public void testMessageFromTableRow() throws Exception {
+  public void testMessageFromGenericRecord() throws Exception {
     Descriptors.Descriptor descriptor =
         AvroGenericRecordToStorageApiProto.getDescriptorFromSchema(NESTED_SCHEMA);
     DynamicMessage msg =
@@ -325,6 +428,16 @@ public class AvroGenericRecordToStorageApiProtoTest {
         descriptor.getFields().stream()
             .collect(Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
     DynamicMessage nestedMsg = (DynamicMessage) msg.getField(fieldDescriptors.get("nested"));
-    assertBaseRecord(nestedMsg);
+    assertBaseRecord(nestedMsg, baseProtoExpectedFields);
+  }
+
+  @Test
+  public void testMessageFromGenericRecordLogicalTypes() throws Exception {
+    Descriptors.Descriptor descriptor =
+        AvroGenericRecordToStorageApiProto.getDescriptorFromSchema(LOGICAL_TYPES_SCHEMA);
+    DynamicMessage msg =
+        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(descriptor, logicalTypesRecord);
+    assertEquals(5, msg.getAllFields().size());
+    assertBaseRecord(msg, logicalTypesProtoExpectedFields);
   }
 }
