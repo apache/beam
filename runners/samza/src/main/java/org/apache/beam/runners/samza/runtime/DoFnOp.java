@@ -127,7 +127,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
   private final DoFnSchemaInformation doFnSchemaInformation;
   private final Map<?, PCollectionView<?>> sideInputMapping;
-
   private final Map<String, String> userStateIds;
 
   public DoFnOp(

@@ -164,14 +164,10 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
     final Map<String, String> userStateIds;
     if (DoFnSignatures.isStateful(transform.getFn())) {
-      TransformHierarchy.Node pardoNode = node;
-      while (!pardoNode.getEnclosingNode().isRootNode()) {
-        pardoNode = pardoNode.getEnclosingNode();
-      }
       final String sanitizedParDoName =
-          pardoNode.getFullName().replaceAll("\\s", "").replace("-", "_");
+          node.getEnclosingNode().getFullName().replaceAll("\\s", "").replace("-", "_");
       userStateIds =
-          ctx.translateUserStateIdToStoreId(
+          ctx.getStateIdToStoreIdMap(
               signature.stateDeclarations().keySet(), sanitizedParDoName);
     } else {
       userStateIds = Collections.emptyMap();
@@ -396,24 +392,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
       // set up user state configs
       for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
         final String userStateId = state.id();
-        final String uniqueStoreId;
-        if (ctx.addStateId(userStateId)) {
-          uniqueStoreId = userStateId;
-        } else {
-          TransformHierarchy.Node pardoNode = node;
-          while (!pardoNode.getEnclosingNode().isRootNode()) {
-            pardoNode = pardoNode.getEnclosingNode();
-          }
-          final String sanitizedParDoName =
-              pardoNode.getFullName().replaceAll("\\s", "").replace("-", "_");
-          final String multiParDoStateId = String.join("-", userStateId, sanitizedParDoName);
-          String candidate = multiParDoStateId;
-          int suffixNum = 2;
-          while (!ctx.addStateId(candidate)) {
-            candidate = multiParDoStateId + suffixNum++;
-          }
-          uniqueStoreId = candidate;
-        }
+        final String sanitizedParDoName =
+            node.getEnclosingNode().getFullName().replaceAll("\\s", "").replace("-", "_");
+        final String uniqueStoreId = ctx.getUniqueStoreId(userStateId, sanitizedParDoName);
         config.put(
             "stores." + uniqueStoreId + ".factory",
             "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");

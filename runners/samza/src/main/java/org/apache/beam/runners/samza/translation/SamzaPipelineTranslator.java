@@ -23,6 +23,7 @@ import com.google.auto.service.AutoService;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -78,8 +79,9 @@ public class SamzaPipelineTranslator {
       Pipeline pipeline,
       SamzaPipelineOptions options,
       Map<PValue, String> idMap,
+      Map<String, String> multiParDoStateIdMap,
       ConfigBuilder configBuilder) {
-    final ConfigContext ctx = new ConfigContext(idMap, options);
+    final ConfigContext ctx = new ConfigContext(idMap, options, multiParDoStateIdMap);
 
     final TransformVisitorFn configFn =
         new TransformVisitorFn() {
@@ -103,6 +105,30 @@ public class SamzaPipelineTranslator {
         };
     final SamzaPipelineVisitor visitor = new SamzaPipelineVisitor(configFn);
     pipeline.traverseTopologically(visitor);
+  }
+
+  /** Rewrite user store configs if there exists same state ids with multiple ParDos */
+  public static void rewriteConfigWithMultiParDoStateId(SamzaPipelineOptions options, Map<String, String> multiParDoStateIdMap, ConfigBuilder configBuilder) {
+    multiParDoStateIdMap.forEach((stateId, value) -> {
+      // rewrite single parDo state configs into multiple parDo state
+      String multiParDoStateId = String.join("-", stateId, value);
+      // replace old single parDo store configs with new storeId mapping appended with parDo name
+      configBuilder.remove("stores." + stateId + ".factory");
+      configBuilder.remove("stores." + stateId + ".key.serde");
+      configBuilder.remove("stores." + stateId + ".msg.serde");
+      configBuilder.remove("stores." + stateId + ".rocksdb.compression");
+      // put new config with multi pardo config
+      configBuilder.put("stores." + multiParDoStateId + ".factory",
+          "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
+      configBuilder.put("stores." + multiParDoStateId + ".key.serde", "byteArraySerde");
+      configBuilder.put("stores." + multiParDoStateId + ".msg.serde", "stateValueSerde");
+      configBuilder.put("stores." + multiParDoStateId + ".rocksdb.compression", "lz4");
+
+      if (options.getStateDurable()) {
+        configBuilder.remove("stores." + stateId + ".changelog");
+        configBuilder.put("stores." + multiParDoStateId + ".changelog", ConfigBuilder.getChangelogTopic(options, multiParDoStateId));
+      }
+    });
   }
 
   private interface TransformVisitorFn {

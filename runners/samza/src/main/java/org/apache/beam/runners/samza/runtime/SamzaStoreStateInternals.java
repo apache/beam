@@ -158,7 +158,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
     final Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores = new HashMap<>();
     stores.put(BEAM_STORE, getBeamStore(context));
-
+    // ["foo", "foo-pardo"    "ab", "ab"]
     final Coder<K> stateKeyCoder;
     if (keyCoder != null) {
       stateIdMap

@@ -83,6 +83,10 @@ public class ConfigBuilder {
     config.putAll(properties);
   }
 
+  public void remove(String name) {
+      config.remove(name);
+  }
+
   /** @return built configuration */
   public Config build() {
     try {

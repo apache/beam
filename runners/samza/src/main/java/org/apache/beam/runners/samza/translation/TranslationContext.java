@@ -83,8 +83,7 @@ public class TranslationContext {
   private final Map<PValue, String> idMap;
   private final Map<String, MessageStream> registeredInputStreams = new HashMap<>();
   private final Map<String, Table> registeredTables = new HashMap<>();
-
-  private final Set<String> storeIdByParDo = new HashSet<>();
+  private final Set<String> multiParDoStateIds;
   private final SamzaPipelineOptions options;
   private final HashIdGenerator idGenerator = new HashIdGenerator();
 
@@ -93,9 +92,11 @@ public class TranslationContext {
   public TranslationContext(
       StreamApplicationDescriptor appDescriptor,
       Map<PValue, String> idMap,
+      Set<String> multiParDoStateIds,
       SamzaPipelineOptions options) {
     this.appDescriptor = appDescriptor;
     this.idMap = idMap;
+    this.multiParDoStateIds = multiParDoStateIds;
     this.options = options;
   }
 
@@ -251,27 +252,12 @@ public class TranslationContext {
     return idGenerator.getId(getTransformFullName());
   }
 
-  public Map<String, String> translateUserStateIdToStoreId(Set<String> stateIds, String parDoName) {
+  /** Given a set of user stateIds and parDo name, return a stateId to storeId map */
+  public Map<String, String> getStateIdToStoreIdMap(Set<String> stateIds, String parDoName) {
     final Map<String, String> storeIds = new HashMap<>();
-    stateIds.forEach(
-        stateId -> {
-          final String storeId;
-          if (!storeIdByParDo.contains(stateId)) {
-            storeId = stateId;
-          } else if (!storeIdByParDo.contains(String.join("-", stateId, parDoName))) {
-            storeId = String.join("-", stateId, parDoName);
-          } else {
-            final String multiParDoStateId = String.join("-", stateId, parDoName);
-            String candidate = multiParDoStateId;
-            int suffixNum = 2;
-            while (!storeIdByParDo.contains(candidate)) {
-              candidate = multiParDoStateId + suffixNum++;
-            }
-            storeId = candidate;
-          }
-          storeIdByParDo.add(storeId);
-          storeIds.put(stateId, storeId);
-        });
+    stateIds.forEach(stateId ->
+        storeIds.put(stateId, multiParDoStateIds.contains(stateId)
+              ? String.join("-", stateId, parDoName) : stateId));
     return storeIds;
   }
 
