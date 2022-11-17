@@ -38,9 +38,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.harness.JvmInitializer;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.TextFormat;
@@ -128,8 +128,8 @@ public class FnHarnessTest {
             CountDownLatch waitForResponses =
                 new CountDownLatch(1 /* number of responses expected */);
             options
-                .as(GcsOptions.class)
-                .getExecutorService()
+                .as(ExecutorOptions.class)
+                .getScheduledExecutorService()
                 .submit(
                     () -> {
                       responseObserver.onNext(INSTRUCTION_REQUEST);
