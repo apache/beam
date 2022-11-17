@@ -316,6 +316,9 @@ class RestrictionProvider(object):
 
     The return value must be non-negative.
 
+    Must be thread safe. Will be invoked concurrently during bundle processing
+    due to runner initiated splitting and progress estimation.
+
     This API is required to be implemented.
     """
     raise NotImplementedError
