@@ -113,9 +113,8 @@ runShadow {
     args += ["--flink-master=${project.property('flinkMaster')}"]
   else if (project.hasProperty('flinkMasterUrl'))
     args += ["--flink-master=${project.property('flinkMasterUrl')}"]
-  // if (project.hasProperty('flinkConfDir'))
-  //   args += ["--flink-conf-dir=${project.property('flinkConfDir')}"]
-  args += ["flink-conf-dir=/home/jenkins/jenkins-slave/workspace/beam_SeedJob/runners/flink/src/test/resources"]
+  if (project.hasProperty('flinkConfDir'))
+    args += ["--flink-conf-dir=${project.property('flinkConfDir')}"]
   if (project.hasProperty('sdkWorkerParallelism'))
     args += ["--sdk-worker-parallelism=${project.property('sdkWorkerParallelism')}"]
 
@@ -231,9 +230,12 @@ def setupTask = project.tasks.register("flinkJobServerSetup", Exec) {
   dependsOn shadowJar
   def pythonDir = project.project(":sdks:python").projectDir
   def flinkJobServerJar = shadowJar.archivePath
+  def additionalArgs = ""
+  if (project.hasProperty('flinkConfDir'))
+    additionalArgs += " --flink-conf-dir=${project.property('flinkConfDir')}"
 
   executable 'sh'
-  args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${flinkJobServerJar}"
+  args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${flinkJobServerJar} --additional_args ${additionalArgs}"
 }
 
 def cleanupTask = project.tasks.register("flinkJobServerCleanup", Exec) {
