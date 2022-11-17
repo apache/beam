@@ -29,7 +29,7 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
 # Prepare Application
 COPY src /go/src/playground/backend
 
-ARG BEAM_VERSION=2.40.0
+ARG BEAM_VERSION=2.42.0
 ENV PREPARED_MOD_DIR=/opt/playground/prepared_folder/
 ENV PIPELINES_FOLDER_NAME="executable_files"
 RUN mkdir -p /opt/playground/ $PREPARED_MOD_DIR

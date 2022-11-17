@@ -24,12 +24,14 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: 
+      - '.github/workflows/tour_of_beam_backend_integration.yml'
       - 'learning/tour-of-beam/backend/**'
       - 'playground/backend/**'
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: 
+      - '.github/workflows/tour_of_beam_backend_integration.yml'
       - 'learning/tour-of-beam/backend/**'
       - 'playground/backend/**'
 
@@ -71,9 +73,16 @@ jobs:
         with:
           # pin to the biggest Go version supported by Cloud Functions runtime
           go-version: '1.16'
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+            cache-read-only: false
+
       - name: Build Playground router image
         run: ./gradlew playground:backend:containers:router:docker
         working-directory: ${{ env.GITHUB_WORKSPACE }}
+
       # 1. Start emulators
       - name: Start emulators
         run: docker-compose up -d
@@ -112,4 +121,3 @@ jobs:
           diff -q "${{ env.DATASTORE_EMULATOR_DATADIR }}/WEB-INF/index.yaml" \
           internal/storage/index.yaml \
           || ( echo "index.yaml mismatch"; exit 1)
-
