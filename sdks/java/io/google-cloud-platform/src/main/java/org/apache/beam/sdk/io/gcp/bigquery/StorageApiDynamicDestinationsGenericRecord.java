@@ -24,8 +24,10 @@ import com.google.protobuf.Message;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Storage API DynamicDestinations used when the input is a Beam Row. */
 class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNull Object>
@@ -36,7 +38,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
   StorageApiDynamicDestinationsGenericRecord(
       DynamicDestinations<T, DestinationT> inner,
-      SerializableFunction<TableSchema, Schema> schemaFactory,
+      SerializableFunction<@Nullable TableSchema, Schema> schemaFactory,
       SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord) {
     super(inner);
     this.toGenericRecord = toGenericRecord;
@@ -50,9 +52,11 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       final Descriptor descriptor;
       final long descriptorHash;
       final Schema avroSchema;
+      final TableSchema tableSchema;
 
       {
         avroSchema = schemaFactory.apply(getSchema(destination));
+        tableSchema = BigQueryUtils.toTableSchema(AvroUtils.toBeamSchema(avroSchema));
         descriptor = AvroGenericRecordToStorageApiProto.getDescriptorFromSchema(avroSchema);
         descriptorHash = BigQueryUtils.hashSchemaDescriptorDeterministic(descriptor);
       }
@@ -77,7 +81,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       public TableRow toTableRow(T element) {
         return BigQueryUtils.convertGenericRecordToTableRow(
             toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)),
-            getSchema(destination));
+            tableSchema);
       }
     };
   }
