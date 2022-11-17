@@ -17,7 +17,7 @@
 
 steps:
   # This stage uses pre-built Docker container to run gradle task for Playground pre-config and deployment to GKE
-  - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository/builder:worker'
+  - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository/builder:playground'
     entrypoint: "/bin/bash"
     args:
       [
@@ -39,7 +39,7 @@ substitutions:
   # The name of the GCP logs bucket
   _LOGS_BUCKET_NAME: "pg-cloudbuild-logging-bucket"
   # The name of docker repository root (from outputs of first trigger result)
-  _DOCKER_REPOSITORY_ROOT: ""
+  _DOCKER_REPOSITORY_ROOT: "${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository"
 
 # The name of your GCP logs bucket
 logsBucket: 'gs://${_LOGS_BUCKET_NAME}'

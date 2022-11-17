@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-data "google_service_account" "myaccount" {
+data "google_service_account" "cloudbuild_sa" {
   account_id = var.cloudbuild_service_account_id
 }
 

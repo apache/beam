@@ -137,4 +137,3 @@ website/www/yarn-error.log
 
 # Ignore Katas auto-generated files
 **/*-remote-info.yaml
-playground/terraform/infrastructure/cloudbuild-manual-setup/terraform.tfvars

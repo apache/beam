@@ -16,17 +16,17 @@
 # under the License.
 
 steps:
-  # This stage builds the image from Dockerfile that will be used as Docker environment to run Beam Playground deployment
+  # This stage builds the image from Dockerfile that will be used as environment to run Beam Playground deployment
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
-      - '--tag=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository/playground-builder:worker'
+      - '--tag=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository/builder:playground'
       - '-f'
-      - 'playground/infrastructure/cloudbuild/Dockerfile-base-image-worker'
+      - 'playground/infrastructure/cloudbuild/Dockerfile'
       - '.'
 
   # This stage uses Docker container from image built in step above to run gradle task for Playground Infrastructure deployment
-  - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository/builder:worker'
+  - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository/builder:playground'
     entrypoint: "/bin/bash"
     args: ['-c', './gradlew playground:terraform:InitInfrastructure -Pproject_environment="${_ENVIRONMENT_NAME}" -Pdns-name="${_DNS_NAME}"']
 
@@ -44,7 +44,7 @@ logsBucket: 'gs://${_LOGS_BUCKET_NAME}'
 
 # Pushing built image to GCP Artifact Registry repository
 images:
-  - '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository/builder:worker'
+  - '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository/builder:playground'
 
 # This option enables writing logs to GCS bucket
 options:

@@ -40,13 +40,13 @@ variable "github_repository_branch" {
   description = "The GitHub repository branch name to match cloud build trigger"
 }
 
-variable "infra_trigger_id" {
+variable "infra_trigger_name" {
   type        = string
   description = "The name of the trigger that will deploy Playground infrastructure"
   default     = "Playground-infrastructure-trigger"
 }
 
-variable "gke_trigger_id" {
+variable "gke_trigger_name" {
   type        = string
   description = "The name of the trigger that will deploy Playground to GKE"
   default     = "Playground-to-gke-trigger"
