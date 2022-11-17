@@ -95,8 +95,10 @@ function download_files() {
       exit 1
     fi
 
+    echo "Downloading wheel: $BEAM_PYTHON_SDK_WHL"
     wget -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_WHL*" $RC_STAGING_URL
   else
+    echo "Downloading zip file"
     BEAM_PYTHON_SDK_ZIP="apache-beam-$VERSION.zip"
     wget -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_ZIP*" $RC_STAGING_URL
   fi
