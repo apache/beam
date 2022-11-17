@@ -64,6 +64,9 @@ import org.slf4j.LoggerFactory;
  *   <li>batchCount - Number of events in a single batch.
  *   <li>disableCertificateValidation - Whether to disable ssl validation (useful for self-signed
  *       certificates)
+ *   <li>enableBatchLogs - Whether to enable batch logs.
+ *   <li>enableGzipHttpCompression - Whether HTTP requests sent to Splunk HEC should be GZIP
+ *       encoded.
  * </ul>
  *
  * <p>This transform will return any non-transient write failures via a {@link PCollection
@@ -139,6 +142,10 @@ public class SplunkIO {
 
     abstract @Nullable ValueProvider<Boolean> disableCertificateValidation();
 
+    abstract @Nullable ValueProvider<Boolean> enableBatchLogs();
+
+    abstract @Nullable ValueProvider<Boolean> enableGzipHttpCompression();
+
     abstract Builder toBuilder();
 
     @Override
@@ -150,7 +157,10 @@ public class SplunkIO {
               .withUrl(url())
               .withInputBatchCount(batchCount())
               .withDisableCertificateValidation(disableCertificateValidation())
-              .withToken(token());
+              .withToken(token())
+              .withEnableBatchLogs(enableBatchLogs())
+              .withEnableGzipHttpCompression(enableGzipHttpCompression());
+      ;
 
       SplunkEventWriter writer = builder.build();
       LOG.info("SplunkEventWriter configured");
@@ -175,6 +185,11 @@ public class SplunkIO {
 
       abstract Builder setDisableCertificateValidation(
           ValueProvider<Boolean> disableCertificateValidation);
+
+      abstract Builder setEnableBatchLogs(ValueProvider<Boolean> enableBatchLogs);
+
+      abstract Builder setEnableGzipHttpCompression(
+          ValueProvider<Boolean> enableGzipHttpCompression);
 
       abstract Write build();
     }
@@ -246,6 +261,60 @@ public class SplunkIO {
           "withDisableCertificateValidation(disableCertificateValidation) called with null input.");
       return toBuilder()
           .setDisableCertificateValidation(StaticValueProvider.of(disableCertificateValidation))
+          .build();
+    }
+
+    /**
+     * Same as {@link Builder#withEnableBatchLogs(ValueProvider)} but without a {@link
+     * ValueProvider}.
+     *
+     * @param enableBatchLogs whether to enable Gzip encoding.
+     * @return {@link Builder}
+     */
+    public Write withEnableBatchLogs(ValueProvider<Boolean> enableBatchLogs) {
+      checkArgument(
+          enableBatchLogs != null, "withEnableBatchLogs(enableBatchLogs) called with null input.");
+      return toBuilder().setEnableBatchLogs(enableBatchLogs).build();
+    }
+
+    /**
+     * Method to enable batch logs.
+     *
+     * @param enableBatchLogs whether to enable Gzip encoding.
+     * @return {@link Builder}
+     */
+    public Write withEnableBatchLogs(Boolean enableBatchLogs) {
+      checkArgument(
+          enableBatchLogs != null, "withEnableBatchLogs(enableBatchLogs) called with null input.");
+      return toBuilder().setEnableBatchLogs(StaticValueProvider.of(enableBatchLogs)).build();
+    }
+
+    /**
+     * Same as {@link Builder#withEnableGzipHttpCompression(ValueProvider)} but without a {@link
+     * ValueProvider}.
+     *
+     * @param enableGzipHttpCompression whether to enable Gzip encoding.
+     * @return {@link Builder}
+     */
+    public Write withEnableGzipHttpCompression(ValueProvider<Boolean> enableGzipHttpCompression) {
+      checkArgument(
+          enableGzipHttpCompression != null,
+          "withEnableGzipHttpCompression(enableGzipHttpCompression) called with null input.");
+      return toBuilder().setEnableGzipHttpCompression(enableGzipHttpCompression).build();
+    }
+
+    /**
+     * Method to specify if HTTP requests sent to Splunk should be GZIP encoded.
+     *
+     * @param enableGzipHttpCompression whether to enable Gzip encoding.
+     * @return {@link Builder}
+     */
+    public Write withEnableGzipHttpCompression(Boolean enableGzipHttpCompression) {
+      checkArgument(
+          enableGzipHttpCompression != null,
+          "withEnableGzipHttpCompression(enableGzipHttpCompression) called with null input.");
+      return toBuilder()
+          .setEnableGzipHttpCompression(StaticValueProvider.of(enableGzipHttpCompression))
           .build();
     }
 
