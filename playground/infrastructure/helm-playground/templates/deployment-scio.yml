@@ -32,6 +32,18 @@ spec:
      - name: playground-backend-scio
        image: "{{ .Values.registry}}/{{ .Values.image.scio_image }}:{{ .Values.tag }}"
        imagePullPolicy: {{ .Values.image.pullPolicy }}
+       ports:
+        - containerPort: 8080
+       readinessProbe:
+         tcpSocket:
+           port: 8080
+         initialDelaySeconds: 5
+         periodSeconds: 10
+       livenessProbe:
+         tcpSocket:
+           port: 8080
+         initialDelaySeconds: 15
+         periodSeconds: 20
        env:
        - name: CACHE_TYPE
          value: "remote"
