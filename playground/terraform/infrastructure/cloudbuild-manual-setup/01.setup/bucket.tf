@@ -15,22 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-variable "project" {
-  type        = string
-  description = "The ID of the Google Cloud project within which resources are provisioned"
-}
+resource "google_storage_bucket" "cloudbuild_logs_bucket" {
+  name          = var.cloudbuild_logs_bucket_name
+  location      = var.region
+  storage_class = "STANDARD"
 
-variable "region" {
-  type        = string
-  description = "The Google Cloud Platform (GCP) region in which to provision resources"
-}
-
-variable "cloudbuild_service_account_id" {
-  type        = string
-  description = "The ID of the cloud build service account responsible for provisioning Google Cloud resources"
-}
-
-variable "cloudbuild_logs_bucket_name" {
-  type = string
-  description = "Globally unique ID of your logs bucket for Cloud Build"
+  public_access_prevention = "enforced"
 }

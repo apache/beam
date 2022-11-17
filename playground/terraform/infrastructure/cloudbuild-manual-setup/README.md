@@ -28,30 +28,33 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
     - Storage Admin
     - Service Usage Admin
     - Cloud Build Editor
+    - Security Admin
+      Service Account User
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 - Two GCP Buckets:
-  1. An existing Google Cloud Storage Bucket to save Terraform state - `state_bucket`
-  2. An existing GCP Bucket to save Cloud build logs - `cloudbuild_Logs_bucket`
+  1. An existing GCP Bucket to save Terraform state - `state_bucket`
 - DNS name for your Playground deployment instance
 - [Terraform](https://www.terraform.io/)
 - [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
 
 ## 1. Setup the Google Cloud Build  for your GCP project
 
-The `playground/infrastructure/cloudbuild-manual-setup/01.setup` provisions dependencies required to setup Cloud Build for Playground:
+The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provisions dependencies required to setup Cloud Build for Playground:
 - Required API services
 - Cloud Build service account
 - IAM permissions for Cloud Build service account
+- GCP Storage Bucket for Cloud Build logs
 
 #### To execute the module:
 
-1. Create configuration file terraform.tfvars file by path: `playground/terraform/cloudbuild-manual-setup/01.setup/terraform.tfvars`
+1. Create configuration file terraform.tfvars file by path: `playground/terraform/infrastructure/cloudbuild-manual-setup/terraform.tfvars`
 and provide values as per example below:
 
 ```
 project                       = "sandbox-playground-001"    # Your Project ID
 region                        = "us-central1"               # Your GCP region name where resources will be provisioned
 cloudbuild_service_account_id = "terraform-cloudbuild"      # Name of SA to be used by Cloud Build to deploy Playground
+cloudbuild_logs_bucket_name   = "cb_logs_bucket"            # The name of GCP bucket for Cloud Build logs
 ```
 
 2. Run commands:
@@ -65,10 +68,10 @@ gcloud init
 gcloud auth application-default login
 
 # Navigate to ../01.setup folder
-cd beam/playground/terraform/cloudbuild-manual-setup/01.setup
+cd playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup/
 
 # Run terraform scripts
-terraform init -backend-config="bucket="YOUR_BUCKET_FOR_TF_STATE"
+terraform init -backend-config="bucket=YOUR_BUCKET_FOR_TF_STATE"
 terraform plan -var-file="../terraform.tfvars"
 terraform apply -var-file="../terraform.tfvars"
 
@@ -79,7 +82,7 @@ Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/auto
 
 ## 3. Setup the Google Cloud Build triggers
 
-The `playground/infrastructure/cloudbuild-manual-setup/02.builders` provisions:
+The `playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders` provisions:
 - Cloud Build trigger to build and deploy Beam Playground.
 
 #### Execute the module
@@ -89,7 +92,7 @@ next variables:
 
 ```
 github_repository_name        = "beam"                      # The name of the GitHub repo. Example: In https://github.com/example/foo is 'foo'
-github_repository_owner       = "ruslan-ikhsan"             # Owner of the GitHub repo. Example: In https://github.com/example/foo is 'example'.
+github_repository_owner       = "owner"                     # Owner of the GitHub repo. Example: In https://github.com/example/foo is 'example'.
 github_repository_branch      = "cloudbuild+playground"     # The name of GitHub repo branch
 ```
 
@@ -99,8 +102,9 @@ Final version of `terraform.tfvars` will look like:
 project                       = "sandbox-playground-001"    # Your Project ID
 region                        = "us-central1"               # Your GCP region name where resources will be provisioned
 cloudbuild_service_account_id = "terraform-cloudbuild"      # Name of SA to be used by Cloud Build to deploy Playground
+cloudbuild_logs_bucket_name   = "cb_logs_bucket"            # The name of GCP bucket for Cloud Build logs
 github_repository_name        = "beam"                      # The name of the GitHub repo. Example: In https://github.com/example/foo is 'foo'
-github_repository_owner       = "ruslan-ikhsan"             # Owner of the GitHub repo. Example: In https://github.com/example/foo is 'example'.
+github_repository_owner       = "owner"                     # Owner of the GitHub repo. Example: In https://github.com/example/foo is 'example'.
 github_repository_branch      = "cloudbuild+playground"     # The name of GitHub repo branch
 ```
 
@@ -110,9 +114,9 @@ github_repository_branch      = "cloudbuild+playground"     # The name of GitHub
 # Navigate to ../02.builders folder
 cd beam/playground/terraform/cloudbuild-manual-setup/02.builders
 # Run terraform scripts
-terraform init -backend-config="bucket="YOUR_BUCKET_FOR_TF_STATE"
-terraform plan -var-file="terraform.tfvars"
-terraform apply -var-file="terraform.tfvars"
+terraform init -backend-config="bucket=YOUR_BUCKET_FOR_TF_STATE"
+terraform plan -var-file="../terraform.tfvars"
+terraform apply -var-file="../terraform.tfvars"
 ```
 
 ## 4. Running First Cloud Build Trigger: "Playground-infrastructure-trigger"
