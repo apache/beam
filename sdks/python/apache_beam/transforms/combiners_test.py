@@ -570,13 +570,12 @@ class CombineTest(unittest.TestCase):
 
       def has_expected_values(actual):
         from hamcrest.core import assert_that as hamcrest_assert
-        from hamcrest.library.collection import contains_exactly
+        from hamcrest.library.collection import only_contains
         ordered = sorted(actual)
 
         hamcrest_assert(
             ordered,
-            contains_exactly([0, 1, 2, 3], [0, 1, 2, 3, 5, 6, 7, 8],
-                             [5, 6, 7, 8]))
+            only_contains([0, 1, 2, 3], [0, 1, 2, 3, 5, 6, 7, 8], [5, 6, 7, 8]))
 
       result = (
           p
@@ -602,10 +601,10 @@ class CombineTest(unittest.TestCase):
 
       def has_expected_values(actual):
         from hamcrest.core import assert_that as hamcrest_assert
-        from hamcrest.library.collection import contains_exactly
+        from hamcrest.library.collection import only_contains
         ordered = sorted(actual)
 
-        hamcrest_assert(ordered, contains_exactly([0, 1, 2, 3], [5, 6, 7, 8]))
+        hamcrest_assert(ordered, only_contains([0, 1, 2, 3], [5, 6, 7, 8]))
 
       result = (
           p
