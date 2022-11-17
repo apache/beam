@@ -97,6 +97,64 @@ public class Task {
         }).withSideInputs(citiesToCountriesView));
     }
 
+    static class Person implements Serializable {
+
+        private String name;
+        private String city;
+        private String country;
+
+        public Person(String name, String city) {
+            this.name = name;
+            this.city = city;
+        }
+
+        public Person(String name, String city, String country) {
+            this.name = name;
+            this.city = city;
+            this.country = country;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getCity() {
+            return city;
+        }
+
+        public String getCountry() {
+            return country;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            Person person = (Person) o;
+
+            return Objects.equals(name, person.name) &&
+                    Objects.equals(city, person.city) &&
+                    Objects.equals(country, person.country);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, city, country);
+        }
+
+        @Override
+        public String toString() {
+            return "Person{" +
+                    "name='" + name + '\'' +
+                    ", city='" + city + '\'' +
+                    ", country='" + country + '\'' +
+                    '}';
+        }
+
+    }
+
+
     static class LogOutput<T> extends DoFn<T, T> {
         private String prefix;
 

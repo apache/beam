@@ -23,6 +23,8 @@ complexity: Medium
 content:
   - pardo-one-to-one
   - pardo-one-to-many
+  - group-by-key
+  - co-group-by-key
   - additional-outputs
   - branching
   - combine
