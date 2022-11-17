@@ -17,13 +17,13 @@
 
 # Beam Playground Cloud Build Setup
 
-This directory organizes Infrastructure-as-Code to provision dependent resources and setup Cloud Build for Beam Playground.
+This directory organizes Infrastructure-as-Code to provision dependent resources and set up Cloud Build for Beam Playground.
 
 ## Requirements:
 
 - [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
 - [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
-  Ensure that the account has at least following privileges:
+  Ensure that the account has at least the following privileges:
     - Service Account Admin
     - Storage Admin
     - Service Usage Admin
@@ -46,8 +46,8 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
 
 #### To execute the module:
 
-1. Create a folder `playground/terraform/environment/{environment_name}` (further referred as `environment_name`) to define a new environment for Playground.
-2. Create `terraform.tfvars` file in newly created `environment_name` folder.
+1. Create a folder `playground/terraform/environment/{environment_name}` (further referred to as `environment_name`) to define a new environment for Playground.
+2. Create `terraform.tfvars` file in the newly created `environment_name` folder.
 3. Fill the `terraform.tfvars` configuration file as follows:
 
 ```
@@ -55,10 +55,10 @@ project_id                    = "project_id"                # Your Project ID
 region                        = "us-central1"               # Your GCP region name where resources will be provisioned
 location                      = "us-central1-b"             # Select the deployment location from available in the specified region
 cloudbuild_service_account_id = "cloudbuild_sa_name"        # Name of SA to be used by Cloud Build to deploy Playground
-cloudbuild_logs_bucket_name   = "logs_bucket_name"          # Assign globally unique name of GCP bucket for Cloud Build logs
+cloudbuild_logs_bucket_name   = "logs_bucket_name"          # Assign a globally unique name of GCP bucket for Cloud Build logs
 github_repository_name        = "beam"                      # The name of the GitHub repo. Example: In https://github.com/example/foo is 'foo'
 github_repository_owner       = "owner_name"                # Owner of the GitHub repo. Example: In https://github.com/example/foo is 'example'.
-github_repository_branch      = "branch_name"               # The name of GitHub repo branch
+github_repository_branch      = "branch_name"               # The name of the GitHub repo branch
 
 network_name                  = "network_name"              # GCP VPC Network Name for Playground deployment
 gke_name                      = "playground-backend"        # Playground GKE Cluster name
@@ -66,12 +66,14 @@ state_bucket                  = "bucket_name"               # GCS bucket name fo
 bucket_examples_name          = "bucket_name-example"       # GCS bucket name for Playground examples storage
 ```
 
+5. Push the `environment_name` folder to your repository.
+
 **Note:** Some regions can be prohibited for Cloud Build. Please see [Cloud Build locations](https://cloud.google.com/build/docs/locations) for supported locations.
 
 4. Run commands:
 
 ```console
-# Create new authentication configuration to GCP Project with created user account
+# Create a new authentication configuration for GCP Project with the created user account
 gcloud init
 
 # Command imports new user account credentials into Application Default Credentials
@@ -87,7 +89,7 @@ terraform apply -var-file="../../environment/{environment_name}/terraform.tfvars
 ```
 
 ## 2. Connect GitHub repository and Cloud Build
-Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect GitHub repository and Cloud Build.
+Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect the GitHub repository and Cloud Build.
 
 ## 3. Setup the Google Cloud Build triggers
 
@@ -106,13 +108,13 @@ terraform plan -var-file="../../environment/{environment_name}/terraform.tfvars"
 terraform apply -var-file="../../environment/{environment_name}/terraform.tfvars"
 ```
 
-## 4. Running first Cloud Build trigger to deploy Playground infrastructure
+## 4. Running the first Cloud Build trigger to deploy Playground infrastructure
 
-1. Perform steps described in [Prepare deployment configuration](https://github.com/apache/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#prepare-deployment-configuration)
+1. Perform the steps described in [Prepare deployment configuration](https://github.com/apache/beam/tree/Infra%2Bplayground-in-gke/playground/terraform#prepare-deployment-configuration)
 2. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (Example: us-central1).
 3. Open Trigger: `Playground-infrastructure-trigger`.
 4. Scroll down to `Advanced` - `Substitutions variables` and Click on `+ ADD VARIABLE`.
-5. Assign values for next variables:
+5. Assign values for the next variables:
     - `_ENVIRONMENT_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; # *Created "environment_name"*
     - `_DNS_NAME`  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your DNS record name*
     - `_LOGS_BUCKET_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your GCP logs bucket name (configured in terraform.tfvars)*
@@ -122,12 +124,12 @@ terraform apply -var-file="../../environment/{environment_name}/terraform.tfvars
    [Playground deployment README](https://github.com/apache/beam/tree/master/playground/terraform#deploy-playground-infrastructure) and execute step #2:
    `Add following DNS A records for the discovered static IP address`
 
-## 5. Running second Cloud Build trigger to deploy Playground to GKE
+## 5. Running the second Cloud Build trigger to deploy Playground to GKE
 
 1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (Example: us-central1).
 2. Open Trigger: `Playground-to-gke-trigger`.
 3. Scroll down to `Advanced` - `Substitutions variables` and Click on `+ ADD VARIABLE`.
-4. Assign values for next variables:
+4. Assign values for the next variables:
     - `_ENVIRONMENT_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  # *Created "environment_name"*
     - `_DNS_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  &nbsp;  &nbsp;  *# Your DNS record name*
     - `_TAG` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Tag name for your Playground container images*
