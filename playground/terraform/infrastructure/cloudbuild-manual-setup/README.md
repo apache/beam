@@ -152,6 +152,7 @@ terraform apply -var-file="../terraform.tfvars"
     - `_TAG` *#Tag name for your Playground container images*
     - `_GKE_NAME` *#Your GKE cluster name for Playground*
     - `_LOGS_BUCKET_NAME` *#Your GCP logs bucket name (configured earlier in terraform.tfvars)*
+    - `_DOCKER_REPOSITORY_ROOT` *# The name of docker repo root (can be taken from outputs of first trigger result)*
 7. Click save.
 8. Run the trigger `Playground-to-gke-trigger`.
 
