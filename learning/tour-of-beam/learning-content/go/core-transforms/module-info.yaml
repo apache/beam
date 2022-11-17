@@ -21,12 +21,13 @@ id: core-transforms
 name: Core Transforms
 complexity: Medium
 content:
+  - pardo-one-to-one
+  - pardo-one-to-many
   - additional-outputs
   - branching
   - combine
   - composite
   - flatten
-  - map
   - partition
   - side-inputs
   - motivating-challenge-1

@@ -33,10 +33,6 @@ tree, [2]
 
 Thus, ```GroupByKey``` represents a transform from a multimap (multiple keys to individual values) to a uni-map (unique keys to collections of values).
 
-```
-pairs := CreateAndSplit(s, input)
-keyed := beam.GroupByKey(s, pairs)
-```
 
 ### GroupByKey and unbounded PCollections
 
@@ -44,11 +40,37 @@ If you are using unbounded ```PCollections```, you must use either non-global wi
 
 If you do apply ```GroupByKey``` or ```CoGroupByKey``` to a group of unbounded ```PCollections``` without setting either a non-global windowing strategy, a trigger strategy, or both for each collection, Beam generates an IllegalStateException error at pipeline construction time.
 
-When using ```GroupByKey``` or ```CoGroupByKey``` to group PCollections that have a windowing strategy applied, all of the ```PCollections``` you want to group must use the same windowing strategy and window sizing. For example, all of the collections you are merging must use (hypothetically) identical 5-minute fixed windows, or 4-minute sliding windows starting every 30 seconds.
+When using ```GroupByKey``` or ```CoGroupByKey``` to group PCollections that have a windowing strategy applied, all of the ```PCollections``` you want to group must use the same windowing strategy and window sizing. For example, all the collections you are merging must use (hypothetically) identical 5-minute fixed windows, or 4-minute sliding windows starting every 30 seconds.
 
 If your pipeline attempts to use ```GroupByKey``` or ```CoGroupByKey``` to merge ```PCollections``` with incompatible windows, Beam generates an IllegalStateException error at pipeline construction time.
 
 
-### Description for example
+### Playground exercise
+
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
 A list of strings is provided. The `applyTransform()` method implements grouping by the first letter of words, which will be a list of words.
+
+If we have a word with a certain number, but the difference is in the case of the letters, we can convert and group:
+```
+input := beam.ParDo(s, func(_ []byte, emit func(string, int)){
+		emit("brazil", 2)
+		emit("australia", 4)
+		emit("canada", 3)
+		emit("Australia", 1)
+		emit("Brazil", 5)
+		emit("Canada", 2)
+}, beam.Impulse(s))
+```
+
+If the keys are duplicated, groupByKey collects data and the values will be stored in an array:
+```
+func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+	kv := beam.ParDo(s, func(word string,count int) (string, int) {
+		return strings.ToLower(word),count
+    },input)
+	return beam.GroupByKey(s, kv)
+}
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

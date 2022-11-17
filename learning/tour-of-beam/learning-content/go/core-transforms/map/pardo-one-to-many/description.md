@@ -15,6 +15,42 @@ func tokenizeFn(input string, emit func(out string)) {
 }
 ```
 
-### Description for example 
+### Playground exercise
 
-At the input, the elements of the "Collection" are represented as strings. The `applyTransform()` function returns a list of words that make up a sentence.
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+The `applyTransform()` function returns a list of words that make up a sentence.
+
+`ParDo many-to-many` can be used to split a file into words:
+
+Before you start, add a dependency:
+```
+"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+"regexp"
+```
+
+You also need to add a global variable:
+
+```
+var (
+    wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+)
+```
+
+Reading data from a file:
+```
+input := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
+
+output := applyTransform(s, input)
+```
+
+Let's change `applyTransform` to split into words by regexp:
+```
+func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+    return beam.ParDo(s, func(line string, emit func(string)) {
+        for _, word := range wordRE.FindAllString(line, -1) {
+            emit(word)
+        }
+    }, input)
+}
+```

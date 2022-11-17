@@ -39,23 +39,6 @@ func processWords(word string, emitBelowCutoff, emitAboveCutoff, emitMarked func
 		emitMarked(word)
 	}
 }
-
-// processWordsMixed demonstrates mixing an emitter, with a standard return.
-// If a standard return is used, it will always be the first returned PCollection,
-// followed in positional order by the emitter functions.
-func processWordsMixed(word string, emitMarked func(string)) int {
-	if isMarkedWord(word) {
-		emitMarked(word)
-	}
-	return len(word)
-}
-
-func init() {
-	register.Function4x0(processWords)
-	register.Function2x1(processWordsMixed)
-	// 1 input of type string => Emitter1[string]
-	register.Emitter1[string]()
-}
 ```
 
 ### Accessing additional parameters in your DoFn
@@ -107,6 +90,48 @@ func extractWordsFn(pn beam.PaneInfo, line string, emitWords func(string)) {
 }
 ```
 
-### Description for example 
+### Playground exercise
 
-At the input is integers. The `applyTransform()` accepts a list of integers at the output two `PCollection` one `PCollection` above 100 and second below 100.
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+The `applyTransform()` accepts a list of integers at the output two `PCollection` one `PCollection` above 100 and second below 100.
+
+You can also work with strings:
+
+```
+input := beam.Create(s, "Apache Beam is an open source unified programming model","To define and execute data processing pipelines","Go SDK")
+
+words := extractWords(s,input)
+
+upperCaseWords, lowerCaseWords := applyTransform(s, words)
+```
+
+It is necessary to divide sentences into words. To do this, we use `ParDo`:
+```
+func extractWords(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return beam.ParDo(s, func(line string, emit func(string)){
+    words := strings.Split(line, " ")
+		for _, k := range words {
+			word := string(k)
+			if word != " " {
+				emit(word)
+			}
+		}
+	}, input)
+}
+```
+
+Change logic `applyTransform`:
+```
+func applyTransform(s beam.Scope, input beam.PCollection) (beam.PCollection, beam.PCollection) {
+	return beam.ParDo2(s, func(element string, upperCaseWords, lowerCaseWords func(string)) {
+		if element==strings.Title(element) {
+			upperCaseWords(element)
+			return
+		}
+		lowerCaseWords(element)
+	}, input)
+}
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

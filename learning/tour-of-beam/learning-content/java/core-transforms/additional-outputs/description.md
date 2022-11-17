@@ -28,6 +28,44 @@ A `TupleTag` is a typed tag used as the key of a heterogeneously typed tuple, fo
                           TupleTagList.of(wordLengthsAboveCutOffTag).and(markedWordsTag)));
 ```
 
-### Description for example
+### Playground exercise
 
-There are integers at the input. `applyTransform()` accepts a list of integers in the output additionally in addition to one `PCollection`, returns a second `PCollection`.
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+The `applyTransform()` accepts a list of integers at the output two `PCollection` one `PCollection` above 100 and second below 100.
+
+You can also work with strings:
+
+```
+PCollection<String> input = pipeline.apply(Create.of("Apache Beam is an open source unified programming model","To define and execute data processing pipelines","Go SDK"));
+
+PCollection<String> words = input
+                .apply(FlatMapElements.into(TypeDescriptors.strings()).via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))));
+
+PCollectionTuple outputTuple = applyTransform(words, upperCaseTag, lowerCaseTag);
+```
+
+Change `applyTransform`:
+```
+static PCollectionTuple applyTransform(
+            PCollection<String> input, TupleTag<String> upperCase,
+            TupleTag<String> lowerCase) {
+
+            return input.apply(ParDo.of(new DoFn<String, String>() {
+
+            @ProcessElement
+            public void processElement(@Element String element, MultiOutputReceiver out) {
+                if (element.equals(element.toLowerCase())) {
+                    // First PCollection
+                    out.get(lowerCase).output(element);
+                } else {
+                    // Additional PCollection
+                    out.get(upperCase).output(element);
+                }
+            }
+
+    }).withOutputTags(lowerCase, TupleTagList.of(upperCase)));
+}
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

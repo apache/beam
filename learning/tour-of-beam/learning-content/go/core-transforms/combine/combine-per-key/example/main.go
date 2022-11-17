@@ -36,11 +36,11 @@ func main() {
 	p, s := beam.NewPipelineWithRoot()
 
 	input := beam.ParDo(s, func(_ []byte, emit func(string, int)){
-		emit(task.Player1, 15)
-		emit(task.Player2, 10)
-		emit(task.Player1, 100)
-		emit(task.Player3, 25)
-		emit(task.Player2, 75)
+		emit(Player1, 15)
+		emit(Player2, 10)
+		emit(Player1, 100)
+		emit(Player3, 25)
+		emit(Player2, 75)
 	}, beam.Impulse(s))
 
 	output := applyTransform(s, input)

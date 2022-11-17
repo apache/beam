@@ -27,3 +27,23 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 	}, input)
 }
 ```
+
+### Playground exercise
+
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+The input data consists of integers. `Combine` combines numbers.
+
+It can also be combined with other types, for example: `strings` and others.
+
+```
+input := beam.Create(s, "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog")
+
+func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return beam.Combine(s, func(sum, elem string) string {
+		return sum+","+elem
+	}, input)
+}
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

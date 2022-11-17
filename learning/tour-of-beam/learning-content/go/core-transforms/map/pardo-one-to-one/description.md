@@ -178,6 +178,20 @@ wordLengths := beam.ParDo(s, func(word string) int {
 
 > Note: Anonymous function DoFns may not work on distributed runners. It’s recommended to use named functions and register them with register.FunctionXxY in an init() block.
 
-### Description for example
 
-There are `PCollection` elements at the input. The `applyTransform()` function will return elements multiplied by 10.
+### Playground exercise
+
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+The `applyTransform()` function will return elements multiplied by 10. The `multiplyBy10Fn` is set explicitly, we can change the logic without complicating readability.
+
+If the logic of the conversion is easy we can write as an anonymous function:
+```
+func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+  return beam.ParDo(s, func(element int) int{
+  	return element * 10
+  }, input)
+}
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

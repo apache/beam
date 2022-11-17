@@ -107,6 +107,17 @@ mixedCollection.get(startsWithBTag).apply(...);
 
 You can use either mechanism to produce multiple output `PCollection`s. However, using additional outputs makes more sense if the transform’s computation per element is time-consuming.
 
-### Description for example
+### Playground exercise
 
-Accepts a string `PCollection`. Without changing it returns the new `PCollection`. In this case, one `PCollection` includes elements in uppercase. The other `PCollection` stores reversed elements.
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+Accepts a `PCollection` consisting of strings. Without modification, it returns a new "PCollection". In this case, one `PCollection` includes elements in uppercase. The other `PCollection' stores inverted elements.
+
+You can use a different method of branching. Since `applyTransforms` performs 2 conversions, it takes a lot of time. It is possible to convert `PCollection` separately.
+
+```
+reversed := reverseString(s, input)
+toUpper := toUpperString(s, input)
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

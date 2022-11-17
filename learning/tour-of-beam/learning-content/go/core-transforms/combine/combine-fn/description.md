@@ -16,6 +16,8 @@ limitations under the License.
 
 More complex combination operations might require you to create a subclass of `CombineFn` that has an accumulation type distinct from the **input/output** type.
 
+> **Important**. In the Go SDK, DirectRunner does not parallelize data. Therefore, MergeAccumulators is not called.
+
 The associativity and commutativity of a CombineFn allows runners to automatically apply some optimizations:
 
 **Combiner lifting**: This is the most significant optimization. Input elements are combined per key and window before they are shuffled, so the volume of data shuffled might be reduced by many orders of magnitude. Another term for this optimization is “mapper-side combine.”
@@ -30,35 +32,40 @@ A general combining operation consists of four operations. When you create a sub
 4. Extract Output performs the final computation. In the case of computing a mean average, this means dividing the combined sum of all the values by the number of values summed. It is called once on the final, merged accumulator.
 
 ```
-public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
-  public static class Accum {
-    int sum = 0;
-    int count = 0;
-  }
+type averageFn struct{}
 
-  @Override
-  public Accum createAccumulator() { return new Accum(); }
+type averageAccum struct {
+	Count, Sum int
+}
 
-  @Override
-  public Accum addInput(Accum accum, Integer input) {
-      accum.sum += input;
-      accum.count++;
-      return accum;
-  }
+func (fn *averageFn) CreateAccumulator() averageAccum {
+	return averageAccum{0, 0}
+}
 
-  @Override
-  public Accum mergeAccumulators(Iterable<Accum> accums) {
-    Accum merged = createAccumulator();
-    for (Accum accum : accums) {
-      merged.sum += accum.sum;
-      merged.count += accum.count;
-    }
-    return merged;
-  }
+func (fn *averageFn) AddInput(a averageAccum, v int) averageAccum {
+	return averageAccum{Count: a.Count + 1, Sum: a.Sum + v}
+}
 
-  @Override
-  public Double extractOutput(Accum accum) {
-    return ((double) accum.sum) / accum.count;
-  }
+func (fn *averageFn) MergeAccumulators(a, v averageAccum) averageAccum {
+	return averageAccum{Count: a.Count + v.Count, Sum: a.Sum + v.Sum}
+}
+
+func (fn *averageFn) ExtractOutput(a averageAccum) float64 {
+	if a.Count == 0 {
+		return math.NaN()
+	}
+	return float64(a.Sum) / float64(a.Count)
+}
+
+func init() {
+	register.Combiner3[averageAccum, int, float64](&averageFn{})
 }
 ```
+
+### Playground exercise
+
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

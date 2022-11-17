@@ -34,7 +34,25 @@ PCollection<String> bCollection = dbRowCollection.apply("bTrans", ParDo.of(new D
 }));
 ```
 
+### Playground exercise
 
-### Description for example 
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
-Accepts integers `PCollection`. Without changing it returns the new `PCollection`. In this case, one `PCollection` includes elements in multiply 5. The other `PCollection` stores multiply 10 elements.
+Accepts a `PCollection` consisting of strings. Without modification, it returns a new "PCollection". In this case, one `PCollection` includes elements in uppercase. The other `PCollection' stores inverted elements.
+
+You can use the branching method for strings:
+
+```
+PCollection<String> input = pipeline.apply(Create.of("Apache", "Beam" ,"is", "an" ,"open", "source" ,"unified","programming" ,"model","To", "define", "and" ,"execute", "data" ,"processing" ,"pipelines","Go", "SDK"));
+
+PCollection<String> aCollection = input.apply("aTrans", ParDo.of(new DoFn<String, String>(){
+  @ProcessElement
+  public void processElement(ProcessContext c) {
+    if(c.element().toLowerCase().startsWith("a")){
+      c.output(c.element());
+    }
+  }
+}));
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

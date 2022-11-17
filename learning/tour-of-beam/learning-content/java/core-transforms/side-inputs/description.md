@@ -36,6 +36,54 @@ Side inputs are useful if your `ParDo` needs to inject additional data when proc
   );
 ```
 
-### Description for example
+### Playground exercise
+
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
 At the entrance we have a map whose key is the city of the country value. And we also have a `Person` structure with his name and city. We can compare cities and embed countries in `Person`.
+
+You can also use it as a variable for mathematical calculations.
+
+Before you start, add a dependency:
+```
+"fmt"
+"time"
+```
+
+Changing `citiesToCountriesKV` to `citiesToTimeKV`:
+```
+citiesToTimeKV := beam.ParDo(s, func(_ []byte, emit func(string, int)){
+		emit("Beijing", 8)
+		emit("London", 0)
+		emit("San Francisco", -8)
+		emit("Singapore", 8)
+		emit("Sydney", 11)
+}, beam.Impulse(s))
+```
+
+Calculate the current time and add GMT:
+```
+func joinFn(person Person, citiesToCountriesIter func(*string,*int) bool, emit func(Person)) {
+var city string
+var gmt int
+now := time.Now()
+
+for citiesToCountriesIter(&city,&gmt) {
+    time := now.Hour()+gmt
+
+	if person.City == city {
+        if time < 0 {
+            time = 24 + (now.Hour() + gmt) 
+        }
+		emit(Person{
+		    Name:    person.Name,
+			City:    city,
+            Time: (fmt.Sprintf("%d:%d",time,now.Minute())),
+		})
+		break
+		}
+	}
+}
+```
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

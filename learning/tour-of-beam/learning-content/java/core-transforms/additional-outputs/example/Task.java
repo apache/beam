@@ -29,6 +29,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.Arrays;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 public class Task {
 
@@ -47,12 +49,9 @@ public class Task {
         // The applyTransform() converts [numbers] to [outputTuple]
         PCollectionTuple outputTuple = applyTransform(numbers, numBelow100Tag, numAbove100Tag);
 
-        print("Number <= 100: ", outputTuple.get(numBelow100Tag));
-        print("Number > 100: ", outputTuple.get(numAbove100Tag));
+        outputTuple.get(numBelow100Tag).apply("Log Number <= 100: ", ParDo.of(new LogOutput<Integer>("Number <= 100: ")));
 
-        numBelow100Tag.apply("Log Number <= 100: ", ParDo.of(new LogOutput<Integer>("Number <= 100: ")));
-
-        numAbove100Tag.apply("Log Number > 100: ", ParDo.of(new LogOutput<Integer>("Number > 100: ")));
+        outputTuple.get(numAbove100Tag).apply("Log Number > 100: ", ParDo.of(new LogOutput<Integer>("Number > 100: ")));
 
 
         pipeline.run();

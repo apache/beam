@@ -1,41 +1,6 @@
-# Composite transforms
+ # Composite transforms
 
 Transforms can have a nested structure, where a complex transform performs multiple simpler transforms (such as more than one `ParDo`, `Combine`, `GroupByKey`, or even other composite transforms). These transforms are called composite transforms. Nesting multiple transforms inside a single composite transform can make your code more modular and easier to understand.
-
-### An example composite transform
-
-The `CountWords` transform in the WordCount example program is an example of a composite transform. CountWords is a PTransform that consists of multiple nested transforms.
-
-The `CountWords` transform applies the following transform operations:
-
-1. It applies a `ParDo` on the input `PCollection` of text lines, producing an output `PCollection` of individual words.
-2. It applies the Beam SDK library transform Count on the PCollection of words, producing a `PCollection` of key/value pairs. Each key represents a word in the text, and each value represents the number of times that word appeared in the original data.
-
-```
-// CountWords is a function that builds a composite PTransform
-// to count the number of times each word appears.
-func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
-	// A subscope is required for a function to become a composite transform.
-	// We assign it to the original scope variable s to shadow the original
-	// for the rest of the CountWords function.
-	s = s.Scope("CountWords")
-
-	// Since the same subscope is used for the following transforms,
-	// they are in the same composite PTransform.
-
-	// Convert lines of text into individual words.
-	words := beam.ParDo(s, extractWordsFn, lines)
-
-	// Count the number of times each word occurs.
-	wordCounts := stats.Count(s, words)
-
-	// Return any PCollections that should be available after
-	// the composite transform.
-	return wordCounts
-}
-```
-
-> Note: Because Count is itself a composite transform, CountWords is also a nested composite transform.
 
 ### Creating a composite transform
 
@@ -78,6 +43,39 @@ wordCounts := CountWords(s, lines) // returns a PCollection<KV<string,int>>
 
 Your composite `PTransform`s can include as many transforms as you want. These transforms can include core transforms, other composite transforms, or the transforms included in the Beam SDK libraries. They can also consume and return as many `PCollection`s as are necessary.
 
-### Description for example 
+### Playground exercise
 
-When entering a sentence of words. The `applyTransform()` implements the main operation and invokes nested logic. In nested logic, we collect characters from a sentence, in the main function return their count.
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+An input consists of a sentence. The first conversion divides the entire sentence into letters excluding spaces. The second conversion counts how many times a letter occurs.
+
+You can split PCollection by words using `split`:
+
+```
+func extractWords(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return beam.ParDo(s, func(line string, emit func(string)){
+    words := strings.Split(line, " ")
+		for _, k := range words {
+			word := string(k)
+			if word != " " {
+				emit(word)
+			}
+		}
+	}, input)
+}
+```
+
+You can use other transformations you can replace `Count` with a `Filter` to output words starting with **p**:
+
+```
+func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+	s = s.Scope("CountCharacters")
+	words := extractNonSpaceCharacters(s, input)
+	return filter.Include(s, words, func(word string) bool {
+    		return strings.HasPrefix(word, "p")
+    })
+}
+```
+
+
+Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

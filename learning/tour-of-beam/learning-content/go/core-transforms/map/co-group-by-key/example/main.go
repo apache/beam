@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+"fmt"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
@@ -28,8 +29,8 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-	fruits := beam.Create(s.Scope("Fruits"), "apple", "banana", "cherry")
-	countries := beam.Create(s.Scope("Countries"), "australia", "brazil", "canada")
+	fruits := beam.Create(s.Scope("Fruits"), "apple", "banana", "cherry", "xaiva")
+	countries := beam.Create(s.Scope("Countries"), "australia", "brazil", "canada","as")
 
 	output := applyTransform(s, fruits, countries)
 
@@ -58,7 +59,7 @@ func applyTransform(s beam.Scope, fruits beam.PCollection, countries beam.PColle
 		}
 		fruitsIter(&wa.Fruit)
 		countriesIter(&wa.Country)
-		emit(wa.String())
+            emit(wa.String())
 	}, grouped)
 }
 
@@ -66,4 +67,8 @@ type WordsAlphabet struct {
 	Alphabet string
 	Fruit string
 	Country string
+}
+
+func (wa *WordsAlphabet) String() string {
+	return fmt.Sprintf("WordsAlphabet%+v", *wa)
 }
