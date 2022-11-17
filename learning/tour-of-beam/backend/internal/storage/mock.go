@@ -60,6 +60,15 @@ func (d *Mock) GetUnitContent(_ context.Context, sdk tob.Sdk, unitId string) (u 
 	return u, err
 }
 
+func (d *Mock) CheckUnitExists(ctx context.Context, sdk tob.Sdk, unitId string) error {
+	for _, existingId := range []string{"intro-unit", "example1", "challenge1"} {
+		if unitId == existingId {
+			return nil
+		}
+	}
+	return tob.ErrNoUnit
+}
+
 func (d *Mock) SaveUser(ctx context.Context, uid string) error {
 	return nil
 }
@@ -71,5 +80,9 @@ func (d *Mock) GetUserProgress(_ context.Context, sdk tob.Sdk, userId string) (s
 }
 
 func (d *Mock) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error {
+	return nil
+}
+
+func (d *Mock) SaveUserSnippetId(ctx context.Context, sdk tob.Sdk, unitId, uid, snippetId string) error {
 	return nil
 }

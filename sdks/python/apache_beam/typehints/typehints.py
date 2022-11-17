@@ -67,6 +67,8 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 import copy
 import logging
+import sys
+import types
 import typing
 from collections import abc
 
@@ -384,6 +386,9 @@ def validate_composite_type_param(type_param, error_msg_prefix):
       not isinstance(type_param, tuple(possible_classes)) and
       type_param is not None and
       getattr(type_param, '__module__', None) != 'typing')
+  if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+    if isinstance(type_param, types.UnionType):
+      is_not_type_constraint = False
   is_forbidden_type = (
       isinstance(type_param, type) and type_param in DISALLOWED_PRIMITIVE_TYPES)
 

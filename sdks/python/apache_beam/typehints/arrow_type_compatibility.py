@@ -303,13 +303,19 @@ class PyarrowBatchConverter(BatchConverter):
     self._arrow_schema = arrow_schema
 
   @staticmethod
-  @BatchConverter.register
   def from_typehints(element_type,
                      batch_type) -> Optional['PyarrowBatchConverter']:
-    if isinstance(element_type, RowTypeConstraint) and batch_type == pa.Table:
-      return PyarrowBatchConverter(element_type)
+    assert batch_type == pa.Table
 
-    return None
+    if not isinstance(element_type, RowTypeConstraint):
+      element_type = RowTypeConstraint.from_user_type(element_type)
+      if element_type is None:
+        raise TypeError(
+            "Element type must be compatible with Beam Schemas ("
+            "https://beam.apache.org/documentation/programming-guide/#schemas) "
+            "for batch type pa.Table.")
+
+    return PyarrowBatchConverter(element_type)
 
   def produce_batch(self, elements):
     arrays = [
@@ -348,3 +354,48 @@ class PyarrowBatchConverter(BatchConverter):
   def __reduce__(self):
     return self._from_serialized_schema, (
         self._beam_schema.SerializeToString(), )
+
+
+class PyarrowArrayBatchConverter(BatchConverter):
+  def __init__(self, element_type: type):
+    super().__init__(pa.Array, element_type)
+    self._element_type = element_type
+    beam_fieldtype = typing_to_runner_api(element_type)
+    self._arrow_type = _arrow_type_from_beam_fieldtype(beam_fieldtype)
+
+  @staticmethod
+  def from_typehints(element_type,
+                     batch_type) -> Optional['PyarrowArrayBatchConverter']:
+    assert batch_type == pa.Array
+
+    return PyarrowArrayBatchConverter(element_type)
+
+  def produce_batch(self, elements):
+    return pa.array(list(elements), type=self._arrow_type)
+
+  def explode_batch(self, batch: pa.Array):
+    """Convert an instance of B to Generator[E]."""
+    for val in batch:
+      yield val.as_py()
+
+  def combine_batches(self, batches: List[pa.Array]):
+    return pa.concat_arrays(batches)
+
+  def get_length(self, batch: pa.Array):
+    return batch.num_rows
+
+  def estimate_byte_size(self, batch: pa.Array):
+    return batch.nbytes
+
+
+@BatchConverter.register(name="pyarrow")
+def create_pyarrow_batch_converter(
+    element_type: type, batch_type: type) -> BatchConverter:
+  if batch_type == pa.Table:
+    return PyarrowBatchConverter.from_typehints(
+        element_type=element_type, batch_type=batch_type)
+  elif batch_type == pa.Array:
+    return PyarrowArrayBatchConverter.from_typehints(
+        element_type=element_type, batch_type=batch_type)
+
+  raise TypeError("batch type must be pa.Table or pa.Array")

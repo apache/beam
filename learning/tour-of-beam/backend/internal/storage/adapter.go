@@ -136,7 +136,8 @@ func MakeDatastoreModule(mod *tob.Module, order int) *TbLearningModule {
 
 func FromDatastoreUserProgress(tbUP TbUnitProgress) tob.UnitProgress {
 	return tob.UnitProgress{
-		Id:          tbUP.UnitID,
-		IsCompleted: tbUP.IsCompleted,
+		Id:            tbUP.UnitID,
+		IsCompleted:   tbUP.IsCompleted,
+		UserSnippetId: tbUP.SnippetId,
 	}
 }

@@ -175,6 +175,7 @@ class PlaygroundController with ChangeNotifier {
     }
   }
 
+  // TODO(alexeyinkin): Remove, used only in tests, refactor them.
   void setSource(String source) {
     final controller = requireSnippetEditingController();
     controller.setSource(source);

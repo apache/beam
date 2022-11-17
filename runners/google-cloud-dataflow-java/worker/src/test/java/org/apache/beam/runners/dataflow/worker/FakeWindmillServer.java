@@ -52,6 +52,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.rules.ErrorCollector;
 import org.slf4j.Logger;
@@ -61,8 +62,60 @@ import org.slf4j.LoggerFactory;
 class FakeWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(FakeWindmillServer.class);
 
-  private final Queue<Windmill.GetWorkResponse> workToOffer;
-  private final Queue<Function<GetDataRequest, GetDataResponse>> dataToOffer;
+  static class ResponseQueue<T, U> {
+    private final Queue<Function<T, U>> responses = new ConcurrentLinkedQueue<>();
+    private Function<T, U> defaultResponse;
+    Duration sleep = Duration.ZERO;
+
+    // (Fluent) interface for response producers, accessible from tests.
+
+    ResponseQueue<T, U> thenAnswer(Function<T, U> mapFun) {
+      responses.add(mapFun);
+      return this;
+    }
+
+    ResponseQueue<T, U> thenReturn(U response) {
+      return thenAnswer((request) -> response);
+    }
+
+    ResponseQueue<T, U> answerByDefault(Function<T, U> mapFun) {
+      defaultResponse = mapFun;
+      return this;
+    }
+
+    ResponseQueue<T, U> returnByDefault(U response) {
+      return answerByDefault((request) -> response);
+    }
+
+    ResponseQueue<T, U> delayEachResponseBy(Duration sleep) {
+      this.sleep = sleep;
+      return this;
+    }
+
+    // Interface for response consumers, accessible from the enclosing class.
+
+    private U getOrDefault(T request) {
+      Function<T, U> mapFun = responses.poll();
+      U response = mapFun == null ? defaultResponse.apply(request) : mapFun.apply(request);
+      Uninterruptibles.sleepUninterruptibly(sleep.getMillis(), TimeUnit.MILLISECONDS);
+      return response;
+    }
+
+    private U get(T request) {
+      Function<T, U> mapFun = responses.poll();
+      U response = mapFun == null ? null : mapFun.apply(request);
+      Uninterruptibles.sleepUninterruptibly(sleep.getMillis(), TimeUnit.MILLISECONDS);
+      return response;
+    }
+
+    private boolean isEmpty() {
+      return responses.isEmpty();
+    }
+  }
+
+  private final ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse> workToOffer;
+  private final ResponseQueue<GetDataRequest, GetDataResponse> dataToOffer;
+  private final ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse> commitsToOffer;
   // Keys are work tokens.
   private final Map<Long, WorkItemCommitRequest> commitsReceived;
   private final ArrayList<Windmill.ReportStatsRequest> statsReceived;
@@ -76,8 +129,17 @@ class FakeWindmillServer extends WindmillServerStub {
   private final ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> droppedStreamingCommits;
 
   public FakeWindmillServer(ErrorCollector errorCollector) {
-    workToOffer = new ConcurrentLinkedQueue<>();
-    dataToOffer = new ConcurrentLinkedQueue<>();
+    workToOffer =
+        new ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse>()
+            .returnByDefault(Windmill.GetWorkResponse.getDefaultInstance());
+    dataToOffer =
+        new ResponseQueue<GetDataRequest, GetDataResponse>()
+            .returnByDefault(GetDataResponse.getDefaultInstance())
+            // Sleep for a little bit to ensure that *-windmill-read state-sampled counters show up.
+            .delayEachResponseBy(Duration.millis(500));
+    commitsToOffer =
+        new ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse>()
+            .returnByDefault(CommitWorkResponse.getDefaultInstance());
     commitsReceived = new ConcurrentHashMap<>();
     exceptions = new LinkedBlockingQueue<>();
     expectedExceptionCount = new AtomicInteger();
@@ -90,25 +152,23 @@ class FakeWindmillServer extends WindmillServerStub {
     this.dropStreamingCommits = dropStreamingCommits;
   }
 
-  public void addWorkToOffer(Windmill.GetWorkResponse work) {
-    workToOffer.add(work);
+  public ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse> whenGetWorkCalled() {
+    return workToOffer;
   }
 
-  public void addDataToOffer(Windmill.GetDataResponse data) {
-    dataToOffer.add((GetDataRequest request) -> data);
+  public ResponseQueue<GetDataRequest, GetDataResponse> whenGetDataCalled() {
+    return dataToOffer;
   }
 
-  public void addDataFnToOffer(Function<GetDataRequest, GetDataResponse> f) {
-    dataToOffer.add(f);
+  public ResponseQueue<Windmill.CommitWorkRequest, Windmill.CommitWorkResponse>
+      whenCommitWorkCalled() {
+    return commitsToOffer;
   }
 
   @Override
   public Windmill.GetWorkResponse getWork(Windmill.GetWorkRequest request) {
     LOG.debug("getWorkRequest: {}", request.toString());
-    Windmill.GetWorkResponse response = workToOffer.poll();
-    if (response == null) {
-      return Windmill.GetWorkResponse.newBuilder().build();
-    }
+    Windmill.GetWorkResponse response = workToOffer.getOrDefault(request);
     LOG.debug("getWorkResponse: {}", response.toString());
     return response;
   }
@@ -129,20 +189,7 @@ class FakeWindmillServer extends WindmillServerStub {
     LOG.info("getDataRequest: {}", request.toString());
     validateGetDataRequest(request);
     ++numGetDataRequests;
-    GetDataResponse response;
-    Function<GetDataRequest, GetDataResponse> responseFn = dataToOffer.poll();
-    if (responseFn == null) {
-      response = Windmill.GetDataResponse.newBuilder().build();
-    } else {
-      response = responseFn.apply(request);
-      try {
-        // Sleep for a little bit to ensure that *-windmill-read state-sampled counters
-        // show up.
-        sleepMillis(500);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    }
+    GetDataResponse response = dataToOffer.getOrDefault(request);
     LOG.debug("getDataResponse: {}", response.toString());
     return response;
   }
@@ -167,7 +214,7 @@ class FakeWindmillServer extends WindmillServerStub {
         commitsReceived.put(commit.getWorkToken(), commit);
       }
     }
-    CommitWorkResponse response = CommitWorkResponse.newBuilder().build();
+    CommitWorkResponse response = commitsToOffer.getOrDefault(request);
     LOG.debug("commitWorkResponse: {}", response);
     return response;
   }
@@ -210,7 +257,7 @@ class FakeWindmillServer extends WindmillServerStub {
       @Override
       public boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException {
         while (done.getCount() > 0) {
-          Windmill.GetWorkResponse response = workToOffer.poll();
+          Windmill.GetWorkResponse response = workToOffer.get(null);
           if (response == null) {
             try {
               sleepMillis(500);
@@ -280,7 +327,16 @@ class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active) {}
+      public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active) {
+        Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
+        for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
+          builder.addRequests(
+              ComputationGetDataRequest.newBuilder()
+                  .setComputationId(entry.getKey())
+                  .addAllRequests(entry.getValue()));
+        }
+        getData(builder.build());
+      }
 
       @Override
       public void close() {}
@@ -311,6 +367,10 @@ class FakeWindmillServer extends WindmillServerStub {
         errorCollector.checkThat(
             request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
         errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
+        // Throws away the result, but allows to inject latency.
+        Windmill.CommitWorkRequest.Builder builder = Windmill.CommitWorkRequest.newBuilder();
+        builder.addRequestsBuilder().setComputationId(computation).addRequests(request);
+        commitsToOffer.getOrDefault(builder.build());
         if (dropStreamingCommits) {
           droppedStreamingCommits.put(request.getWorkToken(), onDone);
         } else {

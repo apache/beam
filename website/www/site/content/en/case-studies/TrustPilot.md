@@ -1,6 +1,7 @@
 ---
 title: "TrustPilot"
 icon: /images/logos/powered-by/Trustpilot.png
+hasLink: "https://www.youtube.com/watch?v=Sq3maplM0EQ&list=PL4dEBWmGSIU9OkXQU2OAXmITPLhiMSPRp&index=37"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

@@ -24,8 +24,10 @@ import { Runner, PipelineResult } from "../runners/runner";
 export class ProtoPrintingRunner extends Runner {
   async runPipeline(pipeline): Promise<PipelineResult> {
     console.dir(pipeline.proto, { depth: null });
-    return {
-      waitUntilFinish: (duration?) => Promise.reject("not implemented"),
-    };
+    return new (class EmptyPipelineResult extends PipelineResult {
+      waitUntilFinish(duration?) {
+        return Promise.reject("not implemented");
+      }
+    })();
   }
 }
