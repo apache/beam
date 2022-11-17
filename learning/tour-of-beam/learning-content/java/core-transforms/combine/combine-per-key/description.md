@@ -37,7 +37,7 @@ After conversion:
 static PCollection<KV<String, Integer>> combine(PCollection<KV<String, Integer>> input) {
         return input.apply(Combine.perKey(new SumCombineFn()));
     }
-    
+
 static class SumCombineFn extends Combine.BinaryCombineFn<Integer> {
         @Override
         public Integer apply(Integer left, Integer right) {
