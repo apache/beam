@@ -118,7 +118,7 @@ runShadow {
   if (project.hasProperty('sdkWorkerParallelism'))
     args += ["--sdk-worker-parallelism=${project.property('sdkWorkerParallelism')}"]
 
-  logging.info('Will start flink job server with args {}', args)
+  logger.info('Will start flink job server with args {}', args)
 
   // Enable remote debugging.
   jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
