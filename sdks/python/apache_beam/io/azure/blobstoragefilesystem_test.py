@@ -88,7 +88,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+        lambda pipeline_options: blobstorageio_mock
     blobstorageio_mock.exists.return_value = True
     blobstorageio_mock._status.return_value = {
         'size': 1, 'last_updated': 99999.0
@@ -107,7 +107,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+        lambda pipeline_options: blobstorageio_mock
     blobstorageio_mock.list_prefix.return_value = {
         'azfs://storageaccount/container/file1': (1, 99999.0),
         'azfs://storageaccount/container/file2': (2, 88888.0)
@@ -128,7 +128,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     blobstorageio_mock = mock.MagicMock()
     limit = 1
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+        lambda pipeline_options: blobstorageio_mock
     blobstorageio_mock.list_prefix.return_value = {
         'azfs://storageaccount/container/file1': (1, 99999.0)
     }
@@ -146,7 +146,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+        lambda pipeline_options: blobstorageio_mock
     exception = IOError('Failed')
     blobstorageio_mock.list_prefix.side_effect = exception
 
@@ -165,7 +165,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+        lambda pipeline_options: blobstorageio_mock
     blobstorageio_mock.list_prefix.side_effect = [
         {
             'azfs://storageaccount/container/file1': (1, 99999.0)
@@ -189,7 +189,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+        lambda pipeline_options: blobstorageio_mock
     # Issue file copy.
     _ = self.fs.create(
         'azfs://storageaccount/container/file1', 'application/octet-stream')
@@ -204,7 +204,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+        lambda pipeline_options: blobstorageio_mock
     # Issue file copy.
     _ = self.fs.open(
         'azfs://storageaccount/container/file1', 'application/octet-stream')
@@ -219,7 +219,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+        lambda pipeline_options: blobstorageio_mock
     sources = [
         'azfs://storageaccount/container/from1',
         'azfs://storageaccount/container/from2',
@@ -240,7 +240,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+        lambda pipeline_options: blobstorageio_mock
     sources = [
         'azfs://storageaccount/container/from1',
         'azfs://storageaccount/container/from2',
@@ -260,7 +260,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+        lambda pipeline_options: blobstorageio_mock
     blobstorageio_mock.size.return_value = 0
     files = [
         'azfs://storageaccount/container/from1',
@@ -276,7 +276,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+        lambda pipeline_options: blobstorageio_mock
     nonexistent_directory = 'azfs://storageaccount/nonexistent-container/tree/'
     exception = blobstorageio.BlobStorageError('Not found', 404)
 
@@ -307,7 +307,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+        lambda pipeline_options: blobstorageio_mock
 
     sources = [
         'azfs://storageaccount/container/original_blob1',
