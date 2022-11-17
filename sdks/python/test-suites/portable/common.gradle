@@ -236,6 +236,9 @@ project.tasks.register("flinkExamples") {
                 // suppress full __metricscontainers log printed in FlinkPipelineRunner.createPortablePipelineResult
                 '\\"org.apache.beam.runners.flink.FlinkPipelineRunner\\":\\"WARN\\"}'
     ]
+    if (project.hasProperty('flinkConfDir')) {
+      pipelineOpts += ["--flink-conf-dir=${project.property('flinkConfDir')}"]
+    }
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
             "suite": "postCommitExamples-flink-py${pythonVersionSuffix}",
@@ -317,9 +320,6 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
             // suppress metric name collision warning logs
             '\\"org.apache.flink.runtime.metrics.groups\\":\\"ERROR\\"}'
     ]
-    if (project.hasProperty('flinkConfDir')) {
-      pipelineOpts += ["--flink-conf-dir=${project.property('flinkConfDir')}"]
-    }
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
             "suite": "postCommitIT-flink-py${pythonVersionSuffix}",
