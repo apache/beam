@@ -1028,6 +1028,50 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
+      // Ban these dependencies from all configurations
+      project.configurations.all {
+        // guava-jdk5 brings in classes which conflict with guava
+        exclude group: "com.google.guava", module: "guava-jdk5"
+        // Ban the usage of the JDK tools as a library as this is system dependent
+        exclude group: "jdk.tools", module: "jdk.tools"
+        // protobuf-lite duplicates classes which conflict with protobuf-java
+        exclude group: "com.google.protobuf", module: "protobuf-lite"
+        // Exclude these test dependencies because they bundle other common
+        // test libraries classes causing version conflicts. Users should rely
+        // on using the yyy-core package instead of the yyy-all package.
+        exclude group: "org.hamcrest", module: "hamcrest-all"
+      }
+
+      // Force usage of the libraries defined within our common set found in the root
+      // build.gradle instead of using Gradles default dependency resolution mechanism
+      // which chooses the latest version available.
+      //
+      // TODO: Figure out whether we should force all dependency conflict resolution
+      // to occur in the "shadow" and "shadowTest" configurations.
+      project.configurations.all { config ->
+        // When running beam_Dependency_Check, resolutionStrategy should not be used; otherwise
+        // gradle-versions-plugin does not report the latest versions of the dependencies.
+        def startTasks = project.gradle.startParameter.taskNames
+        def inDependencyUpdates = 'dependencyUpdates' in startTasks || 'runBeamDependencyCheck' in startTasks
+
+        // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
+        // has different dependencies than our project.
+        if (config.getName() != "errorprone" && !inDependencyUpdates) {
+          config.resolutionStrategy {
+            // Filtering versionless coordinates that depend on BOM. Beam project needs to set the
+            // versions for only handful libraries when building the project (BEAM-9542).
+            def librariesWithVersion = project.library.java.values().findAll { it.split(':').size() > 2 }
+            force librariesWithVersion
+
+            // hamcrest-core and hamcrest-library have been superseded by hamcrest.
+            // We force their versions here to ensure that any resolved version provides
+            // the same classes as hamcrest.
+            force "org.hamcrest:hamcrest-core:$hamcrest_version"
+            force "org.hamcrest:hamcrest-library:$hamcrest_version"
+          }
+        }
+      }
+
       def jacocoExcludes = [
         '**/org/apache/beam/gradle/**',
         '**/org/apache/beam/model/**',
@@ -1784,50 +1828,6 @@ class BeamModulePlugin implements Plugin<Project> {
           project.signing {
             useGpgCmd()
             sign project.publishing.publications
-          }
-        }
-      }
-
-      // Ban these dependencies from all configurations
-      project.configurations.all {
-        // guava-jdk5 brings in classes which conflict with guava
-        exclude group: "com.google.guava", module: "guava-jdk5"
-        // Ban the usage of the JDK tools as a library as this is system dependent
-        exclude group: "jdk.tools", module: "jdk.tools"
-        // protobuf-lite duplicates classes which conflict with protobuf-java
-        exclude group: "com.google.protobuf", module: "protobuf-lite"
-        // Exclude these test dependencies because they bundle other common
-        // test libraries classes causing version conflicts. Users should rely
-        // on using the yyy-core package instead of the yyy-all package.
-        exclude group: "org.hamcrest", module: "hamcrest-all"
-      }
-
-      // Force usage of the libraries defined within our common set found in the root
-      // build.gradle instead of using Gradles default dependency resolution mechanism
-      // which chooses the latest version available.
-      //
-      // TODO: Figure out whether we should force all dependency conflict resolution
-      // to occur in the "shadow" and "shadowTest" configurations.
-      project.configurations.all { config ->
-        // When running beam_Dependency_Check, resolutionStrategy should not be used; otherwise
-        // gradle-versions-plugin does not report the latest versions of the dependencies.
-        def startTasks = project.gradle.startParameter.taskNames
-        def inDependencyUpdates = 'dependencyUpdates' in startTasks || 'runBeamDependencyCheck' in startTasks
-
-        // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
-        // has different dependencies than our project.
-        if (config.getName() != "errorprone" && !inDependencyUpdates) {
-          config.resolutionStrategy {
-            // Filtering versionless coordinates that depend on BOM. Beam project needs to set the
-            // versions for only handful libraries when building the project (BEAM-9542).
-            def librariesWithVersion = project.library.java.values().findAll { it.split(':').size() > 2 }
-            force librariesWithVersion
-
-            // hamcrest-core and hamcrest-library have been superseded by hamcrest.
-            // We force their versions here to ensure that any resolved version provides
-            // the same classes as hamcrest.
-            force "org.hamcrest:hamcrest-core:$hamcrest_version"
-            force "org.hamcrest:hamcrest-library:$hamcrest_version"
           }
         }
       }
