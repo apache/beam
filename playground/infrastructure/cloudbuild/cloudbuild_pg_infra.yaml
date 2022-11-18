@@ -20,15 +20,15 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
-      - '--tag=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository/builder:playground'
+      - '--tag=$LOCATION-docker.pkg.dev/$PROJECT_ID/playground-repository/builder:playground'
       - '-f'
       - 'playground/infrastructure/cloudbuild/Dockerfile'
       - '.'
 
   # This stage uses Docker container from image built in step above to run gradle task for Playground Infrastructure deployment
-  - name: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository/builder:playground'
+  - name: '$LOCATION-docker.pkg.dev/$PROJECT_ID/playground-repository/builder:playground'
     entrypoint: "/bin/bash"
-    args: ['-c', './gradlew playground:terraform:InitInfrastructure -Pproject_environment="${_ENVIRONMENT_NAME}" -Pdns-name="${_DNS_NAME}"']
+    args: ['-c', './gradlew playground:terraform:InitInfrastructure -Pproject_environment="$_ENVIRONMENT_NAME" -Pdns-name="$_DNS_NAME"']
 
 # Substitutions can be changed in GCP Cloud Build Triggers UI
 substitutions:
@@ -36,18 +36,13 @@ substitutions:
   _ENVIRONMENT_NAME: "test"
   # The name of your DNS for Playground
   _DNS_NAME: "dev-playground.online"
-  # The name of the GCP logs bucket
-  _LOGS_BUCKET_NAME: "pg-cloudbuild-logging-bucket"
-
-# The name of your GCP logs bucket
-logsBucket: 'gs://${_LOGS_BUCKET_NAME}'
 
 # Pushing built image to GCP Artifact Registry repository
 images:
-  - '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/playground-repository/builder:playground'
+  - '$LOCATION-docker.pkg.dev/$PROJECT_ID/playground-repository/builder:playground'
 
-# This option enables writing logs to GCS bucket
+# This option enables writing logs to Cloud Logging
 options:
-  logging: GCS_ONLY
+  logging: CLOUD_LOGGING_ONLY
 
 timeout: 1800s
