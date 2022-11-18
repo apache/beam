@@ -230,7 +230,7 @@ def setupTask = project.tasks.register("flinkJobServerSetup", Exec) {
   dependsOn shadowJar
   def pythonDir = project.project(":sdks:python").projectDir
   def flinkJobServerJar = shadowJar.archivePath
-  def additionalArgs = "/home/jenkins/jenkins-slave/workspace/beam_SeedJob/runners/flink/src/test/resources"
+  def additionalArgs = "--flink-conf-dir=/home/jenkins/jenkins-slave/workspace/beam_SeedJob/runners/flink/src/test/resources"
   // if (project.hasProperty('flinkConfDir'))
   //   additionalArgs += " --flink-conf-dir=${project.property('flinkConfDir')}"
 
