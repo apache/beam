@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Options.RpcPriority;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
+import java.util.Collections;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
@@ -57,7 +57,8 @@ public class ChangeStreamsConstants {
    * We use the following partition token to provide an estimate size of a partition token. A usual
    * partition token has around 140 characters.
    */
-  private static final String SAMPLE_PARTITION_TOKEN = StringUtils.repeat("*", 140);
+  private static final String SAMPLE_PARTITION_TOKEN =
+      String.join("", Collections.nCopies(140, "*"));
   /**
    * We use a bogus partition here to estimate the average size of a partition metadata record.
    *
