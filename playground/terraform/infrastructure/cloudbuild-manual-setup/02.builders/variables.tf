@@ -55,4 +55,5 @@ variable "gke_trigger_name" {
 variable "cloudbuild_service_account_id" {
   type        = string
   description = "The ID of the cloud build service account responsible for provisioning Google Cloud resources"
+  default     = "playground-cloudbuild-sa"
 }
