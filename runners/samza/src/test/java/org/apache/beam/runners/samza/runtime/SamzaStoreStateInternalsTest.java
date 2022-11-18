@@ -287,7 +287,8 @@ public class SamzaStoreStateInternalsTest implements Serializable {
             .apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
             .apply("Stateful ParDo with Same Name", ParDo.of(fn));
 
-    PCollection<Integer> output = intermediate.apply("Stateful ParDo with Same Name", ParDo.of(fn2));
+    PCollection<Integer> output =
+        intermediate.apply("Stateful ParDo with Same Name", ParDo.of(fn2));
 
     PAssert.that(intermediate)
         .containsInAnyOrder(KV.of("hello", 0), KV.of("hello", 1), KV.of("hello", 2));

@@ -96,7 +96,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
   // the stores include both beamStore for system states as well as stores for user state
   private final Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores;
-  // map of user-provided stateId to unique storeId
+  // Map of non-system stateIds to unique storeId
   private final Map<String, String> stateIdMap;
   private final K key;
   private final byte[] keyBytes;
@@ -139,11 +139,11 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       TaskContext context,
       SamzaPipelineOptions pipelineOptions,
       ExecutableStage executableStage) {
-    // TODO: handle portalbe
+    // TODO: handle same stateIds in multiple ParDos for portable mode
     Map<String, String> stateIds =
         executableStage.getUserStates().stream()
             .map(UserStateReference::localName)
-            .collect(Collectors.toMap(a -> a, a -> a));
+            .collect(Collectors.toMap(Function.identity(), Function.identity()));
 
     return createStateInternalsFactory(id, keyCoder, context, pipelineOptions, stateIds);
   }
@@ -158,16 +158,15 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
     final Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores = new HashMap<>();
     stores.put(BEAM_STORE, getBeamStore(context));
-    // ["foo", "foo-pardo"    "ab", "ab"]
     final Coder<K> stateKeyCoder;
     if (keyCoder != null) {
       stateIdMap
           .values()
           .forEach(
-              stateId ->
+              storeId ->
                   stores.put(
-                      stateId,
-                      (KeyValueStore<ByteArray, StateValue<?>>) context.getStore(stateId)));
+                      storeId,
+                      (KeyValueStore<ByteArray, StateValue<?>>) context.getStore(storeId)));
       stateKeyCoder = keyCoder;
     } else {
       stateKeyCoder = (Coder<K>) VoidCoder.of();

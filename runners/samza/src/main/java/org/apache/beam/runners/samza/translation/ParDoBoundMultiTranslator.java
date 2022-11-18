@@ -164,11 +164,10 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
     final Map<String, String> userStateIds;
     if (DoFnSignatures.isStateful(transform.getFn())) {
-      final String sanitizedParDoName =
-          node.getEnclosingNode().getFullName().replaceAll("\\s", "").replace("-", "_");
+      final String escapedParDoName =
+          SamzaPipelineTranslatorUtils.escape(node.getEnclosingNode().getFullName());
       userStateIds =
-          ctx.getStateIdToStoreIdMap(
-              signature.stateDeclarations().keySet(), sanitizedParDoName);
+          ctx.getStateIdToStoreIdMap(signature.stateDeclarations().keySet(), escapedParDoName);
     } else {
       userStateIds = Collections.emptyMap();
     }
@@ -392,9 +391,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
       // set up user state configs
       for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
         final String userStateId = state.id();
-        final String sanitizedParDoName =
-            node.getEnclosingNode().getFullName().replaceAll("\\s", "").replace("-", "_");
-        final String uniqueStoreId = ctx.getUniqueStoreId(userStateId, sanitizedParDoName);
+        final String escapedParDoName =
+            SamzaPipelineTranslatorUtils.escape(node.getEnclosingNode().getFullName());
+        final String uniqueStoreId = ctx.getUniqueStoreId(userStateId, escapedParDoName);
         config.put(
             "stores." + uniqueStoreId + ".factory",
             "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");

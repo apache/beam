@@ -18,9 +18,7 @@
 package org.apache.beam.runners.samza.translation;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -39,7 +37,10 @@ public class ConfigContext {
   private final Map<String, String> usedStateIdMap;
   private final Map<String, String> multiParDoStateIdMap;
 
-  public ConfigContext(Map<PValue, String> idMap, SamzaPipelineOptions options, Map<String, String> multiParDoStateIdMap) {
+  public ConfigContext(
+      Map<PValue, String> idMap,
+      SamzaPipelineOptions options,
+      Map<String, String> multiParDoStateIdMap) {
     this.idMap = idMap;
     this.options = options;
     this.usedStateIdMap = new HashMap<>();
@@ -67,7 +68,7 @@ public class ConfigContext {
     return this.options;
   }
 
-  /** Helper to keep track of used stateIds and return unique store id  */
+  /** Helper to keep track of used stateIds and return unique store id. */
   public String getUniqueStoreId(String stateId, String parDoName) {
     // Update a map of used state id with parDo name.
     if (!usedStateIdMap.containsKey(stateId)) {
@@ -85,10 +86,15 @@ public class ConfigContext {
       // Compose a new store id with state id and parDo name (eg) "stateId-parDoName"
       final String multiParDoStateId = String.join("-", stateId, parDoName);
       // Leveraging framework which enforces unique parDo name.
-      // If the framework logic changes, this is a safeguard to throw exception to avoid storeId collision
+      // If the framework logic changes, this is a safeguard to throw exception to avoid storeId
+      // collision
       if (usedStateIdMap.containsKey(multiParDoStateId)) {
         throw new IllegalStateException(
-            "Same stateId " + stateId + " with the same parDoName " + parDoName + " found in multiple ParDo.");
+            "Same stateId "
+                + stateId
+                + " with the same parDoName "
+                + parDoName
+                + " found in multiple ParDo.");
       }
       usedStateIdMap.put(multiParDoStateId, parDoName);
       return multiParDoStateId;

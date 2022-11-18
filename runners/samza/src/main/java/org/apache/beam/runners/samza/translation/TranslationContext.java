@@ -252,12 +252,16 @@ public class TranslationContext {
     return idGenerator.getId(getTransformFullName());
   }
 
-  /** Given a set of user stateIds and parDo name, return a stateId to storeId map */
-  public Map<String, String> getStateIdToStoreIdMap(Set<String> stateIds, String parDoName) {
+  /** Given a set of user stateIds and parDo name, return a stateId to storeId map. */
+  public Map<String, String> getStateIdToStoreIdMap(Set<String> stateIds, String escapedParDoName) {
     final Map<String, String> storeIds = new HashMap<>();
-    stateIds.forEach(stateId ->
-        storeIds.put(stateId, multiParDoStateIds.contains(stateId)
-              ? String.join("-", stateId, parDoName) : stateId));
+    stateIds.forEach(
+        stateId ->
+            storeIds.put(
+                stateId,
+                multiParDoStateIds.contains(stateId)
+                    ? String.join("-", stateId, escapedParDoName)
+                    : stateId));
     return storeIds;
   }
 

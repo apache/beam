@@ -22,7 +22,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.runners.samza.SamzaExecutionEnvironment;
@@ -77,7 +76,8 @@ public class ConfigGeneratorTest {
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Map<String, String> multiParDoStateIdMap = new HashMap<>();
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, multiParDoStateIdMap, configBuilder);
+    SamzaPipelineTranslator.createConfig(
+        pipeline, options, idMap, multiParDoStateIdMap, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
@@ -296,34 +296,39 @@ public class ConfigGeneratorTest {
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
     final Map<String, String> multiParDoStateIdMap = new HashMap<>();
-    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, multiParDoStateIdMap, configBuilder);
-    SamzaPipelineTranslator.rewriteConfigWithMultiParDoStateId(options, multiParDoStateIdMap, configBuilder);
+    SamzaPipelineTranslator.createConfig(
+        pipeline, options, idMap, multiParDoStateIdMap, configBuilder);
+    SamzaPipelineTranslator.rewriteConfigWithMultiParDoStateId(
+        options, multiParDoStateIdMap, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
         RocksDbKeyValueStorageEngineFactory.class.getName(),
-        config.get("stores.testState-FirststatefulParDo.factory"));
-    assertEquals("byteArraySerde", config.get("stores.testState-FirststatefulParDo.key.serde"));
-    assertEquals("stateValueSerde", config.get("stores.testState-FirststatefulParDo.msg.serde"));
-    assertNull(config.get("stores.testState-FirststatefulParDo.changelog"));
+        config.get("stores.testState-First_stateful_ParDo.factory"));
+    assertEquals("byteArraySerde", config.get("stores.testState-First_stateful_ParDo.key.serde"));
+    assertEquals("stateValueSerde", config.get("stores.testState-First_stateful_ParDo.msg.serde"));
+    assertNull(config.get("stores.testState-First_stateful_ParDo.changelog"));
 
     assertEquals(
         RocksDbKeyValueStorageEngineFactory.class.getName(),
-        config.get("stores.testState-SecondstatefulParDo.factory"));
-    assertEquals("byteArraySerde", config.get("stores.testState-SecondstatefulParDo.key.serde"));
-    assertEquals("stateValueSerde", config.get("stores.testState-SecondstatefulParDo.msg.serde"));
-    assertNull(config.get("stores.testState-SecondstatefulParDo.changelog"));
+        config.get("stores.testState-Second_stateful_ParDo.factory"));
+    assertEquals("byteArraySerde", config.get("stores.testState-Second_stateful_ParDo.key.serde"));
+    assertEquals("stateValueSerde", config.get("stores.testState-Second_stateful_ParDo.msg.serde"));
+    assertNull(config.get("stores.testState-Second_stateful_ParDo.changelog"));
 
     options.setStateDurable(true);
     Map<String, String> multiParDoStateIdMap2 = new HashMap<>();
-    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, multiParDoStateIdMap2, configBuilder);
-    SamzaPipelineTranslator.rewriteConfigWithMultiParDoStateId(options, multiParDoStateIdMap2, configBuilder);
+    SamzaPipelineTranslator.createConfig(
+        pipeline, options, idMap, multiParDoStateIdMap2, configBuilder);
+    SamzaPipelineTranslator.rewriteConfigWithMultiParDoStateId(
+        options, multiParDoStateIdMap2, configBuilder);
     final Config config2 = configBuilder.build();
     assertEquals(
-        "TestStoreConfig-1-testState-FirststatefulParDo-changelog", config2.get("stores.testState-FirststatefulParDo.changelog"));
+        "TestStoreConfig-1-testState-First_stateful_ParDo-changelog",
+        config2.get("stores.testState-First_stateful_ParDo.changelog"));
     assertEquals(
-        "TestStoreConfig-1-testState-SecondstatefulParDo-changelog",
-        config2.get("stores.testState-SecondstatefulParDo.changelog"));
+        "TestStoreConfig-1-testState-Second_stateful_ParDo-changelog",
+        config2.get("stores.testState-Second_stateful_ParDo.changelog"));
   }
 
   @Test
@@ -368,33 +373,42 @@ public class ConfigGeneratorTest {
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
     final Map<String, String> multiParDoStateIdMap = new HashMap<>();
-    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, multiParDoStateIdMap, configBuilder);
-    SamzaPipelineTranslator.rewriteConfigWithMultiParDoStateId(options, multiParDoStateIdMap, configBuilder);
+    SamzaPipelineTranslator.createConfig(
+        pipeline, options, idMap, multiParDoStateIdMap, configBuilder);
+    SamzaPipelineTranslator.rewriteConfigWithMultiParDoStateId(
+        options, multiParDoStateIdMap, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
         RocksDbKeyValueStorageEngineFactory.class.getName(),
-        config.get("stores.testState-SamestatefulParDoName.factory"));
-    assertEquals("byteArraySerde", config.get("stores.testState-SamestatefulParDoName.key.serde"));
-    assertEquals("stateValueSerde", config.get("stores.testState-SamestatefulParDoName.msg.serde"));
-    assertNull(config.get("stores.testState-SamestatefulParDoName.changelog"));
+        config.get("stores.testState-Same_stateful_ParDo_Name.factory"));
+    assertEquals(
+        "byteArraySerde", config.get("stores.testState-Same_stateful_ParDo_Name.key.serde"));
+    assertEquals(
+        "stateValueSerde", config.get("stores.testState-Same_stateful_ParDo_Name.msg.serde"));
+    assertNull(config.get("stores.testState-Same_stateful_ParDo_Name.changelog"));
 
     assertEquals(
         RocksDbKeyValueStorageEngineFactory.class.getName(),
-        config.get("stores.testState-SamestatefulParDoName2.factory"));
-    assertEquals("byteArraySerde", config.get("stores.testState-SamestatefulParDoName2.key.serde"));
-    assertEquals("stateValueSerde", config.get("stores.testState-SamestatefulParDoName2.msg.serde"));
-    assertNull(config.get("stores.testState-SamestatefulParDoName2.changelog"));
+        config.get("stores.testState-Same_stateful_ParDo_Name2.factory"));
+    assertEquals(
+        "byteArraySerde", config.get("stores.testState-Same_stateful_ParDo_Name2.key.serde"));
+    assertEquals(
+        "stateValueSerde", config.get("stores.testState-Same_stateful_ParDo_Name2.msg.serde"));
+    assertNull(config.get("stores.testState-Same_stateful_ParDo_Name2.changelog"));
 
     options.setStateDurable(true);
     Map<String, String> multiParDoStateIdMap2 = new HashMap<>();
-    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, multiParDoStateIdMap2, configBuilder);
-    SamzaPipelineTranslator.rewriteConfigWithMultiParDoStateId(options, multiParDoStateIdMap2, configBuilder);
+    SamzaPipelineTranslator.createConfig(
+        pipeline, options, idMap, multiParDoStateIdMap2, configBuilder);
+    SamzaPipelineTranslator.rewriteConfigWithMultiParDoStateId(
+        options, multiParDoStateIdMap2, configBuilder);
     final Config config2 = configBuilder.build();
     assertEquals(
-        "TestStoreConfig-1-testState-SamestatefulParDoName-changelog", config2.get("stores.testState-SamestatefulParDoName.changelog"));
+        "TestStoreConfig-1-testState-Same_stateful_ParDo_Name-changelog",
+        config2.get("stores.testState-Same_stateful_ParDo_Name.changelog"));
     assertEquals(
-        "TestStoreConfig-1-testState-SamestatefulParDoName2-changelog",
-        config2.get("stores.testState-SamestatefulParDoName2.changelog"));
+        "TestStoreConfig-1-testState-Same_stateful_ParDo_Name2-changelog",
+        config2.get("stores.testState-Same_stateful_ParDo_Name2.changelog"));
   }
 }

@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +31,7 @@ import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.samza.application.descriptors.StreamApplicationDescriptor;
 import org.apache.samza.application.descriptors.StreamApplicationDescriptorImpl;
 import org.apache.samza.config.Config;
@@ -53,6 +54,8 @@ public class TranslationContextTest {
   MapFunction<Object, String> keyFn = m -> m.toString();
   MapFunction<Object, Object> valueFn = m -> m;
   private final String streamName = "testStream";
+  private static final String SINGLE_PARDO_STATE_ID = "stateId1";
+  private static final String MULTI_PARDO_STATE_ID = "multiParDoStateId1";
   KVSerde<Object, Object> serde = KVSerde.of(new NoOpSerde<>(), new NoOpSerde<>());
   StreamApplicationDescriptor streamApplicationDescriptor =
       new StreamApplicationDescriptorImpl(
@@ -62,9 +65,10 @@ public class TranslationContextTest {
           },
           getConfig());
   Map<PValue, String> idMap = new HashMap<>();
-  Set<String> multiParDoStateIds = new HashSet<>();
+  Set<String> multiParDoStateIds = ImmutableSet.of(MULTI_PARDO_STATE_ID);
   TranslationContext translationContext =
-      new TranslationContext(streamApplicationDescriptor, idMap, multiParDoStateIds, mock(SamzaPipelineOptions.class));
+      new TranslationContext(
+          streamApplicationDescriptor, idMap, multiParDoStateIds, mock(SamzaPipelineOptions.class));
 
   @Test
   public void testRegisterInputMessageStreams() {
@@ -78,6 +82,16 @@ public class TranslationContextTest {
     translationContext.registerInputMessageStreams(output, inputDescriptors);
 
     assertNotNull(translationContext.getMessageStream(output));
+  }
+
+  @Test
+  public void testGetStateIdToStoreIdMap() {
+    final Set<String> input = ImmutableSet.of(SINGLE_PARDO_STATE_ID, MULTI_PARDO_STATE_ID);
+    final String escapedParDoName = "mockParDoName";
+    Map<String, String> output = translationContext.getStateIdToStoreIdMap(input, escapedParDoName);
+    assertEquals(SINGLE_PARDO_STATE_ID, output.get(SINGLE_PARDO_STATE_ID));
+    assertEquals(
+        String.join("-", MULTI_PARDO_STATE_ID, escapedParDoName), output.get(MULTI_PARDO_STATE_ID));
   }
 
   public GenericInputDescriptor<KV<String, OpMessage<?>>> createSamzaInputDescriptor(

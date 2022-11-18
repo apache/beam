@@ -84,7 +84,7 @@ public class ConfigBuilder {
   }
 
   public void remove(String name) {
-      config.remove(name);
+    config.remove(name);
   }
 
   /** @return built configuration */
