@@ -55,6 +55,7 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
 project_id                    = "project_id"                # Your Project ID
 region                        = "us-central1"               # Your GCP region name where resources will be provisioned
 location                      = "us-central1-b"             # Select the deployment location from available in the specified region
+cloudbuild_service_account_id = "playground-cloudbuild-sa"  # The name of Cloud Build service account
 github_repository_name        = "beam"                      # The name of the GitHub repo to be connected with Cloud Build. Example: In https://github.com/example/foo is 'foo'
 github_repository_owner       = "repo_owner_name"           # Owner of the GitHub repo to be connected with Cloud Build. Example: In https://github.com/example/foo is 'example'.
 github_repository_branch      = "branch_name"               # The name of the GitHub repo branch to be connected with Cloud Build
