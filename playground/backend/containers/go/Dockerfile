@@ -18,27 +18,42 @@
 #Dokerfile to set up the Beam Go SDK
 ARG BASE_IMAGE=golang:1.18-bullseye
 FROM $BASE_IMAGE
+ARG SDK_TAG=2.42.0
 
 # Setup Go Environment
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:$PATH
-RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" &&\
+    chmod -R 777 "$GOPATH/bin"
+
+
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 
 # Prepare Application
 COPY src /go/src/playground/backend
 
-ARG BEAM_VERSION=2.42.0
 ENV PREPARED_MOD_DIR=/opt/playground/prepared_folder/
-ENV PIPELINES_FOLDER_NAME="executable_files"
 RUN mkdir -p /opt/playground/ $PREPARED_MOD_DIR
 WORKDIR $PREPARED_MOD_DIR
 
-RUN go mod init $PIPELINES_FOLDER_NAME &&\
-    go get github.com/apache/beam/sdks/v2/go/pkg/beam@v$BEAM_VERSION &&\
-    go get github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs@v$BEAM_VERSION &&\
-    go mod download all
+# Setup Go SDK dependencies
+COPY beam /opt/playground/beam
+
+ENV PIPELINES_FOLDER_NAME="executable_files"
+
+ENV BEAM_PKG github.com/apache/beam/sdks/v2@v2.99.99-unpublished
+RUN go mod init $PIPELINES_FOLDER_NAME
+RUN go mod edit -require=$BEAM_PKG
+
+if SDK_TAG == unpublished
+RUN go mod edit -replace=$BEAM_PKG=/opt/playground/beam
+fi
+
+RUN go get -x github.com/apache/beam/sdks/v2/go/pkg/beam@v2.99.99-unpublished
+RUN go get -x github.com/apache/beam/sdks/v2/go/test/integration@v2.99.99-unpublished
+
+RUN go mod download -x all
 
 # Build Application
 
@@ -62,7 +77,7 @@ COPY src/configs /opt/playground/backend/configs/
 # Install mitmpoxy
 RUN mkdir /opt/mitmproxy &&\
     cd /opt/mitmproxy &&\
-    wget https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
+    wget -q https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
     tar -zxvf mitmproxy-7.0.4-linux.tar.gz &&\
     mkdir /usr/local/share/ca-certificates/extra
 COPY allow_list_proxy.py /opt/mitmproxy/

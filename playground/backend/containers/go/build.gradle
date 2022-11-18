@@ -55,6 +55,18 @@ task copyDockerfileDependencies(type: Copy) {
       from '../../../playground'
       into 'build/playground'
    }
+   copy {
+      from '../../../../sdks/go'
+      into 'build/beam/go'
+   }
+   copy {
+      from '../../../../sdks/go.mod'
+      into 'build/beam'
+   }
+   copy {
+      from '../../../../sdks/go.sum'
+      into 'build/beam'
+   }
 }
 
 docker {
