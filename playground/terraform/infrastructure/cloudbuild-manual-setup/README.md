@@ -127,7 +127,7 @@ terraform apply -var-file="../../../environment/{environment_name}/terraform.tfv
 4. Assign values for the next variables:
     - `_ENVIRONMENT_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; # *Created "environment_name"*
     - `_DNS_NAME`  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your DNS record name*
-    - `_LOGS_BUCKET_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your GCP logs bucket name (configured in terraform.tfvars)*
+    - `_LOGS_BUCKET_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your GCP logs bucket name `logs_bucket`*
 5. Click `Save` and Run the trigger `Playground-infrastructure-trigger`.
 
 6. Once Playground infrastructure has been deployed, please navigate to
@@ -144,7 +144,7 @@ terraform apply -var-file="../../../environment/{environment_name}/terraform.tfv
     - `_DNS_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  &nbsp;  &nbsp;  *# Your DNS record name*
     - `_TAG` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Tag name for your Playground container images*
     - `_GKE_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your GKE cluster name (configured in terraform.tfvars)*
-    - `_LOGS_BUCKET_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your GCP logs bucket name (configured in terraform.tfvars)*
+    - `_LOGS_BUCKET_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your GCP logs bucket name `logs_bucket`*
 5. Click `Save` and Run the trigger `Playground-to-gke-trigger`.
 
 ## 6. Validation
