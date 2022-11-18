@@ -61,7 +61,7 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
   _use_grpc = True
   _use_subprocesses = True
 
-  conf_dir = None
+  conf_dir = True
   expansion_port = None
   flink_job_server_jar = None
 
