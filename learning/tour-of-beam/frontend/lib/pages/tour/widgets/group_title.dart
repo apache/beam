@@ -38,7 +38,10 @@ class GroupTitleWidget extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          TourProgressIndicator(assetPath: Assets.svg.unitProgress0),
+          TourProgressIndicator(
+            assetPath: Assets.svg.unitProgress0,
+            isSelected: false,
+          ),
           Text(
             group.title,
             style: Theme.of(context).textTheme.headlineMedium,
