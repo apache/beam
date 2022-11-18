@@ -105,7 +105,7 @@ public class AvroGenericRecordToStorageApiProto {
               LogicalTypes.decimal(1).getName(), AvroGenericRecordToStorageApiProto::convertDecimal)
           .put(
               LogicalTypes.timestampMicros().getName(),
-              (logicalType, value) -> convertTimestamp(value) * 1000)
+              (logicalType, value) -> convertTimestamp(value))
           .put(
               LogicalTypes.timestampMillis().getName(),
               (logicalType, value) -> convertTimestamp(value))
