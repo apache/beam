@@ -28,12 +28,12 @@ const cloudFunctionsBaseUrl = 'https://'
 
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
-    'https://router.https://sandboxplayground.com/';
+    'https://router.sandboxplayground.com/';
 const String kApiJavaClientURL =
-    'https://java.34.120.66.174.nip.io/';
+    'https://java.sandboxplayground.com/';
 const String kApiGoClientURL =
-    'https://go.34.120.66.174.nip.io/';
+    'https://go.sandboxplayground.com/';
 const String kApiPythonClientURL =
-    'https://python.34.120.66.174.nip.io/';
+    'https://python.sandboxplayground.com/';
 const String kApiScioClientURL =
-    'https://scio.34.120.66.174.nip.io/';
+    'https://scio.sandboxplayground.com/';

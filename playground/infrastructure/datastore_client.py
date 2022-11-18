@@ -300,10 +300,19 @@ class DatastoreClient:
             self._get_pc_objects_key(snp_id, pc_obj_type),
             exclude_from_indexes=('content',)
         )
-        pc_obj_entity.update({"content": content})
+        logging.info("Logging PPC")
+        logging.info(snp_id)
+        logging.info(len(content))
+
+        if len(content) < 1000000:
+            pc_obj_entity.update({"content": content})
+        else:
+             pc_obj_entity.update({"content": content[0:1000000]})
         return pc_obj_entity
 
     def _to_file_entity(self, example: Example, snp_id: str):
+        logging.info(example.name)
+        logging.info(len(example.code))
         file_entity = datastore.Entity(
             self._get_files_key(snp_id),
             exclude_from_indexes=('content',)
