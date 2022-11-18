@@ -20,6 +20,7 @@ package org.apache.beam.sdk.coders;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -33,6 +34,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ZstdCoderTest {
   private static final ZstdCoder<String> TEST_CODER = ZstdCoder.of(StringUtf8Coder.of());
+  private static final ZstdCoder<byte[]> BYTE_ARRAY_TEST_CODER = ZstdCoder.of(ByteArrayCoder.of());
 
   private static final List<String> TEST_VALUES =
       Arrays.asList(
@@ -72,6 +74,36 @@ public class ZstdCoderTest {
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
     CoderProperties.coderSerializable(ZstdCoder.of(GlobalWindow.Coder.INSTANCE));
+  }
+
+  @Test
+  public void testConsistentWithEquals() throws Exception {
+    assertEquals(StringUtf8Coder.of().consistentWithEquals(), TEST_CODER.consistentWithEquals());
+    assertEquals(
+        ByteArrayCoder.of().consistentWithEquals(), BYTE_ARRAY_TEST_CODER.consistentWithEquals());
+  }
+
+  @Test
+  public void testStructuralValue() throws Exception {
+    // This might change if compression proves beneficial for encoded structural values.
+    for (String value : TEST_VALUES) {
+      byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+      assertEquals(StringUtf8Coder.of().structuralValue(value), TEST_CODER.structuralValue(value));
+      assertEquals(
+          ByteArrayCoder.of().structuralValue(bytes), BYTE_ARRAY_TEST_CODER.structuralValue(bytes));
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (String value1 : TEST_VALUES) {
+      for (String value2 : TEST_VALUES) {
+        byte[] bytes1 = value1.getBytes(StandardCharsets.UTF_8);
+        byte[] bytes2 = value2.getBytes(StandardCharsets.UTF_8);
+        CoderProperties.structuralValueConsistentWithEquals(TEST_CODER, value1, value2);
+        CoderProperties.structuralValueConsistentWithEquals(BYTE_ARRAY_TEST_CODER, bytes1, bytes2);
+      }
+    }
   }
 
   @Test
