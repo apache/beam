@@ -231,7 +231,6 @@ if __name__ == '__main__':
         # Avro 1.9.2 for python3 was broken.
         # The issue was fixed in version 1.9.2.1
         'crcmod>=1.7,<2.0',
-        'orjson<4.0',
         # Note: Omitting dill. A copy of dill is in the vendor
         # directory. Since it is not forwards-compatible.
         # It is prudent to use the same version of pickler at job submission
@@ -247,6 +246,7 @@ if __name__ == '__main__':
         'numpy>=1.14.3,<1.23.0',
         # Tight bound since minor version releases caused breakages.
         'objsize>=0.5.2,<0.6.0',
+        'orjson<4.0',
         'pymongo>=3.8.0,<4.0.0',
         'proto-plus>=1.7.1,<2',
         'pydot>=1.2.0,<2',
