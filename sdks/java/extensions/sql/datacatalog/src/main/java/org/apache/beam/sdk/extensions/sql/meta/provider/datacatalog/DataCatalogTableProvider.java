@@ -218,10 +218,10 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
 
   @Internal
   public boolean setSchemaIfNotPresent(String resource, Schema schema) {
-    com.google.cloud.datacatalog.v1beta1.Schema dcSchema = SchemaUtils.toDataCatalog(schema);
     Entry entry =
         dataCatalog.lookupEntry(LookupEntryRequest.newBuilder().setSqlResource(resource).build());
     if (entry.getSchema().getColumnsCount() == 0) {
+      com.google.cloud.datacatalog.v1beta1.Schema dcSchema = SchemaUtils.toDataCatalog(schema);
       dataCatalog.updateEntry(
           UpdateEntryRequest.newBuilder()
               .setEntry(entry.toBuilder().setSchema(dcSchema).build())
