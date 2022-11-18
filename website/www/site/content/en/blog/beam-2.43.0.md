@@ -1,5 +1,5 @@
 ---
-title:  "Apache Beam 2.42.0"
+title:  "Apache Beam 2.43.0"
 date:   2022-11-17 09:00:00 -0700
 categories:
 - blog
