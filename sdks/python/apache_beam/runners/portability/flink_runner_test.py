@@ -144,6 +144,9 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
                 'metrics.reporter.file.class: %s' % file_reporter,
                 'metrics.reporter.file.path: %s' % cls.test_metrics_path,
                 'metrics.scope.operator: <operator_name>',
+                'parallelism.default: 23',
+                'taskmanager.memory.network.fraction: 0.2',
+                'taskmanager.memory.network.max: 2gb',
             ]))
 
   @classmethod
