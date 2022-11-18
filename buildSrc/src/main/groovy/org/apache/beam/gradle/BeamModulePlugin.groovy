@@ -1020,6 +1020,11 @@ class BeamModulePlugin implements Plugin<Project> {
         project.configurations.all {
           it.exclude(group:"org.checkerframework", module:"jdk8")
         }
+
+        // Cause all compile tasks to depend on this string, to invalidate them
+        project.tasks.withType(JavaCompile) {
+          inputs.property('checkerFrameworkVersion', checkerframework_version)
+        }
       }
 
       def jacocoExcludes = [
