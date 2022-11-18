@@ -22,7 +22,35 @@ SparkReceiverIO provides I/O transforms to read messages from an [Apache Spark R
 
 ## Prerequistes
 
-SparkReceiverIO supports [Spark Receivers](https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html) (Spark version 2.4) that implement [HasOffset](src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
+SparkReceiverIO supports [Spark Receivers](https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html) (Spark version 2.4).
+1. Corresponding Spark Receiver should implement [HasOffset](https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
+2. Records should have the numeric field that represents record offset. *Example:* `RecordId` field for Salesforce and `vid` field for Hubspot Receivers.
+   For more details please see [GetOffsetUtils](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap/utils/GetOffsetUtils.java) class from CDAP plugins examples.
+
+## Adding support for new Spark Receiver
+
+To add SparkReceiverIO support for a new Spark `Receiver`, perform the following steps:
+1. Add Spark Receiver to the Maven Central repository. *Example:* [Hubspot CDAP plugin Maven repository](https://mvnrepository.com/artifact/io.cdap/hubspot-plugins/1.0.0)
+2. Add Spark Receiver Maven dependency to the `build.gradle` file. *Example:* ``implementation "io.cdap:hubspot-plugins:1.0.0"``.
+3. Implement function that will define how to get `Long offset` from the record of the Spark Receiver.
+   *Example:* see [GetOffsetUtils](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap/utils/GetOffsetUtils.java) class from CDAP plugins examples.
+4. Construct `ReceiverBuilder` object by passing class of record that you want to read (e.g. String) and your Spark `Receiver` class name (dependency from step 2). *Example:*
+   ```
+      ReceiverBuilder<String, HubspotReceiver> receiverBuilder =
+      new ReceiverBuilder<>(HubspotReceiver.class).withConstructorArgs();
+   ```
+5. Use your Spark `Receiver` with SparkReceiverIO:
+    1. You will need to pass correct `getOffsetFn` (from step 3)
+       and correct `ReceiverBuilder` (from step 4) manually. *Example:*
+   ```
+   SparkReceiverIO.Read<V> reader =
+            SparkReceiverIO.<V>read()
+                .withGetOffsetFn(getOffsetFn)
+                .withSparkReceiverBuilder(receiverBuilder);
+   ```
+
+
+To learn more please check out CDAP Streaming plugins [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap) where Spark Receivers are used.
 
 ## Dependencies
 
