@@ -121,6 +121,7 @@ val deleteFilesByRegExp by extra(
 tasks.register("generateCode") {
   dependsOn("cleanFlutter")
   dependsOn("pubGet")
+  mustRunAfter("extractBeamSymbols")
 
   group = "build"
   description = "Generate code"
