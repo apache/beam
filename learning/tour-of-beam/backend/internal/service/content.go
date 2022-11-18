@@ -70,10 +70,18 @@ func (s *Svc) GetUserProgress(ctx context.Context, sdk tob.Sdk, userId string) (
 }
 
 func (s *Svc) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error {
+	if err := s.Repo.CheckUnitExists(ctx, sdk, unitId); err != nil {
+		return err
+	}
+
 	return s.Repo.SetUnitComplete(ctx, sdk, unitId, uid)
 }
 
 func (s *Svc) SaveUserCode(ctx context.Context, sdk tob.Sdk, unitId, uid string, userRequest tob.UserCodeRequest) error {
+	if err := s.Repo.CheckUnitExists(ctx, sdk, unitId); err != nil {
+		return err
+	}
+
 	req := MakePgSaveRequest(userRequest, sdk)
 	resp, err := s.PgClient.SaveSnippet(ctx, &req)
 	if err != nil {

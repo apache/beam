@@ -31,6 +31,8 @@ import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
 import { loopbackRunner } from "../src/apache_beam/runners/runner";
 import { Pipeline } from "../src/apache_beam/internal/pipeline";
+import { GlobalWindow } from "../src/apache_beam/values";
+import { PaneInfoCoder } from "../src/apache_beam/coders/standard_coders";
 import * as testing from "../src/apache_beam/testing/assert";
 import * as windowings from "../src/apache_beam/transforms/windowings";
 import * as pardo from "../src/apache_beam/transforms/pardo";
@@ -109,7 +111,7 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
     });
 
     it("runs a map with counters", async function () {
-      const result = await new DirectRunner().run((root) => {
+      const result = await runner.run((root) => {
         root
           .apply(beam.create([1, 2, 3]))
           .map(
@@ -288,5 +290,71 @@ describe("primitives module", function () {
     describe("portable runner @ulr", () => {
       suite.bind(this)(loopbackRunner());
     });
+  }
+});
+
+describe("liquid sharding @ulr", function () {
+  if (process.env.BEAM_SERVICE_OVERRIDES) {
+    it("handles splitting", async function () {
+      // This pipeline will process a number of "slow" elements, asking the
+      // ULR to split the "toSplit" bundle at various points. We then verify
+      // that the bundle was indeed split and all expected elements made it
+      // through.
+      const runner = loopbackRunner({
+        directTestSplits: JSON.stringify({
+          toSplit: {
+            // Split 0.1, 0.15, etc. seconds into processing the bundle.
+            timings: [0.1, 0.15, 0.2, 0.25],
+            fractions: [0.5, 0.5, 0.5, 0.5],
+          },
+        }),
+      });
+      const numElements = 20;
+      const elements = [...Array(numElements).keys()].map((x) => "" + x);
+      await runner.run((root) => {
+        const pcolls = root
+          .apply(beam.create(elements))
+          .map((x) => {
+            // Synchronous sleep.
+            Atomics.wait(
+              new Int32Array(new SharedArrayBuffer(4)),
+              0,
+              0,
+              // Processing all elements spread out over 1000 ms, plus overhead.
+              1000 / numElements
+            );
+            return x;
+          })
+          .apply(
+            withName(
+              "toSplit",
+              beam.parDo({
+                process: (element) => [element],
+                finishBundle: () => [
+                  {
+                    value: "endOfBundle",
+                    windows: [new GlobalWindow()],
+                    pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
+                    timestamp: new GlobalWindow().maxTimestamp(),
+                  },
+                ],
+              })
+            )
+          )
+          .apply(
+            // More than one "endOfBundle" output because we split.
+            // (We in fact should have split this first bundle multiple times,
+            // but all the remainders get processed in a (single) second bundle.
+            // Importantly, however, we verify that regardless of where the
+            // splits occurred (if you print them, they're in an interesting
+            // order), all elements are accounted for.)
+            testing.assertDeepEqual(
+              elements.concat(["endOfBundle", "endOfBundle"])
+            )
+          );
+      });
+      // The pipeline should run fast, but give plenty of time for the service
+      // to start up in case the test machine is loaded.
+    }).timeout(30000);
   }
 });

@@ -10,6 +10,9 @@ See the License for the specific language governing permissions and
 limitations under the License. See accompanying LICENSE file.
 */}}
 {{/*
+
+Creates an embedded Playground with given examples.
+
 Embedding example:
 
 {{< playground height="700px" >}}
@@ -25,14 +28,32 @@ Embedding example:
         {{ .Inner }}
     </div>
     {{ $snippetsList := slice }}
-    {{ $divMatches := findRE "<div class=\"[^\"]+(playground-snippet)\"(.*)</div>" .Inner }}
+    {{ $divMatches := findRE "<div(\\s+)class=\"[^\"]+(playground-snippet)\"((.|\\s)*?)</div>" .Inner }}
 
     {{ range $divMatches }}
-        {{ $attributeRegex := "data-sdk=\"(?P<sdk>\\w+)\" data-example=\"([^\"]+)\"" }}
-        {{ $sdk := replaceRE ".*data-sdk=\"(\\w+)\".*" "$1" . }}
-        {{ $example := replaceRE ".*example=\"([^\"]+)\".*" "$1" . }}
-        {{ $json := printf "%s%s%s%s%s" "{\"sdk\":\"" $sdk "\",\"example\":\"" $example "\"}" }}
-        {{ $snippetsList = append $json $snippetsList }}
+        {{ $sdk := replaceRE "(.|\\s)*data-sdk=\"(\\w+)\"(.|\\s)*" "$2" . }}
+        {{ $example := replaceRE "(.|\\s)*example=\"([^\"]+)\"(.|\\s)*" "$2" . }}
+        {{ $dict := dict "sdk" $sdk "example" $example }}
+
+        {{ $readonlyRegex := "(.|\\s)*readonly=\"([_,a-zA-Z0-9]+)\"(.|\\s)*" }}
+        {{ if findRE $readonlyRegex . }}
+            {{ $readonly := replaceRE $readonlyRegex "$2" . }}
+            {{ $dict = merge $dict (dict "readonly" $readonly) }}
+        {{ end }}
+
+        {{ $showRegex := "(.|\\s)*show=\"([_a-zA-Z0-9]+)\"(.|\\s)*" }}
+        {{ if findRE $showRegex . }}
+            {{ $show := replaceRE $showRegex "$2" . }}
+            {{ $dict = merge $dict (dict "show" $show) }}
+        {{ end }}
+
+        {{ $unfoldRegex := "(.|\\s)*unfold=\"([_,a-zA-Z0-9]+)\"(.|\\s)*" }}
+        {{ if findRE $unfoldRegex . }}
+            {{ $unfold := replaceRE $unfoldRegex "$2" . }}
+            {{ $dict = merge $dict (dict "unfold" $unfold) }}
+        {{ end }}
+
+        {{ $snippetsList = append (jsonify $dict) $snippetsList }}
     {{ end}}
 
     {{ $snippets := printf "%s%s%s" "[" (delimit $snippetsList ",") "]" }}

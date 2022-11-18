@@ -79,10 +79,12 @@ export interface IOperator {
 export class Receiver {
   constructor(
     private operators: IOperator[],
-    private loggingStageInfo: LoggingStageInfo
+    private loggingStageInfo: LoggingStageInfo,
+    private elementCounter: { update: (number) => void }
   ) {}
 
   receive(wvalue: WindowedValue<unknown>): ProcessResult {
+    this.elementCounter.update(1);
     try {
       if (this.operators.length === 1) {
         const operator = this.operators[0];
@@ -165,7 +167,7 @@ export function registerOperatorConstructor(
 // the IOperator interface here, but classes are used to make a clearer pattern
 // potential SDK authors that are less familiar with javascript.
 
-class DataSourceOperator implements IOperator {
+export class DataSourceOperator implements IOperator {
   transformId: string;
   getBundleId: () => string;
   multiplexingDataChannel: MultiplexingDataChannel;
@@ -173,6 +175,9 @@ class DataSourceOperator implements IOperator {
   coder: Coder<WindowedValue<unknown>>;
   endOfData: Promise<void>;
   loggingStageInfo: LoggingStageInfo;
+  started: boolean;
+  lastProcessedElement: number;
+  lastToProcessElement: number;
 
   constructor(
     transformId: string,
@@ -190,6 +195,7 @@ class DataSourceOperator implements IOperator {
     );
     this.coder = context.pipelineContext.getCoder(readPort.coderId);
     this.loggingStageInfo = context.loggingStageInfo;
+    this.started = false;
   }
 
   async startBundle() {
@@ -200,6 +206,10 @@ class DataSourceOperator implements IOperator {
       endOfDataReject = reject;
     });
 
+    this.lastProcessedElement = -1;
+    this.lastToProcessElement = Infinity;
+    this.started = true;
+
     await this_.multiplexingDataChannel.registerConsumer(
       this_.getBundleId(),
       this_.transformId,
@@ -208,12 +218,25 @@ class DataSourceOperator implements IOperator {
           this_.loggingStageInfo.transformId = this_.transformId;
           loggingLocalStorage.enterWith(this_.loggingStageInfo);
           const reader = new protobufjs.Reader(data);
+          var lastYield = Date.now();
           while (reader.pos < reader.len) {
+            if (this_.lastProcessedElement >= this_.lastToProcessElement) {
+              break;
+            }
+            this_.lastProcessedElement += 1;
             const maybePromise = this_.receiver.receive(
               this_.coder.decode(reader, CoderContext.needsDelimiters)
             );
             if (maybePromise !== NonPromise) {
               await maybePromise;
+            }
+            // Periodically yield control explicitly to allow other tasks
+            // (including splits requests) to get scheduled.
+            // Note that waiting on a resolved promise is not sufficient, so
+            // we do this in addition to the above loop.
+            if (Date.now() - lastYield > 100 /* milliseconds */) {
+              await new Promise((r) => setTimeout(r, 0));
+              lastYield = new Date().getTime();
             }
           }
         },
@@ -234,6 +257,59 @@ class DataSourceOperator implements IOperator {
     throw Error("Data should not come in via process.");
   }
 
+  split(
+    desiredSplit: fnApi.ProcessBundleSplitRequest_DesiredSplit
+  ): fnApi.ProcessBundleSplitResponse_ChannelSplit | undefined {
+    if (!this.started) {
+      return undefined;
+    }
+    // If we've already split, we know where the end of this bundle is.
+    // Otherwise, use the estimate the runner sent us (which is how much
+    // it expects to send us) as the end.
+    const end =
+      this.lastToProcessElement < Infinity
+        ? this.lastToProcessElement
+        : Number(desiredSplit.estimatedInputElements) - 1;
+    console.log(this.lastToProcessElement, this.lastProcessedElement, end);
+    if (this.lastProcessedElement >= end) {
+      return undefined;
+    }
+    // Split fractionOfRemainder of the way between our current position and
+    // the end.
+    var targetLastToProcessElement = Math.floor(
+      this.lastProcessedElement +
+        (end - this.lastProcessedElement) * desiredSplit.fractionOfRemainder
+    );
+    // If desiredSplit.allowedSplitPoints is populated, try to find the closest
+    // split point that's in this list.
+    if (desiredSplit.allowedSplitPoints.length) {
+      targetLastToProcessElement =
+        Math.min(
+          ...Array.from(desiredSplit.allowedSplitPoints)
+            .filter(
+              (allowedSplitPoint) =>
+                allowedSplitPoint >= targetLastToProcessElement + 1
+            )
+            .map(Number)
+        ) - 1;
+    }
+    // If we were able to find a valid, meaningful split point, record it
+    // as the last element that this bundle will process and return the
+    // remainder to the runner.
+    if (
+      this.lastProcessedElement <= targetLastToProcessElement &&
+      targetLastToProcessElement < this.lastToProcessElement
+    ) {
+      this.lastToProcessElement = targetLastToProcessElement;
+      return {
+        transformId: this.transformId,
+        lastPrimaryElement: BigInt(this.lastToProcessElement),
+        firstResidualElement: BigInt(this.lastToProcessElement + 1),
+      };
+    }
+    return undefined;
+  }
+
   async finishBundle() {
     try {
       await this.endOfData;
@@ -242,6 +318,7 @@ class DataSourceOperator implements IOperator {
         this.getBundleId(),
         this.transformId
       );
+      this.started = false;
     }
   }
 }

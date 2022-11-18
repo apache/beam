@@ -340,7 +340,9 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 //     work a restriction takes compared to other restrictions in the same DoFn.
 //     For example, a size of 200 represents twice as much work as a size of
 //     100, but the numbers do not represent anything on their own. Size is
-//     used by runners to estimate work for dynamic work rebalancing.
+//     used by runners to estimate work for dynamic work rebalancing. Must be
+//     thread safe. Will be invoked concurrently during bundle processing due to
+//     runner initiated splitting and progress estimation.
 // * `CreateTracker(restriction) restrictionTracker`
 //     CreateTracker creates and returns a restriction tracker (a concrete type
 //     implementing the `sdf.RTracker` interface) given a restriction. The

@@ -29,7 +29,6 @@ variable "environment" {
 
 variable "region" {
   description = "Infrastructure Region"
-  default     = "us-central1"
 }
 
 # Infrastructure variables
@@ -48,13 +47,12 @@ variable "gke_node_count" {
 
 variable "gke_name" {
   description = "Name of GKE cluster"
-  default     = "playground-examples"
+  default = "playground-backend"
 }
 
-variable "gke_location" {
-  description = "Location of GKE cluster"
-  default     = "us-central1-a"
-}
+#  variable "gke_location" {
+#    description = "Location of GKE cluster"
+#  }
 
 variable "service_account" {
   description = "Service account id"
@@ -85,10 +83,9 @@ variable "repository_id" {
   default     = "playground-repository"
 }
 
-variable "repository_location" {
-  description = "Location of Artifact Registry"
-  default     = "us-central1"
-}
+# variable "repository_location" {
+#   description = "Location of Artifact Registry"
+# }
 
 #Redis
 
@@ -120,7 +117,7 @@ variable "redis_memory_size_gb" {
 #VPC
 variable "network_name" {
   description = "Name of VPC to be created"
-  default     = "default"
+  default     = "playground-network"
 }
 
 # Applications
@@ -141,10 +138,9 @@ variable "docker_image_name" {
   description = "Base prefix for docker images"
 }
 
-variable "application_location" {
-  description = "Location of App"
-  default     = "us-central"
-}
+# variable "application_location" {
+#   description = "Location of App"
+# }
 
 # Frontend variables
 
@@ -327,3 +323,4 @@ variable "state_prefix" {
   description = "terraform state prefix on GCP"
   default     = ""
 }
+variable "location" {}
