@@ -22,19 +22,25 @@ import 'package:get_it/get_it.dart';
 
 import '../auth/notifier.dart';
 import '../models/user_progress.dart';
+import '../state.dart';
 import 'cache.dart';
 
 class UserProgressCache extends Cache {
+  final _app = GetIt.instance.get<AppNotifier>();
   final _auth = GetIt.instance.get<AuthNotifier>();
   UserProgressCache({required super.client}) {
-    _auth.addListener(() {
-      // TODO(nausharipov): get sdk
-      updateCompletedUnits('go');
-    });
+    _auth.addListener(_onChanged);
+    _app.addListener(_onChanged);
   }
 
   final _completedUnits = <String>{};
   Future<List<UserProgressModel>?>? _future;
+
+  void _onChanged() {
+    if (_app.sdkId != null) {
+      updateCompletedUnits(_app.sdkId!);
+    }
+  }
 
   Set<String> updateCompletedUnits(String sdkId) {
     _future = null;

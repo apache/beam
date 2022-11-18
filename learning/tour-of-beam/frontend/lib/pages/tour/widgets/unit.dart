@@ -22,6 +22,7 @@ import 'package:playground_components/playground_components.dart';
 
 import '../../../cache/user_progress.dart';
 import '../../../models/unit.dart';
+import '../../../state.dart';
 import '../controllers/content_tree.dart';
 import 'unit_progress_indicator.dart';
 
@@ -37,6 +38,7 @@ class UnitWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cache = GetIt.instance.get<UserProgressCache>();
+    final app = GetIt.instance.get<AppNotifier>();
 
     return AnimatedBuilder(
       animation: contentTreeController,
@@ -55,12 +57,14 @@ class UnitWidget extends StatelessWidget {
               children: [
                 // TODO(nausharipov): finish
                 AnimatedBuilder(
-                  animation: cache,
-                  builder: (context, child) => UnitProgressIndicator(
-                    // TODO(nausharipov): get sdk
-                    isCompleted:
-                        cache.getCompletedUnits('go').contains(unit.id),
-                    isSelected: isSelected,
+                  animation: app,
+                  builder: (context, child) => AnimatedBuilder(
+                    animation: cache,
+                    builder: (context, child) => UnitProgressIndicator(
+                      isCompleted:
+                          cache.getCompletedUnits(app.sdkId!).contains(unit.id),
+                      isSelected: isSelected,
+                    ),
                   ),
                 ),
                 Expanded(

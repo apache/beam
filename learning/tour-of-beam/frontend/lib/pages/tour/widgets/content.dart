@@ -24,6 +24,7 @@ import 'package:playground_components/playground_components.dart';
 
 import '../../../cache/user_progress.dart';
 import '../../../constants/sizes.dart';
+import '../../../state.dart';
 import '../state.dart';
 import 'unit_content.dart';
 
@@ -104,13 +105,13 @@ class _CompleteUnitButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
     final cache = GetIt.instance.get<UserProgressCache>();
+    final app = GetIt.instance.get<AppNotifier>();
 
     return AnimatedBuilder(
       animation: cache,
       builder: (context, child) {
         // TODO(nausharipov): finish
-        // TODO(nausharipov): get sdk
-        final isDisabled = cache.getCompletedUnits('go').contains(
+        final isDisabled = cache.getCompletedUnits(app.sdkId!).contains(
                   notifier.contentTreeController.currentNode?.id,
                 ) ||
             FirebaseAuth.instance.currentUser == null;
@@ -130,7 +131,6 @@ class _CompleteUnitButton extends StatelessWidget {
                 ),
               ),
             ),
-            // TODO(nausharipov): get sdk
             onPressed: isDisabled ? null : _completeUnit,
             child: const Text(
               'pages.tour.completeUnit',
@@ -144,9 +144,10 @@ class _CompleteUnitButton extends StatelessWidget {
 
   void _completeUnit() {
     // TODO(nausharipov): finish
-    // TODO(nausharipov): get sdk
+    final app = GetIt.instance.get<AppNotifier>();
+
     notifier.unitController.completeUnit(
-      'go',
+      app.sdkId!,
       notifier.contentTreeController.currentNode!.id,
     );
   }
