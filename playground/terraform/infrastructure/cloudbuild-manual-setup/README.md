@@ -75,7 +75,7 @@ bucket = "bucket_name"     # The name of bucket - will be used for terraform tfs
 5. Push the `environment_name` folder to your GitHub repository `github_repository_name` and branch `github_repository_branch`.
 (Cloud Build needs file be present in GitHub repository it is connected to)
 
-**Note:** Some regions can be prohibited for Cloud Build. Please see [Cloud Build locations](https://cloud.google.com/build/docs/locations) for supported locations.
+**Note:**  Please see [Cloud Build locations](https://cloud.google.com/build/docs/locations)     for the list of all supported locations.
 
 6. Run commands:
 
@@ -121,7 +121,7 @@ terraform plan -var-file="../../../environment/{environment_name}/terraform.tfva
 terraform apply -var-file="../../../environment/{environment_name}/terraform.tfvars"
 ```
 
-## 4. Running the first Cloud Build trigger to deploy Playground infrastructure
+## 4. Run Cloud Build `Playground-infrastructure-trigger` to deploy Playground infrastructure
 
 1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (Example: us-central1).
 2. Open Trigger: `Playground-infrastructure-trigger`.
@@ -136,7 +136,7 @@ terraform apply -var-file="../../../environment/{environment_name}/terraform.tfv
    [Playground deployment README](https://github.com/apache/beam/tree/master/playground/terraform#deploy-playground-infrastructure) and execute step #2:
    `Add following DNS A records for the discovered static IP address`
 
-## 5. Running the second Cloud Build trigger to deploy Playground to GKE
+## 5. Run Cloud Build `Playground-to-gke-trigger` to deploy Playground to GKE
 
 1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (Example: us-central1).
 2. Open Trigger: `Playground-to-gke-trigger`.
@@ -149,6 +149,6 @@ terraform apply -var-file="../../../environment/{environment_name}/terraform.tfv
     - `_LOGS_BUCKET_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your GCP logs bucket name `logs_bucket`*
 5. Click `Save` and Run the trigger `Playground-to-gke-trigger`.
 
-## 6. Validation
+## 6. Validate Playground deployment
 
 Once Playground has been deployed to GKE, please navigate to [Validation](https://github.com/apache/beam/tree/master/playground/terraform#validate-deployed-playground) to perform Playground deployment steps.
