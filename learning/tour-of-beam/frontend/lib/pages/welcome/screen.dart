@@ -44,7 +44,7 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TobScaffold(
-      showSdkSelector: false,
+      showSdkSelector: true,
       child: SingleChildScrollView(
         child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
             ? _WideWelcome(notifier)
