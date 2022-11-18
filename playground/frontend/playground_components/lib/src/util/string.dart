@@ -16,14 +16,8 @@
  * limitations under the License.
  */
 
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL =
-    'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
-const String kApiJavaClientURL =
-    'https://backend-java-beta-dot-apache-beam-testing.appspot.com';
-const String kApiGoClientURL =
-    'https://backend-go-beta-dot-apache-beam-testing.appspot.com';
-const String kApiPythonClientURL =
-    'https://backend-python-beta-dot-apache-beam-testing.appspot.com';
-const String kApiScioClientURL =
-    'https://backend-scio-beta-dot-apache-beam-testing.appspot.com';
+extension StringExtension on String {
+  List<String> splitNotEmpty(Pattern pattern) {
+    return split(pattern).where((s) => s.isNotEmpty).toList(growable: false);
+  }
+}

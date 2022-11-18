@@ -22,6 +22,8 @@
 This module contains example pipelines that use the Beam RunInference
 API. <!---TODO: Add link to full documentation on Beam website when it's published.-->
 
+Some examples are also used in [our benchmarks](http://s.apache.org/beam-community-metrics/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1).
+
 ## Prerequisites
 
 You must have `apache-beam>=2.40.0` or greater installed in order to run these pipelines,

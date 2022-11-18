@@ -34,7 +34,7 @@ on:
         type: string
         required: true
 env:
-  BEAM_VERSION: 2.40.0
+  BEAM_VERSION: 2.42.0
 jobs:
   check_has_examples:
     name: pre-check
@@ -107,6 +107,7 @@ jobs:
       - name: install deps
         run: pip install -r requirements.txt
         working-directory: playground/infrastructure
+
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
@@ -116,18 +117,32 @@ jobs:
       - name: Set Docker Tag If Github Tag was trigger
         run: echo "DOCKERTAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
         if: startsWith(github.ref, 'refs/tags/')
-      - name: Set docker image
-        run: echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG" >> $GITHUB_ENV
 
-      - name: Build SDK Backend Docker image
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+            cache-read-only: false
+
+      - name: Build Python SDK runner base image
+        if: env.SDK == 'python'
         run: |
              set -uex
-             opts="-Pdocker-tag=$DOCKERTAG"
-             if [ "$SDK" == "java" ]; then
-              opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
+             ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
+             echo "SDK_TAG=${DOCKERTAG}" >> $GITHUB_ENV
+      
+      # TODO build from the current ./sdks/... for Java and Go
+      - name: Build SDK Backend Docker image
+        run: |
+             set -ex
+             opts=" -Pdocker-tag=$DOCKERTAG"
+             if [ -n "$SDK_TAG" ]; then
+                opts="$opts -Psdk-tag=$SDK_TAG"
              fi
 
-             ./gradlew playground:backend:containers:$SDK:docker $opts
+             ./gradlew -i playground:backend:containers:$SDK:docker $opts
+
+      - name: Set docker image
+        run: echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG" >> $GITHUB_ENV
 
       - name: Start SDK runner in background
         run: |

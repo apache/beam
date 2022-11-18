@@ -21,6 +21,14 @@ import (
 	"os"
 )
 
+type ErrBadResponse struct {
+	Code int
+}
+
+func (e *ErrBadResponse) Error() string {
+	return fmt.Sprintf("http code %d", e.Code)
+}
+
 var (
 	ExpectedHeaders = map[string]string{
 		"Access-Control-Allow-Origin": "*",
@@ -81,11 +89,11 @@ func GetUserProgress(url, sdk, token string) (SdkProgress, error) {
 	return result, err
 }
 
-func PostUnitComplete(url, sdk, unitId, token string) error {
-	var result interface{}
+func PostUnitComplete(url, sdk, unitId, token string) (ErrorResponse, error) {
+	var result ErrorResponse
 	err := Do(&result, http.MethodPost, url, map[string]string{"sdk": sdk, "id": unitId},
 		map[string]string{"Authorization": "Bearer " + token}, nil)
-	return err
+	return result, err
 }
 
 func PostUserCode(url, sdk, unitId, token string, body UserCodeRequest) (ErrorResponse, error) {
@@ -166,5 +174,12 @@ func Do(dst interface{}, method, url string, queryParams, headers map[string]str
 
 	tee := io.TeeReader(resp.Body, os.Stdout)
 	defer os.Stdout.WriteString("\n")
-	return json.NewDecoder(tee).Decode(dst)
+	if err := json.NewDecoder(tee).Decode(dst); err != nil {
+		return fmt.Errorf("response decode err: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return &ErrBadResponse{resp.StatusCode}
+	}
+	return nil
 }

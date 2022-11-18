@@ -29,9 +29,7 @@ variable "environment" {
 
 variable "region" {
   description = "Infrastructure Region"
-  default     = "us-central1"
 }
-
 
 #IAM
 
@@ -167,5 +165,8 @@ variable "gke_name" {
 
 variable "gke_location" {
   description = "Location of GKE cluster"
-  default     = "us-central1-a"
+}
+
+variable "location" {
+  description = "Location of GKE cluster"
 }

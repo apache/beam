@@ -2124,7 +2124,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
         yield window.GlobalWindows.windowed_value('endOfBundle')
 
     with self.create_pipeline() as p:
-      p._options.view_as(DirectOptions).test_splits = {
+      p._options.view_as(DirectOptions).direct_test_splits = {
           'SplitMarker': {
               'timings': [0, .05], 'fractions': [0.5, 0.5]
           }

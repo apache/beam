@@ -301,7 +301,7 @@ describe("liquid sharding @ulr", function () {
       // that the bundle was indeed split and all expected elements made it
       // through.
       const runner = loopbackRunner({
-        testSplits: JSON.stringify({
+        directTestSplits: JSON.stringify({
           toSplit: {
             // Split 0.1, 0.15, etc. seconds into processing the bundle.
             timings: [0.1, 0.15, 0.2, 0.25],

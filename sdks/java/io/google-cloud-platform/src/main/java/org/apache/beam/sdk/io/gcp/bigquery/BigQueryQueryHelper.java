@@ -153,7 +153,7 @@ class BigQueryQueryHelper {
         Table destTable = tableService.getTable(queryResultTable);
         checkArgument(
             destTable == null,
-            "Refusing to write on existing table {} in the specified temp dataset {}",
+            "Refusing to write on existing table %s in the specified temp dataset %s",
             queryResultTable.getTableId(),
             queryResultTable.getDatasetId());
       }
